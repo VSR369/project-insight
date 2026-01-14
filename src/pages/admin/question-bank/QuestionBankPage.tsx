@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -56,6 +56,9 @@ export function QuestionBankPage() {
 
   // Bulk delete state
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
+
+  // Bulk restore state
+  const [bulkRestoreOpen, setBulkRestoreOpen] = React.useState(false);
 
   // Import state
   const [importOpen, setImportOpen] = React.useState(false);
@@ -565,13 +568,26 @@ export function QuestionBankPage() {
                         <Copy className="h-4 w-4 mr-2" />
                         Duplicate {selectedQuestions.length} Selected
                       </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => setBulkDeleteOpen(true)}
-                      >
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Deactivate {selectedQuestions.length} Selected
-                      </Button>
+                      {/* Show restore if any selected are inactive */}
+                      {selectedQuestions.some(q => !q.is_active) && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setBulkRestoreOpen(true)}
+                        >
+                          <RotateCcw className="h-4 w-4 mr-2" />
+                          Restore {selectedQuestions.filter(q => !q.is_active).length} Inactive
+                        </Button>
+                      )}
+                      {/* Show deactivate if any selected are active */}
+                      {selectedQuestions.some(q => q.is_active) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setBulkDeleteOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Deactivate {selectedQuestions.filter(q => q.is_active).length} Active
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -650,16 +666,33 @@ export function QuestionBankPage() {
       <DeleteConfirmDialog
         open={bulkDeleteOpen}
         onOpenChange={setBulkDeleteOpen}
-        title={`Deactivate ${selectedQuestions.length} Questions`}
-        itemName={`${selectedQuestions.length} selected questions`}
+        title={`Deactivate ${selectedQuestions.filter(q => q.is_active).length} Questions`}
+        itemName={`${selectedQuestions.filter(q => q.is_active).length} active questions`}
         onConfirm={async () => {
-          for (const question of selectedQuestions) {
+          const activeQuestions = selectedQuestions.filter(q => q.is_active);
+          for (const question of activeQuestions) {
             await deleteMutation.mutateAsync(question.id);
           }
           setSelectedQuestions([]);
         }}
         isLoading={deleteMutation.isPending}
         isSoftDelete
+      />
+
+      {/* Bulk Restore Dialog */}
+      <DeleteConfirmDialog
+        open={bulkRestoreOpen}
+        onOpenChange={setBulkRestoreOpen}
+        title={`Restore ${selectedQuestions.filter(q => !q.is_active).length} Questions`}
+        itemName={`${selectedQuestions.filter(q => !q.is_active).length} inactive questions`}
+        onConfirm={async () => {
+          const inactiveQuestions = selectedQuestions.filter(q => !q.is_active);
+          for (const question of inactiveQuestions) {
+            await restoreMutation.mutateAsync(question.id);
+          }
+          setSelectedQuestions([]);
+        }}
+        isLoading={restoreMutation.isPending}
       />
 
       {/* Import Dialog */}
