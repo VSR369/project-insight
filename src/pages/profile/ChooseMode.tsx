@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Briefcase, Building2, User, ArrowRight, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 const modeIcons: Record<string, typeof Briefcase> = {
   independent: Briefcase,
@@ -17,19 +19,43 @@ const modeIcons: Record<string, typeof Briefcase> = {
 
 export default function ChooseMode() {
   const navigate = useNavigate();
-  const { data: modes, isLoading } = useParticipationModes();
+  const { data: modes, isLoading: modesLoading } = useParticipationModes();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const updateMode = useUpdateProviderMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
 
-  const handleContinue = () => {
-    const selected = modes?.find(m => m.id === selectedMode);
-    if (selected?.requires_org_info) {
-      navigate('/profile/build/organization');
-    } else {
-      navigate('/profile/build/expertise');
+  // Pre-fill from existing data
+  useEffect(() => {
+    if (provider?.participation_mode_id) {
+      setSelectedMode(provider.participation_mode_id);
+    }
+  }, [provider?.participation_mode_id]);
+
+  const handleContinue = async () => {
+    if (!provider?.id) {
+      toast.error('Provider profile not found. Please try again.');
+      return;
+    }
+
+    try {
+      await updateMode.mutateAsync({
+        providerId: provider.id,
+        participationModeId: selectedMode,
+      });
+
+      const selected = modes?.find(m => m.id === selectedMode);
+      if (selected?.requires_org_info) {
+        navigate('/profile/build/organization');
+      } else {
+        navigate('/profile/build/expertise');
+      }
+    } catch (error) {
+      toast.error('Failed to save participation mode. Please try again.');
+      console.error('Error saving mode:', error);
     }
   };
 
-  if (isLoading) {
+  if (modesLoading || providerLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -122,11 +148,17 @@ export default function ChooseMode() {
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={!selectedMode}
+            disabled={!selectedMode || updateMode.isPending}
             className="gap-2 sm:ml-auto"
           >
-            Continue
-            <ArrowRight className="h-4 w-4" />
+            {updateMode.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>
