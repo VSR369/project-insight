@@ -42,6 +42,7 @@ const taxonomyItems = [
 
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
+  { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
   { title: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
