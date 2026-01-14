@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthGuard } from "@/components/auth/AuthGuard";
+import { AdminGuard } from "@/components/auth/AdminGuard";
 
 // Auth Pages
 import Login from "@/pages/Login";
@@ -32,6 +33,20 @@ import {
   KnowledgeCentrePage, 
   SettingsPage 
 } from "@/pages/PlaceholderPages";
+
+// Admin Pages
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+import {
+  CountriesPage,
+  IndustrySegmentsPage,
+  OrganizationTypesPage,
+  ParticipationModesPage,
+  ExpertiseLevelsPage,
+  AcademicTaxonomyPage,
+  ProficiencyTaxonomyPage,
+  QuestionBankPage,
+  AdminSettingsPage,
+} from "@/pages/admin/MasterDataPlaceholder";
 
 const queryClient = new QueryClient();
 
@@ -148,6 +163,88 @@ const App = () => (
                 <AuthGuard>
                   <SettingsPage />
                 </AuthGuard>
+              }
+            />
+
+            {/* Admin Routes */}
+            <Route
+              path="/admin"
+              element={
+                <AdminGuard>
+                  <AdminDashboard />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/countries"
+              element={
+                <AdminGuard>
+                  <CountriesPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/industry-segments"
+              element={
+                <AdminGuard>
+                  <IndustrySegmentsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/organization-types"
+              element={
+                <AdminGuard>
+                  <OrganizationTypesPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/participation-modes"
+              element={
+                <AdminGuard>
+                  <ParticipationModesPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/expertise-levels"
+              element={
+                <AdminGuard>
+                  <ExpertiseLevelsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/academic-taxonomy"
+              element={
+                <AdminGuard>
+                  <AcademicTaxonomyPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/master-data/proficiency-taxonomy"
+              element={
+                <AdminGuard>
+                  <ProficiencyTaxonomyPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/questions"
+              element={
+                <AdminGuard>
+                  <QuestionBankPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <AdminGuard>
+                  <AdminSettingsPage />
+                </AdminGuard>
               }
             />
 
