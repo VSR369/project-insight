@@ -1,4 +1,5 @@
 import * as React from "react";
+import * as XLSX from "xlsx";
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download } from "lucide-react";
 
 import {
@@ -42,9 +43,59 @@ interface QuestionImportDialogProps {
   specialityName: string;
 }
 
+interface RawQuestionData {
+  question_text: string;
+  options: string[];
+  correct_option: number;
+  difficulty_level: number | null;
+}
+
 const CSV_TEMPLATE = `question_text,option_1,option_2,option_3,option_4,correct_option,difficulty_level
 "What is the primary purpose of React hooks?","To add state to functional components","To create class components","To style components","To handle routing",1,3
 "Which hook is used for side effects in React?","useState","useEffect","useContext","useReducer",2,2`;
+
+const EXCEL_TEMPLATE_DATA = [
+  ["question_text", "option_1", "option_2", "option_3", "option_4", "correct_option", "difficulty_level"],
+  ["What is the primary purpose of React hooks?", "To add state to functional components", "To create class components", "To style components", "To handle routing", 1, 3],
+  ["Which hook is used for side effects in React?", "useState", "useEffect", "useContext", "useReducer", 2, 2],
+];
+
+// Shared validation logic for both CSV and Excel
+const validateQuestion = (data: RawQuestionData): string[] => {
+  const errors: string[] = [];
+
+  if (!data.question_text) {
+    errors.push("Question text is required");
+  } else if (data.question_text.length < 10) {
+    errors.push("Question must be at least 10 characters");
+  } else if (data.question_text.length > 2000) {
+    errors.push("Question must be 2000 characters or less");
+  }
+
+  if (data.options.length < 2) {
+    errors.push("At least 2 options are required");
+  } else if (data.options.length > 6) {
+    errors.push("Maximum 6 options allowed");
+  }
+
+  if (!data.correct_option || data.correct_option < 1) {
+    errors.push("Valid correct option (1-based) is required");
+  } else if (data.correct_option > data.options.length) {
+    errors.push(`Correct option ${data.correct_option} exceeds number of options (${data.options.length})`);
+  }
+
+  if (data.difficulty_level !== null && (data.difficulty_level < 1 || data.difficulty_level > 5)) {
+    errors.push("Difficulty level must be between 1 and 5");
+  }
+
+  return errors;
+};
+
+// Check if file has valid extension
+const isValidFileExtension = (filename: string): boolean => {
+  const ext = filename.toLowerCase();
+  return ext.endsWith(".csv") || ext.endsWith(".xlsx") || ext.endsWith(".xls");
+};
 
 export function QuestionImportDialog({
   open,
@@ -78,74 +129,6 @@ export function QuestionImportDialog({
     }
   }, [open]);
 
-  const parseCSV = (content: string): ParsedQuestion[] => {
-    const lines = content.split(/\r?\n/).filter((line) => line.trim());
-    if (lines.length < 2) {
-      throw new Error("CSV must have a header row and at least one data row");
-    }
-
-    // Skip header row
-    const dataLines = lines.slice(1);
-    const questions: ParsedQuestion[] = [];
-
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i];
-      const rowNumber = i + 2; // 1-indexed, accounting for header
-
-      // Parse CSV line (handling quoted values)
-      const values = parseCSVLine(line);
-      const errors: string[] = [];
-
-      // Extract values
-      const question_text = values[0]?.trim() || "";
-      const options = [
-        values[1]?.trim(),
-        values[2]?.trim(),
-        values[3]?.trim(),
-        values[4]?.trim(),
-      ].filter((opt): opt is string => !!opt);
-      const correct_option = parseInt(values[5] || "0", 10);
-      const difficulty_level = values[6] ? parseInt(values[6], 10) : null;
-
-      // Validate
-      if (!question_text) {
-        errors.push("Question text is required");
-      } else if (question_text.length < 10) {
-        errors.push("Question must be at least 10 characters");
-      } else if (question_text.length > 2000) {
-        errors.push("Question must be 2000 characters or less");
-      }
-
-      if (options.length < 2) {
-        errors.push("At least 2 options are required");
-      } else if (options.length > 6) {
-        errors.push("Maximum 6 options allowed");
-      }
-
-      if (!correct_option || correct_option < 1) {
-        errors.push("Valid correct option (1-based) is required");
-      } else if (correct_option > options.length) {
-        errors.push(`Correct option ${correct_option} exceeds number of options (${options.length})`);
-      }
-
-      if (difficulty_level !== null && (difficulty_level < 1 || difficulty_level > 5)) {
-        errors.push("Difficulty level must be between 1 and 5");
-      }
-
-      questions.push({
-        rowNumber,
-        question_text,
-        options,
-        correct_option,
-        difficulty_level,
-        isValid: errors.length === 0,
-        errors,
-      });
-    }
-
-    return questions;
-  };
-
   const parseCSVLine = (line: string): string[] => {
     const values: string[] = [];
     let current = "";
@@ -176,12 +159,128 @@ export function QuestionImportDialog({
     return values;
   };
 
+  const parseCSV = (content: string): ParsedQuestion[] => {
+    const lines = content.split(/\r?\n/).filter((line) => line.trim());
+    if (lines.length < 2) {
+      throw new Error("CSV must have a header row and at least one data row");
+    }
+
+    // Skip header row
+    const dataLines = lines.slice(1);
+    const questions: ParsedQuestion[] = [];
+
+    for (let i = 0; i < dataLines.length; i++) {
+      const line = dataLines[i];
+      const rowNumber = i + 2; // 1-indexed, accounting for header
+
+      // Parse CSV line (handling quoted values)
+      const values = parseCSVLine(line);
+
+      // Extract values
+      const question_text = values[0]?.trim() || "";
+      const options = [
+        values[1]?.trim(),
+        values[2]?.trim(),
+        values[3]?.trim(),
+        values[4]?.trim(),
+      ].filter((opt): opt is string => !!opt);
+      const correct_option = parseInt(values[5] || "0", 10);
+      const difficulty_level = values[6] ? parseInt(values[6], 10) : null;
+
+      // Validate using shared function
+      const errors = validateQuestion({
+        question_text,
+        options,
+        correct_option,
+        difficulty_level,
+      });
+
+      questions.push({
+        rowNumber,
+        question_text,
+        options,
+        correct_option,
+        difficulty_level,
+        isValid: errors.length === 0,
+        errors,
+      });
+    }
+
+    return questions;
+  };
+
+  const parseExcel = async (file: File): Promise<ParsedQuestion[]> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+
+    // Use the first sheet
+    const sheetName = workbook.SheetNames[0];
+    if (!sheetName) {
+      throw new Error("Excel file has no sheets");
+    }
+
+    const worksheet = workbook.Sheets[sheetName];
+
+    // Convert to array of arrays (with header)
+    const data: (string | number | null | undefined)[][] = XLSX.utils.sheet_to_json(worksheet, {
+      header: 1,
+      defval: "",
+    });
+
+    if (data.length < 2) {
+      throw new Error("Excel file must have a header row and at least one data row");
+    }
+
+    // Skip header row, parse data rows
+    const dataRows = data.slice(1);
+    const questions: ParsedQuestion[] = [];
+
+    for (let i = 0; i < dataRows.length; i++) {
+      const row = dataRows[i];
+      const rowNumber = i + 2; // Account for header
+
+      // Extract values
+      const question_text = String(row[0] || "").trim();
+      const options = [
+        String(row[1] || "").trim(),
+        String(row[2] || "").trim(),
+        String(row[3] || "").trim(),
+        String(row[4] || "").trim(),
+      ].filter(Boolean);
+      const correct_option = parseInt(String(row[5] || "0"), 10);
+      const difficulty_level = row[6] ? parseInt(String(row[6]), 10) : null;
+
+      // Validate using shared function
+      const errors = validateQuestion({
+        question_text,
+        options,
+        correct_option,
+        difficulty_level,
+      });
+
+      questions.push({
+        rowNumber,
+        question_text,
+        options,
+        correct_option,
+        difficulty_level,
+        isValid: errors.length === 0,
+        errors,
+      });
+    }
+
+    return questions;
+  };
+
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = event.target.files?.[0];
     if (!selectedFile) return;
 
-    if (!selectedFile.name.endsWith(".csv")) {
-      setParseError("Please upload a CSV file");
+    const filename = selectedFile.name.toLowerCase();
+
+    // Validate file extension
+    if (!isValidFileExtension(filename)) {
+      setParseError("Please upload a CSV or Excel (.xlsx, .xls) file");
       return;
     }
 
@@ -195,11 +294,19 @@ export function QuestionImportDialog({
     setImportResults(null);
 
     try {
-      const content = await selectedFile.text();
-      const questions = parseCSV(content);
+      let questions: ParsedQuestion[];
+
+      if (filename.endsWith(".csv")) {
+        const content = await selectedFile.text();
+        questions = parseCSV(content);
+      } else {
+        // Excel file (.xlsx or .xls)
+        questions = await parseExcel(selectedFile);
+      }
+
       setParsedQuestions(questions);
     } catch (error) {
-      setParseError(error instanceof Error ? error.message : "Failed to parse CSV");
+      setParseError(error instanceof Error ? error.message : "Failed to parse file");
       setParsedQuestions([]);
     }
   };
@@ -263,7 +370,7 @@ export function QuestionImportDialog({
     setIsImporting(false);
   };
 
-  const downloadTemplate = () => {
+  const downloadCSVTemplate = () => {
     const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -271,6 +378,26 @@ export function QuestionImportDialog({
     a.download = "question_import_template.csv";
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const downloadExcelTemplate = () => {
+    const worksheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
+
+    // Set column widths for better UX
+    worksheet["!cols"] = [
+      { wch: 50 }, // question_text
+      { wch: 35 }, // option_1
+      { wch: 35 }, // option_2
+      { wch: 35 }, // option_3
+      { wch: 35 }, // option_4
+      { wch: 15 }, // correct_option
+      { wch: 15 }, // difficulty_level
+    ];
+
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
+
+    XLSX.writeFile(workbook, "question_import_template.xlsx");
   };
 
   const validCount = parsedQuestions.filter((q) => q.isValid).length;
@@ -282,10 +409,10 @@ export function QuestionImportDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
-            Import Questions from CSV
+            Import Questions
           </DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk import questions into{" "}
+            Upload a CSV or Excel file to bulk import questions into{" "}
             <strong>{specialityName}</strong>
           </DialogDescription>
         </DialogHeader>
@@ -294,15 +421,21 @@ export function QuestionImportDialog({
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="text-sm">
-              <p className="font-medium">CSV Format</p>
+              <p className="font-medium">Supported Formats: CSV, Excel (.xlsx, .xls)</p>
               <p className="text-muted-foreground">
                 question_text, option_1, option_2, option_3, option_4, correct_option, difficulty_level
               </p>
             </div>
-            <Button variant="outline" size="sm" onClick={downloadTemplate}>
-              <Download className="h-4 w-4 mr-1" />
-              Template
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={downloadCSVTemplate}>
+                <Download className="h-4 w-4 mr-1" />
+                CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadExcelTemplate}>
+                <Download className="h-4 w-4 mr-1" />
+                Excel
+              </Button>
+            </div>
           </div>
 
           {/* File Upload */}
@@ -315,15 +448,15 @@ export function QuestionImportDialog({
             >
               <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
               <p className="text-sm font-medium">
-                Drop your CSV file here or click to browse
+                Drop your CSV or Excel file here or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Maximum file size: 5MB
+                Supports .csv, .xlsx, .xls (max 5MB)
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv"
+                accept=".csv,.xlsx,.xls"
                 className="hidden"
                 onChange={handleFileChange}
               />
