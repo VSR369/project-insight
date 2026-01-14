@@ -1,6 +1,7 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
+import html2pdf from "html2pdf.js";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -328,6 +329,101 @@ export function QuestionBankPage() {
     link.click();
     
     URL.revokeObjectURL(url);
+  };
+
+  // ===================== EXPORT PDF =====================
+  const pdfContentRef = React.useRef<HTMLDivElement>(null);
+  
+  const handleExportPDF = async () => {
+    if (filteredQuestions.length === 0) return;
+    
+    const safeName = (selectedSpeciality?.name || "questions").replace(/[^a-z0-9]/gi, "_");
+    const filename = `question_bank_${safeName}_${new Date().toISOString().split("T")[0]}.pdf`;
+    
+    // Create a temporary container for PDF generation
+    const container = document.createElement("div");
+    container.style.position = "absolute";
+    container.style.left = "-9999px";
+    container.style.width = "210mm"; // A4 width
+    container.style.padding = "20px";
+    container.style.background = "white";
+    container.style.fontFamily = "Arial, sans-serif";
+    
+    const diffLabels = ["", "Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
+    
+    container.innerHTML = `
+      <div style="margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid #000;">
+        <h1 style="font-size: 24px; font-weight: bold; margin: 0;">Question Bank Report</h1>
+        <p style="font-size: 14px; color: #666; margin-top: 4px;">
+          ${selectedSegment?.name || ""} → ${selectedArea?.name || ""} → ${selectedSubDomain?.name || ""} → ${selectedSpeciality?.name || ""}
+        </p>
+        <p style="font-size: 12px; color: #888; margin-top: 4px;">Generated on ${new Date().toLocaleString()}</p>
+      </div>
+      
+      <div style="margin-bottom: 24px; padding: 16px; border: 1px solid #ddd; border-radius: 4px;">
+        <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">Statistics Summary</h2>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; font-size: 14px;">
+          <div><strong>Total:</strong> ${questions.length}</div>
+          <div><strong style="color: #15803d;">Active:</strong> ${questions.filter(q => q.is_active).length}</div>
+          <div><strong style="color: #b91c1c;">Inactive:</strong> ${questions.filter(q => !q.is_active).length}</div>
+          <div><strong>Filtered:</strong> ${filteredQuestions.length}</div>
+        </div>
+        <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
+          <strong style="font-size: 14px;">By Difficulty:</strong>
+          <div style="display: flex; gap: 16px; margin-top: 4px; font-size: 12px;">
+            <span>Very Easy: ${questions.filter(q => q.difficulty_level === 1).length}</span>
+            <span>Easy: ${questions.filter(q => q.difficulty_level === 2).length}</span>
+            <span>Medium: ${questions.filter(q => q.difficulty_level === 3).length}</span>
+            <span>Hard: ${questions.filter(q => q.difficulty_level === 4).length}</span>
+            <span>Very Hard: ${questions.filter(q => q.difficulty_level === 5).length}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div>
+        <h2 style="font-size: 18px; font-weight: 600; margin: 0 0 12px 0;">Questions (${filteredQuestions.length})</h2>
+        <ol style="margin: 0; padding: 0; list-style: none;">
+          ${filteredQuestions.map((q, idx) => {
+            const options = parseQuestionOptions(q.options);
+            return `
+              <li style="padding: 12px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 8px; font-size: 13px; page-break-inside: avoid;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                  <strong>${idx + 1}. ${q.question_text}</strong>
+                  <div style="font-size: 11px; margin-left: 16px; white-space: nowrap;">
+                    <span style="color: ${q.is_active ? '#15803d' : '#b91c1c'};">${q.is_active ? 'Active' : 'Inactive'}</span>
+                    ${q.difficulty_level ? `<span style="color: #666; margin-left: 8px;">${diffLabels[q.difficulty_level]}</span>` : ''}
+                  </div>
+                </div>
+                <div style="margin-left: 16px;">
+                  ${options.map((opt) => `
+                    <div style="${opt.index === q.correct_option ? 'font-weight: bold; color: #166534;' : ''}">
+                      ${String.fromCharCode(64 + opt.index)}. ${opt.text}${opt.index === q.correct_option ? ' ✓' : ''}
+                    </div>
+                  `).join('')}
+                </div>
+              </li>
+            `;
+          }).join('')}
+        </ol>
+      </div>
+    `;
+    
+    document.body.appendChild(container);
+    
+    try {
+      const opt = {
+        margin: [15, 10, 20, 10], // top, left, bottom, right in mm
+        filename,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        pagebreak: { mode: ["avoid-all", "css", "legacy"] },
+      };
+      
+      await html2pdf().set(opt).from(container).save();
+    } finally {
+      document.body.removeChild(container);
+    }
   };
 
   const breadcrumbs = [
@@ -885,6 +981,15 @@ export function QuestionBankPage() {
                   >
                     <Printer className="h-4 w-4 mr-2" />
                     Print
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleExportPDF}
+                    disabled={filteredQuestions.length === 0}
+                    className="print:hidden"
+                  >
+                    <FileDown className="h-4 w-4 mr-2" />
+                    Export PDF
                   </Button>
                   <Button
                     variant="outline"
