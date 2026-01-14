@@ -37,6 +37,7 @@ import { QuestionForm } from "./QuestionForm";
 import { QuestionImportDialog } from "./QuestionImportDialog";
 import { QuestionDuplicateDialog } from "./QuestionDuplicateDialog";
 import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
+import { QuestionBulkPreviewDialog } from "./QuestionBulkPreviewDialog";
 
 // ===================== MAIN COMPONENT =====================
 
@@ -74,6 +75,9 @@ export function QuestionBankPage() {
   // Preview state
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [previewingQuestion, setPreviewingQuestion] = React.useState<Question | null>(null);
+
+  // Bulk preview state
+  const [bulkPreviewOpen, setBulkPreviewOpen] = React.useState(false);
 
   // Selection state
   const [selectedQuestions, setSelectedQuestions] = React.useState<Question[]>([]);
@@ -953,6 +957,13 @@ export function QuestionBankPage() {
                   {selectedQuestions.length > 0 && (
                     <>
                       <Button
+                        variant="outline"
+                        onClick={() => setBulkPreviewOpen(true)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        Preview {selectedQuestions.length} Selected
+                      </Button>
+                      <Button
                         variant="secondary"
                         onClick={() => {
                           setDuplicatingQuestions(selectedQuestions);
@@ -1228,6 +1239,14 @@ export function QuestionBankPage() {
           setDuplicatingQuestions([question]);
           setDuplicateOpen(true);
         }}
+      />
+
+      {/* Bulk Preview Dialog */}
+      <QuestionBulkPreviewDialog
+        open={bulkPreviewOpen}
+        onOpenChange={setBulkPreviewOpen}
+        questions={selectedQuestions}
+        specialityName={selectedSpeciality?.name}
       />
     </AdminLayout>
   );
