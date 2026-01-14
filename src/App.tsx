@@ -6,13 +6,32 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 
-// Pages
+// Auth Pages
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
+
+// Main Pages
 import Dashboard from "@/pages/Dashboard";
+import Welcome from "@/pages/Welcome";
 import NotFound from "@/pages/NotFound";
+
+// Profile Building Pages
+import ChooseMode from "@/pages/profile/ChooseMode";
+import Organization from "@/pages/profile/Organization";
+import ExpertiseLevel from "@/pages/profile/ExpertiseLevel";
+import Proficiency from "@/pages/profile/Proficiency";
+import ProofPoints from "@/pages/profile/ProofPoints";
+
+// Placeholder Pages
+import { 
+  ProfilePage, 
+  InvitationsPage, 
+  AssessmentPage, 
+  KnowledgeCentrePage, 
+  SettingsPage 
+} from "@/pages/PlaceholderPages";
 
 const queryClient = new QueryClient();
 
@@ -39,8 +58,100 @@ const App = () => (
                 </AuthGuard>
               }
             />
+            <Route
+              path="/welcome"
+              element={
+                <AuthGuard>
+                  <Welcome />
+                </AuthGuard>
+              }
+            />
 
-            {/* Redirect root to dashboard (will redirect to login if not authenticated) */}
+            {/* Profile Building Wizard */}
+            <Route
+              path="/profile/build/choose-mode"
+              element={
+                <AuthGuard>
+                  <ChooseMode />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/profile/build/organization"
+              element={
+                <AuthGuard>
+                  <Organization />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/profile/build/expertise"
+              element={
+                <AuthGuard>
+                  <ExpertiseLevel />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/profile/build/proficiency"
+              element={
+                <AuthGuard>
+                  <Proficiency />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/profile/build/proof-points"
+              element={
+                <AuthGuard>
+                  <ProofPoints />
+                </AuthGuard>
+              }
+            />
+
+            {/* Other Protected Pages */}
+            <Route
+              path="/profile"
+              element={
+                <AuthGuard>
+                  <ProfilePage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/invitations"
+              element={
+                <AuthGuard>
+                  <InvitationsPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/assessment"
+              element={
+                <AuthGuard>
+                  <AssessmentPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/knowledge-centre"
+              element={
+                <AuthGuard>
+                  <KnowledgeCentrePage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <AuthGuard>
+                  <SettingsPage />
+                </AuthGuard>
+              }
+            />
+
+            {/* Redirect root to dashboard */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
             {/* 404 */}
