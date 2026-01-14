@@ -103,3 +103,52 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+/* Print styles for question bank */
+@media print {
+  /* Hide navigation and non-essential elements */
+  nav,
+  header,
+  aside,
+  footer,
+  .print\\:hidden,
+  [data-sidebar],
+  [role="navigation"],
+  button,
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print content */
+  .print-content {
+    display: block !important;
+  }
+
+  /* Reset page layout */
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Ensure proper page breaks */
+  .break-inside-avoid {
+    break-inside: avoid;
+  }
+
+  /* Page margins */
+  @page {
+    margin: 1.5cm;
+    size: A4;
+  }
+
+  /* Make main content full width */
+  main,
+  .main-content {
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+}

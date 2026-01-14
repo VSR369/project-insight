@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { AdminLayout } from "@/components/admin";
@@ -879,6 +879,15 @@ export function QuestionBankPage() {
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
+                    onClick={() => window.print()}
+                    disabled={questions.length === 0}
+                    className="print:hidden"
+                  >
+                    <Printer className="h-4 w-4 mr-2" />
+                    Print
+                  </Button>
+                  <Button
+                    variant="outline"
                     onClick={handleExportCSV}
                     disabled={questions.length === 0}
                   >
@@ -892,6 +901,84 @@ export function QuestionBankPage() {
                     <Upload className="h-4 w-4 mr-2" />
                     Import CSV
                   </Button>
+                </div>
+              </div>
+
+              {/* Print-friendly content (hidden on screen, shown when printing) */}
+              <div className="hidden print:block print-content">
+                <div className="mb-6 pb-4 border-b-2 border-black">
+                  <h1 className="text-2xl font-bold">Question Bank Report</h1>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {selectedSegment?.name} → {selectedArea?.name} → {selectedSubDomain?.name} → {selectedSpeciality?.name}
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">Generated on {new Date().toLocaleDateString()}</p>
+                </div>
+
+                {/* Print Statistics */}
+                <div className="mb-6 p-4 border rounded">
+                  <h2 className="text-lg font-semibold mb-3">Statistics Summary</h2>
+                  <div className="grid grid-cols-4 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Total:</span> {questions.length}
+                    </div>
+                    <div>
+                      <span className="font-medium text-green-700">Active:</span> {questions.filter(q => q.is_active).length}
+                    </div>
+                    <div>
+                      <span className="font-medium text-red-700">Inactive:</span> {questions.filter(q => !q.is_active).length}
+                    </div>
+                    <div>
+                      <span className="font-medium">Filtered:</span> {filteredQuestions.length}
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t">
+                    <span className="font-medium text-sm">By Difficulty:</span>
+                    <div className="flex gap-4 mt-1 text-xs">
+                      <span>Very Easy: {questions.filter(q => q.difficulty_level === 1).length}</span>
+                      <span>Easy: {questions.filter(q => q.difficulty_level === 2).length}</span>
+                      <span>Medium: {questions.filter(q => q.difficulty_level === 3).length}</span>
+                      <span>Hard: {questions.filter(q => q.difficulty_level === 4).length}</span>
+                      <span>Very Hard: {questions.filter(q => q.difficulty_level === 5).length}</span>
+                      <span>Not Set: {questions.filter(q => q.difficulty_level === null).length}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Print Questions List */}
+                <div>
+                  <h2 className="text-lg font-semibold mb-3">Questions ({filteredQuestions.length})</h2>
+                  <ol className="space-y-4">
+                    {filteredQuestions.map((q, idx) => {
+                      const options = parseQuestionOptions(q.options);
+                      const diffLabels = ["", "Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
+                      return (
+                        <li key={q.id} className="p-3 border rounded text-sm break-inside-avoid">
+                          <div className="flex justify-between items-start mb-2">
+                            <span className="font-semibold">{idx + 1}. {q.question_text}</span>
+                            <div className="flex gap-2 text-xs ml-4 shrink-0">
+                              <span className={q.is_active ? "text-green-700" : "text-red-700"}>
+                                {q.is_active ? "Active" : "Inactive"}
+                              </span>
+                              {q.difficulty_level && (
+                                <span className="text-gray-600">{diffLabels[q.difficulty_level]}</span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="ml-4 space-y-1">
+                            {options.map((opt) => (
+                              <div 
+                                key={opt.index} 
+                                className={`${opt.index === q.correct_option ? "font-semibold text-green-800" : ""}`}
+                              >
+                                {String.fromCharCode(64 + opt.index)}. {opt.text}
+                                {opt.index === q.correct_option && " ✓"}
+                              </div>
+                            ))}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ol>
                 </div>
               </div>
               <DataTable
