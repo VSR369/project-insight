@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -237,6 +237,38 @@ export function QuestionBankPage() {
   const selectedSubDomain = subDomains.find((sd) => sd.id === selectedSubDomainId);
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
 
+  // ===================== EXPORT CSV =====================
+  const handleExportCSV = () => {
+    if (questions.length === 0) return;
+
+    const headers = ["question_text", "options", "correct_option", "difficulty_level", "is_active"];
+    
+    const rows = questions.map((q) => {
+      const options = parseQuestionOptions(q.options);
+      const optionsText = options.map((opt) => opt.text).join("|");
+      
+      return [
+        `"${(q.question_text || "").replace(/"/g, '""')}"`,
+        `"${optionsText.replace(/"/g, '""')}"`,
+        q.correct_option,
+        q.difficulty_level ?? "",
+        q.is_active ? "true" : "false",
+      ].join(",");
+    });
+
+    const csvContent = [headers.join(","), ...rows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement("a");
+    link.href = url;
+    const safeName = (selectedSpeciality?.name || "questions").replace(/[^a-z0-9]/gi, "_");
+    link.download = `questions_${safeName}_${new Date().toISOString().split("T")[0]}.csv`;
+    link.click();
+    
+    URL.revokeObjectURL(url);
+  };
+
   const breadcrumbs = [
     { label: "Admin", href: "/admin" },
     { label: "Question Bank" },
@@ -415,6 +447,14 @@ export function QuestionBankPage() {
           {selectedSpecialityId ? (
             <>
               <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleExportCSV}
+                  disabled={questions.length === 0}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  Export CSV
+                </Button>
                 <Button
                   variant="outline"
                   onClick={() => setImportOpen(true)}
