@@ -496,7 +496,7 @@ export function QuestionBankPage() {
           {selectedSpecialityId ? (
             <>
               {/* Statistics Dashboard */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 {/* Left: Summary Stats */}
                 <div className="space-y-3">
                   {/* Total */}
@@ -504,7 +504,7 @@ export function QuestionBankPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <BarChart3 className="h-5 w-5 text-primary" />
-                        <span className="text-sm font-medium text-muted-foreground">Total Questions</span>
+                        <span className="text-sm font-medium text-muted-foreground">Total</span>
                       </div>
                       <p className="text-3xl font-bold text-primary">{questions.length}</p>
                     </div>
@@ -548,11 +548,60 @@ export function QuestionBankPage() {
                   </div>
                 </div>
 
-                {/* Center: Pie Chart */}
+                {/* Status Pie Chart */}
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Status Distribution</h4>
+                  {questions.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Active", value: questions.filter(q => q.is_active).length, color: "#22c55e" },
+                            { name: "Inactive", value: questions.filter(q => !q.is_active).length, color: "#ef4444" },
+                          ].filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={60}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: "Active", value: questions.filter(q => q.is_active).length, color: "#22c55e" },
+                            { name: "Inactive", value: questions.filter(q => !q.is_active).length, color: "#ef4444" },
+                          ].filter(d => d.value > 0).map((entry, index) => (
+                            <Cell key={`status-cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => [`${value} questions`, ""]}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "6px"
+                          }}
+                        />
+                        <Legend 
+                          layout="horizontal" 
+                          align="center" 
+                          verticalAlign="bottom"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
+                      No data
+                    </div>
+                  )}
+                </div>
+
+                {/* Difficulty Pie Chart */}
                 <div className="p-4 bg-muted/30 rounded-lg border">
                   <h4 className="text-sm font-medium text-muted-foreground mb-2">Difficulty Distribution</h4>
                   {questions.length > 0 ? (
-                    <ResponsiveContainer width="100%" height={180}>
+                    <ResponsiveContainer width="100%" height={160}>
                       <PieChart>
                         <Pie
                           data={[
@@ -565,8 +614,8 @@ export function QuestionBankPage() {
                           ].filter(d => d.value > 0)}
                           cx="50%"
                           cy="50%"
-                          innerRadius={40}
-                          outerRadius={70}
+                          innerRadius={35}
+                          outerRadius={60}
                           paddingAngle={2}
                           dataKey="value"
                         >
@@ -578,7 +627,7 @@ export function QuestionBankPage() {
                             { name: "Very Hard", value: questions.filter(q => q.difficulty_level === 5).length, color: "#ef4444" },
                             { name: "Not Set", value: questions.filter(q => q.difficulty_level === null).length, color: "#94a3b8" },
                           ].filter(d => d.value > 0).map((entry, index) => (
-                            <Cell key={`cell-${index}`} fill={entry.color} />
+                            <Cell key={`diff-cell-${index}`} fill={entry.color} />
                           ))}
                         </Pie>
                         <Tooltip 
@@ -589,18 +638,11 @@ export function QuestionBankPage() {
                             borderRadius: "6px"
                           }}
                         />
-                        <Legend 
-                          layout="vertical" 
-                          align="right" 
-                          verticalAlign="middle"
-                          iconSize={8}
-                          wrapperStyle={{ fontSize: "11px" }}
-                        />
                       </PieChart>
                     </ResponsiveContainer>
                   ) : (
-                    <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
-                      No questions to display
+                    <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
+                      No data
                     </div>
                   )}
                 </div>
