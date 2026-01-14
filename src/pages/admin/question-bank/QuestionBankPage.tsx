@@ -76,8 +76,16 @@ export function QuestionBankPage() {
   const [difficultyFilter, setDifficultyFilter] = React.useState<string>("all");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
 
-  // Stats dashboard collapsed state
-  const [statsOpen, setStatsOpen] = React.useState(true);
+  // Stats dashboard collapsed state (persisted in localStorage)
+  const [statsOpen, setStatsOpen] = React.useState(() => {
+    const stored = localStorage.getItem("questionBank.statsOpen");
+    return stored !== null ? stored === "true" : true;
+  });
+
+  // Persist stats open state
+  React.useEffect(() => {
+    localStorage.setItem("questionBank.statsOpen", String(statsOpen));
+  }, [statsOpen]);
 
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
