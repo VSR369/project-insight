@@ -36,8 +36,8 @@ import {
 
 // Admin Pages
 import AdminDashboard from "@/pages/admin/AdminDashboard";
+import { CountriesPage } from "@/pages/admin/countries";
 import {
-  CountriesPage,
   IndustrySegmentsPage,
   OrganizationTypesPage,
   ParticipationModesPage,
