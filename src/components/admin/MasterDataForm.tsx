@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useForm, FieldValues, DefaultValues, Path } from "react-hook-form";
+import { useForm, FieldValues, DefaultValues, Path, ControllerRenderProps } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Loader2 } from "lucide-react";
@@ -102,8 +102,79 @@ export function MasterDataForm<TData extends FieldValues>({
     }
   };
 
+  const renderFieldInput = (
+    fieldConfig: FormFieldConfig<TData>,
+    field: ControllerRenderProps<TData, Path<TData>>
+  ) => {
+    const { type, placeholder, disabled, options, min, max } = fieldConfig;
+
+    switch (type) {
+      case "text":
+        return (
+          <Input
+            {...field}
+            placeholder={placeholder}
+            disabled={disabled || isLoading}
+            value={(field.value as string) ?? ""}
+          />
+        );
+      case "number":
+        return (
+          <Input
+            {...field}
+            type="number"
+            placeholder={placeholder}
+            disabled={disabled || isLoading}
+            min={min}
+            max={max}
+            value={(field.value as number) ?? ""}
+            onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
+          />
+        );
+      case "textarea":
+        return (
+          <Textarea
+            {...field}
+            placeholder={placeholder}
+            disabled={disabled || isLoading}
+            value={(field.value as string) ?? ""}
+            rows={3}
+          />
+        );
+      case "switch":
+        return (
+          <Switch
+            checked={(field.value as boolean) ?? false}
+            onCheckedChange={field.onChange}
+            disabled={disabled || isLoading}
+          />
+        );
+      case "select":
+        return (
+          <Select
+            value={(field.value as string) ?? ""}
+            onValueChange={field.onChange}
+            disabled={disabled || isLoading}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder={placeholder || "Select..."} />
+            </SelectTrigger>
+            <SelectContent>
+              {options?.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      default:
+        return null;
+    }
+  };
+
   const renderField = (fieldConfig: FormFieldConfig<TData>) => {
-    const { name, label, type, placeholder, description, disabled, options, min, max } = fieldConfig;
+    const { name, label, type, description } = fieldConfig;
 
     return (
       <FormField
@@ -117,60 +188,7 @@ export function MasterDataForm<TData extends FieldValues>({
               {description && <FormDescription>{description}</FormDescription>}
             </div>
             <FormControl>
-              {type === "text" && (
-                <Input
-                  {...field}
-                  placeholder={placeholder}
-                  disabled={disabled || isLoading}
-                  value={field.value ?? ""}
-                />
-              )}
-              {type === "number" && (
-                <Input
-                  {...field}
-                  type="number"
-                  placeholder={placeholder}
-                  disabled={disabled || isLoading}
-                  min={min}
-                  max={max}
-                  value={field.value ?? ""}
-                  onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : null)}
-                />
-              )}
-              {type === "textarea" && (
-                <Textarea
-                  {...field}
-                  placeholder={placeholder}
-                  disabled={disabled || isLoading}
-                  value={field.value ?? ""}
-                  rows={3}
-                />
-              )}
-              {type === "switch" && (
-                <Switch
-                  checked={field.value ?? false}
-                  onCheckedChange={field.onChange}
-                  disabled={disabled || isLoading}
-                />
-              )}
-              {type === "select" && options && (
-                <Select
-                  value={field.value ?? ""}
-                  onValueChange={field.onChange}
-                  disabled={disabled || isLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={placeholder || "Select..."} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
+              {renderFieldInput(fieldConfig, field)}
             </FormControl>
             {type !== "switch" && <FormMessage />}
           </FormItem>
