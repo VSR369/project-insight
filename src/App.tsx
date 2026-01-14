@@ -28,7 +28,7 @@ import ProofPoints from "@/pages/profile/ProofPoints";
 // Placeholder Pages
 import { 
   ProfilePage, 
-  InvitationsPage, 
+  InvitationsPage as UserInvitationsPage, 
   AssessmentPage, 
   KnowledgeCentrePage, 
   SettingsPage 
@@ -45,6 +45,7 @@ import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
 import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
 import { QuestionBankPage } from "@/pages/admin/question-bank";
 import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
+import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 
 const queryClient = new QueryClient();
@@ -136,7 +137,7 @@ const App = () => (
               path="/invitations"
               element={
                 <AuthGuard>
-                  <InvitationsPage />
+                  <UserInvitationsPage />
                 </AuthGuard>
               }
             />
@@ -243,6 +244,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <LevelSpecialityMapPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/invitations"
+              element={
+                <AdminGuard>
+                  <InvitationsPage />
                 </AdminGuard>
               }
             />
