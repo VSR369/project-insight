@@ -43,10 +43,8 @@ import { ParticipationModesPage } from "@/pages/admin/participation-modes";
 import { ExpertiseLevelsPage } from "@/pages/admin/expertise-levels";
 import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
 import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
-import {
-  QuestionBankPage,
-  AdminSettingsPage,
-} from "@/pages/admin/MasterDataPlaceholder";
+import { QuestionBankPage } from "@/pages/admin/question-bank";
+import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 
 const queryClient = new QueryClient();
 
