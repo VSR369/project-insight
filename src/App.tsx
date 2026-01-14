@@ -47,6 +47,7 @@ import { QuestionBankPage } from "@/pages/admin/question-bank";
 import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
 import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
+import SmokeTestPage from "@/pages/admin/SmokeTestPage";
 
 const queryClient = new QueryClient();
 
@@ -252,6 +253,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <InvitationsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/smoke-test"
+              element={
+                <AdminGuard>
+                  <SmokeTestPage />
                 </AdminGuard>
               }
             />
