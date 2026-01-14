@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, User, ChevronDown, Shield } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Bell, LogOut, User, ChevronDown, Shield, ArrowLeftRight, LayoutDashboard, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -14,17 +14,20 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
   const { isAdmin, isLoading: rolesLoading } = useUserRoles();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const firstName = user?.user_metadata?.first_name || 'User';
   const lastName = user?.user_metadata?.last_name || '';
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
   
+  const isInAdminArea = location.pathname.startsWith('/admin');
   const roleName = isAdmin ? 'Platform Admin' : 'Solution Provider';
   const roleColor = isAdmin ? 'text-destructive' : 'text-primary';
 
@@ -32,6 +35,16 @@ export function AppHeader() {
     await signOut();
     toast.success('Signed out successfully');
     navigate('/login');
+  };
+
+  const handleViewSwitch = () => {
+    if (isInAdminArea) {
+      navigate('/dashboard');
+      toast.info('Switched to Provider View');
+    } else {
+      navigate('/admin');
+      toast.info('Switched to Admin View');
+    }
   };
 
   return (
@@ -44,6 +57,36 @@ export function AppHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* View Switcher - Admin Only */}
+        {isAdmin && !rolesLoading && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button 
+                variant={isInAdminArea ? 'outline' : 'default'}
+                size="sm"
+                onClick={handleViewSwitch}
+                className="gap-2"
+              >
+                {isInAdminArea ? (
+                  <>
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span className="hidden sm:inline">Provider View</span>
+                  </>
+                ) : (
+                  <>
+                    <Shield className="h-4 w-4" />
+                    <span className="hidden sm:inline">Admin View</span>
+                  </>
+                )}
+                <ArrowLeftRight className="h-3 w-3 opacity-50" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>
+              {isInAdminArea ? 'Switch to Provider Dashboard' : 'Switch to Admin Dashboard'}
+            </TooltipContent>
+          </Tooltip>
+        )}
+
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">
           <Bell className="h-5 w-5" />
@@ -92,9 +135,18 @@ export function AppHeader() {
               My Profile
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/settings')}>
-              <User className="mr-2 h-4 w-4" />
+              <Settings className="mr-2 h-4 w-4" />
               Settings
             </DropdownMenuItem>
+            {isAdmin && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleViewSwitch}>
+                  <ArrowLeftRight className="mr-2 h-4 w-4" />
+                  {isInAdminArea ? 'Switch to Provider View' : 'Switch to Admin View'}
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
               <LogOut className="mr-2 h-4 w-4" />
