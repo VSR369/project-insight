@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function IndustrySegmentsPage() {
-  return <MasterDataPlaceholder title="Industry Segments" description="Define industry sectors for solution providers" />;
-}
-
 export function OrganizationTypesPage() {
   return <MasterDataPlaceholder title="Organization Types" description="Configure organization categories" />;
 }
