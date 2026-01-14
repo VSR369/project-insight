@@ -1,5 +1,6 @@
 import * as React from "react";
 import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle } from "lucide-react";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -495,100 +496,157 @@ export function QuestionBankPage() {
           {selectedSpecialityId ? (
             <>
               {/* Statistics Dashboard */}
-              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
-                {/* Total */}
-                <div className="col-span-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <BarChart3 className="h-4 w-4 text-primary" />
-                    <span className="text-xs font-medium text-muted-foreground">Total</span>
-                  </div>
-                  <p className="text-2xl font-bold text-primary mt-1">{questions.length}</p>
-                </div>
-
-                {/* Active */}
-                <div 
-                  className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
-                  onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
-                >
-                  <div className="flex items-center gap-1">
-                    <CheckCircle className="h-3 w-3 text-green-600" />
-                    <span className="text-xs font-medium text-green-700 dark:text-green-400">Active</span>
-                  </div>
-                  <p className="text-xl font-bold text-green-700 dark:text-green-400 mt-1">
-                    {questions.filter(q => q.is_active).length}
-                  </p>
-                </div>
-
-                {/* Inactive */}
-                <div 
-                  className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
-                  onClick={() => setStatusFilter(statusFilter === "inactive" ? "all" : "inactive")}
-                >
-                  <div className="flex items-center gap-1">
-                    <XCircle className="h-3 w-3 text-red-600" />
-                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Inactive</span>
-                  </div>
-                  <p className="text-xl font-bold text-red-700 dark:text-red-400 mt-1">
-                    {questions.filter(q => !q.is_active).length}
-                  </p>
-                </div>
-
-                {/* Difficulty Levels */}
-                {[
-                  { level: 1, label: "Very Easy", color: "green" },
-                  { level: 2, label: "Easy", color: "lime" },
-                  { level: 3, label: "Medium", color: "yellow" },
-                  { level: 4, label: "Hard", color: "orange" },
-                ].map(({ level, label, color }) => {
-                  const count = questions.filter(q => q.difficulty_level === level).length;
-                  const isSelected = difficultyFilter === String(level);
-                  return (
-                    <div
-                      key={level}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                        isSelected 
-                          ? "bg-primary/10 border-primary" 
-                          : "bg-muted/30 border-transparent hover:bg-muted/50"
-                      }`}
-                      onClick={() => setDifficultyFilter(isSelected ? "all" : String(level))}
-                    >
-                      <span className="text-xs font-medium text-muted-foreground line-clamp-1">{label}</span>
-                      <p className="text-xl font-bold mt-1">{count}</p>
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Left: Summary Stats */}
+                <div className="space-y-3">
+                  {/* Total */}
+                  <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <BarChart3 className="h-5 w-5 text-primary" />
+                        <span className="text-sm font-medium text-muted-foreground">Total Questions</span>
+                      </div>
+                      <p className="text-3xl font-bold text-primary">{questions.length}</p>
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
 
-              {/* Second row for remaining difficulty stats */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                {/* Very Hard */}
-                <div
-                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                    difficultyFilter === "5" 
-                      ? "bg-primary/10 border-primary" 
-                      : "bg-muted/30 border-transparent hover:bg-muted/50"
-                  }`}
-                  onClick={() => setDifficultyFilter(difficultyFilter === "5" ? "all" : "5")}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">Very Hard</span>
-                  <p className="text-xl font-bold mt-1">
-                    {questions.filter(q => q.difficulty_level === 5).length}
-                  </p>
+                  {/* Status Row */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div 
+                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                        statusFilter === "active" 
+                          ? "bg-green-100 dark:bg-green-900/50 border-green-500" 
+                          : "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800 hover:bg-green-100 dark:hover:bg-green-950/50"
+                      }`}
+                      onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
+                    >
+                      <div className="flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3 text-green-600" />
+                        <span className="text-xs font-medium text-green-700 dark:text-green-400">Active</span>
+                      </div>
+                      <p className="text-xl font-bold text-green-700 dark:text-green-400 mt-1">
+                        {questions.filter(q => q.is_active).length}
+                      </p>
+                    </div>
+
+                    <div 
+                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                        statusFilter === "inactive" 
+                          ? "bg-red-100 dark:bg-red-900/50 border-red-500" 
+                          : "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800 hover:bg-red-100 dark:hover:bg-red-950/50"
+                      }`}
+                      onClick={() => setStatusFilter(statusFilter === "inactive" ? "all" : "inactive")}
+                    >
+                      <div className="flex items-center gap-1">
+                        <XCircle className="h-3 w-3 text-red-600" />
+                        <span className="text-xs font-medium text-red-700 dark:text-red-400">Inactive</span>
+                      </div>
+                      <p className="text-xl font-bold text-red-700 dark:text-red-400 mt-1">
+                        {questions.filter(q => !q.is_active).length}
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Not Set */}
-                <div
-                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
-                    difficultyFilter === "none" 
-                      ? "bg-primary/10 border-primary" 
-                      : "bg-muted/30 border-transparent hover:bg-muted/50"
-                  }`}
-                  onClick={() => setDifficultyFilter(difficultyFilter === "none" ? "all" : "none")}
-                >
-                  <span className="text-xs font-medium text-muted-foreground">Not Set</span>
-                  <p className="text-xl font-bold mt-1">
-                    {questions.filter(q => q.difficulty_level === null).length}
-                  </p>
+                {/* Center: Pie Chart */}
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Difficulty Distribution</h4>
+                  {questions.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Very Easy", value: questions.filter(q => q.difficulty_level === 1).length, color: "#22c55e" },
+                            { name: "Easy", value: questions.filter(q => q.difficulty_level === 2).length, color: "#84cc16" },
+                            { name: "Medium", value: questions.filter(q => q.difficulty_level === 3).length, color: "#eab308" },
+                            { name: "Hard", value: questions.filter(q => q.difficulty_level === 4).length, color: "#f97316" },
+                            { name: "Very Hard", value: questions.filter(q => q.difficulty_level === 5).length, color: "#ef4444" },
+                            { name: "Not Set", value: questions.filter(q => q.difficulty_level === null).length, color: "#94a3b8" },
+                          ].filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={40}
+                          outerRadius={70}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: "Very Easy", value: questions.filter(q => q.difficulty_level === 1).length, color: "#22c55e" },
+                            { name: "Easy", value: questions.filter(q => q.difficulty_level === 2).length, color: "#84cc16" },
+                            { name: "Medium", value: questions.filter(q => q.difficulty_level === 3).length, color: "#eab308" },
+                            { name: "Hard", value: questions.filter(q => q.difficulty_level === 4).length, color: "#f97316" },
+                            { name: "Very Hard", value: questions.filter(q => q.difficulty_level === 5).length, color: "#ef4444" },
+                            { name: "Not Set", value: questions.filter(q => q.difficulty_level === null).length, color: "#94a3b8" },
+                          ].filter(d => d.value > 0).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => [`${value} questions`, ""]}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "6px"
+                          }}
+                        />
+                        <Legend 
+                          layout="vertical" 
+                          align="right" 
+                          verticalAlign="middle"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[180px] flex items-center justify-center text-muted-foreground text-sm">
+                      No questions to display
+                    </div>
+                  )}
+                </div>
+
+                {/* Right: Difficulty Breakdown */}
+                <div className="space-y-2">
+                  <h4 className="text-sm font-medium text-muted-foreground">By Difficulty</h4>
+                  {[
+                    { level: 1, label: "Very Easy", color: "bg-green-500" },
+                    { level: 2, label: "Easy", color: "bg-lime-500" },
+                    { level: 3, label: "Medium", color: "bg-yellow-500" },
+                    { level: 4, label: "Hard", color: "bg-orange-500" },
+                    { level: 5, label: "Very Hard", color: "bg-red-500" },
+                    { level: null, label: "Not Set", color: "bg-slate-400" },
+                  ].map(({ level, label, color }) => {
+                    const count = questions.filter(q => q.difficulty_level === level).length;
+                    const percentage = questions.length > 0 ? (count / questions.length) * 100 : 0;
+                    const filterValue = level === null ? "none" : String(level);
+                    const isSelected = difficultyFilter === filterValue;
+                    
+                    return (
+                      <div
+                        key={label}
+                        className={`p-2 rounded-lg cursor-pointer transition-colors border ${
+                          isSelected 
+                            ? "bg-primary/10 border-primary" 
+                            : "bg-muted/20 border-transparent hover:bg-muted/40"
+                        }`}
+                        onClick={() => setDifficultyFilter(isSelected ? "all" : filterValue)}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <div className={`w-2 h-2 rounded-full ${color}`} />
+                            <span className="text-xs font-medium">{label}</span>
+                          </div>
+                          <span className="text-xs font-bold">{count}</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div 
+                            className={`h-full ${color} transition-all duration-300`}
+                            style={{ width: `${percentage}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
               {/* Question Filters Bar */}
