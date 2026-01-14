@@ -518,20 +518,56 @@ export function QuestionBankPage() {
                     </Badge>
                     {/* Quick stats when collapsed */}
                     {!statsOpen && questions.length > 0 && (
-                      <div className="flex items-center gap-2 ml-2 pl-2 border-l">
-                        <div className="flex items-center gap-1">
-                          <CheckCircle className="h-3 w-3 text-green-600" />
-                          <span className="text-xs text-green-700 dark:text-green-400 font-medium">
-                            {questions.filter(q => q.is_active).length} active
-                          </span>
+                      <>
+                        {/* Status summary */}
+                        <div className="flex items-center gap-2 ml-2 pl-2 border-l">
+                          <div className="flex items-center gap-1">
+                            <CheckCircle className="h-3 w-3 text-green-600" />
+                            <span className="text-xs text-green-700 dark:text-green-400 font-medium">
+                              {questions.filter(q => q.is_active).length}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <XCircle className="h-3 w-3 text-red-600" />
+                            <span className="text-xs text-red-700 dark:text-red-400 font-medium">
+                              {questions.filter(q => !q.is_active).length}
+                            </span>
+                          </div>
                         </div>
-                        <div className="flex items-center gap-1">
-                          <XCircle className="h-3 w-3 text-red-600" />
-                          <span className="text-xs text-red-700 dark:text-red-400 font-medium">
-                            {questions.filter(q => !q.is_active).length} inactive
-                          </span>
+                        {/* Difficulty distribution */}
+                        <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2 border-l">
+                          {[
+                            { level: 1, color: "bg-green-500", label: "VE" },
+                            { level: 2, color: "bg-lime-500", label: "E" },
+                            { level: 3, color: "bg-yellow-500", label: "M" },
+                            { level: 4, color: "bg-orange-500", label: "H" },
+                            { level: 5, color: "bg-red-500", label: "VH" },
+                          ].map(({ level, color, label }) => {
+                            const count = questions.filter(q => q.difficulty_level === level).length;
+                            if (count === 0) return null;
+                            return (
+                              <div
+                                key={level}
+                                className="flex items-center gap-0.5"
+                                title={`${label === "VE" ? "Very Easy" : label === "E" ? "Easy" : label === "M" ? "Medium" : label === "H" ? "Hard" : "Very Hard"}: ${count}`}
+                              >
+                                <div className={`w-2 h-2 rounded-full ${color}`} />
+                                <span className="text-xs font-medium">{count}</span>
+                              </div>
+                            );
+                          })}
+                          {(() => {
+                            const notSet = questions.filter(q => q.difficulty_level === null).length;
+                            if (notSet === 0) return null;
+                            return (
+                              <div className="flex items-center gap-0.5" title={`Not Set: ${notSet}`}>
+                                <div className="w-2 h-2 rounded-full bg-slate-400" />
+                                <span className="text-xs font-medium text-muted-foreground">{notSet}</span>
+                              </div>
+                            );
+                          })()}
                         </div>
-                      </div>
+                      </>
                     )}
                   </div>
                   <CollapsibleTrigger asChild>
