@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
@@ -30,6 +31,7 @@ import {
 } from "@/hooks/queries/useQuestionBank";
 
 import { QuestionForm } from "./QuestionForm";
+import { QuestionImportDialog } from "./QuestionImportDialog";
 
 // ===================== MAIN COMPONENT =====================
 
@@ -50,6 +52,9 @@ export function QuestionBankPage() {
   // Delete state
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deletingQuestion, setDeletingQuestion] = React.useState<Question | null>(null);
+
+  // Import state
+  const [importOpen, setImportOpen] = React.useState(false);
 
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
@@ -408,20 +413,31 @@ export function QuestionBankPage() {
 
           {/* Questions Table */}
           {selectedSpecialityId ? (
-            <DataTable
-              data={questions}
-              columns={columns}
-              actions={actions}
-              searchPlaceholder="Search questions..."
-              searchKey="question_text"
-              isLoading={questionsLoading}
-              onAdd={() => {
-                setEditingQuestion(null);
-                setFormMode("create");
-                setFormOpen(true);
-              }}
-              addButtonLabel="Add Question"
-            />
+            <>
+              <div className="flex items-center justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import CSV
+                </Button>
+              </div>
+              <DataTable
+                data={questions}
+                columns={columns}
+                actions={actions}
+                searchPlaceholder="Search questions..."
+                searchKey="question_text"
+                isLoading={questionsLoading}
+                onAdd={() => {
+                  setEditingQuestion(null);
+                  setFormMode("create");
+                  setFormOpen(true);
+                }}
+                addButtonLabel="Add Question"
+              />
+            </>
           ) : (
             <Alert>
               <HelpCircle className="h-4 w-4" />
@@ -456,6 +472,14 @@ export function QuestionBankPage() {
         }}
         isLoading={deleteMutation.isPending}
         isSoftDelete
+      />
+
+      {/* Import Dialog */}
+      <QuestionImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+        specialityId={selectedSpecialityId}
+        specialityName={selectedSpeciality?.name || ""}
       />
     </AdminLayout>
   );
