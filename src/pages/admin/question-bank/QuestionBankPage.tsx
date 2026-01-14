@@ -528,8 +528,8 @@ export function QuestionBankPage() {
                     </Button>
                   </CollapsibleTrigger>
                 </div>
-                <CollapsibleContent className="pt-4">
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+                <CollapsibleContent className="overflow-hidden data-[state=open]:animate-accordion-down data-[state=closed]:animate-accordion-up">
+                  <div className="pt-4 grid grid-cols-1 lg:grid-cols-4 gap-4">
                 {/* Left: Summary Stats */}
                 <div className="space-y-3">
                   {/* Total */}
