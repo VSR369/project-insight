@@ -905,17 +905,18 @@ export function QuestionBankPage() {
               </div>
 
               {/* Print-friendly content (hidden on screen, shown when printing) */}
-              <div className="hidden print:block print-content">
+              <div className="hidden print:block print-content" data-print-date={new Date().toLocaleDateString()}>
+                {/* Print Header - First Page Only */}
                 <div className="mb-6 pb-4 border-b-2 border-black">
                   <h1 className="text-2xl font-bold">Question Bank Report</h1>
                   <p className="text-sm text-gray-600 mt-1">
                     {selectedSegment?.name} → {selectedArea?.name} → {selectedSubDomain?.name} → {selectedSpeciality?.name}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Generated on {new Date().toLocaleDateString()}</p>
+                  <p className="text-xs text-gray-500 mt-1">Generated on {new Date().toLocaleString()}</p>
                 </div>
 
                 {/* Print Statistics */}
-                <div className="mb-6 p-4 border rounded">
+                <div className="mb-6 p-4 border rounded break-inside-avoid">
                   <h2 className="text-lg font-semibold mb-3">Statistics Summary</h2>
                   <div className="grid grid-cols-4 gap-4 text-sm">
                     <div>
@@ -942,6 +943,11 @@ export function QuestionBankPage() {
                       <span>Not Set: {questions.filter(q => q.difficulty_level === null).length}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Running header for subsequent pages (CSS will handle visibility) */}
+                <div className="hidden print-header-repeat">
+                  Question Bank Report — {selectedSpeciality?.name || "All Specialities"}
                 </div>
 
                 {/* Print Questions List */}
@@ -979,6 +985,11 @@ export function QuestionBankPage() {
                       );
                     })}
                   </ol>
+                </div>
+
+                {/* Print Footer */}
+                <div className="hidden print-page-number mt-8">
+                  Question Bank Report — {selectedSpeciality?.name || "All Specialities"} — Generated {new Date().toLocaleDateString()}
                 </div>
               </div>
               <DataTable
