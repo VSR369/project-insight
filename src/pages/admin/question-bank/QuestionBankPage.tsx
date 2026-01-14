@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -32,6 +32,7 @@ import {
 
 import { QuestionForm } from "./QuestionForm";
 import { QuestionImportDialog } from "./QuestionImportDialog";
+import { QuestionDuplicateDialog } from "./QuestionDuplicateDialog";
 
 // ===================== MAIN COMPONENT =====================
 
@@ -55,6 +56,10 @@ export function QuestionBankPage() {
 
   // Import state
   const [importOpen, setImportOpen] = React.useState(false);
+
+  // Duplicate state
+  const [duplicateOpen, setDuplicateOpen] = React.useState(false);
+  const [duplicatingQuestion, setDuplicatingQuestion] = React.useState<Question | null>(null);
 
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
@@ -165,6 +170,14 @@ export function QuestionBankPage() {
         setFormMode("edit");
         setFormOpen(true);
       },
+    },
+    {
+      label: "Duplicate",
+      onClick: (question) => {
+        setDuplicatingQuestion(question);
+        setDuplicateOpen(true);
+      },
+      icon: <Copy className="h-4 w-4" />,
     },
     {
       label: "Restore",
@@ -520,6 +533,14 @@ export function QuestionBankPage() {
         onOpenChange={setImportOpen}
         specialityId={selectedSpecialityId}
         specialityName={selectedSpeciality?.name || ""}
+      />
+
+      {/* Duplicate Dialog */}
+      <QuestionDuplicateDialog
+        open={duplicateOpen}
+        onOpenChange={setDuplicateOpen}
+        question={duplicatingQuestion}
+        currentSpecialityId={selectedSpecialityId}
       />
     </AdminLayout>
   );
