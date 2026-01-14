@@ -510,12 +510,29 @@ export function QuestionBankPage() {
               {/* Statistics Dashboard */}
               <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
                 <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <BarChart3 className="h-4 w-4 text-primary" />
                     <span className="text-sm font-medium">Statistics Dashboard</span>
                     <Badge variant="secondary" className="text-xs">
                       {questions.length} questions
                     </Badge>
+                    {/* Quick stats when collapsed */}
+                    {!statsOpen && questions.length > 0 && (
+                      <div className="flex items-center gap-2 ml-2 pl-2 border-l">
+                        <div className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-green-600" />
+                          <span className="text-xs text-green-700 dark:text-green-400 font-medium">
+                            {questions.filter(q => q.is_active).length} active
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <XCircle className="h-3 w-3 text-red-600" />
+                          <span className="text-xs text-red-700 dark:text-red-400 font-medium">
+                            {questions.filter(q => !q.is_active).length} inactive
+                          </span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <CollapsibleTrigger asChild>
                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
