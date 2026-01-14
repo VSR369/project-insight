@@ -41,8 +41,8 @@ import { IndustrySegmentsPage } from "@/pages/admin/industry-segments";
 import { OrganizationTypesPage } from "@/pages/admin/organization-types";
 import { ParticipationModesPage } from "@/pages/admin/participation-modes";
 import { ExpertiseLevelsPage } from "@/pages/admin/expertise-levels";
+import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
 import {
-  AcademicTaxonomyPage,
   ProficiencyTaxonomyPage,
   QuestionBankPage,
   AdminSettingsPage,

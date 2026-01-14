@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function AcademicTaxonomyPage() {
-  return <MasterDataPlaceholder title="Academic Taxonomy" description="Manage disciplines, streams, and subjects hierarchy" />;
-}
-
 export function ProficiencyTaxonomyPage() {
   return <MasterDataPlaceholder title="Proficiency Taxonomy" description="Manage areas, sub-domains, and specialities hierarchy" />;
 }
