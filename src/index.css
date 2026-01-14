@@ -137,10 +137,64 @@ All colors MUST be HSL.
     break-inside: avoid;
   }
 
-  /* Page margins */
+  /* Page margins and headers/footers */
   @page {
-    margin: 1.5cm;
+    margin: 2cm 1.5cm;
     size: A4;
+    
+    @top-center {
+      content: "Question Bank Report";
+      font-size: 10pt;
+      color: #666;
+    }
+    
+    @bottom-left {
+      content: "Generated on " attr(data-print-date);
+      font-size: 9pt;
+      color: #888;
+    }
+    
+    @bottom-right {
+      content: "Page " counter(page) " of " counter(pages);
+      font-size: 9pt;
+      color: #888;
+    }
+  }
+  
+  @page :first {
+    @top-center {
+      content: none;
+    }
+  }
+  
+  /* Print page counter styling */
+  .print-content {
+    counter-reset: page;
+  }
+  
+  .print-page-footer {
+    display: none;
+  }
+  
+  /* Fallback page numbers for browsers without @page support */
+  .print-page-number {
+    display: block !important;
+    text-align: center;
+    font-size: 9pt;
+    color: #888;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+    margin-top: 1rem;
+  }
+  
+  .print-header-repeat {
+    display: block !important;
+    font-size: 10pt;
+    color: #666;
+    text-align: center;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+    margin-bottom: 1rem;
   }
 
   /* Make main content full width */
