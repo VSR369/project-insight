@@ -1,0 +1,1 @@
+export { ProficiencyTaxonomyPage } from './ProficiencyTaxonomyPage';
