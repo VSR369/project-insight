@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function QuestionBankPage() {
-  return <MasterDataPlaceholder title="Question Bank" description="Manage assessment questions by speciality" />;
-}
-
 export function AdminSettingsPage() {
   return <MasterDataPlaceholder title="Admin Settings" description="Configure platform settings" />;
 }
