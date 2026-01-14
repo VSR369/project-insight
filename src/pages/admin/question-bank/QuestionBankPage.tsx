@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
 
@@ -36,6 +36,7 @@ import {
 import { QuestionForm } from "./QuestionForm";
 import { QuestionImportDialog } from "./QuestionImportDialog";
 import { QuestionDuplicateDialog } from "./QuestionDuplicateDialog";
+import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
 
 // ===================== MAIN COMPONENT =====================
 
@@ -69,6 +70,10 @@ export function QuestionBankPage() {
   // Duplicate state
   const [duplicateOpen, setDuplicateOpen] = React.useState(false);
   const [duplicatingQuestions, setDuplicatingQuestions] = React.useState<Question[]>([]);
+
+  // Preview state
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [previewingQuestion, setPreviewingQuestion] = React.useState<Question | null>(null);
 
   // Selection state
   const [selectedQuestions, setSelectedQuestions] = React.useState<Question[]>([]);
@@ -212,6 +217,14 @@ export function QuestionBankPage() {
   ];
 
   const actions: DataTableAction<Question>[] = [
+    {
+      label: "Preview",
+      onClick: (question) => {
+        setPreviewingQuestion(question);
+        setPreviewOpen(true);
+      },
+      icon: <Eye className="h-4 w-4" />,
+    },
     {
       label: "Edit",
       onClick: (question) => {
@@ -1198,6 +1211,23 @@ export function QuestionBankPage() {
         questions={duplicatingQuestions}
         currentSpecialityId={selectedSpecialityId}
         onComplete={() => setSelectedQuestions([])}
+      />
+
+      {/* Preview Dialog */}
+      <QuestionPreviewDialog
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+        question={previewingQuestion}
+        specialityName={selectedSpeciality?.name}
+        onEdit={(question) => {
+          setEditingQuestion(question);
+          setFormMode("edit");
+          setFormOpen(true);
+        }}
+        onDuplicate={(question) => {
+          setDuplicatingQuestions([question]);
+          setDuplicateOpen(true);
+        }}
       />
     </AdminLayout>
   );
