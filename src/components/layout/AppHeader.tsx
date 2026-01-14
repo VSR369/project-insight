@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { Bell, LogOut, User, ChevronDown } from 'lucide-react';
+import { Bell, LogOut, User, ChevronDown, Shield } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import {
@@ -17,11 +18,15 @@ import { toast } from 'sonner';
 
 export function AppHeader() {
   const { user, signOut } = useAuth();
+  const { isAdmin, isLoading: rolesLoading } = useUserRoles();
   const navigate = useNavigate();
 
   const firstName = user?.user_metadata?.first_name || 'User';
   const lastName = user?.user_metadata?.last_name || '';
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+  
+  const roleName = isAdmin ? 'Platform Admin' : 'Solution Provider';
+  const roleColor = isAdmin ? 'text-destructive' : 'text-primary';
 
   const handleSignOut = async () => {
     await signOut();
@@ -55,13 +60,15 @@ export function AppHeader() {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="flex items-center gap-2 px-2">
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                  {initials}
+                <AvatarFallback className={`${isAdmin ? 'bg-destructive/10 text-destructive' : 'bg-primary/10 text-primary'} text-sm`}>
+                  {isAdmin ? <Shield className="h-4 w-4" /> : initials}
                 </AvatarFallback>
               </Avatar>
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-sm font-medium">{firstName} {lastName}</span>
-                <span className="text-xs text-muted-foreground">Solution Provider</span>
+                <span className={`text-xs ${roleColor}`}>
+                  {rolesLoading ? '...' : roleName}
+                </span>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
             </Button>
@@ -71,6 +78,12 @@ export function AppHeader() {
               <div className="flex flex-col">
                 <span>{firstName} {lastName}</span>
                 <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
+                <Badge 
+                  variant={isAdmin ? 'destructive' : 'default'} 
+                  className="mt-1 w-fit text-[10px]"
+                >
+                  {roleName}
+                </Badge>
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
