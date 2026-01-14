@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -494,6 +494,103 @@ export function QuestionBankPage() {
           {/* Questions Table */}
           {selectedSpecialityId ? (
             <>
+              {/* Statistics Dashboard */}
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+                {/* Total */}
+                <div className="col-span-2 p-3 bg-primary/5 border border-primary/20 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-medium text-muted-foreground">Total</span>
+                  </div>
+                  <p className="text-2xl font-bold text-primary mt-1">{questions.length}</p>
+                </div>
+
+                {/* Active */}
+                <div 
+                  className="p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg cursor-pointer hover:bg-green-100 dark:hover:bg-green-950/50 transition-colors"
+                  onClick={() => setStatusFilter(statusFilter === "active" ? "all" : "active")}
+                >
+                  <div className="flex items-center gap-1">
+                    <CheckCircle className="h-3 w-3 text-green-600" />
+                    <span className="text-xs font-medium text-green-700 dark:text-green-400">Active</span>
+                  </div>
+                  <p className="text-xl font-bold text-green-700 dark:text-green-400 mt-1">
+                    {questions.filter(q => q.is_active).length}
+                  </p>
+                </div>
+
+                {/* Inactive */}
+                <div 
+                  className="p-3 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg cursor-pointer hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+                  onClick={() => setStatusFilter(statusFilter === "inactive" ? "all" : "inactive")}
+                >
+                  <div className="flex items-center gap-1">
+                    <XCircle className="h-3 w-3 text-red-600" />
+                    <span className="text-xs font-medium text-red-700 dark:text-red-400">Inactive</span>
+                  </div>
+                  <p className="text-xl font-bold text-red-700 dark:text-red-400 mt-1">
+                    {questions.filter(q => !q.is_active).length}
+                  </p>
+                </div>
+
+                {/* Difficulty Levels */}
+                {[
+                  { level: 1, label: "Very Easy", color: "green" },
+                  { level: 2, label: "Easy", color: "lime" },
+                  { level: 3, label: "Medium", color: "yellow" },
+                  { level: 4, label: "Hard", color: "orange" },
+                ].map(({ level, label, color }) => {
+                  const count = questions.filter(q => q.difficulty_level === level).length;
+                  const isSelected = difficultyFilter === String(level);
+                  return (
+                    <div
+                      key={level}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                        isSelected 
+                          ? "bg-primary/10 border-primary" 
+                          : "bg-muted/30 border-transparent hover:bg-muted/50"
+                      }`}
+                      onClick={() => setDifficultyFilter(isSelected ? "all" : String(level))}
+                    >
+                      <span className="text-xs font-medium text-muted-foreground line-clamp-1">{label}</span>
+                      <p className="text-xl font-bold mt-1">{count}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Second row for remaining difficulty stats */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                {/* Very Hard */}
+                <div
+                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                    difficultyFilter === "5" 
+                      ? "bg-primary/10 border-primary" 
+                      : "bg-muted/30 border-transparent hover:bg-muted/50"
+                  }`}
+                  onClick={() => setDifficultyFilter(difficultyFilter === "5" ? "all" : "5")}
+                >
+                  <span className="text-xs font-medium text-muted-foreground">Very Hard</span>
+                  <p className="text-xl font-bold mt-1">
+                    {questions.filter(q => q.difficulty_level === 5).length}
+                  </p>
+                </div>
+
+                {/* Not Set */}
+                <div
+                  className={`p-3 rounded-lg cursor-pointer transition-colors border ${
+                    difficultyFilter === "none" 
+                      ? "bg-primary/10 border-primary" 
+                      : "bg-muted/30 border-transparent hover:bg-muted/50"
+                  }`}
+                  onClick={() => setDifficultyFilter(difficultyFilter === "none" ? "all" : "none")}
+                >
+                  <span className="text-xs font-medium text-muted-foreground">Not Set</span>
+                  <p className="text-xl font-bold mt-1">
+                    {questions.filter(q => q.difficulty_level === null).length}
+                  </p>
+                </div>
+              </div>
               {/* Question Filters Bar */}
               <div className="flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border">
                 <div className="flex items-center gap-3">
