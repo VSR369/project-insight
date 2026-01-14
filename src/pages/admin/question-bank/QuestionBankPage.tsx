@@ -59,7 +59,10 @@ export function QuestionBankPage() {
 
   // Duplicate state
   const [duplicateOpen, setDuplicateOpen] = React.useState(false);
-  const [duplicatingQuestion, setDuplicatingQuestion] = React.useState<Question | null>(null);
+  const [duplicatingQuestions, setDuplicatingQuestions] = React.useState<Question[]>([]);
+
+  // Selection state
+  const [selectedQuestions, setSelectedQuestions] = React.useState<Question[]>([]);
 
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
@@ -174,7 +177,7 @@ export function QuestionBankPage() {
     {
       label: "Duplicate",
       onClick: (question) => {
-        setDuplicatingQuestion(question);
+        setDuplicatingQuestions([question]);
         setDuplicateOpen(true);
       },
       icon: <Copy className="h-4 w-4" />,
@@ -459,22 +462,38 @@ export function QuestionBankPage() {
           {/* Questions Table */}
           {selectedSpecialityId ? (
             <>
-              <div className="flex items-center justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  disabled={questions.length === 0}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import CSV
-                </Button>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  {selectedQuestions.length > 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        setDuplicatingQuestions(selectedQuestions);
+                        setDuplicateOpen(true);
+                      }}
+                    >
+                      <Copy className="h-4 w-4 mr-2" />
+                      Duplicate {selectedQuestions.length} Selected
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportCSV}
+                    disabled={questions.length === 0}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setImportOpen(true)}
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    Import CSV
+                  </Button>
+                </div>
               </div>
               <DataTable
                 data={questions}
@@ -489,6 +508,8 @@ export function QuestionBankPage() {
                   setFormOpen(true);
                 }}
                 addButtonLabel="Add Question"
+                enableRowSelection
+                onSelectedRowsChange={setSelectedQuestions}
               />
             </>
           ) : (
@@ -539,8 +560,9 @@ export function QuestionBankPage() {
       <QuestionDuplicateDialog
         open={duplicateOpen}
         onOpenChange={setDuplicateOpen}
-        question={duplicatingQuestion}
+        questions={duplicatingQuestions}
         currentSpecialityId={selectedSpecialityId}
+        onComplete={() => setSelectedQuestions([])}
       />
     </AdminLayout>
   );
