@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2 } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -67,6 +67,10 @@ export function QuestionBankPage() {
   // Selection state
   const [selectedQuestions, setSelectedQuestions] = React.useState<Question[]>([]);
 
+  // Question filters
+  const [difficultyFilter, setDifficultyFilter] = React.useState<string>("all");
+  const [statusFilter, setStatusFilter] = React.useState<string>("all");
+
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
   const { data: proficiencyAreas = [] } = useProficiencyAreasAdmin(
@@ -87,6 +91,28 @@ export function QuestionBankPage() {
     selectedSpecialityId || undefined,
     showInactive
   );
+
+  // Filtered questions
+  const filteredQuestions = React.useMemo(() => {
+    return questions.filter((q) => {
+      // Difficulty filter
+      if (difficultyFilter !== "all") {
+        if (difficultyFilter === "none") {
+          if (q.difficulty_level !== null) return false;
+        } else {
+          if (q.difficulty_level !== parseInt(difficultyFilter)) return false;
+        }
+      }
+      
+      // Status filter
+      if (statusFilter !== "all") {
+        if (statusFilter === "active" && !q.is_active) return false;
+        if (statusFilter === "inactive" && q.is_active) return false;
+      }
+      
+      return true;
+    });
+  }, [questions, difficultyFilter, statusFilter]);
 
   // Mutations
   const createMutation = useCreateQuestion();
@@ -465,6 +491,66 @@ export function QuestionBankPage() {
           {/* Questions Table */}
           {selectedSpecialityId ? (
             <>
+              {/* Question Filters Bar */}
+              <div className="flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <SlidersHorizontal className="h-4 w-4" />
+                    <span>Filters:</span>
+                  </div>
+                  
+                  {/* Difficulty Filter */}
+                  <Select value={difficultyFilter} onValueChange={setDifficultyFilter}>
+                    <SelectTrigger className="w-[140px] h-8">
+                      <SelectValue placeholder="Difficulty" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Difficulties</SelectItem>
+                      <SelectItem value="1">Very Easy</SelectItem>
+                      <SelectItem value="2">Easy</SelectItem>
+                      <SelectItem value="3">Medium</SelectItem>
+                      <SelectItem value="4">Hard</SelectItem>
+                      <SelectItem value="5">Very Hard</SelectItem>
+                      <SelectItem value="none">Not Set</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Status Filter */}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger className="w-[120px] h-8">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Clear Filters */}
+                  {(difficultyFilter !== "all" || statusFilter !== "all") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setDifficultyFilter("all");
+                        setStatusFilter("all");
+                      }}
+                      className="h-8 px-2"
+                    >
+                      <X className="h-4 w-4 mr-1" />
+                      Clear
+                    </Button>
+                  )}
+                </div>
+
+                {/* Filter Summary */}
+                <div className="text-sm text-muted-foreground">
+                  {filteredQuestions.length} of {questions.length} questions
+                </div>
+              </div>
+
+              {/* Bulk Actions Bar */}
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {selectedQuestions.length > 0 && (
@@ -508,7 +594,7 @@ export function QuestionBankPage() {
                 </div>
               </div>
               <DataTable
-                data={questions}
+                data={filteredQuestions}
                 columns={columns}
                 actions={actions}
                 searchPlaceholder="Search questions..."
