@@ -39,8 +39,8 @@ import AdminDashboard from "@/pages/admin/AdminDashboard";
 import { CountriesPage } from "@/pages/admin/countries";
 import { IndustrySegmentsPage } from "@/pages/admin/industry-segments";
 import { OrganizationTypesPage } from "@/pages/admin/organization-types";
+import { ParticipationModesPage } from "@/pages/admin/participation-modes";
 import {
-  ParticipationModesPage,
   ExpertiseLevelsPage,
   AcademicTaxonomyPage,
   ProficiencyTaxonomyPage,
