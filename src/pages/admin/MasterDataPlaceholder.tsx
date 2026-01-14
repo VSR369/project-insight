@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function OrganizationTypesPage() {
-  return <MasterDataPlaceholder title="Organization Types" description="Configure organization categories" />;
-}
-
 export function ParticipationModesPage() {
   return <MasterDataPlaceholder title="Participation Modes" description="Set up how providers can participate on the platform" />;
 }

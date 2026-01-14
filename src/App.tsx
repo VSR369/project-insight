@@ -38,8 +38,8 @@ import {
 import AdminDashboard from "@/pages/admin/AdminDashboard";
 import { CountriesPage } from "@/pages/admin/countries";
 import { IndustrySegmentsPage } from "@/pages/admin/industry-segments";
+import { OrganizationTypesPage } from "@/pages/admin/organization-types";
 import {
-  OrganizationTypesPage,
   ParticipationModesPage,
   ExpertiseLevelsPage,
   AcademicTaxonomyPage,
