@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function ParticipationModesPage() {
-  return <MasterDataPlaceholder title="Participation Modes" description="Set up how providers can participate on the platform" />;
-}
-
 export function ExpertiseLevelsPage() {
   return <MasterDataPlaceholder title="Expertise Levels" description="Define experience level tiers and requirements" />;
 }
