@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function CountriesPage() {
-  return <MasterDataPlaceholder title="Countries" description="Manage country codes and regional settings" />;
-}
-
 export function IndustrySegmentsPage() {
   return <MasterDataPlaceholder title="Industry Segments" description="Define industry sectors for solution providers" />;
 }
