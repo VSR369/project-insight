@@ -1,3 +1,4 @@
+import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
@@ -41,7 +42,7 @@ export function AdminHeader() {
             const name = pathNames[segment] || segment;
 
             return (
-              <span key={path} className="contents">
+              <React.Fragment key={path}>
                 <BreadcrumbItem>
                   {!isLast ? (
                     <BreadcrumbLink href={path}>{name}</BreadcrumbLink>
@@ -50,7 +51,7 @@ export function AdminHeader() {
                   )}
                 </BreadcrumbItem>
                 {!isLast && <BreadcrumbSeparator />}
-              </span>
+              </React.Fragment>
             );
           })}
         </BreadcrumbList>
