@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -8,7 +10,15 @@ import { useNavigate } from 'react-router-dom';
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { isAdmin, isLoading: rolesLoading } = useUserRoles();
   const navigate = useNavigate();
+
+  // Redirect platform admins to admin dashboard
+  useEffect(() => {
+    if (!rolesLoading && isAdmin) {
+      navigate('/admin', { replace: true });
+    }
+  }, [isAdmin, rolesLoading, navigate]);
 
   const firstName = user?.user_metadata?.first_name || 'Provider';
 

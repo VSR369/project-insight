@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 // Development test accounts - only visible in dev mode
 const DEV_ACCOUNTS = [
@@ -71,8 +72,22 @@ export default function Login() {
         return;
       }
       
-      toast.success('Welcome back!');
-      navigate(from, { replace: true });
+      // Fetch user roles to determine redirect destination
+      const { data: session } = await supabase.auth.getSession();
+      if (session?.session?.user) {
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', session.session.user.id);
+        
+        const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
+        
+        toast.success('Welcome back!');
+        navigate(isPlatformAdmin ? '/admin' : from, { replace: true });
+      } else {
+        toast.success('Welcome back!');
+        navigate(from, { replace: true });
+      }
     } catch (err) {
       toast.error('An unexpected error occurred');
     } finally {
