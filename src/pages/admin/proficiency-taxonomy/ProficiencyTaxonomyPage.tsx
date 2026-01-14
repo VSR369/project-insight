@@ -1,0 +1,745 @@
+import * as React from "react";
+import { z } from "zod";
+import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles } from "lucide-react";
+
+import { AdminLayout } from "@/components/admin";
+import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
+import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
+import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { DisplayOrderCell } from "@/components/admin/DisplayOrderCell";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Label } from "@/components/ui/label";
+
+import {
+  useIndustrySegments,
+  IndustrySegment,
+} from "@/hooks/queries/useIndustrySegments";
+
+import {
+  useProficiencyAreasAdmin,
+  useCreateProficiencyArea,
+  useUpdateProficiencyArea,
+  useDeleteProficiencyArea,
+  useRestoreProficiencyArea,
+  useCheckProficiencyAreaChildren,
+  useSubDomainsAdmin,
+  useCreateSubDomain,
+  useUpdateSubDomain,
+  useDeleteSubDomain,
+  useRestoreSubDomain,
+  useCheckSubDomainChildren,
+  useSpecialitiesAdmin,
+  useCreateSpeciality,
+  useUpdateSpeciality,
+  useDeleteSpeciality,
+  useRestoreSpeciality,
+  ProficiencyArea,
+  SubDomain,
+  Speciality,
+} from "@/hooks/queries/useProficiencyTaxonomyAdmin";
+
+// ===================== SCHEMAS =====================
+
+const proficiencyAreaSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable(),
+  display_order: z.coerce.number().int().min(0).optional().nullable(),
+  is_active: z.boolean().default(true),
+});
+
+const subDomainSchema = z.object({
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable(),
+  display_order: z.coerce.number().int().min(0).optional().nullable(),
+  is_active: z.boolean().default(true),
+});
+
+const specialitySchema = z.object({
+  name: z.string().min(1, "Name is required").max(200, "Name must be 200 characters or less"),
+  description: z.string().max(500, "Description must be 500 characters or less").optional().nullable(),
+  display_order: z.coerce.number().int().min(0).optional().nullable(),
+  is_active: z.boolean().default(true),
+});
+
+// ===================== FORM FIELD CONFIGS =====================
+
+const proficiencyAreaFields: FormFieldConfig[] = [
+  { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g., Data Analytics" },
+  { name: "description", label: "Description", type: "textarea", placeholder: "Brief description of this proficiency area" },
+  { name: "display_order", label: "Display Order", type: "number", placeholder: "0" },
+  { name: "is_active", label: "Active", type: "switch", defaultValue: true },
+];
+
+const subDomainFields: FormFieldConfig[] = [
+  { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g., Business Intelligence" },
+  { name: "description", label: "Description", type: "textarea", placeholder: "Brief description of this sub-domain" },
+  { name: "display_order", label: "Display Order", type: "number", placeholder: "0" },
+  { name: "is_active", label: "Active", type: "switch", defaultValue: true },
+];
+
+const specialityFields: FormFieldConfig[] = [
+  { name: "name", label: "Name", type: "text", required: true, placeholder: "e.g., Power BI Development" },
+  { name: "description", label: "Description", type: "textarea", placeholder: "Brief description of this speciality" },
+  { name: "display_order", label: "Display Order", type: "number", placeholder: "0" },
+  { name: "is_active", label: "Active", type: "switch", defaultValue: true },
+];
+
+// ===================== MAIN COMPONENT =====================
+
+export function ProficiencyTaxonomyPage() {
+  const [activeTab, setActiveTab] = React.useState("industry-segments");
+  const [showInactive, setShowInactive] = React.useState(true);
+
+  // Selected parent IDs for filtering
+  const [selectedIndustrySegmentId, setSelectedIndustrySegmentId] = React.useState<string | undefined>();
+  const [selectedProficiencyAreaId, setSelectedProficiencyAreaId] = React.useState<string | undefined>();
+  const [selectedSubDomainId, setSelectedSubDomainId] = React.useState<string | undefined>();
+
+  // Form states
+  const [areaFormOpen, setAreaFormOpen] = React.useState(false);
+  const [areaFormMode, setAreaFormMode] = React.useState<"create" | "edit">("create");
+  const [editingArea, setEditingArea] = React.useState<ProficiencyArea | null>(null);
+
+  const [subDomainFormOpen, setSubDomainFormOpen] = React.useState(false);
+  const [subDomainFormMode, setSubDomainFormMode] = React.useState<"create" | "edit">("create");
+  const [editingSubDomain, setEditingSubDomain] = React.useState<SubDomain | null>(null);
+
+  const [specialityFormOpen, setSpecialityFormOpen] = React.useState(false);
+  const [specialityFormMode, setSpecialityFormMode] = React.useState<"create" | "edit">("create");
+  const [editingSpeciality, setEditingSpeciality] = React.useState<Speciality | null>(null);
+
+  // Delete states
+  const [deleteAreaOpen, setDeleteAreaOpen] = React.useState(false);
+  const [deletingArea, setDeletingArea] = React.useState<ProficiencyArea | null>(null);
+  const [areaHasChildren, setAreaHasChildren] = React.useState(false);
+
+  const [deleteSubDomainOpen, setDeleteSubDomainOpen] = React.useState(false);
+  const [deletingSubDomain, setDeletingSubDomain] = React.useState<SubDomain | null>(null);
+  const [subDomainHasChildren, setSubDomainHasChildren] = React.useState(false);
+
+  const [deleteSpecialityOpen, setDeleteSpecialityOpen] = React.useState(false);
+  const [deletingSpeciality, setDeletingSpeciality] = React.useState<Speciality | null>(null);
+
+  // Queries
+  const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments(showInactive);
+  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, showInactive);
+  const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(selectedProficiencyAreaId, showInactive);
+  const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(selectedSubDomainId, showInactive);
+
+  // Proficiency Area mutations
+  const createAreaMutation = useCreateProficiencyArea();
+  const updateAreaMutation = useUpdateProficiencyArea();
+  const deleteAreaMutation = useDeleteProficiencyArea();
+  const restoreAreaMutation = useRestoreProficiencyArea();
+  const checkAreaChildrenMutation = useCheckProficiencyAreaChildren();
+
+  // Sub-domain mutations
+  const createSubDomainMutation = useCreateSubDomain();
+  const updateSubDomainMutation = useUpdateSubDomain();
+  const deleteSubDomainMutation = useDeleteSubDomain();
+  const restoreSubDomainMutation = useRestoreSubDomain();
+  const checkSubDomainChildrenMutation = useCheckSubDomainChildren();
+
+  // Speciality mutations
+  const createSpecialityMutation = useCreateSpeciality();
+  const updateSpecialityMutation = useUpdateSpeciality();
+  const deleteSpecialityMutation = useDeleteSpeciality();
+  const restoreSpecialityMutation = useRestoreSpeciality();
+
+  // Reset child selections when parent changes
+  React.useEffect(() => {
+    setSelectedProficiencyAreaId(undefined);
+    setSelectedSubDomainId(undefined);
+  }, [selectedIndustrySegmentId]);
+
+  React.useEffect(() => {
+    setSelectedSubDomainId(undefined);
+  }, [selectedProficiencyAreaId]);
+
+  // ===================== INDUSTRY SEGMENTS (READ-ONLY VIEW) =====================
+  const segmentColumns: DataTableColumn<IndustrySegment>[] = [
+    { accessorKey: "code", header: "Code" },
+    { accessorKey: "name", header: "Name" },
+    {
+      accessorKey: "display_order",
+      header: "Order",
+      cell: (_value, row) => <DisplayOrderCell order={row.display_order} />,
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
+    },
+  ];
+
+  const segmentActions: DataTableAction<IndustrySegment>[] = [
+    {
+      label: "View Proficiency Areas",
+      onClick: (segment) => {
+        setSelectedIndustrySegmentId(segment.id);
+        setActiveTab("proficiency-areas");
+      },
+    },
+  ];
+
+  // ===================== PROFICIENCY AREAS =====================
+  const areaColumns: DataTableColumn<ProficiencyArea>[] = [
+    { accessorKey: "name", header: "Name" },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: (_value, row) => (
+        <span className="text-muted-foreground line-clamp-2">{row.description || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "display_order",
+      header: "Order",
+      cell: (_value, row) => <DisplayOrderCell order={row.display_order} />,
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
+    },
+  ];
+
+  const areaActions: DataTableAction<ProficiencyArea>[] = [
+    {
+      label: "View Sub-domains",
+      onClick: (area) => {
+        setSelectedProficiencyAreaId(area.id);
+        setActiveTab("sub-domains");
+      },
+    },
+    {
+      label: "Edit",
+      onClick: (area) => {
+        setEditingArea(area);
+        setAreaFormMode("edit");
+        setAreaFormOpen(true);
+      },
+    },
+    {
+      label: "Restore",
+      onClick: (area) => restoreAreaMutation.mutate(area.id),
+      show: (area) => !area.is_active,
+    },
+    {
+      label: "Deactivate",
+      onClick: async (area) => {
+        const hasChildren = await checkAreaChildrenMutation.mutateAsync(area.id);
+        setAreaHasChildren(hasChildren);
+        setDeletingArea(area);
+        setDeleteAreaOpen(true);
+      },
+      show: (area) => area.is_active,
+      variant: "destructive",
+    },
+  ];
+
+  const handleAreaSubmit = async (data: z.infer<typeof proficiencyAreaSchema>) => {
+    if (areaFormMode === "create" && selectedIndustrySegmentId) {
+      await createAreaMutation.mutateAsync({
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+        industry_segment_id: selectedIndustrySegmentId,
+      });
+    } else if (areaFormMode === "edit" && editingArea) {
+      await updateAreaMutation.mutateAsync({
+        id: editingArea.id,
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+      });
+    }
+  };
+
+  // ===================== SUB-DOMAINS =====================
+  const subDomainColumns: DataTableColumn<SubDomain>[] = [
+    { accessorKey: "name", header: "Name" },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: (_value, row) => (
+        <span className="text-muted-foreground line-clamp-2">{row.description || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "display_order",
+      header: "Order",
+      cell: (_value, row) => <DisplayOrderCell order={row.display_order} />,
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
+    },
+  ];
+
+  const subDomainActions: DataTableAction<SubDomain>[] = [
+    {
+      label: "View Specialities",
+      onClick: (subDomain) => {
+        setSelectedSubDomainId(subDomain.id);
+        setActiveTab("specialities");
+      },
+    },
+    {
+      label: "Edit",
+      onClick: (subDomain) => {
+        setEditingSubDomain(subDomain);
+        setSubDomainFormMode("edit");
+        setSubDomainFormOpen(true);
+      },
+    },
+    {
+      label: "Restore",
+      onClick: (subDomain) => restoreSubDomainMutation.mutate(subDomain.id),
+      show: (subDomain) => !subDomain.is_active,
+    },
+    {
+      label: "Deactivate",
+      onClick: async (subDomain) => {
+        const hasChildren = await checkSubDomainChildrenMutation.mutateAsync(subDomain.id);
+        setSubDomainHasChildren(hasChildren);
+        setDeletingSubDomain(subDomain);
+        setDeleteSubDomainOpen(true);
+      },
+      show: (subDomain) => subDomain.is_active,
+      variant: "destructive",
+    },
+  ];
+
+  const handleSubDomainSubmit = async (data: z.infer<typeof subDomainSchema>) => {
+    if (subDomainFormMode === "create" && selectedProficiencyAreaId) {
+      await createSubDomainMutation.mutateAsync({
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+        proficiency_area_id: selectedProficiencyAreaId,
+      });
+    } else if (subDomainFormMode === "edit" && editingSubDomain) {
+      await updateSubDomainMutation.mutateAsync({
+        id: editingSubDomain.id,
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+      });
+    }
+  };
+
+  // ===================== SPECIALITIES =====================
+  const specialityColumns: DataTableColumn<Speciality>[] = [
+    { accessorKey: "name", header: "Name" },
+    {
+      accessorKey: "description",
+      header: "Description",
+      cell: (_value, row) => (
+        <span className="text-muted-foreground line-clamp-2">{row.description || "-"}</span>
+      ),
+    },
+    {
+      accessorKey: "display_order",
+      header: "Order",
+      cell: (_value, row) => <DisplayOrderCell order={row.display_order} />,
+    },
+    {
+      accessorKey: "is_active",
+      header: "Status",
+      cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
+    },
+  ];
+
+  const specialityActions: DataTableAction<Speciality>[] = [
+    {
+      label: "Edit",
+      onClick: (speciality) => {
+        setEditingSpeciality(speciality);
+        setSpecialityFormMode("edit");
+        setSpecialityFormOpen(true);
+      },
+    },
+    {
+      label: "Restore",
+      onClick: (speciality) => restoreSpecialityMutation.mutate(speciality.id),
+      show: (speciality) => !speciality.is_active,
+    },
+    {
+      label: "Deactivate",
+      onClick: (speciality) => {
+        setDeletingSpeciality(speciality);
+        setDeleteSpecialityOpen(true);
+      },
+      show: (speciality) => speciality.is_active,
+      variant: "destructive",
+    },
+  ];
+
+  const handleSpecialitySubmit = async (data: z.infer<typeof specialitySchema>) => {
+    if (specialityFormMode === "create" && selectedSubDomainId) {
+      await createSpecialityMutation.mutateAsync({
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+        sub_domain_id: selectedSubDomainId,
+      });
+    } else if (specialityFormMode === "edit" && editingSpeciality) {
+      await updateSpecialityMutation.mutateAsync({
+        id: editingSpeciality.id,
+        name: data.name,
+        description: data.description,
+        display_order: data.display_order,
+        is_active: data.is_active,
+      });
+    }
+  };
+
+  // ===================== HELPERS =====================
+  const selectedSegment = industrySegments.find((s) => s.id === selectedIndustrySegmentId);
+  const selectedArea = proficiencyAreas.find((a) => a.id === selectedProficiencyAreaId);
+  const selectedSubDomain = subDomains.find((sd) => sd.id === selectedSubDomainId);
+
+  const breadcrumbs = [
+    { label: "Admin", href: "/admin" },
+    { label: "Master Data" },
+    { label: "Proficiency Taxonomy" },
+  ];
+
+  return (
+    <AdminLayout
+      title="Proficiency Taxonomy"
+      description="Manage the 4-level hierarchy: Industry Segments → Proficiency Areas → Sub-domains → Specialities"
+      breadcrumbs={breadcrumbs}
+    >
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Layers className="h-5 w-5 text-primary" />
+              <CardTitle>Proficiency Taxonomy</CardTitle>
+            </div>
+            <div className="flex items-center gap-4">
+              <Label className="text-sm text-muted-foreground">Show inactive</Label>
+              <input
+                type="checkbox"
+                checked={showInactive}
+                onChange={(e) => setShowInactive(e.target.checked)}
+                className="h-4 w-4"
+              />
+            </div>
+          </div>
+          <CardDescription>
+            Navigate through the hierarchy to manage proficiency areas, sub-domains, and specialities
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {/* Breadcrumb Navigation */}
+          <div className="flex items-center gap-2 mb-6 flex-wrap">
+            <Badge
+              variant={!selectedIndustrySegmentId ? "default" : "outline"}
+              className="cursor-pointer"
+              onClick={() => {
+                setSelectedIndustrySegmentId(undefined);
+                setActiveTab("industry-segments");
+              }}
+            >
+              <Building2 className="h-3 w-3 mr-1" />
+              Industry Segments
+            </Badge>
+            {selectedSegment && (
+              <>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <Badge
+                  variant={!selectedProficiencyAreaId ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedProficiencyAreaId(undefined);
+                    setActiveTab("proficiency-areas");
+                  }}
+                >
+                  <Target className="h-3 w-3 mr-1" />
+                  {selectedSegment.name}
+                </Badge>
+              </>
+            )}
+            {selectedArea && (
+              <>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <Badge
+                  variant={!selectedSubDomainId ? "default" : "outline"}
+                  className="cursor-pointer"
+                  onClick={() => {
+                    setSelectedSubDomainId(undefined);
+                    setActiveTab("sub-domains");
+                  }}
+                >
+                  <Boxes className="h-3 w-3 mr-1" />
+                  {selectedArea.name}
+                </Badge>
+              </>
+            )}
+            {selectedSubDomain && (
+              <>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <Badge variant="default">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {selectedSubDomain.name}
+                </Badge>
+              </>
+            )}
+          </div>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <TabsList className="grid w-full grid-cols-4 mb-6">
+              <TabsTrigger value="industry-segments" className="flex items-center gap-1">
+                <Building2 className="h-4 w-4" />
+                Segments
+              </TabsTrigger>
+              <TabsTrigger
+                value="proficiency-areas"
+                disabled={!selectedIndustrySegmentId}
+                className="flex items-center gap-1"
+              >
+                <Target className="h-4 w-4" />
+                Areas
+              </TabsTrigger>
+              <TabsTrigger
+                value="sub-domains"
+                disabled={!selectedProficiencyAreaId}
+                className="flex items-center gap-1"
+              >
+                <Boxes className="h-4 w-4" />
+                Sub-domains
+              </TabsTrigger>
+              <TabsTrigger
+                value="specialities"
+                disabled={!selectedSubDomainId}
+                className="flex items-center gap-1"
+              >
+                <Sparkles className="h-4 w-4" />
+                Specialities
+              </TabsTrigger>
+            </TabsList>
+
+            {/* Industry Segments Tab */}
+            <TabsContent value="industry-segments">
+              <Alert className="mb-4">
+                <Building2 className="h-4 w-4" />
+                <AlertDescription>
+                  Select an industry segment to view and manage its proficiency areas. Industry segments are managed in the dedicated Industry Segments page.
+                </AlertDescription>
+              </Alert>
+              <DataTable
+                data={industrySegments}
+                columns={segmentColumns}
+                actions={segmentActions}
+                searchPlaceholder="Search segments..."
+                searchKey="name"
+                isLoading={segmentsLoading}
+              />
+            </TabsContent>
+
+            {/* Proficiency Areas Tab */}
+            <TabsContent value="proficiency-areas">
+              {selectedIndustrySegmentId ? (
+                <DataTable
+                  data={proficiencyAreas}
+                  columns={areaColumns}
+                  actions={areaActions}
+                  searchPlaceholder="Search proficiency areas..."
+                  searchKey="name"
+                  isLoading={areasLoading}
+                  onAdd={() => {
+                    setEditingArea(null);
+                    setAreaFormMode("create");
+                    setAreaFormOpen(true);
+                  }}
+                  addButtonLabel="Add Proficiency Area"
+                />
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    Select an industry segment from the first tab to view its proficiency areas.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            {/* Sub-domains Tab */}
+            <TabsContent value="sub-domains">
+              {selectedProficiencyAreaId ? (
+                <DataTable
+                  data={subDomains}
+                  columns={subDomainColumns}
+                  actions={subDomainActions}
+                  searchPlaceholder="Search sub-domains..."
+                  searchKey="name"
+                  isLoading={subDomainsLoading}
+                  onAdd={() => {
+                    setEditingSubDomain(null);
+                    setSubDomainFormMode("create");
+                    setSubDomainFormOpen(true);
+                  }}
+                  addButtonLabel="Add Sub-domain"
+                />
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    Select a proficiency area to view its sub-domains.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            {/* Specialities Tab */}
+            <TabsContent value="specialities">
+              {selectedSubDomainId ? (
+                <DataTable
+                  data={specialities}
+                  columns={specialityColumns}
+                  actions={specialityActions}
+                  searchPlaceholder="Search specialities..."
+                  searchKey="name"
+                  isLoading={specialitiesLoading}
+                  onAdd={() => {
+                    setEditingSpeciality(null);
+                    setSpecialityFormMode("create");
+                    setSpecialityFormOpen(true);
+                  }}
+                  addButtonLabel="Add Speciality"
+                />
+              ) : (
+                <Alert>
+                  <AlertDescription>
+                    Select a sub-domain to view its specialities.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Proficiency Area Form */}
+      <MasterDataForm
+        open={areaFormOpen}
+        onOpenChange={setAreaFormOpen}
+        title={areaFormMode === "create" ? "Add Proficiency Area" : "Edit Proficiency Area"}
+        fields={proficiencyAreaFields}
+        schema={proficiencyAreaSchema}
+        defaultValues={
+          editingArea
+            ? {
+                name: editingArea.name,
+                description: editingArea.description,
+                display_order: editingArea.display_order,
+                is_active: editingArea.is_active,
+              }
+            : undefined
+        }
+        onSubmit={handleAreaSubmit}
+        isLoading={createAreaMutation.isPending || updateAreaMutation.isPending}
+      />
+
+      {/* Sub-domain Form */}
+      <MasterDataForm
+        open={subDomainFormOpen}
+        onOpenChange={setSubDomainFormOpen}
+        title={subDomainFormMode === "create" ? "Add Sub-domain" : "Edit Sub-domain"}
+        fields={subDomainFields}
+        schema={subDomainSchema}
+        defaultValues={
+          editingSubDomain
+            ? {
+                name: editingSubDomain.name,
+                description: editingSubDomain.description,
+                display_order: editingSubDomain.display_order,
+                is_active: editingSubDomain.is_active,
+              }
+            : undefined
+        }
+        onSubmit={handleSubDomainSubmit}
+        isLoading={createSubDomainMutation.isPending || updateSubDomainMutation.isPending}
+      />
+
+      {/* Speciality Form */}
+      <MasterDataForm
+        open={specialityFormOpen}
+        onOpenChange={setSpecialityFormOpen}
+        title={specialityFormMode === "create" ? "Add Speciality" : "Edit Speciality"}
+        fields={specialityFields}
+        schema={specialitySchema}
+        defaultValues={
+          editingSpeciality
+            ? {
+                name: editingSpeciality.name,
+                description: editingSpeciality.description,
+                display_order: editingSpeciality.display_order,
+                is_active: editingSpeciality.is_active,
+              }
+            : undefined
+        }
+        onSubmit={handleSpecialitySubmit}
+        isLoading={createSpecialityMutation.isPending || updateSpecialityMutation.isPending}
+      />
+
+      {/* Delete Dialogs */}
+      <DeleteConfirmDialog
+        open={deleteAreaOpen}
+        onOpenChange={setDeleteAreaOpen}
+        title="Deactivate Proficiency Area"
+        itemName={deletingArea?.name}
+        onConfirm={async () => {
+          if (deletingArea) {
+            await deleteAreaMutation.mutateAsync(deletingArea.id);
+          }
+        }}
+        isLoading={deleteAreaMutation.isPending}
+        isSoftDelete
+        hasChildren={areaHasChildren}
+        childrenMessage="This proficiency area has active sub-domains. Please deactivate or reassign them first."
+      />
+
+      <DeleteConfirmDialog
+        open={deleteSubDomainOpen}
+        onOpenChange={setDeleteSubDomainOpen}
+        title="Deactivate Sub-domain"
+        itemName={deletingSubDomain?.name}
+        onConfirm={async () => {
+          if (deletingSubDomain) {
+            await deleteSubDomainMutation.mutateAsync(deletingSubDomain.id);
+          }
+        }}
+        isLoading={deleteSubDomainMutation.isPending}
+        isSoftDelete
+        hasChildren={subDomainHasChildren}
+        childrenMessage="This sub-domain has active specialities. Please deactivate or reassign them first."
+      />
+
+      <DeleteConfirmDialog
+        open={deleteSpecialityOpen}
+        onOpenChange={setDeleteSpecialityOpen}
+        title="Deactivate Speciality"
+        itemName={deletingSpeciality?.name}
+        onConfirm={async () => {
+          if (deletingSpeciality) {
+            await deleteSpecialityMutation.mutateAsync(deletingSpeciality.id);
+          }
+        }}
+        isLoading={deleteSpecialityMutation.isPending}
+        isSoftDelete
+      />
+    </AdminLayout>
+  );
+}
