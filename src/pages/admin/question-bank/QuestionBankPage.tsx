@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2 } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -53,6 +53,9 @@ export function QuestionBankPage() {
   // Delete state
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deletingQuestion, setDeletingQuestion] = React.useState<Question | null>(null);
+
+  // Bulk delete state
+  const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
 
   // Import state
   const [importOpen, setImportOpen] = React.useState(false);
@@ -465,16 +468,25 @@ export function QuestionBankPage() {
               <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
                   {selectedQuestions.length > 0 && (
-                    <Button
-                      variant="secondary"
-                      onClick={() => {
-                        setDuplicatingQuestions(selectedQuestions);
-                        setDuplicateOpen(true);
-                      }}
-                    >
-                      <Copy className="h-4 w-4 mr-2" />
-                      Duplicate {selectedQuestions.length} Selected
-                    </Button>
+                    <>
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setDuplicatingQuestions(selectedQuestions);
+                          setDuplicateOpen(true);
+                        }}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Duplicate {selectedQuestions.length} Selected
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        onClick={() => setBulkDeleteOpen(true)}
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Deactivate {selectedQuestions.length} Selected
+                      </Button>
+                    </>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -543,6 +555,22 @@ export function QuestionBankPage() {
           if (deletingQuestion) {
             await deleteMutation.mutateAsync(deletingQuestion.id);
           }
+        }}
+        isLoading={deleteMutation.isPending}
+        isSoftDelete
+      />
+
+      {/* Bulk Delete Dialog */}
+      <DeleteConfirmDialog
+        open={bulkDeleteOpen}
+        onOpenChange={setBulkDeleteOpen}
+        title={`Deactivate ${selectedQuestions.length} Questions`}
+        itemName={`${selectedQuestions.length} selected questions`}
+        onConfirm={async () => {
+          for (const question of selectedQuestions) {
+            await deleteMutation.mutateAsync(question.id);
+          }
+          setSelectedQuestions([]);
         }}
         isLoading={deleteMutation.isPending}
         isSoftDelete
