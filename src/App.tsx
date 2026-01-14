@@ -44,6 +44,7 @@ import { ExpertiseLevelsPage } from "@/pages/admin/expertise-levels";
 import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
 import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
 import { QuestionBankPage } from "@/pages/admin/question-bank";
+import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 
 const queryClient = new QueryClient();
@@ -234,6 +235,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <QuestionBankPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/level-speciality-map"
+              element={
+                <AdminGuard>
+                  <LevelSpecialityMapPage />
                 </AdminGuard>
               }
             />

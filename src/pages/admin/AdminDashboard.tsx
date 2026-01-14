@@ -9,6 +9,7 @@ import {
   GraduationCap, 
   Network,
   FileQuestion,
+  Link2,
   ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -63,6 +64,13 @@ const sections = [
     icon: Network,
     path: '/admin/master-data/proficiency-taxonomy',
     color: 'text-cyan-500',
+  },
+  {
+    title: 'Level-Speciality Mapping',
+    description: 'Link expertise levels to specialities',
+    icon: Link2,
+    path: '/admin/level-speciality-map',
+    color: 'text-indigo-500',
   },
   {
     title: 'Question Bank',
