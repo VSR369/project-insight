@@ -10,6 +10,7 @@ import {
   Network,
   FileQuestion,
   Link2,
+  Mail,
   ArrowRight,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -78,6 +79,13 @@ const sections = [
     icon: FileQuestion,
     path: '/admin/questions',
     color: 'text-red-500',
+  },
+  {
+    title: 'Invitations',
+    description: 'Manage provider invitations',
+    icon: Mail,
+    path: '/admin/invitations',
+    color: 'text-teal-500',
   },
 ];
 
