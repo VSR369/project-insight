@@ -41,16 +41,16 @@ export function AdminHeader() {
             const name = pathNames[segment] || segment;
 
             return (
-              <BreadcrumbItem key={path}>
-                {!isLast ? (
-                  <>
+              <span key={path} className="contents">
+                <BreadcrumbItem>
+                  {!isLast ? (
                     <BreadcrumbLink href={path}>{name}</BreadcrumbLink>
-                    <BreadcrumbSeparator />
-                  </>
-                ) : (
-                  <BreadcrumbPage>{name}</BreadcrumbPage>
-                )}
-              </BreadcrumbItem>
+                  ) : (
+                    <BreadcrumbPage>{name}</BreadcrumbPage>
+                  )}
+                </BreadcrumbItem>
+                {!isLast && <BreadcrumbSeparator />}
+              </span>
             );
           })}
         </BreadcrumbList>
