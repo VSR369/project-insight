@@ -37,10 +37,6 @@ export default function MasterDataPlaceholder({ title, description }: MasterData
 }
 
 // Export individual placeholder components for each route
-export function ExpertiseLevelsPage() {
-  return <MasterDataPlaceholder title="Expertise Levels" description="Define experience level tiers and requirements" />;
-}
-
 export function AcademicTaxonomyPage() {
   return <MasterDataPlaceholder title="Academic Taxonomy" description="Manage disciplines, streams, and subjects hierarchy" />;
 }
