@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 
 import { AdminLayout } from "@/components/admin";
@@ -12,6 +12,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
@@ -74,6 +75,9 @@ export function QuestionBankPage() {
   // Question filters
   const [difficultyFilter, setDifficultyFilter] = React.useState<string>("all");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+
+  // Stats dashboard collapsed state
+  const [statsOpen, setStatsOpen] = React.useState(true);
 
   // Queries for hierarchy
   const { data: industrySegments = [] } = useIndustrySegments(false);
@@ -496,7 +500,28 @@ export function QuestionBankPage() {
           {selectedSpecialityId ? (
             <>
               {/* Statistics Dashboard */}
-              <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <Collapsible open={statsOpen} onOpenChange={setStatsOpen}>
+                <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-primary" />
+                    <span className="text-sm font-medium">Statistics Dashboard</span>
+                    <Badge variant="secondary" className="text-xs">
+                      {questions.length} questions
+                    </Badge>
+                  </div>
+                  <CollapsibleTrigger asChild>
+                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                      {statsOpen ? (
+                        <ChevronUp className="h-4 w-4" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4" />
+                      )}
+                      <span className="sr-only">Toggle statistics</span>
+                    </Button>
+                  </CollapsibleTrigger>
+                </div>
+                <CollapsibleContent className="pt-4">
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 {/* Left: Summary Stats */}
                 <div className="space-y-3">
                   {/* Total */}
@@ -690,7 +715,9 @@ export function QuestionBankPage() {
                     );
                   })}
                 </div>
-              </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
               {/* Question Filters Bar */}
               <div className="flex items-center justify-between gap-4 p-3 bg-muted/30 rounded-lg border">
                 <div className="flex items-center gap-3">
