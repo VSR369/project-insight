@@ -14,6 +14,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 type FormData = RegisterFormData | StudentRegisterFormData;
 
@@ -83,6 +84,10 @@ export default function Register() {
         first_name: data.firstName,
         last_name: data.lastName,
         is_student: activeTab === 'student',
+        address: data.address || null,
+        pin_code: data.pinCode || null,
+        country_id: data.countryId || null,
+        industry_segment_id: data.industrySegmentId || null,
       };
 
       const { error } = await signUp(data.email, data.password, metadata);
@@ -99,11 +104,13 @@ export default function Register() {
       toast.success('Account created! Please check your email to verify your account.');
       navigate('/login');
     } catch (err) {
+      console.error('Registration error:', err);
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const renderCommonFields = (form: ReturnType<typeof useForm<RegisterFormData>>) => (
     <>

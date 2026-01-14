@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -18,7 +18,8 @@ import {
   BookOpen,
   MoreVertical,
   Pencil,
-  Trash2
+  Trash2,
+  Loader2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -26,31 +27,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useCurrentProvider, useCompleteOnboarding } from '@/hooks/queries/useProvider';
+import { toast } from 'sonner';
 
-// Sample proof points for demo
-const sampleProofPoints = [
-  {
-    id: '1',
-    type: 'project',
-    category: 'general',
-    title: 'E-commerce Platform Redesign',
-    description: 'Led the complete frontend redesign of a major e-commerce platform...',
-    linksCount: 2,
-    filesCount: 1,
-    tagsCount: 3,
-  },
-  {
-    id: '2',
-    type: 'certification',
-    category: 'specialty_specific',
-    title: 'AWS Solutions Architect Professional',
-    description: 'Achieved the professional level certification demonstrating...',
-    linksCount: 1,
-    filesCount: 1,
-    tagsCount: 2,
-  },
-];
-
+// Type icons mapping
 const typeIcons: Record<string, typeof Briefcase> = {
   project: Briefcase,
   case_study: FileText,
@@ -75,10 +55,49 @@ const typeLabels: Record<string, string> = {
 
 export default function ProofPoints() {
   const navigate = useNavigate();
-  const [proofPoints] = useState(sampleProofPoints);
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const completeOnboarding = useCompleteOnboarding();
+  
+  // TODO: Replace with actual proof points query when implemented
+  const [proofPoints] = useState<Array<{
+    id: string;
+    type: string;
+    category: string;
+    title: string;
+    description: string;
+    linksCount: number;
+    filesCount: number;
+    tagsCount: number;
+  }>>([]);
 
   const profileStrength = Math.min((proofPoints.length / 5) * 100, 100);
   const minimumMet = proofPoints.length >= 2;
+
+  const handleComplete = async () => {
+    if (!provider?.id) {
+      toast.error('Provider profile not found. Please try again.');
+      return;
+    }
+
+    try {
+      await completeOnboarding.mutateAsync(provider.id);
+      toast.success('Profile completed successfully!');
+      navigate('/dashboard');
+    } catch (error) {
+      toast.error('Failed to complete profile. Please try again.');
+      console.error('Error completing onboarding:', error);
+    }
+  };
+
+  if (providerLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
@@ -232,20 +251,24 @@ export default function ProofPoints() {
             Back
           </Button>
           <Button
-            onClick={() => navigate('/dashboard')}
-            disabled={!minimumMet}
+            onClick={handleComplete}
+            disabled={completeOnboarding.isPending}
             className="gap-2 sm:ml-auto"
           >
-            Complete Profile
-            <ArrowRight className="h-4 w-4" />
+            {completeOnboarding.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Complete Profile
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
 
-        {!minimumMet && (
-          <p className="text-sm text-muted-foreground text-center mt-4">
-            Add at least 2 proof points to complete your profile
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground text-center mt-4">
+          You can add proof points later from your profile settings
+        </p>
       </div>
     </AppLayout>
   );

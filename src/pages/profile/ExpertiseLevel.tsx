@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
+import { useCurrentProvider, useUpdateProviderExpertise } from '@/hooks/queries/useProvider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -9,17 +10,41 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, ArrowLeft, Loader2, CheckCircle, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 export default function ExpertiseLevel() {
   const navigate = useNavigate();
-  const { data: levels, isLoading } = useExpertiseLevels();
+  const { data: levels, isLoading: levelsLoading } = useExpertiseLevels();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const updateExpertise = useUpdateProviderExpertise();
   const [selectedLevel, setSelectedLevel] = useState<string>('');
 
-  const handleContinue = () => {
-    navigate('/profile/build/proficiency');
+  // Pre-fill from existing data
+  useEffect(() => {
+    if (provider?.expertise_level_id) {
+      setSelectedLevel(provider.expertise_level_id);
+    }
+  }, [provider?.expertise_level_id]);
+
+  const handleContinue = async () => {
+    if (!provider?.id) {
+      toast.error('Provider profile not found. Please try again.');
+      return;
+    }
+
+    try {
+      await updateExpertise.mutateAsync({
+        providerId: provider.id,
+        expertiseLevelId: selectedLevel,
+      });
+      navigate('/profile/build/proficiency');
+    } catch (error) {
+      toast.error('Failed to save expertise level. Please try again.');
+      console.error('Error saving expertise:', error);
+    }
   };
 
-  if (isLoading) {
+  if (levelsLoading || providerLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -130,11 +155,17 @@ export default function ExpertiseLevel() {
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={!selectedLevel}
+            disabled={!selectedLevel || updateExpertise.isPending}
             className="gap-2 sm:ml-auto"
           >
-            Continue
-            <ArrowRight className="h-4 w-4" />
+            {updateExpertise.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                Continue
+                <ArrowRight className="h-4 w-4" />
+              </>
+            )}
           </Button>
         </div>
       </div>

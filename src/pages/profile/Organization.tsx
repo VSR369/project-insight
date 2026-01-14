@@ -1,15 +1,18 @@
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
+import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowRight, ArrowLeft, Building2, User, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const organizationSchema = z.object({
   orgName: z.string().min(2, 'Organization name is required'),
@@ -25,7 +28,9 @@ type OrganizationFormData = z.infer<typeof organizationSchema>;
 
 export default function Organization() {
   const navigate = useNavigate();
-  const { data: orgTypes, isLoading } = useOrganizationTypes();
+  const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const upsertOrg = useUpsertOrganization();
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -40,12 +45,49 @@ export default function Organization() {
     },
   });
 
-  const onSubmit = (data: OrganizationFormData) => {
-    console.log('Organization data:', data);
-    navigate('/profile/build/expertise');
+  // Pre-fill from existing organization data
+  useEffect(() => {
+    if (provider?.organization) {
+      const org = provider.organization;
+      form.reset({
+        orgName: org.org_name || '',
+        orgTypeId: org.org_type_id || '',
+        orgWebsite: org.org_website || '',
+        designation: org.designation || '',
+        managerName: org.manager_name || '',
+        managerEmail: org.manager_email || '',
+        managerPhone: org.manager_phone || '',
+      });
+    }
+  }, [provider?.organization, form]);
+
+  const onSubmit = async (data: OrganizationFormData) => {
+    if (!provider?.id) {
+      toast.error('Provider profile not found. Please try again.');
+      return;
+    }
+
+    try {
+      await upsertOrg.mutateAsync({
+        providerId: provider.id,
+        data: {
+          orgName: data.orgName,
+          orgTypeId: data.orgTypeId,
+          orgWebsite: data.orgWebsite || undefined,
+          designation: data.designation || undefined,
+          managerName: data.managerName,
+          managerEmail: data.managerEmail,
+          managerPhone: data.managerPhone || undefined,
+        },
+      });
+      navigate('/profile/build/expertise');
+    } catch (error) {
+      toast.error('Failed to save organization details. Please try again.');
+      console.error('Error saving organization:', error);
+    }
   };
 
-  if (isLoading) {
+  if (orgTypesLoading || providerLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -225,9 +267,15 @@ export default function Organization() {
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-              <Button type="submit" className="gap-2 sm:ml-auto">
-                Continue
-                <ArrowRight className="h-4 w-4" />
+              <Button type="submit" disabled={upsertOrg.isPending} className="gap-2 sm:ml-auto">
+                {upsertOrg.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Continue
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
               </Button>
             </div>
           </form>
