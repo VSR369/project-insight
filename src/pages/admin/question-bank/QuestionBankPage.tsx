@@ -70,6 +70,9 @@ export function QuestionBankPage() {
   // Bulk restore state
   const [bulkRestoreOpen, setBulkRestoreOpen] = React.useState(false);
 
+  // Bulk hard delete state
+  const [bulkHardDeleteOpen, setBulkHardDeleteOpen] = React.useState(false);
+
   // Import state
   const [importOpen, setImportOpen] = React.useState(false);
 
@@ -1009,6 +1012,16 @@ export function QuestionBankPage() {
                           Deactivate {selectedQuestions.filter(q => q.is_active).length} Active
                         </Button>
                       )}
+                      {/* Show permanently delete if any selected are inactive */}
+                      {selectedQuestions.some(q => !q.is_active) && (
+                        <Button
+                          variant="destructive"
+                          onClick={() => setBulkHardDeleteOpen(true)}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Permanently Delete {selectedQuestions.filter(q => !q.is_active).length} Inactive
+                        </Button>
+                      )}
                     </>
                   )}
                 </div>
@@ -1236,6 +1249,23 @@ export function QuestionBankPage() {
           setSelectedQuestions([]);
         }}
         isLoading={restoreMutation.isPending}
+      />
+
+      {/* Bulk Hard Delete Dialog */}
+      <DeleteConfirmDialog
+        open={bulkHardDeleteOpen}
+        onOpenChange={setBulkHardDeleteOpen}
+        title={`Permanently Delete ${selectedQuestions.filter(q => !q.is_active).length} Questions`}
+        itemName={`${selectedQuestions.filter(q => !q.is_active).length} inactive questions`}
+        onConfirm={async () => {
+          const inactiveQuestions = selectedQuestions.filter(q => !q.is_active);
+          for (const question of inactiveQuestions) {
+            await hardDeleteMutation.mutateAsync(question.id);
+          }
+          setSelectedQuestions([]);
+        }}
+        isLoading={hardDeleteMutation.isPending}
+        isSoftDelete={false}
       />
 
       {/* Import Dialog */}
