@@ -118,7 +118,7 @@ const specialityFields: FormFieldConfig[] = [
 // ===================== MAIN COMPONENT =====================
 
 export function ProficiencyTaxonomyPage() {
-  const [activeTab, setActiveTab] = React.useState("industry-segments");
+  const [activeTab, setActiveTab] = React.useState("proficiency-areas");
   const [showInactive, setShowInactive] = React.useState(true);
 
   // Selected parent IDs for filtering
@@ -232,32 +232,6 @@ export function ProficiencyTaxonomyPage() {
 
   // Get selected items for display
   const selectedLevel = expertiseLevels.find(l => l.id === selectedExpertiseLevelId);
-
-  // ===================== INDUSTRY SEGMENTS (READ-ONLY VIEW) =====================
-  const segmentColumns: DataTableColumn<IndustrySegment>[] = [
-    { accessorKey: "code", header: "Code" },
-    { accessorKey: "name", header: "Name" },
-    {
-      accessorKey: "display_order",
-      header: "Order",
-      cell: (_value, row) => <DisplayOrderCell order={row.display_order} />,
-    },
-    {
-      accessorKey: "is_active",
-      header: "Status",
-      cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
-    },
-  ];
-
-  const segmentActions: DataTableAction<IndustrySegment>[] = [
-    {
-      label: "View Proficiency Areas",
-      onClick: (segment) => {
-        setSelectedIndustrySegmentId(segment.id);
-        setActiveTab("proficiency-areas");
-      },
-    },
-  ];
 
   // ===================== PROFICIENCY AREAS =====================
   const areaColumns: DataTableColumn<ProficiencyArea>[] = [
@@ -629,67 +603,60 @@ export function ProficiencyTaxonomyPage() {
             )}
           </div>
 
-          {/* Breadcrumb Navigation */}
-          <div className="flex items-center gap-2 mb-6 flex-wrap">
-            <Badge
-              variant={!selectedIndustrySegmentId ? "default" : "outline"}
-              className="cursor-pointer"
-              onClick={() => {
-                setSelectedIndustrySegmentId(undefined);
-                setActiveTab("industry-segments");
-              }}
-            >
-              <Building2 className="h-3 w-3 mr-1" />
-              {selectedSegment ? selectedSegment.name : "Industry Segments"}
-            </Badge>
-            {selectedLevel && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          {/* Breadcrumb Navigation - shows current hierarchy selection */}
+          {(selectedSegment || selectedLevel || selectedArea || selectedSubDomain) && (
+            <div className="flex items-center gap-2 mb-6 flex-wrap">
+              {selectedSegment && (
                 <Badge variant="secondary">
-                  {selectedLevel.name}
+                  <Building2 className="h-3 w-3 mr-1" />
+                  {selectedSegment.name}
                 </Badge>
-              </>
-            )}
-            {selectedArea && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Badge
-                  variant={!selectedSubDomainId ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelectedSubDomainId(undefined);
-                    setActiveTab("sub-domains");
-                  }}
-                >
-                  <Boxes className="h-3 w-3 mr-1" />
-                  {selectedArea.name}
-                </Badge>
-              </>
-            )}
-            {selectedSubDomain && (
-              <>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Badge variant="default">
-                  <Sparkles className="h-3 w-3 mr-1" />
-                  {selectedSubDomain.name}
-                </Badge>
-              </>
-            )}
-          </div>
+              )}
+              {selectedLevel && (
+                <>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="secondary">
+                    {selectedLevel.name}
+                  </Badge>
+                </>
+              )}
+              {selectedArea && (
+                <>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <Badge
+                    variant={!selectedSubDomainId ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => {
+                      setSelectedSubDomainId(undefined);
+                      setActiveTab("sub-domains");
+                    }}
+                  >
+                    <Boxes className="h-3 w-3 mr-1" />
+                    {selectedArea.name}
+                  </Badge>
+                </>
+              )}
+              {selectedSubDomain && (
+                <>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <Badge variant="default">
+                    <Sparkles className="h-3 w-3 mr-1" />
+                    {selectedSubDomain.name}
+                  </Badge>
+                </>
+              )}
+            </div>
+          )}
 
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="industry-segments" className="flex items-center gap-1">
-                <Building2 className="h-4 w-4" />
-                Segments
-              </TabsTrigger>
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger
                 value="proficiency-areas"
-                disabled={!selectedIndustrySegmentId}
+                disabled={!selectedIndustrySegmentId || !selectedExpertiseLevelId}
                 className="flex items-center gap-1"
               >
                 <Target className="h-4 w-4" />
-                Proficiency
+                Proficiency Areas
               </TabsTrigger>
               <TabsTrigger
                 value="sub-domains"
@@ -708,24 +675,6 @@ export function ProficiencyTaxonomyPage() {
                 Specialities
               </TabsTrigger>
             </TabsList>
-
-            {/* Industry Segments Tab */}
-            <TabsContent value="industry-segments">
-              <Alert className="mb-4">
-                <Building2 className="h-4 w-4" />
-                <AlertDescription>
-                  Select an industry segment to view and manage its proficiency areas. Industry segments are managed in the dedicated Industry Segments page.
-                </AlertDescription>
-              </Alert>
-              <DataTable
-                data={industrySegments}
-                columns={segmentColumns}
-                actions={segmentActions}
-                searchPlaceholder="Search segments..."
-                searchKey="name"
-                isLoading={segmentsLoading}
-              />
-            </TabsContent>
 
             {/* Proficiency Areas Tab */}
             <TabsContent value="proficiency-areas">
