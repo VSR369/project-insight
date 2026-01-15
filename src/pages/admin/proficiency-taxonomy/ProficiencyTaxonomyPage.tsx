@@ -1,6 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles, Download, Upload, Eye } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/admin";
