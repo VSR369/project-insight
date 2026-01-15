@@ -200,7 +200,8 @@ export function useSubDomainsAdmin(proficiencyAreaId?: string, includeInactive =
       if (error) throw new Error(error.message);
       return data as SubDomain[];
     },
-    enabled: !!proficiencyAreaId || includeInactive,
+    // Only run when parent is selected - hierarchy must be respected
+    enabled: !!proficiencyAreaId,
   });
 }
 
@@ -360,7 +361,8 @@ export function useSpecialitiesAdmin(subDomainId?: string, includeInactive = fal
       if (error) throw new Error(error.message);
       return data as Speciality[];
     },
-    enabled: !!subDomainId || includeInactive,
+    // Only run when parent is selected - hierarchy must be respected
+    enabled: !!subDomainId,
   });
 }
 
