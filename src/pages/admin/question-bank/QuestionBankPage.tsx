@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
+import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import {
   useProficiencyAreasAdmin,
   useSubDomainsAdmin,
@@ -47,6 +48,7 @@ export function QuestionBankPage() {
 
   // Hierarchy filters
   const [selectedIndustrySegmentId, setSelectedIndustrySegmentId] = React.useState<string>("");
+  const [selectedExpertiseLevelId, setSelectedExpertiseLevelId] = React.useState<string>("");
   const [selectedProficiencyAreaId, setSelectedProficiencyAreaId] = React.useState<string>("");
   const [selectedSubDomainId, setSelectedSubDomainId] = React.useState<string>("");
   const [selectedSpecialityId, setSelectedSpecialityId] = React.useState<string>("");
@@ -107,6 +109,7 @@ export function QuestionBankPage() {
 
   // Queries for hierarchy - admin should see all items including inactive
   const { data: industrySegments = [], isLoading: industryLoading, isError: industryError } = useIndustrySegments(true);
+  const { data: expertiseLevels = [], isLoading: levelsLoading } = useExpertiseLevels(true);
   const { 
     data: proficiencyAreas = [], 
     isLoading: areasLoading, 
@@ -114,7 +117,7 @@ export function QuestionBankPage() {
     error: areasErrorObj 
   } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
-    undefined,
+    selectedExpertiseLevelId || undefined,
     true
   );
   const { 
@@ -177,10 +180,17 @@ export function QuestionBankPage() {
 
   // Reset child selections when parent changes
   React.useEffect(() => {
+    setSelectedExpertiseLevelId("");
     setSelectedProficiencyAreaId("");
     setSelectedSubDomainId("");
     setSelectedSpecialityId("");
   }, [selectedIndustrySegmentId]);
+
+  React.useEffect(() => {
+    setSelectedProficiencyAreaId("");
+    setSelectedSubDomainId("");
+    setSelectedSpecialityId("");
+  }, [selectedExpertiseLevelId]);
 
   React.useEffect(() => {
     setSelectedSubDomainId("");
@@ -351,6 +361,7 @@ export function QuestionBankPage() {
 
   // ===================== HELPERS =====================
   const selectedSegment = industrySegments.find((s) => s.id === selectedIndustrySegmentId);
+  const selectedLevel = expertiseLevels.find((l) => l.id === selectedExpertiseLevelId);
   const selectedArea = proficiencyAreas.find((a) => a.id === selectedProficiencyAreaId);
   const selectedSubDomain = subDomains.find((sd) => sd.id === selectedSubDomainId);
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
@@ -522,7 +533,7 @@ export function QuestionBankPage() {
               Filter by Speciality
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
               {/* Industry Segment */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -557,6 +568,40 @@ export function QuestionBankPage() {
                 </Select>
               </div>
 
+              {/* Expertise Level */}
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" />
+                  Expertise Level
+                </Label>
+                <Select
+                  value={selectedExpertiseLevelId}
+                  onValueChange={setSelectedExpertiseLevelId}
+                  disabled={!selectedIndustrySegmentId || levelsLoading}
+                >
+                  <SelectTrigger>
+                    {levelsLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder={!selectedIndustrySegmentId ? "Select segment first..." : "Select level..."} />
+                    )}
+                  </SelectTrigger>
+                  <SelectContent>
+                    {expertiseLevels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.name}
+                        {!level.is_active && (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
               {/* Proficiency Area */}
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground flex items-center gap-1">
@@ -566,7 +611,7 @@ export function QuestionBankPage() {
                 <Select
                   value={selectedProficiencyAreaId}
                   onValueChange={setSelectedProficiencyAreaId}
-                  disabled={!selectedIndustrySegmentId || areasLoading}
+                  disabled={!selectedExpertiseLevelId || areasLoading}
                 >
                   <SelectTrigger>
                     {areasLoading ? (
@@ -575,7 +620,7 @@ export function QuestionBankPage() {
                         Loading...
                       </span>
                     ) : (
-                      <SelectValue placeholder={!selectedIndustrySegmentId ? "Select segment first..." : "Select area..."} />
+                      <SelectValue placeholder={!selectedExpertiseLevelId ? "Select level first..." : "Select area..."} />
                     )}
                   </SelectTrigger>
                   <SelectContent>
