@@ -100,6 +100,8 @@ export function QuestionBankPage() {
   // Question filters
   const [difficultyFilter, setDifficultyFilter] = React.useState<string>("all");
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+  const [questionTypeFilter, setQuestionTypeFilter] = React.useState<string>("all");
+  const [usageModeFilter, setUsageModeFilter] = React.useState<string>("all");
 
   // Stats dashboard collapsed state (persisted in localStorage)
   const [statsOpen, setStatsOpen] = React.useState(() => {
@@ -171,10 +173,20 @@ export function QuestionBankPage() {
         if (statusFilter === "active" && !q.is_active) return false;
         if (statusFilter === "inactive" && q.is_active) return false;
       }
+
+      // Question type filter
+      if (questionTypeFilter !== "all") {
+        if (q.question_type !== questionTypeFilter) return false;
+      }
+
+      // Usage mode filter
+      if (usageModeFilter !== "all") {
+        if (q.usage_mode !== usageModeFilter) return false;
+      }
       
       return true;
     });
-  }, [questions, difficultyFilter, statusFilter]);
+  }, [questions, difficultyFilter, statusFilter, questionTypeFilter, usageModeFilter]);
 
   // Mutations
   const createMutation = useCreateQuestion();
@@ -1248,12 +1260,39 @@ export function QuestionBankPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Difficulties</SelectItem>
-                      <SelectItem value="1">Very Easy</SelectItem>
-                      <SelectItem value="2">Easy</SelectItem>
-                      <SelectItem value="3">Medium</SelectItem>
-                      <SelectItem value="4">Hard</SelectItem>
-                      <SelectItem value="5">Very Hard</SelectItem>
+                      <SelectItem value="introductory">Introductory</SelectItem>
+                      <SelectItem value="applied">Applied</SelectItem>
+                      <SelectItem value="advanced">Advanced</SelectItem>
+                      <SelectItem value="strategic">Strategic</SelectItem>
                       <SelectItem value="none">Not Set</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Question Type Filter */}
+                  <Select value={questionTypeFilter} onValueChange={setQuestionTypeFilter}>
+                    <SelectTrigger className="w-[130px] h-8">
+                      <SelectValue placeholder="Type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      <SelectItem value="conceptual">Conceptual</SelectItem>
+                      <SelectItem value="scenario">Scenario</SelectItem>
+                      <SelectItem value="experience">Experience</SelectItem>
+                      <SelectItem value="decision">Decision</SelectItem>
+                      <SelectItem value="proof">Proof</SelectItem>
+                    </SelectContent>
+                  </Select>
+
+                  {/* Usage Mode Filter */}
+                  <Select value={usageModeFilter} onValueChange={setUsageModeFilter}>
+                    <SelectTrigger className="w-[140px] h-8">
+                      <SelectValue placeholder="Usage" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Usage</SelectItem>
+                      <SelectItem value="self_assessment">Self-Assessment</SelectItem>
+                      <SelectItem value="interview">Interview</SelectItem>
+                      <SelectItem value="both">Both</SelectItem>
                     </SelectContent>
                   </Select>
 
@@ -1270,13 +1309,15 @@ export function QuestionBankPage() {
                   </Select>
 
                   {/* Clear Filters */}
-                  {(difficultyFilter !== "all" || statusFilter !== "all") && (
+                  {(difficultyFilter !== "all" || statusFilter !== "all" || questionTypeFilter !== "all" || usageModeFilter !== "all") && (
                     <Button
                       variant="ghost"
                       size="sm"
                       onClick={() => {
                         setDifficultyFilter("all");
                         setStatusFilter("all");
+                        setQuestionTypeFilter("all");
+                        setUsageModeFilter("all");
                       }}
                       className="h-8 px-2"
                     >
