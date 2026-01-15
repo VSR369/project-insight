@@ -156,9 +156,9 @@ export function QuestionBankPage() {
       // Difficulty filter
       if (difficultyFilter !== "all") {
         if (difficultyFilter === "none") {
-          if (q.difficulty_level !== null) return false;
+          if (q.difficulty !== null) return false;
         } else {
-          if (q.difficulty_level !== parseInt(difficultyFilter)) return false;
+          if (q.difficulty !== difficultyFilter) return false;
         }
       }
       
@@ -233,22 +233,21 @@ export function QuestionBankPage() {
       ),
     },
     {
-      accessorKey: "difficulty_level",
+      accessorKey: "difficulty",
       header: "Difficulty",
       cell: (_value, row) => {
-        const level = row.difficulty_level;
-        if (!level) return <span className="text-muted-foreground">—</span>;
-        const labels = ["Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
-        const colors = [
-          "bg-green-100 text-green-800",
-          "bg-lime-100 text-lime-800",
-          "bg-yellow-100 text-yellow-800",
-          "bg-orange-100 text-orange-800",
-          "bg-red-100 text-red-800",
-        ];
+        const difficulty = row.difficulty;
+        if (!difficulty) return <span className="text-muted-foreground">—</span>;
+        const config: Record<string, { label: string; className: string }> = {
+          introductory: { label: "Introductory", className: "bg-green-100 text-green-800" },
+          applied: { label: "Applied", className: "bg-lime-100 text-lime-800" },
+          advanced: { label: "Advanced", className: "bg-orange-100 text-orange-800" },
+          strategic: { label: "Strategic", className: "bg-red-100 text-red-800" },
+        };
+        const info = config[difficulty];
         return (
-          <Badge className={colors[level - 1]} variant="secondary">
-            {labels[level - 1]}
+          <Badge className={info?.className} variant="secondary">
+            {info?.label || difficulty}
           </Badge>
         );
       },
@@ -316,7 +315,7 @@ export function QuestionBankPage() {
     question_text: string;
     options: { text: string }[];
     correct_option: number;
-    difficulty_level?: number | null;
+    difficulty?: "introductory" | "applied" | "advanced" | "strategic" | null;
     is_active: boolean;
   }) => {
     const formattedOptions = formatQuestionOptions(
@@ -331,7 +330,7 @@ export function QuestionBankPage() {
         question_text: data.question_text,
         options: optionsJson,
         correct_option: data.correct_option,
-        difficulty_level: data.difficulty_level,
+        difficulty: data.difficulty,
         is_active: data.is_active,
         speciality_id: selectedSpecialityId,
       });
@@ -341,7 +340,7 @@ export function QuestionBankPage() {
         question_text: data.question_text,
         options: optionsJson,
         correct_option: data.correct_option,
-        difficulty_level: data.difficulty_level,
+        difficulty: data.difficulty,
         is_active: data.is_active,
       });
     }
@@ -355,7 +354,7 @@ export function QuestionBankPage() {
       question_text: editingQuestion.question_text,
       options: options.map((opt) => ({ text: opt.text })),
       correct_option: editingQuestion.correct_option,
-      difficulty_level: editingQuestion.difficulty_level,
+      difficulty: editingQuestion.difficulty,
       is_active: editingQuestion.is_active,
     };
   };
@@ -384,7 +383,7 @@ export function QuestionBankPage() {
         options[4]?.text || "",
         options[5]?.text || "",
         q.correct_option,
-        q.difficulty_level ?? "",
+        q.difficulty ?? "",
         q.is_active ? "Active" : "Inactive",
       ];
     });
@@ -513,11 +512,10 @@ export function QuestionBankPage() {
         <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #ddd;">
           <strong style="font-size: 14px;">By Difficulty:</strong>
           <div style="display: flex; gap: 16px; margin-top: 4px; font-size: 12px;">
-            <span>Very Easy: ${questions.filter(q => q.difficulty_level === 1).length}</span>
-            <span>Easy: ${questions.filter(q => q.difficulty_level === 2).length}</span>
-            <span>Medium: ${questions.filter(q => q.difficulty_level === 3).length}</span>
-            <span>Hard: ${questions.filter(q => q.difficulty_level === 4).length}</span>
-            <span>Very Hard: ${questions.filter(q => q.difficulty_level === 5).length}</span>
+            <span>Introductory: ${questions.filter(q => q.difficulty === 'introductory').length}</span>
+            <span>Applied: ${questions.filter(q => q.difficulty === 'applied').length}</span>
+            <span>Advanced: ${questions.filter(q => q.difficulty === 'advanced').length}</span>
+            <span>Strategic: ${questions.filter(q => q.difficulty === 'strategic').length}</span>
           </div>
         </div>
       </div>
@@ -533,7 +531,7 @@ export function QuestionBankPage() {
                   <strong>${idx + 1}. ${q.question_text}</strong>
                   <div style="font-size: 11px; margin-left: 16px; white-space: nowrap;">
                     <span style="color: ${q.is_active ? '#15803d' : '#b91c1c'};">${q.is_active ? 'Active' : 'Inactive'}</span>
-                    ${q.difficulty_level ? `<span style="color: #666; margin-left: 8px;">${diffLabels[q.difficulty_level]}</span>` : ''}
+                    ${q.difficulty ? `<span style="color: #666; margin-left: 8px;">${q.difficulty}</span>` : ''}
                   </div>
                 </div>
                 <div style="margin-left: 16px;">
