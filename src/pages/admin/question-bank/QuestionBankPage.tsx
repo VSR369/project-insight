@@ -97,19 +97,19 @@ export function QuestionBankPage() {
     localStorage.setItem("questionBank.statsOpen", String(statsOpen));
   }, [statsOpen]);
 
-  // Queries for hierarchy
-  const { data: industrySegments = [] } = useIndustrySegments(false);
+  // Queries for hierarchy - admin should see all items including inactive
+  const { data: industrySegments = [] } = useIndustrySegments(true);
   const { data: proficiencyAreas = [] } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
-    false
+    true
   );
   const { data: subDomains = [] } = useSubDomainsAdmin(
     selectedProficiencyAreaId || undefined,
-    false
+    true
   );
   const { data: specialities = [] } = useSpecialitiesAdmin(
     selectedSubDomainId || undefined,
-    false
+    true
   );
 
   // Questions query
