@@ -8,14 +8,15 @@ import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft, Loader2, CheckCircle, Star } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowRight, ArrowLeft, Loader2, CheckCircle, Star, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
 export default function ExpertiseLevel() {
   const navigate = useNavigate();
-  const { data: levels, isLoading: levelsLoading } = useExpertiseLevels();
-  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const { data: levels, isLoading: levelsLoading, error: levelsError } = useExpertiseLevels();
+  const { data: provider, isLoading: providerLoading, error: providerError } = useCurrentProvider();
   const updateExpertise = useUpdateProviderExpertise();
   const [selectedLevel, setSelectedLevel] = useState<string>('');
 
@@ -28,7 +29,7 @@ export default function ExpertiseLevel() {
 
   const handleContinue = async () => {
     if (!provider?.id) {
-      toast.error('Provider profile not found. Please try again.');
+      toast.error('Provider profile not found. Please refresh the page or contact support.');
       return;
     }
 
@@ -44,7 +45,8 @@ export default function ExpertiseLevel() {
     }
   };
 
-  if (levelsLoading || providerLoading) {
+  // Only show loading for master data (levels) - the core content
+  if (levelsLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -53,6 +55,27 @@ export default function ExpertiseLevel() {
       </AppLayout>
     );
   }
+
+  // Show error state if levels failed to load
+  if (levelsError) {
+    return (
+      <AppLayout>
+        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Failed to load expertise levels</AlertTitle>
+            <AlertDescription>
+              Please refresh the page to try again. If the problem persists, contact support.
+            </AlertDescription>
+          </Alert>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Determine if provider is missing (not loading but null)
+  const providerMissing = !providerLoading && !provider;
+  const canContinue = selectedLevel && provider?.id && !updateExpertise.isPending;
 
   return (
     <AppLayout>
@@ -72,10 +95,29 @@ export default function ExpertiseLevel() {
           </p>
         </div>
 
+        {/* Provider Missing Warning */}
+        {providerMissing && (
+          <Alert variant="destructive" className="mb-6">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Profile setup incomplete</AlertTitle>
+            <AlertDescription>
+              Your provider profile is missing. Please refresh the page. If the issue persists, try logging out and back in, or contact support.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Provider Loading Indicator */}
+        {providerLoading && (
+          <Alert className="mb-6">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <AlertTitle>Loading your profile...</AlertTitle>
+          </Alert>
+        )}
+
         {/* Level Selection */}
         <RadioGroup 
           value={selectedLevel} 
-          onValueChange={setSelectedLevel} 
+          onValueChange={setSelectedLevel}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
         >
           {levels?.map((level) => {
@@ -155,11 +197,16 @@ export default function ExpertiseLevel() {
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={!selectedLevel || updateExpertise.isPending}
+            disabled={!canContinue}
             className="gap-2 sm:ml-auto"
           >
             {updateExpertise.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
+            ) : providerLoading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Loading...
+              </>
             ) : (
               <>
                 Continue
