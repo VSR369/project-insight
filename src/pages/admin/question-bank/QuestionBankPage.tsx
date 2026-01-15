@@ -239,15 +239,53 @@ export function QuestionBankPage() {
         const difficulty = row.difficulty;
         if (!difficulty) return <span className="text-muted-foreground">—</span>;
         const config: Record<string, { label: string; className: string }> = {
-          introductory: { label: "Introductory", className: "bg-green-100 text-green-800" },
-          applied: { label: "Applied", className: "bg-lime-100 text-lime-800" },
-          advanced: { label: "Advanced", className: "bg-orange-100 text-orange-800" },
-          strategic: { label: "Strategic", className: "bg-red-100 text-red-800" },
+          introductory: { label: "Introductory", className: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+          applied: { label: "Applied", className: "bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200" },
+          advanced: { label: "Advanced", className: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+          strategic: { label: "Strategic", className: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
         };
         const info = config[difficulty];
         return (
           <Badge className={info?.className} variant="secondary">
             {info?.label || difficulty}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "question_type",
+      header: "Type",
+      cell: (_value, row) => {
+        const questionType = row.question_type;
+        const config: Record<string, { label: string; className: string }> = {
+          conceptual: { label: "Conceptual", className: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+          scenario: { label: "Scenario", className: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+          experience: { label: "Experience", className: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200" },
+          decision: { label: "Decision", className: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200" },
+          proof: { label: "Proof", className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200" },
+        };
+        const info = config[questionType];
+        return (
+          <Badge className={info?.className} variant="secondary">
+            {info?.label || questionType}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "usage_mode",
+      header: "Usage",
+      cell: (_value, row) => {
+        const usageMode = row.usage_mode;
+        const config: Record<string, { label: string; className: string }> = {
+          self_assessment: { label: "Self-Assess", className: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200" },
+          interview: { label: "Interview", className: "bg-rose-100 text-rose-800 dark:bg-rose-900 dark:text-rose-200" },
+          both: { label: "Both", className: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-200" },
+        };
+        const info = config[usageMode];
+        return (
+          <Badge className={info?.className} variant="secondary">
+            {info?.label || usageMode}
           </Badge>
         );
       },
