@@ -25,6 +25,14 @@ export const DIFFICULTY_CONFIG: Record<QuestionDifficulty, { label: string; colo
   strategic: { label: "Strategic", color: "text-red-700", bgColor: "bg-red-100" },
 };
 
+// Difficulty options for forms/selects
+export const DIFFICULTY_OPTIONS = [
+  { value: "introductory" as const, label: "Introductory" },
+  { value: "applied" as const, label: "Applied" },
+  { value: "advanced" as const, label: "Advanced" },
+  { value: "strategic" as const, label: "Strategic" },
+];
+
 // Question type labels and colors
 export const QUESTION_TYPE_CONFIG: Record<QuestionType, { label: string; color: string; bgColor: string; description: string }> = {
   conceptual: { label: "Conceptual", color: "text-blue-700", bgColor: "bg-blue-100", description: "Basic understanding (20% - mostly self-assessment)" },
@@ -34,12 +42,28 @@ export const QUESTION_TYPE_CONFIG: Record<QuestionType, { label: string; color: 
   proof: { label: "Proof", color: "text-indigo-700", bgColor: "bg-indigo-100", description: "Evidence-based (10% - senior interview)" },
 };
 
+// Question type options for forms/selects
+export const QUESTION_TYPE_OPTIONS = [
+  { value: "conceptual" as const, label: "Conceptual" },
+  { value: "scenario" as const, label: "Scenario" },
+  { value: "experience" as const, label: "Experience" },
+  { value: "decision" as const, label: "Decision" },
+  { value: "proof" as const, label: "Proof" },
+];
+
 // Usage mode labels and colors
 export const USAGE_MODE_CONFIG: Record<QuestionUsageMode, { label: string; color: string; bgColor: string }> = {
   self_assessment: { label: "Self-Assessment", color: "text-cyan-700", bgColor: "bg-cyan-100" },
   interview: { label: "Interview", color: "text-violet-700", bgColor: "bg-violet-100" },
   both: { label: "Both", color: "text-emerald-700", bgColor: "bg-emerald-100" },
 };
+
+// Usage mode options for forms/selects
+export const USAGE_MODE_OPTIONS = [
+  { value: "self_assessment" as const, label: "Self-Assessment" },
+  { value: "interview" as const, label: "Interview" },
+  { value: "both" as const, label: "Both" },
+];
 
 export function useQuestions(specialityId?: string, includeInactive = false) {
   return useQuery({
