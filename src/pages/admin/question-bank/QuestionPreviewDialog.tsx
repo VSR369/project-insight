@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CheckCircle, XCircle, Eye, Edit, Copy } from "lucide-react";
+import { CheckCircle, XCircle, Eye, Edit, Copy, Tags } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -84,6 +84,29 @@ export function QuestionPreviewDialog({
               </Badge>
             )}
           </div>
+
+          {/* Capability Tags */}
+          {question.question_capability_tags && question.question_capability_tags.length > 0 && (
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                <Tags className="h-4 w-4" />
+                Capability Tags
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {question.question_capability_tags.map((tagRelation) => (
+                  tagRelation.capability_tags && (
+                    <Badge 
+                      key={tagRelation.id} 
+                      variant="secondary"
+                      className="bg-purple-100 text-purple-700 border-purple-200"
+                    >
+                      {tagRelation.capability_tags.name}
+                    </Badge>
+                  )
+                ))}
+              </div>
+            </div>
+          )}
 
           <Separator />
 
