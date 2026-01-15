@@ -71,7 +71,7 @@ export default function ChooseMode() {
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <span>Step 1 of 5</span>
+            <span>Step 2 of 6</span>
             <span>•</span>
             <span>Participation Mode</span>
           </div>
@@ -140,7 +140,7 @@ export default function ChooseMode() {
         <div className="flex flex-col sm:flex-row gap-3 mt-8">
           <Button
             variant="outline"
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate('/profile/build/registration')}
             className="gap-2"
           >
             <ArrowLeft className="h-4 w-4" />

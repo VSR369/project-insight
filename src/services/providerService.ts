@@ -145,6 +145,38 @@ export async function completeOnboarding(providerId: string): Promise<void> {
   if (error) throw error;
 }
 
+export async function updateProviderBasicProfile(
+  providerId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    address: string;
+    pinCode: string;
+    countryId: string;
+    industrySegmentId: string;
+  }
+): Promise<void> {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const { error } = await supabase
+    .from('solution_providers')
+    .update({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      address: data.address,
+      pin_code: data.pinCode,
+      country_id: data.countryId,
+      industry_segment_id: data.industrySegmentId,
+      lifecycle_status: 'profile_building',
+      onboarding_status: 'in_progress',
+      updated_by: user.id,
+    })
+    .eq('id', providerId);
+
+  if (error) throw error;
+}
+
 export async function upsertStudentProfile(
   providerId: string,
   data: {

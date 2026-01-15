@@ -19,11 +19,13 @@ import Welcome from "@/pages/Welcome";
 import NotFound from "@/pages/NotFound";
 
 // Profile Building Pages
+import Registration from "@/pages/profile/Registration";
 import ChooseMode from "@/pages/profile/ChooseMode";
 import Organization from "@/pages/profile/Organization";
 import ExpertiseLevel from "@/pages/profile/ExpertiseLevel";
 import Proficiency from "@/pages/profile/Proficiency";
 import ProofPoints from "@/pages/profile/ProofPoints";
+import { OnboardingGuard } from "@/components/auth/OnboardingGuard";
 
 // Placeholder Pages
 import { 
@@ -86,10 +88,20 @@ const App = () => (
 
             {/* Profile Building Wizard */}
             <Route
+              path="/profile/build/registration"
+              element={
+                <AuthGuard>
+                  <Registration />
+                </AuthGuard>
+              }
+            />
+            <Route
               path="/profile/build/choose-mode"
               element={
                 <AuthGuard>
-                  <ChooseMode />
+                  <OnboardingGuard requiredStep={2}>
+                    <ChooseMode />
+                  </OnboardingGuard>
                 </AuthGuard>
               }
             />
@@ -97,7 +109,9 @@ const App = () => (
               path="/profile/build/organization"
               element={
                 <AuthGuard>
-                  <Organization />
+                  <OnboardingGuard requiredStep={3}>
+                    <Organization />
+                  </OnboardingGuard>
                 </AuthGuard>
               }
             />
@@ -105,7 +119,9 @@ const App = () => (
               path="/profile/build/expertise"
               element={
                 <AuthGuard>
-                  <ExpertiseLevel />
+                  <OnboardingGuard requiredStep={4}>
+                    <ExpertiseLevel />
+                  </OnboardingGuard>
                 </AuthGuard>
               }
             />
@@ -113,7 +129,9 @@ const App = () => (
               path="/profile/build/proficiency"
               element={
                 <AuthGuard>
-                  <Proficiency />
+                  <OnboardingGuard requiredStep={5}>
+                    <Proficiency />
+                  </OnboardingGuard>
                 </AuthGuard>
               }
             />
@@ -121,7 +139,9 @@ const App = () => (
               path="/profile/build/proof-points"
               element={
                 <AuthGuard>
-                  <ProofPoints />
+                  <OnboardingGuard requiredStep={6}>
+                    <ProofPoints />
+                  </OnboardingGuard>
                 </AuthGuard>
               }
             />
