@@ -1,6 +1,6 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -49,7 +49,8 @@ export default function IndustrySegmentsPage() {
 
   const actions: DataTableAction<IndustrySegment>[] = [
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (segment) => { setSelectedSegment(segment); setIsFormOpen(true); } },
-    { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, onClick: (segment) => { restoreMutation.mutate(segment.id); }, show: (segment) => !segment.is_active },
+    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (segment) => { restoreMutation.mutate(segment.id); }, show: (segment) => !segment.is_active },
+    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (segment) => { setSelectedSegment(segment); setIsDeleteOpen(true); }, show: (segment) => !segment.is_active },
     { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (segment) => { setSelectedSegment(segment); setIsDeleteOpen(true); }, show: (segment) => segment.is_active },
   ];
 
@@ -68,7 +69,7 @@ export default function IndustrySegmentsPage() {
     <AdminLayout title="Industry Segments" description="Manage industry sectors for categorizing providers and challenges" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Industry Segments" }]}>
       <DataTable data={segments} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search industry segments..." isLoading={isLoading} onAdd={() => { setSelectedSegment(null); setIsFormOpen(true); }} addButtonLabel="Add Industry Segment" emptyMessage="No industry segments found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Industry Segment" description="Industry segments categorize providers and challenges by sector." fields={formFields} schema={industrySegmentSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedSegment ? "edit" : "create"} />
-      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title="Deactivate Industry Segment" itemName={selectedSegment?.name} onConfirm={handleDelete} onHardDelete={handleHardDelete} isLoading={deleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={true} showHardDelete={!selectedSegment?.is_active} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedSegment?.is_active ? "Deactivate Industry Segment" : "Delete Industry Segment"} itemName={selectedSegment?.name} onConfirm={selectedSegment?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedSegment?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedSegment?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );
 }

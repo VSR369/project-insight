@@ -1,6 +1,6 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -54,7 +54,8 @@ export default function ExpertiseLevelsPage() {
 
   const actions: DataTableAction<ExpertiseLevel>[] = [
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (level) => { setSelectedLevel(level); setIsFormOpen(true); } },
-    { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, onClick: (level) => { restoreMutation.mutate(level.id); }, show: (level) => !level.is_active },
+    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (level) => { restoreMutation.mutate(level.id); }, show: (level) => !level.is_active },
+    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (level) => { setSelectedLevel(level); setIsDeleteOpen(true); }, show: (level) => !level.is_active },
     { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (level) => { setSelectedLevel(level); setIsDeleteOpen(true); }, show: (level) => level.is_active },
   ];
 
@@ -73,7 +74,7 @@ export default function ExpertiseLevelsPage() {
     <AdminLayout title="Expertise Levels" description="Define experience tiers and requirements for solution providers" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Expertise Levels" }]}>
       <DataTable data={levels} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search expertise levels..." isLoading={isLoading} onAdd={() => { setSelectedLevel(null); setIsFormOpen(true); }} addButtonLabel="Add Expertise Level" emptyMessage="No expertise levels found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Expertise Level" description="Expertise levels categorize providers by their years of experience." fields={formFields} schema={expertiseLevelSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedLevel ? "edit" : "create"} />
-      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title="Deactivate Expertise Level" itemName={selectedLevel?.name} onConfirm={handleDelete} onHardDelete={handleHardDelete} isLoading={deleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={true} showHardDelete={!selectedLevel?.is_active} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedLevel?.is_active ? "Deactivate Expertise Level" : "Delete Expertise Level"} itemName={selectedLevel?.name} onConfirm={selectedLevel?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedLevel?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedLevel?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );
 }

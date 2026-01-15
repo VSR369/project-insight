@@ -1,6 +1,6 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw, Building2 } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, Trash, Building2 } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -53,7 +53,8 @@ export default function ParticipationModesPage() {
 
   const actions: DataTableAction<ParticipationMode>[] = [
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (mode) => { setSelectedMode(mode); setIsFormOpen(true); } },
-    { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, onClick: (mode) => { restoreMutation.mutate(mode.id); }, show: (mode) => !mode.is_active },
+    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (mode) => { restoreMutation.mutate(mode.id); }, show: (mode) => !mode.is_active },
+    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (mode) => { setSelectedMode(mode); setIsDeleteOpen(true); }, show: (mode) => !mode.is_active },
     { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (mode) => { setSelectedMode(mode); setIsDeleteOpen(true); }, show: (mode) => mode.is_active },
   ];
 
@@ -72,7 +73,7 @@ export default function ParticipationModesPage() {
     <AdminLayout title="Participation Modes" description="Define how solution providers can participate" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Participation Modes" }]}>
       <DataTable data={modes} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search participation modes..." isLoading={isLoading} onAdd={() => { setSelectedMode(null); setIsFormOpen(true); }} addButtonLabel="Add Participation Mode" emptyMessage="No participation modes found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Participation Mode" description="Participation modes determine how providers engage with the platform." fields={formFields} schema={participationModeSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedMode ? "edit" : "create"} />
-      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title="Deactivate Participation Mode" itemName={selectedMode?.name} onConfirm={handleDelete} onHardDelete={handleHardDelete} isLoading={deleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={true} showHardDelete={!selectedMode?.is_active} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedMode?.is_active ? "Deactivate Participation Mode" : "Delete Participation Mode"} itemName={selectedMode?.name} onConfirm={selectedMode?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedMode?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedMode?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );
 }
