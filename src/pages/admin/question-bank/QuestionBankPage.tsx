@@ -788,7 +788,7 @@ export function QuestionBankPage() {
       breadcrumbs={breadcrumbs}
     >
       <Card>
-        <CardHeader>
+        <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <HelpCircle className="h-5 w-5 text-primary" />
@@ -804,8 +804,59 @@ export function QuestionBankPage() {
               />
             </div>
           </div>
+          
+          {/* Top-level bulk action toolbar - always visible */}
+          <div className="flex flex-wrap items-center gap-2 pt-3 border-t">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => window.print()}
+              disabled={filteredQuestions.length === 0}
+              className="print:hidden"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={filteredQuestions.length === 0}
+              className="print:hidden"
+            >
+              <FileDown className="h-4 w-4 mr-2" />
+              Export PDF
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportExcel}
+              disabled={questions.length === 0}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Export Excel
+            </Button>
+            <div className="h-4 w-px bg-border mx-1" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setImportOpen(true)}
+            >
+              <Upload className="h-4 w-4 mr-2" />
+              Import Excel
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleDownloadTemplate}
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Download Template
+            </Button>
+          </div>
+          
           <CardDescription>
-            Select a speciality to view and manage its assessment questions
+            Select a speciality to view and filter questions. Use Import/Download Template for bulk operations with hierarchy fields in Excel.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -1618,48 +1669,7 @@ export function QuestionBankPage() {
                     </>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => window.print()}
-                    disabled={questions.length === 0}
-                    className="print:hidden"
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Print
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleExportPDF}
-                    disabled={filteredQuestions.length === 0}
-                    className="print:hidden"
-                  >
-                    <FileDown className="h-4 w-4 mr-2" />
-                    Export PDF
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleExportExcel}
-                    disabled={questions.length === 0}
-                  >
-                    <Download className="h-4 w-4 mr-2" />
-                    Export Excel
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => setImportOpen(true)}
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    Import Excel
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleDownloadTemplate}
-                  >
-                    <FileSpreadsheet className="h-4 w-4 mr-2" />
-                    Download Template
-                  </Button>
-                </div>
+                {/* Bulk action buttons moved to top CardHeader */}
               </div>
 
               {/* Print-friendly content (hidden on screen, shown when printing) */}
