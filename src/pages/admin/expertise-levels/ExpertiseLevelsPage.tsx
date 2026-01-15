@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { useExpertiseLevels, useCreateExpertiseLevel, useUpdateExpertiseLevel, useDeleteExpertiseLevel, useRestoreExpertiseLevel, useHardDeleteExpertiseLevel, ExpertiseLevel, ExpertiseLevelInsert } from "@/hooks/queries/useExpertiseLevels";
 
 const expertiseLevelSchema = z.object({
-  level_number: z.number().int("Level must be a whole number").min(1, "Level must be at least 1").max(10, "Level must be at most 10"),
+  level_number: z.number().int("Level must be a whole number").min(0, "Level must be at least 0").max(10, "Level must be at most 10"),
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be at most 100 characters"),
   min_years: z.number().int("Years must be a whole number").min(0, "Minimum years cannot be negative"),
   max_years: z.number().int("Years must be a whole number").min(0, "Maximum years cannot be negative").nullable().optional(),
@@ -23,7 +23,7 @@ const expertiseLevelSchema = z.object({
 type ExpertiseLevelFormData = z.infer<typeof expertiseLevelSchema>;
 
 const formFields: FormFieldConfig<ExpertiseLevelFormData>[] = [
-  { name: "level_number", label: "Level Number", type: "number", placeholder: "e.g., 1, 2, 3", description: "Numeric tier for this expertise level (1 = lowest)", required: true, min: 1, max: 10 },
+  { name: "level_number", label: "Level Number", type: "number", placeholder: "e.g., 0, 1, 2, 3", description: "Numeric tier for this expertise level (0 = learner, 1+ = professional tiers)", required: true, min: 0, max: 10 },
   { name: "name", label: "Level Name", type: "text", placeholder: "e.g., Junior, Mid-Level, Senior, Expert", required: true },
   { name: "min_years", label: "Minimum Years of Experience", type: "number", placeholder: "0", description: "Minimum years required for this level", required: true, min: 0 },
   { name: "max_years", label: "Maximum Years of Experience", type: "number", placeholder: "Leave empty for no maximum", description: "Maximum years for this level (optional)", min: 0 },
@@ -71,7 +71,7 @@ export default function ExpertiseLevelsPage() {
 
   const defaultValues: Partial<ExpertiseLevelFormData> = selectedLevel
     ? { level_number: selectedLevel.level_number, name: selectedLevel.name, min_years: selectedLevel.min_years, max_years: selectedLevel.max_years, description: selectedLevel.description, is_active: selectedLevel.is_active }
-    : { level_number: (levels.length > 0 ? Math.max(...levels.map(l => l.level_number)) + 1 : 1), name: "", min_years: 0, max_years: null, description: "", is_active: true };
+    : { level_number: (levels.length > 0 ? Math.max(...levels.map(l => l.level_number)) + 1 : 0), name: "", min_years: 0, max_years: null, description: "", is_active: true };
 
   const viewFields: ViewField[] = selectedLevel
     ? [
