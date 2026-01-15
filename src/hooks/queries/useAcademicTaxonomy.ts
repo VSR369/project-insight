@@ -4,7 +4,7 @@ import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/type
 import { toast } from "sonner";
 
 // Import types for bulk import
-import type { ParsedAcademicRow } from "@/pages/admin/academic-taxonomy/AcademicExcelExport";
+import type { ParsedAcademicRow } from "@/pages/admin/academic-taxonomy/types";
 
 export type AcademicDiscipline = Tables<"academic_disciplines">;
 export type AcademicDisciplineInsert = TablesInsert<"academic_disciplines">;

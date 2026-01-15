@@ -1,16 +1,12 @@
 import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
+import type {
+  AcademicTaxonomyExportRow,
+  ParsedAcademicRow,
+  AcademicImportValidationResult,
+} from "./types";
 
-export interface AcademicTaxonomyExportRow {
-  "Discipline": string;
-  "Stream": string;
-  "Subject": string;
-  "Discipline Description": string;
-  "Stream Description": string;
-  "Subject Description": string;
-  "Display Order": number | string;
-  "Active": string;
-}
+export type { AcademicTaxonomyExportRow, ParsedAcademicRow, AcademicImportValidationResult };
 
 /**
  * Downloads an empty template Excel file with headers and sample rows
@@ -155,27 +151,6 @@ export async function exportAcademicData(): Promise<void> {
   XLSX.writeFile(workbook, `academic_taxonomy_export_${timestamp}.xlsx`);
 }
 
-/**
- * Parsed row structure for import
- */
-export interface ParsedAcademicRow {
-  discipline: string;
-  stream: string;
-  subject: string;
-  disciplineDescription: string;
-  streamDescription: string;
-  subjectDescription: string;
-  displayOrder: number | null;
-  isActive: boolean;
-  rowNumber: number;
-  errors: string[];
-}
-
-export interface AcademicImportValidationResult {
-  validRows: ParsedAcademicRow[];
-  invalidRows: ParsedAcademicRow[];
-  totalRows: number;
-}
 
 /**
  * Parse an imported Excel/CSV file and return validated rows
