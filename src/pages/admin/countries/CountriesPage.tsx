@@ -1,6 +1,6 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw } from "lucide-react";
+import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
@@ -63,7 +63,8 @@ export default function CountriesPage() {
 
   const actions: DataTableAction<Country>[] = [
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsFormOpen(true); } },
-    { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, onClick: (country) => { restoreMutation.mutate(country.id); }, show: (country) => !country.is_active },
+    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (country) => { restoreMutation.mutate(country.id); }, show: (country) => !country.is_active },
+    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => !country.is_active },
     { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => country.is_active },
   ];
 
@@ -91,7 +92,7 @@ export default function CountriesPage() {
     <AdminLayout title="Countries" description="Manage countries available in the platform" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Countries" }]}>
       <DataTable data={countries} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search countries..." isLoading={isLoading} onAdd={() => { setSelectedCountry(null); setIsFormOpen(true); }} addButtonLabel="Add Country" emptyMessage="No countries found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Country" description="Countries are used for provider location and compliance." fields={formFields} schema={countrySchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedCountry ? "edit" : "create"} />
-      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title="Deactivate Country" itemName={selectedCountry?.name} onConfirm={handleDelete} onHardDelete={handleHardDelete} isLoading={deleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={true} showHardDelete={!selectedCountry?.is_active} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedCountry?.is_active ? "Deactivate Country" : "Delete Country"} itemName={selectedCountry?.name} onConfirm={selectedCountry?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedCountry?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedCountry?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );
 }
