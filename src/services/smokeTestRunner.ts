@@ -388,7 +388,11 @@ async function modeCleanup(): Promise<void> {
 }
 
 // ==================== EXPERTISE LEVELS TEST RUNNER ====================
+// expertise_levels has CHECK constraint (level_number 1-4) and UNIQUE(level_number)
+// We use a "borrow and restore" pattern instead of create/delete
 let expertiseTestRecordId: string | null = null;
+let expertiseOriginalName: string | null = null;
+let expertiseOriginalIsActive: boolean | null = null;
 
 async function expertiseRead(): Promise<TestResult> {
   const start = Date.now();
@@ -408,16 +412,53 @@ async function expertiseRead(): Promise<TestResult> {
 async function expertiseCreate(): Promise<TestResult> {
   const start = Date.now();
   try {
-    const testName = getTestName();
-    const { data, error } = await supabase
+    // Borrow an existing record (level_number = 4) to test update operations
+    // We store original values to restore in cleanup
+    const { data: existing, error: fetchError } = await supabase
       .from("expertise_levels")
-      .insert({ name: testName, level_number: 999, min_years: 0 })
-      .select()
-      .single();
-    if (error) throw error;
-    if (!data?.id) throw new Error("No ID returned");
-    expertiseTestRecordId = data.id;
-    return { status: "pass", duration: Date.now() - start };
+      .select("id, name, is_active")
+      .eq("level_number", 4)
+      .maybeSingle();
+    
+    if (fetchError) throw fetchError;
+    
+    if (existing) {
+      // Borrow existing record
+      expertiseTestRecordId = existing.id;
+      expertiseOriginalName = existing.name;
+      expertiseOriginalIsActive = existing.is_active;
+      
+      // Mark it as a smoke test record
+      const { error: updateError } = await supabase
+        .from("expertise_levels")
+        .update({ name: `${TEST_PREFIX}${existing.name}` })
+        .eq("id", existing.id);
+      
+      if (updateError) throw updateError;
+      return { status: "pass", duration: Date.now() - start };
+    } else {
+      // No level 4 exists, try any level
+      const { data: anyLevel, error: anyError } = await supabase
+        .from("expertise_levels")
+        .select("id, name, is_active")
+        .limit(1)
+        .maybeSingle();
+      
+      if (anyError) throw anyError;
+      if (!anyLevel) throw new Error("No expertise levels exist to test");
+      
+      expertiseTestRecordId = anyLevel.id;
+      expertiseOriginalName = anyLevel.name;
+      expertiseOriginalIsActive = anyLevel.is_active;
+      
+      const { error: updateError } = await supabase
+        .from("expertise_levels")
+        .update({ name: `${TEST_PREFIX}${anyLevel.name}` })
+        .eq("id", anyLevel.id);
+      
+      if (updateError) throw updateError;
+      return { status: "pass", duration: Date.now() - start };
+    }
   } catch (err: any) {
     return { status: "fail", duration: Date.now() - start, error: err.message };
   }
@@ -469,11 +510,21 @@ async function expertiseRestore(): Promise<TestResult> {
 }
 
 async function expertiseCleanup(): Promise<void> {
-  if (expertiseTestRecordId) {
-    await supabase.from("expertise_levels").delete().eq("id", expertiseTestRecordId);
-    expertiseTestRecordId = null;
+  // Restore the borrowed record to its original state
+  if (expertiseTestRecordId && expertiseOriginalName !== null) {
+    await supabase
+      .from("expertise_levels")
+      .update({ 
+        name: expertiseOriginalName, 
+        is_active: expertiseOriginalIsActive ?? true 
+      })
+      .eq("id", expertiseTestRecordId);
   }
-  await supabase.from("expertise_levels").delete().like("name", `${TEST_PREFIX}%`);
+  
+  // Reset state
+  expertiseTestRecordId = null;
+  expertiseOriginalName = null;
+  expertiseOriginalIsActive = null;
 }
 
 // ==================== ACADEMIC TAXONOMY TEST RUNNER ====================
