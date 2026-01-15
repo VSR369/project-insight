@@ -44,6 +44,7 @@ import { ExpertiseLevelsPage } from "@/pages/admin/expertise-levels";
 import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
 import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
 import { QuestionBankPage } from "@/pages/admin/question-bank";
+import { CapabilityTagsPage } from "@/pages/admin/capability-tags";
 import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
 import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
@@ -237,6 +238,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <QuestionBankPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/capability-tags"
+              element={
+                <AdminGuard>
+                  <CapabilityTagsPage />
                 </AdminGuard>
               }
             />
