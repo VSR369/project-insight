@@ -37,9 +37,9 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Strategic Basics",
             displayOrder: 1,
             specialities: [
-              { name: "Vision & mission articulation support", displayOrder: 1 },
-              { name: "Strategic goals alignment support", displayOrder: 2 },
-              { name: "Industry benchmarking support (auto components)", displayOrder: 3 },
+              { name: "Vision & mission articulation (support)", displayOrder: 1 },
+              { name: "Strategic goal alignment (support)", displayOrder: 2 },
+              { name: "Industry benchmarking (auto components)", displayOrder: 3 },
             ],
           },
           {
@@ -47,17 +47,17 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 2,
             specialities: [
               { name: "Auto components value chain mapping", displayOrder: 1 },
-              { name: "Cost drivers identification (materials, labor, overhead)", displayOrder: 2 },
-              { name: "Margin levers mapping (yield, scrap, uptime, mix)", displayOrder: 3 },
+              { name: "Cost driver identification (materials, labour, overheads)", displayOrder: 2 },
+              { name: "Margin lever mapping (yield, scrap, uptime, mix)", displayOrder: 3 },
             ],
           },
           {
             name: "Outcome Framing",
             displayOrder: 3,
             specialities: [
-              { name: "KPI definition support", displayOrder: 1 },
+              { name: "KPI definition (support)", displayOrder: 1 },
               { name: "Baseline assessment (current-state performance)", displayOrder: 2 },
-              { name: "Reporting structures & scorecard setup support", displayOrder: 3 },
+              { name: "Reporting structures & scorecard setup (support)", displayOrder: 3 },
             ],
           },
         ],
@@ -78,7 +78,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Customer Touchpoints",
             displayOrder: 2,
             specialities: [
-              { name: "OEM/Tier-1 interaction mapping", displayOrder: 1 },
+              { name: "OEM / Tier-1 interaction mapping", displayOrder: 1 },
               { name: "Order-to-delivery journey mapping", displayOrder: 2 },
               { name: "Complaint-to-resolution flow mapping", displayOrder: 3 },
             ],
@@ -89,7 +89,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             specialities: [
               { name: "Feature vs cost mapping", displayOrder: 1 },
               { name: "Quality & delivery value drivers mapping", displayOrder: 2 },
-              { name: "Basic value proposition articulation support", displayOrder: 3 },
+              { name: "Basic value proposition articulation (support)", displayOrder: 3 },
             ],
           },
         ],
@@ -102,8 +102,8 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 1,
             specialities: [
               { name: "AS-IS process documentation", displayOrder: 1 },
-              { name: "SOP/work-instruction drafting support", displayOrder: 2 },
-              { name: "Process compliance tracking support", displayOrder: 3 },
+              { name: "SOP / work-instruction drafting", displayOrder: 2 },
+              { name: "Process compliance tracking (support)", displayOrder: 3 },
             ],
           },
           {
@@ -133,9 +133,9 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Digital Awareness",
             displayOrder: 1,
             specialities: [
-              { name: "ERP/MES basics mapping", displayOrder: 1 },
+              { name: "ERP / MES basics mapping", displayOrder: 1 },
               { name: "Manufacturing IT landscape documentation", displayOrder: 2 },
-              { name: "OT vs IT system boundaries understanding", displayOrder: 3 },
+              { name: "OT vs IT boundaries understanding", displayOrder: 3 },
             ],
           },
           {
@@ -172,7 +172,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 1,
             specialities: [
               { name: "Strategic goals to initiatives translation", displayOrder: 1 },
-              { name: "Transformation roadmap creation (workstream-level)", displayOrder: 2 },
+              { name: "Workstream-level roadmap creation", displayOrder: 2 },
               { name: "Initiative prioritization support", displayOrder: 3 },
             ],
           },
@@ -180,7 +180,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Business Model Optimization",
             displayOrder: 2,
             specialities: [
-              { name: "Cost-to-serve analysis (OEM/Tier-1)", displayOrder: 1 },
+              { name: "Cost-to-serve analysis (OEM / Tier-1)", displayOrder: 1 },
               { name: "Make-vs-buy analysis support", displayOrder: 2 },
               { name: "Capacity & footprint planning support", displayOrder: 3 },
             ],
@@ -213,7 +213,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 2,
             specialities: [
               { name: "Aftermarket service design", displayOrder: 1 },
-              { name: "Warranty & claims process improvement", displayOrder: 2 },
+              { name: "Warranty & claims improvement", displayOrder: 2 },
               { name: "Lifecycle service packaging", displayOrder: 3 },
             ],
           },
@@ -236,7 +236,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 1,
             specialities: [
               { name: "Lean waste elimination", displayOrder: 1 },
-              { name: "Six Sigma problem solving (DMAIC) facilitation", displayOrder: 2 },
+              { name: "Six Sigma (DMAIC) facilitation", displayOrder: 2 },
               { name: "Bottleneck removal & line balancing", displayOrder: 3 },
             ],
           },
@@ -254,7 +254,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 3,
             specialities: [
               { name: "Skills mapping for shopfloor roles", displayOrder: 1 },
-              { name: "Digital work instruction enablement", displayOrder: 2 },
+              { name: "Digital work instructions enablement", displayOrder: 2 },
               { name: "Training & adoption planning", displayOrder: 3 },
             ],
           },
@@ -286,7 +286,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 3,
             specialities: [
               { name: "Data ownership & stewardship setup", displayOrder: 1 },
-              { name: "Role-based access controls (RBAC) definition", displayOrder: 2 },
+              { name: "Role-based access controls (RBAC)", displayOrder: 2 },
               { name: "Change control & release governance support", displayOrder: 3 },
             ],
           },
@@ -306,7 +306,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 1,
             specialities: [
               { name: "Growth strategy & market expansion design", displayOrder: 1 },
-              { name: "Diversification strategy (new customers, products, regions)", displayOrder: 2 },
+              { name: "Diversification strategy (customers, products, regions)", displayOrder: 2 },
               { name: "Resilience planning (supply, capacity, risk)", displayOrder: 3 },
             ],
           },
@@ -347,7 +347,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             displayOrder: 2,
             specialities: [
               { name: "Connected product concepts (telemetry, diagnostics)", displayOrder: 1 },
-              { name: "Digital twin solutions (product/process)", displayOrder: 2 },
+              { name: "Digital twin solutions (product / process)", displayOrder: 2 },
               { name: "End-to-end traceability productization", displayOrder: 3 },
             ],
           },
@@ -401,9 +401,9 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Architecture Design",
             displayOrder: 1,
             specialities: [
-              { name: "Enterprise architecture (business/data/app/tech)", displayOrder: 1 },
+              { name: "Enterprise architecture (business, data, app, tech)", displayOrder: 1 },
               { name: "Platform strategy (data, integration, MES)", displayOrder: 2 },
-              { name: "Integration architecture (API/EDI/event-driven)", displayOrder: 3 },
+              { name: "Integration architecture (API, EDI, event-driven)", displayOrder: 3 },
             ],
           },
           {
@@ -480,7 +480,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "AI-Native Products",
             displayOrder: 2,
             specialities: [
-              { name: "Autonomous quality products & offerings", displayOrder: 1 },
+              { name: "Autonomous quality offerings", displayOrder: 1 },
               { name: "Intelligent supply network offerings", displayOrder: 2 },
               { name: "Digital twin-based value propositions", displayOrder: 3 },
             ],
@@ -521,9 +521,9 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             name: "Scalable Excellence",
             displayOrder: 3,
             specialities: [
-              { name: "Multi-plant/global operating model design", displayOrder: 1 },
-              { name: "Standardization with local flexibility design", displayOrder: 2 },
-              { name: "Continuous improvement system at enterprise scale", displayOrder: 3 },
+              { name: "Multi-plant / global operating model design", displayOrder: 1 },
+              { name: "Standardization with local flexibility", displayOrder: 2 },
+              { name: "Enterprise-scale continuous improvement systems", displayOrder: 3 },
             ],
           },
         ],
@@ -537,15 +537,15 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             specialities: [
               { name: "AI-native enterprise technology vision", displayOrder: 1 },
               { name: "Composable architecture strategy", displayOrder: 2 },
-              { name: "Digital thread/digital twin enterprise blueprint", displayOrder: 3 },
+              { name: "Digital thread / digital twin enterprise blueprint", displayOrder: 3 },
             ],
           },
           {
             name: "Governance at Scale",
             displayOrder: 2,
             specialities: [
-              { name: "AI ethics & responsible AI governance", displayOrder: 1 },
-              { name: "Data trust & sovereignty model", displayOrder: 2 },
+              { name: "Responsible AI governance & ethics", displayOrder: 1 },
+              { name: "Data trust & sovereignty models", displayOrder: 2 },
               { name: "Regulatory alignment & assurance frameworks", displayOrder: 3 },
             ],
           },
@@ -555,7 +555,7 @@ export const manufacturingAutoComponentsTaxonomy: TaxonomyLevel[] = [
             specialities: [
               { name: "Agentic AI platforms & orchestration layers", displayOrder: 1 },
               { name: "Digital manufacturing cloud ecosystems", displayOrder: 2 },
-              { name: "Marketplace/partner platform strategy", displayOrder: 3 },
+              { name: "Marketplace & partner platform strategy", displayOrder: 3 },
             ],
           },
         ],
