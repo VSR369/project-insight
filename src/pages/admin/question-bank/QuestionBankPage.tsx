@@ -891,19 +891,18 @@ export function QuestionBankPage() {
                         {/* Difficulty distribution */}
                         <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2 border-l">
                           {[
-                            { level: 1, color: "bg-green-500", label: "VE" },
-                            { level: 2, color: "bg-lime-500", label: "E" },
-                            { level: 3, color: "bg-yellow-500", label: "M" },
-                            { level: 4, color: "bg-orange-500", label: "H" },
-                            { level: 5, color: "bg-red-500", label: "VH" },
+                            { level: "introductory", color: "bg-green-500", label: "I" },
+                            { level: "applied", color: "bg-lime-500", label: "A" },
+                            { level: "advanced", color: "bg-yellow-500", label: "D" },
+                            { level: "strategic", color: "bg-red-500", label: "S" },
                           ].map(({ level, color, label }) => {
-                            const count = questions.filter(q => q.difficulty_level === level).length;
+                            const count = questions.filter(q => q.difficulty === level).length;
                             if (count === 0) return null;
                             return (
                               <div
                                 key={level}
                                 className="flex items-center gap-0.5"
-                                title={`${label === "VE" ? "Very Easy" : label === "E" ? "Easy" : label === "M" ? "Medium" : label === "H" ? "Hard" : "Very Hard"}: ${count}`}
+                                title={`${label === "I" ? "Introductory" : label === "A" ? "Applied" : label === "D" ? "Advanced" : "Strategic"}: ${count}`}
                               >
                                 <div className={`w-2 h-2 rounded-full ${color}`} />
                                 <span className="text-xs font-medium">{count}</span>
@@ -911,7 +910,7 @@ export function QuestionBankPage() {
                             );
                           })}
                           {(() => {
-                            const notSet = questions.filter(q => q.difficulty_level === null).length;
+                            const notSet = questions.filter(q => q.difficulty === null).length;
                             if (notSet === 0) return null;
                             return (
                               <div className="flex items-center gap-0.5" title={`Not Set: ${notSet}`}>
@@ -1045,12 +1044,11 @@ export function QuestionBankPage() {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: "Very Easy", value: questions.filter(q => q.difficulty_level === 1).length, color: "#22c55e" },
-                            { name: "Easy", value: questions.filter(q => q.difficulty_level === 2).length, color: "#84cc16" },
-                            { name: "Medium", value: questions.filter(q => q.difficulty_level === 3).length, color: "#eab308" },
-                            { name: "Hard", value: questions.filter(q => q.difficulty_level === 4).length, color: "#f97316" },
-                            { name: "Very Hard", value: questions.filter(q => q.difficulty_level === 5).length, color: "#ef4444" },
-                            { name: "Not Set", value: questions.filter(q => q.difficulty_level === null).length, color: "#94a3b8" },
+                            { name: "Introductory", value: questions.filter(q => q.difficulty === "introductory").length, color: "#22c55e" },
+                            { name: "Applied", value: questions.filter(q => q.difficulty === "applied").length, color: "#84cc16" },
+                            { name: "Advanced", value: questions.filter(q => q.difficulty === "advanced").length, color: "#eab308" },
+                            { name: "Strategic", value: questions.filter(q => q.difficulty === "strategic").length, color: "#ef4444" },
+                            { name: "Not Set", value: questions.filter(q => q.difficulty === null).length, color: "#94a3b8" },
                           ].filter(d => d.value > 0)}
                           cx="50%"
                           cy="50%"
@@ -1060,12 +1058,11 @@ export function QuestionBankPage() {
                           dataKey="value"
                         >
                           {[
-                            { name: "Very Easy", value: questions.filter(q => q.difficulty_level === 1).length, color: "#22c55e" },
-                            { name: "Easy", value: questions.filter(q => q.difficulty_level === 2).length, color: "#84cc16" },
-                            { name: "Medium", value: questions.filter(q => q.difficulty_level === 3).length, color: "#eab308" },
-                            { name: "Hard", value: questions.filter(q => q.difficulty_level === 4).length, color: "#f97316" },
-                            { name: "Very Hard", value: questions.filter(q => q.difficulty_level === 5).length, color: "#ef4444" },
-                            { name: "Not Set", value: questions.filter(q => q.difficulty_level === null).length, color: "#94a3b8" },
+                            { name: "Introductory", value: questions.filter(q => q.difficulty === "introductory").length, color: "#22c55e" },
+                            { name: "Applied", value: questions.filter(q => q.difficulty === "applied").length, color: "#84cc16" },
+                            { name: "Advanced", value: questions.filter(q => q.difficulty === "advanced").length, color: "#eab308" },
+                            { name: "Strategic", value: questions.filter(q => q.difficulty === "strategic").length, color: "#ef4444" },
+                            { name: "Not Set", value: questions.filter(q => q.difficulty === null).length, color: "#94a3b8" },
                           ].filter(d => d.value > 0).map((entry, index) => (
                             <Cell key={`diff-cell-${index}`} fill={entry.color} />
                           ))}
@@ -1091,14 +1088,13 @@ export function QuestionBankPage() {
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">By Difficulty</h4>
                   {[
-                    { level: 1, label: "Very Easy", color: "bg-green-500" },
-                    { level: 2, label: "Easy", color: "bg-lime-500" },
-                    { level: 3, label: "Medium", color: "bg-yellow-500" },
-                    { level: 4, label: "Hard", color: "bg-orange-500" },
-                    { level: 5, label: "Very Hard", color: "bg-red-500" },
+                    { level: "introductory", label: "Introductory", color: "bg-green-500" },
+                    { level: "applied", label: "Applied", color: "bg-lime-500" },
+                    { level: "advanced", label: "Advanced", color: "bg-yellow-500" },
+                    { level: "strategic", label: "Strategic", color: "bg-red-500" },
                     { level: null, label: "Not Set", color: "bg-slate-400" },
                   ].map(({ level, label, color }) => {
-                    const count = questions.filter(q => q.difficulty_level === level).length;
+                    const count = questions.filter(q => q.difficulty === level).length;
                     const percentage = questions.length > 0 ? (count / questions.length) * 100 : 0;
                     const filterValue = level === null ? "none" : String(level);
                     const isSelected = difficultyFilter === filterValue;
@@ -1322,12 +1318,11 @@ export function QuestionBankPage() {
                   <div className="mt-3 pt-3 border-t">
                     <span className="font-medium text-sm">By Difficulty:</span>
                     <div className="flex gap-4 mt-1 text-xs">
-                      <span>Very Easy: {questions.filter(q => q.difficulty_level === 1).length}</span>
-                      <span>Easy: {questions.filter(q => q.difficulty_level === 2).length}</span>
-                      <span>Medium: {questions.filter(q => q.difficulty_level === 3).length}</span>
-                      <span>Hard: {questions.filter(q => q.difficulty_level === 4).length}</span>
-                      <span>Very Hard: {questions.filter(q => q.difficulty_level === 5).length}</span>
-                      <span>Not Set: {questions.filter(q => q.difficulty_level === null).length}</span>
+                      <span>Introductory: {questions.filter(q => q.difficulty === "introductory").length}</span>
+                      <span>Applied: {questions.filter(q => q.difficulty === "applied").length}</span>
+                      <span>Advanced: {questions.filter(q => q.difficulty === "advanced").length}</span>
+                      <span>Strategic: {questions.filter(q => q.difficulty === "strategic").length}</span>
+                      <span>Not Set: {questions.filter(q => q.difficulty === null).length}</span>
                     </div>
                   </div>
                 </div>
@@ -1343,7 +1338,7 @@ export function QuestionBankPage() {
                   <ol className="space-y-4">
                     {filteredQuestions.map((q, idx) => {
                       const options = parseQuestionOptions(q.options);
-                      const diffLabels = ["", "Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
+                      const diffLabels: Record<string, string> = { introductory: "Introductory", applied: "Applied", advanced: "Advanced", strategic: "Strategic" };
                       return (
                         <li key={q.id} className="p-3 border rounded text-sm break-inside-avoid">
                           <div className="flex justify-between items-start mb-2">
@@ -1352,8 +1347,8 @@ export function QuestionBankPage() {
                               <span className={q.is_active ? "text-green-700" : "text-red-700"}>
                                 {q.is_active ? "Active" : "Inactive"}
                               </span>
-                              {q.difficulty_level && (
-                                <span className="text-gray-600">{diffLabels[q.difficulty_level]}</span>
+                              {q.difficulty && (
+                                <span className="text-gray-600">{diffLabels[q.difficulty] || q.difficulty}</span>
                               )}
                             </div>
                           </div>

@@ -125,7 +125,10 @@ export function QuestionDuplicateDialog({
           question_text: question.question_text,
           options: optionsJson,
           correct_option: question.correct_option,
-          difficulty_level: question.difficulty_level,
+          difficulty: question.difficulty,
+          question_type: question.question_type,
+          usage_mode: question.usage_mode,
+          expected_answer_guidance: question.expected_answer_guidance,
           is_active: true,
           speciality_id: selectedSpecialityId,
         });
