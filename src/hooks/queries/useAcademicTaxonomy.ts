@@ -465,15 +465,19 @@ export function useCheckStreamChildren() {
 interface AcademicBulkImportResult {
   disciplinesCreated: number;
   disciplinesUpdated: number;
+  disciplinesDeleted: number;
   streamsCreated: number;
   streamsUpdated: number;
+  streamsDeleted: number;
   subjectsCreated: number;
   subjectsUpdated: number;
+  subjectsDeleted: number;
   errors: string[];
 }
 
 interface AcademicBulkImportInput {
   rows: ParsedAcademicRow[];
+  replaceExisting?: boolean;
   onProgress?: (progress: number) => void;
 }
 
@@ -481,14 +485,17 @@ export function useBulkImportAcademicTaxonomy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ rows, onProgress }: AcademicBulkImportInput): Promise<AcademicBulkImportResult> => {
+    mutationFn: async ({ rows, replaceExisting = true, onProgress }: AcademicBulkImportInput): Promise<AcademicBulkImportResult> => {
       const result: AcademicBulkImportResult = {
         disciplinesCreated: 0,
         disciplinesUpdated: 0,
+        disciplinesDeleted: 0,
         streamsCreated: 0,
         streamsUpdated: 0,
+        streamsDeleted: 0,
         subjectsCreated: 0,
         subjectsUpdated: 0,
+        subjectsDeleted: 0,
         errors: [],
       };
 
@@ -638,10 +645,91 @@ export function useBulkImportAcademicTaxonomy() {
           result.errors.push(`Row ${row.rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
 
-        // Report progress
+        // Report progress (use 80% for import, 20% for deletion)
         if (onProgress) {
-          onProgress(Math.round(((i + 1) / totalRows) * 100));
+          onProgress(Math.round(((i + 1) / totalRows) * 80));
         }
+      }
+
+      // If replaceExisting is true, delete items not in the import
+      if (replaceExisting) {
+        const importedDisciplineIds = new Set(disciplineCache.values());
+        const importedStreamIds = new Set(streamCache.values());
+        const importedSubjectIds = new Set(subjectCache.values());
+
+        // Delete subjects not in import
+        const { data: allSubjects } = await supabase
+          .from("academic_subjects")
+          .select("id");
+
+        const subjectsToDelete = (allSubjects || [])
+          .filter(s => !importedSubjectIds.has(s.id))
+          .map(s => s.id);
+
+        if (subjectsToDelete.length > 0) {
+          const { error: deleteSubjectsError } = await supabase
+            .from("academic_subjects")
+            .delete()
+            .in("id", subjectsToDelete);
+
+          if (deleteSubjectsError) {
+            result.errors.push(`Failed to delete old subjects: ${deleteSubjectsError.message}`);
+          } else {
+            result.subjectsDeleted = subjectsToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(85);
+
+        // Delete streams not in import
+        const { data: allStreams } = await supabase
+          .from("academic_streams")
+          .select("id");
+
+        const streamsToDelete = (allStreams || [])
+          .filter(s => !importedStreamIds.has(s.id))
+          .map(s => s.id);
+
+        if (streamsToDelete.length > 0) {
+          const { error: deleteStreamsError } = await supabase
+            .from("academic_streams")
+            .delete()
+            .in("id", streamsToDelete);
+
+          if (deleteStreamsError) {
+            result.errors.push(`Failed to delete old streams: ${deleteStreamsError.message}`);
+          } else {
+            result.streamsDeleted = streamsToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(92);
+
+        // Delete disciplines not in import
+        const { data: allDisciplines } = await supabase
+          .from("academic_disciplines")
+          .select("id");
+
+        const disciplinesToDelete = (allDisciplines || [])
+          .filter(d => !importedDisciplineIds.has(d.id))
+          .map(d => d.id);
+
+        if (disciplinesToDelete.length > 0) {
+          const { error: deleteDiscError } = await supabase
+            .from("academic_disciplines")
+            .delete()
+            .in("id", disciplinesToDelete);
+
+          if (deleteDiscError) {
+            result.errors.push(`Failed to delete old disciplines: ${deleteDiscError.message}`);
+          } else {
+            result.disciplinesDeleted = disciplinesToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(100);
+      } else {
+        if (onProgress) onProgress(100);
       }
 
       return result;
