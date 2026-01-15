@@ -263,6 +263,36 @@ export type Database = {
           },
         ]
       }
+      capability_tags: {
+        Row: {
+          created_at: string
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       countries: {
         Row: {
           code: string
@@ -763,37 +793,49 @@ export type Database = {
           correct_option: number
           created_at: string
           created_by: string | null
-          difficulty_level: number | null
+          difficulty: Database["public"]["Enums"]["question_difficulty"] | null
+          expected_answer_guidance: string | null
           id: string
           is_active: boolean
           options: Json
           question_text: string
+          question_type: Database["public"]["Enums"]["question_type"]
           speciality_id: string
           updated_at: string | null
+          updated_by: string | null
+          usage_mode: Database["public"]["Enums"]["question_usage_mode"]
         }
         Insert: {
           correct_option: number
           created_at?: string
           created_by?: string | null
-          difficulty_level?: number | null
+          difficulty?: Database["public"]["Enums"]["question_difficulty"] | null
+          expected_answer_guidance?: string | null
           id?: string
           is_active?: boolean
           options: Json
           question_text: string
+          question_type?: Database["public"]["Enums"]["question_type"]
           speciality_id: string
           updated_at?: string | null
+          updated_by?: string | null
+          usage_mode?: Database["public"]["Enums"]["question_usage_mode"]
         }
         Update: {
           correct_option?: number
           created_at?: string
           created_by?: string | null
-          difficulty_level?: number | null
+          difficulty?: Database["public"]["Enums"]["question_difficulty"] | null
+          expected_answer_guidance?: string | null
           id?: string
           is_active?: boolean
           options?: Json
           question_text?: string
+          question_type?: Database["public"]["Enums"]["question_type"]
           speciality_id?: string
           updated_at?: string | null
+          updated_by?: string | null
+          usage_mode?: Database["public"]["Enums"]["question_usage_mode"]
         }
         Relationships: [
           {
@@ -801,6 +843,94 @@ export type Database = {
             columns: ["speciality_id"]
             isOneToOne: false
             referencedRelation: "specialities"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_capability_tags: {
+        Row: {
+          capability_tag_id: string
+          created_at: string
+          id: string
+          question_id: string
+        }
+        Insert: {
+          capability_tag_id: string
+          created_at?: string
+          id?: string
+          question_id: string
+        }
+        Update: {
+          capability_tag_id?: string
+          created_at?: string
+          id?: string
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_capability_tags_capability_tag_id_fkey"
+            columns: ["capability_tag_id"]
+            isOneToOne: false
+            referencedRelation: "capability_tags"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_capability_tags_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      question_exposure_log: {
+        Row: {
+          attempt_id: string | null
+          created_at: string
+          exposed_at: string
+          exposure_mode: Database["public"]["Enums"]["question_usage_mode"]
+          id: string
+          provider_id: string
+          question_id: string
+        }
+        Insert: {
+          attempt_id?: string | null
+          created_at?: string
+          exposed_at?: string
+          exposure_mode: Database["public"]["Enums"]["question_usage_mode"]
+          id?: string
+          provider_id: string
+          question_id: string
+        }
+        Update: {
+          attempt_id?: string | null
+          created_at?: string
+          exposed_at?: string
+          exposure_mode?: Database["public"]["Enums"]["question_usage_mode"]
+          id?: string
+          provider_id?: string
+          question_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "question_exposure_log_attempt_id_fkey"
+            columns: ["attempt_id"]
+            isOneToOne: false
+            referencedRelation: "assessment_attempts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_exposure_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "question_exposure_log_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
         ]
@@ -1240,6 +1370,14 @@ export type Database = {
         | "portfolio"
         | "testimonial"
         | "other"
+      question_difficulty: "introductory" | "applied" | "advanced" | "strategic"
+      question_type:
+        | "conceptual"
+        | "scenario"
+        | "experience"
+        | "decision"
+        | "proof"
+      question_usage_mode: "self_assessment" | "interview" | "both"
       verification_status: "pending" | "in_progress" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -1398,6 +1536,15 @@ export const Constants = {
         "testimonial",
         "other",
       ],
+      question_difficulty: ["introductory", "applied", "advanced", "strategic"],
+      question_type: [
+        "conceptual",
+        "scenario",
+        "experience",
+        "decision",
+        "proof",
+      ],
+      question_usage_mode: ["self_assessment", "interview", "both"],
       verification_status: ["pending", "in_progress", "verified", "rejected"],
     },
   },

@@ -1,0 +1,1 @@
+export { CapabilityTagsPage } from "./CapabilityTagsPage";
