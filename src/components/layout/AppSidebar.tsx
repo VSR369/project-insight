@@ -1,4 +1,4 @@
-import { useLocation, Link } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   User,
@@ -12,8 +12,13 @@ import {
   Target,
   TreePine,
   Award,
+  CheckCircle,
+  Lock,
+  UserCircle,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { calculateCurrentStep } from '@/components/auth/OnboardingGuard';
 import {
   Sidebar,
   SidebarContent,
@@ -37,11 +42,12 @@ const mainNavItems = [
 ];
 
 const profileBuildingItems = [
-  { title: 'Choose Mode', url: '/profile/build/choose-mode', icon: Target },
-  { title: 'Organization', url: '/profile/build/organization', icon: Building2 },
-  { title: 'Expertise Level', url: '/profile/build/expertise', icon: GraduationCap },
-  { title: 'Proficiency Areas', url: '/profile/build/proficiency', icon: TreePine },
-  { title: 'Proof Points', url: '/profile/build/proof-points', icon: Award },
+  { title: 'Registration', url: '/profile/build/registration', icon: UserCircle, step: 1 },
+  { title: 'Choose Mode', url: '/profile/build/choose-mode', icon: Target, step: 2 },
+  { title: 'Organization', url: '/profile/build/organization', icon: Building2, step: 3, conditional: true },
+  { title: 'Expertise Level', url: '/profile/build/expertise', icon: GraduationCap, step: 4 },
+  { title: 'Proficiency Areas', url: '/profile/build/proficiency', icon: TreePine, step: 5 },
+  { title: 'Proof Points', url: '/profile/build/proof-points', icon: Award, step: 6 },
 ];
 
 const assessmentItems = [
@@ -57,9 +63,18 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const { data: provider } = useCurrentProvider();
+
+  const currentStep = calculateCurrentStep(provider);
 
   const isActive = (path: string) => location.pathname === path;
   const isProfileBuildActive = location.pathname.startsWith('/profile/build');
+
+  const getStepStatus = (stepNumber: number) => {
+    if (stepNumber < currentStep) return 'completed';
+    if (stepNumber === currentStep) return 'current';
+    return 'locked';
+  };
 
   return (
     <Sidebar collapsible="icon" className="border-r border-sidebar-border">
@@ -114,20 +129,56 @@ export function AppSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {profileBuildingItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
-                    <NavLink 
-                      to={item.url}
-                      className="flex items-center gap-2"
-                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+              {profileBuildingItems.map((item) => {
+                const status = getStepStatus(item.step);
+                const isLocked = status === 'locked';
+                const isCompleted = status === 'completed';
+                const isCurrent = status === 'current';
+
+                // Skip conditional items (like Organization) for now
+                // They're handled by the flow logic in ChooseMode
+
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild={!isLocked}
+                      isActive={isActive(item.url)}
+                      className={cn(
+                        isLocked && "opacity-50 cursor-not-allowed",
+                        isCompleted && "text-green-600"
+                      )}
                     >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </NavLink>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+                      {isLocked ? (
+                        <div className="flex items-center gap-2 px-2 py-1.5">
+                          <Lock className="h-4 w-4 text-muted-foreground" />
+                          <span className="text-muted-foreground">{item.title}</span>
+                        </div>
+                      ) : (
+                        <NavLink 
+                          to={item.url}
+                          className="flex items-center gap-2"
+                          activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                        >
+                          {isCompleted ? (
+                            <CheckCircle className="h-4 w-4 text-green-600" />
+                          ) : (
+                            <item.icon className={cn(
+                              "h-4 w-4",
+                              isCurrent && "text-primary"
+                            )} />
+                          )}
+                          <span className={cn(
+                            isCompleted && "text-green-600",
+                            isCurrent && "font-medium"
+                          )}>
+                            {item.title}
+                          </span>
+                        </NavLink>
+                      )}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
