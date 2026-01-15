@@ -2,7 +2,7 @@ import * as React from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Trash2, GripVertical, CheckCircle2 } from "lucide-react";
+import { Plus, Trash2, GripVertical, CheckCircle2, X, Tags } from "lucide-react";
 
 import {
   Dialog,
@@ -32,9 +32,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { DIFFICULTY_OPTIONS, QUESTION_TYPE_OPTIONS, USAGE_MODE_OPTIONS } from "@/hooks/queries/useQuestionBank";
+import { useCapabilityTags } from "@/hooks/queries/useCapabilityTags";
 
 const optionSchema = z.object({
   text: z.string().min(1, "Option text is required").max(500, "Option must be 500 characters or less"),
@@ -49,12 +57,15 @@ const questionSchema = z.object({
   usage_mode: z.enum(["self_assessment", "interview", "both"]).default("both"),
   expected_answer_guidance: z.string().max(2000).optional().nullable(),
   is_active: z.boolean().default(true),
+  capability_tag_ids: z.array(z.string()).default([]),
 }).refine((data) => data.correct_option <= data.options.length, {
   message: "Correct option must be within the available options",
   path: ["correct_option"],
 });
 
 type QuestionFormData = z.infer<typeof questionSchema>;
+
+export type { QuestionFormData };
 
 interface QuestionFormProps {
   open: boolean;
@@ -73,6 +84,9 @@ export function QuestionForm({
   onSubmit,
   isLoading = false,
 }: QuestionFormProps) {
+  const { data: capabilityTags = [] } = useCapabilityTags();
+  const [tagPopoverOpen, setTagPopoverOpen] = React.useState(false);
+
   const form = useForm<QuestionFormData>({
     resolver: zodResolver(questionSchema),
     defaultValues: {
@@ -84,6 +98,7 @@ export function QuestionForm({
       usage_mode: "both",
       expected_answer_guidance: "",
       is_active: true,
+      capability_tag_ids: [],
       ...defaultValues,
     },
   });
@@ -104,6 +119,7 @@ export function QuestionForm({
         usage_mode: "both",
         expected_answer_guidance: "",
         is_active: true,
+        capability_tag_ids: [],
         ...defaultValues,
       });
     }
@@ -120,7 +136,24 @@ export function QuestionForm({
 
   const correctOption = form.watch("correct_option");
   const usageMode = form.watch("usage_mode");
+  const selectedTagIds = form.watch("capability_tag_ids");
   const showAnswerGuidance = usageMode === "interview" || usageMode === "both";
+
+  const selectedTags = capabilityTags.filter(tag => selectedTagIds.includes(tag.id));
+
+  const handleTagToggle = (tagId: string) => {
+    const current = form.getValues("capability_tag_ids");
+    if (current.includes(tagId)) {
+      form.setValue("capability_tag_ids", current.filter(id => id !== tagId));
+    } else {
+      form.setValue("capability_tag_ids", [...current, tagId]);
+    }
+  };
+
+  const handleRemoveTag = (tagId: string) => {
+    const current = form.getValues("capability_tag_ids");
+    form.setValue("capability_tag_ids", current.filter(id => id !== tagId));
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -361,6 +394,93 @@ export function QuestionForm({
                 )}
               />
             </div>
+
+            {/* Capability Tags */}
+            <FormField
+              control={form.control}
+              name="capability_tag_ids"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Capability Tags</FormLabel>
+                  <div className="space-y-2">
+                    <Popover open={tagPopoverOpen} onOpenChange={setTagPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="w-full justify-start text-left font-normal"
+                        >
+                          <Tags className="mr-2 h-4 w-4" />
+                          {selectedTags.length === 0
+                            ? "Select capability tags..."
+                            : `${selectedTags.length} tag${selectedTags.length > 1 ? "s" : ""} selected`}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-80 p-0" align="start">
+                        <ScrollArea className="h-64">
+                          <div className="p-2 space-y-1">
+                            {capabilityTags.length === 0 ? (
+                              <div className="text-sm text-muted-foreground p-2 text-center">
+                                No capability tags available
+                              </div>
+                            ) : (
+                              capabilityTags.map((tag) => (
+                                <div
+                                  key={tag.id}
+                                  className="flex items-center space-x-2 p-2 hover:bg-muted rounded-md cursor-pointer"
+                                  onClick={() => handleTagToggle(tag.id)}
+                                >
+                                  <Checkbox
+                                    checked={selectedTagIds.includes(tag.id)}
+                                    onCheckedChange={() => handleTagToggle(tag.id)}
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{tag.name}</p>
+                                    {tag.description && (
+                                      <p className="text-xs text-muted-foreground truncate">
+                                        {tag.description}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ))
+                            )}
+                          </div>
+                        </ScrollArea>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Selected Tags Display */}
+                    {selectedTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">
+                        {selectedTags.map((tag) => (
+                          <Badge
+                            key={tag.id}
+                            variant="secondary"
+                            className="gap-1 pr-1"
+                          >
+                            {tag.name}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon"
+                              className="h-4 w-4 hover:bg-transparent"
+                              onClick={() => handleRemoveTag(tag.id)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <FormDescription>
+                    Tag questions with relevant capabilities for filtering and analysis
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             {/* Expected Answer Guidance (for interview mode) */}
             {showAnswerGuidance && (

@@ -35,6 +35,10 @@ import {
   Question,
   QuestionOption,
 } from "@/hooks/queries/useQuestionBank";
+import {
+  useQuestionCapabilityTags,
+  useUpdateQuestionCapabilityTags,
+} from "@/hooks/queries/useCapabilityTags";
 
 import { QuestionForm } from "./QuestionForm";
 import { QuestionImportDialog } from "./QuestionImportDialog";
@@ -349,12 +353,20 @@ export function QuestionBankPage() {
   ];
 
   // ===================== HANDLERS =====================
+  // Capability tags hooks
+  const { data: editingQuestionTags } = useQuestionCapabilityTags(editingQuestion?.id);
+  const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
+
   const handleSubmit = async (data: {
     question_text: string;
     options: { text: string }[];
     correct_option: number;
     difficulty?: "introductory" | "applied" | "advanced" | "strategic" | null;
+    question_type?: "conceptual" | "scenario" | "experience" | "decision" | "proof";
+    usage_mode?: "self_assessment" | "interview" | "both";
+    expected_answer_guidance?: string | null;
     is_active: boolean;
+    capability_tag_ids?: string[];
   }) => {
     const formattedOptions = formatQuestionOptions(
       data.options.map((opt, idx) => ({ index: idx + 1, text: opt.text }))
@@ -363,15 +375,21 @@ export function QuestionBankPage() {
     // Cast to Json type for Supabase
     const optionsJson = formattedOptions as unknown as { index: number; text: string }[];
 
+    let questionId: string | undefined;
+
     if (formMode === "create" && selectedSpecialityId) {
-      await createMutation.mutateAsync({
+      const result = await createMutation.mutateAsync({
         question_text: data.question_text,
         options: optionsJson,
         correct_option: data.correct_option,
         difficulty: data.difficulty,
+        question_type: data.question_type || "conceptual",
+        usage_mode: data.usage_mode || "both",
+        expected_answer_guidance: data.expected_answer_guidance,
         is_active: data.is_active,
         speciality_id: selectedSpecialityId,
       });
+      questionId = result?.id;
     } else if (formMode === "edit" && editingQuestion) {
       await updateMutation.mutateAsync({
         id: editingQuestion.id,
@@ -379,7 +397,19 @@ export function QuestionBankPage() {
         options: optionsJson,
         correct_option: data.correct_option,
         difficulty: data.difficulty,
+        question_type: data.question_type,
+        usage_mode: data.usage_mode,
+        expected_answer_guidance: data.expected_answer_guidance,
         is_active: data.is_active,
+      });
+      questionId = editingQuestion.id;
+    }
+
+    // Update capability tags if we have a question ID
+    if (questionId && data.capability_tag_ids) {
+      await updateCapabilityTagsMutation.mutateAsync({
+        questionId,
+        tagIds: data.capability_tag_ids,
       });
     }
   };
@@ -388,12 +418,18 @@ export function QuestionBankPage() {
     if (!editingQuestion) return undefined;
 
     const options = parseQuestionOptions(editingQuestion.options);
+    const existingTagIds = editingQuestionTags?.map(t => t.capability_tag_id) || [];
+    
     return {
       question_text: editingQuestion.question_text,
       options: options.map((opt) => ({ text: opt.text })),
       correct_option: editingQuestion.correct_option,
       difficulty: editingQuestion.difficulty,
+      question_type: editingQuestion.question_type,
+      usage_mode: editingQuestion.usage_mode,
+      expected_answer_guidance: editingQuestion.expected_answer_guidance,
       is_active: editingQuestion.is_active,
+      capability_tag_ids: existingTagIds,
     };
   };
 
