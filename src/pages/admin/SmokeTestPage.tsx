@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Check, X, CircleDashed, RotateCcw, ExternalLink, ClipboardCheck } from "lucide-react";
+import { Check, X, CircleDashed, RotateCcw, ExternalLink, ClipboardCheck, Play, Square, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -20,190 +21,32 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { toast } from "sonner";
-
-// Test status types
-type TestStatus = "not_tested" | "pass" | "fail";
-
-interface TestCase {
-  id: string;
-  operation: "create" | "read" | "update" | "deactivate" | "restore";
-  label: string;
-  status: TestStatus;
-  testedAt?: string;
-  notes?: string;
-}
-
-interface ModuleTestSuite {
-  id: string;
-  name: string;
-  path: string;
-  tests: TestCase[];
-}
-
-// Define all master data modules and their test cases
-const createModuleTests = (): ModuleTestSuite[] => [
-  {
-    id: "countries",
-    name: "Countries",
-    path: "/admin/master-data/countries",
-    tests: [
-      { id: "countries-read", operation: "read", label: "View list", status: "not_tested" },
-      { id: "countries-create", operation: "create", label: "Create new", status: "not_tested" },
-      { id: "countries-update", operation: "update", label: "Edit existing", status: "not_tested" },
-      { id: "countries-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-      { id: "countries-restore", operation: "restore", label: "Restore", status: "not_tested" },
-    ],
-  },
-  {
-    id: "industry-segments",
-    name: "Industry Segments",
-    path: "/admin/master-data/industry-segments",
-    tests: [
-      { id: "industry-read", operation: "read", label: "View list", status: "not_tested" },
-      { id: "industry-create", operation: "create", label: "Create new", status: "not_tested" },
-      { id: "industry-update", operation: "update", label: "Edit existing", status: "not_tested" },
-      { id: "industry-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-      { id: "industry-restore", operation: "restore", label: "Restore", status: "not_tested" },
-    ],
-  },
-  {
-    id: "organization-types",
-    name: "Organization Types",
-    path: "/admin/master-data/organization-types",
-    tests: [
-      { id: "org-read", operation: "read", label: "View list", status: "not_tested" },
-      { id: "org-create", operation: "create", label: "Create new", status: "not_tested" },
-      { id: "org-update", operation: "update", label: "Edit existing", status: "not_tested" },
-      { id: "org-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-      { id: "org-restore", operation: "restore", label: "Restore", status: "not_tested" },
-    ],
-  },
-  {
-    id: "participation-modes",
-    name: "Participation Modes",
-    path: "/admin/master-data/participation-modes",
-    tests: [
-      { id: "modes-read", operation: "read", label: "View list", status: "not_tested" },
-      { id: "modes-create", operation: "create", label: "Create new", status: "not_tested" },
-      { id: "modes-update", operation: "update", label: "Edit existing", status: "not_tested" },
-      { id: "modes-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-      { id: "modes-restore", operation: "restore", label: "Restore", status: "not_tested" },
-    ],
-  },
-  {
-    id: "expertise-levels",
-    name: "Expertise Levels",
-    path: "/admin/master-data/expertise-levels",
-    tests: [
-      { id: "expertise-read", operation: "read", label: "View list", status: "not_tested" },
-      { id: "expertise-create", operation: "create", label: "Create new", status: "not_tested" },
-      { id: "expertise-update", operation: "update", label: "Edit existing", status: "not_tested" },
-      { id: "expertise-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-      { id: "expertise-restore", operation: "restore", label: "Restore", status: "not_tested" },
-    ],
-  },
-  {
-    id: "academic-taxonomy",
-    name: "Academic Taxonomy",
-    path: "/admin/master-data/academic-taxonomy",
-    tests: [
-      { id: "academic-disciplines-read", operation: "read", label: "View Disciplines", status: "not_tested" },
-      { id: "academic-disciplines-create", operation: "create", label: "Create Discipline", status: "not_tested" },
-      { id: "academic-streams-read", operation: "read", label: "View Streams", status: "not_tested" },
-      { id: "academic-streams-create", operation: "create", label: "Create Stream", status: "not_tested" },
-      { id: "academic-subjects-read", operation: "read", label: "View Subjects", status: "not_tested" },
-      { id: "academic-subjects-create", operation: "create", label: "Create Subject", status: "not_tested" },
-    ],
-  },
-  {
-    id: "proficiency-taxonomy",
-    name: "Proficiency Taxonomy",
-    path: "/admin/master-data/proficiency-taxonomy",
-    tests: [
-      { id: "proficiency-areas-read", operation: "read", label: "View Areas", status: "not_tested" },
-      { id: "proficiency-areas-create", operation: "create", label: "Create Area", status: "not_tested" },
-      { id: "proficiency-subdomains-read", operation: "read", label: "View Sub-domains", status: "not_tested" },
-      { id: "proficiency-subdomains-create", operation: "create", label: "Create Sub-domain", status: "not_tested" },
-      { id: "proficiency-specialities-read", operation: "read", label: "View Specialities", status: "not_tested" },
-      { id: "proficiency-specialities-create", operation: "create", label: "Create Speciality", status: "not_tested" },
-    ],
-  },
-  {
-    id: "question-bank",
-    name: "Question Bank",
-    path: "/admin/questions",
-    tests: [
-      { id: "questions-read", operation: "read", label: "View questions", status: "not_tested" },
-      { id: "questions-create", operation: "create", label: "Create question", status: "not_tested" },
-      { id: "questions-update", operation: "update", label: "Edit question", status: "not_tested" },
-      { id: "questions-deactivate", operation: "deactivate", label: "Deactivate", status: "not_tested" },
-    ],
-  },
-  {
-    id: "invitations",
-    name: "Invitations",
-    path: "/admin/invitations",
-    tests: [
-      { id: "invitations-read", operation: "read", label: "View invitations", status: "not_tested" },
-      { id: "invitations-create", operation: "create", label: "Send invitation", status: "not_tested" },
-    ],
-  },
-];
-
-const STORAGE_KEY = "admin-smoke-test-results";
+import { useSmokeTestRunner } from "@/hooks/useSmokeTestRunner";
+import { TestStatus, ModuleTestSuite } from "@/services/smokeTestRunner";
 
 export default function SmokeTestPage() {
-  const [modules, setModules] = React.useState<ModuleTestSuite[]>(() => {
-    // Load from localStorage if available
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return createModuleTests();
-      }
-    }
-    return createModuleTests();
-  });
+  const {
+    isRunning,
+    currentModule,
+    currentTest,
+    progress,
+    totalTests,
+    completedTests,
+    logs,
+    results,
+    runAllTests,
+    runModuleTests,
+    cancelTests,
+    reset,
+    getModulesWithResults,
+  } = useSmokeTestRunner();
 
-  // Save to localStorage whenever modules change
-  React.useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(modules));
-  }, [modules]);
-
-  const updateTestStatus = (moduleId: string, testId: string, status: TestStatus) => {
-    setModules((prev) =>
-      prev.map((mod) =>
-        mod.id === moduleId
-          ? {
-              ...mod,
-              tests: mod.tests.map((test) =>
-                test.id === testId
-                  ? { ...test, status, testedAt: new Date().toISOString() }
-                  : test
-              ),
-            }
-          : mod
-      )
-    );
-    
-    const statusLabel = status === "pass" ? "Pass ✓" : status === "fail" ? "Fail ✗" : "Reset";
-    toast.success(`Test marked as ${statusLabel}`);
-  };
-
-  const resetAllTests = () => {
-    setModules(createModuleTests());
-    toast.success("All test results cleared");
-  };
+  const modules = getModulesWithResults();
 
   // Calculate statistics
-  const allTests = modules.flatMap((m) => m.tests);
-  const totalTests = allTests.length;
-  const passedTests = allTests.filter((t) => t.status === "pass").length;
-  const failedTests = allTests.filter((t) => t.status === "fail").length;
-  const untestedTests = allTests.filter((t) => t.status === "not_tested").length;
-  const progressPercent = totalTests > 0 ? ((passedTests + failedTests) / totalTests) * 100 : 0;
+  const passedTests = results.filter((r) => r.status === "pass").length;
+  const failedTests = results.filter((r) => r.status === "fail").length;
+  const untestedTests = totalTests - completedTests;
 
   const getStatusIcon = (status: TestStatus) => {
     switch (status) {
@@ -211,6 +54,8 @@ export default function SmokeTestPage() {
         return <Check className="h-4 w-4 text-green-600" />;
       case "fail":
         return <X className="h-4 w-4 text-destructive" />;
+      case "running":
+        return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
       default:
         return <CircleDashed className="h-4 w-4 text-muted-foreground" />;
     }
@@ -219,8 +64,10 @@ export default function SmokeTestPage() {
   const getModuleStatus = (module: ModuleTestSuite) => {
     const passed = module.tests.filter((t) => t.status === "pass").length;
     const failed = module.tests.filter((t) => t.status === "fail").length;
+    const running = module.tests.filter((t) => t.status === "running").length;
     const total = module.tests.length;
 
+    if (running > 0) return "running";
     if (failed > 0) return "fail";
     if (passed === total) return "pass";
     if (passed > 0) return "partial";
@@ -233,6 +80,13 @@ export default function SmokeTestPage() {
     const total = module.tests.length;
 
     switch (status) {
+      case "running":
+        return (
+          <Badge className="bg-primary/20 text-primary hover:bg-primary/20">
+            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            Running
+          </Badge>
+        );
       case "pass":
         return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">All Passed</Badge>;
       case "fail":
@@ -244,10 +98,18 @@ export default function SmokeTestPage() {
     }
   };
 
+  const handleRunAll = async () => {
+    await runAllTests();
+  };
+
+  const handleRunModule = async (moduleId: string) => {
+    await runModuleTests(moduleId);
+  };
+
   return (
     <AdminLayout
-      title="Smoke Test Checklist"
-      description="Manual test checklist for master data CRUD operations"
+      title="Automated Smoke Test"
+      description="Automated CRUD test suite for master data modules"
       breadcrumbs={[{ label: "Smoke Test" }]}
     >
       {/* Summary Cards */}
@@ -257,7 +119,7 @@ export default function SmokeTestPage() {
             <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalTests}</div>
+            <div className="text-2xl font-bold">{totalTests || modules.reduce((acc, m) => acc + m.tests.length, 0)}</div>
           </CardContent>
         </Card>
         <Card>
@@ -281,29 +143,84 @@ export default function SmokeTestPage() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Remaining</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-muted-foreground">{untestedTests}</div>
+            <div className="text-2xl font-bold text-muted-foreground">
+              {totalTests > 0 ? untestedTests : modules.reduce((acc, m) => acc + m.tests.length, 0)}
+            </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Progress */}
+      {/* Progress & Controls */}
       <Card className="mb-6">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
-            <CardTitle className="text-sm font-medium">Test Progress</CardTitle>
-            <Button variant="outline" size="sm" onClick={resetAllTests}>
-              <RotateCcw className="h-4 w-4 mr-2" />
-              Reset All
-            </Button>
+            <div>
+              <CardTitle className="text-sm font-medium">Test Progress</CardTitle>
+              {isRunning && currentModule && (
+                <CardDescription className="mt-1">
+                  Running: {currentModule} → {currentTest}
+                </CardDescription>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {isRunning ? (
+                <Button variant="destructive" size="sm" onClick={cancelTests}>
+                  <Square className="h-4 w-4 mr-2" />
+                  Stop
+                </Button>
+              ) : (
+                <>
+                  <Button variant="default" size="sm" onClick={handleRunAll}>
+                    <Play className="h-4 w-4 mr-2" />
+                    Run All Tests
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={reset}>
+                    <RotateCcw className="h-4 w-4 mr-2" />
+                    Reset
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          <Progress value={progressPercent} className="h-2" />
+          <Progress value={progress} className="h-2" />
           <p className="text-sm text-muted-foreground mt-2">
-            {passedTests + failedTests} of {totalTests} tests completed ({Math.round(progressPercent)}%)
+            {completedTests} of {totalTests || modules.reduce((acc, m) => acc + m.tests.length, 0)} tests completed ({Math.round(progress)}%)
           </p>
         </CardContent>
       </Card>
+
+      {/* Execution Log */}
+      {logs.length > 0 && (
+        <Card className="mb-6">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium">Execution Log</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-40 w-full rounded-md border bg-muted/30 p-3">
+              <pre className="text-xs font-mono whitespace-pre-wrap">
+                {logs.map((log, i) => (
+                  <div
+                    key={i}
+                    className={
+                      log.includes("✓")
+                        ? "text-green-600"
+                        : log.includes("✗")
+                        ? "text-destructive"
+                        : log.includes("===")
+                        ? "font-bold text-foreground"
+                        : "text-muted-foreground"
+                    }
+                  >
+                    {log}
+                  </div>
+                ))}
+              </pre>
+            </ScrollArea>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Test Modules */}
       <div className="space-y-6">
@@ -320,6 +237,16 @@ export default function SmokeTestPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {getModuleStatusBadge(module)}
+                  {!isRunning && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleRunModule(module.id)}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Run
+                    </Button>
+                  )}
                   <Button variant="outline" size="sm" asChild>
                     <Link to={module.path}>
                       <ExternalLink className="h-4 w-4 mr-2" />
@@ -336,7 +263,8 @@ export default function SmokeTestPage() {
                     <TableHead className="w-8">Status</TableHead>
                     <TableHead>Test Case</TableHead>
                     <TableHead>Operation</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>Duration</TableHead>
+                    <TableHead>Error</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -349,46 +277,22 @@ export default function SmokeTestPage() {
                           {test.operation}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
+                      <TableCell className="text-muted-foreground">
+                        {test.duration ? `${test.duration}ms` : "-"}
+                      </TableCell>
+                      <TableCell className="max-w-xs">
+                        {test.error && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Button
-                                variant={test.status === "pass" ? "default" : "outline"}
-                                size="sm"
-                                className={test.status === "pass" ? "bg-green-600 hover:bg-green-700" : ""}
-                                onClick={() => updateTestStatus(module.id, test.id, "pass")}
-                              >
-                                <Check className="h-4 w-4" />
-                              </Button>
+                              <span className="text-destructive text-sm truncate block cursor-help">
+                                {test.error}
+                              </span>
                             </TooltipTrigger>
-                            <TooltipContent>Mark as Pass</TooltipContent>
+                            <TooltipContent side="left" className="max-w-md">
+                              <p className="text-sm">{test.error}</p>
+                            </TooltipContent>
                           </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant={test.status === "fail" ? "destructive" : "outline"}
-                                size="sm"
-                                onClick={() => updateTestStatus(module.id, test.id, "fail")}
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Mark as Fail</TooltipContent>
-                          </Tooltip>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => updateTestStatus(module.id, test.id, "not_tested")}
-                              >
-                                <RotateCcw className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Reset</TooltipContent>
-                          </Tooltip>
-                        </div>
+                        )}
                       </TableCell>
                     </TableRow>
                   ))}
