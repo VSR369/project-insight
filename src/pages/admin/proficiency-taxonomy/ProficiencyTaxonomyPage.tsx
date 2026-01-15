@@ -30,6 +30,19 @@ import {
 } from "@/hooks/queries/useIndustrySegments";
 
 import {
+  useExpertiseLevels,
+  ExpertiseLevel,
+} from "@/hooks/queries/useExpertiseLevels";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
   useProficiencyAreasAdmin,
   useCreateProficiencyArea,
   useUpdateProficiencyArea,
@@ -108,6 +121,7 @@ export function ProficiencyTaxonomyPage() {
   const [showInactive, setShowInactive] = React.useState(true);
 
   // Selected parent IDs for filtering
+  const [selectedExpertiseLevelId, setSelectedExpertiseLevelId] = React.useState<string | undefined>();
   const [selectedIndustrySegmentId, setSelectedIndustrySegmentId] = React.useState<string | undefined>();
   const [selectedProficiencyAreaId, setSelectedProficiencyAreaId] = React.useState<string | undefined>();
   const [selectedSubDomainId, setSelectedSubDomainId] = React.useState<string | undefined>();
@@ -149,8 +163,9 @@ export function ProficiencyTaxonomyPage() {
   const [deletingSpeciality, setDeletingSpeciality] = React.useState<Speciality | null>(null);
 
   // Queries
+  const { data: expertiseLevels = [] } = useExpertiseLevels(showInactive);
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments(showInactive);
-  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, undefined, showInactive);
+  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, selectedExpertiseLevelId, showInactive);
   const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(selectedProficiencyAreaId, showInactive);
   const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(selectedSubDomainId, showInactive);
 
@@ -176,6 +191,12 @@ export function ProficiencyTaxonomyPage() {
 
   // Reset child selections when parent changes
   React.useEffect(() => {
+    setSelectedIndustrySegmentId(undefined);
+    setSelectedProficiencyAreaId(undefined);
+    setSelectedSubDomainId(undefined);
+  }, [selectedExpertiseLevelId]);
+
+  React.useEffect(() => {
     setSelectedProficiencyAreaId(undefined);
     setSelectedSubDomainId(undefined);
   }, [selectedIndustrySegmentId]);
@@ -183,6 +204,9 @@ export function ProficiencyTaxonomyPage() {
   React.useEffect(() => {
     setSelectedSubDomainId(undefined);
   }, [selectedProficiencyAreaId]);
+
+  // Get selected items for display
+  const selectedLevel = expertiseLevels.find(l => l.id === selectedExpertiseLevelId);
 
   // ===================== INDUSTRY SEGMENTS (READ-ONLY VIEW) =====================
   const segmentColumns: DataTableColumn<IndustrySegment>[] = [
@@ -274,28 +298,14 @@ export function ProficiencyTaxonomyPage() {
   ];
 
   const handleAreaSubmit = async (data: z.infer<typeof proficiencyAreaSchema>) => {
-    if (areaFormMode === "create" && selectedIndustrySegmentId) {
-      // Get first available expertise level for backward compatibility
-      const { data: levels } = await supabase
-        .from("expertise_levels")
-        .select("id")
-        .eq("is_active", true)
-        .order("level_number", { ascending: true })
-        .limit(1);
-      
-      const expertiseLevelId = levels?.[0]?.id;
-      if (!expertiseLevelId) {
-        toast.error("No expertise level found. Please create expertise levels first.");
-        return;
-      }
-      
+    if (areaFormMode === "create" && selectedIndustrySegmentId && selectedExpertiseLevelId) {
       await createAreaMutation.mutateAsync({
         name: data.name,
         description: data.description,
         display_order: data.display_order,
         is_active: data.is_active,
         industry_segment_id: selectedIndustrySegmentId,
-        expertise_level_id: expertiseLevelId,
+        expertise_level_id: selectedExpertiseLevelId,
       });
     } else if (areaFormMode === "edit" && editingArea) {
       await updateAreaMutation.mutateAsync({
@@ -536,8 +546,61 @@ export function ProficiencyTaxonomyPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Expertise Level Filter */}
+          <div className="flex items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <Label className="text-sm font-medium">Expertise Level:</Label>
+              <Select
+                value={selectedExpertiseLevelId || ""}
+                onValueChange={(value) => setSelectedExpertiseLevelId(value || undefined)}
+              >
+                <SelectTrigger className="w-[200px]">
+                  <SelectValue placeholder="Select level..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {expertiseLevels.map((level) => (
+                    <SelectItem key={level.id} value={level.id}>
+                      {level.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {selectedExpertiseLevelId && (
+              <div className="flex items-center gap-2">
+                <Label className="text-sm font-medium">Industry Segment:</Label>
+                <Select
+                  value={selectedIndustrySegmentId || ""}
+                  onValueChange={(value) => {
+                    setSelectedIndustrySegmentId(value || undefined);
+                    if (value) setActiveTab("proficiency-areas");
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Select segment..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {industrySegments.map((segment) => (
+                      <SelectItem key={segment.id} value={segment.id}>
+                        {segment.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+
           {/* Breadcrumb Navigation */}
           <div className="flex items-center gap-2 mb-6 flex-wrap">
+            {selectedLevel && (
+              <>
+                <Badge variant="secondary">
+                  {selectedLevel.name}
+                </Badge>
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </>
+            )}
             <Badge
               variant={!selectedIndustrySegmentId ? "default" : "outline"}
               className="cursor-pointer"
@@ -547,7 +610,7 @@ export function ProficiencyTaxonomyPage() {
               }}
             >
               <Building2 className="h-3 w-3 mr-1" />
-              Industry Segments
+              {selectedSegment ? selectedSegment.name : "Industry Segments"}
             </Badge>
             {selectedSegment && (
               <>
@@ -561,7 +624,7 @@ export function ProficiencyTaxonomyPage() {
                   }}
                 >
                   <Target className="h-3 w-3 mr-1" />
-                  {selectedSegment.name}
+                  Proficiency Areas
                 </Badge>
               </>
             )}
@@ -644,7 +707,7 @@ export function ProficiencyTaxonomyPage() {
 
             {/* Proficiency Areas Tab */}
             <TabsContent value="proficiency-areas">
-              {selectedIndustrySegmentId ? (
+              {selectedIndustrySegmentId && selectedExpertiseLevelId ? (
                 <DataTable
                   data={proficiencyAreas}
                   columns={areaColumns}
@@ -662,7 +725,9 @@ export function ProficiencyTaxonomyPage() {
               ) : (
                 <Alert>
                   <AlertDescription>
-                    Select an industry segment from the first tab to view its proficiency areas.
+                    {!selectedExpertiseLevelId
+                      ? "Select an expertise level first, then an industry segment to view proficiency areas."
+                      : "Select an industry segment to view its proficiency areas."}
                   </AlertDescription>
                 </Alert>
               )}

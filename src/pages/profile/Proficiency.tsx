@@ -1,20 +1,25 @@
 import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, ArrowLeft, TreePine, ChevronRight, FolderOpen, Tag, Loader2, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRight, ArrowLeft, TreePine, ChevronRight, FolderOpen, Tag, Loader2, AlertCircle, Award } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
+import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Proficiency() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: taxonomy, isLoading: taxonomyLoading } = useProficiencyTaxonomy(
-    provider?.industry_segment_id ?? undefined
+    provider?.industry_segment_id ?? undefined,
+    provider?.expertise_level_id ?? undefined
   );
+  const { data: expertiseLevels = [] } = useExpertiseLevels();
 
+  const providerLevel = expertiseLevels.find(l => l.id === provider?.expertise_level_id);
   if (providerLoading) {
     return (
       <AppLayout>
@@ -26,6 +31,7 @@ export default function Proficiency() {
   }
 
   const hasIndustrySegment = !!provider?.industry_segment_id;
+  const hasExpertiseLevel = !!provider?.expertise_level_id;
   const hasTaxonomy = taxonomy && taxonomy.length > 0;
 
   return (
@@ -60,14 +66,25 @@ export default function Proficiency() {
           </CardContent>
         </Card>
 
-        {/* No Industry Segment Selected */}
-        {!hasIndustrySegment && (
+        {/* Missing Prerequisites */}
+        {(!hasIndustrySegment || !hasExpertiseLevel) && (
           <Alert variant="default" className="mb-6">
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
-              Your industry segment hasn't been set. Please contact support or complete registration again.
+              {!hasExpertiseLevel
+                ? "Your expertise level hasn't been set. Please complete the Expertise Level step first."
+                : "Your industry segment hasn't been set. Please contact support or complete registration again."}
             </AlertDescription>
           </Alert>
+        )}
+
+        {/* Your Level Badge */}
+        {providerLevel && (
+          <div className="flex items-center gap-2 mb-6">
+            <Award className="h-5 w-5 text-primary" />
+            <span className="text-sm font-medium">Your Level:</span>
+            <Badge variant="secondary">{providerLevel.name}</Badge>
+          </div>
         )}
 
         {/* Taxonomy Tree */}
@@ -86,7 +103,7 @@ export default function Proficiency() {
             ) : !hasTaxonomy ? (
               <div className="py-8 text-center text-muted-foreground">
                 <FolderOpen className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No proficiency areas found for your industry segment.</p>
+                <p>No proficiency areas found for your industry segment and expertise level.</p>
               </div>
             ) : (
               <Accordion type="multiple" className="space-y-2">
