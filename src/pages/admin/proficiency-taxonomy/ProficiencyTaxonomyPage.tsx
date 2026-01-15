@@ -692,13 +692,17 @@ export function ProficiencyTaxonomyPage() {
                     setAreaFormOpen(true);
                   }}
                   addButtonLabel="Add Proficiency Area"
+                  onRowClick={(area) => {
+                    setSelectedProficiencyAreaId(area.id);
+                    setActiveTab("sub-domains");
+                  }}
                 />
               ) : (
                 <Alert>
                   <AlertDescription>
-                    {!selectedExpertiseLevelId
-                      ? "Select an expertise level first, then an industry segment to view proficiency areas."
-                      : "Select an industry segment to view its proficiency areas."}
+                    {!selectedIndustrySegmentId
+                      ? "Select an industry segment first to view proficiency areas."
+                      : "Select an expertise level to view its proficiency areas."}
                   </AlertDescription>
                 </Alert>
               )}
@@ -720,6 +724,10 @@ export function ProficiencyTaxonomyPage() {
                     setSubDomainFormOpen(true);
                   }}
                   addButtonLabel="Add Sub-domain"
+                  onRowClick={(subDomain) => {
+                    setSelectedSubDomainId(subDomain.id);
+                    setActiveTab("specialities");
+                  }}
                 />
               ) : (
                 <Alert>
