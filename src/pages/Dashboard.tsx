@@ -61,15 +61,22 @@ export default function Dashboard() {
   const profileCompletion = calculateProfileCompletion();
   const currentStep = calculateCurrentStep(provider);
 
-  // Redirect to registration if profile is incomplete
+  // Redirect to enrollment wizard if onboarding not complete
   useEffect(() => {
-    if (!isLoading && provider) {
-      // Only auto-redirect if they're on the dashboard and haven't completed basic registration
-      if (currentStep === 1 && provider.onboarding_status !== 'completed') {
-        // Don't force redirect, but show the prompt in the UI
-      }
+    if (!isLoading && provider && provider.onboarding_status !== 'completed') {
+      // Redirect to the appropriate enrollment step
+      const enrollUrls: Record<number, string> = {
+        1: '/enroll/registration',
+        2: '/enroll/participation-mode',
+        3: '/enroll/organization',
+        4: '/enroll/expertise',
+        5: '/enroll/proof-points',
+        6: '/enroll/proof-points', // Steps 6-9 not yet implemented
+      };
+      const url = enrollUrls[currentStep] || '/enroll/registration';
+      navigate(url);
     }
-  }, [isLoading, provider, currentStep]);
+  }, [isLoading, provider, currentStep, navigate]);
 
   const nextSteps = [
     {

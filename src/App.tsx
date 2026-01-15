@@ -18,14 +18,14 @@ import Dashboard from "@/pages/Dashboard";
 import Welcome from "@/pages/Welcome";
 import NotFound from "@/pages/NotFound";
 
-// Profile Building Pages
-import Registration from "@/pages/profile/Registration";
-import ChooseMode from "@/pages/profile/ChooseMode";
-import Organization from "@/pages/profile/Organization";
-import ExpertiseLevel from "@/pages/profile/ExpertiseLevel";
-import Proficiency from "@/pages/profile/Proficiency";
-import ProofPoints from "@/pages/profile/ProofPoints";
-import { OnboardingGuard } from "@/components/auth/OnboardingGuard";
+// Enrollment Wizard Pages (new 9-step flow)
+import {
+  EnrollRegistration,
+  EnrollParticipationMode,
+  EnrollOrganization,
+  EnrollExpertiseSelection,
+  EnrollProofPoints,
+} from "@/pages/enroll";
 
 // Placeholder Pages
 import { 
@@ -86,62 +86,44 @@ const App = () => (
               }
             />
 
-            {/* Profile Building Wizard */}
+            {/* Enrollment Wizard (9-step flow - no sidebar) */}
             <Route
-              path="/profile/build/registration"
+              path="/enroll/registration"
               element={
                 <AuthGuard>
-                  <Registration />
+                  <EnrollRegistration />
                 </AuthGuard>
               }
             />
             <Route
-              path="/profile/build/choose-mode"
+              path="/enroll/participation-mode"
               element={
                 <AuthGuard>
-                  <OnboardingGuard requiredStep={2}>
-                    <ChooseMode />
-                  </OnboardingGuard>
+                  <EnrollParticipationMode />
                 </AuthGuard>
               }
             />
             <Route
-              path="/profile/build/organization"
+              path="/enroll/organization"
               element={
                 <AuthGuard>
-                  <OnboardingGuard requiredStep={3}>
-                    <Organization />
-                  </OnboardingGuard>
+                  <EnrollOrganization />
                 </AuthGuard>
               }
             />
             <Route
-              path="/profile/build/expertise"
+              path="/enroll/expertise"
               element={
                 <AuthGuard>
-                  <OnboardingGuard requiredStep={4}>
-                    <ExpertiseLevel />
-                  </OnboardingGuard>
+                  <EnrollExpertiseSelection />
                 </AuthGuard>
               }
             />
             <Route
-              path="/profile/build/proficiency"
+              path="/enroll/proof-points"
               element={
                 <AuthGuard>
-                  <OnboardingGuard requiredStep={5}>
-                    <Proficiency />
-                  </OnboardingGuard>
-                </AuthGuard>
-              }
-            />
-            <Route
-              path="/profile/build/proof-points"
-              element={
-                <AuthGuard>
-                  <OnboardingGuard requiredStep={6}>
-                    <ProofPoints />
-                  </OnboardingGuard>
+                  <EnrollProofPoints />
                 </AuthGuard>
               }
             />
