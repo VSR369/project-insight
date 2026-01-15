@@ -36,6 +36,7 @@ import {
   QuestionOption,
 } from "@/hooks/queries/useQuestionBank";
 import {
+  useCapabilityTags,
   useQuestionCapabilityTags,
   useUpdateQuestionCapabilityTags,
 } from "@/hooks/queries/useCapabilityTags";
@@ -102,6 +103,7 @@ export function QuestionBankPage() {
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
   const [questionTypeFilter, setQuestionTypeFilter] = React.useState<string>("all");
   const [usageModeFilter, setUsageModeFilter] = React.useState<string>("all");
+  const [capabilityTagFilter, setCapabilityTagFilter] = React.useState<string>("all");
 
   // Stats dashboard collapsed state (persisted in localStorage)
   const [statsOpen, setStatsOpen] = React.useState(() => {
@@ -156,6 +158,9 @@ export function QuestionBankPage() {
     showInactive
   );
 
+  // Fetch capability tags for filter dropdown
+  const { data: capabilityTags = [] } = useCapabilityTags();
+
   // Filtered questions
   const filteredQuestions = React.useMemo(() => {
     return questions.filter((q) => {
@@ -183,10 +188,21 @@ export function QuestionBankPage() {
       if (usageModeFilter !== "all") {
         if (q.usage_mode !== usageModeFilter) return false;
       }
+
+      // Capability tag filter
+      if (capabilityTagFilter !== "all") {
+        const questionTags = q.question_capability_tags || [];
+        const hasTag = questionTags.some(t => t.capability_tag_id === capabilityTagFilter);
+        if (capabilityTagFilter === "none") {
+          if (questionTags.length > 0) return false;
+        } else {
+          if (!hasTag) return false;
+        }
+      }
       
       return true;
     });
-  }, [questions, difficultyFilter, statusFilter, questionTypeFilter, usageModeFilter]);
+  }, [questions, difficultyFilter, statusFilter, questionTypeFilter, usageModeFilter, capabilityTagFilter]);
 
   // Mutations
   const createMutation = useCreateQuestion();
@@ -1407,8 +1423,24 @@ export function QuestionBankPage() {
                     </SelectContent>
                   </Select>
 
+                  {/* Capability Tag Filter */}
+                  <Select value={capabilityTagFilter} onValueChange={setCapabilityTagFilter}>
+                    <SelectTrigger className="w-[150px] h-8">
+                      <SelectValue placeholder="Capability Tag" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Tags</SelectItem>
+                      <SelectItem value="none">No Tags</SelectItem>
+                      {capabilityTags.map((tag) => (
+                        <SelectItem key={tag.id} value={tag.id}>
+                          {tag.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
                   {/* Clear Filters */}
-                  {(difficultyFilter !== "all" || statusFilter !== "all" || questionTypeFilter !== "all" || usageModeFilter !== "all") && (
+                  {(difficultyFilter !== "all" || statusFilter !== "all" || questionTypeFilter !== "all" || usageModeFilter !== "all" || capabilityTagFilter !== "all") && (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -1417,6 +1449,7 @@ export function QuestionBankPage() {
                         setStatusFilter("all");
                         setQuestionTypeFilter("all");
                         setUsageModeFilter("all");
+                        setCapabilityTagFilter("all");
                       }}
                       className="h-8 px-2"
                     >
