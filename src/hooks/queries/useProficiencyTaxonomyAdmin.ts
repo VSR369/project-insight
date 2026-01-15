@@ -3,6 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
+// Import types for bulk import
+import type { ParsedTaxonomyRow } from "@/pages/admin/proficiency-taxonomy/ProficiencyExcelExport";
+
 // Types
 export type ProficiencyArea = Tables<"proficiency_areas">;
 export type ProficiencyAreaInsert = TablesInsert<"proficiency_areas">;
@@ -478,6 +481,224 @@ export function useHardDeleteSpeciality() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to delete speciality: ${error.message}`);
+    },
+  });
+}
+
+// ===================== BULK IMPORT =====================
+
+interface BulkImportResult {
+  areasCreated: number;
+  areasUpdated: number;
+  subDomainsCreated: number;
+  subDomainsUpdated: number;
+  specialitiesCreated: number;
+  specialitiesUpdated: number;
+  errors: string[];
+}
+
+interface BulkImportInput {
+  rows: ParsedTaxonomyRow[];
+  onProgress?: (progress: number) => void;
+}
+
+export function useBulkImportProficiencyTaxonomy() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ rows, onProgress }: BulkImportInput): Promise<BulkImportResult> => {
+      const result: BulkImportResult = {
+        areasCreated: 0,
+        areasUpdated: 0,
+        subDomainsCreated: 0,
+        subDomainsUpdated: 0,
+        specialitiesCreated: 0,
+        specialitiesUpdated: 0,
+        errors: [],
+      };
+
+      // Fetch all industry segments
+      const { data: segments, error: segmentsError } = await supabase
+        .from("industry_segments")
+        .select("id, name")
+        .eq("is_active", true);
+
+      if (segmentsError) throw new Error(`Failed to fetch segments: ${segmentsError.message}`);
+
+      const segmentMap = new Map(
+        (segments || []).map(s => [s.name.toLowerCase().trim(), s.id])
+      );
+
+      // Cache for created/found entities to avoid duplicate queries
+      const areaCache = new Map<string, string>(); // "segmentId:areaName" -> areaId
+      const subDomainCache = new Map<string, string>(); // "areaId:subDomainName" -> subDomainId
+      const specialityCache = new Map<string, string>(); // "subDomainId:specialityName" -> specialityId
+
+      // Pre-fetch existing data
+      const { data: existingAreas } = await supabase
+        .from("proficiency_areas")
+        .select("id, name, industry_segment_id");
+
+      for (const area of existingAreas || []) {
+        areaCache.set(`${area.industry_segment_id}:${area.name.toLowerCase().trim()}`, area.id);
+      }
+
+      const { data: existingSubDomains } = await supabase
+        .from("sub_domains")
+        .select("id, name, proficiency_area_id");
+
+      for (const sd of existingSubDomains || []) {
+        subDomainCache.set(`${sd.proficiency_area_id}:${sd.name.toLowerCase().trim()}`, sd.id);
+      }
+
+      const { data: existingSpecialities } = await supabase
+        .from("specialities")
+        .select("id, name, sub_domain_id");
+
+      for (const sp of existingSpecialities || []) {
+        specialityCache.set(`${sp.sub_domain_id}:${sp.name.toLowerCase().trim()}`, sp.id);
+      }
+
+      // Process each row
+      const totalRows = rows.length;
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+
+        try {
+          // Find industry segment
+          const segmentId = segmentMap.get(row.industrySegment.toLowerCase().trim());
+          if (!segmentId) {
+            result.errors.push(`Row ${row.rowNumber}: Industry segment "${row.industrySegment}" not found`);
+            continue;
+          }
+
+          // Find or create proficiency area
+          const areaKey = `${segmentId}:${row.proficiencyArea.toLowerCase().trim()}`;
+          let areaId = areaCache.get(areaKey);
+
+          if (!areaId) {
+            // Create new area
+            const { data: newArea, error: areaError } = await supabase
+              .from("proficiency_areas")
+              .insert({
+                name: row.proficiencyArea,
+                description: row.areaDescription || null,
+                industry_segment_id: segmentId,
+                is_active: true,
+              })
+              .select()
+              .single();
+
+            if (areaError) {
+              result.errors.push(`Row ${row.rowNumber}: Failed to create area - ${areaError.message}`);
+              continue;
+            }
+
+            areaId = newArea.id;
+            areaCache.set(areaKey, areaId);
+            result.areasCreated++;
+          } else if (row.areaDescription) {
+            // Update existing area description if provided
+            await supabase
+              .from("proficiency_areas")
+              .update({ description: row.areaDescription })
+              .eq("id", areaId);
+            result.areasUpdated++;
+          }
+
+          // Find or create sub-domain
+          const subDomainKey = `${areaId}:${row.subDomain.toLowerCase().trim()}`;
+          let subDomainId = subDomainCache.get(subDomainKey);
+
+          if (!subDomainId) {
+            // Create new sub-domain
+            const { data: newSubDomain, error: sdError } = await supabase
+              .from("sub_domains")
+              .insert({
+                name: row.subDomain,
+                description: row.subDomainDescription || null,
+                proficiency_area_id: areaId,
+                is_active: true,
+              })
+              .select()
+              .single();
+
+            if (sdError) {
+              result.errors.push(`Row ${row.rowNumber}: Failed to create sub-domain - ${sdError.message}`);
+              continue;
+            }
+
+            subDomainId = newSubDomain.id;
+            subDomainCache.set(subDomainKey, subDomainId);
+            result.subDomainsCreated++;
+          } else if (row.subDomainDescription) {
+            // Update existing sub-domain description if provided
+            await supabase
+              .from("sub_domains")
+              .update({ description: row.subDomainDescription })
+              .eq("id", subDomainId);
+            result.subDomainsUpdated++;
+          }
+
+          // Find or create speciality
+          const specialityKey = `${subDomainId}:${row.speciality.toLowerCase().trim()}`;
+          let specialityId = specialityCache.get(specialityKey);
+
+          if (!specialityId) {
+            // Create new speciality
+            const { data: newSpeciality, error: spError } = await supabase
+              .from("specialities")
+              .insert({
+                name: row.speciality,
+                description: row.specialityDescription || null,
+                display_order: row.displayOrder,
+                sub_domain_id: subDomainId,
+                is_active: row.isActive,
+              })
+              .select()
+              .single();
+
+            if (spError) {
+              result.errors.push(`Row ${row.rowNumber}: Failed to create speciality - ${spError.message}`);
+              continue;
+            }
+
+            specialityId = newSpeciality.id;
+            specialityCache.set(specialityKey, specialityId);
+            result.specialitiesCreated++;
+          } else {
+            // Update existing speciality
+            await supabase
+              .from("specialities")
+              .update({
+                description: row.specialityDescription || undefined,
+                display_order: row.displayOrder,
+                is_active: row.isActive,
+              })
+              .eq("id", specialityId);
+            result.specialitiesUpdated++;
+          }
+        } catch (error) {
+          result.errors.push(`Row ${row.rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`);
+        }
+
+        // Report progress
+        if (onProgress) {
+          onProgress(Math.round(((i + 1) / totalRows) * 100));
+        }
+      }
+
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proficiency_areas_admin"] });
+      queryClient.invalidateQueries({ queryKey: ["sub_domains_admin"] });
+      queryClient.invalidateQueries({ queryKey: ["specialities_admin"] });
+      toast.success("Proficiency taxonomy imported successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Import failed: ${error.message}`);
     },
   });
 }
