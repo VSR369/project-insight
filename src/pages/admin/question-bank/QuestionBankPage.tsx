@@ -502,7 +502,12 @@ export function QuestionBankPage() {
   const handleExportExcel = () => {
     if (questions.length === 0) return;
 
-    const headers = ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance", "is_active"];
+    const headers = [
+      "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
+      "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+      "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", 
+      "expected_answer_guidance", "is_active"
+    ];
     
     const dataRows = questions.map((q) => {
       const options = parseQuestionOptions(q.options);
@@ -513,6 +518,11 @@ export function QuestionBankPage() {
         .join(", ");
       
       return [
+        selectedSegment?.name || "",
+        selectedLevel?.name || "",
+        selectedArea?.name || "",
+        selectedSubDomain?.name || "",
+        selectedSpeciality?.name || "",
         q.question_text,
         options[0]?.text || "",
         options[1]?.text || "",
@@ -533,6 +543,11 @@ export function QuestionBankPage() {
     // Create worksheet with headers and data
     const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
     ws["!cols"] = [
+      { wch: 35 }, // industry_segment
+      { wch: 50 }, // expertise_level
+      { wch: 30 }, // proficiency_area
+      { wch: 25 }, // sub_domain
+      { wch: 35 }, // speciality
       { wch: 50 }, // question_text
       { wch: 25 }, // option_1
       { wch: 25 }, // option_2
@@ -559,11 +574,27 @@ export function QuestionBankPage() {
   // ===================== DOWNLOAD TEMPLATE =====================
   const handleDownloadTemplate = () => {
     const templateData = [
-      ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"],
-      ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving", "The correct answer is Paris. It has been the capital of France since 987 CE."],
-      ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", "", "Mars is called the Red Planet due to iron oxide (rust) on its surface."],
-      ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving", "Look for systematic approach: data gathering, root cause analysis before action."],
-      ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership", "Evaluate: context clarity, specific challenges, actions taken, measurable outcomes, lessons learned."],
+      [
+        "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
+        "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+        "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
+      ],
+      [
+        "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+        "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
+        "What is the primary purpose of data stewardship?",
+        "Data backup", "Data governance", "Data deletion", "Data encryption", "", "",
+        2, "applied", "conceptual", "both", "Data Management",
+        "Data stewardship focuses on governance and quality, not just backup."
+      ],
+      [
+        "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+        "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
+        "Which stakeholder typically owns business data?",
+        "IT Department", "Business Unit Head", "External Vendor", "Database Admin", "", "",
+        2, "introductory", "conceptual", "self_assessment", "",
+        "Business data ownership should reside with the business unit that creates and uses the data."
+      ],
     ];
 
     const instructionsData = [
@@ -571,6 +602,11 @@ export function QuestionBankPage() {
       [""],
       ["COLUMN DESCRIPTIONS:"],
       ["Column", "Description", "Required", "Valid Values"],
+      ["industry_segment", "The industry segment name", "Yes", "Must match an existing industry segment exactly"],
+      ["expertise_level", "The expertise level name", "Yes", "Must match an existing expertise level exactly"],
+      ["proficiency_area", "The proficiency area name", "Yes", "Must match an area under the specified industry + level"],
+      ["sub_domain", "The sub-domain name", "Yes", "Must match a sub-domain under the specified proficiency area"],
+      ["speciality", "The speciality name", "Yes", "Must match a speciality under the specified sub-domain"],
       ["question_text", "The full question text", "Yes", "10-2000 characters"],
       ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
       ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
@@ -578,17 +614,17 @@ export function QuestionBankPage() {
       ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
       ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
       ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
-      ["expected_answer_guidance", "Detailed explanation of the correct answer for reviewers/interviewers", "No", "Text up to 2000 characters"],
+      ["expected_answer_guidance", "Detailed explanation for reviewers/interviewers", "No", "Text up to 2000 characters"],
       [""],
       ["IMPORTANT NOTES:"],
-      ["1. You must provide at least 2 options and maximum 6 options"],
-      ["2. Leave unused option columns empty (do not delete them)"],
-      ["3. The correct_option number must match an option that exists"],
-      ["4. If difficulty is not specified, it will be left blank"],
-      ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
-      ["6. Do not modify the header row in the Questions sheet"],
-      ["7. Capability tags must match existing tag names exactly (case-insensitive)"],
-      ["8. expected_answer_guidance is optional but helpful for interview mode questions"],
+      ["1. All hierarchy fields (industry_segment through speciality) must match existing data exactly (case-insensitive)"],
+      ["2. Questions will be automatically linked to the specified speciality"],
+      ["3. You can import questions for multiple specialities in the same file"],
+      ["4. You must provide at least 2 options and maximum 6 options"],
+      ["5. Leave unused option columns empty (do not delete them)"],
+      ["6. The correct_option number must match an option that exists"],
+      ["7. Enter your questions in the 'Questions' sheet, starting from row 2"],
+      ["8. Do not modify the header row in the Questions sheet"],
       [""],
       ["DIFFICULTY LEVEL GUIDE:"],
       ["Level", "Description"],
@@ -617,6 +653,11 @@ export function QuestionBankPage() {
     // Questions sheet
     const questionsWs = XLSX.utils.aoa_to_sheet(templateData);
     questionsWs["!cols"] = [
+      { wch: 35 }, // industry_segment
+      { wch: 50 }, // expertise_level
+      { wch: 30 }, // proficiency_area
+      { wch: 25 }, // sub_domain
+      { wch: 35 }, // speciality
       { wch: 50 }, // question_text
       { wch: 25 }, // option_1
       { wch: 25 }, // option_2
@@ -1830,8 +1871,6 @@ export function QuestionBankPage() {
       <QuestionImportDialog
         open={importOpen}
         onOpenChange={setImportOpen}
-        specialityId={selectedSpecialityId}
-        specialityName={selectedSpeciality?.name || ""}
       />
 
       {/* Duplicate Dialog */}

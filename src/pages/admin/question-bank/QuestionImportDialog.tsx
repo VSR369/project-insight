@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2 } from "lucide-react";
 
 import {
   Dialog,
@@ -26,9 +26,16 @@ import {
 
 import { useCreateQuestion, formatQuestionOptions, DIFFICULTY_OPTIONS, QUESTION_TYPE_OPTIONS, USAGE_MODE_OPTIONS } from "@/hooks/queries/useQuestionBank";
 import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
+import { useHierarchyData, resolveHierarchy, HierarchyData } from "@/hooks/queries/useHierarchyResolver";
 
 interface ParsedQuestion {
   rowNumber: number;
+  industry_segment: string;
+  expertise_level: string;
+  proficiency_area: string;
+  sub_domain: string;
+  speciality: string;
+  speciality_id: string | null;
   question_text: string;
   options: string[];
   correct_option: number;
@@ -44,11 +51,14 @@ interface ParsedQuestion {
 interface QuestionImportDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  specialityId: string;
-  specialityName: string;
 }
 
 interface RawQuestionData {
+  industry_segment: string;
+  expertise_level: string;
+  proficiency_area: string;
+  sub_domain: string;
+  speciality: string;
   question_text: string;
   options: string[];
   correct_option: number;
@@ -64,11 +74,27 @@ const VALID_QUESTION_TYPES: readonly string[] = QUESTION_TYPE_OPTIONS.map(t => t
 const VALID_USAGE_MODES: readonly string[] = USAGE_MODE_OPTIONS.map(m => m.value);
 
 const EXCEL_TEMPLATE_DATA = [
-  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"],
-  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving", "The correct answer is Paris. It has been the capital of France since 987 CE."],
-  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", "", "Mars is called the Red Planet due to iron oxide (rust) on its surface."],
-  ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving", "Look for systematic approach: data gathering, root cause analysis before action."],
-  ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership", "Evaluate: context clarity, specific challenges, actions taken, measurable outcomes, lessons learned."],
+  [
+    "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
+    "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+    "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
+  ],
+  [
+    "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+    "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
+    "What is the primary purpose of data stewardship?",
+    "Data backup", "Data governance", "Data deletion", "Data encryption", "", "",
+    2, "applied", "conceptual", "both", "Data Management",
+    "Data stewardship focuses on governance and quality, not just backup."
+  ],
+  [
+    "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
+    "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
+    "Which stakeholder typically owns business data?",
+    "IT Department", "Business Unit Head", "External Vendor", "Database Admin", "", "",
+    2, "introductory", "conceptual", "self_assessment", "",
+    "Business data ownership should reside with the business unit that creates and uses the data."
+  ],
 ];
 
 const INSTRUCTIONS_SHEET_DATA = [
@@ -76,6 +102,11 @@ const INSTRUCTIONS_SHEET_DATA = [
   [""],
   ["COLUMN DESCRIPTIONS:"],
   ["Column", "Description", "Required", "Valid Values"],
+  ["industry_segment", "The industry segment name", "Yes", "Must match an existing industry segment exactly"],
+  ["expertise_level", "The expertise level name", "Yes", "Must match an existing expertise level exactly"],
+  ["proficiency_area", "The proficiency area name", "Yes", "Must match an area under the specified industry + level"],
+  ["sub_domain", "The sub-domain name", "Yes", "Must match a sub-domain under the specified proficiency area"],
+  ["speciality", "The speciality name", "Yes", "Must match a speciality under the specified sub-domain"],
   ["question_text", "The full question text", "Yes", "10-2000 characters"],
   ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
   ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
@@ -83,17 +114,17 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
   ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
   ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
-  ["expected_answer_guidance", "Detailed explanation of the correct answer for reviewers/interviewers", "No", "Text up to 2000 characters"],
+  ["expected_answer_guidance", "Detailed explanation for reviewers/interviewers", "No", "Text up to 2000 characters"],
   [""],
   ["IMPORTANT NOTES:"],
-  ["1. You must provide at least 2 options and maximum 6 options"],
-  ["2. Leave unused option columns empty (do not delete them)"],
-  ["3. The correct_option number must match an option that exists"],
-  ["4. If difficulty is not specified, it will be left blank"],
-  ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
-  ["6. Do not modify the header row in the Questions sheet"],
-  ["7. Capability tags must match existing tag names exactly (case-insensitive)"],
-  ["8. expected_answer_guidance is optional but helpful for interview mode questions"],
+  ["1. All hierarchy fields (industry_segment through speciality) must match existing data exactly (case-insensitive)"],
+  ["2. Questions will be automatically linked to the specified speciality"],
+  ["3. You can import questions for multiple specialities in the same file"],
+  ["4. You must provide at least 2 options and maximum 6 options"],
+  ["5. Leave unused option columns empty (do not delete them)"],
+  ["6. The correct_option number must match an option that exists"],
+  ["7. Enter your questions in the 'Questions' sheet, starting from row 2"],
+  ["8. Do not modify the header row in the Questions sheet"],
   [""],
   ["DIFFICULTY LEVEL GUIDE:"],
   ["Level", "Description"],
@@ -118,9 +149,56 @@ const INSTRUCTIONS_SHEET_DATA = [
 ];
 
 // Validation logic for Excel import
-const validateQuestion = (data: RawQuestionData, validTagNames: string[]): string[] => {
+const validateQuestion = (
+  data: RawQuestionData, 
+  validTagNames: string[],
+  hierarchyData: HierarchyData | undefined
+): { errors: string[]; specialityId: string | null } => {
   const errors: string[] = [];
+  let specialityId: string | null = null;
 
+  // Validate hierarchy fields
+  if (!data.industry_segment) {
+    errors.push("Industry segment is required");
+  }
+  if (!data.expertise_level) {
+    errors.push("Expertise level is required");
+  }
+  if (!data.proficiency_area) {
+    errors.push("Proficiency area is required");
+  }
+  if (!data.sub_domain) {
+    errors.push("Sub-domain is required");
+  }
+  if (!data.speciality) {
+    errors.push("Speciality is required");
+  }
+
+  // Resolve hierarchy if all fields present and hierarchy data loaded
+  if (
+    hierarchyData &&
+    data.industry_segment &&
+    data.expertise_level &&
+    data.proficiency_area &&
+    data.sub_domain &&
+    data.speciality
+  ) {
+    const resolution = resolveHierarchy(
+      hierarchyData,
+      data.industry_segment,
+      data.expertise_level,
+      data.proficiency_area,
+      data.sub_domain,
+      data.speciality
+    );
+    if (resolution.errors.length > 0) {
+      errors.push(...resolution.errors);
+    } else {
+      specialityId = resolution.specialityId;
+    }
+  }
+
+  // Validate question text
   if (!data.question_text) {
     errors.push("Question text is required");
   } else if (data.question_text.length < 10) {
@@ -129,18 +207,21 @@ const validateQuestion = (data: RawQuestionData, validTagNames: string[]): strin
     errors.push("Question must be 2000 characters or less");
   }
 
+  // Validate options
   if (data.options.length < 2) {
     errors.push("At least 2 options are required");
   } else if (data.options.length > 6) {
     errors.push("Maximum 6 options allowed");
   }
 
+  // Validate correct option
   if (!data.correct_option || data.correct_option < 1) {
     errors.push("Valid correct option (1-based) is required");
   } else if (data.correct_option > data.options.length) {
     errors.push(`Correct option ${data.correct_option} exceeds number of options (${data.options.length})`);
   }
 
+  // Validate enums
   if (data.difficulty && !VALID_DIFFICULTIES.includes(data.difficulty)) {
     errors.push(`Invalid difficulty: ${data.difficulty}. Valid: ${VALID_DIFFICULTIES.join(", ")}`);
   }
@@ -167,7 +248,7 @@ const validateQuestion = (data: RawQuestionData, validTagNames: string[]): strin
     errors.push("Expected answer guidance must be 2000 characters or less");
   }
 
-  return errors;
+  return { errors, specialityId };
 };
 
 // Check if file has valid extension (Excel only)
@@ -179,8 +260,6 @@ const isValidFileExtension = (filename: string): boolean => {
 export function QuestionImportDialog({
   open,
   onOpenChange,
-  specialityId,
-  specialityName,
 }: QuestionImportDialogProps) {
   const [file, setFile] = React.useState<File | null>(null);
   const [parsedQuestions, setParsedQuestions] = React.useState<ParsedQuestion[]>([]);
@@ -196,6 +275,7 @@ export function QuestionImportDialog({
   const createMutation = useCreateQuestion();
   const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
   const { data: capabilityTags = [] } = useCapabilityTags();
+  const { data: hierarchyData, isLoading: hierarchyLoading } = useHierarchyData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Reset state when dialog closes
@@ -243,32 +323,49 @@ export function QuestionImportDialog({
       const row = dataRows[i];
       const rowNumber = i + 2; // Account for header
 
-      // Extract values
-      const question_text = String(row[0] || "").trim();
+      // Skip completely empty rows
+      if (row.every(cell => !cell || String(cell).trim() === "")) {
+        continue;
+      }
+
+      // Extract hierarchy values (columns 0-4)
+      const industry_segment = String(row[0] || "").trim();
+      const expertise_level = String(row[1] || "").trim();
+      const proficiency_area = String(row[2] || "").trim();
+      const sub_domain = String(row[3] || "").trim();
+      const speciality = String(row[4] || "").trim();
+
+      // Extract question values (columns 5+)
+      const question_text = String(row[5] || "").trim();
       const options = [
-        String(row[1] || "").trim(),
-        String(row[2] || "").trim(),
-        String(row[3] || "").trim(),
-        String(row[4] || "").trim(),
-        String(row[5] || "").trim(),
         String(row[6] || "").trim(),
+        String(row[7] || "").trim(),
+        String(row[8] || "").trim(),
+        String(row[9] || "").trim(),
+        String(row[10] || "").trim(),
+        String(row[11] || "").trim(),
       ].filter(Boolean);
-      const correct_option = parseInt(String(row[7] || "0"), 10);
-      const difficulty = row[8] ? String(row[8]).trim().toLowerCase() : null;
-      const question_type = row[9] ? String(row[9]).trim().toLowerCase() : "conceptual";
-      const usage_mode = row[10] ? String(row[10]).trim().toLowerCase() : "both";
+      const correct_option = parseInt(String(row[12] || "0"), 10);
+      const difficulty = row[13] ? String(row[13]).trim().toLowerCase() : null;
+      const question_type = row[14] ? String(row[14]).trim().toLowerCase() : "conceptual";
+      const usage_mode = row[15] ? String(row[15]).trim().toLowerCase() : "both";
       
       // Parse capability tags (comma-separated)
-      const capabilityTagsRaw = row[11] ? String(row[11]).trim() : "";
+      const capabilityTagsRaw = row[16] ? String(row[16]).trim() : "";
       const capability_tags = capabilityTagsRaw
         ? capabilityTagsRaw.split(",").map(t => t.trim()).filter(Boolean)
         : [];
 
-      // Parse expected_answer_guidance (column 12)
-      const expected_answer_guidance = row[12] ? String(row[12]).trim() : null;
+      // Parse expected_answer_guidance (column 17)
+      const expected_answer_guidance = row[17] ? String(row[17]).trim() : null;
 
       // Validate using shared function
-      const errors = validateQuestion({
+      const rawData: RawQuestionData = {
+        industry_segment,
+        expertise_level,
+        proficiency_area,
+        sub_domain,
+        speciality,
         question_text,
         options,
         correct_option,
@@ -277,10 +374,18 @@ export function QuestionImportDialog({
         usage_mode,
         capability_tags,
         expected_answer_guidance,
-      }, validTagNames);
+      };
+
+      const { errors, specialityId } = validateQuestion(rawData, validTagNames, hierarchyData);
 
       questions.push({
         rowNumber,
+        industry_segment,
+        expertise_level,
+        proficiency_area,
+        sub_domain,
+        speciality,
+        speciality_id: specialityId,
         question_text,
         options,
         correct_option,
@@ -358,6 +463,10 @@ export function QuestionImportDialog({
       const q = validQuestions[i];
 
       try {
+        if (!q.speciality_id) {
+          throw new Error("Speciality ID not resolved");
+        }
+
         const formattedOptions = formatQuestionOptions(
           q.options.map((text, idx) => ({ index: idx + 1, text }))
         );
@@ -371,7 +480,7 @@ export function QuestionImportDialog({
           usage_mode: q.usage_mode as "self_assessment" | "interview" | "both",
           expected_answer_guidance: q.expected_answer_guidance,
           is_active: true,
-          speciality_id: specialityId,
+          speciality_id: q.speciality_id,
         });
 
         // Link capability tags if any
@@ -411,11 +520,16 @@ export function QuestionImportDialog({
     // Create Questions sheet
     const questionsSheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
     questionsSheet["!cols"] = [
+      { wch: 35 }, // industry_segment
+      { wch: 50 }, // expertise_level
+      { wch: 30 }, // proficiency_area
+      { wch: 25 }, // sub_domain
+      { wch: 35 }, // speciality
       { wch: 50 }, // question_text
-      { wch: 30 }, // option_1
-      { wch: 30 }, // option_2
-      { wch: 30 }, // option_3
-      { wch: 30 }, // option_4
+      { wch: 25 }, // option_1
+      { wch: 25 }, // option_2
+      { wch: 25 }, // option_3
+      { wch: 25 }, // option_4
       { wch: 20 }, // option_5
       { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
@@ -430,9 +544,9 @@ export function QuestionImportDialog({
     const instructionsSheet = XLSX.utils.aoa_to_sheet(INSTRUCTIONS_SHEET_DATA);
     instructionsSheet["!cols"] = [
       { wch: 25 },
-      { wch: 50 },
+      { wch: 60 },
       { wch: 15 },
-      { wch: 45 },
+      { wch: 50 },
     ];
 
     const workbook = XLSX.utils.book_new();
@@ -445,57 +559,91 @@ export function QuestionImportDialog({
   const validCount = parsedQuestions.filter((q) => q.isValid).length;
   const invalidCount = parsedQuestions.filter((q) => !q.isValid).length;
 
+  // Group by speciality for summary
+  const specialitySummary = React.useMemo(() => {
+    const summary: Record<string, { valid: number; invalid: number; path: string }> = {};
+    parsedQuestions.forEach((q) => {
+      const key = q.speciality || "(No speciality)";
+      const path = q.speciality_id 
+        ? `${q.industry_segment} → ${q.proficiency_area} → ${q.sub_domain} → ${q.speciality}`
+        : q.speciality || "(Invalid path)";
+      if (!summary[key]) {
+        summary[key] = { valid: 0, invalid: 0, path };
+      }
+      if (q.isValid) {
+        summary[key].valid++;
+      } else {
+        summary[key].invalid++;
+      }
+    });
+    return summary;
+  }, [parsedQuestions]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
             Import Questions
           </DialogTitle>
           <DialogDescription>
-            Upload an Excel file to bulk import questions into{" "}
-            <strong>{specialityName}</strong>
+            Upload an Excel file to bulk import questions. The file must include hierarchy columns
+            (industry segment, expertise level, proficiency area, sub-domain, speciality) for each question.
           </DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-hidden space-y-4">
+          {/* Hierarchy Loading State */}
+          {hierarchyLoading && (
+            <Alert>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <AlertDescription>
+                Loading hierarchy data for validation...
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="text-sm">
-              <p className="font-medium">Download template with instructions</p>
-              <p className="text-muted-foreground">
-                Includes question_type, usage_mode, and difficulty columns
-              </p>
+              <strong>Need a template?</strong> Download the Excel template with hierarchy columns.
             </div>
             <Button variant="outline" size="sm" onClick={downloadExcelTemplate}>
-              <Download className="h-4 w-4 mr-1" />
+              <Download className="h-4 w-4 mr-2" />
               Download Template
             </Button>
           </div>
 
           {/* File Upload */}
-          {!file && !importResults && (
+          {!importResults && (
             <div
-              className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
-              onClick={() => fileInputRef.current?.click()}
+              className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                file ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-muted-foreground/50"
+              }`}
               onDrop={handleDrop}
               onDragOver={handleDragOver}
             >
-              <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
-              <p className="text-sm font-medium">
-                Drop your Excel file here or click to browse
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Supports .xlsx, .xls (max 5MB)
-              </p>
               <input
                 ref={fileInputRef}
                 type="file"
                 accept=".xlsx,.xls"
-                className="hidden"
                 onChange={handleFileChange}
+                className="hidden"
+                id="file-upload"
               />
+              <label
+                htmlFor="file-upload"
+                className="cursor-pointer flex flex-col items-center gap-2"
+              >
+                <Upload className="h-10 w-10 text-muted-foreground" />
+                <p className="text-sm text-muted-foreground">
+                  {file ? file.name : "Drop your Excel file here or click to browse"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Supports .xlsx and .xls files (max 5MB)
+                </p>
+              </label>
             </div>
           )}
 
@@ -507,77 +655,95 @@ export function QuestionImportDialog({
             </Alert>
           )}
 
-          {/* Parsed Preview */}
-          {file && parsedQuestions.length > 0 && !importResults && (
+          {/* Parsed Questions Preview */}
+          {parsedQuestions.length > 0 && !importResults && (
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary">{file.name}</Badge>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      setFile(null);
-                      setParsedQuestions([]);
-                      if (fileInputRef.current) {
-                        fileInputRef.current.value = "";
-                      }
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant="default" className="bg-green-600">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    {validCount} valid
+              {/* Summary */}
+              <div className="flex items-center gap-4">
+                <Badge variant="default" className="bg-green-500">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {validCount} valid
+                </Badge>
+                {invalidCount > 0 && (
+                  <Badge variant="destructive">
+                    <X className="h-3 w-3 mr-1" />
+                    {invalidCount} with errors
                   </Badge>
-                  {invalidCount > 0 && (
-                    <Badge variant="destructive">
-                      <AlertCircle className="h-3 w-3 mr-1" />
-                      {invalidCount} invalid
-                    </Badge>
-                  )}
-                </div>
+                )}
               </div>
 
-              <ScrollArea className="h-[300px] border rounded-md">
+              {/* Speciality Summary */}
+              {Object.keys(specialitySummary).length > 0 && (
+                <div className="p-3 bg-muted/50 rounded-lg">
+                  <p className="text-sm font-medium mb-2">Questions by Speciality:</p>
+                  <div className="space-y-1">
+                    {Object.entries(specialitySummary).map(([key, { valid, invalid, path }]) => (
+                      <div key={key} className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground truncate max-w-[70%]" title={path}>
+                          {path}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-green-600">{valid} valid</span>
+                          {invalid > 0 && (
+                            <span className="text-red-600">{invalid} errors</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Questions Table */}
+              <ScrollArea className="h-[300px] border rounded-lg">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="w-16">Row</TableHead>
-                      <TableHead>Question</TableHead>
-                      <TableHead className="w-20">Options</TableHead>
-                      <TableHead className="w-20">Answer</TableHead>
-                      <TableHead className="w-24">Status</TableHead>
+                      <TableHead className="w-12">Row</TableHead>
+                      <TableHead className="w-16">Status</TableHead>
+                      <TableHead className="w-48">Hierarchy Path</TableHead>
+                      <TableHead>Question (Preview)</TableHead>
+                      <TableHead className="w-24">Options</TableHead>
+                      <TableHead>Errors</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {parsedQuestions.map((q) => (
-                      <TableRow
-                        key={q.rowNumber}
-                        className={!q.isValid ? "bg-destructive/5" : ""}
-                      >
-                        <TableCell>{q.rowNumber}</TableCell>
-                        <TableCell>
-                          <div className="max-w-md">
-                            <p className="line-clamp-2 text-sm">{q.question_text}</p>
-                            {!q.isValid && (
-                              <p className="text-xs text-destructive mt-1">
-                                {q.errors.join("; ")}
-                              </p>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>{q.options.length}</TableCell>
-                        <TableCell>Option {q.correct_option}</TableCell>
+                      <TableRow key={q.rowNumber} className={!q.isValid ? "bg-red-50 dark:bg-red-950/20" : ""}>
+                        <TableCell className="font-mono">{q.rowNumber}</TableCell>
                         <TableCell>
                           {q.isValid ? (
-                            <Badge variant="outline" className="bg-green-50 text-green-700">
-                              Valid
-                            </Badge>
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
                           ) : (
-                            <Badge variant="destructive">Invalid</Badge>
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                          )}
+                        </TableCell>
+                        <TableCell className="text-xs text-muted-foreground">
+                          {q.speciality_id ? (
+                            <span className="text-green-700 dark:text-green-400">
+                              {q.speciality}
+                            </span>
+                          ) : (
+                            <span className="text-red-600">{q.speciality || "(missing)"}</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="max-w-xs truncate" title={q.question_text}>
+                          {q.question_text.slice(0, 60)}
+                          {q.question_text.length > 60 && "..."}
+                        </TableCell>
+                        <TableCell>{q.options.length} options</TableCell>
+                        <TableCell className="max-w-xs">
+                          {q.errors.length > 0 && (
+                            <ul className="text-xs text-red-600 space-y-0.5">
+                              {q.errors.slice(0, 2).map((err, i) => (
+                                <li key={i}>• {err}</li>
+                              ))}
+                              {q.errors.length > 2 && (
+                                <li className="text-muted-foreground">
+                                  +{q.errors.length - 2} more...
+                                </li>
+                              )}
+                            </ul>
                           )}
                         </TableCell>
                       </TableRow>
@@ -591,36 +757,31 @@ export function QuestionImportDialog({
           {/* Import Progress */}
           {isImporting && (
             <div className="space-y-2">
-              <div className="flex items-center justify-between text-sm">
-                <span>Importing questions...</span>
-                <span>{importProgress}%</span>
-              </div>
-              <Progress value={importProgress} />
+              <Progress value={importProgress} className="h-2" />
+              <p className="text-sm text-center text-muted-foreground">
+                Importing... {importProgress}%
+              </p>
             </div>
           )}
 
           {/* Import Results */}
           {importResults && (
             <div className="space-y-4">
-              <Alert variant={importResults.failed > 0 ? "destructive" : "default"}>
+              <Alert variant={importResults.failed === 0 ? "default" : "destructive"}>
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertDescription>
-                  Successfully imported {importResults.success} question(s).
-                  {importResults.failed > 0 && (
-                    <span> Failed to import {importResults.failed} question(s).</span>
-                  )}
+                  Import complete: {importResults.success} questions imported successfully
+                  {importResults.failed > 0 && `, ${importResults.failed} failed`}
                 </AlertDescription>
               </Alert>
 
               {importResults.errors.length > 0 && (
-                <ScrollArea className="h-32 border rounded-md p-3">
-                  <div className="space-y-1">
-                    {importResults.errors.map((error, idx) => (
-                      <p key={idx} className="text-xs text-destructive">
-                        {error}
-                      </p>
+                <ScrollArea className="h-[150px] border rounded-lg p-3">
+                  <ul className="text-sm text-red-600 space-y-1">
+                    {importResults.errors.map((err, i) => (
+                      <li key={i}>• {err}</li>
                     ))}
-                  </div>
+                  </ul>
                 </ScrollArea>
               )}
             </div>
@@ -634,11 +795,19 @@ export function QuestionImportDialog({
           {!importResults && (
             <Button
               onClick={handleImport}
-              disabled={validCount === 0 || isImporting}
+              disabled={validCount === 0 || isImporting || hierarchyLoading}
             >
-              {isImporting
-                ? "Importing..."
-                : `Import ${validCount} Question${validCount !== 1 ? "s" : ""}`}
+              {isImporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4 mr-2" />
+                  Import {validCount} Questions
+                </>
+              )}
             </Button>
           )}
         </DialogFooter>
