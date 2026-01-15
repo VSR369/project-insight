@@ -531,6 +531,7 @@ export default function AcademicTaxonomyPage() {
         </TabsList>
 
         <TabsContent value="disciplines" className="mt-6">
+          <p className="text-sm text-muted-foreground mb-4">Click a row to view its streams</p>
           <DataTable
             data={disciplines}
             columns={disciplineColumns}
@@ -541,6 +542,10 @@ export default function AcademicTaxonomyPage() {
             onAdd={() => { setSelectedDiscipline(null); setIsDisciplineFormOpen(true); }}
             addButtonLabel="Add Discipline"
             emptyMessage="No disciplines found. Add your first discipline to get started."
+            onRowClick={(discipline) => {
+              setSelectedDisciplineId(discipline.id);
+              setActiveTab("streams");
+            }}
           />
         </TabsContent>
 
@@ -568,6 +573,7 @@ export default function AcademicTaxonomyPage() {
             )}
           </div>
 
+          <p className="text-sm text-muted-foreground mb-4">Click a row to view its subjects</p>
           <DataTable
             data={streams as (AcademicStream & { academic_disciplines: { name: string } | null })[]}
             columns={streamColumns}
@@ -578,6 +584,10 @@ export default function AcademicTaxonomyPage() {
             onAdd={() => { setSelectedStream(null); setIsStreamFormOpen(true); }}
             addButtonLabel="Add Stream"
             emptyMessage={selectedDisciplineId ? "No streams found for this discipline." : "No streams found."}
+            onRowClick={(stream) => {
+              setSelectedStreamId(stream.id);
+              setActiveTab("subjects");
+            }}
           />
         </TabsContent>
 
