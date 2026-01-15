@@ -12,13 +12,15 @@ interface WizardStepperProps {
   currentStep: number;
   completedSteps: number[];
   skippedSteps?: number[];
+  onStepClick?: (stepId: number) => void;
 }
 
 export function WizardStepper({ 
   steps, 
   currentStep, 
   completedSteps, 
-  skippedSteps = [] 
+  skippedSteps = [],
+  onStepClick,
 }: WizardStepperProps) {
   return (
     <div className="w-full px-4 py-3">
@@ -36,12 +38,26 @@ export function WizardStepper({
               <div className="flex flex-col items-center">
                 <div
                   className={cn(
-                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors",
-                    isCompleted && "bg-green-500 text-white",
+                    "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all",
+                    isCompleted && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
                     isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
                     isSkipped && "bg-muted text-muted-foreground border border-dashed",
                     isUpcoming && !isSkipped && "bg-muted text-muted-foreground"
                   )}
+                  onClick={() => {
+                    if (isCompleted && onStepClick) {
+                      onStepClick(step.id);
+                    }
+                  }}
+                  role={isCompleted ? "button" : undefined}
+                  tabIndex={isCompleted ? 0 : undefined}
+                  onKeyDown={(e) => {
+                    if (isCompleted && onStepClick && (e.key === 'Enter' || e.key === ' ')) {
+                      e.preventDefault();
+                      onStepClick(step.id);
+                    }
+                  }}
+                  title={isCompleted ? "Click to edit this step" : undefined}
                 >
                   {isCompleted ? (
                     <Check className="h-4 w-4" />
@@ -51,11 +67,16 @@ export function WizardStepper({
                 </div>
                 <span 
                   className={cn(
-                    "text-xs mt-1 max-w-[60px] text-center truncate",
+                    "text-xs mt-1 max-w-[60px] text-center truncate transition-all",
                     isCurrent && "text-primary font-medium",
-                    isCompleted && "text-green-600",
+                    isCompleted && "text-green-600 cursor-pointer hover:underline",
                     (isUpcoming || isSkipped) && "text-muted-foreground"
                   )}
+                  onClick={() => {
+                    if (isCompleted && onStepClick) {
+                      onStepClick(step.id);
+                    }
+                  }}
                 >
                   {step.shortTitle}
                 </span>
@@ -87,12 +108,19 @@ export function WizardStepper({
               <div
                 key={step.id}
                 className={cn(
-                  "w-2.5 h-2.5 rounded-full transition-colors",
-                  isCompleted && "bg-green-500",
+                  "w-2.5 h-2.5 rounded-full transition-all",
+                  isCompleted && "bg-green-500 cursor-pointer hover:scale-125",
                   isCurrent && "bg-primary w-6",
                   isSkipped && "bg-muted border border-dashed",
                   !isCompleted && !isCurrent && !isSkipped && "bg-muted"
                 )}
+                onClick={() => {
+                  if (isCompleted && onStepClick) {
+                    onStepClick(step.id);
+                  }
+                }}
+                role={isCompleted ? "button" : undefined}
+                tabIndex={isCompleted ? 0 : undefined}
               />
             );
           })}
