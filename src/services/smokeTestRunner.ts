@@ -11,7 +11,7 @@ export interface TestResult {
 
 export interface TestCase {
   id: string;
-  operation: "create" | "read" | "update" | "deactivate" | "restore";
+  operation: "create" | "read" | "update" | "deactivate" | "activate" | "delete";
   label: string;
   status: TestStatus;
   duration?: number;
@@ -113,6 +113,22 @@ async function countriesRestore(): Promise<TestResult> {
   }
 }
 
+async function countriesDelete(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!countriesTestRecordId) throw new Error("No test record to delete");
+    const { error } = await supabase
+      .from("countries")
+      .delete()
+      .eq("id", countriesTestRecordId);
+    if (error) throw error;
+    countriesTestRecordId = null; // Clear since deleted
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
 async function countriesCleanup(): Promise<void> {
   if (countriesTestRecordId) {
     await supabase.from("countries").delete().eq("id", countriesTestRecordId);
@@ -197,6 +213,22 @@ async function industryRestore(): Promise<TestResult> {
       .update({ is_active: true })
       .eq("id", industryTestRecordId);
     if (error) throw error;
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
+async function industryDelete(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!industryTestRecordId) throw new Error("No test record to delete");
+    const { error } = await supabase
+      .from("industry_segments")
+      .delete()
+      .eq("id", industryTestRecordId);
+    if (error) throw error;
+    industryTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
   } catch (err: any) {
     return { status: "fail", duration: Date.now() - start, error: err.message };
@@ -292,6 +324,22 @@ async function orgTypeRestore(): Promise<TestResult> {
   }
 }
 
+async function orgTypeDelete(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!orgTypeTestRecordId) throw new Error("No test record to delete");
+    const { error } = await supabase
+      .from("organization_types")
+      .delete()
+      .eq("id", orgTypeTestRecordId);
+    if (error) throw error;
+    orgTypeTestRecordId = null;
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
 async function orgTypeCleanup(): Promise<void> {
   if (orgTypeTestRecordId) {
     await supabase.from("organization_types").delete().eq("id", orgTypeTestRecordId);
@@ -375,6 +423,22 @@ async function modeRestore(): Promise<TestResult> {
       .update({ is_active: true })
       .eq("id", modeTestRecordId);
     if (error) throw error;
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
+async function modeDelete(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!modeTestRecordId) throw new Error("No test record to delete");
+    const { error } = await supabase
+      .from("participation_modes")
+      .delete()
+      .eq("id", modeTestRecordId);
+    if (error) throw error;
+    modeTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
   } catch (err: any) {
     return { status: "fail", duration: Date.now() - start, error: err.message };
@@ -873,6 +937,37 @@ async function questionsDeactivate(): Promise<TestResult> {
   }
 }
 
+async function questionsRestore(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!questionTestRecordId) throw new Error("No test record to restore");
+    const { error } = await supabase
+      .from("question_bank")
+      .update({ is_active: true })
+      .eq("id", questionTestRecordId);
+    if (error) throw error;
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
+async function questionsDelete(): Promise<TestResult> {
+  const start = Date.now();
+  try {
+    if (!questionTestRecordId) throw new Error("No test record to delete");
+    const { error } = await supabase
+      .from("question_bank")
+      .delete()
+      .eq("id", questionTestRecordId);
+    if (error) throw error;
+    questionTestRecordId = null;
+    return { status: "pass", duration: Date.now() - start };
+  } catch (err: any) {
+    return { status: "fail", duration: Date.now() - start, error: err.message };
+  }
+}
+
 async function questionsCleanup(): Promise<void> {
   if (questionTestRecordId) {
     await supabase.from("question_bank").delete().eq("id", questionTestRecordId);
@@ -953,7 +1048,8 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
       { id: "countries-create", operation: "create", label: "Create new", run: countriesCreate },
       { id: "countries-update", operation: "update", label: "Edit existing", run: countriesUpdate },
       { id: "countries-deactivate", operation: "deactivate", label: "Deactivate", run: countriesDeactivate },
-      { id: "countries-restore", operation: "restore", label: "Restore", run: countriesRestore },
+      { id: "countries-activate", operation: "activate", label: "Activate", run: countriesRestore },
+      { id: "countries-delete", operation: "delete", label: "Delete permanently", run: countriesDelete },
     ],
     cleanup: countriesCleanup,
   },
@@ -966,7 +1062,8 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
       { id: "industry-create", operation: "create", label: "Create new", run: industryCreate },
       { id: "industry-update", operation: "update", label: "Edit existing", run: industryUpdate },
       { id: "industry-deactivate", operation: "deactivate", label: "Deactivate", run: industryDeactivate },
-      { id: "industry-restore", operation: "restore", label: "Restore", run: industryRestore },
+      { id: "industry-activate", operation: "activate", label: "Activate", run: industryRestore },
+      { id: "industry-delete", operation: "delete", label: "Delete permanently", run: industryDelete },
     ],
     cleanup: industryCleanup,
   },
@@ -979,7 +1076,8 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
       { id: "org-create", operation: "create", label: "Create new", run: orgTypeCreate },
       { id: "org-update", operation: "update", label: "Edit existing", run: orgTypeUpdate },
       { id: "org-deactivate", operation: "deactivate", label: "Deactivate", run: orgTypeDeactivate },
-      { id: "org-restore", operation: "restore", label: "Restore", run: orgTypeRestore },
+      { id: "org-activate", operation: "activate", label: "Activate", run: orgTypeRestore },
+      { id: "org-delete", operation: "delete", label: "Delete permanently", run: orgTypeDelete },
     ],
     cleanup: orgTypeCleanup,
   },
@@ -992,7 +1090,8 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
       { id: "modes-create", operation: "create", label: "Create new", run: modeCreate },
       { id: "modes-update", operation: "update", label: "Edit existing", run: modeUpdate },
       { id: "modes-deactivate", operation: "deactivate", label: "Deactivate", run: modeDeactivate },
-      { id: "modes-restore", operation: "restore", label: "Restore", run: modeRestore },
+      { id: "modes-activate", operation: "activate", label: "Activate", run: modeRestore },
+      { id: "modes-delete", operation: "delete", label: "Delete permanently", run: modeDelete },
     ],
     cleanup: modeCleanup,
   },
@@ -1002,10 +1101,10 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
     path: "/admin/master-data/expertise-levels",
     tests: [
       { id: "expertise-read", operation: "read", label: "View list", run: expertiseRead },
-      { id: "expertise-create", operation: "create", label: "Create new", run: expertiseCreate },
+      { id: "expertise-create", operation: "create", label: "Borrow record", run: expertiseCreate },
       { id: "expertise-update", operation: "update", label: "Edit existing", run: expertiseUpdate },
       { id: "expertise-deactivate", operation: "deactivate", label: "Deactivate", run: expertiseDeactivate },
-      { id: "expertise-restore", operation: "restore", label: "Restore", run: expertiseRestore },
+      { id: "expertise-activate", operation: "activate", label: "Activate", run: expertiseRestore },
     ],
     cleanup: expertiseCleanup,
   },
@@ -1046,6 +1145,8 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
       { id: "questions-create", operation: "create", label: "Create question", run: questionsCreate },
       { id: "questions-update", operation: "update", label: "Edit question", run: questionsUpdate },
       { id: "questions-deactivate", operation: "deactivate", label: "Deactivate", run: questionsDeactivate },
+      { id: "questions-activate", operation: "activate", label: "Activate", run: questionsRestore },
+      { id: "questions-delete", operation: "delete", label: "Delete permanently", run: questionsDelete },
     ],
     cleanup: questionsCleanup,
   },
