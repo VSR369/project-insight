@@ -502,10 +502,16 @@ export function QuestionBankPage() {
   const handleExportExcel = () => {
     if (questions.length === 0) return;
 
-    const headers = ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level", "is_active"];
+    const headers = ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "is_active"];
     
     const dataRows = questions.map((q) => {
       const options = parseQuestionOptions(q.options);
+      // Extract capability tag names
+      const tagNames = (q.question_capability_tags || [])
+        .map(t => t.capability_tags?.name)
+        .filter(Boolean)
+        .join(", ");
+      
       return [
         q.question_text,
         options[0]?.text || "",
@@ -516,6 +522,9 @@ export function QuestionBankPage() {
         options[5]?.text || "",
         q.correct_option,
         q.difficulty ?? "",
+        q.question_type ?? "conceptual",
+        q.usage_mode ?? "both",
+        tagNames,
         q.is_active ? "Active" : "Inactive",
       ];
     });
@@ -531,7 +540,10 @@ export function QuestionBankPage() {
       { wch: 20 }, // option_5
       { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
-      { wch: 15 }, // difficulty_level
+      { wch: 15 }, // difficulty
+      { wch: 15 }, // question_type
+      { wch: 15 }, // usage_mode
+      { wch: 30 }, // capability_tags
       { wch: 10 }, // is_active
     ];
 
@@ -545,11 +557,11 @@ export function QuestionBankPage() {
   // ===================== DOWNLOAD TEMPLATE =====================
   const handleDownloadTemplate = () => {
     const templateData = [
-      ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level"],
-      ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, 2],
-      ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, 1],
-      ["What is 15 + 27?", "32", "42", "52", "62", "", "", 2, 1],
-      ["Which of the following is a primary color?", "Green", "Orange", "Purple", "Blue", "", "", 4, 3],
+      ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags"],
+      ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving"],
+      ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", ""],
+      ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving"],
+      ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership"],
     ];
 
     const instructionsData = [
@@ -560,23 +572,40 @@ export function QuestionBankPage() {
       ["question_text", "The full question text", "Yes", "10-2000 characters"],
       ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
       ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
-      ["difficulty_level", "Question difficulty rating", "No", "1=Very Easy, 2=Easy, 3=Medium, 4=Hard, 5=Very Hard"],
+      ["difficulty", "Question difficulty level", "No", "introductory, applied, advanced, strategic"],
+      ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
+      ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
+      ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
       [""],
       ["IMPORTANT NOTES:"],
       ["1. You must provide at least 2 options and maximum 6 options"],
       ["2. Leave unused option columns empty (do not delete them)"],
       ["3. The correct_option number must match an option that exists"],
-      ["4. If difficulty_level is not specified, it will be left blank"],
+      ["4. If difficulty is not specified, it will be left blank"],
       ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
       ["6. Do not modify the header row in the Questions sheet"],
+      ["7. Capability tags must match existing tag names exactly (case-insensitive)"],
       [""],
       ["DIFFICULTY LEVEL GUIDE:"],
       ["Level", "Description"],
-      ["1", "Very Easy - Basic recall, simple facts"],
-      ["2", "Easy - Straightforward concepts"],
-      ["3", "Medium - Requires understanding and application"],
-      ["4", "Hard - Complex analysis or synthesis"],
-      ["5", "Very Hard - Expert-level critical thinking"],
+      ["introductory", "Basic recall, simple facts"],
+      ["applied", "Straightforward concepts and application"],
+      ["advanced", "Analysis and synthesis required"],
+      ["strategic", "Expert-level critical thinking"],
+      [""],
+      ["QUESTION TYPE GUIDE:"],
+      ["Type", "Description", "Typical Use"],
+      ["conceptual", "Basic understanding", "Self-assessment (20%)"],
+      ["scenario", "Applied situations", "Both modes (30%)"],
+      ["experience", "Past experience validation", "Interview (25%)"],
+      ["decision", "Trade-off/judgment", "Interview (15%)"],
+      ["proof", "Evidence-based", "Senior interview (10%)"],
+      [""],
+      ["USAGE MODE GUIDE:"],
+      ["Mode", "Description"],
+      ["self_assessment", "Provider self-reflection only"],
+      ["interview", "Reviewer interview only"],
+      ["both", "Can be used in either mode"],
     ];
 
     const wb = XLSX.utils.book_new();
@@ -584,15 +613,18 @@ export function QuestionBankPage() {
     // Questions sheet
     const questionsWs = XLSX.utils.aoa_to_sheet(templateData);
     questionsWs["!cols"] = [
-      { wch: 50 },
-      { wch: 25 },
-      { wch: 25 },
-      { wch: 25 },
-      { wch: 25 },
-      { wch: 20 },
-      { wch: 20 },
-      { wch: 15 },
-      { wch: 15 },
+      { wch: 50 }, // question_text
+      { wch: 25 }, // option_1
+      { wch: 25 }, // option_2
+      { wch: 25 }, // option_3
+      { wch: 25 }, // option_4
+      { wch: 20 }, // option_5
+      { wch: 20 }, // option_6
+      { wch: 15 }, // correct_option
+      { wch: 15 }, // difficulty
+      { wch: 15 }, // question_type
+      { wch: 15 }, // usage_mode
+      { wch: 30 }, // capability_tags
     ];
     XLSX.utils.book_append_sheet(wb, questionsWs, "Questions");
 
