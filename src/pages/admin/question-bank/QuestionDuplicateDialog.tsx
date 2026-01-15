@@ -160,8 +160,8 @@ export function QuestionDuplicateDialog({
 
   return (
     <Dialog open={open} onOpenChange={isProcessing ? undefined : onOpenChange}>
-      <DialogContent className="max-w-lg">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Copy className="h-5 w-5" />
             {isBulk ? `Duplicate ${questions.length} Questions` : "Duplicate Question"}
@@ -171,7 +171,8 @@ export function QuestionDuplicateDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="space-y-4 py-4">
           {/* Question Preview */}
           {questions.length > 0 && (
             <div className="p-3 bg-muted/50 rounded-lg">
@@ -341,14 +342,15 @@ export function QuestionDuplicateDialog({
             </div>
           )}
 
-          {isSameSpeciality && !isProcessing && (
-            <p className="text-sm text-destructive">
-              Cannot duplicate to the same speciality. Please select a different target.
-            </p>
-          )}
+            {isSameSpeciality && !isProcessing && (
+              <p className="text-sm text-destructive">
+                Cannot duplicate to the same speciality. Please select a different target.
+              </p>
+            )}
+          </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           <Button 
             variant="outline" 
             onClick={() => onOpenChange(false)}

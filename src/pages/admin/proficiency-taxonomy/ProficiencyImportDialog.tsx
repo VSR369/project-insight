@@ -157,8 +157,8 @@ export function ProficiencyImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FileSpreadsheet className="h-5 w-5" />
             Import Proficiency Taxonomy
@@ -168,7 +168,8 @@ export function ProficiencyImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {step === "upload" && (
+        <div className="flex-1 overflow-y-auto min-h-0">
+          {step === "upload" && (
           <div
             className="border-2 border-dashed rounded-lg p-8 text-center cursor-pointer hover:border-primary transition-colors"
             onClick={() => fileInputRef.current?.click()}
@@ -435,8 +436,9 @@ export function ProficiencyImportDialog({
             )}
           </div>
         )}
+        </div>
 
-        <DialogFooter>
+        <DialogFooter className="flex-shrink-0">
           {step === "upload" && (
             <Button variant="outline" onClick={handleClose}>
               Cancel
