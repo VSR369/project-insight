@@ -17,6 +17,7 @@ export type Database = {
       academic_disciplines: {
         Row: {
           created_at: string
+          description: string | null
           display_order: number | null
           id: string
           is_active: boolean
@@ -25,6 +26,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
@@ -33,6 +35,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
@@ -44,6 +47,7 @@ export type Database = {
       academic_streams: {
         Row: {
           created_at: string
+          description: string | null
           discipline_id: string
           display_order: number | null
           id: string
@@ -53,6 +57,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           discipline_id: string
           display_order?: number | null
           id?: string
@@ -62,6 +67,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           discipline_id?: string
           display_order?: number | null
           id?: string
@@ -82,6 +88,7 @@ export type Database = {
       academic_subjects: {
         Row: {
           created_at: string
+          description: string | null
           display_order: number | null
           id: string
           is_active: boolean
@@ -91,6 +98,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
@@ -100,6 +108,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
