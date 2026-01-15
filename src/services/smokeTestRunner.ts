@@ -52,9 +52,11 @@ async function countriesCreate(): Promise<TestResult> {
   const start = Date.now();
   try {
     const testName = getTestName();
+    // countries.code is VARCHAR(3), so generate a unique 3-char code
+    const testCode = `T${Date.now().toString(36).slice(-2).toUpperCase()}`;
     const { data, error } = await supabase
       .from("countries")
-      .insert({ name: testName, code: testName.slice(0, 10) })
+      .insert({ name: testName, code: testCode })
       .select()
       .single();
     if (error) throw error;
