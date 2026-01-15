@@ -2,8 +2,8 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TaxonomyExportRow {
-  "Expertise Level": string;
   "Industry Segment": string;
+  "Expertise Level": string;
   "Proficiency Area": string;
   "Sub-Domain": string;
   "Speciality": string;
@@ -20,8 +20,8 @@ export interface TaxonomyExportRow {
 export async function downloadProficiencyTemplate(): Promise<void> {
   const templateData: TaxonomyExportRow[] = [
     {
-      "Expertise Level": "Associate Consultant",
       "Industry Segment": "Manufacturing",
+      "Expertise Level": "Associate Consultant",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
       "Speciality": "Power BI Development",
@@ -32,8 +32,8 @@ export async function downloadProficiencyTemplate(): Promise<void> {
       "Active": "Yes",
     },
     {
-      "Expertise Level": "Associate Consultant",
       "Industry Segment": "Manufacturing",
+      "Expertise Level": "Associate Consultant",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
       "Speciality": "Tableau Visualization",
@@ -44,8 +44,8 @@ export async function downloadProficiencyTemplate(): Promise<void> {
       "Active": "Yes",
     },
     {
-      "Expertise Level": "Partner",
       "Industry Segment": "Manufacturing",
+      "Expertise Level": "Partner",
       "Proficiency Area": "Executive Strategy",
       "Sub-Domain": "M&A Advisory",
       "Speciality": "Due Diligence",
@@ -61,8 +61,8 @@ export async function downloadProficiencyTemplate(): Promise<void> {
   
   // Set column widths
   worksheet["!cols"] = [
-    { wch: 22 }, // Expertise Level
     { wch: 20 }, // Industry Segment
+    { wch: 22 }, // Expertise Level
     { wch: 25 }, // Proficiency Area
     { wch: 25 }, // Sub-Domain
     { wch: 30 }, // Speciality
@@ -139,8 +139,8 @@ export async function exportProficiencyData(): Promise<void> {
     if (!subDomain || !subDomain.area) continue;
 
     exportData.push({
-      "Expertise Level": subDomain.area.levelName || "",
       "Industry Segment": subDomain.area.segmentName || "",
+      "Expertise Level": subDomain.area.levelName || "",
       "Proficiency Area": subDomain.area.name,
       "Sub-Domain": subDomain.name,
       "Speciality": speciality.name,
@@ -160,8 +160,8 @@ export async function exportProficiencyData(): Promise<void> {
   
   // Set column widths
   worksheet["!cols"] = [
-    { wch: 22 }, // Expertise Level
     { wch: 20 }, // Industry Segment
+    { wch: 22 }, // Expertise Level
     { wch: 25 }, // Proficiency Area
     { wch: 25 }, // Sub-Domain
     { wch: 30 }, // Speciality
@@ -183,8 +183,8 @@ export async function exportProficiencyData(): Promise<void> {
  * Parse an imported Excel/CSV file and return validated rows
  */
 export interface ParsedTaxonomyRow {
-  expertiseLevel: string;
   industrySegment: string;
+  expertiseLevel: string;
   proficiencyArea: string;
   subDomain: string;
   speciality: string;
@@ -252,9 +252,9 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           const rowNumber = index + 2; // +2 for 1-indexed + header row
           const errors: string[] = [];
 
-          // Normalize and extract values
-          const expertiseLevel = normalizeText(row["Expertise Level"]);
+          // Normalize and extract values - Industry Segment first, then Expertise Level
           const industrySegment = normalizeText(row["Industry Segment"]);
+          const expertiseLevel = normalizeText(row["Expertise Level"]);
           const proficiencyArea = normalizeText(row["Proficiency Area"]);
           const subDomain = normalizeText(row["Sub-Domain"]);
           const speciality = normalizeText(row["Speciality"]);
@@ -264,17 +264,17 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           const displayOrder = parseDisplayOrder(row["Display Order"]);
           const isActive = parseActive(row["Active"]);
 
-          // Validation
-          if (!expertiseLevel) {
-            errors.push("Expertise Level is required");
-          } else if (!levelNameMap.has(expertiseLevel.toLowerCase())) {
-            errors.push(`Expertise Level "${expertiseLevel}" does not exist`);
-          }
-
+          // Validation - Industry Segment first, then Expertise Level
           if (!industrySegment) {
             errors.push("Industry Segment is required");
           } else if (!segmentNameMap.has(industrySegment.toLowerCase())) {
             errors.push(`Industry Segment "${industrySegment}" does not exist`);
+          }
+
+          if (!expertiseLevel) {
+            errors.push("Expertise Level is required");
+          } else if (!levelNameMap.has(expertiseLevel.toLowerCase())) {
+            errors.push(`Expertise Level "${expertiseLevel}" does not exist`);
           }
 
           if (!proficiencyArea) {
@@ -290,8 +290,8 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           }
 
           const parsedRow: ParsedTaxonomyRow = {
-            expertiseLevel,
             industrySegment,
+            expertiseLevel,
             proficiencyArea,
             subDomain,
             speciality,
