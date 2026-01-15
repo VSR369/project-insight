@@ -127,10 +127,35 @@ export function useRestoreParticipationMode() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["participation_modes"] });
+      queryClient.refetchQueries({ queryKey: ["participation_modes"] });
       toast.success("Participation mode restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore participation mode: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteParticipationMode() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("participation_modes")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["participation_modes"] });
+      toast.success("Participation mode permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete participation mode: ${error.message}`);
     },
   });
 }

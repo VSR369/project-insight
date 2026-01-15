@@ -126,10 +126,35 @@ export function useRestoreExpertiseLevel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expertise_levels"] });
+      queryClient.refetchQueries({ queryKey: ["expertise_levels"] });
       toast.success("Expertise level restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore expertise level: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteExpertiseLevel() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("expertise_levels")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["expertise_levels"] });
+      toast.success("Expertise level permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete expertise level: ${error.message}`);
     },
   });
 }

@@ -122,10 +122,33 @@ export function useRestoreQuestion() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+      queryClient.refetchQueries({ queryKey: ["question_bank"] });
       toast.success("Question restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore question: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteQuestion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("question_bank")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+      toast.success("Question permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete question: ${error.message}`);
     },
   });
 }

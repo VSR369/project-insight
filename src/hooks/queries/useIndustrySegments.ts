@@ -128,10 +128,35 @@ export function useRestoreIndustrySegment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["industry_segments"] });
+      queryClient.refetchQueries({ queryKey: ["industry_segments"] });
       toast.success("Industry segment restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore industry segment: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteIndustrySegment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("industry_segments")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["industry_segments"] });
+      toast.success("Industry segment permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete industry segment: ${error.message}`);
     },
   });
 }

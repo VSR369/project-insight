@@ -17,225 +17,81 @@ import {
   useUpdateCountry,
   useDeleteCountry,
   useRestoreCountry,
+  useHardDeleteCountry,
   Country,
   CountryInsert,
 } from "@/hooks/queries/useCountries";
 
 // Zod schema for form validation
 const countrySchema = z.object({
-  code: z
-    .string()
-    .min(2, "Code must be at least 2 characters")
-    .max(3, "Code must be at most 3 characters")
-    .toUpperCase(),
-  name: z
-    .string()
-    .min(2, "Name must be at least 2 characters")
-    .max(100, "Name must be at most 100 characters"),
-  phone_code: z
-    .string()
-    .max(10, "Phone code must be at most 10 characters")
-    .nullable()
-    .optional(),
+  code: z.string().min(2, "Code must be at least 2 characters").max(3, "Code must be at most 3 characters").toUpperCase(),
+  name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be at most 100 characters"),
+  phone_code: z.string().max(10, "Phone code must be at most 10 characters").nullable().optional(),
   display_order: z.number().int().min(0).nullable().optional(),
   is_active: z.boolean().default(true),
 });
 
 type CountryFormData = z.infer<typeof countrySchema>;
 
-// Form field configuration
 const formFields: FormFieldConfig<CountryFormData>[] = [
-  {
-    name: "code",
-    label: "Country Code",
-    type: "text",
-    placeholder: "e.g., US, GB, IN",
-    description: "ISO 3166-1 alpha-2 or alpha-3 code",
-    required: true,
-  },
-  {
-    name: "name",
-    label: "Country Name",
-    type: "text",
-    placeholder: "e.g., United States",
-    required: true,
-  },
-  {
-    name: "phone_code",
-    label: "Phone Code",
-    type: "text",
-    placeholder: "e.g., +1, +44, +91",
-    description: "International dialing code",
-  },
-  {
-    name: "display_order",
-    label: "Display Order",
-    type: "number",
-    placeholder: "0",
-    description: "Lower numbers appear first",
-    min: 0,
-  },
-  {
-    name: "is_active",
-    label: "Active",
-    type: "switch",
-    description: "Inactive countries are hidden from users",
-  },
+  { name: "code", label: "Country Code", type: "text", placeholder: "e.g., US, GB, IN", description: "ISO 3166-1 alpha-2 or alpha-3 code", required: true },
+  { name: "name", label: "Country Name", type: "text", placeholder: "e.g., United States", required: true },
+  { name: "phone_code", label: "Phone Code", type: "text", placeholder: "e.g., +1, +44, +91", description: "International dialing code" },
+  { name: "display_order", label: "Display Order", type: "number", placeholder: "0", description: "Lower numbers appear first", min: 0 },
+  { name: "is_active", label: "Active", type: "switch", description: "Inactive countries are hidden from users" },
 ];
 
 export default function CountriesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [selectedCountry, setSelectedCountry] = React.useState<Country | null>(null);
-  const [showInactive, setShowInactive] = React.useState(true);
 
-  // Queries and mutations
-  const { data: countries = [], isLoading } = useCountries(showInactive);
+  const { data: countries = [], isLoading } = useCountries(true);
   const createMutation = useCreateCountry();
   const updateMutation = useUpdateCountry();
   const deleteMutation = useDeleteCountry();
   const restoreMutation = useRestoreCountry();
+  const hardDeleteMutation = useHardDeleteCountry();
 
-  // Table columns
   const columns: DataTableColumn<Country>[] = [
-    {
-      accessorKey: "code",
-      header: "Code",
-    },
-    {
-      accessorKey: "name",
-      header: "Name",
-    },
-    {
-      accessorKey: "phone_code",
-      header: "Phone Code",
-      cell: (value) => (value as string) || "—",
-    },
-    {
-      accessorKey: "display_order",
-      header: "Order",
-      cell: (value) => (value as number) ?? "—",
-    },
-    {
-      accessorKey: "is_active",
-      header: "Status",
-      cell: (value) => <StatusBadge isActive={value as boolean} />,
-    },
+    { accessorKey: "code", header: "Code" },
+    { accessorKey: "name", header: "Name" },
+    { accessorKey: "phone_code", header: "Phone Code", cell: (value) => (value as string) || "—" },
+    { accessorKey: "display_order", header: "Order", cell: (value) => (value as number) ?? "—" },
+    { accessorKey: "is_active", header: "Status", cell: (value) => <StatusBadge isActive={value as boolean} /> },
   ];
 
-  // Table actions
   const actions: DataTableAction<Country>[] = [
-    {
-      label: "Edit",
-      icon: <Pencil className="h-4 w-4" />,
-      onClick: (country) => {
-        setSelectedCountry(country);
-        setIsFormOpen(true);
-      },
-    },
-    {
-      label: "Restore",
-      icon: <RotateCcw className="h-4 w-4" />,
-      onClick: (country) => {
-        restoreMutation.mutate(country.id);
-      },
-      show: (country) => !country.is_active,
-    },
-    {
-      label: "Deactivate",
-      icon: <Trash2 className="h-4 w-4" />,
-      variant: "destructive",
-      onClick: (country) => {
-        setSelectedCountry(country);
-        setIsDeleteOpen(true);
-      },
-      show: (country) => country.is_active,
-    },
+    { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsFormOpen(true); } },
+    { label: "Restore", icon: <RotateCcw className="h-4 w-4" />, onClick: (country) => { restoreMutation.mutate(country.id); }, show: (country) => !country.is_active },
+    { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => country.is_active },
   ];
-
-  // Form handlers
-  const handleAdd = () => {
-    setSelectedCountry(null);
-    setIsFormOpen(true);
-  };
 
   const handleSubmit = async (data: CountryFormData) => {
     if (selectedCountry) {
-      await updateMutation.mutateAsync({
-        id: selectedCountry.id,
-        ...data,
-      });
+      await updateMutation.mutateAsync({ id: selectedCountry.id, ...data });
     } else {
       await createMutation.mutateAsync(data as CountryInsert);
     }
   };
 
   const handleDelete = async () => {
-    if (selectedCountry) {
-      await deleteMutation.mutateAsync(selectedCountry.id);
-    }
+    if (selectedCountry) await deleteMutation.mutateAsync(selectedCountry.id);
   };
 
-  // Default values for form
+  const handleHardDelete = async () => {
+    if (selectedCountry) await hardDeleteMutation.mutateAsync(selectedCountry.id);
+  };
+
   const defaultValues: Partial<CountryFormData> = selectedCountry
-    ? {
-        code: selectedCountry.code,
-        name: selectedCountry.name,
-        phone_code: selectedCountry.phone_code,
-        display_order: selectedCountry.display_order,
-        is_active: selectedCountry.is_active,
-      }
-    : {
-        code: "",
-        name: "",
-        phone_code: "",
-        display_order: 0,
-        is_active: true,
-      };
+    ? { code: selectedCountry.code, name: selectedCountry.name, phone_code: selectedCountry.phone_code, display_order: selectedCountry.display_order, is_active: selectedCountry.is_active }
+    : { code: "", name: "", phone_code: "", display_order: 0, is_active: true };
 
   return (
-    <AdminLayout
-      title="Countries"
-      description="Manage countries available in the platform"
-      breadcrumbs={[
-        { label: "Master Data", href: "/admin" },
-        { label: "Countries" },
-      ]}
-    >
-      <DataTable
-        data={countries}
-        columns={columns}
-        actions={actions}
-        searchKey="name"
-        searchPlaceholder="Search countries..."
-        isLoading={isLoading}
-        onAdd={handleAdd}
-        addButtonLabel="Add Country"
-        emptyMessage="No countries found. Add your first country to get started."
-      />
-
-      <MasterDataForm
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        title="Country"
-        description="Countries are used for provider location and compliance requirements."
-        fields={formFields}
-        schema={countrySchema}
-        defaultValues={defaultValues}
-        onSubmit={handleSubmit}
-        isLoading={createMutation.isPending || updateMutation.isPending}
-        mode={selectedCountry ? "edit" : "create"}
-      />
-
-      <DeleteConfirmDialog
-        open={isDeleteOpen}
-        onOpenChange={setIsDeleteOpen}
-        title="Deactivate Country"
-        itemName={selectedCountry?.name}
-        onConfirm={handleDelete}
-        isLoading={deleteMutation.isPending}
-        isSoftDelete={true}
-      />
+    <AdminLayout title="Countries" description="Manage countries available in the platform" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Countries" }]}>
+      <DataTable data={countries} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search countries..." isLoading={isLoading} onAdd={() => { setSelectedCountry(null); setIsFormOpen(true); }} addButtonLabel="Add Country" emptyMessage="No countries found." />
+      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Country" description="Countries are used for provider location and compliance." fields={formFields} schema={countrySchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedCountry ? "edit" : "create"} />
+      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title="Deactivate Country" itemName={selectedCountry?.name} onConfirm={handleDelete} onHardDelete={handleHardDelete} isLoading={deleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={true} showHardDelete={!selectedCountry?.is_active} />
     </AdminLayout>
   );
 }
