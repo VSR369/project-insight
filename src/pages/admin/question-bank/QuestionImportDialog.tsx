@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2 } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus } from "lucide-react";
 
 import {
   Dialog,
@@ -10,11 +10,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -24,7 +36,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-import { useCreateQuestion, formatQuestionOptions, DIFFICULTY_OPTIONS, QUESTION_TYPE_OPTIONS, USAGE_MODE_OPTIONS } from "@/hooks/queries/useQuestionBank";
+import { 
+  useCreateQuestion, 
+  useDeactivateQuestionsBySpecialities,
+  getExistingQuestionCount,
+  formatQuestionOptions, 
+  DIFFICULTY_OPTIONS, 
+  QUESTION_TYPE_OPTIONS, 
+  USAGE_MODE_OPTIONS 
+} from "@/hooks/queries/useQuestionBank";
 import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
 import { useHierarchyData, resolveHierarchy, HierarchyData } from "@/hooks/queries/useHierarchyResolver";
 
@@ -257,6 +277,8 @@ const isValidFileExtension = (filename: string): boolean => {
   return ext.endsWith(".xlsx") || ext.endsWith(".xls");
 };
 
+export type ImportMode = "add" | "replace";
+
 export function QuestionImportDialog({
   open,
   onOpenChange,
@@ -269,10 +291,17 @@ export function QuestionImportDialog({
   const [importResults, setImportResults] = React.useState<{
     success: number;
     failed: number;
+    deactivated: number;
     errors: string[];
   } | null>(null);
 
+  // Import mode: "add" = add new questions, "replace" = deactivate existing and add new
+  const [importMode, setImportMode] = React.useState<ImportMode>("replace");
+  const [existingQuestionCount, setExistingQuestionCount] = React.useState<number>(0);
+  const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
+
   const createMutation = useCreateQuestion();
+  const deactivateMutation = useDeactivateQuestionsBySpecialities();
   const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
   const { data: capabilityTags = [] } = useCapabilityTags();
   const { data: hierarchyData, isLoading: hierarchyLoading } = useHierarchyData();
@@ -287,8 +316,33 @@ export function QuestionImportDialog({
       setIsImporting(false);
       setImportProgress(0);
       setImportResults(null);
+      setImportMode("replace");
+      setExistingQuestionCount(0);
+      setShowConfirmDialog(false);
     }
   }, [open]);
+
+  // Fetch existing question count when parsed questions change
+  React.useEffect(() => {
+    const fetchExistingCount = async () => {
+      const validQuestions = parsedQuestions.filter(q => q.isValid && q.speciality_id);
+      const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
+      
+      if (uniqueSpecialityIds.length > 0) {
+        try {
+          const count = await getExistingQuestionCount(uniqueSpecialityIds);
+          setExistingQuestionCount(count);
+        } catch (error) {
+          console.error("Failed to fetch existing question count:", error);
+          setExistingQuestionCount(0);
+        }
+      } else {
+        setExistingQuestionCount(0);
+      }
+    };
+
+    fetchExistingCount();
+  }, [parsedQuestions]);
 
   const parseExcel = async (file: File): Promise<ParsedQuestion[]> => {
     const arrayBuffer = await file.arrayBuffer();
@@ -450,14 +504,41 @@ export function QuestionImportDialog({
     event.preventDefault();
   };
 
+  // Handler to show confirmation dialog before import
+  const handleImportClick = () => {
+    if (importMode === "replace" && existingQuestionCount > 0) {
+      setShowConfirmDialog(true);
+    } else {
+      handleImport();
+    }
+  };
+
   const handleImport = async () => {
+    setShowConfirmDialog(false);
     const validQuestions = parsedQuestions.filter((q) => q.isValid);
     if (validQuestions.length === 0) return;
 
     setIsImporting(true);
     setImportProgress(0);
 
-    const results = { success: 0, failed: 0, errors: [] as string[] };
+    const results = { success: 0, failed: 0, deactivated: 0, errors: [] as string[] };
+
+    // If replace mode, deactivate existing questions for affected specialities first
+    if (importMode === "replace") {
+      const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
+      
+      if (uniqueSpecialityIds.length > 0) {
+        try {
+          const deactivateResult = await deactivateMutation.mutateAsync(uniqueSpecialityIds);
+          results.deactivated = deactivateResult.count;
+        } catch (error) {
+          results.errors.push(`Failed to deactivate existing questions: ${error instanceof Error ? error.message : "Unknown error"}`);
+          setImportResults(results);
+          setIsImporting(false);
+          return;
+        }
+      }
+    }
 
     for (let i = 0; i < validQuestions.length; i++) {
       const q = validQuestions[i];
@@ -515,6 +596,12 @@ export function QuestionImportDialog({
     setImportResults(results);
     setIsImporting(false);
   };
+
+  // Get unique speciality count for display
+  const uniqueSpecialityCount = React.useMemo(() => {
+    const validQuestions = parsedQuestions.filter(q => q.isValid && q.speciality_id);
+    return new Set(validQuestions.map(q => q.speciality_id)).size;
+  }, [parsedQuestions]);
 
   const downloadExcelTemplate = () => {
     // Create Questions sheet
@@ -659,10 +746,10 @@ export function QuestionImportDialog({
           {parsedQuestions.length > 0 && !importResults && (
             <div className="space-y-4">
               {/* Summary */}
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
                 <Badge variant="default" className="bg-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {validCount} valid
+                  {validCount} valid in file
                 </Badge>
                 {invalidCount > 0 && (
                   <Badge variant="destructive">
@@ -670,27 +757,73 @@ export function QuestionImportDialog({
                     {invalidCount} with errors
                   </Badge>
                 )}
+                {existingQuestionCount > 0 && (
+                  <Badge variant="secondary">
+                    {existingQuestionCount} existing in DB (affected specialities)
+                  </Badge>
+                )}
+              </div>
+
+              {/* Import Mode Selection */}
+              <div className="p-4 border rounded-lg bg-muted/30">
+                <p className="text-sm font-medium mb-3">Import Mode:</p>
+                <RadioGroup 
+                  value={importMode} 
+                  onValueChange={(value) => setImportMode(value as ImportMode)}
+                  className="grid grid-cols-2 gap-4"
+                >
+                  <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="replace" id="replace" className="mt-1" />
+                    <Label htmlFor="replace" className="cursor-pointer flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <RefreshCw className="h-4 w-4 text-orange-500" />
+                        Replace Existing
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Deactivate {existingQuestionCount} existing questions for affected specialities, then import {validCount} new.
+                        <br />
+                        <strong>Result: {validCount} active questions</strong>
+                      </p>
+                    </Label>
+                  </div>
+                  <div className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-muted/50 cursor-pointer">
+                    <RadioGroupItem value="add" id="add" className="mt-1" />
+                    <Label htmlFor="add" className="cursor-pointer flex-1">
+                      <div className="flex items-center gap-2 font-medium">
+                        <Plus className="h-4 w-4 text-green-500" />
+                        Add Only
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Keep existing {existingQuestionCount} questions, add {validCount} new.
+                        <br />
+                        <strong>Result: {existingQuestionCount + validCount} active questions</strong>
+                      </p>
+                    </Label>
+                  </div>
+                </RadioGroup>
               </div>
 
               {/* Speciality Summary */}
               {Object.keys(specialitySummary).length > 0 && (
                 <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm font-medium mb-2">Questions by Speciality:</p>
-                  <div className="space-y-1">
-                    {Object.entries(specialitySummary).map(([key, { valid, invalid, path }]) => (
-                      <div key={key} className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground truncate max-w-[70%]" title={path}>
-                          {path}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-green-600">{valid} valid</span>
-                          {invalid > 0 && (
-                            <span className="text-red-600">{invalid} errors</span>
-                          )}
+                  <p className="text-sm font-medium mb-2">Questions by Speciality ({uniqueSpecialityCount} specialities):</p>
+                  <ScrollArea className="max-h-[120px]">
+                    <div className="space-y-1">
+                      {Object.entries(specialitySummary).map(([key, { valid, invalid, path }]) => (
+                        <div key={key} className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground truncate max-w-[70%]" title={path}>
+                            {path}
+                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-green-600">{valid} valid</span>
+                            {invalid > 0 && (
+                              <span className="text-red-600">{invalid} errors</span>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
                 </div>
               )}
 
@@ -771,6 +904,7 @@ export function QuestionImportDialog({
                 <CheckCircle2 className="h-4 w-4" />
                 <AlertDescription>
                   Import complete: {importResults.success} questions imported successfully
+                  {importResults.deactivated > 0 && `, ${importResults.deactivated} existing deactivated`}
                   {importResults.failed > 0 && `, ${importResults.failed} failed`}
                 </AlertDescription>
               </Alert>
@@ -794,8 +928,9 @@ export function QuestionImportDialog({
           </Button>
           {!importResults && (
             <Button
-              onClick={handleImport}
+              onClick={handleImportClick}
               disabled={validCount === 0 || isImporting || hierarchyLoading}
+              variant={importMode === "replace" && existingQuestionCount > 0 ? "destructive" : "default"}
             >
               {isImporting ? (
                 <>
@@ -804,14 +939,51 @@ export function QuestionImportDialog({
                 </>
               ) : (
                 <>
-                  <Upload className="h-4 w-4 mr-2" />
-                  Import {validCount} Questions
+                  {importMode === "replace" ? (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  ) : (
+                    <Plus className="h-4 w-4 mr-2" />
+                  )}
+                  {importMode === "replace" 
+                    ? `Replace & Import ${validCount} Questions`
+                    : `Add ${validCount} Questions`
+                  }
                 </>
               )}
             </Button>
           )}
         </DialogFooter>
       </DialogContent>
+
+      {/* Confirmation Dialog for Replace Mode */}
+      <AlertDialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Replace Import</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>You are about to perform a <strong>Replace Import</strong>. This will:</p>
+                <ul className="list-disc list-inside space-y-1 text-sm">
+                  <li><strong>Deactivate</strong> {existingQuestionCount} existing questions for {uniqueSpecialityCount} affected specialities</li>
+                  <li><strong>Import</strong> {validCount} new questions from the Excel file</li>
+                </ul>
+                <p className="text-sm mt-4">
+                  <strong>After import:</strong> {validCount} active questions for these specialities
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Note: Deactivated questions are not deleted and can be restored if needed.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleImport} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Confirm Replace Import
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

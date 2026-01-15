@@ -230,6 +230,53 @@ export function useHardDeleteQuestion() {
   });
 }
 
+// Deactivate all questions for given speciality IDs (for replace import mode)
+export function useDeactivateQuestionsBySpecialities() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (specialityIds: string[]) => {
+      if (specialityIds.length === 0) return { count: 0 };
+
+      const { data, error } = await supabase
+        .from("question_bank")
+        .update({ 
+          is_active: false,
+          updated_at: new Date().toISOString(),
+        })
+        .in("speciality_id", specialityIds)
+        .eq("is_active", true)
+        .select("id");
+
+      if (error) throw new Error(error.message);
+      return { count: data?.length || 0 };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+      if (result.count > 0) {
+        toast.success(`Deactivated ${result.count} existing questions`);
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to deactivate existing questions: ${error.message}`);
+    },
+  });
+}
+
+// Get count of existing active questions for given speciality IDs
+export async function getExistingQuestionCount(specialityIds: string[]): Promise<number> {
+  if (specialityIds.length === 0) return 0;
+
+  const { count, error } = await supabase
+    .from("question_bank")
+    .select("*", { count: "exact", head: true })
+    .in("speciality_id", specialityIds)
+    .eq("is_active", true);
+
+  if (error) throw new Error(error.message);
+  return count || 0;
+}
+
 // Helper to parse options from JSON
 export function parseQuestionOptions(options: unknown): QuestionOption[] {
   if (!options) return [];
