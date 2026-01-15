@@ -100,6 +100,26 @@ export function WizardLayout({
     return [];
   }, [provider?.participation_mode_id, participationModes]);
 
+  // Route mapping for step navigation
+  const STEP_ROUTES: Record<number, string> = {
+    1: '/enroll/registration',
+    2: '/enroll/mode',
+    3: '/enroll/organization',
+    4: '/enroll/expertise',
+    5: '/enroll/proof-points',
+    6: '/enroll/assessment',
+    7: '/enroll/interview-slot',
+    8: '/enroll/panel-discussion',
+    9: '/enroll/certification',
+  };
+
+  const handleStepClick = (stepId: number) => {
+    // Allow navigation to completed steps only
+    if (completedSteps.includes(stepId) && STEP_ROUTES[stepId]) {
+      navigate(STEP_ROUTES[stepId]);
+    }
+  };
+
   const handleLogout = async () => {
     await signOut();
     navigate('/login');
@@ -153,6 +173,7 @@ export function WizardLayout({
           currentStep={currentStep}
           completedSteps={completedSteps}
           skippedSteps={skippedSteps}
+          onStepClick={handleStepClick}
         />
       </header>
 
