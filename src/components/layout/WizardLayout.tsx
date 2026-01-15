@@ -100,17 +100,17 @@ export function WizardLayout({
     return [];
   }, [provider?.participation_mode_id, participationModes]);
 
-  // Route mapping for step navigation
+  // Route mapping for step navigation (must match App.tsx routes)
   const STEP_ROUTES: Record<number, string> = {
     1: '/enroll/registration',
-    2: '/enroll/mode',
+    2: '/enroll/participation-mode',
     3: '/enroll/organization',
     4: '/enroll/expertise',
     5: '/enroll/proof-points',
-    6: '/enroll/assessment',
-    7: '/enroll/interview-slot',
-    8: '/enroll/panel-discussion',
-    9: '/enroll/certification',
+    6: '/enroll/assessment',       // TODO: create these routes
+    7: '/enroll/interview-slot',   // TODO: create these routes
+    8: '/enroll/panel-discussion', // TODO: create these routes
+    9: '/enroll/certification',    // TODO: create these routes
   };
 
   const handleStepClick = (stepId: number) => {
