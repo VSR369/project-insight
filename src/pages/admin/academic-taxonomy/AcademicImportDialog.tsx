@@ -15,6 +15,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -49,13 +50,17 @@ export function AcademicImportDialog({
   const [importResult, setImportResult] = React.useState<{
     disciplinesCreated: number;
     disciplinesUpdated: number;
+    disciplinesDeleted: number;
     streamsCreated: number;
     streamsUpdated: number;
+    streamsDeleted: number;
     subjectsCreated: number;
     subjectsUpdated: number;
+    subjectsDeleted: number;
     errors: string[];
   } | null>(null);
   const [isParsing, setIsParsing] = React.useState(false);
+  const [replaceExisting, setReplaceExisting] = React.useState(true);
 
   const bulkImportMutation = useBulkImportAcademicTaxonomy();
 
@@ -119,6 +124,7 @@ export function AcademicImportDialog({
     try {
       const result = await bulkImportMutation.mutateAsync({
         rows: validationResult.validRows,
+        replaceExisting,
         onProgress: (progress: number) => setImportProgress(progress),
       });
 
@@ -136,6 +142,7 @@ export function AcademicImportDialog({
     setValidationResult(null);
     setImportProgress(0);
     setImportResult(null);
+    setReplaceExisting(true);
     onOpenChange(false);
   };
 
@@ -267,6 +274,27 @@ export function AcademicImportDialog({
               </ScrollArea>
             )}
 
+            {/* Replace existing option */}
+            <div className="flex items-start space-x-3 p-4 rounded-lg bg-muted/50 border">
+              <Checkbox
+                id="replaceExisting"
+                checked={replaceExisting}
+                onCheckedChange={(checked) => setReplaceExisting(checked === true)}
+              />
+              <div className="grid gap-1.5 leading-none">
+                <label
+                  htmlFor="replaceExisting"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                >
+                  Replace all existing data
+                </label>
+                <p className="text-xs text-muted-foreground">
+                  When checked, disciplines, streams, and subjects not in this file will be deleted.
+                  When unchecked, new data will be added and existing data will be updated, but nothing will be deleted.
+                </p>
+              </div>
+            </div>
+
             {/* Valid rows preview */}
             {validationResult.validRows.length > 0 && (
               <>
@@ -346,6 +374,9 @@ export function AcademicImportDialog({
                   {importResult.disciplinesUpdated > 0 && (
                     <>, <span className="text-blue-600">{importResult.disciplinesUpdated} updated</span></>
                   )}
+                  {importResult.disciplinesDeleted > 0 && (
+                    <>, <span className="text-red-600">{importResult.disciplinesDeleted} deleted</span></>
+                  )}
                 </div>
               </div>
               <div className="p-4 rounded-lg bg-muted text-center">
@@ -359,6 +390,9 @@ export function AcademicImportDialog({
                   {importResult.streamsUpdated > 0 && (
                     <>, <span className="text-blue-600">{importResult.streamsUpdated} updated</span></>
                   )}
+                  {importResult.streamsDeleted > 0 && (
+                    <>, <span className="text-red-600">{importResult.streamsDeleted} deleted</span></>
+                  )}
                 </div>
               </div>
               <div className="p-4 rounded-lg bg-muted text-center">
@@ -371,6 +405,9 @@ export function AcademicImportDialog({
                   <span className="text-green-600">{importResult.subjectsCreated} new</span>
                   {importResult.subjectsUpdated > 0 && (
                     <>, <span className="text-blue-600">{importResult.subjectsUpdated} updated</span></>
+                  )}
+                  {importResult.subjectsDeleted > 0 && (
+                    <>, <span className="text-red-600">{importResult.subjectsDeleted} deleted</span></>
                   )}
                 </div>
               </div>
