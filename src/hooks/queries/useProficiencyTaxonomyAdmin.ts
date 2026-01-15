@@ -505,15 +505,19 @@ export function useHardDeleteSpeciality() {
 interface BulkImportResult {
   areasCreated: number;
   areasUpdated: number;
+  areasDeleted: number;
   subDomainsCreated: number;
   subDomainsUpdated: number;
+  subDomainsDeleted: number;
   specialitiesCreated: number;
   specialitiesUpdated: number;
+  specialitiesDeleted: number;
   errors: string[];
 }
 
 interface BulkImportInput {
   rows: ParsedTaxonomyRow[];
+  replaceExisting?: boolean;
   onProgress?: (progress: number) => void;
 }
 
@@ -521,14 +525,17 @@ export function useBulkImportProficiencyTaxonomy() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ rows, onProgress }: BulkImportInput): Promise<BulkImportResult> => {
+    mutationFn: async ({ rows, replaceExisting = true, onProgress }: BulkImportInput): Promise<BulkImportResult> => {
       const result: BulkImportResult = {
         areasCreated: 0,
         areasUpdated: 0,
+        areasDeleted: 0,
         subDomainsCreated: 0,
         subDomainsUpdated: 0,
+        subDomainsDeleted: 0,
         specialitiesCreated: 0,
         specialitiesUpdated: 0,
+        specialitiesDeleted: 0,
         errors: [],
       };
 
@@ -719,10 +726,91 @@ export function useBulkImportProficiencyTaxonomy() {
           result.errors.push(`Row ${row.rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
 
-        // Report progress
+        // Report progress (use 80% for import, 20% for deletion)
         if (onProgress) {
-          onProgress(Math.round(((i + 1) / totalRows) * 100));
+          onProgress(Math.round(((i + 1) / totalRows) * 80));
         }
+      }
+
+      // If replaceExisting is true, delete items not in the import
+      if (replaceExisting) {
+        const importedAreaIds = new Set(areaCache.values());
+        const importedSubDomainIds = new Set(subDomainCache.values());
+        const importedSpecialityIds = new Set(specialityCache.values());
+
+        // Delete specialities not in import
+        const { data: allSpecialities } = await supabase
+          .from("specialities")
+          .select("id");
+
+        const specialitiesToDelete = (allSpecialities || [])
+          .filter(s => !importedSpecialityIds.has(s.id))
+          .map(s => s.id);
+
+        if (specialitiesToDelete.length > 0) {
+          const { error: deleteSpecError } = await supabase
+            .from("specialities")
+            .delete()
+            .in("id", specialitiesToDelete);
+
+          if (deleteSpecError) {
+            result.errors.push(`Failed to delete old specialities: ${deleteSpecError.message}`);
+          } else {
+            result.specialitiesDeleted = specialitiesToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(85);
+
+        // Delete sub-domains not in import
+        const { data: allSubDomains } = await supabase
+          .from("sub_domains")
+          .select("id");
+
+        const subDomainsToDelete = (allSubDomains || [])
+          .filter(sd => !importedSubDomainIds.has(sd.id))
+          .map(sd => sd.id);
+
+        if (subDomainsToDelete.length > 0) {
+          const { error: deleteSDError } = await supabase
+            .from("sub_domains")
+            .delete()
+            .in("id", subDomainsToDelete);
+
+          if (deleteSDError) {
+            result.errors.push(`Failed to delete old sub-domains: ${deleteSDError.message}`);
+          } else {
+            result.subDomainsDeleted = subDomainsToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(92);
+
+        // Delete proficiency areas not in import
+        const { data: allAreas } = await supabase
+          .from("proficiency_areas")
+          .select("id");
+
+        const areasToDelete = (allAreas || [])
+          .filter(a => !importedAreaIds.has(a.id))
+          .map(a => a.id);
+
+        if (areasToDelete.length > 0) {
+          const { error: deleteAreaError } = await supabase
+            .from("proficiency_areas")
+            .delete()
+            .in("id", areasToDelete);
+
+          if (deleteAreaError) {
+            result.errors.push(`Failed to delete old proficiency areas: ${deleteAreaError.message}`);
+          } else {
+            result.areasDeleted = areasToDelete.length;
+          }
+        }
+
+        if (onProgress) onProgress(100);
+      } else {
+        if (onProgress) onProgress(100);
       }
 
       return result;
