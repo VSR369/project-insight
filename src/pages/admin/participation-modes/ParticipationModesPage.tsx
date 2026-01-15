@@ -1,12 +1,13 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw, Trash, Building2 } from "lucide-react";
+import { Eye, Pencil, Trash2, RotateCcw, Trash, Building2 } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import { Badge } from "@/components/ui/badge";
 import { useParticipationModes, useCreateParticipationMode, useUpdateParticipationMode, useDeleteParticipationMode, useRestoreParticipationMode, useHardDeleteParticipationMode, ParticipationMode, ParticipationModeInsert } from "@/hooks/queries/useParticipationModes";
 
@@ -32,6 +33,7 @@ const formFields: FormFieldConfig<ParticipationModeFormData>[] = [
 
 export default function ParticipationModesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [selectedMode, setSelectedMode] = React.useState<ParticipationMode | null>(null);
 
@@ -52,6 +54,7 @@ export default function ParticipationModesPage() {
   ];
 
   const actions: DataTableAction<ParticipationMode>[] = [
+    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (mode) => { setSelectedMode(mode); setIsViewOpen(true); } },
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (mode) => { setSelectedMode(mode); setIsFormOpen(true); } },
     { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (mode) => { restoreMutation.mutate(mode.id); }, show: (mode) => !mode.is_active },
     { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (mode) => { setSelectedMode(mode); setIsDeleteOpen(true); }, show: (mode) => !mode.is_active },
@@ -69,10 +72,24 @@ export default function ParticipationModesPage() {
     ? { code: selectedMode.code, name: selectedMode.name, description: selectedMode.description, requires_org_info: selectedMode.requires_org_info, display_order: selectedMode.display_order, is_active: selectedMode.is_active }
     : { code: "", name: "", description: "", requires_org_info: false, display_order: 0, is_active: true };
 
+  const viewFields: ViewField[] = selectedMode
+    ? [
+        { label: "Mode Code", value: selectedMode.code },
+        { label: "Mode Name", value: selectedMode.name },
+        { label: "Description", value: selectedMode.description, type: "textarea" },
+        { label: "Requires Organization Info", value: selectedMode.requires_org_info, type: "boolean" },
+        { label: "Display Order", value: selectedMode.display_order, type: "number" },
+        { label: "Status", value: selectedMode.is_active, type: "boolean" },
+        { label: "Created At", value: selectedMode.created_at, type: "date" },
+        { label: "Updated At", value: selectedMode.updated_at, type: "date" },
+      ]
+    : [];
+
   return (
     <AdminLayout title="Participation Modes" description="Define how solution providers can participate" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Participation Modes" }]}>
       <DataTable data={modes} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search participation modes..." isLoading={isLoading} onAdd={() => { setSelectedMode(null); setIsFormOpen(true); }} addButtonLabel="Add Participation Mode" emptyMessage="No participation modes found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Participation Mode" description="Participation modes determine how providers engage with the platform." fields={formFields} schema={participationModeSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedMode ? "edit" : "create"} />
+      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Participation Mode Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedMode?.is_active ? "Deactivate Participation Mode" : "Delete Participation Mode"} itemName={selectedMode?.name} onConfirm={selectedMode?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedMode?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedMode?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );

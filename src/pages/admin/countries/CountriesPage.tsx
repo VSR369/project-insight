@@ -1,6 +1,6 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
+import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import {
@@ -11,6 +11,7 @@ import {
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import {
   useCountries,
   useCreateCountry,
@@ -43,6 +44,7 @@ const formFields: FormFieldConfig<CountryFormData>[] = [
 
 export default function CountriesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [selectedCountry, setSelectedCountry] = React.useState<Country | null>(null);
 
@@ -62,6 +64,7 @@ export default function CountriesPage() {
   ];
 
   const actions: DataTableAction<Country>[] = [
+    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsViewOpen(true); } },
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsFormOpen(true); } },
     { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (country) => { restoreMutation.mutate(country.id); }, show: (country) => !country.is_active },
     { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => !country.is_active },
@@ -88,10 +91,23 @@ export default function CountriesPage() {
     ? { code: selectedCountry.code, name: selectedCountry.name, phone_code: selectedCountry.phone_code, display_order: selectedCountry.display_order, is_active: selectedCountry.is_active }
     : { code: "", name: "", phone_code: "", display_order: 0, is_active: true };
 
+  const viewFields: ViewField[] = selectedCountry
+    ? [
+        { label: "Country Code", value: selectedCountry.code },
+        { label: "Country Name", value: selectedCountry.name },
+        { label: "Phone Code", value: selectedCountry.phone_code },
+        { label: "Display Order", value: selectedCountry.display_order, type: "number" },
+        { label: "Status", value: selectedCountry.is_active, type: "boolean" },
+        { label: "Created At", value: selectedCountry.created_at, type: "date" },
+        { label: "Updated At", value: selectedCountry.updated_at, type: "date" },
+      ]
+    : [];
+
   return (
     <AdminLayout title="Countries" description="Manage countries available in the platform" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Countries" }]}>
       <DataTable data={countries} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search countries..." isLoading={isLoading} onAdd={() => { setSelectedCountry(null); setIsFormOpen(true); }} addButtonLabel="Add Country" emptyMessage="No countries found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Country" description="Countries are used for provider location and compliance." fields={formFields} schema={countrySchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedCountry ? "edit" : "create"} />
+      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Country Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedCountry?.is_active ? "Deactivate Country" : "Delete Country"} itemName={selectedCountry?.name} onConfirm={selectedCountry?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedCountry?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedCountry?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );

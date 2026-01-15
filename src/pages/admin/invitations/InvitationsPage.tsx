@@ -11,11 +11,13 @@ import {
   Trash2,
   Crown,
   User,
+  Eye,
 } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -73,7 +75,9 @@ function TypeBadge({ type }: { type: "standard" | "vip_expert" }) {
 export function InvitationsPage() {
   const [activeTab, setActiveTab] = React.useState<"all" | InvitationStatus>("all");
   const [formOpen, setFormOpen] = React.useState(false);
+  const [viewOpen, setViewOpen] = React.useState(false);
   const [deleteOpen, setDeleteOpen] = React.useState(false);
+  const [selectedInvitation, setSelectedInvitation] = React.useState<Invitation | null>(null);
   const [deletingInvitation, setDeletingInvitation] = React.useState<Invitation | null>(null);
 
   // Queries
@@ -170,6 +174,14 @@ export function InvitationsPage() {
   // Table actions
   const actions: DataTableAction<Invitation>[] = [
     {
+      label: "View",
+      onClick: (invitation) => {
+        setSelectedInvitation(invitation);
+        setViewOpen(true);
+      },
+      icon: <Eye className="h-4 w-4" />,
+    },
+    {
       label: "Resend Invitation",
       onClick: (invitation) => resendMutation.mutate(invitation.id),
       icon: <RefreshCw className="h-4 w-4" />,
@@ -188,6 +200,26 @@ export function InvitationsPage() {
       variant: "destructive",
     },
   ];
+
+  // View fields configuration
+  const getViewFields = (): ViewField[] => {
+    if (!selectedInvitation) return [];
+    const rowWithJoin = selectedInvitation as Invitation & { industry_segments?: { name: string } | null };
+    return [
+      { label: "Email", value: selectedInvitation.email },
+      { label: "First Name", value: selectedInvitation.first_name },
+      { label: "Last Name", value: selectedInvitation.last_name },
+      { label: "Invitation Type", value: selectedInvitation.invitation_type === "vip_expert" ? "VIP Expert" : "Standard" },
+      { label: "Industry Segment", value: rowWithJoin.industry_segments?.name },
+      { label: "Message", value: selectedInvitation.message, type: "textarea" },
+      { label: "Status", value: getInvitationStatus(selectedInvitation) },
+      { label: "Created At", value: selectedInvitation.created_at, type: "date" },
+      { label: "Expires At", value: selectedInvitation.expires_at, type: "date" },
+      { label: "Accepted At", value: selectedInvitation.accepted_at, type: "date" },
+      { label: "Declined At", value: selectedInvitation.declined_at, type: "date" },
+      { label: "Updated At", value: selectedInvitation.updated_at, type: "date" },
+    ];
+  };
 
   // Handle form submission
   const handleCreateInvitation = async (data: {
@@ -306,6 +338,14 @@ export function InvitationsPage() {
         onOpenChange={setFormOpen}
         onSubmit={handleCreateInvitation}
         isLoading={createMutation.isPending}
+      />
+
+      {/* View Dialog */}
+      <MasterDataViewDialog
+        open={viewOpen}
+        onOpenChange={setViewOpen}
+        title="Invitation Details"
+        fields={getViewFields()}
       />
 
       {/* Delete Confirmation */}

@@ -1,12 +1,13 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
+import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import { useIndustrySegments, useCreateIndustrySegment, useUpdateIndustrySegment, useDeleteIndustrySegment, useRestoreIndustrySegment, useHardDeleteIndustrySegment, IndustrySegment, IndustrySegmentInsert } from "@/hooks/queries/useIndustrySegments";
 
 const industrySegmentSchema = z.object({
@@ -29,6 +30,7 @@ const formFields: FormFieldConfig<IndustrySegmentFormData>[] = [
 
 export default function IndustrySegmentsPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [selectedSegment, setSelectedSegment] = React.useState<IndustrySegment | null>(null);
 
@@ -48,6 +50,7 @@ export default function IndustrySegmentsPage() {
   ];
 
   const actions: DataTableAction<IndustrySegment>[] = [
+    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (segment) => { setSelectedSegment(segment); setIsViewOpen(true); } },
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (segment) => { setSelectedSegment(segment); setIsFormOpen(true); } },
     { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (segment) => { restoreMutation.mutate(segment.id); }, show: (segment) => !segment.is_active },
     { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (segment) => { setSelectedSegment(segment); setIsDeleteOpen(true); }, show: (segment) => !segment.is_active },
@@ -65,10 +68,23 @@ export default function IndustrySegmentsPage() {
     ? { code: selectedSegment.code, name: selectedSegment.name, description: selectedSegment.description, display_order: selectedSegment.display_order, is_active: selectedSegment.is_active }
     : { code: "", name: "", description: "", display_order: 0, is_active: true };
 
+  const viewFields: ViewField[] = selectedSegment
+    ? [
+        { label: "Segment Code", value: selectedSegment.code },
+        { label: "Segment Name", value: selectedSegment.name },
+        { label: "Description", value: selectedSegment.description, type: "textarea" },
+        { label: "Display Order", value: selectedSegment.display_order, type: "number" },
+        { label: "Status", value: selectedSegment.is_active, type: "boolean" },
+        { label: "Created At", value: selectedSegment.created_at, type: "date" },
+        { label: "Updated At", value: selectedSegment.updated_at, type: "date" },
+      ]
+    : [];
+
   return (
     <AdminLayout title="Industry Segments" description="Manage industry sectors for categorizing providers and challenges" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Industry Segments" }]}>
       <DataTable data={segments} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search industry segments..." isLoading={isLoading} onAdd={() => { setSelectedSegment(null); setIsFormOpen(true); }} addButtonLabel="Add Industry Segment" emptyMessage="No industry segments found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Industry Segment" description="Industry segments categorize providers and challenges by sector." fields={formFields} schema={industrySegmentSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedSegment ? "edit" : "create"} />
+      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Industry Segment Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedSegment?.is_active ? "Deactivate Industry Segment" : "Delete Industry Segment"} itemName={selectedSegment?.name} onConfirm={selectedSegment?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedSegment?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedSegment?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );
