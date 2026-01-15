@@ -1224,11 +1224,11 @@ export function QuestionBankPage() {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: "Conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
-                            { name: "Scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
-                            { name: "Experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
-                            { name: "Decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
-                            { name: "Proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
+                            { name: "Conceptual", key: "conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
+                            { name: "Scenario", key: "scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
+                            { name: "Experience", key: "experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
+                            { name: "Decision", key: "decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
+                            { name: "Proof", key: "proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
                           ].filter(d => d.value > 0)}
                           cx="50%"
                           cy="50%"
@@ -1236,15 +1236,25 @@ export function QuestionBankPage() {
                           outerRadius={60}
                           paddingAngle={2}
                           dataKey="value"
+                          style={{ cursor: "pointer" }}
+                          onClick={(data) => {
+                            const key = data.key;
+                            setQuestionTypeFilter(questionTypeFilter === key ? "all" : key);
+                          }}
                         >
                           {[
-                            { name: "Conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
-                            { name: "Scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
-                            { name: "Experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
-                            { name: "Decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
-                            { name: "Proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
+                            { name: "Conceptual", key: "conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
+                            { name: "Scenario", key: "scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
+                            { name: "Experience", key: "experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
+                            { name: "Decision", key: "decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
+                            { name: "Proof", key: "proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
                           ].filter(d => d.value > 0).map((entry, index) => (
-                            <Cell key={`type-cell-${index}`} fill={entry.color} />
+                            <Cell 
+                              key={`type-cell-${index}`} 
+                              fill={entry.color}
+                              stroke={questionTypeFilter === entry.key ? "hsl(var(--foreground))" : "transparent"}
+                              strokeWidth={questionTypeFilter === entry.key ? 2 : 0}
+                            />
                           ))}
                         </Pie>
                         <Tooltip 
@@ -1272,9 +1282,9 @@ export function QuestionBankPage() {
                       <PieChart>
                         <Pie
                           data={[
-                            { name: "Self-Assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
-                            { name: "Interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
-                            { name: "Both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
+                            { name: "Self-Assessment", key: "self_assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
+                            { name: "Interview", key: "interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
+                            { name: "Both", key: "both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
                           ].filter(d => d.value > 0)}
                           cx="50%"
                           cy="50%"
@@ -1282,13 +1292,23 @@ export function QuestionBankPage() {
                           outerRadius={60}
                           paddingAngle={3}
                           dataKey="value"
+                          style={{ cursor: "pointer" }}
+                          onClick={(data) => {
+                            const key = data.key;
+                            setUsageModeFilter(usageModeFilter === key ? "all" : key);
+                          }}
                         >
                           {[
-                            { name: "Self-Assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
-                            { name: "Interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
-                            { name: "Both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
+                            { name: "Self-Assessment", key: "self_assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
+                            { name: "Interview", key: "interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
+                            { name: "Both", key: "both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
                           ].filter(d => d.value > 0).map((entry, index) => (
-                            <Cell key={`usage-cell-${index}`} fill={entry.color} />
+                            <Cell 
+                              key={`usage-cell-${index}`} 
+                              fill={entry.color}
+                              stroke={usageModeFilter === entry.key ? "hsl(var(--foreground))" : "transparent"}
+                              strokeWidth={usageModeFilter === entry.key ? 2 : 0}
+                            />
                           ))}
                         </Pie>
                         <Tooltip 
