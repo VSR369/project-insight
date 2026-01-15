@@ -52,6 +52,21 @@ export function WizardLayout({
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
 
+  // Determine if org step is required based on selected participation mode
+  const isOrgRequired = useMemo(() => {
+    if (!provider?.participation_mode_id || !participationModes) return true; // Default to required
+    const selectedMode = participationModes.find(m => m.id === provider.participation_mode_id);
+    return selectedMode?.requires_org_info ?? true;
+  }, [provider?.participation_mode_id, participationModes]);
+
+  // Filter visible steps - hide Organization step when not required
+  const visibleSteps = useMemo(() => {
+    if (!isOrgRequired) {
+      return ENROLLMENT_STEPS.filter(step => step.id !== 3);
+    }
+    return ENROLLMENT_STEPS;
+  }, [isOrgRequired]);
+
   // Calculate completed steps based on provider data
   const completedSteps = useMemo(() => {
     const completed: number[] = [];
@@ -67,12 +82,8 @@ export function WizardLayout({
       completed.push(2);
     }
 
-    // Step 3: Organization (if applicable)
-    const selectedMode = participationModes?.find(m => m.id === provider.participation_mode_id);
-    if (selectedMode && !selectedMode.requires_org_info) {
-      // Org not required, mark as completed (skipped)
-      completed.push(3);
-    } else if (provider.organization?.org_name) {
+    // Step 3: Organization (only if required and completed)
+    if (isOrgRequired && provider.organization?.org_name) {
       completed.push(3);
     }
 
@@ -87,18 +98,10 @@ export function WizardLayout({
     }
 
     return completed;
-  }, [provider, participationModes]);
+  }, [provider, isOrgRequired]);
 
-  // Calculate skipped steps (e.g., Org step when not required)
-  const skippedSteps = useMemo(() => {
-    if (!provider?.participation_mode_id || !participationModes) return [];
-    
-    const selectedMode = participationModes.find(m => m.id === provider.participation_mode_id);
-    if (selectedMode && !selectedMode.requires_org_info) {
-      return [3]; // Org step is skipped
-    }
-    return [];
-  }, [provider?.participation_mode_id, participationModes]);
+  // No skipped steps needed since we hide the step entirely
+  const skippedSteps: number[] = [];
 
   // Route mapping for step navigation (must match App.tsx routes)
   const STEP_ROUTES: Record<number, string> = {
@@ -169,7 +172,7 @@ export function WizardLayout({
 
         {/* Step Indicator */}
         <WizardStepper
-          steps={ENROLLMENT_STEPS}
+          steps={visibleSteps}
           currentStep={currentStep}
           completedSteps={completedSteps}
           skippedSteps={skippedSteps}
