@@ -3,7 +3,21 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 
-export type Question = Tables<"question_bank">;
+// Base question type from database
+type BaseQuestion = Tables<"question_bank">;
+
+// Extended question type with capability tags
+export interface Question extends BaseQuestion {
+  question_capability_tags?: Array<{
+    id: string;
+    capability_tag_id: string;
+    capability_tags: {
+      id: string;
+      name: string;
+    } | null;
+  }>;
+}
+
 export type QuestionInsert = TablesInsert<"question_bank">;
 export type QuestionUpdate = TablesUpdate<"question_bank">;
 
@@ -71,7 +85,17 @@ export function useQuestions(specialityId?: string, includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("question_bank")
-        .select("*")
+        .select(`
+          *,
+          question_capability_tags (
+            id,
+            capability_tag_id,
+            capability_tags (
+              id,
+              name
+            )
+          )
+        `)
         .order("created_at", { ascending: false });
 
       if (specialityId) {

@@ -295,6 +295,36 @@ export function QuestionBankPage() {
       },
     },
     {
+      accessorKey: "question_capability_tags",
+      header: "Capability Tags",
+      cell: (_value, row) => {
+        const tags = row.question_capability_tags || [];
+        if (tags.length === 0) {
+          return <span className="text-muted-foreground text-xs">—</span>;
+        }
+        const displayTags = tags.slice(0, 2);
+        const remaining = tags.length - 2;
+        return (
+          <div className="flex flex-wrap gap-1 max-w-[150px]">
+            {displayTags.map((tag) => (
+              <Badge
+                key={tag.id}
+                variant="outline"
+                className="text-xs bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300"
+              >
+                {tag.capability_tags?.name || "Unknown"}
+              </Badge>
+            ))}
+            {remaining > 0 && (
+              <Badge variant="outline" className="text-xs">
+                +{remaining}
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "is_active",
       header: "Status",
       cell: (_value, row) => <StatusBadge isActive={row.is_active} />,
