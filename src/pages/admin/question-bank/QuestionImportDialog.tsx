@@ -36,6 +36,7 @@ interface ParsedQuestion {
   question_type: string;
   usage_mode: string;
   capability_tags: string[];
+  expected_answer_guidance: string | null;
   isValid: boolean;
   errors: string[];
 }
@@ -55,6 +56,7 @@ interface RawQuestionData {
   question_type: string;
   usage_mode: string;
   capability_tags: string[];
+  expected_answer_guidance: string | null;
 }
 
 const VALID_DIFFICULTIES: readonly string[] = DIFFICULTY_OPTIONS.map(d => d.value);
@@ -62,11 +64,11 @@ const VALID_QUESTION_TYPES: readonly string[] = QUESTION_TYPE_OPTIONS.map(t => t
 const VALID_USAGE_MODES: readonly string[] = USAGE_MODE_OPTIONS.map(m => m.value);
 
 const EXCEL_TEMPLATE_DATA = [
-  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags"],
-  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving"],
-  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", ""],
-  ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving"],
-  ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership"],
+  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"],
+  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving", "The correct answer is Paris. It has been the capital of France since 987 CE."],
+  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", "", "Mars is called the Red Planet due to iron oxide (rust) on its surface."],
+  ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving", "Look for systematic approach: data gathering, root cause analysis before action."],
+  ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership", "Evaluate: context clarity, specific challenges, actions taken, measurable outcomes, lessons learned."],
 ];
 
 const INSTRUCTIONS_SHEET_DATA = [
@@ -81,6 +83,7 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
   ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
   ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
+  ["expected_answer_guidance", "Detailed explanation of the correct answer for reviewers/interviewers", "No", "Text up to 2000 characters"],
   [""],
   ["IMPORTANT NOTES:"],
   ["1. You must provide at least 2 options and maximum 6 options"],
@@ -90,6 +93,7 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
   ["6. Do not modify the header row in the Questions sheet"],
   ["7. Capability tags must match existing tag names exactly (case-insensitive)"],
+  ["8. expected_answer_guidance is optional but helpful for interview mode questions"],
   [""],
   ["DIFFICULTY LEVEL GUIDE:"],
   ["Level", "Description"],
@@ -156,6 +160,11 @@ const validateQuestion = (data: RawQuestionData, validTagNames: string[]): strin
     if (invalidTags.length > 0) {
       errors.push(`Unknown capability tags: ${invalidTags.join(", ")}`);
     }
+  }
+
+  // Validate expected_answer_guidance length
+  if (data.expected_answer_guidance && data.expected_answer_guidance.length > 2000) {
+    errors.push("Expected answer guidance must be 2000 characters or less");
   }
 
   return errors;
@@ -255,6 +264,9 @@ export function QuestionImportDialog({
         ? capabilityTagsRaw.split(",").map(t => t.trim()).filter(Boolean)
         : [];
 
+      // Parse expected_answer_guidance (column 12)
+      const expected_answer_guidance = row[12] ? String(row[12]).trim() : null;
+
       // Validate using shared function
       const errors = validateQuestion({
         question_text,
@@ -264,6 +276,7 @@ export function QuestionImportDialog({
         question_type,
         usage_mode,
         capability_tags,
+        expected_answer_guidance,
       }, validTagNames);
 
       questions.push({
@@ -275,6 +288,7 @@ export function QuestionImportDialog({
         question_type,
         usage_mode,
         capability_tags,
+        expected_answer_guidance,
         isValid: errors.length === 0,
         errors,
       });
@@ -355,6 +369,7 @@ export function QuestionImportDialog({
           difficulty: q.difficulty as "introductory" | "applied" | "advanced" | "strategic" | null,
           question_type: q.question_type as "conceptual" | "scenario" | "experience" | "decision" | "proof",
           usage_mode: q.usage_mode as "self_assessment" | "interview" | "both",
+          expected_answer_guidance: q.expected_answer_guidance,
           is_active: true,
           speciality_id: specialityId,
         });
@@ -408,6 +423,7 @@ export function QuestionImportDialog({
       { wch: 15 }, // question_type
       { wch: 15 }, // usage_mode
       { wch: 30 }, // capability_tags
+      { wch: 50 }, // expected_answer_guidance
     ];
 
     // Create Instructions sheet
