@@ -2,6 +2,7 @@ import * as React from "react";
 import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
+import * as XLSX from "xlsx";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -366,36 +367,48 @@ export function QuestionBankPage() {
   const selectedSubDomain = subDomains.find((sd) => sd.id === selectedSubDomainId);
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
 
-  // ===================== EXPORT CSV =====================
-  const handleExportCSV = () => {
+  // ===================== EXPORT EXCEL =====================
+  const handleExportExcel = () => {
     if (questions.length === 0) return;
 
-    const headers = ["question_text", "options", "correct_option", "difficulty_level", "is_active"];
+    const headers = ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level", "is_active"];
     
-    const rows = questions.map((q) => {
+    const dataRows = questions.map((q) => {
       const options = parseQuestionOptions(q.options);
-      const optionsText = options.map((opt) => opt.text).join("|");
-      
       return [
-        `"${(q.question_text || "").replace(/"/g, '""')}"`,
-        `"${optionsText.replace(/"/g, '""')}"`,
+        q.question_text,
+        options[0]?.text || "",
+        options[1]?.text || "",
+        options[2]?.text || "",
+        options[3]?.text || "",
+        options[4]?.text || "",
+        options[5]?.text || "",
         q.correct_option,
         q.difficulty_level ?? "",
-        q.is_active ? "true" : "false",
-      ].join(",");
+        q.is_active ? "Active" : "Inactive",
+      ];
     });
 
-    const csvContent = [headers.join(","), ...rows].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement("a");
-    link.href = url;
+    // Create worksheet with headers and data
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...dataRows]);
+    ws["!cols"] = [
+      { wch: 50 }, // question_text
+      { wch: 25 }, // option_1
+      { wch: 25 }, // option_2
+      { wch: 25 }, // option_3
+      { wch: 25 }, // option_4
+      { wch: 20 }, // option_5
+      { wch: 20 }, // option_6
+      { wch: 15 }, // correct_option
+      { wch: 15 }, // difficulty_level
+      { wch: 10 }, // is_active
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Questions");
+
     const safeName = (selectedSpeciality?.name || "questions").replace(/[^a-z0-9]/gi, "_");
-    link.download = `questions_${safeName}_${new Date().toISOString().split("T")[0]}.csv`;
-    link.click();
-    
-    URL.revokeObjectURL(url);
+    XLSX.writeFile(wb, `questions_${safeName}_${new Date().toISOString().split("T")[0]}.xlsx`);
   };
 
   // ===================== EXPORT PDF =====================
@@ -1195,11 +1208,11 @@ export function QuestionBankPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={handleExportCSV}
+                    onClick={handleExportExcel}
                     disabled={questions.length === 0}
                   >
                     <Download className="h-4 w-4 mr-2" />
-                    Export CSV
+                    Export Excel
                   </Button>
                   <Button
                     variant="outline"
