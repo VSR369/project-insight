@@ -1,8 +1,9 @@
 import * as React from "react";
 import { z } from "zod";
-import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles, Download, Upload, Eye } from "lucide-react";
+import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles, Download, Upload, Eye, Database, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { seedManufacturingAutoComponentsTaxonomy } from "@/services/taxonomySeeder";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -149,6 +150,30 @@ export function ProficiencyTaxonomyPage() {
 
   // Import dialog state
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [isSeeding, setIsSeeding] = React.useState(false);
+
+  const queryClient = React.useMemo(() => {
+    return null; // We'll use invalidation via the hooks
+  }, []);
+
+  const handleSeedTaxonomy = async () => {
+    setIsSeeding(true);
+    try {
+      const result = await seedManufacturingAutoComponentsTaxonomy();
+      if (result.errors.length > 0) {
+        toast.warning(`Seeding completed with ${result.errors.length} errors. Created ${result.subDomainsCreated} sub-domains, ${result.specialitiesCreated} specialities.`);
+        console.error("Seeding errors:", result.errors);
+      } else {
+        toast.success(`Successfully created ${result.subDomainsCreated} sub-domains and ${result.specialitiesCreated} specialities!`);
+      }
+      // Force refresh - user should refresh the page to see new data
+      window.location.reload();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Seeding failed");
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Delete states
   const [deleteAreaOpen, setDeleteAreaOpen] = React.useState(false);
@@ -529,6 +554,19 @@ export function ProficiencyTaxonomyPage() {
               <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
                 <Upload className="h-4 w-4 mr-2" />
                 Import
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleSeedTaxonomy}
+                disabled={isSeeding}
+              >
+                {isSeeding ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Database className="h-4 w-4 mr-2" />
+                )}
+                Seed Manufacturing
               </Button>
               <div className="flex items-center gap-2 ml-2">
                 <Label className="text-sm text-muted-foreground">Show inactive</Label>
