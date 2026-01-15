@@ -50,12 +50,6 @@ interface RawQuestionData {
   difficulty_level: number | null;
 }
 
-const CSV_TEMPLATE = `question_text,option_1,option_2,option_3,option_4,option_5,option_6,correct_option,difficulty_level
-"What is the capital of France?","Berlin","Madrid","Paris","Rome","","",3,2
-"Which planet is known as the Red Planet?","Venus","Mars","Jupiter","Saturn","","",2,1
-"What is 15 + 27?","32","42","52","62","","",2,1
-"Which of the following is a primary color?","Green","Orange","Purple","Blue","","",4,3`;
-
 const EXCEL_TEMPLATE_DATA = [
   ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level"],
   ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, 2],
@@ -91,7 +85,7 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["5", "Very Hard - Expert-level critical thinking"],
 ];
 
-// Shared validation logic for both CSV and Excel
+// Validation logic for Excel import
 const validateQuestion = (data: RawQuestionData): string[] => {
   const errors: string[] = [];
 
@@ -122,10 +116,10 @@ const validateQuestion = (data: RawQuestionData): string[] => {
   return errors;
 };
 
-// Check if file has valid extension
+// Check if file has valid extension (Excel only)
 const isValidFileExtension = (filename: string): boolean => {
   const ext = filename.toLowerCase();
-  return ext.endsWith(".csv") || ext.endsWith(".xlsx") || ext.endsWith(".xls");
+  return ext.endsWith(".xlsx") || ext.endsWith(".xls");
 };
 
 export function QuestionImportDialog({
@@ -160,94 +154,12 @@ export function QuestionImportDialog({
     }
   }, [open]);
 
-  const parseCSVLine = (line: string): string[] => {
-    const values: string[] = [];
-    let current = "";
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      const nextChar = line[i + 1];
-
-      if (char === '"' && !inQuotes) {
-        inQuotes = true;
-      } else if (char === '"' && inQuotes) {
-        if (nextChar === '"') {
-          current += '"';
-          i++; // Skip next quote
-        } else {
-          inQuotes = false;
-        }
-      } else if (char === "," && !inQuotes) {
-        values.push(current);
-        current = "";
-      } else {
-        current += char;
-      }
-    }
-    values.push(current);
-
-    return values;
-  };
-
-  const parseCSV = (content: string): ParsedQuestion[] => {
-    const lines = content.split(/\r?\n/).filter((line) => line.trim());
-    if (lines.length < 2) {
-      throw new Error("CSV must have a header row and at least one data row");
-    }
-
-    // Skip header row
-    const dataLines = lines.slice(1);
-    const questions: ParsedQuestion[] = [];
-
-    for (let i = 0; i < dataLines.length; i++) {
-      const line = dataLines[i];
-      const rowNumber = i + 2; // 1-indexed, accounting for header
-
-      // Parse CSV line (handling quoted values)
-      const values = parseCSVLine(line);
-
-      // Extract values
-      const question_text = values[0]?.trim() || "";
-      const options = [
-          values[1]?.trim(),
-          values[2]?.trim(),
-          values[3]?.trim(),
-          values[4]?.trim(),
-          values[5]?.trim(),
-          values[6]?.trim(),
-        ].filter((opt): opt is string => !!opt);
-      const correct_option = parseInt(values[7] || "0", 10);
-      const difficulty_level = values[8] ? parseInt(values[8], 10) : null;
-
-      // Validate using shared function
-      const errors = validateQuestion({
-        question_text,
-        options,
-        correct_option,
-        difficulty_level,
-      });
-
-      questions.push({
-        rowNumber,
-        question_text,
-        options,
-        correct_option,
-        difficulty_level,
-        isValid: errors.length === 0,
-        errors,
-      });
-    }
-
-    return questions;
-  };
-
   const parseExcel = async (file: File): Promise<ParsedQuestion[]> => {
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
-    // Use the first sheet
-    const sheetName = workbook.SheetNames[0];
+    // Use the first sheet (or "Questions" sheet if available)
+    let sheetName = workbook.SheetNames.find(name => name.toLowerCase() === "questions") || workbook.SheetNames[0];
     if (!sheetName) {
       throw new Error("Excel file has no sheets");
     }
@@ -274,14 +186,14 @@ export function QuestionImportDialog({
 
       // Extract values
       const question_text = String(row[0] || "").trim();
-        const options = [
-          String(row[1] || "").trim(),
-          String(row[2] || "").trim(),
-          String(row[3] || "").trim(),
-          String(row[4] || "").trim(),
-          String(row[5] || "").trim(),
-          String(row[6] || "").trim(),
-        ].filter(Boolean);
+      const options = [
+        String(row[1] || "").trim(),
+        String(row[2] || "").trim(),
+        String(row[3] || "").trim(),
+        String(row[4] || "").trim(),
+        String(row[5] || "").trim(),
+        String(row[6] || "").trim(),
+      ].filter(Boolean);
       const correct_option = parseInt(String(row[7] || "0"), 10);
       const difficulty_level = row[8] ? parseInt(String(row[8]), 10) : null;
 
@@ -315,7 +227,7 @@ export function QuestionImportDialog({
 
     // Validate file extension
     if (!isValidFileExtension(filename)) {
-      setParseError("Please upload a CSV or Excel (.xlsx, .xls) file");
+      setParseError("Please upload an Excel file (.xlsx or .xls)");
       return;
     }
 
@@ -329,16 +241,7 @@ export function QuestionImportDialog({
     setImportResults(null);
 
     try {
-      let questions: ParsedQuestion[];
-
-      if (filename.endsWith(".csv")) {
-        const content = await selectedFile.text();
-        questions = parseCSV(content);
-      } else {
-        // Excel file (.xlsx or .xls)
-        questions = await parseExcel(selectedFile);
-      }
-
+      const questions = await parseExcel(selectedFile);
       setParsedQuestions(questions);
     } catch (error) {
       setParseError(error instanceof Error ? error.message : "Failed to parse file");
@@ -405,16 +308,6 @@ export function QuestionImportDialog({
     setIsImporting(false);
   };
 
-  const downloadCSVTemplate = () => {
-    const blob = new Blob([CSV_TEMPLATE], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "question_import_template.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   const downloadExcelTemplate = () => {
     // Create Questions sheet
     const questionsSheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
@@ -458,7 +351,7 @@ export function QuestionImportDialog({
             Import Questions
           </DialogTitle>
           <DialogDescription>
-            Upload a CSV or Excel file to bulk import questions into{" "}
+            Upload an Excel file to bulk import questions into{" "}
             <strong>{specialityName}</strong>
           </DialogDescription>
         </DialogHeader>
@@ -472,16 +365,10 @@ export function QuestionImportDialog({
                 question_text, option_1-6, correct_option (1-6), difficulty_level (1-5)
               </p>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={downloadCSVTemplate}>
-                <Download className="h-4 w-4 mr-1" />
-                CSV
-              </Button>
-              <Button variant="outline" size="sm" onClick={downloadExcelTemplate}>
-                <Download className="h-4 w-4 mr-1" />
-                Excel
-              </Button>
-            </div>
+            <Button variant="outline" size="sm" onClick={downloadExcelTemplate}>
+              <Download className="h-4 w-4 mr-1" />
+              Download Template
+            </Button>
           </div>
 
           {/* File Upload */}
@@ -494,15 +381,15 @@ export function QuestionImportDialog({
             >
               <Upload className="h-10 w-10 mx-auto text-muted-foreground mb-4" />
               <p className="text-sm font-medium">
-                Drop your CSV or Excel file here or click to browse
+                Drop your Excel file here or click to browse
               </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Supports .csv, .xlsx, .xls (max 5MB)
+                Supports .xlsx, .xls (max 5MB)
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.xlsx,.xls"
+                accept=".xlsx,.xls"
                 className="hidden"
                 onChange={handleFileChange}
               />
