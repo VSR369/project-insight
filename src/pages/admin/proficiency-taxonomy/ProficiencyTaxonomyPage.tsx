@@ -191,15 +191,15 @@ export function ProficiencyTaxonomyPage() {
 
   // Reset child selections when parent changes
   React.useEffect(() => {
-    setSelectedIndustrySegmentId(undefined);
+    setSelectedExpertiseLevelId(undefined);
     setSelectedProficiencyAreaId(undefined);
     setSelectedSubDomainId(undefined);
-  }, [selectedExpertiseLevelId]);
+  }, [selectedIndustrySegmentId]);
 
   React.useEffect(() => {
     setSelectedProficiencyAreaId(undefined);
     setSelectedSubDomainId(undefined);
-  }, [selectedIndustrySegmentId]);
+  }, [selectedExpertiseLevelId]);
 
   React.useEffect(() => {
     setSelectedSubDomainId(undefined);
@@ -546,43 +546,43 @@ export function ProficiencyTaxonomyPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Expertise Level Filter */}
-          <div className="flex items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
+          {/* Hierarchy Filters: Industry Segment → Level */}
+          <div className="flex flex-wrap items-center gap-4 mb-6 p-4 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
-              <Label className="text-sm font-medium">Expertise Level:</Label>
+              <Label className="text-sm font-medium">1. Industry Segment:</Label>
               <Select
-                value={selectedExpertiseLevelId || ""}
-                onValueChange={(value) => setSelectedExpertiseLevelId(value || undefined)}
+                value={selectedIndustrySegmentId || ""}
+                onValueChange={(value) => setSelectedIndustrySegmentId(value || undefined)}
               >
-                <SelectTrigger className="w-[200px]">
-                  <SelectValue placeholder="Select level..." />
+                <SelectTrigger className="w-[200px] bg-background">
+                  <SelectValue placeholder="Select segment..." />
                 </SelectTrigger>
-                <SelectContent>
-                  {expertiseLevels.map((level) => (
-                    <SelectItem key={level.id} value={level.id}>
-                      {level.name}
+                <SelectContent className="bg-background z-50">
+                  {industrySegments.map((segment) => (
+                    <SelectItem key={segment.id} value={segment.id}>
+                      {segment.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
-            {selectedExpertiseLevelId && (
+            {selectedIndustrySegmentId && (
               <div className="flex items-center gap-2">
-                <Label className="text-sm font-medium">Industry Segment:</Label>
+                <Label className="text-sm font-medium">2. Expertise Level:</Label>
                 <Select
-                  value={selectedIndustrySegmentId || ""}
+                  value={selectedExpertiseLevelId || ""}
                   onValueChange={(value) => {
-                    setSelectedIndustrySegmentId(value || undefined);
+                    setSelectedExpertiseLevelId(value || undefined);
                     if (value) setActiveTab("proficiency-areas");
                   }}
                 >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="Select segment..." />
+                  <SelectTrigger className="w-[200px] bg-background">
+                    <SelectValue placeholder="Select level..." />
                   </SelectTrigger>
-                  <SelectContent>
-                    {industrySegments.map((segment) => (
-                      <SelectItem key={segment.id} value={segment.id}>
-                        {segment.name}
+                  <SelectContent className="bg-background z-50">
+                    {expertiseLevels.map((level) => (
+                      <SelectItem key={level.id} value={level.id}>
+                        {level.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -593,14 +593,6 @@ export function ProficiencyTaxonomyPage() {
 
           {/* Breadcrumb Navigation */}
           <div className="flex items-center gap-2 mb-6 flex-wrap">
-            {selectedLevel && (
-              <>
-                <Badge variant="secondary">
-                  {selectedLevel.name}
-                </Badge>
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              </>
-            )}
             <Badge
               variant={!selectedIndustrySegmentId ? "default" : "outline"}
               className="cursor-pointer"
@@ -612,19 +604,11 @@ export function ProficiencyTaxonomyPage() {
               <Building2 className="h-3 w-3 mr-1" />
               {selectedSegment ? selectedSegment.name : "Industry Segments"}
             </Badge>
-            {selectedSegment && (
+            {selectedLevel && (
               <>
                 <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                <Badge
-                  variant={!selectedProficiencyAreaId ? "default" : "outline"}
-                  className="cursor-pointer"
-                  onClick={() => {
-                    setSelectedProficiencyAreaId(undefined);
-                    setActiveTab("proficiency-areas");
-                  }}
-                >
-                  <Target className="h-3 w-3 mr-1" />
-                  Proficiency Areas
+                <Badge variant="secondary">
+                  {selectedLevel.name}
                 </Badge>
               </>
             )}
