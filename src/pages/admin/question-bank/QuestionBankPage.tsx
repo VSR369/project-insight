@@ -1200,6 +1200,105 @@ export function QuestionBankPage() {
                   )}
                 </div>
 
+                {/* Question Type Pie Chart */}
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Question Type</h4>
+                  {questions.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
+                            { name: "Scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
+                            { name: "Experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
+                            { name: "Decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
+                            { name: "Proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
+                          ].filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={60}
+                          paddingAngle={2}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: "Conceptual", value: questions.filter(q => q.question_type === "conceptual").length, color: "#3b82f6" },
+                            { name: "Scenario", value: questions.filter(q => q.question_type === "scenario").length, color: "#a855f7" },
+                            { name: "Experience", value: questions.filter(q => q.question_type === "experience").length, color: "#6366f1" },
+                            { name: "Decision", value: questions.filter(q => q.question_type === "decision").length, color: "#f59e0b" },
+                            { name: "Proof", value: questions.filter(q => q.question_type === "proof").length, color: "#06b6d4" },
+                          ].filter(d => d.value > 0).map((entry, index) => (
+                            <Cell key={`type-cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => [`${value} questions`, ""]}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "6px"
+                          }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
+                      No data
+                    </div>
+                  )}
+                </div>
+
+                {/* Usage Mode Pie Chart */}
+                <div className="p-4 bg-muted/30 rounded-lg border">
+                  <h4 className="text-sm font-medium text-muted-foreground mb-2">Usage Mode</h4>
+                  {questions.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={160}>
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: "Self-Assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
+                            { name: "Interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
+                            { name: "Both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
+                          ].filter(d => d.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={35}
+                          outerRadius={60}
+                          paddingAngle={3}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: "Self-Assessment", value: questions.filter(q => q.usage_mode === "self_assessment").length, color: "#14b8a6" },
+                            { name: "Interview", value: questions.filter(q => q.usage_mode === "interview").length, color: "#f43f5e" },
+                            { name: "Both", value: questions.filter(q => q.usage_mode === "both").length, color: "#8b5cf6" },
+                          ].filter(d => d.value > 0).map((entry, index) => (
+                            <Cell key={`usage-cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          formatter={(value: number) => [`${value} questions`, ""]}
+                          contentStyle={{ 
+                            backgroundColor: "hsl(var(--background))", 
+                            border: "1px solid hsl(var(--border))",
+                            borderRadius: "6px"
+                          }}
+                        />
+                        <Legend 
+                          layout="horizontal" 
+                          align="center" 
+                          verticalAlign="bottom"
+                          iconSize={8}
+                          wrapperStyle={{ fontSize: "11px" }}
+                        />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="h-[160px] flex items-center justify-center text-muted-foreground text-sm">
+                      No data
+                    </div>
+                  )}
+                </div>
+
                 {/* Right: Difficulty Breakdown */}
                 <div className="space-y-2">
                   <h4 className="text-sm font-medium text-muted-foreground">By Difficulty</h4>
