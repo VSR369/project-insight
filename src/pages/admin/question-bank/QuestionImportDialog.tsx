@@ -54,9 +54,9 @@ interface RawQuestionData {
   usage_mode: string;
 }
 
-const VALID_DIFFICULTIES = DIFFICULTY_OPTIONS.map(d => d.value);
-const VALID_QUESTION_TYPES = QUESTION_TYPE_OPTIONS.map(t => t.value);
-const VALID_USAGE_MODES = USAGE_MODE_OPTIONS.map(m => m.value);
+const VALID_DIFFICULTIES: readonly string[] = DIFFICULTY_OPTIONS.map(d => d.value);
+const VALID_QUESTION_TYPES: readonly string[] = QUESTION_TYPE_OPTIONS.map(t => t.value);
+const VALID_USAGE_MODES: readonly string[] = USAGE_MODE_OPTIONS.map(m => m.value);
 
 const EXCEL_TEMPLATE_DATA = [
   ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode"],
