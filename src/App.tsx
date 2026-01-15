@@ -128,6 +128,14 @@ const App = () => (
               }
             />
 
+            {/* Redirects from old profile/build routes to new enroll routes */}
+            <Route path="/profile/build/registration" element={<Navigate to="/enroll/registration" replace />} />
+            <Route path="/profile/build/choose-mode" element={<Navigate to="/enroll/participation-mode" replace />} />
+            <Route path="/profile/build/organization" element={<Navigate to="/enroll/organization" replace />} />
+            <Route path="/profile/build/expertise" element={<Navigate to="/enroll/expertise" replace />} />
+            <Route path="/profile/build/proficiency" element={<Navigate to="/enroll/expertise" replace />} />
+            <Route path="/profile/build/proof-points" element={<Navigate to="/enroll/proof-points" replace />} />
+
             {/* Other Protected Pages */}
             <Route
               path="/profile"
