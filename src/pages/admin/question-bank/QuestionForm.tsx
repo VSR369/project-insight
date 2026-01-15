@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { DIFFICULTY_OPTIONS, QUESTION_TYPE_OPTIONS, USAGE_MODE_OPTIONS } from "@/hooks/queries/useQuestionBank";
 
 const optionSchema = z.object({
   text: z.string().min(1, "Option text is required").max(500, "Option must be 500 characters or less"),
@@ -43,7 +44,10 @@ const questionSchema = z.object({
   question_text: z.string().min(10, "Question must be at least 10 characters").max(2000, "Question must be 2000 characters or less"),
   options: z.array(optionSchema).min(2, "At least 2 options required").max(6, "Maximum 6 options allowed"),
   correct_option: z.coerce.number().int().min(1, "Select the correct answer"),
-  difficulty_level: z.coerce.number().int().min(1).max(5).optional().nullable(),
+  difficulty: z.enum(["introductory", "applied", "advanced", "strategic"]).optional().nullable(),
+  question_type: z.enum(["conceptual", "scenario", "experience", "decision", "proof"]).default("conceptual"),
+  usage_mode: z.enum(["self_assessment", "interview", "both"]).default("both"),
+  expected_answer_guidance: z.string().max(2000).optional().nullable(),
   is_active: z.boolean().default(true),
 }).refine((data) => data.correct_option <= data.options.length, {
   message: "Correct option must be within the available options",
@@ -75,7 +79,10 @@ export function QuestionForm({
       question_text: "",
       options: [{ text: "" }, { text: "" }, { text: "" }, { text: "" }],
       correct_option: 1,
-      difficulty_level: 3,
+      difficulty: "applied",
+      question_type: "conceptual",
+      usage_mode: "both",
+      expected_answer_guidance: "",
       is_active: true,
       ...defaultValues,
     },
@@ -92,7 +99,10 @@ export function QuestionForm({
         question_text: "",
         options: [{ text: "" }, { text: "" }, { text: "" }, { text: "" }],
         correct_option: 1,
-        difficulty_level: 3,
+        difficulty: "applied",
+        question_type: "conceptual",
+        usage_mode: "both",
+        expected_answer_guidance: "",
         is_active: true,
         ...defaultValues,
       });
@@ -109,6 +119,8 @@ export function QuestionForm({
   };
 
   const correctOption = form.watch("correct_option");
+  const usageMode = form.watch("usage_mode");
+  const showAnswerGuidance = usageMode === "interview" || usageMode === "both";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -239,17 +251,76 @@ export function QuestionForm({
               />
             </div>
 
+            {/* Question Type & Usage Mode */}
+            <div className="grid grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="question_type"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Question Type</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "conceptual"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select type" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {QUESTION_TYPE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="usage_mode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Usage Mode</FormLabel>
+                    <Select
+                      onValueChange={field.onChange}
+                      value={field.value || "both"}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select mode" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {USAGE_MODE_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+
             {/* Difficulty & Active */}
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="difficulty_level"
+                name="difficulty"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Difficulty Level</FormLabel>
                     <Select
                       onValueChange={field.onChange}
-                      value={field.value?.toString() || ""}
+                      value={field.value || ""}
                     >
                       <FormControl>
                         <SelectTrigger>
@@ -257,11 +328,11 @@ export function QuestionForm({
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        <SelectItem value="1">1 - Very Easy</SelectItem>
-                        <SelectItem value="2">2 - Easy</SelectItem>
-                        <SelectItem value="3">3 - Medium</SelectItem>
-                        <SelectItem value="4">4 - Hard</SelectItem>
-                        <SelectItem value="5">5 - Very Hard</SelectItem>
+                        {DIFFICULTY_OPTIONS.map(opt => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <FormMessage />
@@ -290,6 +361,31 @@ export function QuestionForm({
                 )}
               />
             </div>
+
+            {/* Expected Answer Guidance (for interview mode) */}
+            {showAnswerGuidance && (
+              <FormField
+                control={form.control}
+                name="expected_answer_guidance"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Expected Answer Guidance</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="Describe what a good answer looks like for the interviewer..."
+                        className="min-h-[80px]"
+                        {...field}
+                        value={field.value || ""}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      For interviewers: describe key points a good answer should cover
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button

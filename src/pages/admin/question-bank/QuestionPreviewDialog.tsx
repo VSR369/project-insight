@@ -11,7 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Question, parseQuestionOptions } from "@/hooks/queries/useQuestionBank";
+import { Question, parseQuestionOptions, DIFFICULTY_OPTIONS } from "@/hooks/queries/useQuestionBank";
 
 interface QuestionPreviewDialogProps {
   open: boolean;
@@ -22,15 +22,12 @@ interface QuestionPreviewDialogProps {
   onDuplicate?: (question: Question) => void;
 }
 
-const difficultyLabels = ["", "Very Easy", "Easy", "Medium", "Hard", "Very Hard"];
-const difficultyColors = [
-  "",
-  "bg-emerald-100 text-emerald-800 border-emerald-200",
-  "bg-green-100 text-green-800 border-green-200",
-  "bg-yellow-100 text-yellow-800 border-yellow-200",
-  "bg-orange-100 text-orange-800 border-orange-200",
-  "bg-red-100 text-red-800 border-red-200",
-];
+const difficultyColors: Record<string, string> = {
+  introductory: "bg-emerald-100 text-emerald-800 border-emerald-200",
+  applied: "bg-green-100 text-green-800 border-green-200",
+  advanced: "bg-yellow-100 text-yellow-800 border-yellow-200",
+  strategic: "bg-red-100 text-red-800 border-red-200",
+};
 
 export function QuestionPreviewDialog({
   open,
@@ -43,7 +40,8 @@ export function QuestionPreviewDialog({
   if (!question) return null;
 
   const options = parseQuestionOptions(question.options);
-  const difficultyLevel = question.difficulty_level;
+  const difficulty = question.difficulty;
+  const difficultyLabel = difficulty ? DIFFICULTY_OPTIONS.find(d => d.value === difficulty)?.label : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -75,12 +73,12 @@ export function QuestionPreviewDialog({
                 <><XCircle className="h-3 w-3 mr-1" /> Inactive</>
               )}
             </Badge>
-            {difficultyLevel && (
-              <Badge variant="outline" className={difficultyColors[difficultyLevel]}>
-                {difficultyLabels[difficultyLevel]}
+            {difficulty && difficultyLabel && (
+              <Badge variant="outline" className={difficultyColors[difficulty] || ""}>
+                {difficultyLabel}
               </Badge>
             )}
-            {!difficultyLevel && (
+            {!difficulty && (
               <Badge variant="outline" className="bg-muted text-muted-foreground">
                 Difficulty not set
               </Badge>
