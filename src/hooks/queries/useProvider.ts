@@ -34,6 +34,7 @@ export function useUpdateProviderBasicProfile() {
         pinCode: string;
         countryId: string;
         industrySegmentId: string;
+        isStudent: boolean;
       };
     }) => updateProviderBasicProfile(providerId, data),
     onSuccess: () => {

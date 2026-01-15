@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
@@ -25,6 +25,16 @@ export default function EnrollExpertise() {
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
   const [expandedSubDomains, setExpandedSubDomains] = useState<string[]>([]);
+
+  // Filter out Level 0 for experienced professionals (non-students)
+  const filteredLevels = useMemo(() => {
+    if (!levels) return [];
+    // If user is NOT a student, filter out Level 0
+    if (!provider?.is_student) {
+      return levels.filter(level => level.level_number !== 0);
+    }
+    return levels;
+  }, [levels, provider?.is_student]);
 
   // Fetch taxonomy when level is selected
   const { data: taxonomy, isLoading: taxonomyLoading } = useProficiencyTaxonomy(
@@ -136,7 +146,7 @@ export default function EnrollExpertise() {
 
         {/* Level Selection - Horizontal Cards */}
         <RadioGroup value={selectedLevel} onValueChange={setSelectedLevel} className="space-y-4">
-          {levels?.map((level) => {
+          {filteredLevels.map((level) => {
             const isSelected = selectedLevel === level.id;
             const yearsText = level.max_years 
               ? `${level.min_years}-${level.max_years} years`

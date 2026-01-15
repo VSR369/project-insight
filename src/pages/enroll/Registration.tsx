@@ -139,6 +139,7 @@ export default function EnrollRegistration() {
           pinCode: data.pinCode,
           countryId: data.countryId,
           industrySegmentId: data.industrySegmentId,
+          isStudent: activeTab === 'student',
         },
       });
       
