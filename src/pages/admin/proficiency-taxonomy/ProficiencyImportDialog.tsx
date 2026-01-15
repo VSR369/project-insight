@@ -249,7 +249,7 @@ export function ProficiencyImportDialog({
                       <TableRow key={row.rowNumber}>
                         <TableCell className="font-mono">{row.rowNumber}</TableCell>
                         <TableCell className="text-xs">
-                          {[row.industrySegment, row.proficiencyArea, row.subDomain, row.speciality]
+                          {[row.industrySegment, row.expertiseLevel, row.proficiencyArea, row.subDomain, row.speciality]
                             .filter(Boolean)
                             .join(" → ") || "(empty)"}
                         </TableCell>
@@ -280,28 +280,30 @@ export function ProficiencyImportDialog({
                       <TableRow>
                         <TableHead className="w-16">Row</TableHead>
                         <TableHead>Industry Segment</TableHead>
+                        <TableHead>Expertise Level</TableHead>
                         <TableHead>Proficiency Area</TableHead>
                         <TableHead>Sub-Domain</TableHead>
                         <TableHead>Speciality</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {validationResult.validRows.slice(0, 50).map((row) => (
-                        <TableRow key={row.rowNumber}>
-                          <TableCell className="font-mono">{row.rowNumber}</TableCell>
-                          <TableCell className="text-xs">{row.industrySegment}</TableCell>
-                          <TableCell className="text-xs">{row.proficiencyArea}</TableCell>
-                          <TableCell className="text-xs">{row.subDomain}</TableCell>
-                          <TableCell className="text-xs">{row.speciality}</TableCell>
-                        </TableRow>
-                      ))}
-                      {validationResult.validRows.length > 50 && (
-                        <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground text-xs">
-                            ... and {validationResult.validRows.length - 50} more rows
-                          </TableCell>
-                        </TableRow>
-                      )}
+                        {validationResult.validRows.slice(0, 50).map((row) => (
+                          <TableRow key={row.rowNumber}>
+                            <TableCell className="font-mono">{row.rowNumber}</TableCell>
+                            <TableCell className="text-xs">{row.industrySegment}</TableCell>
+                            <TableCell className="text-xs">{row.expertiseLevel}</TableCell>
+                            <TableCell className="text-xs">{row.proficiencyArea}</TableCell>
+                            <TableCell className="text-xs">{row.subDomain}</TableCell>
+                            <TableCell className="text-xs">{row.speciality}</TableCell>
+                          </TableRow>
+                        ))}
+                        {validationResult.validRows.length > 50 && (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center text-muted-foreground text-xs">
+                              ... and {validationResult.validRows.length - 50} more rows
+                            </TableCell>
+                          </TableRow>
+                        )}
                     </TableBody>
                   </Table>
                 </ScrollArea>
