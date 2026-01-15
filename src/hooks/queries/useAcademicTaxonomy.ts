@@ -119,10 +119,32 @@ export function useRestoreAcademicDiscipline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_disciplines"] });
+      queryClient.refetchQueries({ queryKey: ["academic_disciplines"] });
       toast.success("Discipline restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore discipline: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteAcademicDiscipline() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("academic_disciplines")
+        .delete()
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic_disciplines"] });
+      toast.success("Discipline permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete discipline: ${error.message}`);
     },
   });
 }
@@ -235,10 +257,32 @@ export function useRestoreAcademicStream() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_streams"] });
+      queryClient.refetchQueries({ queryKey: ["academic_streams"] });
       toast.success("Stream restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore stream: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteAcademicStream() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("academic_streams")
+        .delete()
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic_streams"] });
+      toast.success("Stream permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete stream: ${error.message}`);
     },
   });
 }
@@ -351,10 +395,32 @@ export function useRestoreAcademicSubject() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_subjects"] });
+      queryClient.refetchQueries({ queryKey: ["academic_subjects"] });
       toast.success("Subject restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore subject: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteAcademicSubject() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("academic_subjects")
+        .delete()
+        .eq("id", id);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["academic_subjects"] });
+      toast.success("Subject permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete subject: ${error.message}`);
     },
   });
 }

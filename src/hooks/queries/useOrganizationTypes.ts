@@ -127,10 +127,35 @@ export function useRestoreOrganizationType() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization_types"] });
+      queryClient.refetchQueries({ queryKey: ["organization_types"] });
       toast.success("Organization type restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore organization type: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteOrganizationType() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("organization_types")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["organization_types"] });
+      toast.success("Organization type permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete organization type: ${error.message}`);
     },
   });
 }

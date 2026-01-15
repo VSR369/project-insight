@@ -129,10 +129,33 @@ export function useRestoreProficiencyArea() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proficiency_areas_admin"] });
+      queryClient.refetchQueries({ queryKey: ["proficiency_areas_admin"] });
       toast.success("Proficiency area restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore proficiency area: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteProficiencyArea() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("proficiency_areas")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["proficiency_areas_admin"] });
+      toast.success("Proficiency area permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete proficiency area: ${error.message}`);
     },
   });
 }
@@ -266,10 +289,33 @@ export function useRestoreSubDomain() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sub_domains_admin"] });
+      queryClient.refetchQueries({ queryKey: ["sub_domains_admin"] });
       toast.success("Sub-domain restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore sub-domain: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteSubDomain() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("sub_domains")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["sub_domains_admin"] });
+      toast.success("Sub-domain permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete sub-domain: ${error.message}`);
     },
   });
 }
@@ -403,10 +449,33 @@ export function useRestoreSpeciality() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specialities_admin"] });
+      queryClient.refetchQueries({ queryKey: ["specialities_admin"] });
       toast.success("Speciality restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore speciality: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteSpeciality() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("specialities")
+        .delete()
+        .eq("id", id);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["specialities_admin"] });
+      toast.success("Speciality permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete speciality: ${error.message}`);
     },
   });
 }

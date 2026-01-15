@@ -150,10 +150,35 @@ export function useRestoreCountry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["countries"] });
+      queryClient.refetchQueries({ queryKey: ["countries"] });
       toast.success("Country restored successfully");
     },
     onError: (error: Error) => {
       toast.error(`Failed to restore country: ${error.message}`);
+    },
+  });
+}
+
+export function useHardDeleteCountry() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from("countries")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        throw new Error(error.message);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["countries"] });
+      toast.success("Country permanently deleted");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete country: ${error.message}`);
     },
   });
 }
