@@ -2,6 +2,7 @@ import * as XLSX from "xlsx";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TaxonomyExportRow {
+  "Expertise Level": string;
   "Industry Segment": string;
   "Proficiency Area": string;
   "Sub-Domain": string;
@@ -19,6 +20,7 @@ export interface TaxonomyExportRow {
 export async function downloadProficiencyTemplate(): Promise<void> {
   const templateData: TaxonomyExportRow[] = [
     {
+      "Expertise Level": "Associate Consultant",
       "Industry Segment": "Manufacturing",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
@@ -30,6 +32,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
       "Active": "Yes",
     },
     {
+      "Expertise Level": "Associate Consultant",
       "Industry Segment": "Manufacturing",
       "Proficiency Area": "Data Analytics",
       "Sub-Domain": "Business Intelligence",
@@ -41,13 +44,14 @@ export async function downloadProficiencyTemplate(): Promise<void> {
       "Active": "Yes",
     },
     {
+      "Expertise Level": "Partner",
       "Industry Segment": "Manufacturing",
-      "Proficiency Area": "Data Analytics",
-      "Sub-Domain": "Data Engineering",
-      "Speciality": "ETL Pipeline Design",
-      "Area Description": "Analytics and insights capabilities",
-      "Sub-Domain Description": "Data infrastructure and pipelines",
-      "Speciality Description": "Designing and implementing ETL processes",
+      "Proficiency Area": "Executive Strategy",
+      "Sub-Domain": "M&A Advisory",
+      "Speciality": "Due Diligence",
+      "Area Description": "C-level strategic advisory",
+      "Sub-Domain Description": "Mergers and acquisitions support",
+      "Speciality Description": "Conducting strategic due diligence",
       "Display Order": 1,
       "Active": "Yes",
     },
@@ -57,6 +61,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
   
   // Set column widths
   worksheet["!cols"] = [
+    { wch: 22 }, // Expertise Level
     { wch: 20 }, // Industry Segment
     { wch: 25 }, // Proficiency Area
     { wch: 25 }, // Sub-Domain
@@ -87,9 +92,17 @@ export async function exportProficiencyData(): Promise<void> {
 
   if (segmentsError) throw new Error(`Failed to fetch industry segments: ${segmentsError.message}`);
 
+  const { data: expertiseLevels, error: levelsError } = await supabase
+    .from("expertise_levels")
+    .select("id, name")
+    .eq("is_active", true)
+    .order("level_number", { ascending: true });
+
+  if (levelsError) throw new Error(`Failed to fetch expertise levels: ${levelsError.message}`);
+
   const { data: proficiencyAreas, error: areasError } = await supabase
     .from("proficiency_areas")
-    .select("id, name, description, display_order, is_active, industry_segment_id")
+    .select("id, name, description, display_order, is_active, industry_segment_id, expertise_level_id")
     .order("display_order", { ascending: true, nullsFirst: false });
 
   if (areasError) throw new Error(`Failed to fetch proficiency areas: ${areasError.message}`);
@@ -110,7 +123,12 @@ export async function exportProficiencyData(): Promise<void> {
 
   // Build lookup maps
   const segmentMap = new Map(industrySegments?.map(s => [s.id, s.name]) || []);
-  const areaMap = new Map(proficiencyAreas?.map(a => [a.id, { ...a, segmentName: segmentMap.get(a.industry_segment_id) }]) || []);
+  const levelMap = new Map(expertiseLevels?.map(l => [l.id, l.name]) || []);
+  const areaMap = new Map(proficiencyAreas?.map(a => [a.id, { 
+    ...a, 
+    segmentName: segmentMap.get(a.industry_segment_id),
+    levelName: levelMap.get(a.expertise_level_id)
+  }]) || []);
   const subDomainMap = new Map(subDomains?.map(sd => [sd.id, { ...sd, area: areaMap.get(sd.proficiency_area_id) }]) || []);
 
   // Build flat export data
@@ -121,6 +139,7 @@ export async function exportProficiencyData(): Promise<void> {
     if (!subDomain || !subDomain.area) continue;
 
     exportData.push({
+      "Expertise Level": subDomain.area.levelName || "",
       "Industry Segment": subDomain.area.segmentName || "",
       "Proficiency Area": subDomain.area.name,
       "Sub-Domain": subDomain.name,
@@ -141,6 +160,7 @@ export async function exportProficiencyData(): Promise<void> {
   
   // Set column widths
   worksheet["!cols"] = [
+    { wch: 22 }, // Expertise Level
     { wch: 20 }, // Industry Segment
     { wch: 25 }, // Proficiency Area
     { wch: 25 }, // Sub-Domain
@@ -163,6 +183,7 @@ export async function exportProficiencyData(): Promise<void> {
  * Parse an imported Excel/CSV file and return validated rows
  */
 export interface ParsedTaxonomyRow {
+  expertiseLevel: string;
   industrySegment: string;
   proficiencyArea: string;
   subDomain: string;
@@ -205,8 +226,23 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           return;
         }
 
+        // Fetch existing expertise levels for validation
+        const { data: existingLevels, error: levelsError } = await supabase
+          .from("expertise_levels")
+          .select("id, name")
+          .eq("is_active", true);
+
+        if (levelsError) {
+          reject(new Error(`Failed to fetch expertise levels: ${levelsError.message}`));
+          return;
+        }
+
         const segmentNameMap = new Map(
           (existingSegments || []).map(s => [s.name.toLowerCase().trim(), s.id])
+        );
+
+        const levelNameMap = new Map(
+          (existingLevels || []).map(l => [l.name.toLowerCase().trim(), l.id])
         );
 
         const validRows: ParsedTaxonomyRow[] = [];
@@ -217,6 +253,7 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           const errors: string[] = [];
 
           // Normalize and extract values
+          const expertiseLevel = normalizeText(row["Expertise Level"]);
           const industrySegment = normalizeText(row["Industry Segment"]);
           const proficiencyArea = normalizeText(row["Proficiency Area"]);
           const subDomain = normalizeText(row["Sub-Domain"]);
@@ -228,6 +265,12 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           const isActive = parseActive(row["Active"]);
 
           // Validation
+          if (!expertiseLevel) {
+            errors.push("Expertise Level is required");
+          } else if (!levelNameMap.has(expertiseLevel.toLowerCase())) {
+            errors.push(`Expertise Level "${expertiseLevel}" does not exist`);
+          }
+
           if (!industrySegment) {
             errors.push("Industry Segment is required");
           } else if (!segmentNameMap.has(industrySegment.toLowerCase())) {
@@ -247,6 +290,7 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
           }
 
           const parsedRow: ParsedTaxonomyRow = {
+            expertiseLevel,
             industrySegment,
             proficiencyArea,
             subDomain,

@@ -21,9 +21,19 @@ export type SpecialityUpdate = TablesUpdate<"specialities">;
 
 // ===================== PROFICIENCY AREAS =====================
 
-export function useProficiencyAreasAdmin(industrySegmentId?: string, includeInactive = false) {
+/**
+ * Fetches proficiency areas with optional filtering
+ * @param industrySegmentId - Filter by industry segment
+ * @param expertiseLevelId - Filter by expertise level (optional for backward compatibility)
+ * @param includeInactive - Include inactive areas (default false)
+ */
+export function useProficiencyAreasAdmin(
+  industrySegmentId?: string, 
+  expertiseLevelId?: string,
+  includeInactive = false
+) {
   return useQuery({
-    queryKey: ["proficiency_areas_admin", industrySegmentId, { includeInactive }],
+    queryKey: ["proficiency_areas_admin", industrySegmentId, expertiseLevelId, { includeInactive }],
     queryFn: async () => {
       let query = supabase
         .from("proficiency_areas")
@@ -35,6 +45,10 @@ export function useProficiencyAreasAdmin(industrySegmentId?: string, includeInac
         query = query.eq("industry_segment_id", industrySegmentId);
       }
 
+      if (expertiseLevelId) {
+        query = query.eq("expertise_level_id", expertiseLevelId);
+      }
+
       if (!includeInactive) {
         query = query.eq("is_active", true);
       }
@@ -43,6 +57,7 @@ export function useProficiencyAreasAdmin(industrySegmentId?: string, includeInac
       if (error) throw new Error(error.message);
       return data as ProficiencyArea[];
     },
+    // Enable when segment is selected (or for includeInactive scenarios)
     enabled: !!industrySegmentId || includeInactive,
   });
 }
@@ -529,18 +544,31 @@ export function useBulkImportProficiencyTaxonomy() {
         (segments || []).map(s => [s.name.toLowerCase().trim(), s.id])
       );
 
+      // Fetch all expertise levels
+      const { data: levels, error: levelsError } = await supabase
+        .from("expertise_levels")
+        .select("id, name")
+        .eq("is_active", true);
+
+      if (levelsError) throw new Error(`Failed to fetch expertise levels: ${levelsError.message}`);
+
+      const levelMap = new Map(
+        (levels || []).map(l => [l.name.toLowerCase().trim(), l.id])
+      );
+
       // Cache for created/found entities to avoid duplicate queries
-      const areaCache = new Map<string, string>(); // "segmentId:areaName" -> areaId
+      // Key format: "segmentId:levelId:areaName" -> areaId
+      const areaCache = new Map<string, string>();
       const subDomainCache = new Map<string, string>(); // "areaId:subDomainName" -> subDomainId
       const specialityCache = new Map<string, string>(); // "subDomainId:specialityName" -> specialityId
 
       // Pre-fetch existing data
       const { data: existingAreas } = await supabase
         .from("proficiency_areas")
-        .select("id, name, industry_segment_id");
+        .select("id, name, industry_segment_id, expertise_level_id");
 
       for (const area of existingAreas || []) {
-        areaCache.set(`${area.industry_segment_id}:${area.name.toLowerCase().trim()}`, area.id);
+        areaCache.set(`${area.industry_segment_id}:${area.expertise_level_id}:${area.name.toLowerCase().trim()}`, area.id);
       }
 
       const { data: existingSubDomains } = await supabase
@@ -573,8 +601,15 @@ export function useBulkImportProficiencyTaxonomy() {
             continue;
           }
 
-          // Find or create proficiency area
-          const areaKey = `${segmentId}:${row.proficiencyArea.toLowerCase().trim()}`;
+          // Find expertise level
+          const levelId = levelMap.get(row.expertiseLevel.toLowerCase().trim());
+          if (!levelId) {
+            result.errors.push(`Row ${row.rowNumber}: Expertise level "${row.expertiseLevel}" not found`);
+            continue;
+          }
+
+          // Find or create proficiency area (now keyed by segment + level + name)
+          const areaKey = `${segmentId}:${levelId}:${row.proficiencyArea.toLowerCase().trim()}`;
           let areaId = areaCache.get(areaKey);
 
           if (!areaId) {
@@ -585,6 +620,7 @@ export function useBulkImportProficiencyTaxonomy() {
                 name: row.proficiencyArea,
                 description: row.areaDescription || null,
                 industry_segment_id: segmentId,
+                expertise_level_id: levelId,
                 is_active: true,
               })
               .select()

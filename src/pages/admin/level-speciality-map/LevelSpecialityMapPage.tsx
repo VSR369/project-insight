@@ -38,6 +38,7 @@ export function LevelSpecialityMapPage() {
   const { data: industrySegments = [] } = useIndustrySegments(false);
   const { data: proficiencyAreas = [] } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
+    undefined,
     false
   );
   const { data: subDomains = [] } = useSubDomainsAdmin(

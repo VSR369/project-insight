@@ -149,7 +149,7 @@ export function ProficiencyTaxonomyPage() {
 
   // Queries
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments(showInactive);
-  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, showInactive);
+  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, undefined, showInactive);
   const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(selectedProficiencyAreaId, showInactive);
   const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(selectedSubDomainId, showInactive);
 
@@ -274,12 +274,27 @@ export function ProficiencyTaxonomyPage() {
 
   const handleAreaSubmit = async (data: z.infer<typeof proficiencyAreaSchema>) => {
     if (areaFormMode === "create" && selectedIndustrySegmentId) {
+      // Get first available expertise level for backward compatibility
+      const { data: levels } = await supabase
+        .from("expertise_levels")
+        .select("id")
+        .eq("is_active", true)
+        .order("level_number", { ascending: true })
+        .limit(1);
+      
+      const expertiseLevelId = levels?.[0]?.id;
+      if (!expertiseLevelId) {
+        toast.error("No expertise level found. Please create expertise levels first.");
+        return;
+      }
+      
       await createAreaMutation.mutateAsync({
         name: data.name,
         description: data.description,
         display_order: data.display_order,
         is_active: data.is_active,
         industry_segment_id: selectedIndustrySegmentId,
+        expertise_level_id: expertiseLevelId,
       });
     } else if (areaFormMode === "edit" && editingArea) {
       await updateAreaMutation.mutateAsync({

@@ -1,23 +1,24 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export function useProficiencyAreas(industrySegmentId?: string) {
+export function useProficiencyAreas(industrySegmentId?: string, expertiseLevelId?: string) {
   return useQuery({
-    queryKey: ['proficiency_areas', industrySegmentId],
+    queryKey: ['proficiency_areas', industrySegmentId, expertiseLevelId],
     queryFn: async () => {
-      if (!industrySegmentId) return [];
+      if (!industrySegmentId || !expertiseLevelId) return [];
       
       const { data, error } = await supabase
         .from('proficiency_areas')
         .select('id, name, description')
         .eq('industry_segment_id', industrySegmentId)
+        .eq('expertise_level_id', expertiseLevelId)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       
       if (error) throw error;
       return data;
     },
-    enabled: !!industrySegmentId,
+    enabled: !!industrySegmentId && !!expertiseLevelId,
   });
 }
 
@@ -61,18 +62,19 @@ export function useSpecialities(subDomainId?: string) {
   });
 }
 
-// Fetch full taxonomy tree for an industry segment
-export function useProficiencyTaxonomy(industrySegmentId?: string) {
+// Fetch full taxonomy tree for an industry segment + expertise level combination
+export function useProficiencyTaxonomy(industrySegmentId?: string, expertiseLevelId?: string) {
   return useQuery({
-    queryKey: ['proficiency_taxonomy', industrySegmentId],
+    queryKey: ['proficiency_taxonomy', industrySegmentId, expertiseLevelId],
     queryFn: async () => {
-      if (!industrySegmentId) return [];
+      if (!industrySegmentId || !expertiseLevelId) return [];
       
       // Fetch proficiency areas with nested sub_domains and specialities
       const { data: areas, error: areasError } = await supabase
         .from('proficiency_areas')
         .select('id, name, description')
         .eq('industry_segment_id', industrySegmentId)
+        .eq('expertise_level_id', expertiseLevelId)
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       
@@ -112,7 +114,7 @@ export function useProficiencyTaxonomy(industrySegmentId?: string) {
           })),
       }));
     },
-    enabled: !!industrySegmentId,
+    enabled: !!industrySegmentId && !!expertiseLevelId,
     staleTime: 300000, // 5 minutes - taxonomy doesn't change often
   });
 }
