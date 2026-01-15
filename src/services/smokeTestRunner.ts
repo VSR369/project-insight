@@ -628,15 +628,16 @@ async function proficiencyAreasCreate(): Promise<TestResult> {
     const { data: segments } = await supabase
       .from("industry_segments")
       .select("id")
-      .limit(1)
-      .single();
+      .eq("is_active", true)
+      .limit(1);
     
-    if (!segments?.id) throw new Error("No industry segment found to create area under");
+    if (!segments || segments.length === 0) throw new Error("No industry segment found to create area under");
+    const segmentId = segments[0].id;
     
     const testName = getTestName();
     const { data, error } = await supabase
       .from("proficiency_areas")
-      .insert({ name: testName, industry_segment_id: segments.id })
+      .insert({ name: testName, industry_segment_id: segmentId })
       .select()
       .single();
     if (error) throw error;
@@ -757,20 +758,21 @@ async function questionsCreate(): Promise<TestResult> {
   const start = Date.now();
   try {
     // Need a speciality first
-    const { data: specialities } = await supabase
+    const { data: specialitiesList } = await supabase
       .from("specialities")
       .select("id")
-      .limit(1)
-      .single();
+      .eq("is_active", true)
+      .limit(1);
     
-    if (!specialities?.id) throw new Error("No speciality found to create question under");
+    if (!specialitiesList || specialitiesList.length === 0) throw new Error("No speciality found to create question under");
+    const specialityId = specialitiesList[0].id;
     
     const testName = getTestName();
     const { data, error } = await supabase
       .from("question_bank")
       .insert({
         question_text: testName,
-        speciality_id: specialities.id,
+        speciality_id: specialityId,
         correct_option: 0,
         options: [
           { index: 0, text: "Option A" },
