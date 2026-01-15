@@ -1,10 +1,12 @@
 import * as React from "react";
 import { z } from "zod";
-import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles } from "lucide-react";
+import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles, Download, Upload, Eye } from "lucide-react";
+import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/admin";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DisplayOrderCell } from "@/components/admin/DisplayOrderCell";
@@ -13,6 +15,13 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 import {
   useIndustrySegments,
@@ -41,6 +50,9 @@ import {
   SubDomain,
   Speciality,
 } from "@/hooks/queries/useProficiencyTaxonomyAdmin";
+
+import { downloadProficiencyTemplate, exportProficiencyData } from "./ProficiencyExcelExport";
+import { ProficiencyImportDialog } from "./ProficiencyImportDialog";
 
 // ===================== SCHEMAS =====================
 
@@ -111,6 +123,17 @@ export function ProficiencyTaxonomyPage() {
   const [specialityFormOpen, setSpecialityFormOpen] = React.useState(false);
   const [specialityFormMode, setSpecialityFormMode] = React.useState<"create" | "edit">("create");
   const [editingSpeciality, setEditingSpeciality] = React.useState<Speciality | null>(null);
+
+  // View dialog states
+  const [viewAreaOpen, setViewAreaOpen] = React.useState(false);
+  const [viewingArea, setViewingArea] = React.useState<ProficiencyArea | null>(null);
+  const [viewSubDomainOpen, setViewSubDomainOpen] = React.useState(false);
+  const [viewingSubDomain, setViewingSubDomain] = React.useState<SubDomain | null>(null);
+  const [viewSpecialityOpen, setViewSpecialityOpen] = React.useState(false);
+  const [viewingSpeciality, setViewingSpeciality] = React.useState<Speciality | null>(null);
+
+  // Import dialog state
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
 
   // Delete states
   const [deleteAreaOpen, setDeleteAreaOpen] = React.useState(false);
@@ -210,6 +233,13 @@ export function ProficiencyTaxonomyPage() {
 
   const areaActions: DataTableAction<ProficiencyArea>[] = [
     {
+      label: "View",
+      onClick: (area) => {
+        setViewingArea(area);
+        setViewAreaOpen(true);
+      },
+    },
+    {
       label: "View Sub-domains",
       onClick: (area) => {
         setSelectedProficiencyAreaId(area.id);
@@ -285,6 +315,13 @@ export function ProficiencyTaxonomyPage() {
   ];
 
   const subDomainActions: DataTableAction<SubDomain>[] = [
+    {
+      label: "View",
+      onClick: (subDomain) => {
+        setViewingSubDomain(subDomain);
+        setViewSubDomainOpen(true);
+      },
+    },
     {
       label: "View Specialities",
       onClick: (subDomain) => {
@@ -362,6 +399,13 @@ export function ProficiencyTaxonomyPage() {
 
   const specialityActions: DataTableAction<Speciality>[] = [
     {
+      label: "View",
+      onClick: (speciality) => {
+        setViewingSpeciality(speciality);
+        setViewSpecialityOpen(true);
+      },
+    },
+    {
       label: "Edit",
       onClick: (speciality) => {
         setEditingSpeciality(speciality);
@@ -429,14 +473,46 @@ export function ProficiencyTaxonomyPage() {
               <Layers className="h-5 w-5 text-primary" />
               <CardTitle>Proficiency Taxonomy</CardTitle>
             </div>
-            <div className="flex items-center gap-4">
-              <Label className="text-sm text-muted-foreground">Show inactive</Label>
-              <input
-                type="checkbox"
-                checked={showInactive}
-                onChange={(e) => setShowInactive(e.target.checked)}
-                className="h-4 w-4"
-              />
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm">
+                    <Download className="h-4 w-4 mr-2" />
+                    Export
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="bg-background">
+                  <DropdownMenuItem onClick={() => {
+                    downloadProficiencyTemplate();
+                    toast.success("Template downloaded");
+                  }}>
+                    Download Template
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={async () => {
+                    try {
+                      await exportProficiencyData();
+                      toast.success("Data exported");
+                    } catch (error) {
+                      toast.error(error instanceof Error ? error.message : "Export failed");
+                    }
+                  }}>
+                    Export Current Data
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="sm" onClick={() => setImportDialogOpen(true)}>
+                <Upload className="h-4 w-4 mr-2" />
+                Import
+              </Button>
+              <div className="flex items-center gap-2 ml-2">
+                <Label className="text-sm text-muted-foreground">Show inactive</Label>
+                <input
+                  type="checkbox"
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                  className="h-4 w-4"
+                />
+              </div>
             </div>
           </div>
           <CardDescription>
@@ -739,6 +815,76 @@ export function ProficiencyTaxonomyPage() {
         }}
         isLoading={deleteSpecialityMutation.isPending}
         isSoftDelete
+      />
+
+      {/* View Dialogs */}
+      <MasterDataViewDialog
+        open={viewAreaOpen}
+        onOpenChange={setViewAreaOpen}
+        title="Proficiency Area Details"
+        fields={[
+          { label: "Name", value: viewingArea?.name },
+          { label: "Description", value: viewingArea?.description, type: "textarea" },
+          { label: "Industry Segment", value: selectedSegment?.name, type: "badge" },
+          { label: "Display Order", value: viewingArea?.display_order, type: "number" },
+          { label: "Status", value: viewingArea?.is_active, type: "boolean" },
+          { label: "Created At", value: viewingArea?.created_at, type: "date" },
+          { label: "Updated At", value: viewingArea?.updated_at, type: "date" },
+        ]}
+        onEdit={() => {
+          setViewAreaOpen(false);
+          setEditingArea(viewingArea);
+          setAreaFormMode("edit");
+          setAreaFormOpen(true);
+        }}
+      />
+
+      <MasterDataViewDialog
+        open={viewSubDomainOpen}
+        onOpenChange={setViewSubDomainOpen}
+        title="Sub-Domain Details"
+        fields={[
+          { label: "Name", value: viewingSubDomain?.name },
+          { label: "Description", value: viewingSubDomain?.description, type: "textarea" },
+          { label: "Proficiency Area", value: selectedArea?.name, type: "badge" },
+          { label: "Display Order", value: viewingSubDomain?.display_order, type: "number" },
+          { label: "Status", value: viewingSubDomain?.is_active, type: "boolean" },
+          { label: "Created At", value: viewingSubDomain?.created_at, type: "date" },
+          { label: "Updated At", value: viewingSubDomain?.updated_at, type: "date" },
+        ]}
+        onEdit={() => {
+          setViewSubDomainOpen(false);
+          setEditingSubDomain(viewingSubDomain);
+          setSubDomainFormMode("edit");
+          setSubDomainFormOpen(true);
+        }}
+      />
+
+      <MasterDataViewDialog
+        open={viewSpecialityOpen}
+        onOpenChange={setViewSpecialityOpen}
+        title="Speciality Details"
+        fields={[
+          { label: "Name", value: viewingSpeciality?.name },
+          { label: "Description", value: viewingSpeciality?.description, type: "textarea" },
+          { label: "Sub-Domain", value: selectedSubDomain?.name, type: "badge" },
+          { label: "Display Order", value: viewingSpeciality?.display_order, type: "number" },
+          { label: "Status", value: viewingSpeciality?.is_active, type: "boolean" },
+          { label: "Created At", value: viewingSpeciality?.created_at, type: "date" },
+          { label: "Updated At", value: viewingSpeciality?.updated_at, type: "date" },
+        ]}
+        onEdit={() => {
+          setViewSpecialityOpen(false);
+          setEditingSpeciality(viewingSpeciality);
+          setSpecialityFormMode("edit");
+          setSpecialityFormOpen(true);
+        }}
+      />
+
+      {/* Import Dialog */}
+      <ProficiencyImportDialog
+        open={importDialogOpen}
+        onOpenChange={setImportDialogOpen}
       />
     </AdminLayout>
   );
