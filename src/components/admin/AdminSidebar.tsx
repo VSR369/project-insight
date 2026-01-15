@@ -24,6 +24,7 @@ import {
   Settings,
   ArrowLeft,
   Shield,
+  Tags,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -42,6 +43,7 @@ const taxonomyItems = [
 
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
+  { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
   { title: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
