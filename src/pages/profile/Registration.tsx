@@ -143,6 +143,7 @@ export default function Registration() {
           pinCode: data.pinCode,
           countryId: data.countryId,
           industrySegmentId: data.industrySegmentId,
+          isStudent: activeTab === 'student',
         },
       });
       

@@ -154,6 +154,7 @@ export async function updateProviderBasicProfile(
     pinCode: string;
     countryId: string;
     industrySegmentId: string;
+    isStudent: boolean;
   }
 ): Promise<void> {
   const { data: { user } } = await supabase.auth.getUser();
@@ -168,6 +169,7 @@ export async function updateProviderBasicProfile(
       pin_code: data.pinCode,
       country_id: data.countryId,
       industry_segment_id: data.industrySegmentId,
+      is_student: data.isStudent,
       lifecycle_status: 'profile_building',
       onboarding_status: 'in_progress',
       updated_by: user.id,
