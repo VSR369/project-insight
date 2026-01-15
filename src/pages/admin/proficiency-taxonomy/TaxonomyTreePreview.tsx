@@ -165,7 +165,7 @@ export function TaxonomyTreePreview({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[85vh]">
+      <DialogContent className="max-w-4xl max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Taxonomy Tree Preview
@@ -197,7 +197,7 @@ export function TaxonomyTreePreview({
                 Collapse All
               </Button>
             </div>
-            <ScrollArea className="h-[60vh] pr-4">
+            <div className="flex-1 overflow-y-auto min-h-0 pr-4">
               <div className="space-y-1">
                 {treeData.map(area => (
                   <div key={area.id} className="border rounded-lg overflow-hidden">
@@ -261,7 +261,7 @@ export function TaxonomyTreePreview({
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </>
         )}
       </DialogContent>

@@ -83,8 +83,8 @@ export function MasterDataViewDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <Eye className="h-5 w-5" />
             {title}
@@ -94,7 +94,7 @@ export function MasterDataViewDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="max-h-[60vh]">
+        <div className="flex-1 overflow-y-auto min-h-0">
           <div className="space-y-4 pr-4">
             {regularFields.map((field, index) => (
               <div key={index} className="space-y-1.5">
@@ -128,9 +128,9 @@ export function MasterDataViewDialog({
               </>
             )}
           </div>
-        </ScrollArea>
+        </div>
 
-        <DialogFooter className="gap-2 sm:gap-0">
+        <DialogFooter className="flex-shrink-0 gap-2 sm:gap-0">
           {onEdit && (
             <Button variant="outline" onClick={onEdit}>
               <Pencil className="h-4 w-4 mr-2" />
