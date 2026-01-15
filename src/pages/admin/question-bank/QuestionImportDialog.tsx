@@ -50,14 +50,45 @@ interface RawQuestionData {
   difficulty_level: number | null;
 }
 
-const CSV_TEMPLATE = `question_text,option_1,option_2,option_3,option_4,correct_option,difficulty_level
-"What is the primary purpose of React hooks?","To add state to functional components","To create class components","To style components","To handle routing",1,3
-"Which hook is used for side effects in React?","useState","useEffect","useContext","useReducer",2,2`;
+const CSV_TEMPLATE = `question_text,option_1,option_2,option_3,option_4,option_5,option_6,correct_option,difficulty_level
+"What is the capital of France?","Berlin","Madrid","Paris","Rome","","",3,2
+"Which planet is known as the Red Planet?","Venus","Mars","Jupiter","Saturn","","",2,1
+"What is 15 + 27?","32","42","52","62","","",2,1
+"Which of the following is a primary color?","Green","Orange","Purple","Blue","","",4,3`;
 
 const EXCEL_TEMPLATE_DATA = [
-  ["question_text", "option_1", "option_2", "option_3", "option_4", "correct_option", "difficulty_level"],
-  ["What is the primary purpose of React hooks?", "To add state to functional components", "To create class components", "To style components", "To handle routing", 1, 3],
-  ["Which hook is used for side effects in React?", "useState", "useEffect", "useContext", "useReducer", 2, 2],
+  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level"],
+  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, 2],
+  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, 1],
+  ["What is 15 + 27?", "32", "42", "52", "62", "", "", 2, 1],
+  ["Which of the following is a primary color?", "Green", "Orange", "Purple", "Blue", "", "", 4, 3],
+];
+
+const INSTRUCTIONS_SHEET_DATA = [
+  ["Question Bank Import Template - Instructions"],
+  [""],
+  ["COLUMN DESCRIPTIONS:"],
+  ["Column", "Description", "Required", "Valid Values"],
+  ["question_text", "The full question text", "Yes", "10-2000 characters"],
+  ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
+  ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
+  ["difficulty_level", "Question difficulty rating", "No", "1=Very Easy, 2=Easy, 3=Medium, 4=Hard, 5=Very Hard"],
+  [""],
+  ["IMPORTANT NOTES:"],
+  ["1. You must provide at least 2 options and maximum 6 options"],
+  ["2. Leave unused option columns empty (do not delete them)"],
+  ["3. The correct_option number must match an option that exists"],
+  ["4. If difficulty_level is not specified, it will be left blank"],
+  ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
+  ["6. Do not modify the header row in the Questions sheet"],
+  [""],
+  ["DIFFICULTY LEVEL GUIDE:"],
+  ["Level", "Description"],
+  ["1", "Very Easy - Basic recall, simple facts"],
+  ["2", "Easy - Straightforward concepts"],
+  ["3", "Medium - Requires understanding and application"],
+  ["4", "Hard - Complex analysis or synthesis"],
+  ["5", "Very Hard - Expert-level critical thinking"],
 ];
 
 // Shared validation logic for both CSV and Excel
@@ -179,13 +210,15 @@ export function QuestionImportDialog({
       // Extract values
       const question_text = values[0]?.trim() || "";
       const options = [
-        values[1]?.trim(),
-        values[2]?.trim(),
-        values[3]?.trim(),
-        values[4]?.trim(),
-      ].filter((opt): opt is string => !!opt);
-      const correct_option = parseInt(values[5] || "0", 10);
-      const difficulty_level = values[6] ? parseInt(values[6], 10) : null;
+          values[1]?.trim(),
+          values[2]?.trim(),
+          values[3]?.trim(),
+          values[4]?.trim(),
+          values[5]?.trim(),
+          values[6]?.trim(),
+        ].filter((opt): opt is string => !!opt);
+      const correct_option = parseInt(values[7] || "0", 10);
+      const difficulty_level = values[8] ? parseInt(values[8], 10) : null;
 
       // Validate using shared function
       const errors = validateQuestion({
@@ -241,14 +274,16 @@ export function QuestionImportDialog({
 
       // Extract values
       const question_text = String(row[0] || "").trim();
-      const options = [
-        String(row[1] || "").trim(),
-        String(row[2] || "").trim(),
-        String(row[3] || "").trim(),
-        String(row[4] || "").trim(),
-      ].filter(Boolean);
-      const correct_option = parseInt(String(row[5] || "0"), 10);
-      const difficulty_level = row[6] ? parseInt(String(row[6]), 10) : null;
+        const options = [
+          String(row[1] || "").trim(),
+          String(row[2] || "").trim(),
+          String(row[3] || "").trim(),
+          String(row[4] || "").trim(),
+          String(row[5] || "").trim(),
+          String(row[6] || "").trim(),
+        ].filter(Boolean);
+      const correct_option = parseInt(String(row[7] || "0"), 10);
+      const difficulty_level = row[8] ? parseInt(String(row[8]), 10) : null;
 
       // Validate using shared function
       const errors = validateQuestion({
@@ -381,21 +416,32 @@ export function QuestionImportDialog({
   };
 
   const downloadExcelTemplate = () => {
-    const worksheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
-
-    // Set column widths for better UX
-    worksheet["!cols"] = [
+    // Create Questions sheet
+    const questionsSheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
+    questionsSheet["!cols"] = [
       { wch: 50 }, // question_text
-      { wch: 35 }, // option_1
-      { wch: 35 }, // option_2
-      { wch: 35 }, // option_3
-      { wch: 35 }, // option_4
+      { wch: 30 }, // option_1
+      { wch: 30 }, // option_2
+      { wch: 30 }, // option_3
+      { wch: 30 }, // option_4
+      { wch: 20 }, // option_5
+      { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
       { wch: 15 }, // difficulty_level
     ];
 
+    // Create Instructions sheet
+    const instructionsSheet = XLSX.utils.aoa_to_sheet(INSTRUCTIONS_SHEET_DATA);
+    instructionsSheet["!cols"] = [
+      { wch: 25 },
+      { wch: 50 },
+      { wch: 15 },
+      { wch: 45 },
+    ];
+
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Questions");
+    XLSX.utils.book_append_sheet(workbook, questionsSheet, "Questions");
+    XLSX.utils.book_append_sheet(workbook, instructionsSheet, "Instructions");
 
     XLSX.writeFile(workbook, "question_import_template.xlsx");
   };
@@ -421,9 +467,9 @@ export function QuestionImportDialog({
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="text-sm">
-              <p className="font-medium">Supported Formats: CSV, Excel (.xlsx, .xls)</p>
+              <p className="font-medium">Download template with instructions (supports up to 6 options)</p>
               <p className="text-muted-foreground">
-                question_text, option_1, option_2, option_3, option_4, correct_option, difficulty_level
+                question_text, option_1-6, correct_option (1-6), difficulty_level (1-5)
               </p>
             </div>
             <div className="flex gap-2">
