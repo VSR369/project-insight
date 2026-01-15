@@ -197,7 +197,7 @@ export function useQuestionsWithHierarchy(specialityId?: string) {
                 id,
                 name,
                 industry_segments!inner (id, name),
-                expertise_levels!inner (id, name)
+                expertise_levels!inner (id, name, level_number)
               )
             )
           ),
