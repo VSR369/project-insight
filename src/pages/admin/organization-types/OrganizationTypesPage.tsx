@@ -1,12 +1,13 @@
 import * as React from "react";
 import { z } from "zod";
-import { Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
+import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
 import { useOrganizationTypes, useCreateOrganizationType, useUpdateOrganizationType, useDeleteOrganizationType, useRestoreOrganizationType, useHardDeleteOrganizationType, OrganizationType, OrganizationTypeInsert } from "@/hooks/queries/useOrganizationTypes";
 
 const organizationTypeSchema = z.object({
@@ -29,6 +30,7 @@ const formFields: FormFieldConfig<OrganizationTypeFormData>[] = [
 
 export default function OrganizationTypesPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const [isViewOpen, setIsViewOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
   const [selectedType, setSelectedType] = React.useState<OrganizationType | null>(null);
 
@@ -48,6 +50,7 @@ export default function OrganizationTypesPage() {
   ];
 
   const actions: DataTableAction<OrganizationType>[] = [
+    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (type) => { setSelectedType(type); setIsViewOpen(true); } },
     { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (type) => { setSelectedType(type); setIsFormOpen(true); } },
     { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (type) => { restoreMutation.mutate(type.id); }, show: (type) => !type.is_active },
     { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (type) => { setSelectedType(type); setIsDeleteOpen(true); }, show: (type) => !type.is_active },
@@ -65,10 +68,23 @@ export default function OrganizationTypesPage() {
     ? { code: selectedType.code, name: selectedType.name, description: selectedType.description, display_order: selectedType.display_order, is_active: selectedType.is_active }
     : { code: "", name: "", description: "", display_order: 0, is_active: true };
 
+  const viewFields: ViewField[] = selectedType
+    ? [
+        { label: "Type Code", value: selectedType.code },
+        { label: "Type Name", value: selectedType.name },
+        { label: "Description", value: selectedType.description, type: "textarea" },
+        { label: "Display Order", value: selectedType.display_order, type: "number" },
+        { label: "Status", value: selectedType.is_active, type: "boolean" },
+        { label: "Created At", value: selectedType.created_at, type: "date" },
+        { label: "Updated At", value: selectedType.updated_at, type: "date" },
+      ]
+    : [];
+
   return (
     <AdminLayout title="Organization Types" description="Manage organization categories for solution providers" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Organization Types" }]}>
       <DataTable data={types} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search organization types..." isLoading={isLoading} onAdd={() => { setSelectedType(null); setIsFormOpen(true); }} addButtonLabel="Add Organization Type" emptyMessage="No organization types found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Organization Type" description="Organization types categorize the entities that providers represent." fields={formFields} schema={organizationTypeSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedType ? "edit" : "create"} />
+      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Organization Type Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedType?.is_active ? "Deactivate Organization Type" : "Delete Organization Type"} itemName={selectedType?.name} onConfirm={selectedType?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedType?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedType?.is_active ?? true} showHardDelete={false} />
     </AdminLayout>
   );

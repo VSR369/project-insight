@@ -8,3 +8,5 @@ export type { FormFieldConfig, FieldType, SelectOption } from './MasterDataForm'
 export { DeleteConfirmDialog } from './DeleteConfirmDialog';
 export { StatusBadge } from './StatusBadge';
 export { DisplayOrderCell } from './DisplayOrderCell';
+export { MasterDataViewDialog } from './MasterDataViewDialog';
+export type { ViewField } from './MasterDataViewDialog';
