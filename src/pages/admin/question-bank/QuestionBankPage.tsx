@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
@@ -409,6 +409,68 @@ export function QuestionBankPage() {
 
     const safeName = (selectedSpeciality?.name || "questions").replace(/[^a-z0-9]/gi, "_");
     XLSX.writeFile(wb, `questions_${safeName}_${new Date().toISOString().split("T")[0]}.xlsx`);
+  };
+
+  // ===================== DOWNLOAD TEMPLATE =====================
+  const handleDownloadTemplate = () => {
+    const templateData = [
+      ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty_level"],
+      ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, 2],
+      ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, 1],
+      ["What is 15 + 27?", "32", "42", "52", "62", "", "", 2, 1],
+      ["Which of the following is a primary color?", "Green", "Orange", "Purple", "Blue", "", "", 4, 3],
+    ];
+
+    const instructionsData = [
+      ["Question Bank Import Template - Instructions"],
+      [""],
+      ["COLUMN DESCRIPTIONS:"],
+      ["Column", "Description", "Required", "Valid Values"],
+      ["question_text", "The full question text", "Yes", "10-2000 characters"],
+      ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
+      ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
+      ["difficulty_level", "Question difficulty rating", "No", "1=Very Easy, 2=Easy, 3=Medium, 4=Hard, 5=Very Hard"],
+      [""],
+      ["IMPORTANT NOTES:"],
+      ["1. You must provide at least 2 options and maximum 6 options"],
+      ["2. Leave unused option columns empty (do not delete them)"],
+      ["3. The correct_option number must match an option that exists"],
+      ["4. If difficulty_level is not specified, it will be left blank"],
+      ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
+      ["6. Do not modify the header row in the Questions sheet"],
+      [""],
+      ["DIFFICULTY LEVEL GUIDE:"],
+      ["Level", "Description"],
+      ["1", "Very Easy - Basic recall, simple facts"],
+      ["2", "Easy - Straightforward concepts"],
+      ["3", "Medium - Requires understanding and application"],
+      ["4", "Hard - Complex analysis or synthesis"],
+      ["5", "Very Hard - Expert-level critical thinking"],
+    ];
+
+    const wb = XLSX.utils.book_new();
+
+    // Questions sheet
+    const questionsWs = XLSX.utils.aoa_to_sheet(templateData);
+    questionsWs["!cols"] = [
+      { wch: 50 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 25 },
+      { wch: 20 },
+      { wch: 20 },
+      { wch: 15 },
+      { wch: 15 },
+    ];
+    XLSX.utils.book_append_sheet(wb, questionsWs, "Questions");
+
+    // Instructions sheet
+    const instructionsWs = XLSX.utils.aoa_to_sheet(instructionsData);
+    instructionsWs["!cols"] = [{ wch: 30 }, { wch: 50 }, { wch: 15 }, { wch: 50 }];
+    XLSX.utils.book_append_sheet(wb, instructionsWs, "Instructions");
+
+    XLSX.writeFile(wb, "question_bank_import_template.xlsx");
   };
 
   // ===================== EXPORT PDF =====================
@@ -1220,6 +1282,13 @@ export function QuestionBankPage() {
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Import Excel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleDownloadTemplate}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" />
+                    Download Template
                   </Button>
                 </div>
               </div>
