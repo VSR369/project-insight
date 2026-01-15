@@ -27,6 +27,7 @@ import {
   useUpdateQuestion,
   useDeleteQuestion,
   useRestoreQuestion,
+  useHardDeleteQuestion,
   parseQuestionOptions,
   formatQuestionOptions,
   Question,
@@ -58,6 +59,10 @@ export function QuestionBankPage() {
   // Delete state
   const [deleteOpen, setDeleteOpen] = React.useState(false);
   const [deletingQuestion, setDeletingQuestion] = React.useState<Question | null>(null);
+
+  // Hard delete state
+  const [hardDeleteOpen, setHardDeleteOpen] = React.useState(false);
+  const [hardDeletingQuestion, setHardDeletingQuestion] = React.useState<Question | null>(null);
 
   // Bulk delete state
   const [bulkDeleteOpen, setBulkDeleteOpen] = React.useState(false);
@@ -145,6 +150,7 @@ export function QuestionBankPage() {
   const updateMutation = useUpdateQuestion();
   const deleteMutation = useDeleteQuestion();
   const restoreMutation = useRestoreQuestion();
+  const hardDeleteMutation = useHardDeleteQuestion();
 
   // Reset child selections when parent changes
   React.useEffect(() => {
@@ -257,6 +263,16 @@ export function QuestionBankPage() {
         setDeleteOpen(true);
       },
       show: (question) => question.is_active,
+      variant: "destructive",
+    },
+    {
+      label: "Permanently Delete",
+      onClick: (question) => {
+        setHardDeletingQuestion(question);
+        setHardDeleteOpen(true);
+      },
+      show: (question) => !question.is_active,
+      icon: <Trash2 className="h-4 w-4" />,
       variant: "destructive",
     },
   ];
@@ -1172,6 +1188,21 @@ export function QuestionBankPage() {
         }}
         isLoading={deleteMutation.isPending}
         isSoftDelete
+      />
+
+      {/* Hard Delete Dialog */}
+      <DeleteConfirmDialog
+        open={hardDeleteOpen}
+        onOpenChange={setHardDeleteOpen}
+        title="Permanently Delete Question"
+        itemName="this question"
+        onConfirm={async () => {
+          if (hardDeletingQuestion) {
+            await hardDeleteMutation.mutateAsync(hardDeletingQuestion.id);
+          }
+        }}
+        isLoading={hardDeleteMutation.isPending}
+        isSoftDelete={false}
       />
 
       {/* Bulk Delete Dialog */}
