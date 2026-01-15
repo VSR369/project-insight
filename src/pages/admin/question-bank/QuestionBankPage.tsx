@@ -46,6 +46,7 @@ import { QuestionImportDialog } from "./QuestionImportDialog";
 import { QuestionDuplicateDialog } from "./QuestionDuplicateDialog";
 import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
 import { QuestionBulkPreviewDialog } from "./QuestionBulkPreviewDialog";
+import { QuestionTreePreviewDialog } from "./QuestionTreePreviewDialog";
 
 // ===================== MAIN COMPONENT =====================
 
@@ -94,6 +95,9 @@ export function QuestionBankPage() {
 
   // Bulk preview state
   const [bulkPreviewOpen, setBulkPreviewOpen] = React.useState(false);
+
+  // Tree preview state
+  const [treePreviewOpen, setTreePreviewOpen] = React.useState(false);
 
   // Selection state
   const [selectedQuestions, setSelectedQuestions] = React.useState<Question[]>([]);
@@ -852,6 +856,15 @@ export function QuestionBankPage() {
             >
               <FileSpreadsheet className="h-4 w-4 mr-2" />
               Download Template
+            </Button>
+            <div className="h-4 w-px bg-border mx-1" />
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setTreePreviewOpen(true)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              Preview All
             </Button>
           </div>
           
@@ -1915,6 +1928,11 @@ export function QuestionBankPage() {
         onOpenChange={setBulkPreviewOpen}
         questions={selectedQuestions}
         specialityName={selectedSpeciality?.name}
+      />
+      {/* Tree Preview Dialog */}
+      <QuestionTreePreviewDialog
+        open={treePreviewOpen}
+        onOpenChange={setTreePreviewOpen}
       />
     </AdminLayout>
   );
