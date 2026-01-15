@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2 } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
 
@@ -106,19 +106,38 @@ export function QuestionBankPage() {
   }, [statsOpen]);
 
   // Queries for hierarchy - admin should see all items including inactive
-  const { data: industrySegments = [], isLoading: industryLoading } = useIndustrySegments(true);
-  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(
+  const { data: industrySegments = [], isLoading: industryLoading, isError: industryError } = useIndustrySegments(true);
+  const { 
+    data: proficiencyAreas = [], 
+    isLoading: areasLoading, 
+    isError: areasError,
+    error: areasErrorObj 
+  } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
     true
   );
-  const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(
+  const { 
+    data: subDomains = [], 
+    isLoading: subDomainsLoading, 
+    isError: subDomainsError,
+    error: subDomainsErrorObj 
+  } = useSubDomainsAdmin(
     selectedProficiencyAreaId || undefined,
     true
   );
-  const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(
+  const { 
+    data: specialities = [], 
+    isLoading: specialitiesLoading, 
+    isError: specialitiesError,
+    error: specialitiesErrorObj 
+  } = useSpecialitiesAdmin(
     selectedSubDomainId || undefined,
     true
   );
+
+  // Check for any taxonomy errors
+  const hasTaxonomyError = industryError || areasError || subDomainsError || specialitiesError;
+  const taxonomyErrorMessage = areasErrorObj?.message || subDomainsErrorObj?.message || specialitiesErrorObj?.message || "Failed to load taxonomy data";
 
   // Questions query
   const { data: questions = [], isLoading: questionsLoading } = useQuestions(
@@ -593,16 +612,32 @@ export function QuestionBankPage() {
                     )}
                   </SelectTrigger>
                   <SelectContent>
-                    {subDomains.map((sd) => (
-                      <SelectItem key={sd.id} value={sd.id}>
-                        {sd.name}
-                        {!sd.is_active && (
-                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
-                        )}
-                      </SelectItem>
-                    ))}
+                    {subDomains.length === 0 && selectedProficiencyAreaId && !subDomainsLoading ? (
+                      <div className="py-2 px-3 text-sm text-muted-foreground text-center">
+                        No sub-domains available
+                      </div>
+                    ) : (
+                      subDomains.map((sd) => (
+                        <SelectItem key={sd.id} value={sd.id}>
+                          {sd.name}
+                          {!sd.is_active && (
+                            <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                          )}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {/* Empty state message */}
+                {selectedProficiencyAreaId && !subDomainsLoading && subDomains.length === 0 && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    No sub-domains found for this area.
+                    <a href="/admin/proficiency-taxonomy" className="underline inline-flex items-center gap-0.5 hover:text-amber-700">
+                      Add in Taxonomy <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </p>
+                )}
               </div>
 
               {/* Speciality */}
@@ -627,18 +662,45 @@ export function QuestionBankPage() {
                     )}
                   </SelectTrigger>
                   <SelectContent>
-                    {specialities.map((sp) => (
-                      <SelectItem key={sp.id} value={sp.id}>
-                        {sp.name}
-                        {!sp.is_active && (
-                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
-                        )}
-                      </SelectItem>
-                    ))}
+                    {specialities.length === 0 && selectedSubDomainId && !specialitiesLoading ? (
+                      <div className="py-2 px-3 text-sm text-muted-foreground text-center">
+                        No specialities available
+                      </div>
+                    ) : (
+                      specialities.map((sp) => (
+                        <SelectItem key={sp.id} value={sp.id}>
+                          {sp.name}
+                          {!sp.is_active && (
+                            <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                          )}
+                        </SelectItem>
+                      ))
+                    )}
                   </SelectContent>
                 </Select>
+                {/* Empty state message */}
+                {selectedSubDomainId && !specialitiesLoading && specialities.length === 0 && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    No specialities found for this sub-domain.
+                    <a href="/admin/proficiency-taxonomy" className="underline inline-flex items-center gap-0.5 hover:text-amber-700">
+                      Add in Taxonomy <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </p>
+                )}
               </div>
             </div>
+
+            {/* Taxonomy Error Alert */}
+            {hasTaxonomyError && (
+              <Alert variant="destructive" className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Failed to load taxonomy:</strong> {taxonomyErrorMessage}. 
+                  Please check RLS policies or contact support.
+                </AlertDescription>
+              </Alert>
+            )}
 
             {/* Breadcrumb Trail */}
             {selectedSpecialityId && (
