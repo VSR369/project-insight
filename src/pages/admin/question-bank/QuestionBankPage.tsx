@@ -114,6 +114,7 @@ export function QuestionBankPage() {
     error: areasErrorObj 
   } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
+    undefined,
     true
   );
   const { 

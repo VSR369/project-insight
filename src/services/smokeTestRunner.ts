@@ -751,10 +751,20 @@ async function proficiencyAreasCreate(): Promise<TestResult> {
     if (!segments || segments.length === 0) throw new Error("No industry segment found to create area under");
     const segmentId = segments[0].id;
     
+    // Also need an expertise level
+    const { data: levels } = await supabase
+      .from("expertise_levels")
+      .select("id")
+      .eq("is_active", true)
+      .limit(1);
+    
+    if (!levels || levels.length === 0) throw new Error("No expertise level found to create area under");
+    const levelId = levels[0].id;
+    
     const testName = getTestName();
     const { data, error } = await supabase
       .from("proficiency_areas")
-      .insert({ name: testName, industry_segment_id: segmentId })
+      .insert({ name: testName, industry_segment_id: segmentId, expertise_level_id: levelId })
       .select()
       .single();
     if (error) throw error;

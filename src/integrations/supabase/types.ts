@@ -466,6 +466,7 @@ export type Database = {
           created_at: string
           description: string | null
           display_order: number | null
+          expertise_level_id: string
           id: string
           industry_segment_id: string
           is_active: boolean
@@ -476,6 +477,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          expertise_level_id: string
           id?: string
           industry_segment_id: string
           is_active?: boolean
@@ -486,6 +488,7 @@ export type Database = {
           created_at?: string
           description?: string | null
           display_order?: number | null
+          expertise_level_id?: string
           id?: string
           industry_segment_id?: string
           is_active?: boolean
@@ -493,6 +496,13 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proficiency_areas_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proficiency_areas_industry_segment_id_fkey"
             columns: ["industry_segment_id"]
