@@ -1,5 +1,5 @@
 import * as React from "react";
-import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye } from "lucide-react";
+import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2 } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
 
@@ -106,16 +106,16 @@ export function QuestionBankPage() {
   }, [statsOpen]);
 
   // Queries for hierarchy - admin should see all items including inactive
-  const { data: industrySegments = [] } = useIndustrySegments(true);
-  const { data: proficiencyAreas = [] } = useProficiencyAreasAdmin(
+  const { data: industrySegments = [], isLoading: industryLoading } = useIndustrySegments(true);
+  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(
     selectedIndustrySegmentId || undefined,
     true
   );
-  const { data: subDomains = [] } = useSubDomainsAdmin(
+  const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(
     selectedProficiencyAreaId || undefined,
     true
   );
-  const { data: specialities = [] } = useSpecialitiesAdmin(
+  const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(
     selectedSubDomainId || undefined,
     true
   );
@@ -512,14 +512,25 @@ export function QuestionBankPage() {
                 <Select
                   value={selectedIndustrySegmentId}
                   onValueChange={setSelectedIndustrySegmentId}
+                  disabled={industryLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select segment..." />
+                    {industryLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder="Select segment..." />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {industrySegments.map((segment) => (
                       <SelectItem key={segment.id} value={segment.id}>
                         {segment.name}
+                        {!segment.is_active && (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -535,15 +546,25 @@ export function QuestionBankPage() {
                 <Select
                   value={selectedProficiencyAreaId}
                   onValueChange={setSelectedProficiencyAreaId}
-                  disabled={!selectedIndustrySegmentId}
+                  disabled={!selectedIndustrySegmentId || areasLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select area..." />
+                    {areasLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder={!selectedIndustrySegmentId ? "Select segment first..." : "Select area..."} />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {proficiencyAreas.map((area) => (
                       <SelectItem key={area.id} value={area.id}>
                         {area.name}
+                        {!area.is_active && (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -559,15 +580,25 @@ export function QuestionBankPage() {
                 <Select
                   value={selectedSubDomainId}
                   onValueChange={setSelectedSubDomainId}
-                  disabled={!selectedProficiencyAreaId}
+                  disabled={!selectedProficiencyAreaId || subDomainsLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select sub-domain..." />
+                    {subDomainsLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder={!selectedProficiencyAreaId ? "Select area first..." : "Select sub-domain..."} />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {subDomains.map((sd) => (
                       <SelectItem key={sd.id} value={sd.id}>
                         {sd.name}
+                        {!sd.is_active && (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -583,15 +614,25 @@ export function QuestionBankPage() {
                 <Select
                   value={selectedSpecialityId}
                   onValueChange={setSelectedSpecialityId}
-                  disabled={!selectedSubDomainId}
+                  disabled={!selectedSubDomainId || specialitiesLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select speciality..." />
+                    {specialitiesLoading ? (
+                      <span className="flex items-center gap-2 text-muted-foreground">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading...
+                      </span>
+                    ) : (
+                      <SelectValue placeholder={!selectedSubDomainId ? "Select sub-domain first..." : "Select speciality..."} />
+                    )}
                   </SelectTrigger>
                   <SelectContent>
                     {specialities.map((sp) => (
                       <SelectItem key={sp.id} value={sp.id}>
                         {sp.name}
+                        {!sp.is_active && (
+                          <span className="ml-2 text-xs text-muted-foreground">(inactive)</span>
+                        )}
                       </SelectItem>
                     ))}
                   </SelectContent>
