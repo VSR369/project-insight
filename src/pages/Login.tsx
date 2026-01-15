@@ -200,61 +200,59 @@ export default function Login() {
           </Form>
         </Card>
 
-        {/* Quick Login Section - Development Only */}
-        {import.meta.env.DEV && (
-          <Card className="border-dashed border-amber-500/50 bg-amber-500/5 mt-4">
-            <CardHeader className="pb-2">
-              <button
-                type="button"
-                onClick={() => setShowDevAccounts(!showDevAccounts)}
-                className="flex items-center justify-between w-full text-left"
-              >
-                <div>
-                  <CardTitle className="text-sm font-medium text-amber-600">
-                    Quick Login (Development Only)
-                  </CardTitle>
-                  <CardDescription className="text-xs">
-                    Click to auto-fill test credentials
-                  </CardDescription>
-                </div>
-                {showDevAccounts ? (
-                  <ChevronUp className="h-4 w-4 text-amber-600" />
-                ) : (
-                  <ChevronDown className="h-4 w-4 text-amber-600" />
-                )}
-              </button>
-            </CardHeader>
-            {showDevAccounts && (
-              <CardContent className="pt-2">
-                <div className="grid grid-cols-2 gap-3">
-                  {DEV_ACCOUNTS.map((account) => {
-                    const Icon = account.icon;
-                    return (
-                      <button
-                        key={account.role}
-                        type="button"
-                        onClick={() => {
-                          form.setValue('email', account.email);
-                          form.setValue('password', account.password);
-                          toast.info(`Credentials filled for ${account.role}`);
-                        }}
-                        className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
-                      >
-                        <Icon className={`h-5 w-5 ${account.color}`} />
-                        <div className="text-center">
-                          <p className="text-xs font-medium">{account.role}</p>
-                          <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
-                            {account.email}
-                          </p>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              </CardContent>
-            )}
-          </Card>
-        )}
+        {/* Quick Login Section - Test Accounts */}
+        <Card className="border-dashed border-amber-500/50 bg-amber-500/5 mt-4">
+          <CardHeader className="pb-2">
+            <button
+              type="button"
+              onClick={() => setShowDevAccounts(!showDevAccounts)}
+              className="flex items-center justify-between w-full text-left"
+            >
+              <div>
+                <CardTitle className="text-sm font-medium text-amber-600">
+                  Quick Login (Test Accounts)
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Click to auto-fill test credentials
+                </CardDescription>
+              </div>
+              {showDevAccounts ? (
+                <ChevronUp className="h-4 w-4 text-amber-600" />
+              ) : (
+                <ChevronDown className="h-4 w-4 text-amber-600" />
+              )}
+            </button>
+          </CardHeader>
+          {showDevAccounts && (
+            <CardContent className="pt-2">
+              <div className="grid grid-cols-2 gap-3">
+                {DEV_ACCOUNTS.map((account) => {
+                  const Icon = account.icon;
+                  return (
+                    <button
+                      key={account.role}
+                      type="button"
+                      onClick={() => {
+                        form.setValue('email', account.email);
+                        form.setValue('password', account.password);
+                        toast.info(`Credentials filled for ${account.role}`);
+                      }}
+                      className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                    >
+                      <Icon className={`h-5 w-5 ${account.color}`} />
+                      <div className="text-center">
+                        <p className="text-xs font-medium">{account.role}</p>
+                        <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
+                          {account.email}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </CardContent>
+          )}
+        </Card>
       </div>
     </div>
   );
