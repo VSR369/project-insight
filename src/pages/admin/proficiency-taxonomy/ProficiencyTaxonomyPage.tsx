@@ -588,7 +588,7 @@ export function ProficiencyTaxonomyPage() {
                 className="flex items-center gap-1"
               >
                 <Target className="h-4 w-4" />
-                Areas
+                Proficiency
               </TabsTrigger>
               <TabsTrigger
                 value="sub-domains"
