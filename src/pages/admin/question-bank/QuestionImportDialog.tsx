@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/table";
 
 import { useCreateQuestion, formatQuestionOptions, DIFFICULTY_OPTIONS, QUESTION_TYPE_OPTIONS, USAGE_MODE_OPTIONS } from "@/hooks/queries/useQuestionBank";
+import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
 
 interface ParsedQuestion {
   rowNumber: number;
@@ -34,6 +35,7 @@ interface ParsedQuestion {
   difficulty: string | null;
   question_type: string;
   usage_mode: string;
+  capability_tags: string[];
   isValid: boolean;
   errors: string[];
 }
@@ -52,6 +54,7 @@ interface RawQuestionData {
   difficulty: string | null;
   question_type: string;
   usage_mode: string;
+  capability_tags: string[];
 }
 
 const VALID_DIFFICULTIES: readonly string[] = DIFFICULTY_OPTIONS.map(d => d.value);
@@ -59,11 +62,11 @@ const VALID_QUESTION_TYPES: readonly string[] = QUESTION_TYPE_OPTIONS.map(t => t
 const VALID_USAGE_MODES: readonly string[] = USAGE_MODE_OPTIONS.map(m => m.value);
 
 const EXCEL_TEMPLATE_DATA = [
-  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode"],
-  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both"],
-  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment"],
-  ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both"],
-  ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview"],
+  ["question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags"],
+  ["What is the capital of France?", "Berlin", "Madrid", "Paris", "Rome", "", "", 3, "introductory", "conceptual", "both", "Problem Solving"],
+  ["Which planet is known as the Red Planet?", "Venus", "Mars", "Jupiter", "Saturn", "", "", 2, "introductory", "conceptual", "self_assessment", ""],
+  ["A factory needs to optimize production. What's the first step?", "Hire more workers", "Analyze bottlenecks", "Buy new equipment", "Reduce prices", "", "", 2, "applied", "scenario", "both", "Critical Thinking, Problem Solving"],
+  ["Describe a challenging project you led.", "Option A", "Option B", "Option C", "Option D", "", "", 1, "advanced", "experience", "interview", "Leadership"],
 ];
 
 const INSTRUCTIONS_SHEET_DATA = [
@@ -77,6 +80,7 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["difficulty", "Question difficulty level", "No", "introductory, applied, advanced, strategic"],
   ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
   ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
+  ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
   [""],
   ["IMPORTANT NOTES:"],
   ["1. You must provide at least 2 options and maximum 6 options"],
@@ -85,6 +89,7 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["4. If difficulty is not specified, it will be left blank"],
   ["5. Enter your questions in the 'Questions' sheet, starting from row 2"],
   ["6. Do not modify the header row in the Questions sheet"],
+  ["7. Capability tags must match existing tag names exactly (case-insensitive)"],
   [""],
   ["DIFFICULTY LEVEL GUIDE:"],
   ["Level", "Description"],
@@ -109,7 +114,7 @@ const INSTRUCTIONS_SHEET_DATA = [
 ];
 
 // Validation logic for Excel import
-const validateQuestion = (data: RawQuestionData): string[] => {
+const validateQuestion = (data: RawQuestionData, validTagNames: string[]): string[] => {
   const errors: string[] = [];
 
   if (!data.question_text) {
@@ -144,6 +149,15 @@ const validateQuestion = (data: RawQuestionData): string[] => {
     errors.push(`Invalid usage_mode: ${data.usage_mode}. Valid: ${VALID_USAGE_MODES.join(", ")}`);
   }
 
+  // Validate capability tags
+  if (data.capability_tags.length > 0) {
+    const lowerValidTags = validTagNames.map(t => t.toLowerCase());
+    const invalidTags = data.capability_tags.filter(tag => !lowerValidTags.includes(tag.toLowerCase()));
+    if (invalidTags.length > 0) {
+      errors.push(`Unknown capability tags: ${invalidTags.join(", ")}`);
+    }
+  }
+
   return errors;
 };
 
@@ -171,6 +185,8 @@ export function QuestionImportDialog({
   } | null>(null);
 
   const createMutation = useCreateQuestion();
+  const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
+  const { data: capabilityTags = [] } = useCapabilityTags();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   // Reset state when dialog closes
@@ -207,6 +223,9 @@ export function QuestionImportDialog({
       throw new Error("Excel file must have a header row and at least one data row");
     }
 
+    // Get valid tag names for validation
+    const validTagNames = capabilityTags.map(t => t.name);
+
     // Skip header row, parse data rows
     const dataRows = data.slice(1);
     const questions: ParsedQuestion[] = [];
@@ -229,6 +248,12 @@ export function QuestionImportDialog({
       const difficulty = row[8] ? String(row[8]).trim().toLowerCase() : null;
       const question_type = row[9] ? String(row[9]).trim().toLowerCase() : "conceptual";
       const usage_mode = row[10] ? String(row[10]).trim().toLowerCase() : "both";
+      
+      // Parse capability tags (comma-separated)
+      const capabilityTagsRaw = row[11] ? String(row[11]).trim() : "";
+      const capability_tags = capabilityTagsRaw
+        ? capabilityTagsRaw.split(",").map(t => t.trim()).filter(Boolean)
+        : [];
 
       // Validate using shared function
       const errors = validateQuestion({
@@ -238,7 +263,8 @@ export function QuestionImportDialog({
         difficulty,
         question_type,
         usage_mode,
-      });
+        capability_tags,
+      }, validTagNames);
 
       questions.push({
         rowNumber,
@@ -248,6 +274,7 @@ export function QuestionImportDialog({
         difficulty,
         question_type,
         usage_mode,
+        capability_tags,
         isValid: errors.length === 0,
         errors,
       });
@@ -321,7 +348,7 @@ export function QuestionImportDialog({
           q.options.map((text, idx) => ({ index: idx + 1, text }))
         );
 
-        await createMutation.mutateAsync({
+        const createdQuestion = await createMutation.mutateAsync({
           question_text: q.question_text,
           options: formattedOptions as unknown as { index: number; text: string }[],
           correct_option: q.correct_option,
@@ -331,6 +358,24 @@ export function QuestionImportDialog({
           is_active: true,
           speciality_id: specialityId,
         });
+
+        // Link capability tags if any
+        if (createdQuestion?.id && q.capability_tags.length > 0) {
+          // Find matching tag IDs (case-insensitive)
+          const tagIds = q.capability_tags
+            .map(tagName => {
+              const found = capabilityTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+              return found?.id;
+            })
+            .filter((id): id is string => !!id);
+
+          if (tagIds.length > 0) {
+            await updateCapabilityTagsMutation.mutateAsync({
+              questionId: createdQuestion.id,
+              tagIds,
+            });
+          }
+        }
 
         results.success++;
       } catch (error) {
@@ -362,6 +407,7 @@ export function QuestionImportDialog({
       { wch: 15 }, // difficulty
       { wch: 15 }, // question_type
       { wch: 15 }, // usage_mode
+      { wch: 30 }, // capability_tags
     ];
 
     // Create Instructions sheet
