@@ -25,6 +25,7 @@ import {
   EnrollOrganization,
   EnrollExpertiseSelection,
   EnrollProofPoints,
+  PostEnrollmentWelcome,
 } from "@/pages/enroll";
 
 // Placeholder Pages
@@ -92,6 +93,14 @@ const App = () => (
               element={
                 <AuthGuard>
                   <EnrollRegistration />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/welcome"
+              element={
+                <AuthGuard>
+                  <PostEnrollmentWelcome />
                 </AuthGuard>
               }
             />
