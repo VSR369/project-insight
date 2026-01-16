@@ -149,7 +149,7 @@ const handler = async (req: Request): Promise<Response> => {
                   ℹ️ Approval Request Withdrawn
                 </h2>
                 <p style="margin: 0; color: #64748b; font-size: 14px;">
-                  No action is required from you
+                  No action is required from you — we regret any inconvenience caused
                 </p>
               </div>
 

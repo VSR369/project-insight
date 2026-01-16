@@ -1,9 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
-import { useClearProviderMode } from '@/hooks/queries/useClearProviderMode';
+import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -30,36 +30,37 @@ export default function OrganizationPending() {
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading, refetch } = useCurrentProvider();
   const withdrawRequest = useWithdrawApprovalRequest();
-  const clearProviderMode = useClearProviderMode();
+  const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
-  const [isNavigatingToMode, setIsNavigatingToMode] = useState(false);
 
   const organization = provider?.organization;
   const approvalStatus = (organization as any)?.approval_status;
 
   // If no organization exists, redirect to organization form
-  // Skip if we're navigating to mode selection
-  if (provider && !organization && !isNavigatingToMode) {
+  if (provider && !organization) {
     navigate('/enroll/organization');
     return null;
   }
 
   // If approved, redirect to expertise
-  if (approvalStatus === 'approved' && !isNavigatingToMode) {
+  if (approvalStatus === 'approved') {
     navigate('/enroll/expertise');
     return null;
   }
 
   // If declined, redirect to declined page
-  if (approvalStatus === 'declined' && !isNavigatingToMode) {
+  if (approvalStatus === 'declined') {
     navigate('/enroll/organization-declined');
     return null;
   }
 
-  // NOTE: We do NOT redirect for 'withdrawn' status here.
-  // When user cancels to change mode, we navigate explicitly in handleCancelAndReset.
+  // If withdrawn, redirect to participation mode selection
+  if (approvalStatus === 'withdrawn') {
+    navigate('/enroll/participation-mode', { replace: true });
+    return null;
+  }
 
   const handleCheckStatus = async () => {
     setIsChecking(true);
@@ -154,36 +155,20 @@ export default function OrganizationPending() {
   };
 
   // Handle cancel and reset from blocking dialog
+  // Uses centralized hook with optimistic cache update
   const handleCancelAndReset = async () => {
     if (!provider?.id) return;
 
-    // Set flag FIRST to prevent redirect guards from firing during async operations
-    setIsNavigatingToMode(true);
-
     try {
-      // Run both operations in parallel for faster execution
-      // Edge function now handles clearing participation mode too
-      await Promise.all([
-        withdrawRequest.mutateAsync({
-          providerId: provider.id,
-          withdrawalReason: 'User cancelled to change participation mode',
-          clearParticipationMode: true, // Tell edge function to also clear mode
-        }),
-        clearProviderMode.mutateAsync({ providerId: provider.id }),
-      ]);
-
-      // Close dialog immediately
+      await cancelOrgApproval.mutateAsync({
+        providerId: provider.id,
+        withdrawalReason: 'User cancelled to change participation mode',
+      });
       setShowBlockedDialog(false);
-
-      // Navigate IMMEDIATELY with replace to prevent back navigation issues
-      navigate('/enroll/participation-mode', { replace: true });
-
-      // Show success toast after navigation starts
-      toast.success('Request cancelled. Please select a new participation mode.');
+      // Navigation happens inside the hook
     } catch (error) {
       console.error('Error cancelling request:', error);
-      toast.error('Failed to cancel request. Please try again.');
-      setIsNavigatingToMode(false); // Reset flag on error
+      // Error toast is handled in the hook
     }
   };
   const handleContinue = () => {
@@ -210,7 +195,7 @@ export default function OrganizationPending() {
         managerName={organization?.manager_name}
         managerEmail={organization?.manager_email}
         onCancelAndReset={handleCancelAndReset}
-        isResetting={withdrawRequest.isPending || clearProviderMode.isPending}
+        isResetting={cancelOrgApproval.isPending}
       />
 
       <WizardLayout
@@ -329,9 +314,9 @@ export default function OrganizationPending() {
                 variant="default" 
                 className="w-full"
                 onClick={() => setShowBlockedDialog(true)}
-                disabled={withdrawRequest.isPending || clearProviderMode.isPending}
+                disabled={cancelOrgApproval.isPending}
               >
-                {(withdrawRequest.isPending || clearProviderMode.isPending) ? (
+                {cancelOrgApproval.isPending ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 ) : (
                   <RefreshCw className="mr-2 h-4 w-4" />
