@@ -10,6 +10,7 @@ const corsHeaders = {
 interface WithdrawRequest {
   providerId: string;
   withdrawalReason?: string;
+  clearParticipationMode?: boolean;
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -26,7 +27,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { providerId, withdrawalReason }: WithdrawRequest = await req.json();
+    const { providerId, withdrawalReason, clearParticipationMode }: WithdrawRequest = await req.json();
 
     // Validate required fields
     if (!providerId) {
@@ -94,6 +95,23 @@ const handler = async (req: Request): Promise<Response> => {
         JSON.stringify({ success: false, error: 'Failed to withdraw request' }),
         { status: 500, headers: { 'Content-Type': 'application/json', ...corsHeaders } }
       );
+    }
+
+    // If requested, also clear participation mode in the same transaction
+    if (clearParticipationMode) {
+      console.log('Clearing participation mode for provider:', providerId);
+      const { error: modeError } = await supabase
+        .from('solution_providers')
+        .update({
+          participation_mode_id: null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', providerId);
+
+      if (modeError) {
+        console.error('Failed to clear participation mode:', modeError);
+        // Don't fail the request, just log the error - the client also clears mode
+      }
     }
 
     // Send notification email to manager about the withdrawal

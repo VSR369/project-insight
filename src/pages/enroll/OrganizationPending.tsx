@@ -34,33 +34,32 @@ export default function OrganizationPending() {
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [isNavigatingToMode, setIsNavigatingToMode] = useState(false);
 
   const organization = provider?.organization;
   const approvalStatus = (organization as any)?.approval_status;
 
   // If no organization exists, redirect to organization form
-  if (provider && !organization) {
+  // Skip if we're navigating to mode selection
+  if (provider && !organization && !isNavigatingToMode) {
     navigate('/enroll/organization');
     return null;
   }
 
   // If approved, redirect to expertise
-  if (approvalStatus === 'approved') {
+  if (approvalStatus === 'approved' && !isNavigatingToMode) {
     navigate('/enroll/expertise');
     return null;
   }
 
   // If declined, redirect to declined page
-  if (approvalStatus === 'declined') {
+  if (approvalStatus === 'declined' && !isNavigatingToMode) {
     navigate('/enroll/organization-declined');
     return null;
   }
 
-  // If withdrawn, redirect to organization form to re-enter
-  if (approvalStatus === 'withdrawn') {
-    navigate('/enroll/organization');
-    return null;
-  }
+  // NOTE: We do NOT redirect for 'withdrawn' status here.
+  // When user cancels to change mode, we navigate explicitly in handleCancelAndReset.
 
   const handleCheckStatus = async () => {
     setIsChecking(true);
@@ -158,21 +157,33 @@ export default function OrganizationPending() {
   const handleCancelAndReset = async () => {
     if (!provider?.id) return;
 
+    // Set flag FIRST to prevent redirect guards from firing during async operations
+    setIsNavigatingToMode(true);
+
     try {
-      // First withdraw the approval request
-      await withdrawRequest.mutateAsync({
-        providerId: provider.id,
-        withdrawalReason: 'User cancelled to change participation mode',
-      });
+      // Run both operations in parallel for faster execution
+      // Edge function now handles clearing participation mode too
+      await Promise.all([
+        withdrawRequest.mutateAsync({
+          providerId: provider.id,
+          withdrawalReason: 'User cancelled to change participation mode',
+          clearParticipationMode: true, // Tell edge function to also clear mode
+        }),
+        clearProviderMode.mutateAsync({ providerId: provider.id }),
+      ]);
 
-      // Then clear the participation mode
-      await clearProviderMode.mutateAsync({ providerId: provider.id });
-
+      // Close dialog immediately
       setShowBlockedDialog(false);
+
+      // Navigate IMMEDIATELY with replace to prevent back navigation issues
+      navigate('/enroll/participation-mode', { replace: true });
+
+      // Show success toast after navigation starts
       toast.success('Request cancelled. Please select a new participation mode.');
-      navigate('/enroll/participation-mode');
     } catch (error) {
       console.error('Error cancelling request:', error);
+      toast.error('Failed to cancel request. Please try again.');
+      setIsNavigatingToMode(false); // Reset flag on error
     }
   };
   const handleContinue = () => {
