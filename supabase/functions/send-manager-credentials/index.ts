@@ -82,13 +82,40 @@ const handler = async (req: Request): Promise<Response> => {
       managerName 
     } = body;
 
+    // Log request received with all details
+    console.log("[send-manager-credentials] Request received:", {
+      providerId,
+      providerName,
+      providerEmail,
+      orgName,
+      managerEmail,
+      managerName,
+      hasDesignation: !!providerDesignation,
+      timestamp: new Date().toISOString()
+    });
+
     // Validate required fields
     if (!providerId || !providerName || !orgName || !managerEmail || !managerName) {
+      console.error("[send-manager-credentials] Validation failed - missing fields:", {
+        hasProviderId: !!providerId,
+        hasProviderName: !!providerName,
+        hasOrgName: !!orgName,
+        hasManagerEmail: !!managerEmail,
+        hasManagerName: !!managerName
+      });
       return new Response(
         JSON.stringify({ success: false, error: "Missing required fields" }),
         { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // Log validation success
+    console.log("[send-manager-credentials] Validation passed - preparing credentials for:", {
+      recipient: managerEmail,
+      recipientName: managerName,
+      provider: providerName,
+      organization: orgName
+    });
 
     // Generate temporary password
     const tempPassword = generateSecurePassword();
@@ -112,7 +139,11 @@ const handler = async (req: Request): Promise<Response> => {
       .eq('provider_id', providerId);
 
     if (updateError) {
-      console.error("Error updating organization:", updateError);
+      console.error("[send-manager-credentials] Database update failed:", {
+        providerId,
+        error: updateError.message,
+        code: updateError.code
+      });
       return new Response(
         JSON.stringify({ success: false, error: "Failed to store credentials" }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -127,8 +158,23 @@ const handler = async (req: Request): Promise<Response> => {
       day: 'numeric',
     });
 
+    // Log database update success
+    console.log("[send-manager-credentials] Credentials stored successfully:", {
+      providerId,
+      credentialsExpireAt: expiresAt.toISOString(),
+      expiryFormatted
+    });
+
     // App URL for manager portal
     const appUrl = "https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app";
+
+    // Log pre-send details
+    console.log("[send-manager-credentials] Sending email:", {
+      from: "CogniBlend <onboarding@resend.dev>",
+      to: managerEmail,
+      subject: `Action Required: Approve ${providerName}'s Request to Represent ${orgName}`,
+      timestamp: new Date().toISOString()
+    });
 
     // Send email via Resend
     const emailResponse = await resend.emails.send({
@@ -183,7 +229,14 @@ const handler = async (req: Request): Promise<Response> => {
       `,
     });
 
-    console.log("Email sent successfully:", emailResponse);
+    // Log email API response with full details
+    console.log("[send-manager-credentials] Email API response:", {
+      success: !emailResponse.error,
+      emailId: emailResponse.data?.id || null,
+      recipientUsed: managerEmail,
+      error: emailResponse.error || null,
+      timestamp: new Date().toISOString()
+    });
 
     return new Response(
       JSON.stringify({ 
