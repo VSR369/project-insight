@@ -118,12 +118,25 @@ export default function OrganizationPending() {
   const handleWithdrawRequest = async () => {
     if (!provider?.id) return;
 
+    // If already withdrawn, just send user to edit screen
+    if (approvalStatus === 'withdrawn') {
+      toast.info('Your request is already withdrawn. You can update your organization details now.');
+      navigate('/enroll/organization');
+      return;
+    }
+
+    // Only pending requests can be withdrawn
+    if (approvalStatus && approvalStatus !== 'pending') {
+      toast.error(`Cannot withdraw: request is currently "${approvalStatus}"`);
+      return;
+    }
+
     try {
       await withdrawRequest.mutateAsync({
         providerId: provider.id,
         withdrawalReason: 'User requested to modify organization details',
       });
-      
+
       // Navigate to organization form after successful withdrawal
       navigate('/enroll/organization');
     } catch (error) {
