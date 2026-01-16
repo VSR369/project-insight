@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -22,6 +24,12 @@ export default function EnrollParticipationMode() {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const updateMode = useUpdateProviderMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
+
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
 
   // Check if there's a pending approval - redirect back to pending page
   const hasPendingApproval = useMemo(() => {
@@ -46,6 +54,11 @@ export default function EnrollParticipationMode() {
 
   const handleBack = () => {
     navigate('/enroll/registration');
+  };
+
+  const handleModeChange = (modeId: string) => {
+    if (isLocked) return;
+    setSelectedMode(modeId);
   };
 
   const handleContinue = async () => {
@@ -93,7 +106,7 @@ export default function EnrollParticipationMode() {
       onBack={handleBack}
       onContinue={handleContinue}
       isSubmitting={updateMode.isPending}
-      canContinue={!!selectedMode}
+      canContinue={!!selectedMode && !isLocked}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -106,8 +119,28 @@ export default function EnrollParticipationMode() {
           </p>
         </div>
 
+        {/* Lock Banners */}
+        {isTerminal && (
+          <LockedFieldBanner 
+            lockLevel="everything"
+            reason="Your profile has been verified. Participation mode cannot be changed."
+          />
+        )}
+        
+        {!isTerminal && !configurationCheck.allowed && (
+          <LockedFieldBanner 
+            lockLevel="configuration"
+            reason={configurationCheck.reason || undefined}
+          />
+        )}
+
         {/* Mode Selection */}
-        <RadioGroup value={selectedMode} onValueChange={setSelectedMode} className="space-y-4">
+        <RadioGroup 
+          value={selectedMode} 
+          onValueChange={handleModeChange} 
+          className="space-y-4"
+          disabled={isLocked}
+        >
           {modes?.map((mode) => {
             const Icon = modeIcons[mode.code] || User;
             const isSelected = selectedMode === mode.id;
@@ -116,17 +149,23 @@ export default function EnrollParticipationMode() {
               <Label
                 key={mode.id}
                 htmlFor={mode.id}
-                className="cursor-pointer"
+                className={cn("cursor-pointer", isLocked && "cursor-not-allowed opacity-60")}
               >
                 <Card
                   className={cn(
-                    "transition-all hover:border-primary/50",
+                    "transition-all",
+                    !isLocked && "hover:border-primary/50",
                     isSelected && "border-primary ring-2 ring-primary/20"
                   )}
                 >
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-start gap-4">
-                      <RadioGroupItem value={mode.id} id={mode.id} className="mt-1" />
+                      <RadioGroupItem 
+                        value={mode.id} 
+                        id={mode.id} 
+                        className="mt-1" 
+                        disabled={isLocked}
+                      />
                       
                       <div className={cn(
                         "w-12 h-12 rounded-lg flex items-center justify-center shrink-0",
