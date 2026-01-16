@@ -9,9 +9,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
-import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
-import { useClearProviderMode } from '@/hooks/queries/useClearProviderMode';
-import { toast } from 'sonner';
+import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 // Define all 9 enrollment steps
 const ENROLLMENT_STEPS: WizardStep[] = [
   { id: 1, title: 'Complete Registration', shortTitle: 'Register' },
@@ -57,16 +55,19 @@ export function WizardLayout({
   const { isAdmin } = useUserRoles();
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
-  const withdrawRequest = useWithdrawApprovalRequest();
-  const clearProviderMode = useClearProviderMode();
+  const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
 
   // Determine if org step is required based on selected participation mode
+  // KEY FIX: If no mode is selected, default to FALSE (hide org step until mode chosen)
   const isOrgRequired = useMemo(() => {
-    if (!provider?.participation_mode_id || !participationModes) return true; // Default to required
+    // No mode selected yet = org step not applicable
+    if (!provider?.participation_mode_id) return false;
+    // Modes not loaded yet = wait (show loading or safe default)
+    if (!participationModes) return false;
     const selectedMode = participationModes.find(m => m.id === provider.participation_mode_id);
-    return selectedMode?.requires_org_info ?? true;
+    return selectedMode?.requires_org_info ?? false;
   }, [provider?.participation_mode_id, participationModes]);
 
   // Filter visible steps - hide Organization step when not required
@@ -110,9 +111,14 @@ export function WizardLayout({
       completed.push(2);
     }
 
-    // Step 3: Organization (only if required and completed)
+    // Step 3: Organization (only if required AND approved - not just org_name presence)
+    // KEY FIX: Use approval_status to determine completion, not just field presence
     if (isOrgRequired && provider.organization?.org_name) {
-      completed.push(3);
+      const approvalStatus = (provider.organization as any)?.approval_status;
+      // Only mark complete if approved (not pending, withdrawn, or declined)
+      if (approvalStatus === 'approved') {
+        completed.push(3);
+      }
     }
 
     // Step 4: Expertise Level
@@ -178,25 +184,20 @@ export function WizardLayout({
   };
 
   // Handle cancel and reset mode from blocking dialog
+  // Uses centralized hook for optimistic cache update + navigation
   const handleCancelAndReset = async () => {
     if (!provider?.id) return;
-
+    
     try {
-      // First withdraw the approval request
-      await withdrawRequest.mutateAsync({
+      await cancelOrgApproval.mutateAsync({
         providerId: provider.id,
         withdrawalReason: 'User cancelled to change participation mode',
       });
-
-      // Then clear the participation mode
-      await clearProviderMode.mutateAsync({ providerId: provider.id });
-
       setShowBlockedDialog(false);
-      toast.success('Request cancelled. Please select a new participation mode.');
-      navigate('/enroll/participation-mode');
+      // Navigation happens inside the hook
     } catch (error) {
       console.error('Error cancelling request:', error);
-      // Error toasts are handled in the mutation hooks
+      // Error toast is handled in the hook
     }
   };
 
@@ -219,7 +220,7 @@ export function WizardLayout({
         managerName={orgDetails?.managerName}
         managerEmail={orgDetails?.managerEmail}
         onCancelAndReset={handleCancelAndReset}
-        isResetting={withdrawRequest.isPending || clearProviderMode.isPending}
+        isResetting={cancelOrgApproval.isPending}
       />
       
       <div className="min-h-screen flex flex-col bg-background">
