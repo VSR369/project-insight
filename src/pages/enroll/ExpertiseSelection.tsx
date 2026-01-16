@@ -10,6 +10,8 @@ import {
 } from '@/hooks/queries/useProvider';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
+import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -33,6 +35,20 @@ export default function EnrollExpertise() {
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
   const [expandedSubDomains, setExpandedSubDomains] = useState<string[]>([]);
+
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
+  const { impact: expertiseCascadeImpact } = useCascadeImpact('expertise_level_id');
+
+  // Cascade warning state
+  const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
+  const [pendingCascadeData, setPendingCascadeData] = useState<{
+    newLevelId: string;
+    impact: { specialtyProofPointsCount: number; proficiencyAreasCount: number; specialitiesCount: number; generalProofPointsCount: number };
+  } | null>(null);
 
   // Fetch existing proficiency area selections
   const { data: existingAreas } = useProviderProficiencyAreas(provider?.id);
@@ -86,6 +102,8 @@ export default function EnrollExpertise() {
   };
 
   const handleAreaToggle = (areaId: string, checked: boolean) => {
+    if (isLocked) return;
+    
     if (checked) {
       setSelectedAreas(prev => [...prev, areaId]);
       
@@ -121,16 +139,21 @@ export default function EnrollExpertise() {
   };
 
   const handleSelectAllAreas = () => {
-    if (taxonomy) {
-      setSelectedAreas(taxonomy.map(a => a.id));
-      // Auto-expand all areas and sub-domains
-      setExpandedAreas(taxonomy.map(a => a.id));
-      setExpandedSubDomains(taxonomy.flatMap(a => a.subDomains.map(sd => sd.id)));
-    }
+    if (isLocked || !taxonomy) return;
+    setSelectedAreas(taxonomy.map(a => a.id));
+    // Auto-expand all areas and sub-domains
+    setExpandedAreas(taxonomy.map(a => a.id));
+    setExpandedSubDomains(taxonomy.flatMap(a => a.subDomains.map(sd => sd.id)));
   };
 
   const handleDeselectAllAreas = () => {
+    if (isLocked) return;
     setSelectedAreas([]);
+  };
+
+  const handleLevelChange = (newLevelId: string) => {
+    if (isLocked) return;
+    setSelectedLevel(newLevelId);
   };
 
   const handleContinue = async () => {
@@ -150,23 +173,70 @@ export default function EnrollExpertise() {
     }
 
     try {
-      // Save expertise level
-      await updateExpertise.mutateAsync({
+      // Save expertise level (may require cascade confirmation)
+      const result = await updateExpertise.mutateAsync({
         providerId: provider.id,
         expertiseLevelId: selectedLevel,
       });
 
-      // Save selected proficiency areas
-      await updateProficiencyAreas.mutateAsync({
-        providerId: provider.id,
-        proficiencyAreaIds: selectedAreas,
-      });
+      // Check if cascade confirmation is required
+      if (!result.success && result.requiresConfirmation && result.cascadeImpact) {
+        setPendingCascadeData({
+          newLevelId: selectedLevel,
+          impact: {
+            ...result.cascadeImpact,
+            generalProofPointsCount: 0,
+          },
+        });
+        setCascadeDialogOpen(true);
+        return;
+      }
 
-      navigate('/enroll/proof-points');
+      if (result.success) {
+        // Save selected proficiency areas
+        await updateProficiencyAreas.mutateAsync({
+          providerId: provider.id,
+          proficiencyAreaIds: selectedAreas,
+        });
+
+        navigate('/enroll/proof-points');
+      }
     } catch (error) {
       toast.error('Failed to save expertise level. Please try again.');
       console.error('Error saving expertise:', error);
     }
+  };
+
+  const handleConfirmCascade = async () => {
+    if (!pendingCascadeData || !provider?.id) return;
+
+    try {
+      const result = await updateExpertise.mutateAsync({
+        providerId: provider.id,
+        expertiseLevelId: pendingCascadeData.newLevelId,
+        confirmCascade: true,
+      });
+
+      if (result.success) {
+        // Save selected proficiency areas
+        await updateProficiencyAreas.mutateAsync({
+          providerId: provider.id,
+          proficiencyAreaIds: selectedAreas,
+        });
+
+        setCascadeDialogOpen(false);
+        setPendingCascadeData(null);
+        navigate('/enroll/proof-points');
+      }
+    } catch (error) {
+      toast.error('Failed to update expertise level. Please try again.');
+      console.error('Error confirming cascade:', error);
+    }
+  };
+
+  const handleCancelCascade = () => {
+    setCascadeDialogOpen(false);
+    setPendingCascadeData(null);
   };
 
   const handleExpandAll = () => {
@@ -227,8 +297,28 @@ export default function EnrollExpertise() {
           </p>
         </div>
 
+        {/* Lock Banner */}
+        {isTerminal && (
+          <LockedFieldBanner 
+            lockLevel="everything"
+            reason="Your profile has been verified. Expertise selections cannot be modified."
+          />
+        )}
+        
+        {!isTerminal && !configurationCheck.allowed && (
+          <LockedFieldBanner 
+            lockLevel="configuration"
+            reason={configurationCheck.reason || undefined}
+          />
+        )}
+
         {/* Level Selection - Horizontal Cards */}
-        <RadioGroup value={selectedLevel} onValueChange={setSelectedLevel} className="space-y-4">
+        <RadioGroup 
+          value={selectedLevel} 
+          onValueChange={handleLevelChange} 
+          className="space-y-4"
+          disabled={isLocked}
+        >
           {filteredLevels.map((level) => {
             const isSelected = selectedLevel === level.id;
             const yearsText = level.max_years 
@@ -239,17 +329,23 @@ export default function EnrollExpertise() {
               <Label
                 key={level.id}
                 htmlFor={level.id}
-                className="cursor-pointer block"
+                className={cn("cursor-pointer block", isLocked && "cursor-not-allowed opacity-60")}
               >
                 <Card
                   className={cn(
-                    "transition-all hover:border-primary/50",
+                    "transition-all",
+                    !isLocked && "hover:border-primary/50",
                     isSelected && "border-primary ring-2 ring-primary/20"
                   )}
                 >
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-start gap-4">
-                      <RadioGroupItem value={level.id} id={level.id} className="mt-1" />
+                      <RadioGroupItem 
+                        value={level.id} 
+                        id={level.id} 
+                        className="mt-1" 
+                        disabled={isLocked}
+                      />
                       
                       {/* Stars Icon */}
                       <div className={cn(
@@ -319,6 +415,7 @@ export default function EnrollExpertise() {
                                       size="sm" 
                                       onClick={(e) => { e.preventDefault(); handleSelectAllAreas(); }}
                                       className="h-7 text-xs"
+                                      disabled={isLocked}
                                     >
                                       Select All
                                     </Button>
@@ -327,6 +424,7 @@ export default function EnrollExpertise() {
                                       size="sm" 
                                       onClick={(e) => { e.preventDefault(); handleDeselectAllAreas(); }}
                                       className="h-7 text-xs"
+                                      disabled={isLocked}
                                     >
                                       Deselect All
                                     </Button>
@@ -379,6 +477,7 @@ export default function EnrollExpertise() {
                                               onCheckedChange={(checked) => handleAreaToggle(area.id, checked as boolean)}
                                               onClick={(e) => e.stopPropagation()}
                                               className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                              disabled={isLocked}
                                             />
                                             <FolderOpen className={cn(
                                               "h-4 w-4",
@@ -458,7 +557,7 @@ export default function EnrollExpertise() {
         </RadioGroup>
 
         {/* CTA Card - Strengthen Your Profile */}
-        {selectedLevel && selectedAreas.length > 0 && (
+        {selectedLevel && selectedAreas.length > 0 && !isLocked && (
           <Card className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border-primary/20">
             <CardContent className="py-6 px-8 text-center">
               <h3 className="text-lg font-semibold text-foreground mb-2">
@@ -485,6 +584,25 @@ export default function EnrollExpertise() {
           </Card>
         )}
       </div>
+
+      {/* Cascade Warning Dialog */}
+      {expertiseCascadeImpact && (
+        <CascadeWarningDialog
+          open={cascadeDialogOpen}
+          onOpenChange={setCascadeDialogOpen}
+          cascadeType="expertise_change"
+          impact={expertiseCascadeImpact}
+          impactSummary={{
+            specialtyProofPointsCount: pendingCascadeData?.impact.specialtyProofPointsCount || 0,
+            generalProofPointsCount: pendingCascadeData?.impact.generalProofPointsCount || 0,
+            proficiencyAreasCount: pendingCascadeData?.impact.proficiencyAreasCount || 0,
+            specialitiesCount: pendingCascadeData?.impact.specialitiesCount || 0,
+          }}
+          onConfirm={handleConfirmCascade}
+          onCancel={handleCancelCascade}
+          isProcessing={updateExpertise.isPending}
+        />
+      )}
     </WizardLayout>
   );
 }

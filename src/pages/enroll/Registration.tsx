@@ -8,6 +8,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCountries } from '@/hooks/queries/useCountries';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
+import { getCascadeImpact } from '@/services/lifecycleService';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -57,6 +60,19 @@ export default function EnrollRegistration() {
   const updateProfile = useUpdateProviderBasicProfile();
   const [activeTab, setActiveTab] = useState<'experienced' | 'student'>('experienced');
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('');
+
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const { impact: industryCascadeImpact } = useCascadeImpact('industry_segment_id');
+  
+  // Cascade warning state
+  const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
+  const [pendingCascadeData, setPendingCascadeData] = useState<{
+    formData: RegistrationFormData;
+    impact: { specialtyProofPointsCount: number; proficiencyAreasCount: number; specialitiesCount: number; generalProofPointsCount: number };
+  } | null>(null);
 
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
@@ -130,7 +146,7 @@ export default function EnrollRegistration() {
     }
 
     try {
-      await updateProfile.mutateAsync({
+      const result = await updateProfile.mutateAsync({
         providerId: provider.id,
         data: {
           firstName: data.firstName,
@@ -142,11 +158,59 @@ export default function EnrollRegistration() {
           isStudent: activeTab === 'student',
         },
       });
-      
-      navigate('/enroll/welcome');
+
+      // Check if cascade confirmation is required
+      if (!result.success && result.requiresConfirmation && result.cascadeImpact) {
+        setPendingCascadeData({
+          formData: data,
+          impact: {
+            ...result.cascadeImpact,
+            generalProofPointsCount: 0, // General proof points are preserved
+          },
+        });
+        setCascadeDialogOpen(true);
+        return;
+      }
+
+      if (result.success) {
+        navigate('/enroll/welcome');
+      }
     } catch (error) {
       console.error('Error saving profile:', error);
     }
+  };
+
+  const handleConfirmCascade = async () => {
+    if (!pendingCascadeData || !provider?.id) return;
+
+    try {
+      const result = await updateProfile.mutateAsync({
+        providerId: provider.id,
+        data: {
+          firstName: pendingCascadeData.formData.firstName,
+          lastName: pendingCascadeData.formData.lastName,
+          address: pendingCascadeData.formData.address,
+          pinCode: pendingCascadeData.formData.pinCode,
+          countryId: pendingCascadeData.formData.countryId,
+          industrySegmentId: pendingCascadeData.formData.industrySegmentId,
+          isStudent: activeTab === 'student',
+        },
+        confirmCascade: true,
+      });
+
+      if (result.success) {
+        setCascadeDialogOpen(false);
+        setPendingCascadeData(null);
+        navigate('/enroll/welcome');
+      }
+    } catch (error) {
+      console.error('Error confirming cascade:', error);
+    }
+  };
+
+  const handleCancelCascade = () => {
+    setCascadeDialogOpen(false);
+    setPendingCascadeData(null);
   };
 
   const handleStudentTab = () => {
@@ -155,6 +219,7 @@ export default function EnrollRegistration() {
   };
 
   const isLoading = countriesLoading || segmentsLoading || providerLoading;
+  const isIndustryLocked = !configurationCheck.allowed;
 
   if (isLoading) {
     return (
@@ -184,6 +249,14 @@ export default function EnrollRegistration() {
           </p>
         </div>
 
+        {/* Terminal State Banner */}
+        {isTerminal && (
+          <LockedFieldBanner 
+            lockLevel="everything"
+            reason="Your profile has been verified. Registration details cannot be modified."
+          />
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -191,6 +264,7 @@ export default function EnrollRegistration() {
               value="experienced" 
               onClick={() => setActiveTab('experienced')}
               className="gap-2"
+              disabled={isTerminal}
             >
               <User className="h-4 w-4" />
               Experienced Professional
@@ -199,6 +273,7 @@ export default function EnrollRegistration() {
               value="student" 
               onClick={handleStudentTab}
               className="gap-2"
+              disabled={isTerminal}
             >
               <GraduationCap className="h-4 w-4" />
               Students, Fresh Grads
@@ -225,7 +300,11 @@ export default function EnrollRegistration() {
                       <FormItem>
                         <FormLabel>First Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter first name" {...field} />
+                          <Input 
+                            placeholder="Enter first name" 
+                            {...field} 
+                            disabled={isTerminal}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -239,7 +318,11 @@ export default function EnrollRegistration() {
                       <FormItem>
                         <FormLabel>Last Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter last name" {...field} />
+                          <Input 
+                            placeholder="Enter last name" 
+                            {...field} 
+                            disabled={isTerminal}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -258,6 +341,7 @@ export default function EnrollRegistration() {
                           placeholder="Enter your full address" 
                           className="min-h-[80px]"
                           {...field} 
+                          disabled={isTerminal}
                         />
                       </FormControl>
                       <FormMessage />
@@ -275,6 +359,7 @@ export default function EnrollRegistration() {
                         <Select 
                           value={field.value} 
                           onValueChange={handleCountryChange}
+                          disabled={isTerminal}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -310,6 +395,7 @@ export default function EnrollRegistration() {
                                 : "Enter pin/postal code"
                             } 
                             {...field} 
+                            disabled={isTerminal}
                           />
                         </FormControl>
                         <FormMessage />
@@ -318,13 +404,25 @@ export default function EnrollRegistration() {
                   />
                 </div>
 
+                {/* Industry Segment with Lock Banner */}
+                {isIndustryLocked && !isTerminal && (
+                  <LockedFieldBanner 
+                    lockLevel="configuration"
+                    reason={configurationCheck.reason || undefined}
+                  />
+                )}
+
                 <FormField
                   control={form.control}
                   name="industrySegmentId"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Industry Segment *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={field.onChange}
+                        disabled={isIndustryLocked || isTerminal}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select industry segment" />
@@ -347,6 +445,25 @@ export default function EnrollRegistration() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cascade Warning Dialog */}
+      {industryCascadeImpact && (
+        <CascadeWarningDialog
+          open={cascadeDialogOpen}
+          onOpenChange={setCascadeDialogOpen}
+          cascadeType="industry_change"
+          impact={industryCascadeImpact}
+          impactSummary={{
+            specialtyProofPointsCount: pendingCascadeData?.impact.specialtyProofPointsCount || 0,
+            generalProofPointsCount: pendingCascadeData?.impact.generalProofPointsCount || 0,
+            proficiencyAreasCount: pendingCascadeData?.impact.proficiencyAreasCount || 0,
+            specialitiesCount: pendingCascadeData?.impact.specialitiesCount || 0,
+          }}
+          onConfirm={handleConfirmCascade}
+          onCancel={handleCancelCascade}
+          isProcessing={updateProfile.isPending}
+        />
+      )}
     </WizardLayout>
   );
 }
