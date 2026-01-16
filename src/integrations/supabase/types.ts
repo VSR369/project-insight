@@ -755,21 +755,30 @@ export type Database = {
       provider_proficiency_areas: {
         Row: {
           created_at: string
+          created_by: string | null
           id: string
           proficiency_area_id: string
           provider_id: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           id?: string
           proficiency_area_id: string
           provider_id: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           id?: string
           proficiency_area_id?: string
           provider_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
