@@ -109,6 +109,15 @@ export function WizardStepper({
                         <p className="text-xs">Cannot change mode while manager approval is pending</p>
                       </TooltipContent>
                     </Tooltip>
+                  ) : isCompletedButBlocked ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {stepCircle}
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                        <p className="text-xs">Complete previous step first</p>
+                      </TooltipContent>
+                    </Tooltip>
                   ) : (
                     stepCircle
                   )}
