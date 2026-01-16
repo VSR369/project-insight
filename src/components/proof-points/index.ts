@@ -1,4 +1,5 @@
 export { ProofPointCard } from './ProofPointCard';
+export { ProofPointViewDialog } from './ProofPointViewDialog';
 export { ProfileStrengthMeter } from './ProfileStrengthMeter';
 export { EvidenceRequirementsPanel } from './EvidenceRequirementsPanel';
 export { WhyProofPointsMatter } from './WhyProofPointsMatter';

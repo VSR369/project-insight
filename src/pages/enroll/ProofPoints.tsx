@@ -1,12 +1,14 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Award, Loader2 } from 'lucide-react';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { useProofPoints, useDeleteProofPoint } from '@/hooks/queries/useProofPoints';
+import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { 
   ProofPointCard, 
+  ProofPointViewDialog,
   ProfileStrengthMeter, 
   EvidenceRequirementsPanel,
   WhyProofPointsMatter 
@@ -20,6 +22,9 @@ export default function EnrollProofPoints() {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(provider?.id);
   const deleteProofPoint = useDeleteProofPoint();
+  
+  const [viewDialogOpen, setViewDialogOpen] = useState(false);
+  const [selectedProofPoint, setSelectedProofPoint] = useState<ProofPointWithCounts | null>(null);
 
   const currentCount = proofPoints.length;
   const minimumMet = currentCount >= MINIMUM_REQUIRED;
@@ -42,14 +47,25 @@ export default function EnrollProofPoints() {
     navigate('/enroll/proof-points/add');
   };
 
-  const handleEdit = (proofPoint: any) => {
+  const handleView = (proofPoint: ProofPointWithCounts) => {
+    setSelectedProofPoint(proofPoint);
+    setViewDialogOpen(true);
+  };
+
+  const handleEdit = (proofPoint: ProofPointWithCounts) => {
     navigate(`/enroll/proof-points/edit/${proofPoint.id}`);
   };
 
-  const handleDelete = async (proofPoint: any) => {
+  const handleDelete = async (proofPoint: ProofPointWithCounts) => {
     if (!provider?.id) return;
     if (confirm('Are you sure you want to delete this proof point?')) {
       await deleteProofPoint.mutateAsync({ id: proofPoint.id, providerId: provider.id });
+    }
+  };
+  
+  const handleEditFromDialog = () => {
+    if (selectedProofPoint) {
+      navigate(`/enroll/proof-points/edit/${selectedProofPoint.id}`);
     }
   };
 
@@ -133,6 +149,7 @@ export default function EnrollProofPoints() {
                 <ProofPointCard
                   key={proof.id}
                   proofPoint={proof}
+                  onView={handleView}
                   onEdit={handleEdit}
                   onDelete={handleDelete}
                   animationDelay={index * 50}
@@ -146,6 +163,14 @@ export default function EnrollProofPoints() {
           You can add more proof points later from your profile settings.
         </p>
       </div>
+
+      {/* View Dialog */}
+      <ProofPointViewDialog
+        open={viewDialogOpen}
+        onOpenChange={setViewDialogOpen}
+        proofPoint={selectedProofPoint}
+        onEdit={handleEditFromDialog}
+      />
     </WizardLayout>
   );
 }

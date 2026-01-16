@@ -5,6 +5,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { 
@@ -18,7 +19,8 @@ import {
   Trophy,
   BookOpen,
   Award,
-  Tag
+  Tag,
+  Eye
 } from 'lucide-react';
 import type { ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 
@@ -46,6 +48,7 @@ const typeLabels: Record<string, string> = {
 
 interface ProofPointCardProps {
   proofPoint: ProofPointWithCounts;
+  onView?: (proofPoint: ProofPointWithCounts) => void;
   onEdit?: (proofPoint: ProofPointWithCounts) => void;
   onDelete?: (proofPoint: ProofPointWithCounts) => void;
   animationDelay?: number;
@@ -53,6 +56,7 @@ interface ProofPointCardProps {
 
 export function ProofPointCard({ 
   proofPoint, 
+  onView,
   onEdit, 
   onDelete,
   animationDelay = 0 
@@ -111,10 +115,15 @@ export function ProofPointCard({
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => onView?.(proofPoint)}>
+                    <Eye className="mr-2 h-4 w-4" />
+                    View Details
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => onEdit?.(proofPoint)}>
                     <Pencil className="mr-2 h-4 w-4" />
                     Edit
                   </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => onDelete?.(proofPoint)}
                     className="text-destructive"
