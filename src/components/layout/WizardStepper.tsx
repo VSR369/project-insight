@@ -19,6 +19,7 @@ interface WizardStepperProps {
   completedSteps: number[];
   skippedSteps?: number[];
   blockedSteps?: number[];
+  nextAccessibleStep?: number;
   onStepClick?: (stepId: number) => void;
 }
 
@@ -28,6 +29,7 @@ export function WizardStepper({
   completedSteps, 
   skippedSteps = [],
   blockedSteps = [],
+  nextAccessibleStep,
   onStepClick,
 }: WizardStepperProps) {
   return (
@@ -41,6 +43,10 @@ export function WizardStepper({
             const isSkipped = skippedSteps.includes(step.id);
             const isBlocked = blockedSteps.includes(step.id);
             const isUpcoming = step.id > currentStep && !isCompleted;
+            const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
+            
+            // Step is clickable if completed, current, or next accessible
+            const isClickable = isCompleted || isCurrent || isNextAccessible;
 
             const stepCircle = (
               <div
@@ -50,17 +56,18 @@ export function WizardStepper({
                   isCompleted && isBlocked && "bg-green-500 text-white cursor-pointer ring-2 ring-amber-400",
                   isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
                   isSkipped && "bg-muted text-muted-foreground border border-dashed",
-                  isUpcoming && !isSkipped && "bg-muted text-muted-foreground"
+                  isNextAccessible && "bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80 ring-1 ring-primary/40 hover:ring-primary/60",
+                  isUpcoming && !isSkipped && !isNextAccessible && "bg-muted text-muted-foreground"
                 )}
                 onClick={() => {
-                  if (isCompleted && onStepClick) {
+                  if (isClickable && onStepClick) {
                     onStepClick(step.id);
                   }
                 }}
-                role={isCompleted ? "button" : undefined}
-                tabIndex={isCompleted ? 0 : undefined}
+                role={isClickable ? "button" : undefined}
+                tabIndex={isClickable ? 0 : undefined}
                 onKeyDown={(e) => {
-                  if (isCompleted && onStepClick && (e.key === 'Enter' || e.key === ' ')) {
+                  if (isClickable && onStepClick && (e.key === 'Enter' || e.key === ' ')) {
                     e.preventDefault();
                     onStepClick(step.id);
                   }
@@ -102,10 +109,12 @@ export function WizardStepper({
                       isCurrent && "text-primary font-medium",
                       isCompleted && !isBlocked && "text-green-600 cursor-pointer hover:underline",
                       isCompleted && isBlocked && "text-amber-600 cursor-pointer",
-                      (isUpcoming || isSkipped) && "text-muted-foreground"
+                      isNextAccessible && "text-primary/70 cursor-pointer hover:text-primary hover:underline",
+                      isUpcoming && !isSkipped && !isNextAccessible && "text-muted-foreground",
+                      isSkipped && "text-muted-foreground"
                     )}
                     onClick={() => {
-                      if (isCompleted && onStepClick) {
+                      if (isClickable && onStepClick) {
                         onStepClick(step.id);
                       }
                     }}
@@ -136,6 +145,8 @@ export function WizardStepper({
               const isCurrent = step.id === currentStep;
               const isSkipped = skippedSteps.includes(step.id);
               const isBlocked = blockedSteps.includes(step.id);
+              const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
+              const isClickable = isCompleted || isCurrent || isNextAccessible;
 
               return (
                 <div
@@ -146,15 +157,16 @@ export function WizardStepper({
                     isCompleted && isBlocked && "bg-green-500 ring-1 ring-amber-400 cursor-pointer",
                     isCurrent && "bg-primary w-6",
                     isSkipped && "bg-muted border border-dashed",
-                    !isCompleted && !isCurrent && !isSkipped && "bg-muted"
+                    isNextAccessible && "bg-muted ring-1 ring-primary/50 cursor-pointer hover:scale-125",
+                    !isCompleted && !isCurrent && !isSkipped && !isNextAccessible && "bg-muted"
                   )}
                   onClick={() => {
-                    if (isCompleted && onStepClick) {
+                    if (isClickable && onStepClick) {
                       onStepClick(step.id);
                     }
                   }}
-                  role={isCompleted ? "button" : undefined}
-                  tabIndex={isCompleted ? 0 : undefined}
+                  role={isClickable ? "button" : undefined}
+                  tabIndex={isClickable ? 0 : undefined}
                 />
               );
             })}
