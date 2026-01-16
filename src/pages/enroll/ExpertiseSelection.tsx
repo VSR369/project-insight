@@ -88,14 +88,44 @@ export default function EnrollExpertise() {
   const handleAreaToggle = (areaId: string, checked: boolean) => {
     if (checked) {
       setSelectedAreas(prev => [...prev, areaId]);
+      
+      // Auto-expand the selected area and all its sub-domains
+      setExpandedAreas(prev => prev.includes(areaId) ? prev : [...prev, areaId]);
+      
+      // Find the area and expand all its sub-domains
+      const area = taxonomy?.find(a => a.id === areaId);
+      if (area) {
+        const subDomainIds = area.subDomains.map(sd => sd.id);
+        setExpandedSubDomains(prev => {
+          const newExpanded = [...prev];
+          subDomainIds.forEach(id => {
+            if (!newExpanded.includes(id)) {
+              newExpanded.push(id);
+            }
+          });
+          return newExpanded;
+        });
+      }
     } else {
       setSelectedAreas(prev => prev.filter(id => id !== areaId));
+      // Optionally collapse when deselected (user can re-expand if needed)
+      setExpandedAreas(prev => prev.filter(id => id !== areaId));
+      
+      // Collapse sub-domains of this area
+      const area = taxonomy?.find(a => a.id === areaId);
+      if (area) {
+        const subDomainIds = area.subDomains.map(sd => sd.id);
+        setExpandedSubDomains(prev => prev.filter(id => !subDomainIds.includes(id)));
+      }
     }
   };
 
   const handleSelectAllAreas = () => {
     if (taxonomy) {
       setSelectedAreas(taxonomy.map(a => a.id));
+      // Auto-expand all areas and sub-domains
+      setExpandedAreas(taxonomy.map(a => a.id));
+      setExpandedSubDomains(taxonomy.flatMap(a => a.subDomains.map(sd => sd.id)));
     }
   };
 
