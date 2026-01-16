@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
@@ -22,6 +22,21 @@ export default function EnrollParticipationMode() {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const updateMode = useUpdateProviderMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
+
+  // Check if there's a pending approval - redirect back to pending page
+  const hasPendingApproval = useMemo(() => {
+    if (!provider?.organization) return false;
+    const status = (provider.organization as any)?.approval_status;
+    return status === 'pending';
+  }, [provider?.organization]);
+
+  // Redirect if pending approval exists
+  useEffect(() => {
+    if (hasPendingApproval) {
+      toast.error('You have a pending manager approval. Please wait or cancel the request first.');
+      navigate('/enroll/organization-pending');
+    }
+  }, [hasPendingApproval, navigate]);
 
   useEffect(() => {
     if (provider?.participation_mode_id) {
