@@ -1,98 +1,59 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
-import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Award, Loader2 } from 'lucide-react';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useProofPoints, useDeleteProofPoint } from '@/hooks/queries/useProofPoints';
 import { 
-  Plus, 
-  Award, 
-  FileText, 
-  Link2, 
-  Briefcase,
-  GraduationCap,
-  Trophy,
-  BookOpen,
-  MoreVertical,
-  Pencil,
-  Trash2,
-  Loader2
-} from 'lucide-react';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { useCurrentProvider, useCompleteOnboarding } from '@/hooks/queries/useProvider';
+  ProofPointCard, 
+  ProfileStrengthMeter, 
+  EvidenceRequirementsPanel,
+  WhyProofPointsMatter 
+} from '@/components/proof-points';
 import { toast } from 'sonner';
 
-const typeIcons: Record<string, typeof Briefcase> = {
-  project: Briefcase,
-  case_study: FileText,
-  certification: GraduationCap,
-  award: Trophy,
-  publication: BookOpen,
-  portfolio: Award,
-  testimonial: FileText,
-  other: FileText,
-};
-
-const typeLabels: Record<string, string> = {
-  project: 'Project',
-  case_study: 'Case Study',
-  certification: 'Certification',
-  award: 'Award',
-  publication: 'Publication',
-  portfolio: 'Portfolio',
-  testimonial: 'Testimonial',
-  other: 'Other',
-};
+const MINIMUM_REQUIRED = 2;
 
 export default function EnrollProofPoints() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const completeOnboarding = useCompleteOnboarding();
-  
-  // TODO: Replace with actual proof points query
-  const [proofPoints] = useState<Array<{
-    id: string;
-    type: string;
-    category: string;
-    title: string;
-    description: string;
-    linksCount: number;
-    filesCount: number;
-    tagsCount: number;
-  }>>([]);
+  const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(provider?.id);
+  const deleteProofPoint = useDeleteProofPoint();
 
-  const profileStrength = Math.min((proofPoints.length / 5) * 100, 100);
-  const minimumMet = proofPoints.length >= 2;
+  const currentCount = proofPoints.length;
+  const minimumMet = currentCount >= MINIMUM_REQUIRED;
 
   const handleBack = () => {
     navigate('/enroll/expertise');
   };
 
-  const handleContinue = async () => {
-    if (!provider?.id) {
-      toast.error('Provider profile not found. Please try again.');
+  const handleContinue = () => {
+    if (!minimumMet) {
+      toast.error(`Please add at least ${MINIMUM_REQUIRED} proof points to continue.`);
       return;
     }
+    // Navigate to next step (assessment or completion)
+    navigate('/dashboard');
+    toast.success('Profile section completed!');
+  };
 
-    // For now, complete onboarding after proof points
-    // In full implementation, this would navigate to assessment
-    try {
-      await completeOnboarding.mutateAsync(provider.id);
-      toast.success('Profile completed successfully!');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error('Failed to complete profile. Please try again.');
-      console.error('Error completing onboarding:', error);
+  const handleAddProofPoint = () => {
+    navigate('/enroll/proof-points/add');
+  };
+
+  const handleEdit = (proofPoint: any) => {
+    navigate(`/enroll/proof-points/edit/${proofPoint.id}`);
+  };
+
+  const handleDelete = async (proofPoint: any) => {
+    if (!provider?.id) return;
+    if (confirm('Are you sure you want to delete this proof point?')) {
+      await deleteProofPoint.mutateAsync({ id: proofPoint.id, providerId: provider.id });
     }
   };
 
-  if (providerLoading) {
+  if (providerLoading || proofPointsLoading) {
     return (
       <WizardLayout currentStep={5} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -107,145 +68,82 @@ export default function EnrollProofPoints() {
       currentStep={5}
       onBack={handleBack}
       onContinue={handleContinue}
-      continueLabel="Complete Profile"
-      isSubmitting={completeOnboarding.isPending}
+      continueLabel={minimumMet ? 'Continue to Share Knowledge' : `Add ${MINIMUM_REQUIRED - currentCount} More to Continue`}
+      continueDisabled={!minimumMet}
     >
       <div className="space-y-6">
         {/* Header */}
-        <div>
+        <div className="animate-fade-in">
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-            Showcase Your Work
+            Strengthen Your Profile
           </h1>
           <p className="text-muted-foreground mt-2">
-            Add proof points to demonstrate your expertise. Include projects, certifications, awards, and more.
+            Your assessment provides a solid foundation, but adding real-world proof points will unlock premium opportunities and build seeker confidence.
           </p>
         </div>
 
-        {/* Profile Strength */}
-        <Card>
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className="flex-1">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Profile Strength</span>
-                  <span className="text-sm text-muted-foreground">
-                    {proofPoints.length} of 5 recommended
-                  </span>
-                </div>
-                <Progress value={profileStrength} className="h-2" />
-              </div>
-              <Badge variant={minimumMet ? "default" : "secondary"}>
-                {minimumMet ? 'Minimum Met' : 'Add 2+ Proof Points'}
-              </Badge>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Why Proof Points Matter + What Makes Strong Proof Points */}
+        <WhyProofPointsMatter />
 
-        {/* Add Button */}
-        <div className="flex justify-end">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Proof Point
-          </Button>
+        {/* Requirements Panels */}
+        <EvidenceRequirementsPanel 
+          currentCount={currentCount} 
+          minimumRequired={MINIMUM_REQUIRED}
+        />
+
+        {/* Profile Strength */}
+        <ProfileStrengthMeter 
+          currentCount={currentCount}
+          minimumRequired={MINIMUM_REQUIRED}
+        />
+
+        {/* Evidence Portfolio Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-semibold">Evidence Portfolio</h2>
+              <p className="text-sm text-muted-foreground">
+                Showcase your expertise with real-world examples and achievements.
+              </p>
+            </div>
+            <Button onClick={handleAddProofPoint} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Proof Point
+            </Button>
+          </div>
+
+          {/* Proof Points List */}
+          {currentCount === 0 ? (
+            <Card className="border-dashed">
+              <CardContent className="p-8 text-center">
+                <Award className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                <h3 className="font-medium text-lg mb-2">No Proof Points Yet</h3>
+                <p className="text-muted-foreground text-sm mb-4">
+                  Add at least {MINIMUM_REQUIRED} proof points to continue to the Share Knowledge assessment.
+                </p>
+                <Button onClick={handleAddProofPoint} className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Your First Proof Point
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {proofPoints.map((proof, index) => (
+                <ProofPointCard
+                  key={proof.id}
+                  proofPoint={proof}
+                  onEdit={handleEdit}
+                  onDelete={handleDelete}
+                  animationDelay={index * 50}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Proof Points List */}
-        {proofPoints.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 text-center">
-              <Award className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
-              <h3 className="font-medium text-lg mb-2">No Proof Points Yet</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Start adding your projects, certifications, and achievements to build credibility.
-              </p>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Your First Proof Point
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-4">
-            {proofPoints.map((proof) => {
-              const Icon = typeIcons[proof.type] || FileText;
-              
-              return (
-                <Card key={proof.id}>
-                  <CardContent className="p-4 sm:p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                        <Icon className="h-5 w-5 text-primary" />
-                      </div>
-                      
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-2">
-                          <div>
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <h3 className="font-medium">{proof.title}</h3>
-                              <Badge variant="outline" className="text-xs">
-                                {typeLabels[proof.type]}
-                              </Badge>
-                              {proof.category === 'specialty_specific' && (
-                                <Badge variant="secondary" className="text-xs">
-                                  Specialty
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                              {proof.description}
-                            </p>
-                          </div>
-
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="shrink-0">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-
-                        <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
-                          {proof.linksCount > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Link2 className="h-3 w-3" />
-                              {proof.linksCount} links
-                            </span>
-                          )}
-                          {proof.filesCount > 0 && (
-                            <span className="flex items-center gap-1">
-                              <FileText className="h-3 w-3" />
-                              {proof.filesCount} files
-                            </span>
-                          )}
-                          {proof.tagsCount > 0 && (
-                            <span className="flex items-center gap-1">
-                              <Award className="h-3 w-3" />
-                              {proof.tagsCount} skills
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        )}
-
         <p className="text-sm text-muted-foreground text-center">
-          You can add more proof points later from your profile settings
+          You can add more proof points later from your profile settings.
         </p>
       </div>
     </WizardLayout>
