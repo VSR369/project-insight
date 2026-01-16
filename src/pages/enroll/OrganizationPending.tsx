@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
+import { useClearProviderMode } from '@/hooks/queries/useClearProviderMode';
 import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
 import { Clock, Mail, RefreshCw, Loader2, AlertCircle, Building2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,8 +30,10 @@ export default function OrganizationPending() {
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading, refetch } = useCurrentProvider();
   const withdrawRequest = useWithdrawApprovalRequest();
+  const clearProviderMode = useClearProviderMode();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
+  const [showBlockedDialog, setShowBlockedDialog] = useState(false);
 
   const organization = provider?.organization;
   const approvalStatus = (organization as any)?.approval_status;
@@ -145,10 +149,32 @@ export default function OrganizationPending() {
     }
   };
 
+  // Handle back button - show blocking dialog instead of navigating
   const handleBack = () => {
-    navigate('/enroll/participation-mode');
+    setShowBlockedDialog(true);
   };
 
+  // Handle cancel and reset from blocking dialog
+  const handleCancelAndReset = async () => {
+    if (!provider?.id) return;
+
+    try {
+      // First withdraw the approval request
+      await withdrawRequest.mutateAsync({
+        providerId: provider.id,
+        withdrawalReason: 'User cancelled to change participation mode',
+      });
+
+      // Then clear the participation mode
+      await clearProviderMode.mutateAsync({ providerId: provider.id });
+
+      setShowBlockedDialog(false);
+      toast.success('Request cancelled. Please select a new participation mode.');
+      navigate('/enroll/participation-mode');
+    } catch (error) {
+      console.error('Error cancelling request:', error);
+    }
+  };
   const handleContinue = () => {
     toast.error('Your organization manager approval is pending. You cannot proceed until your manager approves your request.');
   };
@@ -164,12 +190,24 @@ export default function OrganizationPending() {
   }
 
   return (
-    <WizardLayout
-      currentStep={3}
-      onBack={handleBack}
-      onContinue={handleContinue}
-      continueLabel="Continue"
-    >
+    <>
+      {/* Blocked Mode Change Dialog */}
+      <BlockedModeChangeDialog
+        open={showBlockedDialog}
+        onOpenChange={setShowBlockedDialog}
+        orgName={organization?.org_name}
+        managerName={organization?.manager_name}
+        managerEmail={organization?.manager_email}
+        onCancelAndReset={handleCancelAndReset}
+        isResetting={withdrawRequest.isPending || clearProviderMode.isPending}
+      />
+
+      <WizardLayout
+        currentStep={3}
+        onBack={handleBack}
+        onContinue={handleContinue}
+        continueLabel="Continue"
+      >
       <div className="space-y-6">
         {/* Header */}
         <div>
@@ -333,6 +371,7 @@ export default function OrganizationPending() {
           </AlertDescription>
         </Alert>
       </div>
-    </WizardLayout>
+      </WizardLayout>
+    </>
   );
 }
