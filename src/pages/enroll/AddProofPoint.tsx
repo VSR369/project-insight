@@ -31,7 +31,7 @@ const proofPointSchema = z.object({
   category: z.enum(['general', 'specialty_specific']),
   type: z.string().min(1, 'Please select a type'),
   title: z.string().min(1, 'Title is required').max(100, 'Title must be 100 characters or less'),
-  description: z.string().min(20, 'Description must be at least 20 characters').max(500, 'Description must be 500 characters or less'),
+  description: z.string().min(20, 'Description must be at least 20 characters').max(1000, 'Description must be 1000 characters or less'),
 });
 
 type FormValues = z.infer<typeof proofPointSchema>;
@@ -238,14 +238,14 @@ export default function AddProofPoint() {
                         <FormControl>
                           <Textarea
                             placeholder="Describe your proof point, including key results and impact..."
-                            rows={4}
+                            rows={6}
                             {...field}
                             disabled={isSubmitting}
                           />
                         </FormControl>
                         <div className="flex justify-between text-xs text-muted-foreground">
                           <FormMessage />
-                          <span>{field.value.length}/500</span>
+                          <span>{field.value.length}/1000</span>
                         </div>
                       </FormItem>
                     )}
