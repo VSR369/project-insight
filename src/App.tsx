@@ -25,6 +25,7 @@ import {
   EnrollOrganization,
   EnrollExpertiseSelection,
   EnrollProofPoints,
+  EnrollAssessment,
   PostEnrollmentWelcome,
   AddProofPoint,
   OrganizationPending,
@@ -166,6 +167,14 @@ const App = () => (
               element={
                 <AuthGuard>
                   <OrganizationDeclined />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/assessment"
+              element={
+                <AuthGuard>
+                  <EnrollAssessment />
                 </AuthGuard>
               }
             />

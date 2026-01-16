@@ -3,6 +3,7 @@ export { default as EnrollParticipationMode } from './ParticipationMode';
 export { default as EnrollOrganization } from './Organization';
 export { default as EnrollExpertiseSelection } from './ExpertiseSelection';
 export { default as EnrollProofPoints } from './ProofPoints';
+export { default as EnrollAssessment } from './Assessment';
 export { default as PostEnrollmentWelcome } from './PostEnrollmentWelcome';
 export { default as AddProofPoint } from './AddProofPoint';
 export { default as OrganizationPending } from './OrganizationPending';
