@@ -150,6 +150,12 @@ export function WizardLayout({
     9: '/enroll/certification',    // TODO: create these routes
   };
 
+  // Calculate next accessible step (first incomplete step after all completed)
+  const nextAccessibleStep = useMemo(() => {
+    const maxCompleted = completedSteps.length > 0 ? Math.max(...completedSteps) : 0;
+    return maxCompleted + 1;
+  }, [completedSteps]);
+
   const handleStepClick = (stepId: number) => {
     // Block navigation to step 2 (Mode) if pending approval
     if (stepId === 2 && isModeStepBlocked) {
@@ -157,8 +163,16 @@ export function WizardLayout({
       return;
     }
     
-    // Allow navigation to completed steps only
-    if (completedSteps.includes(stepId) && STEP_ROUTES[stepId]) {
+    // Allow navigation to:
+    // 1. Completed steps
+    // 2. The next accessible step (first incomplete after all completed)
+    // 3. The current step
+    const isAccessible = 
+      completedSteps.includes(stepId) || 
+      stepId === nextAccessibleStep ||
+      stepId === currentStep;
+    
+    if (isAccessible && STEP_ROUTES[stepId]) {
       navigate(STEP_ROUTES[stepId]);
     }
   };
@@ -264,6 +278,7 @@ export function WizardLayout({
             completedSteps={completedSteps}
             skippedSteps={skippedSteps}
             blockedSteps={blockedSteps}
+            nextAccessibleStep={nextAccessibleStep}
             onStepClick={handleStepClick}
           />
         </header>
