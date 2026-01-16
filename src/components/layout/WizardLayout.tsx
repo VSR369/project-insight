@@ -2,6 +2,15 @@ import { ReactNode, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
@@ -58,6 +67,9 @@ export function WizardLayout({
   const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
+  const [showNavigationBlockDialog, setShowNavigationBlockDialog] = useState(false);
+  const [blockingStepTitle, setBlockingStepTitle] = useState('');
+  const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
   // Determine if org step is required based on selected participation mode
   // KEY FIX: If no mode is selected, default to FALSE (hide org step until mode chosen)
@@ -162,6 +174,32 @@ export function WizardLayout({
     return maxCompleted + 1;
   }, [completedSteps]);
 
+  // Check if a step is accessible (all preceding visible steps must be complete)
+  const isStepAccessible = useMemo(() => {
+    return (stepId: number): boolean => {
+      if (stepId === currentStep) return true;
+      
+      const visibleStepIds = visibleSteps.map(s => s.id);
+      const stepIndex = visibleStepIds.indexOf(stepId);
+      if (stepIndex === -1) return false;
+      
+      // Check all preceding visible steps are completed
+      for (let i = 0; i < stepIndex; i++) {
+        if (!completedSteps.includes(visibleStepIds[i])) {
+          return false; // A preceding step is incomplete
+        }
+      }
+      return true;
+    };
+  }, [visibleSteps, completedSteps, currentStep]);
+
+  // Compute accessible steps array
+  const accessibleSteps = useMemo(() => {
+    return visibleSteps
+      .filter(step => isStepAccessible(step.id))
+      .map(s => s.id);
+  }, [visibleSteps, isStepAccessible]);
+
   const handleStepClick = (stepId: number) => {
     // Block navigation to step 2 (Mode) if pending approval
     if (stepId === 2 && isModeStepBlocked) {
@@ -169,17 +207,33 @@ export function WizardLayout({
       return;
     }
     
-    // Allow navigation to:
-    // 1. Completed steps
-    // 2. The next accessible step (first incomplete after all completed)
-    // 3. The current step
-    const isAccessible = 
-      completedSteps.includes(stepId) || 
-      stepId === nextAccessibleStep ||
-      stepId === currentStep;
+    // Check if step is accessible (all preceding steps complete)
+    if (!isStepAccessible(stepId)) {
+      // Only show popup for COMPLETED steps that are blocked by an earlier incomplete step
+      // Gray (not started) steps just do nothing
+      if (completedSteps.includes(stepId)) {
+        const blockingStep = visibleSteps.find(s => 
+          !completedSteps.includes(s.id) && s.id < stepId
+        );
+        if (blockingStep) {
+          setBlockingStepTitle(blockingStep.title.toLowerCase());
+          setBlockingStepId(blockingStep.id);
+          setShowNavigationBlockDialog(true);
+        }
+      }
+      return; // Don't navigate
+    }
     
-    if (isAccessible && STEP_ROUTES[stepId]) {
+    if (STEP_ROUTES[stepId]) {
       navigate(STEP_ROUTES[stepId]);
+    }
+  };
+
+  // Handle navigation block dialog confirmation
+  const handleNavigationBlockConfirm = () => {
+    setShowNavigationBlockDialog(false);
+    if (blockingStepId && STEP_ROUTES[blockingStepId]) {
+      navigate(STEP_ROUTES[blockingStepId]);
     }
   };
 
@@ -222,6 +276,23 @@ export function WizardLayout({
         onCancelAndReset={handleCancelAndReset}
         isResetting={cancelOrgApproval.isPending}
       />
+
+      {/* Navigation Block Dialog - for completed steps blocked by earlier incomplete steps */}
+      <AlertDialog open={showNavigationBlockDialog} onOpenChange={setShowNavigationBlockDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Complete Previous Step</AlertDialogTitle>
+            <AlertDialogDescription>
+              You want to change your {blockingStepTitle}? Please select and continue.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleNavigationBlockConfirm}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       
       <div className="min-h-screen flex flex-col bg-background">
         {/* Header */}
@@ -277,6 +348,7 @@ export function WizardLayout({
             steps={visibleSteps}
             currentStep={currentStep}
             completedSteps={completedSteps}
+            accessibleSteps={accessibleSteps}
             skippedSteps={skippedSteps}
             blockedSteps={blockedSteps}
             nextAccessibleStep={nextAccessibleStep}
