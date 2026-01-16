@@ -1,1 +1,10 @@
 project_id = "izwimkvabbvnqcrrubpf"
+
+[functions.send-manager-credentials]
+verify_jwt = false
+
+[functions.verify-manager-login]
+verify_jwt = false
+
+[functions.process-manager-decision]
+verify_jwt = false

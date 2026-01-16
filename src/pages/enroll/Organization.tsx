@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -6,11 +6,13 @@ import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
+import { useSendManagerCredentials, checkOrgApprovalStatus } from '@/hooks/queries/useManagerApproval';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Building2, User, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Building2, User, Loader2, AlertCircle, Mail, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const organizationSchema = z.object({
@@ -30,6 +32,8 @@ export default function EnrollOrganization() {
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const upsertOrg = useUpsertOrganization();
+  const sendCredentials = useSendManagerCredentials();
+  const [isNewSubmission, setIsNewSubmission] = useState(false);
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -44,8 +48,23 @@ export default function EnrollOrganization() {
     },
   });
 
+  // Check approval status on load
   useEffect(() => {
     if (provider?.organization) {
+      const { status, canContinue } = checkOrgApprovalStatus(provider.organization);
+      
+      if (status === 'pending') {
+        navigate('/enroll/organization-pending');
+        return;
+      }
+      if (status === 'declined') {
+        navigate('/enroll/organization-declined');
+        return;
+      }
+      if (status === 'approved' && canContinue) {
+        // Already approved, can proceed - just populate form
+      }
+
       const org = provider.organization;
       form.reset({
         orgName: org.org_name || '',
@@ -57,7 +76,7 @@ export default function EnrollOrganization() {
         managerPhone: org.manager_phone || '',
       });
     }
-  }, [provider?.organization, form]);
+  }, [provider?.organization, form, navigate]);
 
   const handleBack = () => {
     navigate('/enroll/participation-mode');
@@ -75,6 +94,7 @@ export default function EnrollOrganization() {
     }
 
     try {
+      // Save organization details
       await upsertOrg.mutateAsync({
         providerId: provider.id,
         data: {
@@ -87,7 +107,28 @@ export default function EnrollOrganization() {
           managerPhone: data.managerPhone || undefined,
         },
       });
-      navigate('/enroll/expertise');
+
+      // Check if already approved (editing existing approved org)
+      const currentStatus = (provider.organization as any)?.approval_status;
+      if (currentStatus === 'approved') {
+        navigate('/enroll/expertise');
+        return;
+      }
+
+      // Send manager credentials for new/pending submissions
+      setIsNewSubmission(true);
+      await sendCredentials.mutateAsync({
+        providerId: provider.id,
+        providerName: `${provider.first_name} ${provider.last_name}`,
+        providerEmail: '',
+        providerDesignation: data.designation,
+        orgName: data.orgName,
+        managerEmail: data.managerEmail,
+        managerName: data.managerName,
+      });
+
+      // Redirect to pending page
+      navigate('/enroll/organization-pending');
     } catch (error) {
       toast.error('Failed to save organization details. Please try again.');
       console.error('Error saving organization:', error);
@@ -104,12 +145,15 @@ export default function EnrollOrganization() {
     );
   }
 
+  const isApproved = (provider?.organization as any)?.approval_status === 'approved';
+
   return (
     <WizardLayout
       currentStep={3}
       onBack={handleBack}
       onContinue={handleContinue}
-      isSubmitting={upsertOrg.isPending}
+      isSubmitting={upsertOrg.isPending || sendCredentials.isPending}
+      continueLabel={isApproved ? "Continue" : "Submit for Approval"}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -121,6 +165,26 @@ export default function EnrollOrganization() {
             Provide details about the organization you represent.
           </p>
         </div>
+
+        {/* Approval Notice */}
+        {!isApproved && (
+          <Alert>
+            <Mail className="h-4 w-4" />
+            <AlertDescription>
+              Your manager will receive an email with login credentials to approve your participation. 
+              You cannot continue until they approve.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isApproved && (
+          <Alert className="border-green-200 bg-green-50/50">
+            <CheckCircle2 className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700">
+              Your organization has been approved by your manager.
+            </AlertDescription>
+          </Alert>
+        )}
 
         <Form {...form}>
           <form className="space-y-6">
@@ -141,7 +205,7 @@ export default function EnrollOrganization() {
                     <FormItem>
                       <FormLabel>Organization Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Corporation" {...field} />
+                        <Input placeholder="Acme Corporation" {...field} disabled={isApproved} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -155,7 +219,7 @@ export default function EnrollOrganization() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Organization Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isApproved}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
@@ -224,7 +288,7 @@ export default function EnrollOrganization() {
                     <FormItem>
                       <FormLabel>Manager Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Smith" {...field} />
+                        <Input placeholder="John Smith" {...field} disabled={isApproved} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -239,7 +303,7 @@ export default function EnrollOrganization() {
                       <FormItem>
                         <FormLabel>Manager Email *</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="manager@company.com" {...field} />
+                          <Input type="email" placeholder="manager@company.com" {...field} disabled={isApproved} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
