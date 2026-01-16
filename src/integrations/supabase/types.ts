@@ -752,6 +752,42 @@ export type Database = {
           },
         ]
       }
+      provider_proficiency_areas: {
+        Row: {
+          created_at: string
+          id: string
+          proficiency_area_id: string
+          provider_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          proficiency_area_id: string
+          provider_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          proficiency_area_id?: string
+          provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_proficiency_areas_proficiency_area_id_fkey"
+            columns: ["proficiency_area_id"]
+            isOneToOne: false
+            referencedRelation: "proficiency_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_proficiency_areas_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_specialities: {
         Row: {
           created_at: string

@@ -207,3 +207,42 @@ export async function upsertStudentProfile(
   if (error) throw error;
   return profile;
 }
+
+// Fetch provider's selected proficiency areas
+export async function fetchProviderProficiencyAreas(providerId: string): Promise<string[]> {
+  const { data, error } = await supabase
+    .from('provider_proficiency_areas')
+    .select('proficiency_area_id')
+    .eq('provider_id', providerId);
+
+  if (error) throw error;
+  return data?.map(row => row.proficiency_area_id) || [];
+}
+
+// Upsert provider's proficiency area selections (delete old + insert new)
+export async function upsertProviderProficiencyAreas(
+  providerId: string,
+  proficiencyAreaIds: string[]
+): Promise<void> {
+  // First, delete all existing selections for this provider
+  const { error: deleteError } = await supabase
+    .from('provider_proficiency_areas')
+    .delete()
+    .eq('provider_id', providerId);
+
+  if (deleteError) throw deleteError;
+
+  // Then, insert new selections (if any)
+  if (proficiencyAreaIds.length > 0) {
+    const rows = proficiencyAreaIds.map(areaId => ({
+      provider_id: providerId,
+      proficiency_area_id: areaId,
+    }));
+
+    const { error: insertError } = await supabase
+      .from('provider_proficiency_areas')
+      .insert(rows);
+
+    if (insertError) throw insertError;
+  }
+}
