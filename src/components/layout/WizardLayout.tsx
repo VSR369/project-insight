@@ -68,6 +68,7 @@ export function WizardLayout({
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
   const [showNavigationBlockDialog, setShowNavigationBlockDialog] = useState(false);
+  const [showOrgRequiredDialog, setShowOrgRequiredDialog] = useState(false);
   const [blockingStepTitle, setBlockingStepTitle] = useState('');
   const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
@@ -132,6 +133,9 @@ export function WizardLayout({
         completed.push(3);
       }
     }
+
+    // IMPORTANT: If org is required but not complete, steps after org (4+) should not be accessible
+    // even if they have data from a previous mode selection
 
     // Step 4: Expertise Level
     if (provider.expertise_level_id) {
@@ -200,11 +204,30 @@ export function WizardLayout({
       .map(s => s.id);
   }, [visibleSteps, isStepAccessible]);
 
+  // Check if org details are incomplete when org_rep mode is selected
+  const isOrgIncomplete = useMemo(() => {
+    if (!isOrgRequired) return false;
+    if (!provider?.organization?.org_name) return true;
+    const approvalStatus = (provider.organization as any)?.approval_status;
+    // Incomplete if no approval status or not approved
+    return approvalStatus !== 'approved';
+  }, [isOrgRequired, provider?.organization]);
+
   const handleStepClick = (stepId: number) => {
     // Block navigation to step 2 (Mode) if pending approval
     if (stepId === 2 && isModeStepBlocked) {
       setShowBlockedDialog(true);
       return;
+    }
+    
+    // Special case: org_rep mode selected but org details incomplete
+    // Block access to steps after org (step 4+) and show org required dialog
+    if (isOrgRequired && isOrgIncomplete && stepId > 3) {
+      // Only show popup for COMPLETED steps (green circles)
+      if (completedSteps.includes(stepId)) {
+        setShowOrgRequiredDialog(true);
+      }
+      return; // Don't navigate
     }
     
     // Check if step is accessible (all preceding steps complete)
@@ -227,6 +250,12 @@ export function WizardLayout({
     if (STEP_ROUTES[stepId]) {
       navigate(STEP_ROUTES[stepId]);
     }
+  };
+
+  // Handle org required dialog confirmation - navigate to org screen
+  const handleOrgRequiredConfirm = () => {
+    setShowOrgRequiredDialog(false);
+    navigate(STEP_ROUTES[3]); // Navigate to organization screen
   };
 
   // Handle navigation block dialog confirmation
@@ -288,6 +317,23 @@ export function WizardLayout({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleNavigationBlockConfirm}>
+              OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Org Required Dialog - when org_rep mode selected but org details incomplete */}
+      <AlertDialog open={showOrgRequiredDialog} onOpenChange={setShowOrgRequiredDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Organization Details Required</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please complete your organization details first. You can go back to change your participation mode if needed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={handleOrgRequiredConfirm}>
               OK
             </AlertDialogAction>
           </AlertDialogFooter>
