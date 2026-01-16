@@ -3,13 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpdateProviderExpertise } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { ArrowRight, ArrowLeft, Loader2, CheckCircle, Star, AlertCircle } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Loader2, CheckCircle, Star, AlertCircle, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -20,6 +22,12 @@ export default function ExpertiseLevel() {
   const updateExpertise = useUpdateProviderExpertise();
   const [selectedLevel, setSelectedLevel] = useState<string>('');
 
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
+
   // Pre-fill from existing data
   useEffect(() => {
     if (provider?.expertise_level_id) {
@@ -28,6 +36,11 @@ export default function ExpertiseLevel() {
   }, [provider?.expertise_level_id]);
 
   const handleContinue = async () => {
+    if (isLocked) {
+      toast.error('This section is locked and cannot be modified.');
+      return;
+    }
+
     if (!provider?.id) {
       toast.error('Provider profile not found. Please refresh the page or contact support.');
       return;
@@ -75,7 +88,7 @@ export default function ExpertiseLevel() {
 
   // Determine if provider is missing (not loading but null)
   const providerMissing = !providerLoading && !provider;
-  const canContinue = selectedLevel && provider?.id && !updateExpertise.isPending;
+  const canContinue = selectedLevel && provider?.id && !updateExpertise.isPending && !isLocked;
 
   return (
     <AppLayout>
@@ -86,6 +99,7 @@ export default function ExpertiseLevel() {
             <span>Step 3 of 5</span>
             <span>•</span>
             <span>Expertise Level</span>
+            {isLocked && <Lock className="h-3 w-3" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             What's Your Expertise Level?
@@ -94,6 +108,15 @@ export default function ExpertiseLevel() {
             Select the level that best represents your professional experience.
           </p>
         </div>
+
+        {/* Lock Banner */}
+        {isLocked && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : configurationCheck.lockLevel || 'configuration'}
+            reason={configurationCheck.reason}
+            className="mb-6"
+          />
+        )}
 
         {/* Provider Missing Warning */}
         {providerMissing && (
@@ -117,8 +140,9 @@ export default function ExpertiseLevel() {
         {/* Level Selection */}
         <RadioGroup 
           value={selectedLevel} 
-          onValueChange={setSelectedLevel}
+          onValueChange={isLocked ? undefined : setSelectedLevel}
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+          disabled={isLocked}
         >
           {levels?.map((level) => {
             const isSelected = selectedLevel === level.id;
@@ -130,12 +154,14 @@ export default function ExpertiseLevel() {
               <Label
                 key={level.id}
                 htmlFor={level.id}
-                className="cursor-pointer h-full"
+                className={cn("cursor-pointer h-full", isLocked && "cursor-not-allowed")}
               >
                 <Card
                   className={cn(
-                    "h-full transition-all hover:border-primary/50 relative overflow-hidden",
-                    isSelected && "border-primary ring-2 ring-primary/20"
+                    "h-full transition-all relative overflow-hidden",
+                    !isLocked && "hover:border-primary/50",
+                    isSelected && "border-primary ring-2 ring-primary/20",
+                    isLocked && "bg-muted/30 opacity-70"
                   )}
                 >
                   {/* Level Badge */}
@@ -150,6 +176,7 @@ export default function ExpertiseLevel() {
                       value={level.id} 
                       id={level.id} 
                       className="sr-only" 
+                      disabled={isLocked}
                     />
 
                     {/* Stars */}

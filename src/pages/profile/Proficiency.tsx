@@ -2,12 +2,14 @@ import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowRight, ArrowLeft, TreePine, ChevronRight, FolderOpen, Tag, Loader2, AlertCircle, Award } from 'lucide-react';
+import { ArrowRight, ArrowLeft, TreePine, ChevronRight, FolderOpen, Tag, Loader2, AlertCircle, Award, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export default function Proficiency() {
@@ -19,7 +21,14 @@ export default function Proficiency() {
   );
   const { data: expertiseLevels = [] } = useExpertiseLevels();
 
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
+
   const providerLevel = expertiseLevels.find(l => l.id === provider?.expertise_level_id);
+  
   if (providerLoading) {
     return (
       <AppLayout>
@@ -43,6 +52,7 @@ export default function Proficiency() {
             <span>Step 4 of 5</span>
             <span>•</span>
             <span>Proficiency Areas</span>
+            {isLocked && <Lock className="h-3 w-3" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Explore Your Proficiency Areas
@@ -52,6 +62,15 @@ export default function Proficiency() {
             You'll select your specific specialities after completing the assessment.
           </p>
         </div>
+
+        {/* Lock Banner */}
+        {isLocked && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : configurationCheck.lockLevel || 'configuration'}
+            reason={configurationCheck.reason}
+            className="mb-6"
+          />
+        )}
 
         {/* Info Card */}
         <Card className="mb-6 border-primary/20 bg-primary/5">

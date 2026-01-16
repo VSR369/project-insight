@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCountries } from '@/hooks/queries/useCountries';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,7 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowRight, Loader2, User, GraduationCap, LogOut } from 'lucide-react';
+import { ArrowRight, Loader2, User, GraduationCap, LogOut, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 // India country code for PIN validation
@@ -61,6 +63,19 @@ export default function Registration() {
   const [activeTab, setActiveTab] = useState<'experienced' | 'student'>('experienced');
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('');
 
+  // Lifecycle validation - registration fields
+  const registrationCheck = useCanModifyField('registration');
+  const configurationCheck = useCanModifyField('configuration'); // For industry segment
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  
+  // Registration fields (name, address) locked at content threshold
+  const isRegistrationLocked = !registrationCheck.allowed || isTerminal;
+  // Configuration fields (industry) locked at configuration threshold  
+  const isConfigLocked = !configurationCheck.allowed || isTerminal;
+  // If any field is locked, show lock banner
+  const hasAnyLock = isRegistrationLocked || isConfigLocked;
+
   const form = useForm<RegistrationFormData>({
     resolver: zodResolver(registrationSchema),
     defaultValues: {
@@ -97,6 +112,7 @@ export default function Registration() {
 
   // Update country code when country changes
   const handleCountryChange = (countryId: string) => {
+    if (isRegistrationLocked) return;
     form.setValue('countryId', countryId);
     const country = countries?.find(c => c.id === countryId);
     setSelectedCountryCode(country?.code || '');
@@ -121,6 +137,12 @@ export default function Registration() {
   };
 
   const onSubmit = async (data: RegistrationFormData) => {
+    // Check if all locked
+    if (isTerminal) {
+      toast.error('Profile is frozen and cannot be modified.');
+      return;
+    }
+
     // Additional PIN validation
     const pinValidation = validatePinCode(data.pinCode);
     if (pinValidation !== true) {
@@ -137,12 +159,12 @@ export default function Registration() {
       await updateProfile.mutateAsync({
         providerId: provider.id,
         data: {
-          firstName: data.firstName,
-          lastName: data.lastName,
-          address: data.address,
-          pinCode: data.pinCode,
-          countryId: data.countryId,
-          industrySegmentId: data.industrySegmentId,
+          firstName: isRegistrationLocked ? provider.first_name : data.firstName,
+          lastName: isRegistrationLocked ? provider.last_name : data.lastName,
+          address: isRegistrationLocked ? provider.address || '' : data.address,
+          pinCode: isRegistrationLocked ? provider.pin_code || '' : data.pinCode,
+          countryId: isRegistrationLocked ? provider.country_id || '' : data.countryId,
+          industrySegmentId: isConfigLocked ? provider.industry_segment_id || '' : data.industrySegmentId,
           isStudent: activeTab === 'student',
         },
       });
@@ -195,6 +217,19 @@ export default function Registration() {
           </Button>
         </div>
 
+        {/* Lock Banner */}
+        {hasAnyLock && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : isRegistrationLocked ? 'content' : 'configuration'}
+            reason={isTerminal 
+              ? 'Your profile is frozen. No modifications are allowed.'
+              : isRegistrationLocked 
+                ? registrationCheck.reason 
+                : configurationCheck.reason}
+            className="mb-6"
+          />
+        )}
+
         {/* Tabs */}
         <Tabs value={activeTab} className="mb-6">
           <TabsList className="grid w-full grid-cols-2">
@@ -218,12 +253,13 @@ export default function Registration() {
         </Tabs>
 
         {/* Registration Form */}
-        <Card>
+        <Card className={isTerminal ? 'bg-muted/30' : ''}>
           <CardHeader>
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <span>Step 1 of 6</span>
               <span>•</span>
               <span>Basic Profile</span>
+              {hasAnyLock && <Lock className="h-3 w-3" />}
             </div>
             <CardTitle>Experienced Professional Registration</CardTitle>
             <CardDescription>
@@ -241,7 +277,11 @@ export default function Registration() {
                       <FormItem>
                         <FormLabel>First Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter first name" {...field} />
+                          <Input 
+                            placeholder="Enter first name" 
+                            disabled={isRegistrationLocked}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -255,7 +295,11 @@ export default function Registration() {
                       <FormItem>
                         <FormLabel>Last Name *</FormLabel>
                         <FormControl>
-                          <Input placeholder="Enter last name" {...field} />
+                          <Input 
+                            placeholder="Enter last name" 
+                            disabled={isRegistrationLocked}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -273,6 +317,7 @@ export default function Registration() {
                         <Textarea 
                           placeholder="Enter your full address" 
                           className="min-h-[80px]"
+                          disabled={isRegistrationLocked}
                           {...field} 
                         />
                       </FormControl>
@@ -291,6 +336,7 @@ export default function Registration() {
                         <Select 
                           value={field.value} 
                           onValueChange={handleCountryChange}
+                          disabled={isRegistrationLocked}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -325,6 +371,7 @@ export default function Registration() {
                                 ? "6-digit PIN code" 
                                 : "Enter pin/postal code"
                             } 
+                            disabled={isRegistrationLocked}
                             {...field} 
                           />
                         </FormControl>
@@ -339,8 +386,17 @@ export default function Registration() {
                   name="industrySegmentId"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Industry Segment *</FormLabel>
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <FormLabel className="flex items-center gap-2">
+                        Industry Segment *
+                        {isConfigLocked && !isRegistrationLocked && (
+                          <Lock className="h-3 w-3 text-muted-foreground" />
+                        )}
+                      </FormLabel>
+                      <Select 
+                        value={field.value} 
+                        onValueChange={field.onChange}
+                        disabled={isConfigLocked}
+                      >
                         <FormControl>
                           <SelectTrigger>
                             <SelectValue placeholder="Select industry segment" />
@@ -363,7 +419,7 @@ export default function Registration() {
                 <div className="flex justify-end pt-4">
                   <Button
                     type="submit"
-                    disabled={updateProfile.isPending}
+                    disabled={updateProfile.isPending || isTerminal}
                     className="gap-2"
                   >
                     {updateProfile.isPending ? (
