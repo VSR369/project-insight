@@ -431,6 +431,45 @@ export type Database = {
           },
         ]
       }
+      lifecycle_stages: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          display_name: string
+          id: string
+          is_active: boolean | null
+          locks_configuration: boolean | null
+          locks_content: boolean | null
+          locks_everything: boolean | null
+          rank: number
+          status_code: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          display_name: string
+          id?: string
+          is_active?: boolean | null
+          locks_configuration?: boolean | null
+          locks_content?: boolean | null
+          locks_everything?: boolean | null
+          rank: number
+          status_code: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          display_name?: string
+          id?: string
+          is_active?: boolean | null
+          locks_configuration?: boolean | null
+          locks_content?: boolean | null
+          locks_everything?: boolean | null
+          rank?: number
+          status_code?: string
+        }
+        Relationships: []
+      }
       organization_types: {
         Row: {
           code: string
@@ -1380,6 +1419,33 @@ export type Database = {
           },
         ]
       }
+      system_settings: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          setting_key: string
+          setting_value: Json
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key: string
+          setting_value: Json
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1412,6 +1478,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      execute_expertise_change_reset: {
+        Args: { p_provider_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      execute_industry_change_reset: {
+        Args: { p_provider_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      get_cascade_impact_counts: {
+        Args: { p_provider_id: string }
+        Returns: {
+          general_proof_points_count: number
+          proficiency_areas_count: number
+          specialities_count: number
+          specialty_proof_points_count: number
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1431,10 +1514,22 @@ export type Database = {
         | "invited"
         | "registered"
         | "enrolled"
+        | "mode_selected"
+        | "org_info_pending"
+        | "org_validated"
+        | "expertise_selected"
+        | "proof_points_started"
+        | "proof_points_min_met"
+        | "assessment_in_progress"
+        | "assessment_passed"
+        | "panel_scheduled"
+        | "panel_completed"
         | "profile_building"
         | "assessment_pending"
         | "assessment_completed"
         | "verified"
+        | "certified"
+        | "not_verified"
         | "active"
         | "suspended"
         | "inactive"
@@ -1596,10 +1691,22 @@ export const Constants = {
         "invited",
         "registered",
         "enrolled",
+        "mode_selected",
+        "org_info_pending",
+        "org_validated",
+        "expertise_selected",
+        "proof_points_started",
+        "proof_points_min_met",
+        "assessment_in_progress",
+        "assessment_passed",
+        "panel_scheduled",
+        "panel_completed",
         "profile_building",
         "assessment_pending",
         "assessment_completed",
         "verified",
+        "certified",
+        "not_verified",
         "active",
         "suspended",
         "inactive",

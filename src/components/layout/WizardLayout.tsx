@@ -19,6 +19,7 @@ import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
+import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
 // Define all 9 enrollment steps
 const ENROLLMENT_STEPS: WizardStep[] = [
   { id: 1, title: 'Complete Registration', shortTitle: 'Register' },
@@ -155,6 +156,18 @@ export function WizardLayout({
     if (isModeStepBlocked) return [2];
     return [];
   }, [isModeStepBlocked]);
+
+  // Locked steps - based on lifecycle rank (terminal state, assessment, panel)
+  const lockedSteps = useMemo(() => {
+    if (!provider?.lifecycle_rank) return [];
+    const locked: number[] = [];
+    visibleSteps.forEach(step => {
+      if (isWizardStepLocked(step.id, provider.lifecycle_rank)) {
+        locked.push(step.id);
+      }
+    });
+    return locked;
+  }, [provider?.lifecycle_rank, visibleSteps]);
 
   // No skipped steps needed since we hide the step entirely
   const skippedSteps: number[] = [];
@@ -397,6 +410,7 @@ export function WizardLayout({
             accessibleSteps={accessibleSteps}
             skippedSteps={skippedSteps}
             blockedSteps={blockedSteps}
+            lockedSteps={lockedSteps}
             nextAccessibleStep={nextAccessibleStep}
             onStepClick={handleStepClick}
           />
