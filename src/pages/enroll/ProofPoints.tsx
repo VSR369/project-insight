@@ -52,9 +52,8 @@ export default function EnrollProofPoints() {
       toast.error(`Please add at least ${minimumRequired} proof points to continue.`);
       return;
     }
-    // Navigate to next step (assessment or completion)
-    navigate('/dashboard');
-    toast.success('Profile section completed!');
+    // Navigate to assessment step
+    navigate('/enroll/assessment');
   };
 
   const handleAddProofPoint = () => {
