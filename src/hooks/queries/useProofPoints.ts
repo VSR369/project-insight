@@ -335,9 +335,7 @@ export function useDeleteProofPoint() {
       const currentCount = count || 0;
 
       if (currentCount <= minRequired) {
-        throw new Error(
-          `Minimum ${minRequired} proof points required. Please add a new proof point before deleting this one.`
-        );
+        throw new Error('Minimum 2 proof points required.');
       }
 
       const user = (await supabase.auth.getUser()).data.user;
