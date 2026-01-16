@@ -20,6 +20,7 @@ interface WizardStepperProps {
   accessibleSteps?: number[];
   skippedSteps?: number[];
   blockedSteps?: number[];
+  lockedSteps?: number[]; // Steps locked due to lifecycle stage
   nextAccessibleStep?: number;
   onStepClick?: (stepId: number) => void;
 }
@@ -31,6 +32,7 @@ export function WizardStepper({
   accessibleSteps = [],
   skippedSteps = [],
   blockedSteps = [],
+  lockedSteps = [],
   nextAccessibleStep,
   onStepClick,
 }: WizardStepperProps) {
@@ -44,14 +46,16 @@ export function WizardStepper({
             const isCurrent = step.id === currentStep;
             const isSkipped = skippedSteps.includes(step.id);
             const isBlocked = blockedSteps.includes(step.id);
+            const isLocked = lockedSteps.includes(step.id); // Lifecycle lock
             const isUpcoming = step.id > currentStep && !isCompleted;
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
             const isAccessible = accessibleSteps.includes(step.id);
             
-            // Completed steps are always "clickable" - parent handles whether to navigate or show popup
+            // Locked steps are NOT clickable (frozen by lifecycle)
+            // Completed steps are "clickable" - parent handles navigation or popup
             // Current step and next accessible step are clickable
             // Gray (not started, not accessible) steps are NOT clickable
-            const isClickable = isCompleted || isCurrent || isNextAccessible;
+            const isClickable = !isLocked && (isCompleted || isCurrent || isNextAccessible);
             
             // Completed but not accessible (blocked by earlier incomplete step)
             const isCompletedButBlocked = isCompleted && !isAccessible;
@@ -60,13 +64,17 @@ export function WizardStepper({
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all relative",
-                  isCompleted && !isBlocked && !isCompletedButBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
-                  isCompleted && isBlocked && "bg-green-500 text-white cursor-pointer ring-2 ring-amber-400",
-                  isCompletedButBlocked && !isBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-500/80",
-                  isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
+                  // Locked state (lifecycle freeze) - greyed out with lock overlay
+                  isLocked && isCompleted && "bg-slate-400 text-white cursor-not-allowed opacity-75",
+                  isLocked && !isCompleted && "bg-slate-300 text-slate-500 cursor-not-allowed opacity-75",
+                  // Normal states when not locked
+                  !isLocked && isCompleted && !isBlocked && !isCompletedButBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
+                  !isLocked && isCompleted && isBlocked && "bg-green-500 text-white cursor-pointer ring-2 ring-amber-400",
+                  !isLocked && isCompletedButBlocked && !isBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-500/80",
+                  !isLocked && isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
                   isSkipped && "bg-muted text-muted-foreground border border-dashed",
-                  isNextAccessible && "bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80 ring-1 ring-primary/40 hover:ring-primary/60",
-                  isUpcoming && !isSkipped && !isNextAccessible && "bg-muted text-muted-foreground"
+                  !isLocked && isNextAccessible && "bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80 ring-1 ring-primary/40 hover:ring-primary/60",
+                  !isLocked && isUpcoming && !isSkipped && !isNextAccessible && "bg-muted text-muted-foreground"
                 )}
                 onClick={() => {
                   if (isClickable && onStepClick) {
@@ -87,8 +95,14 @@ export function WizardStepper({
                 ) : (
                   step.id
                 )}
-                {/* Lock indicator for blocked steps */}
-                {isBlocked && (
+                {/* Lock indicator for lifecycle-locked steps */}
+                {isLocked && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-slate-600 flex items-center justify-center">
+                    <Lock className="h-2.5 w-2.5 text-white" />
+                  </div>
+                )}
+                {/* Amber lock for blocked steps (pending approval) */}
+                {!isLocked && isBlocked && (
                   <div className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 flex items-center justify-center">
                     <Lock className="h-2.5 w-2.5 text-white" />
                   </div>
@@ -100,7 +114,16 @@ export function WizardStepper({
               <div key={step.id} className="flex items-center">
                 {/* Step circle */}
                 <div className="flex flex-col items-center">
-                  {isBlocked ? (
+                  {isLocked ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {stepCircle}
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                        <p className="text-xs">This step is locked and cannot be modified</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : isBlocked ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         {stepCircle}
@@ -124,12 +147,15 @@ export function WizardStepper({
                   <span 
                     className={cn(
                       "text-xs mt-1 max-w-[60px] text-center truncate transition-all",
-                      isCurrent && "text-primary font-medium",
-                      isCompleted && !isBlocked && !isCompletedButBlocked && "text-green-600 cursor-pointer hover:underline",
-                      isCompleted && isBlocked && "text-amber-600 cursor-pointer",
-                      isCompletedButBlocked && !isBlocked && "text-green-600 cursor-pointer",
-                      isNextAccessible && "text-primary/70 cursor-pointer hover:text-primary hover:underline",
-                      isUpcoming && !isSkipped && !isNextAccessible && "text-muted-foreground",
+                      // Locked state
+                      isLocked && "text-slate-400 cursor-not-allowed",
+                      // Normal states when not locked
+                      !isLocked && isCurrent && "text-primary font-medium",
+                      !isLocked && isCompleted && !isBlocked && !isCompletedButBlocked && "text-green-600 cursor-pointer hover:underline",
+                      !isLocked && isCompleted && isBlocked && "text-amber-600 cursor-pointer",
+                      !isLocked && isCompletedButBlocked && !isBlocked && "text-green-600 cursor-pointer",
+                      !isLocked && isNextAccessible && "text-primary/70 cursor-pointer hover:text-primary hover:underline",
+                      !isLocked && isUpcoming && !isSkipped && !isNextAccessible && "text-muted-foreground",
                       isSkipped && "text-muted-foreground"
                     )}
                     onClick={() => {
@@ -164,21 +190,26 @@ export function WizardStepper({
             const isCurrent = step.id === currentStep;
             const isSkipped = skippedSteps.includes(step.id);
             const isBlocked = blockedSteps.includes(step.id);
+            const isLocked = lockedSteps.includes(step.id);
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
+            // Locked steps are NOT clickable
             // Completed steps are clickable (will show popup if blocked), plus current and next accessible
-            const isClickable = isCompleted || isCurrent || isNextAccessible;
+            const isClickable = !isLocked && (isCompleted || isCurrent || isNextAccessible);
 
               return (
                 <div
                   key={step.id}
                   className={cn(
                     "w-2.5 h-2.5 rounded-full transition-all relative",
-                    isCompleted && !isBlocked && "bg-green-500 cursor-pointer hover:scale-125",
-                    isCompleted && isBlocked && "bg-green-500 ring-1 ring-amber-400 cursor-pointer",
-                    isCurrent && "bg-primary w-6",
+                    // Locked state
+                    isLocked && "bg-slate-400 cursor-not-allowed opacity-75",
+                    // Normal states when not locked
+                    !isLocked && isCompleted && !isBlocked && "bg-green-500 cursor-pointer hover:scale-125",
+                    !isLocked && isCompleted && isBlocked && "bg-green-500 ring-1 ring-amber-400 cursor-pointer",
+                    !isLocked && isCurrent && "bg-primary w-6",
                     isSkipped && "bg-muted border border-dashed",
-                    isNextAccessible && "bg-muted ring-1 ring-primary/50 cursor-pointer hover:scale-125",
-                    !isCompleted && !isCurrent && !isSkipped && !isNextAccessible && "bg-muted"
+                    !isLocked && isNextAccessible && "bg-muted ring-1 ring-primary/50 cursor-pointer hover:scale-125",
+                    !isLocked && !isCompleted && !isCurrent && !isSkipped && !isNextAccessible && "bg-muted"
                   )}
                   onClick={() => {
                     if (isClickable && onStepClick) {
