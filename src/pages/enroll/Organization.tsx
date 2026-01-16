@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -35,7 +35,6 @@ export default function EnrollOrganization() {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const upsertOrg = useUpsertOrganization();
   const sendCredentials = useSendManagerCredentials();
-  const [isNewSubmission, setIsNewSubmission] = useState(false);
 
   // Lifecycle validation
   const contentCheck = useCanModifyField('content');
@@ -127,7 +126,6 @@ export default function EnrollOrganization() {
       }
 
       // Send manager credentials for new/pending submissions
-      setIsNewSubmission(true);
       await sendCredentials.mutateAsync({
         providerId: provider.id,
         providerName: `${provider.first_name} ${provider.last_name}`,
@@ -140,9 +138,8 @@ export default function EnrollOrganization() {
 
       // Redirect to pending page
       navigate('/enroll/organization-pending');
-    } catch (error) {
+    } catch {
       toast.error('Failed to save organization details. Please try again.');
-      console.error('Error saving organization:', error);
     }
   };
 

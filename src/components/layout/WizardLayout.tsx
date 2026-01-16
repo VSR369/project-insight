@@ -20,6 +20,15 @@ import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
+// Type for organization with approval status (prevents unsafe `as any` casts)
+interface OrganizationWithApprovalStatus {
+  org_name?: string;
+  org_type_id?: string | null;
+  manager_name?: string | null;
+  manager_email?: string | null;
+  approval_status?: 'pending' | 'approved' | 'declined' | 'withdrawn' | null;
+}
+
 // Define all 9 enrollment steps
 const ENROLLMENT_STEPS: WizardStep[] = [
   { id: 1, title: 'Complete Registration', shortTitle: 'Register' },
@@ -95,18 +104,18 @@ export function WizardLayout({
   // Check if mode step (step 2) is blocked due to pending approval
   const isModeStepBlocked = useMemo(() => {
     if (!provider?.organization) return false;
-    const status = (provider.organization as any)?.approval_status;
-    return status === 'pending';
+    const org = provider.organization as OrganizationWithApprovalStatus;
+    return org.approval_status === 'pending';
   }, [provider?.organization]);
 
   // Organization details for blocking dialog
   const orgDetails = useMemo(() => {
     if (!provider?.organization) return null;
-    const org = provider.organization as any;
+    const org = provider.organization as OrganizationWithApprovalStatus;
     return {
-      orgName: org.org_name,
-      managerName: org.manager_name,
-      managerEmail: org.manager_email,
+      orgName: org.org_name ?? '',
+      managerName: org.manager_name ?? '',
+      managerEmail: org.manager_email ?? '',
     };
   }, [provider?.organization]);
 
@@ -128,9 +137,9 @@ export function WizardLayout({
     // Step 3: Organization (only if required AND approved - not just org_name presence)
     // KEY FIX: Use approval_status to determine completion, not just field presence
     if (isOrgRequired && provider.organization?.org_name) {
-      const approvalStatus = (provider.organization as any)?.approval_status;
+      const org = provider.organization as OrganizationWithApprovalStatus;
       // Only mark complete if approved (not pending, withdrawn, or declined)
-      if (approvalStatus === 'approved') {
+      if (org.approval_status === 'approved') {
         completed.push(3);
       }
     }

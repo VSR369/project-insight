@@ -70,11 +70,10 @@ export default function EnrollParticipationMode() {
           providerId: provider.id,
           participationModeId: modeId,
         });
-      } catch (error) {
+      } catch {
         // Rollback on error
         setSelectedMode(provider.participation_mode_id || '');
         toast.error('Failed to save mode selection');
-        console.error('Error saving mode:', error);
       }
     }
   };

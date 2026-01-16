@@ -175,8 +175,8 @@ export default function EnrollRegistration() {
       if (result.success) {
         navigate('/enroll/welcome');
       }
-    } catch (error) {
-      console.error('Error saving profile:', error);
+    } catch {
+      // Error handled by mutation
     }
   };
 
@@ -203,8 +203,8 @@ export default function EnrollRegistration() {
         setPendingCascadeData(null);
         navigate('/enroll/welcome');
       }
-    } catch (error) {
-      console.error('Error confirming cascade:', error);
+    } catch {
+      // Error handled by mutation
     }
   };
 
