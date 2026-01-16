@@ -7,6 +7,8 @@ import { WizardLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
 import { useSendManagerCredentials, checkOrgApprovalStatus } from '@/hooks/queries/useManagerApproval';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -34,6 +36,11 @@ export default function EnrollOrganization() {
   const upsertOrg = useUpsertOrganization();
   const sendCredentials = useSendManagerCredentials();
   const [isNewSubmission, setIsNewSubmission] = useState(false);
+
+  // Lifecycle validation
+  const contentCheck = useCanModifyField('content');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -63,9 +70,6 @@ export default function EnrollOrganization() {
       }
       // For 'withdrawn' status, allow editing (canContinue is true)
       // For 'approved' status, can proceed but fields are locked
-      if (status === 'approved' && canContinue) {
-        // Already approved, can proceed - just populate form
-      }
 
       const org = provider.organization;
       form.reset({
@@ -85,6 +89,11 @@ export default function EnrollOrganization() {
   };
 
   const handleContinue = async () => {
+    if (isTerminal) {
+      toast.error('Profile is locked and cannot be modified.');
+      return;
+    }
+
     const isValid = await form.trigger();
     if (!isValid) return;
 
@@ -150,6 +159,7 @@ export default function EnrollOrganization() {
   const approvalStatus = (provider?.organization as any)?.approval_status;
   const isApproved = approvalStatus === 'approved';
   const isWithdrawn = approvalStatus === 'withdrawn';
+  const isFormDisabled = isApproved || isTerminal;
 
   return (
     <WizardLayout
@@ -158,6 +168,7 @@ export default function EnrollOrganization() {
       onContinue={handleContinue}
       isSubmitting={upsertOrg.isPending || sendCredentials.isPending}
       continueLabel={isApproved ? "Continue" : "Submit for Approval"}
+      canContinue={!isTerminal}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -170,8 +181,23 @@ export default function EnrollOrganization() {
           </p>
         </div>
 
+        {/* Terminal State Lock Banner */}
+        {isTerminal && (
+          <LockedFieldBanner 
+            lockLevel="everything"
+            reason="Your profile has been verified. Organization details cannot be modified."
+          />
+        )}
+        
+        {!isTerminal && !contentCheck.allowed && (
+          <LockedFieldBanner 
+            lockLevel="content"
+            reason={contentCheck.reason || undefined}
+          />
+        )}
+
         {/* Approval Notice */}
-        {!isApproved && !isWithdrawn && (
+        {!isApproved && !isWithdrawn && !isTerminal && (
           <Alert>
             <Mail className="h-4 w-4" />
             <AlertDescription>
@@ -181,7 +207,7 @@ export default function EnrollOrganization() {
           </Alert>
         )}
 
-        {isWithdrawn && (
+        {isWithdrawn && !isTerminal && (
           <Alert className="border-blue-200 bg-blue-50/50">
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-700">
@@ -190,7 +216,7 @@ export default function EnrollOrganization() {
           </Alert>
         )}
 
-        {isApproved && (
+        {isApproved && !isTerminal && (
           <Alert className="border-green-200 bg-green-50/50">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-700">
@@ -218,7 +244,7 @@ export default function EnrollOrganization() {
                     <FormItem>
                       <FormLabel>Organization Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Corporation" {...field} disabled={isApproved} />
+                        <Input placeholder="Acme Corporation" {...field} disabled={isFormDisabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -232,7 +258,7 @@ export default function EnrollOrganization() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Organization Type *</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value} disabled={isApproved}>
+                        <Select onValueChange={field.onChange} value={field.value} disabled={isFormDisabled}>
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
@@ -258,7 +284,7 @@ export default function EnrollOrganization() {
                       <FormItem>
                         <FormLabel>Your Designation (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Senior Consultant" {...field} />
+                          <Input placeholder="Senior Consultant" {...field} disabled={isTerminal} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -273,7 +299,7 @@ export default function EnrollOrganization() {
                     <FormItem>
                       <FormLabel>Website (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://example.com" {...field} />
+                        <Input placeholder="https://example.com" {...field} disabled={isTerminal} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -301,7 +327,7 @@ export default function EnrollOrganization() {
                     <FormItem>
                       <FormLabel>Manager Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Smith" {...field} disabled={isApproved} />
+                        <Input placeholder="John Smith" {...field} disabled={isFormDisabled} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -316,7 +342,7 @@ export default function EnrollOrganization() {
                       <FormItem>
                         <FormLabel>Manager Email *</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="manager@company.com" {...field} disabled={isApproved} />
+                          <Input type="email" placeholder="manager@company.com" {...field} disabled={isFormDisabled} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -330,7 +356,7 @@ export default function EnrollOrganization() {
                       <FormItem>
                         <FormLabel>Manager Phone (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="+91 9876543210" {...field} />
+                          <Input placeholder="+91 9876543210" {...field} disabled={isTerminal} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>

@@ -1495,6 +1495,10 @@ export type Database = {
           specialty_proof_points_count: number
         }[]
       }
+      handle_orphaned_proof_points: {
+        Args: { p_provider_id: string; p_removed_area_ids: string[] }
+        Returns: number
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

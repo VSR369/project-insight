@@ -221,15 +221,45 @@ export async function fetchProviderProficiencyAreas(providerId: string): Promise
 }
 
 // Upsert provider's proficiency area selections (delete old + insert new)
+// Handles orphaned proof points when areas are removed
 export async function upsertProviderProficiencyAreas(
   providerId: string,
   proficiencyAreaIds: string[]
-): Promise<void> {
+): Promise<{ orphanedCount: number }> {
   // Get current user for audit fields
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error('Not authenticated');
 
-  // First, delete all existing selections for this provider
+  // 1. Fetch current selections to detect removed areas
+  const { data: existingAreas, error: fetchError } = await supabase
+    .from('provider_proficiency_areas')
+    .select('proficiency_area_id')
+    .eq('provider_id', providerId);
+
+  if (fetchError) throw fetchError;
+
+  const existingIds = existingAreas?.map(a => a.proficiency_area_id) || [];
+  const removedIds = existingIds.filter(id => !proficiencyAreaIds.includes(id));
+
+  let orphanedCount = 0;
+
+  // 2. Handle orphaned proof points if areas were removed
+  if (removedIds.length > 0) {
+    const { data: result, error: orphanError } = await supabase
+      .rpc('handle_orphaned_proof_points', {
+        p_provider_id: providerId,
+        p_removed_area_ids: removedIds,
+      });
+
+    if (orphanError) {
+      console.error('Error handling orphaned proof points:', orphanError);
+      // Continue with the upsert even if orphan handling fails
+    } else {
+      orphanedCount = result || 0;
+    }
+  }
+
+  // 3. Delete all existing selections for this provider
   const { error: deleteError } = await supabase
     .from('provider_proficiency_areas')
     .delete()
@@ -237,7 +267,7 @@ export async function upsertProviderProficiencyAreas(
 
   if (deleteError) throw deleteError;
 
-  // Then, insert new selections with audit fields (if any)
+  // 4. Insert new selections with audit fields (if any)
   if (proficiencyAreaIds.length > 0) {
     const rows = proficiencyAreaIds.map(areaId => ({
       provider_id: providerId,
@@ -251,4 +281,6 @@ export async function upsertProviderProficiencyAreas(
 
     if (insertError) throw insertError;
   }
+
+  return { orphanedCount };
 }

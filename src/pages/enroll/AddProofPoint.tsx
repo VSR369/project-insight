@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +14,8 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useCreateProofPoint, useUploadProofPointFile } from '@/hooks/queries/useProofPoints';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment';
 import { 
   CategorySelector, 
   ProofPointTypeSelect, 
@@ -22,6 +24,7 @@ import {
   SupportingFilesUploader,
   type UploadedFile 
 } from '@/components/proof-points';
+import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 
 type ProofPointType = Database['public']['Enums']['proof_point_type'];
@@ -48,6 +51,12 @@ export default function AddProofPoint() {
   const createProofPoint = useCreateProofPoint();
   const uploadFile = useUploadProofPointFile();
 
+  // Lifecycle validation
+  const contentCheck = useCanModifyField('content');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isContentLocked = !contentCheck.allowed || isTerminal;
+
   const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
@@ -64,6 +73,14 @@ export default function AddProofPoint() {
     },
   });
 
+  // Redirect if content is locked
+  useEffect(() => {
+    if (!providerLoading && isContentLocked) {
+      toast.error('Content modification is locked at this lifecycle stage.');
+      navigate('/enroll/proof-points');
+    }
+  }, [providerLoading, isContentLocked, navigate]);
+
   const category = form.watch('category');
   const isSubmitting = createProofPoint.isPending || uploadFile.isPending;
 
@@ -73,6 +90,11 @@ export default function AddProofPoint() {
 
   const onSubmit = async (values: FormValues) => {
     if (!provider?.id) return;
+
+    if (isContentLocked) {
+      toast.error('Content modification is locked.');
+      return;
+    }
 
     try {
       // Filter valid links
@@ -112,6 +134,18 @@ export default function AddProofPoint() {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Show lock banner if trying to access when locked (before redirect)
+  if (isContentLocked) {
+    return (
+      <div className="min-h-screen bg-background p-6">
+        <LockedFieldBanner 
+          lockLevel={isTerminal ? "everything" : "content"}
+          reason="Proof point creation is not allowed at this lifecycle stage."
+        />
       </div>
     );
   }
