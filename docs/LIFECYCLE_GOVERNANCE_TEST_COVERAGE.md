@@ -26,8 +26,9 @@ This document summarizes all tests for the Lifecycle Governance system, which en
 | `src/test/cascade-smoke.test.ts` | Smoke | 28 | Read-only production safety checks |
 | `src/test/assessment-service.test.ts` | Unit | 62+ | Assessment lifecycle lock trigger |
 | `src/test/assessment-hooks.test.ts` | Unit | 16+ | Assessment React hooks |
+| `src/test/assessment-integration.test.ts` | Integration | 23+ | Assessment database operations |
 
-**Total Tests:** 187+ across all suites
+**Total Tests:** 210+ across all suites
 
 ---
 
