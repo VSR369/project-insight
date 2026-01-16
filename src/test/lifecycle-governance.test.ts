@@ -8,7 +8,7 @@
  * including terminal state immutability, cascade resets, and wizard step locking.
  */
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { 
   canModifyField, 
   getCascadeImpact, 
@@ -17,12 +17,7 @@ import {
   LOCK_THRESHOLDS,
   LIFECYCLE_RANKS 
 } from '@/services/lifecycleService';
-import { 
-  createProviderFixture, 
-  createProvidersAtAllStages,
-  CASCADE_TEST_SCENARIOS,
-  LOCK_THRESHOLD_TEST_DATA 
-} from './fixtures/provider-fixtures';
+// Fixtures available in ./fixtures/provider-fixtures.ts for integration tests
 
 // ============================================================================
 // SECTION 1: BR-01 - Terminal State Immutability
