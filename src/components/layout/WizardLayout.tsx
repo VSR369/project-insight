@@ -1,8 +1,9 @@
 import { ReactNode, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Save, ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
+import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
@@ -49,6 +50,7 @@ export function WizardLayout({
 }: WizardLayoutProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
+  const { isAdmin } = useUserRoles();
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
 
@@ -147,6 +149,18 @@ export function WizardLayout({
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* DEV: Admin toggle - remove for production */}
+            {isAdmin && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => navigate('/admin')}
+                className="gap-2 hidden sm:flex"
+              >
+                <Shield className="h-4 w-4" />
+                Admin
+              </Button>
+            )}
             {showSaveAndExit && (
               <Button 
                 variant="ghost" 
