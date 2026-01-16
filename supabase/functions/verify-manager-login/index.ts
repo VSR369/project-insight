@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
-import { compare } from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +10,46 @@ const corsHeaders = {
 interface VerifyLoginRequest {
   email: string;
   password: string;
+}
+
+// PBKDF2 password verification using Web Crypto API
+async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
+  try {
+    const encoder = new TextEncoder();
+    
+    // Decode the stored hash (salt + hash combined)
+    const combined = Uint8Array.from(atob(storedHash), c => c.charCodeAt(0));
+    const salt = combined.slice(0, 16);
+    const storedHashBytes = combined.slice(16);
+    
+    const keyMaterial = await crypto.subtle.importKey(
+      "raw",
+      encoder.encode(password),
+      "PBKDF2",
+      false,
+      ["deriveBits"]
+    );
+    
+    const hash = await crypto.subtle.deriveBits(
+      {
+        name: "PBKDF2",
+        salt: salt,
+        iterations: 100000,
+        hash: "SHA-256",
+      },
+      keyMaterial,
+      256
+    );
+    
+    // Compare the hashes
+    const hashBytes = new Uint8Array(hash);
+    if (hashBytes.length !== storedHashBytes.length) return false;
+    
+    return hashBytes.every((byte, i) => byte === storedHashBytes[i]);
+  } catch (error) {
+    console.error("Error verifying password:", error);
+    return false;
+  }
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -95,7 +134,7 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const isPasswordValid = await compare(password, org.manager_temp_password_hash);
+    const isPasswordValid = await verifyPassword(password, org.manager_temp_password_hash);
 
     if (!isPasswordValid) {
       return new Response(
