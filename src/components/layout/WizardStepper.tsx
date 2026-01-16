@@ -17,6 +17,7 @@ interface WizardStepperProps {
   steps: WizardStep[];
   currentStep: number;
   completedSteps: number[];
+  accessibleSteps?: number[];
   skippedSteps?: number[];
   blockedSteps?: number[];
   nextAccessibleStep?: number;
@@ -27,6 +28,7 @@ export function WizardStepper({
   steps, 
   currentStep, 
   completedSteps, 
+  accessibleSteps = [],
   skippedSteps = [],
   blockedSteps = [],
   nextAccessibleStep,
@@ -44,16 +46,23 @@ export function WizardStepper({
             const isBlocked = blockedSteps.includes(step.id);
             const isUpcoming = step.id > currentStep && !isCompleted;
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
+            const isAccessible = accessibleSteps.includes(step.id);
             
-            // Step is clickable if completed, current, or next accessible
+            // Completed steps are always "clickable" - parent handles whether to navigate or show popup
+            // Current step and next accessible step are clickable
+            // Gray (not started, not accessible) steps are NOT clickable
             const isClickable = isCompleted || isCurrent || isNextAccessible;
+            
+            // Completed but not accessible (blocked by earlier incomplete step)
+            const isCompletedButBlocked = isCompleted && !isAccessible;
 
             const stepCircle = (
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all relative",
-                  isCompleted && !isBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
+                  isCompleted && !isBlocked && !isCompletedButBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
                   isCompleted && isBlocked && "bg-green-500 text-white cursor-pointer ring-2 ring-amber-400",
+                  isCompletedButBlocked && !isBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-500/80",
                   isCurrent && "bg-primary text-primary-foreground ring-2 ring-primary/30",
                   isSkipped && "bg-muted text-muted-foreground border border-dashed",
                   isNextAccessible && "bg-muted text-muted-foreground cursor-pointer hover:bg-muted/80 ring-1 ring-primary/40 hover:ring-primary/60",
@@ -107,8 +116,9 @@ export function WizardStepper({
                     className={cn(
                       "text-xs mt-1 max-w-[60px] text-center truncate transition-all",
                       isCurrent && "text-primary font-medium",
-                      isCompleted && !isBlocked && "text-green-600 cursor-pointer hover:underline",
+                      isCompleted && !isBlocked && !isCompletedButBlocked && "text-green-600 cursor-pointer hover:underline",
                       isCompleted && isBlocked && "text-amber-600 cursor-pointer",
+                      isCompletedButBlocked && !isBlocked && "text-green-600 cursor-pointer",
                       isNextAccessible && "text-primary/70 cursor-pointer hover:text-primary hover:underline",
                       isUpcoming && !isSkipped && !isNextAccessible && "text-muted-foreground",
                       isSkipped && "text-muted-foreground"
@@ -141,12 +151,13 @@ export function WizardStepper({
         <div className="md:hidden flex flex-col items-center gap-2">
           <div className="flex items-center gap-1">
             {steps.map((step) => {
-              const isCompleted = completedSteps.includes(step.id);
-              const isCurrent = step.id === currentStep;
-              const isSkipped = skippedSteps.includes(step.id);
-              const isBlocked = blockedSteps.includes(step.id);
-              const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
-              const isClickable = isCompleted || isCurrent || isNextAccessible;
+            const isCompleted = completedSteps.includes(step.id);
+            const isCurrent = step.id === currentStep;
+            const isSkipped = skippedSteps.includes(step.id);
+            const isBlocked = blockedSteps.includes(step.id);
+            const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
+            // Completed steps are clickable (will show popup if blocked), plus current and next accessible
+            const isClickable = isCompleted || isCurrent || isNextAccessible;
 
               return (
                 <div
