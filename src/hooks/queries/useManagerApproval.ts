@@ -65,6 +65,7 @@ export function useResendManagerCredentials() {
 interface WithdrawParams {
   providerId: string;
   withdrawalReason?: string;
+  clearParticipationMode?: boolean;
 }
 
 export function useWithdrawApprovalRequest() {
