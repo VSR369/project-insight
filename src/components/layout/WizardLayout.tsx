@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useCurrentProvider, useProviderProficiencyAreas } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
@@ -79,6 +79,10 @@ export function WizardLayout({
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
   const [showNavigationBlockDialog, setShowNavigationBlockDialog] = useState(false);
   const [showOrgRequiredDialog, setShowOrgRequiredDialog] = useState(false);
+  const [showProficiencyRequiredDialog, setShowProficiencyRequiredDialog] = useState(false);
+  
+  // Fetch provider proficiency areas for Step 4 completion check
+  const { data: providerProficiencyAreas } = useProviderProficiencyAreas(provider?.id);
   const [blockingStepTitle, setBlockingStepTitle] = useState('');
   const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
@@ -147,8 +151,8 @@ export function WizardLayout({
     // IMPORTANT: If org is required but not complete, steps after org (4+) should not be accessible
     // even if they have data from a previous mode selection
 
-    // Step 4: Expertise Level
-    if (provider.expertise_level_id) {
+    // Step 4: Expertise Level + at least one proficiency area
+    if (provider.expertise_level_id && providerProficiencyAreas && providerProficiencyAreas.length > 0) {
       completed.push(4);
     }
 
@@ -158,7 +162,7 @@ export function WizardLayout({
     }
 
     return completed;
-  }, [provider, isOrgRequired]);
+  }, [provider, isOrgRequired, providerProficiencyAreas]);
 
   // Blocked steps - currently only step 2 (Mode) can be blocked
   const blockedSteps = useMemo(() => {
@@ -249,6 +253,14 @@ export function WizardLayout({
       if (completedSteps.includes(stepId)) {
         setShowOrgRequiredDialog(true);
       }
+      return; // Don't navigate
+    }
+    
+    // Special case: Expertise level selected but no proficiency areas
+    // Block access to Proof Points (step 5+) and show proficiency required dialog
+    if (stepId >= 5 && provider?.expertise_level_id && 
+        (!providerProficiencyAreas || providerProficiencyAreas.length === 0)) {
+      setShowProficiencyRequiredDialog(true);
       return; // Don't navigate
     }
     
@@ -357,6 +369,27 @@ export function WizardLayout({
           <AlertDialogFooter>
             <AlertDialogAction onClick={handleOrgRequiredConfirm}>
               OK
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Proficiency Areas Required Dialog */}
+      <AlertDialog open={showProficiencyRequiredDialog} onOpenChange={setShowProficiencyRequiredDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Select Proficiency Areas</AlertDialogTitle>
+            <AlertDialogDescription>
+              Please select at least one proficiency area before proceeding to Proof Points. 
+              Your proficiency areas determine which specialties you can add evidence for.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              setShowProficiencyRequiredDialog(false);
+              navigate('/enroll/expertise');
+            }}>
+              Select Proficiency Areas
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
