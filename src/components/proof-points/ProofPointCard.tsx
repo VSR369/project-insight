@@ -67,8 +67,9 @@ export function ProofPointCard({
 
   return (
     <Card 
-      className="hover:shadow-md transition-all duration-300 animate-fade-in"
+      className="hover:shadow-md transition-all duration-300 animate-fade-in cursor-pointer"
       style={{ animationDelay: `${animationDelay}ms`, animationFillMode: 'backwards' }}
+      onDoubleClick={() => onView?.(proofPoint)}
     >
       <CardContent className="p-4 sm:p-6">
         <div className="flex items-start gap-4">
