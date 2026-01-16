@@ -224,6 +224,10 @@ export async function upsertProviderProficiencyAreas(
   providerId: string,
   proficiencyAreaIds: string[]
 ): Promise<void> {
+  // Get current user for audit fields
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+
   // First, delete all existing selections for this provider
   const { error: deleteError } = await supabase
     .from('provider_proficiency_areas')
@@ -232,11 +236,12 @@ export async function upsertProviderProficiencyAreas(
 
   if (deleteError) throw deleteError;
 
-  // Then, insert new selections (if any)
+  // Then, insert new selections with audit fields (if any)
   if (proficiencyAreaIds.length > 0) {
     const rows = proficiencyAreaIds.map(areaId => ({
       provider_id: providerId,
       proficiency_area_id: areaId,
+      created_by: user.id,
     }));
 
     const { error: insertError } = await supabase
