@@ -42,19 +42,8 @@ export function BlockedModeChangeDialog({
           <AlertDialogDescription asChild>
             <div className="space-y-4">
               <p className="text-base">
-                Approval from your organization manager is pending. You cannot change your participation mode until:
+                Approval from your organization manager is pending. <strong>To change your participation mode, you must cancel the current organization approval request.</strong>
               </p>
-
-              <ul className="text-sm text-muted-foreground space-y-1.5 ml-4">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>Your manager approves or declines the request, OR</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary">•</span>
-                  <span>You cancel the pending approval request</span>
-                </li>
-              </ul>
 
               {/* Organization & Manager Info */}
               <div className="bg-muted/50 rounded-lg p-3 space-y-2 border">
@@ -81,8 +70,30 @@ export function BlockedModeChangeDialog({
                 )}
               </div>
 
-              <p className="text-xs text-amber-600 dark:text-amber-400">
-                ⚠️ Cancelling will invalidate manager credentials and clear your organization details.
+              <div className="bg-destructive/10 rounded-lg p-3 border border-destructive/20">
+                <p className="text-sm font-medium text-destructive mb-2">What happens when you cancel:</p>
+                <ul className="text-sm text-muted-foreground space-y-1">
+                  <li className="flex items-start gap-2">
+                    <span className="text-destructive">•</span>
+                    <span>Your manager's login credentials will be <strong>invalidated immediately</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-destructive">•</span>
+                    <span>Your manager will receive a notification that the request was withdrawn</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-destructive">•</span>
+                    <span>Your organization details will be cleared</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-destructive">•</span>
+                    <span>You will be taken to select a new participation mode</span>
+                  </li>
+                </ul>
+              </div>
+
+              <p className="text-xs text-amber-600 dark:text-amber-400 font-medium">
+                ⚠️ This action cannot be undone.
               </p>
             </div>
           </AlertDialogDescription>

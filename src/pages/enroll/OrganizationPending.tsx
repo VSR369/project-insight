@@ -300,16 +300,48 @@ export default function OrganizationPending() {
           </CardContent>
         </Card>
 
+        {/* Change Participation Mode Section */}
+        {approvalStatus === 'pending' && (
+          <Card className="border-primary/20">
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <RefreshCw className="h-5 w-5 text-primary" />
+                Want to Change Participation Mode?
+              </CardTitle>
+              <CardDescription>
+                To change your participation mode, you must first cancel the current organization approval request.
+                This will invalidate your manager's credentials and allow you to select a different mode.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button 
+                variant="default" 
+                className="w-full"
+                onClick={() => setShowBlockedDialog(true)}
+                disabled={withdrawRequest.isPending || clearProviderMode.isPending}
+              >
+                {(withdrawRequest.isPending || clearProviderMode.isPending) ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                )}
+                Change Participation Mode
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Change Details Section - Only show for pending status */}
         {approvalStatus === 'pending' && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Edit className="h-5 w-5" />
-                Need to Change Details?
+                Need to Change Organization Details?
               </CardTitle>
               <CardDescription>
-                If you need to update organization or manager information, you can withdraw the current request.
+                If you need to update organization or manager information, you can withdraw the current request
+                and re-submit with new details (keeps your current participation mode).
               </CardDescription>
             </CardHeader>
             <CardContent>
