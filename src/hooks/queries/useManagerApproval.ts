@@ -62,21 +62,52 @@ export function useResendManagerCredentials() {
   });
 }
 
+interface WithdrawParams {
+  providerId: string;
+  withdrawalReason?: string;
+}
+
+export function useWithdrawApprovalRequest() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: WithdrawParams) => {
+      const { data, error } = await supabase.functions.invoke('withdraw-approval-request', {
+        body: params,
+      });
+
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.error || 'Failed to withdraw request');
+
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      toast.success('Approval request withdrawn. You can now update your organization details.');
+    },
+    onError: (error: Error) => {
+      console.error('Error withdrawing approval request:', error);
+      toast.error(error.message || 'Failed to withdraw approval request');
+    },
+  });
+}
+
 // Helper to check if organization needs approval
 export function checkOrgApprovalStatus(organization: any): {
   needsApproval: boolean;
-  status: 'pending' | 'approved' | 'declined' | 'expired' | null;
+  status: 'pending' | 'approved' | 'declined' | 'expired' | 'withdrawn' | null;
   canContinue: boolean;
 } {
   if (!organization) {
     return { needsApproval: false, status: null, canContinue: true };
   }
 
-  const status = organization.approval_status as 'pending' | 'approved' | 'declined' | 'expired' | null;
+  const status = organization.approval_status as 'pending' | 'approved' | 'declined' | 'expired' | 'withdrawn' | null;
 
   return {
     needsApproval: true,
     status: status || 'pending',
-    canContinue: status === 'approved',
+    // Can continue if approved OR withdrawn (withdrawn allows re-entry)
+    canContinue: status === 'approved' || status === 'withdrawn',
   };
 }

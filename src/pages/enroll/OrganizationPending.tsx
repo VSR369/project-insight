@@ -2,12 +2,24 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
 import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Mail, RefreshCw, Loader2, AlertCircle, CheckCircle2, Building2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Clock, Mail, RefreshCw, Loader2, AlertCircle, Building2, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -15,6 +27,7 @@ export default function OrganizationPending() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading, refetch } = useCurrentProvider();
+  const withdrawRequest = useWithdrawApprovalRequest();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -30,6 +43,12 @@ export default function OrganizationPending() {
   // If declined, redirect to declined page
   if (approvalStatus === 'declined') {
     navigate('/enroll/organization-declined');
+    return null;
+  }
+
+  // If withdrawn, redirect to organization form to re-enter
+  if (approvalStatus === 'withdrawn') {
+    navigate('/enroll/organization');
     return null;
   }
 
@@ -69,7 +88,7 @@ export default function OrganizationPending() {
         body: {
           providerId: provider.id,
           providerName: `${provider.first_name} ${provider.last_name}`,
-          providerEmail: '', // Will be fetched in the function
+          providerEmail: '',
           providerDesignation: organization.designation,
           orgName: organization.org_name,
           managerEmail: organization.manager_email,
@@ -90,12 +109,28 @@ export default function OrganizationPending() {
     }
   };
 
+  const handleWithdrawRequest = async () => {
+    if (!provider?.id) return;
+
+    try {
+      await withdrawRequest.mutateAsync({
+        providerId: provider.id,
+        withdrawalReason: 'User requested to modify organization details',
+      });
+      
+      // Navigate to organization form after successful withdrawal
+      navigate('/enroll/organization');
+    } catch (error) {
+      // Error is handled in the mutation
+      console.error('Withdrawal failed:', error);
+    }
+  };
+
   const handleBack = () => {
-    navigate('/enroll/organization');
+    navigate('/enroll/participation-mode');
   };
 
   const handleContinue = () => {
-    // Show blocking message - cannot continue until approved
     toast.error('Your organization manager approval is pending. You cannot proceed until your manager approves your request.');
   };
 
@@ -205,6 +240,58 @@ export default function OrganizationPending() {
                 Resend Email
               </Button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Change Details Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Edit className="h-5 w-5" />
+              Need to Change Details?
+            </CardTitle>
+            <CardDescription>
+              If you need to update organization or manager information, you can withdraw the current request.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  disabled={withdrawRequest.isPending}
+                >
+                  {withdrawRequest.isPending ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Edit className="mr-2 h-4 w-4" />
+                  )}
+                  Change Organization Details
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Withdraw Approval Request?</AlertDialogTitle>
+                  <AlertDialogDescription className="space-y-2">
+                    <p>
+                      This will cancel the current approval request sent to <strong>{organization?.manager_email}</strong>.
+                    </p>
+                    <ul className="list-disc list-inside text-sm space-y-1 mt-2">
+                      <li>Your manager's login credentials will be invalidated immediately</li>
+                      <li>Your manager will receive a notification about the withdrawal</li>
+                      <li>You can then update your organization details and submit a new request</li>
+                    </ul>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Keep Current Request</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleWithdrawRequest}>
+                    Withdraw & Edit Details
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
 

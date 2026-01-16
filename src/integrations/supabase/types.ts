@@ -1058,8 +1058,11 @@ export type Database = {
           org_name: string
           org_type_id: string | null
           org_website: string | null
+          previous_manager_email: string | null
           provider_id: string
           updated_at: string | null
+          withdrawal_reason: string | null
+          withdrawn_at: string | null
         }
         Insert: {
           approval_status?: string | null
@@ -1079,8 +1082,11 @@ export type Database = {
           org_name: string
           org_type_id?: string | null
           org_website?: string | null
+          previous_manager_email?: string | null
           provider_id: string
           updated_at?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Update: {
           approval_status?: string | null
@@ -1100,8 +1106,11 @@ export type Database = {
           org_name?: string
           org_type_id?: string | null
           org_website?: string | null
+          previous_manager_email?: string | null
           provider_id?: string
           updated_at?: string | null
+          withdrawal_reason?: string | null
+          withdrawn_at?: string | null
         }
         Relationships: [
           {

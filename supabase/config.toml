@@ -8,3 +8,6 @@ verify_jwt = false
 
 [functions.process-manager-decision]
 verify_jwt = false
+
+[functions.withdraw-approval-request]
+verify_jwt = false

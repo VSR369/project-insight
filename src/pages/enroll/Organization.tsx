@@ -61,6 +61,8 @@ export default function EnrollOrganization() {
         navigate('/enroll/organization-declined');
         return;
       }
+      // For 'withdrawn' status, allow editing (canContinue is true)
+      // For 'approved' status, can proceed but fields are locked
       if (status === 'approved' && canContinue) {
         // Already approved, can proceed - just populate form
       }
@@ -145,7 +147,9 @@ export default function EnrollOrganization() {
     );
   }
 
-  const isApproved = (provider?.organization as any)?.approval_status === 'approved';
+  const approvalStatus = (provider?.organization as any)?.approval_status;
+  const isApproved = approvalStatus === 'approved';
+  const isWithdrawn = approvalStatus === 'withdrawn';
 
   return (
     <WizardLayout
@@ -167,12 +171,21 @@ export default function EnrollOrganization() {
         </div>
 
         {/* Approval Notice */}
-        {!isApproved && (
+        {!isApproved && !isWithdrawn && (
           <Alert>
             <Mail className="h-4 w-4" />
             <AlertDescription>
               Your manager will receive an email with login credentials to approve your participation. 
               You cannot continue until they approve.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {isWithdrawn && (
+          <Alert className="border-blue-200 bg-blue-50/50">
+            <AlertCircle className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-700">
+              Your previous approval request was withdrawn. Please update the details below and submit for approval again.
             </AlertDescription>
           </Alert>
         )}
