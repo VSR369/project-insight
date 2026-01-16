@@ -1,0 +1,176 @@
+import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
+import { Resend } from "https://esm.sh/resend@2.0.0";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
+};
+
+interface SendCredentialsRequest {
+  providerId: string;
+  providerName: string;
+  providerEmail: string;
+  providerDesignation?: string;
+  orgName: string;
+  managerEmail: string;
+  managerName: string;
+}
+
+// Generate secure 12-character password
+function generateSecurePassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+  const array = new Uint8Array(12);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+}
+
+const handler = async (req: Request): Promise<Response> => {
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
+    
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    const body: SendCredentialsRequest = await req.json();
+    const { 
+      providerId, 
+      providerName, 
+      providerEmail,
+      providerDesignation,
+      orgName, 
+      managerEmail, 
+      managerName 
+    } = body;
+
+    // Validate required fields
+    if (!providerId || !providerName || !orgName || !managerEmail || !managerName) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Missing required fields" }),
+        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Generate temporary password
+    const tempPassword = generateSecurePassword();
+    
+    // Hash password using bcrypt
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(tempPassword, salt);
+    
+    // Calculate expiry (15 days from now)
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 15);
+
+    // Update organization record with credentials
+    const { error: updateError } = await supabase
+      .from('solution_provider_organizations')
+      .update({
+        manager_temp_password_hash: passwordHash,
+        credentials_expire_at: expiresAt.toISOString(),
+        approval_status: 'pending',
+        approval_token: crypto.randomUUID(),
+      })
+      .eq('provider_id', providerId);
+
+    if (updateError) {
+      console.error("Error updating organization:", updateError);
+      return new Response(
+        JSON.stringify({ success: false, error: "Failed to store credentials" }),
+        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
+    // Format expiry date for email
+    const expiryFormatted = expiresAt.toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    // App URL for manager portal
+    const appUrl = "https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app";
+
+    // Send email via Resend
+    const emailResponse = await resend.emails.send({
+      from: "CogniBlend <onboarding@resend.dev>",
+      to: [managerEmail],
+      subject: `Action Required: Approve ${providerName}'s Request to Represent ${orgName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <h1 style="color: #333; font-size: 24px; margin-bottom: 20px;">Hello ${managerName},</h1>
+          
+          <p style="color: #555; font-size: 16px; line-height: 1.6;">
+            <strong>${providerName}</strong>${providerDesignation ? ` (${providerDesignation})` : ''} 
+            has requested to join <strong>CogniBlend</strong> as a solution provider representing 
+            <strong>${orgName}</strong>.
+          </p>
+          
+          <p style="color: #555; font-size: 16px; line-height: 1.6;">
+            As their reporting manager, we need your approval to proceed with their enrollment.
+          </p>
+          
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 24px 0;">
+            <h2 style="margin-top: 0; color: #333; font-size: 18px;">Login to Review This Request</h2>
+            <p style="margin: 12px 0;"><strong>Portal URL:</strong> 
+              <a href="${appUrl}/manager-portal" style="color: #2563eb;">${appUrl}/manager-portal</a>
+            </p>
+            <p style="margin: 12px 0;"><strong>Email:</strong> ${managerEmail}</p>
+            <p style="margin: 12px 0;"><strong>Temporary Password:</strong> 
+              <code style="background: #e0e0e0; padding: 4px 8px; border-radius: 4px; font-size: 14px;">${tempPassword}</code>
+            </p>
+            <p style="color: #d32f2f; margin: 16px 0 0 0; font-weight: 500;">
+              ⚠️ These credentials expire on ${expiryFormatted}
+            </p>
+          </div>
+          
+          <p style="color: #555; font-size: 16px; line-height: 1.6;">Once logged in, you can:</p>
+          <ul style="color: #555; font-size: 16px; line-height: 1.8;">
+            <li><strong>APPROVE</strong> - Confirm that ${providerName} can represent ${orgName}</li>
+            <li><strong>DECLINE</strong> - Reject this request (with optional reason)</li>
+          </ul>
+          
+          <hr style="border: none; border-top: 1px solid #eee; margin: 24px 0;" />
+          
+          <p style="color: #888; font-size: 14px;">
+            If you have questions, please contact support@cogniblend.com
+          </p>
+          
+          <p style="color: #555; font-size: 16px; margin-top: 24px;">
+            Best regards,<br>
+            <strong>The CogniBlend Team</strong>
+          </p>
+        </div>
+      `,
+    });
+
+    console.log("Email sent successfully:", emailResponse);
+
+    return new Response(
+      JSON.stringify({ 
+        success: true, 
+        message: "Credentials sent to manager",
+        expiresAt: expiresAt.toISOString()
+      }),
+      { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+
+  } catch (error: any) {
+    console.error("Error in send-manager-credentials:", error);
+    return new Response(
+      JSON.stringify({ success: false, error: error.message }),
+      { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+    );
+  }
+};
+
+serve(handler);

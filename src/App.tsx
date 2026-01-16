@@ -27,7 +27,13 @@ import {
   EnrollProofPoints,
   PostEnrollmentWelcome,
   AddProofPoint,
+  OrganizationPending,
+  OrganizationDeclined,
 } from "@/pages/enroll";
+
+// Manager Portal (public pages)
+import ManagerPortal from "@/pages/public/ManagerPortal";
+import ManagerApprovalDashboard from "@/pages/public/ManagerApprovalDashboard";
 
 // Placeholder Pages
 import { 
@@ -69,6 +75,8 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/manager-portal" element={<ManagerPortal />} />
+            <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
 
             {/* Protected Routes */}
             <Route
@@ -142,6 +150,22 @@ const App = () => (
               element={
                 <AuthGuard>
                   <AddProofPoint />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/organization-pending"
+              element={
+                <AuthGuard>
+                  <OrganizationPending />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/organization-declined"
+              element={
+                <AuthGuard>
+                  <OrganizationDeclined />
                 </AuthGuard>
               }
             />

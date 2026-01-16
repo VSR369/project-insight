@@ -1041,13 +1041,20 @@ export type Database = {
       }
       solution_provider_organizations: {
         Row: {
+          approval_status: string | null
+          approval_token: string | null
+          approved_at: string | null
           created_at: string
+          credentials_expire_at: string | null
+          decline_reason: string | null
+          declined_at: string | null
           designation: string | null
           id: string
           is_verified: boolean | null
           manager_email: string | null
           manager_name: string | null
           manager_phone: string | null
+          manager_temp_password_hash: string | null
           org_name: string
           org_type_id: string | null
           org_website: string | null
@@ -1055,13 +1062,20 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          approval_status?: string | null
+          approval_token?: string | null
+          approved_at?: string | null
           created_at?: string
+          credentials_expire_at?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           designation?: string | null
           id?: string
           is_verified?: boolean | null
           manager_email?: string | null
           manager_name?: string | null
           manager_phone?: string | null
+          manager_temp_password_hash?: string | null
           org_name: string
           org_type_id?: string | null
           org_website?: string | null
@@ -1069,13 +1083,20 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          approval_status?: string | null
+          approval_token?: string | null
+          approved_at?: string | null
           created_at?: string
+          credentials_expire_at?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           designation?: string | null
           id?: string
           is_verified?: boolean | null
           manager_email?: string | null
           manager_name?: string | null
           manager_phone?: string | null
+          manager_temp_password_hash?: string | null
           org_name?: string
           org_type_id?: string | null
           org_website?: string | null
