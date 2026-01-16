@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
@@ -47,6 +47,7 @@ export default function EnrollExpertise() {
   const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
   const [pendingCascadeData, setPendingCascadeData] = useState<{
     newLevelId: string;
+    previousLevelId: string;
     impact: { specialtyProofPointsCount: number; proficiencyAreasCount: number; specialitiesCount: number; generalProofPointsCount: number };
   } | null>(null);
 
@@ -82,14 +83,10 @@ export default function EnrollExpertise() {
     }
   }, [existingAreas]);
 
-  // Reset expanded state and selected areas when level changes
+  // Reset expanded state when level changes (but not selected areas - those are handled by cascade)
   useEffect(() => {
     setExpandedAreas([]);
     setExpandedSubDomains([]);
-    // Only reset selected areas if level actually changed from a previous value
-    if (provider?.expertise_level_id && selectedLevel !== provider.expertise_level_id) {
-      setSelectedAreas([]);
-    }
   }, [selectedLevel]);
 
   const handleBack = () => {
@@ -101,11 +98,32 @@ export default function EnrollExpertise() {
     }
   };
 
-  const handleAreaToggle = (areaId: string, checked: boolean) => {
-    if (isLocked) return;
+  // Save proficiency areas to DB
+  const saveProficiencyAreas = useCallback(async (newAreas: string[], previousAreas: string[]) => {
+    if (!provider?.id) return false;
+    
+    try {
+      await updateProficiencyAreas.mutateAsync({
+        providerId: provider.id,
+        proficiencyAreaIds: newAreas,
+      });
+      return true;
+    } catch (error) {
+      setSelectedAreas(previousAreas);
+      toast.error('Failed to save proficiency area selection. Please try again.');
+      return false;
+    }
+  }, [provider?.id, updateProficiencyAreas]);
+
+  const handleAreaToggle = async (areaId: string, checked: boolean) => {
+    if (isLocked || updateProficiencyAreas.isPending) return;
+    
+    const previousAreas = [...selectedAreas];
+    let newAreas: string[];
     
     if (checked) {
-      setSelectedAreas(prev => [...prev, areaId]);
+      newAreas = [...selectedAreas, areaId];
+      setSelectedAreas(newAreas);
       
       // Auto-expand the selected area and all its sub-domains
       setExpandedAreas(prev => prev.includes(areaId) ? prev : [...prev, areaId]);
@@ -125,7 +143,8 @@ export default function EnrollExpertise() {
         });
       }
     } else {
-      setSelectedAreas(prev => prev.filter(id => id !== areaId));
+      newAreas = selectedAreas.filter(id => id !== areaId);
+      setSelectedAreas(newAreas);
       // Optionally collapse when deselected (user can re-expand if needed)
       setExpandedAreas(prev => prev.filter(id => id !== areaId));
       
@@ -136,75 +155,96 @@ export default function EnrollExpertise() {
         setExpandedSubDomains(prev => prev.filter(id => !subDomainIds.includes(id)));
       }
     }
+    
+    // Save to DB immediately
+    await saveProficiencyAreas(newAreas, previousAreas);
   };
 
-  const handleSelectAllAreas = () => {
-    if (isLocked || !taxonomy) return;
-    setSelectedAreas(taxonomy.map(a => a.id));
+  const handleSelectAllAreas = async () => {
+    if (isLocked || !taxonomy || updateProficiencyAreas.isPending) return;
+    
+    const previousAreas = [...selectedAreas];
+    const allAreaIds = taxonomy.map(a => a.id);
+    
+    setSelectedAreas(allAreaIds);
     // Auto-expand all areas and sub-domains
-    setExpandedAreas(taxonomy.map(a => a.id));
+    setExpandedAreas(allAreaIds);
     setExpandedSubDomains(taxonomy.flatMap(a => a.subDomains.map(sd => sd.id)));
+    
+    // Save to DB immediately
+    await saveProficiencyAreas(allAreaIds, previousAreas);
   };
 
-  const handleDeselectAllAreas = () => {
-    if (isLocked) return;
+  const handleDeselectAllAreas = async () => {
+    if (isLocked || updateProficiencyAreas.isPending) return;
+    
+    const previousAreas = [...selectedAreas];
     setSelectedAreas([]);
+    
+    // Save to DB immediately
+    await saveProficiencyAreas([], previousAreas);
   };
 
-  const handleLevelChange = (newLevelId: string) => {
-    if (isLocked) return;
-    setSelectedLevel(newLevelId);
-  };
-
-  const handleContinue = async () => {
-    if (!selectedLevel) {
-      toast.error('Please select an expertise level');
-      return;
-    }
-
-    if (selectedAreas.length === 0) {
-      toast.error('Please select at least one proficiency area');
-      return;
-    }
-
-    if (!provider?.id) {
-      toast.error('Provider profile not found. Please refresh the page.');
-      return;
-    }
-
+  const handleLevelChange = async (newLevelId: string) => {
+    if (isLocked || updateExpertise.isPending) return;
+    if (!provider?.id) return;
+    
+    const previousLevel = selectedLevel;
+    setSelectedLevel(newLevelId);  // Optimistic UI update
+    
+    // Only save if actually changed from current DB value
+    if (newLevelId === provider.expertise_level_id) return;
+    
     try {
-      // Save expertise level (may require cascade confirmation)
       const result = await updateExpertise.mutateAsync({
         providerId: provider.id,
-        expertiseLevelId: selectedLevel,
+        expertiseLevelId: newLevelId,
       });
-
+      
       // Check if cascade confirmation is required
       if (!result.success && result.requiresConfirmation && result.cascadeImpact) {
         setPendingCascadeData({
-          newLevelId: selectedLevel,
+          newLevelId: newLevelId,
+          previousLevelId: previousLevel,
           impact: {
             ...result.cascadeImpact,
             generalProofPointsCount: 0,
           },
         });
         setCascadeDialogOpen(true);
+        // Revert to previous selection until confirmed
+        setSelectedLevel(previousLevel);
         return;
       }
-
-      if (result.success) {
-        // Save selected proficiency areas
-        await updateProficiencyAreas.mutateAsync({
-          providerId: provider.id,
-          proficiencyAreaIds: selectedAreas,
-        });
-
-        navigate('/enroll/proof-points');
+      
+      if (!result.success) {
+        // Failed without needing confirmation
+        setSelectedLevel(previousLevel);
+        toast.error('Failed to save expertise level. Please try again.');
       }
+      // Success: toast is handled by the mutation hook, proficiency areas will be cleared on level change via cascade
     } catch (error) {
+      // Rollback on error
+      setSelectedLevel(previousLevel);
       toast.error('Failed to save expertise level. Please try again.');
-      console.error('Error saving expertise:', error);
     }
+  };
+
+  const handleContinue = () => {
+    // Validate expertise level is selected
+    if (!selectedLevel) {
+      toast.error('Please select an expertise level');
+      return;
+    }
+
+    // Validate at least one proficiency area is selected
+    if (selectedAreas.length === 0) {
+      toast.error('Please select at least one proficiency area to continue');
+      return;
+    }
+
+    // Both are already saved to DB - just navigate
+    navigate('/enroll/proof-points');
   };
 
   const handleConfirmCascade = async () => {
@@ -218,19 +258,15 @@ export default function EnrollExpertise() {
       });
 
       if (result.success) {
-        // Save selected proficiency areas
-        await updateProficiencyAreas.mutateAsync({
-          providerId: provider.id,
-          proficiencyAreaIds: selectedAreas,
-        });
-
+        // Update local state to reflect the confirmed change
+        setSelectedLevel(pendingCascadeData.newLevelId);
+        // Clear selected areas as they were reset by cascade
+        setSelectedAreas([]);
         setCascadeDialogOpen(false);
         setPendingCascadeData(null);
-        navigate('/enroll/proof-points');
       }
     } catch (error) {
       toast.error('Failed to update expertise level. Please try again.');
-      console.error('Error confirming cascade:', error);
     }
   };
 
@@ -277,7 +313,7 @@ export default function EnrollExpertise() {
     );
   }
 
-  const isSubmitting = updateExpertise.isPending || updateProficiencyAreas.isPending;
+  const isSaving = updateExpertise.isPending || updateProficiencyAreas.isPending;
 
   return (
     <WizardLayout
@@ -317,7 +353,7 @@ export default function EnrollExpertise() {
           value={selectedLevel} 
           onValueChange={handleLevelChange} 
           className="space-y-4"
-          disabled={isLocked}
+          disabled={isLocked || updateExpertise.isPending}
         >
           {filteredLevels.map((level) => {
             const isSelected = selectedLevel === level.id;
@@ -329,12 +365,15 @@ export default function EnrollExpertise() {
               <Label
                 key={level.id}
                 htmlFor={level.id}
-                className={cn("cursor-pointer block", isLocked && "cursor-not-allowed opacity-60")}
+                className={cn(
+                  "cursor-pointer block", 
+                  (isLocked || updateExpertise.isPending) && "cursor-not-allowed opacity-60"
+                )}
               >
                 <Card
                   className={cn(
                     "transition-all",
-                    !isLocked && "hover:border-primary/50",
+                    !isLocked && !updateExpertise.isPending && "hover:border-primary/50",
                     isSelected && "border-primary ring-2 ring-primary/20"
                   )}
                 >
@@ -344,7 +383,7 @@ export default function EnrollExpertise() {
                         value={level.id} 
                         id={level.id} 
                         className="mt-1" 
-                        disabled={isLocked}
+                        disabled={isLocked || updateExpertise.isPending}
                       />
                       
                       {/* Stars Icon */}
@@ -375,6 +414,9 @@ export default function EnrollExpertise() {
                           </Badge>
                           {isSelected && (
                             <CheckCircle className="h-4 w-4 text-primary" />
+                          )}
+                          {isSelected && updateExpertise.isPending && (
+                            <Loader2 className="h-4 w-4 animate-spin text-primary" />
                           )}
                         </div>
                         <span className="text-sm text-primary font-medium">
@@ -408,6 +450,9 @@ export default function EnrollExpertise() {
                                     <Badge variant={selectedAreas.length > 0 ? "default" : "secondary"} className="text-xs">
                                       {selectedAreas.length} of {taxonomy.length} selected
                                     </Badge>
+                                    {updateProficiencyAreas.isPending && (
+                                      <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                                    )}
                                   </div>
                                   <div className="flex flex-wrap gap-1">
                                     <Button 
@@ -415,7 +460,7 @@ export default function EnrollExpertise() {
                                       size="sm" 
                                       onClick={(e) => { e.preventDefault(); handleSelectAllAreas(); }}
                                       className="h-7 text-xs"
-                                      disabled={isLocked}
+                                      disabled={isLocked || updateProficiencyAreas.isPending}
                                     >
                                       Select All
                                     </Button>
@@ -424,7 +469,7 @@ export default function EnrollExpertise() {
                                       size="sm" 
                                       onClick={(e) => { e.preventDefault(); handleDeselectAllAreas(); }}
                                       className="h-7 text-xs"
-                                      disabled={isLocked}
+                                      disabled={isLocked || updateProficiencyAreas.isPending}
                                     >
                                       Deselect All
                                     </Button>
@@ -477,7 +522,7 @@ export default function EnrollExpertise() {
                                               onCheckedChange={(checked) => handleAreaToggle(area.id, checked as boolean)}
                                               onClick={(e) => e.stopPropagation()}
                                               className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
-                                              disabled={isLocked}
+                                              disabled={isLocked || updateProficiencyAreas.isPending}
                                             />
                                             <FolderOpen className={cn(
                                               "h-4 w-4",
@@ -568,10 +613,10 @@ export default function EnrollExpertise() {
               </p>
               <Button 
                 onClick={handleContinue}
-                disabled={isSubmitting}
+                disabled={isSaving}
                 className="gap-2"
               >
-                {isSubmitting ? (
+                {isSaving ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
