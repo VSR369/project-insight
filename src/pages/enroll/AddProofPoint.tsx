@@ -161,6 +161,24 @@ export default function AddProofPoint() {
                 </CardContent>
               </Card>
 
+              {/* Speciality Mapping (shown first when Category = Speciality) */}
+              {category === 'specialty_specific' && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">Speciality Mapping</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <SpecialityTreeSelector
+                      taxonomy={taxonomy}
+                      selectedSpecialityIds={selectedSpecialityIds}
+                      onChange={setSelectedSpecialityIds}
+                      disabled={isSubmitting}
+                      loading={taxonomyLoading}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
               {/* Basic Information */}
               <Card>
                 <CardHeader>
@@ -234,24 +252,6 @@ export default function AddProofPoint() {
                   />
                 </CardContent>
               </Card>
-
-              {/* Speciality Mapping (only for specialty_specific) */}
-              {category === 'specialty_specific' && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="text-lg">Speciality Mapping</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <SpecialityTreeSelector
-                      taxonomy={taxonomy}
-                      selectedSpecialityIds={selectedSpecialityIds}
-                      onChange={setSelectedSpecialityIds}
-                      disabled={isSubmitting}
-                      loading={taxonomyLoading}
-                    />
-                  </CardContent>
-                </Card>
-              )}
 
               {/* Supporting Links */}
               <Card>
