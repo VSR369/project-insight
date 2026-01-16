@@ -262,57 +262,67 @@ export default function OrganizationPending() {
           </CardContent>
         </Card>
 
-        {/* Change Details Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Edit className="h-5 w-5" />
-              Need to Change Details?
-            </CardTitle>
-            <CardDescription>
-              If you need to update organization or manager information, you can withdraw the current request.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button 
-                  variant="outline" 
-                  className="w-full"
-                  disabled={withdrawRequest.isPending}
-                >
-                  {withdrawRequest.isPending ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Edit className="mr-2 h-4 w-4" />
-                  )}
-                  Change Organization Details
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Withdraw Approval Request?</AlertDialogTitle>
-                  <AlertDialogDescription className="space-y-2">
-                    <p>
-                      This will cancel the current approval request sent to <strong>{organization?.manager_email}</strong>.
-                    </p>
-                    <ul className="list-disc list-inside text-sm space-y-1 mt-2">
-                      <li>Your manager's login credentials will be invalidated immediately</li>
-                      <li>Your manager will receive a notification about the withdrawal</li>
-                      <li>You can then update your organization details and submit a new request</li>
-                    </ul>
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Keep Current Request</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleWithdrawRequest}>
-                    Withdraw & Edit Details
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          </CardContent>
-        </Card>
+        {/* Change Details Section - Only show for pending status */}
+        {approvalStatus === 'pending' && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Edit className="h-5 w-5" />
+                Need to Change Details?
+              </CardTitle>
+              <CardDescription>
+                If you need to update organization or manager information, you can withdraw the current request.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    disabled={withdrawRequest.isPending}
+                  >
+                    {withdrawRequest.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Edit className="mr-2 h-4 w-4" />
+                    )}
+                    Change Organization Details
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Withdraw Approval Request?</AlertDialogTitle>
+                    <AlertDialogDescription asChild>
+                      <div className="space-y-3">
+                        <p>
+                          This will cancel the current approval request sent to <strong>{organization?.manager_email}</strong>.
+                        </p>
+                        <div className="bg-muted/50 rounded-md p-3 border">
+                          <p className="text-sm font-medium text-foreground mb-2">What happens next:</p>
+                          <ul className="list-disc list-inside text-sm space-y-1">
+                            <li>Your manager's login credentials will be invalidated immediately</li>
+                            <li>Your manager will receive a notification about the withdrawal</li>
+                            <li>You can then update your organization details and submit a new request</li>
+                          </ul>
+                        </div>
+                        <p className="text-sm text-amber-600 dark:text-amber-400">
+                          ⚠️ This action cannot be undone. You will need to submit a new approval request after updating details.
+                        </p>
+                      </div>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Keep Current Request</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleWithdrawRequest}>
+                      Withdraw & Edit Details
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Blocking Notice */}
         <Alert variant="destructive">
