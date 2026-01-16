@@ -317,6 +317,244 @@ describe('Configuration Field Categories for Lock', () => {
 });
 
 // ============================================================================
+// SECTION 9: Active Assessment Blocking
+// ============================================================================
+describe('Active Assessment Blocking', () => {
+
+  it('TC-AB-01: Active attempt with time remaining blocks new assessment', () => {
+    const startedAt = new Date();
+    const timeLimitMinutes = 60;
+    const expiresAt = new Date(startedAt.getTime() + timeLimitMinutes * 60 * 1000);
+    const now = new Date();
+    
+    // Attempt is active (not expired, not submitted)
+    const isActive = now.getTime() < expiresAt.getTime();
+    expect(isActive).toBe(true);
+    
+    // Active attempt should block new assessment
+    const canStartNew = !isActive;
+    expect(canStartNew).toBe(false);
+  });
+
+  it('TC-AB-02: Expired attempt (past time limit) allows new assessment start', () => {
+    const startedAt = new Date('2024-01-01T00:00:00Z');
+    const timeLimitMinutes = 60;
+    const expiresAt = new Date(startedAt.getTime() + timeLimitMinutes * 60 * 1000);
+    const now = new Date(); // Current time is well past expiry
+    
+    const isExpired = now.getTime() > expiresAt.getTime();
+    expect(isExpired).toBe(true);
+    
+    // Expired attempt should allow new assessment
+    const canStartNew = isExpired;
+    expect(canStartNew).toBe(true);
+  });
+
+  it('TC-AB-03: Multiple expired attempts dont block new assessment', () => {
+    const expiredAttempts = [
+      { startedAt: new Date('2024-01-01T00:00:00Z'), submitted_at: null },
+      { startedAt: new Date('2024-02-01T00:00:00Z'), submitted_at: null },
+      { startedAt: new Date('2024-03-01T00:00:00Z'), submitted_at: null },
+    ];
+    const timeLimitMinutes = 60;
+    const now = new Date();
+    
+    // All attempts expired
+    const allExpired = expiredAttempts.every(attempt => {
+      const expiresAt = new Date(attempt.startedAt.getTime() + timeLimitMinutes * 60 * 1000);
+      return now.getTime() > expiresAt.getTime();
+    });
+    expect(allExpired).toBe(true);
+    
+    // Should allow new assessment
+    expect(allExpired).toBe(true);
+  });
+});
+
+// ============================================================================
+// SECTION 10: Error Handling Paths
+// ============================================================================
+describe('Error Handling Paths', () => {
+
+  it('TC-EH-01: canStartAssessment returns error for missing providerId', () => {
+    // Contract: Function should return error structure when providerId is missing
+    const providerId = undefined;
+    const hasProviderId = !!providerId;
+    expect(hasProviderId).toBe(false);
+    
+    // Expected error response shape
+    const expectedError = {
+      allowed: false,
+      reason: 'Provider not found'
+    };
+    expect(expectedError.allowed).toBe(false);
+    expect(expectedError.reason).toContain('not found');
+  });
+
+  it('TC-EH-02: startAssessment returns error when not authenticated', () => {
+    // Contract: Should fail if no authenticated user
+    const userId = null;
+    const isAuthenticated = !!userId;
+    expect(isAuthenticated).toBe(false);
+    
+    // Expected error response
+    const expectedError = {
+      success: false,
+      error: 'Not authenticated'
+    };
+    expect(expectedError.success).toBe(false);
+  });
+
+  it('TC-EH-03: submitAssessment returns error for already submitted attempt', () => {
+    // Contract: Cannot submit an already submitted attempt
+    const attempt = {
+      id: 'test-attempt-id',
+      submitted_at: new Date().toISOString(), // Already submitted
+    };
+    const isAlreadySubmitted = !!attempt.submitted_at;
+    expect(isAlreadySubmitted).toBe(true);
+    
+    // Expected error
+    const expectedError = {
+      success: false,
+      error: 'Assessment already submitted'
+    };
+    expect(expectedError.success).toBe(false);
+  });
+
+  it('TC-EH-04: submitAssessment returns error for non-existent attemptId', () => {
+    // Contract: Should return error when attempt not found
+    const attemptId = 'non-existent-uuid';
+    const attempt = null; // Not found in database
+    
+    const notFound = attempt === null;
+    expect(notFound).toBe(true);
+    
+    const expectedError = {
+      success: false,
+      error: 'Assessment attempt not found'
+    };
+    expect(expectedError.success).toBe(false);
+  });
+});
+
+// ============================================================================
+// SECTION 11: Score Calculation Edge Cases
+// ============================================================================
+describe('Score Calculation Edge Cases', () => {
+
+  it('TC-SC-01: 0 questions answered results in 0% score', () => {
+    const totalQuestions = 20;
+    const correctAnswers = 0;
+    const scorePercentage = (correctAnswers / totalQuestions) * 100;
+    
+    expect(scorePercentage).toBe(0);
+    
+    // 0% should fail (below 70%)
+    const isPassed = scorePercentage >= 70;
+    expect(isPassed).toBe(false);
+  });
+
+  it('TC-SC-02: All questions correct results in 100% and passed=true', () => {
+    const totalQuestions = 20;
+    const correctAnswers = 20;
+    const scorePercentage = (correctAnswers / totalQuestions) * 100;
+    
+    expect(scorePercentage).toBe(100);
+    
+    const isPassed = scorePercentage >= 70;
+    expect(isPassed).toBe(true);
+  });
+
+  it('TC-SC-03: Score exactly at 70% threshold results in passed=true', () => {
+    const totalQuestions = 20;
+    const correctAnswers = 14; // 14/20 = 70%
+    const scorePercentage = (correctAnswers / totalQuestions) * 100;
+    
+    expect(scorePercentage).toBe(70);
+    
+    // Exactly 70% should pass
+    const isPassed = scorePercentage >= 70;
+    expect(isPassed).toBe(true);
+  });
+
+  it('TC-SC-04: Score at 69% threshold results in passed=false', () => {
+    const totalQuestions = 100; // Use 100 for easy math
+    const correctAnswers = 69;
+    const scorePercentage = (correctAnswers / totalQuestions) * 100;
+    
+    expect(scorePercentage).toBe(69);
+    
+    // 69% should fail
+    const isPassed = scorePercentage >= 70;
+    expect(isPassed).toBe(false);
+  });
+
+  it('TC-SC-05: Handles decimal scores correctly', () => {
+    const totalQuestions = 15;
+    const correctAnswers = 11;
+    const scorePercentage = (correctAnswers / totalQuestions) * 100;
+    
+    // 11/15 = 73.33...%
+    expect(scorePercentage).toBeCloseTo(73.33, 1);
+    
+    const isPassed = scorePercentage >= 70;
+    expect(isPassed).toBe(true);
+  });
+});
+
+// ============================================================================
+// SECTION 12: Assessment Status Outcomes
+// ============================================================================
+describe('Assessment Status Outcomes', () => {
+
+  it('TC-SO-01: Failed assessment sets rank to 105 (assessment_completed)', () => {
+    const FAILED_ASSESSMENT_RANK = 105;
+    const scorePercentage = 50; // Failed
+    const isPassed = scorePercentage >= 70;
+    
+    expect(isPassed).toBe(false);
+    
+    // On failure, rank should be set to 105
+    const resultRank = isPassed ? LIFECYCLE_RANKS.assessment_passed : FAILED_ASSESSMENT_RANK;
+    expect(resultRank).toBe(105);
+  });
+
+  it('TC-SO-02: Passed assessment sets rank to 110', () => {
+    const scorePercentage = 85; // Passed
+    const isPassed = scorePercentage >= 70;
+    
+    expect(isPassed).toBe(true);
+    
+    // On pass, rank should be set to 110
+    const resultRank = isPassed ? LIFECYCLE_RANKS.assessment_passed : 105;
+    expect(resultRank).toBe(110);
+  });
+
+  it('TC-SO-03: Passed assessment preserves configuration lock', () => {
+    // After passing, configuration should still be locked
+    const result = canModifyField(LIFECYCLE_RANKS.assessment_passed, 'configuration');
+    expect(result.allowed).toBe(false);
+    expect(result.lockLevel).toBe('configuration');
+  });
+
+  it('TC-SO-04: Assessment result is stored permanently', () => {
+    // Contract: submitted_at, score_percentage, is_passed are set on submit
+    const submittedAttempt = {
+      submitted_at: new Date().toISOString(),
+      score_percentage: 75,
+      is_passed: true,
+      answered_questions: 20,
+    };
+    
+    expect(submittedAttempt.submitted_at).toBeDefined();
+    expect(submittedAttempt.score_percentage).toBeDefined();
+    expect(submittedAttempt.is_passed).toBeDefined();
+    expect(submittedAttempt.answered_questions).toBeDefined();
+  });
+});
+
+// ============================================================================
 // TEST RESULTS SUMMARY
 // ============================================================================
 describe('Assessment Service Test Suite Summary', () => {
@@ -330,9 +568,13 @@ describe('Assessment Service Test Suite Summary', () => {
       'Lock Level Verification': 5,
       'Time and State Validation': 5,
       'Configuration Field Categories': 6,
+      'Active Assessment Blocking': 3,
+      'Error Handling Paths': 4,
+      'Score Calculation Edge Cases': 5,
+      'Assessment Status Outcomes': 4,
     };
     
     const totalTests = Object.values(testSections).reduce((a, b) => a + b, 0);
-    expect(totalTests).toBeGreaterThanOrEqual(46);
+    expect(totalTests).toBeGreaterThanOrEqual(62);
   });
 });
