@@ -6,12 +6,14 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowRight, ArrowLeft, Building2, User, Loader2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Building2, User, Loader2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 const organizationSchema = z.object({
@@ -31,6 +33,16 @@ export default function Organization() {
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const upsertOrg = useUpsertOrganization();
+
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
+
+  // Check if org is already approved (cannot modify after approval)
+  const isApproved = provider?.organization?.approval_status === 'approved';
+  const effectivelyLocked = isLocked || isApproved;
 
   const form = useForm<OrganizationFormData>({
     resolver: zodResolver(organizationSchema),
@@ -62,6 +74,11 @@ export default function Organization() {
   }, [provider?.organization, form]);
 
   const onSubmit = async (data: OrganizationFormData) => {
+    if (effectivelyLocked) {
+      toast.error('Organization details cannot be modified.');
+      return;
+    }
+
     if (!provider?.id) {
       toast.error('Provider profile not found. Please try again.');
       return;
@@ -106,6 +123,7 @@ export default function Organization() {
             <span>Step 2 of 5</span>
             <span>•</span>
             <span>Organization Details</span>
+            {effectivelyLocked && <Lock className="h-3 w-3" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Tell Us About Your Organization
@@ -115,10 +133,21 @@ export default function Organization() {
           </p>
         </div>
 
+        {/* Lock Banner */}
+        {effectivelyLocked && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : isApproved ? 'content' : configurationCheck.lockLevel || 'configuration'}
+            reason={isApproved 
+              ? 'Organization details cannot be changed after manager approval.' 
+              : configurationCheck.reason}
+            className="mb-6"
+          />
+        )}
+
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             {/* Organization Details */}
-            <Card>
+            <Card className={effectivelyLocked ? 'bg-muted/30' : ''}>
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <Building2 className="h-5 w-5 text-primary" />
@@ -134,7 +163,11 @@ export default function Organization() {
                     <FormItem>
                       <FormLabel>Organization Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="Acme Corporation" {...field} />
+                        <Input 
+                          placeholder="Acme Corporation" 
+                          disabled={effectivelyLocked}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -148,7 +181,11 @@ export default function Organization() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Organization Type</FormLabel>
-                        <Select onValueChange={field.onChange} value={field.value}>
+                        <Select 
+                          onValueChange={field.onChange} 
+                          value={field.value}
+                          disabled={effectivelyLocked}
+                        >
                           <FormControl>
                             <SelectTrigger>
                               <SelectValue placeholder="Select type" />
@@ -174,7 +211,11 @@ export default function Organization() {
                       <FormItem>
                         <FormLabel>Your Designation (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Senior Consultant" {...field} />
+                          <Input 
+                            placeholder="Senior Consultant" 
+                            disabled={effectivelyLocked}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -189,7 +230,11 @@ export default function Organization() {
                     <FormItem>
                       <FormLabel>Website (Optional)</FormLabel>
                       <FormControl>
-                        <Input placeholder="https://example.com" {...field} />
+                        <Input 
+                          placeholder="https://example.com" 
+                          disabled={effectivelyLocked}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -199,7 +244,7 @@ export default function Organization() {
             </Card>
 
             {/* Manager Contact */}
-            <Card>
+            <Card className={effectivelyLocked ? 'bg-muted/30' : ''}>
               <CardHeader>
                 <div className="flex items-center gap-2">
                   <User className="h-5 w-5 text-primary" />
@@ -217,7 +262,11 @@ export default function Organization() {
                     <FormItem>
                       <FormLabel>Manager Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Smith" {...field} />
+                        <Input 
+                          placeholder="John Smith" 
+                          disabled={effectivelyLocked}
+                          {...field} 
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -232,7 +281,12 @@ export default function Organization() {
                       <FormItem>
                         <FormLabel>Manager Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="manager@company.com" {...field} />
+                          <Input 
+                            type="email" 
+                            placeholder="manager@company.com" 
+                            disabled={effectivelyLocked}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -246,7 +300,11 @@ export default function Organization() {
                       <FormItem>
                         <FormLabel>Manager Phone (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="+91 9876543210" {...field} />
+                          <Input 
+                            placeholder="+91 9876543210" 
+                            disabled={effectivelyLocked}
+                            {...field} 
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -267,7 +325,11 @@ export default function Organization() {
                 <ArrowLeft className="h-4 w-4" />
                 Back
               </Button>
-              <Button type="submit" disabled={upsertOrg.isPending} className="gap-2 sm:ml-auto">
+              <Button 
+                type="submit" 
+                disabled={upsertOrg.isPending || effectivelyLocked} 
+                className="gap-2 sm:ml-auto"
+              >
                 {upsertOrg.isPending ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

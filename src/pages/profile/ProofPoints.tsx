@@ -19,7 +19,8 @@ import {
   MoreVertical,
   Pencil,
   Trash2,
-  Loader2
+  Loader2,
+  Lock
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -28,6 +29,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useCurrentProvider, useCompleteOnboarding } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { toast } from 'sonner';
 
 // Type icons mapping
@@ -57,6 +60,12 @@ export default function ProofPoints() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const completeOnboarding = useCompleteOnboarding();
+
+  // Lifecycle validation
+  const contentCheck = useCanModifyField('content');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isContentLocked = !contentCheck.allowed || isTerminal;
   
   // TODO: Replace with actual proof points query when implemented
   const [proofPoints] = useState<Array<{
@@ -108,6 +117,7 @@ export default function ProofPoints() {
             <span>Step 5 of 5</span>
             <span>•</span>
             <span>Proof Points</span>
+            {isContentLocked && <Lock className="h-3 w-3" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Showcase Your Work
@@ -116,6 +126,15 @@ export default function ProofPoints() {
             Add proof points to demonstrate your expertise. Include projects, certifications, awards, and more.
           </p>
         </div>
+
+        {/* Lock Banner */}
+        {isContentLocked && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : contentCheck.lockLevel || 'content'}
+            reason={contentCheck.reason}
+            className="mb-6"
+          />
+        )}
 
         {/* Profile Strength */}
         <Card className="mb-6">
@@ -138,12 +157,14 @@ export default function ProofPoints() {
         </Card>
 
         {/* Add Button */}
-        <div className="flex justify-end mb-4">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Proof Point
-          </Button>
-        </div>
+        {!isContentLocked && (
+          <div className="flex justify-end mb-4">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Proof Point
+            </Button>
+          </div>
+        )}
 
         {/* Proof Points List */}
         {proofPoints.length === 0 ? (
@@ -152,12 +173,16 @@ export default function ProofPoints() {
               <Award className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
               <h3 className="font-medium text-lg mb-2">No Proof Points Yet</h3>
               <p className="text-muted-foreground text-sm mb-4">
-                Start adding your projects, certifications, and achievements to build credibility.
+                {isContentLocked 
+                  ? 'Proof points are locked and cannot be modified at this stage.'
+                  : 'Start adding your projects, certifications, and achievements to build credibility.'}
               </p>
-              <Button className="gap-2">
-                <Plus className="h-4 w-4" />
-                Add Your First Proof Point
-              </Button>
+              {!isContentLocked && (
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Add Your First Proof Point
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -192,23 +217,25 @@ export default function ProofPoints() {
                             </p>
                           </div>
 
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="shrink-0">
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem>
-                                <Pencil className="mr-2 h-4 w-4" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem className="text-destructive">
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          {!isContentLocked && (
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="icon" className="shrink-0">
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                <DropdownMenuItem className="text-destructive">
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          )}
                         </div>
 
                         <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
@@ -252,7 +279,7 @@ export default function ProofPoints() {
           </Button>
           <Button
             onClick={handleComplete}
-            disabled={completeOnboarding.isPending}
+            disabled={completeOnboarding.isPending || isContentLocked}
             className="gap-2 sm:ml-auto"
           >
             {completeOnboarding.isPending ? (
@@ -267,7 +294,9 @@ export default function ProofPoints() {
         </div>
 
         <p className="text-sm text-muted-foreground text-center mt-4">
-          You can add proof points later from your profile settings
+          {isContentLocked 
+            ? 'Profile modifications are currently locked.'
+            : 'You can add proof points later from your profile settings'}
         </p>
       </div>
     </AppLayout>

@@ -3,11 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
+import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment/LockedFieldBanner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
-import { Briefcase, Building2, User, ArrowRight, ArrowLeft, Loader2, CheckCircle } from 'lucide-react';
+import { Briefcase, Building2, User, ArrowRight, ArrowLeft, Loader2, CheckCircle, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -24,6 +26,12 @@ export default function ChooseMode() {
   const updateMode = useUpdateProviderMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
 
+  // Lifecycle validation
+  const configurationCheck = useCanModifyField('configuration');
+  const terminalState = useIsTerminalState();
+  const isTerminal = terminalState.isTerminal;
+  const isLocked = !configurationCheck.allowed || isTerminal;
+
   // Pre-fill from existing data
   useEffect(() => {
     if (provider?.participation_mode_id) {
@@ -32,6 +40,11 @@ export default function ChooseMode() {
   }, [provider?.participation_mode_id]);
 
   const handleContinue = async () => {
+    if (isLocked) {
+      toast.error('This section is locked and cannot be modified.');
+      return;
+    }
+
     if (!provider?.id) {
       toast.error('Provider profile not found. Please try again.');
       return;
@@ -74,6 +87,7 @@ export default function ChooseMode() {
             <span>Step 2 of 6</span>
             <span>•</span>
             <span>Participation Mode</span>
+            {isLocked && <Lock className="h-3 w-3" />}
           </div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             How Would You Like to Participate?
@@ -83,8 +97,22 @@ export default function ChooseMode() {
           </p>
         </div>
 
+        {/* Lock Banner */}
+        {isLocked && (
+          <LockedFieldBanner
+            lockLevel={isTerminal ? 'everything' : configurationCheck.lockLevel || 'configuration'}
+            reason={configurationCheck.reason}
+            className="mb-6"
+          />
+        )}
+
         {/* Mode Selection */}
-        <RadioGroup value={selectedMode} onValueChange={setSelectedMode} className="space-y-4">
+        <RadioGroup 
+          value={selectedMode} 
+          onValueChange={isLocked ? undefined : setSelectedMode} 
+          className="space-y-4"
+          disabled={isLocked}
+        >
           {modes?.map((mode) => {
             const Icon = modeIcons[mode.code] || User;
             const isSelected = selectedMode === mode.id;
@@ -93,17 +121,24 @@ export default function ChooseMode() {
               <Label
                 key={mode.id}
                 htmlFor={mode.id}
-                className="cursor-pointer"
+                className={cn("cursor-pointer", isLocked && "cursor-not-allowed opacity-60")}
               >
                 <Card
                   className={cn(
-                    "transition-all hover:border-primary/50",
-                    isSelected && "border-primary ring-2 ring-primary/20"
+                    "transition-all",
+                    !isLocked && "hover:border-primary/50",
+                    isSelected && "border-primary ring-2 ring-primary/20",
+                    isLocked && "bg-muted/30"
                   )}
                 >
                   <CardContent className="p-4 sm:p-6">
                     <div className="flex items-start gap-4">
-                      <RadioGroupItem value={mode.id} id={mode.id} className="mt-1" />
+                      <RadioGroupItem 
+                        value={mode.id} 
+                        id={mode.id} 
+                        className="mt-1" 
+                        disabled={isLocked}
+                      />
                       
                       <div className={cn(
                         "w-12 h-12 rounded-lg flex items-center justify-center shrink-0",
@@ -148,7 +183,7 @@ export default function ChooseMode() {
           </Button>
           <Button
             onClick={handleContinue}
-            disabled={!selectedMode || updateMode.isPending}
+            disabled={!selectedMode || updateMode.isPending || isLocked}
             className="gap-2 sm:ml-auto"
           >
             {updateMode.isPending ? (
