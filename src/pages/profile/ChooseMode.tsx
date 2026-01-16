@@ -39,32 +39,46 @@ export default function ChooseMode() {
     }
   }, [provider?.participation_mode_id]);
 
-  const handleContinue = async () => {
+  // Persist mode immediately on selection for proper navigation guards
+  const handleModeChange = async (modeId: string) => {
+    if (isLocked || updateMode.isPending) return;
+    
+    // Optimistic UI update
+    setSelectedMode(modeId);
+    
+    // Only persist if provider exists and mode actually changed
+    if (provider?.id && modeId !== provider.participation_mode_id) {
+      try {
+        await updateMode.mutateAsync({
+          providerId: provider.id,
+          participationModeId: modeId,
+        });
+      } catch (error) {
+        // Rollback on error
+        setSelectedMode(provider.participation_mode_id || '');
+        toast.error('Failed to save mode selection');
+        console.error('Error saving mode:', error);
+      }
+    }
+  };
+
+  const handleContinue = () => {
     if (isLocked) {
       toast.error('This section is locked and cannot be modified.');
       return;
     }
 
-    if (!provider?.id) {
-      toast.error('Provider profile not found. Please try again.');
+    if (!selectedMode) {
+      toast.error('Please select a participation mode');
       return;
     }
 
-    try {
-      await updateMode.mutateAsync({
-        providerId: provider.id,
-        participationModeId: selectedMode,
-      });
-
-      const selected = modes?.find(m => m.id === selectedMode);
-      if (selected?.requires_org_info) {
-        navigate('/profile/build/organization');
-      } else {
-        navigate('/profile/build/expertise');
-      }
-    } catch (error) {
-      toast.error('Failed to save participation mode. Please try again.');
-      console.error('Error saving mode:', error);
+    // Mode is already saved on selection, just navigate
+    const selected = modes?.find(m => m.id === selectedMode);
+    if (selected?.requires_org_info) {
+      navigate('/profile/build/organization');
+    } else {
+      navigate('/profile/build/expertise');
     }
   };
 
@@ -109,9 +123,9 @@ export default function ChooseMode() {
         {/* Mode Selection */}
         <RadioGroup 
           value={selectedMode} 
-          onValueChange={isLocked ? undefined : setSelectedMode} 
+          onValueChange={handleModeChange} 
           className="space-y-4"
-          disabled={isLocked}
+          disabled={isLocked || updateMode.isPending}
         >
           {modes?.map((mode) => {
             const Icon = modeIcons[mode.code] || User;
