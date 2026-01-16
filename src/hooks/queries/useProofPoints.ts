@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
+import { canModifyField } from '@/services/lifecycleService';
 
 type ProofPoint = Database['public']['Tables']['proof_points']['Row'];
 type ProofPointInsert = Database['public']['Tables']['proof_points']['Insert'];
@@ -33,6 +34,36 @@ export interface UpdateProofPointInput {
   title?: string;
   description?: string;
   specialityIds?: string[];
+}
+
+// Minimum proof points required - this can be overridden by system_settings
+const DEFAULT_MIN_PROOF_POINTS = 2;
+
+// Helper to get minimum proof points from system settings
+async function getMinProofPointsRequired(): Promise<number> {
+  const { data } = await supabase
+    .from('system_settings')
+    .select('setting_value')
+    .eq('setting_key', 'proof_points_minimum')
+    .single();
+
+  if (data?.setting_value && typeof data.setting_value === 'object' && 'value' in data.setting_value) {
+    return (data.setting_value as { value: number }).value;
+  }
+  return DEFAULT_MIN_PROOF_POINTS;
+}
+
+// Helper to check content modification lock
+async function checkContentLock(providerId: string): Promise<{ allowed: boolean; reason?: string }> {
+  const { data: provider, error } = await supabase
+    .from('solution_providers')
+    .select('lifecycle_rank')
+    .eq('id', providerId)
+    .single();
+
+  if (error) throw error;
+
+  return canModifyField(provider?.lifecycle_rank || 0, 'content');
 }
 
 // Fetch all proof points for a provider with counts
@@ -151,6 +182,12 @@ export function useCreateProofPoint() {
 
   return useMutation({
     mutationFn: async (input: CreateProofPointInput) => {
+      // Check content lock
+      const contentCheck = await checkContentLock(input.providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
+
       // Insert proof point
       const { data: proofPoint, error: proofPointError } = await supabase
         .from('proof_points')
@@ -205,7 +242,7 @@ export function useCreateProofPoint() {
     },
     onError: (error) => {
       console.error('Error creating proof point:', error);
-      toast.error('Failed to save proof point. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to save proof point. Please try again.');
     },
   });
 }
@@ -217,6 +254,12 @@ export function useUpdateProofPoint() {
   return useMutation({
     mutationFn: async (input: UpdateProofPointInput & { providerId: string }) => {
       const { id, providerId, specialityIds, ...updateData } = input;
+
+      // Check content lock
+      const contentCheck = await checkContentLock(providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
 
       // Update proof point
       const { error: updateError } = await supabase
@@ -262,17 +305,41 @@ export function useUpdateProofPoint() {
     },
     onError: (error) => {
       console.error('Error updating proof point:', error);
-      toast.error('Failed to update proof point. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to update proof point. Please try again.');
     },
   });
 }
 
-// Soft delete proof point
+// Soft delete proof point with minimum constraint check
 export function useDeleteProofPoint() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async ({ id, providerId }: { id: string; providerId: string }) => {
+      // Check content lock
+      const contentCheck = await checkContentLock(providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
+
+      // Check minimum proof points constraint
+      const { count, error: countError } = await supabase
+        .from('proof_points')
+        .select('id', { count: 'exact', head: true })
+        .eq('provider_id', providerId)
+        .eq('is_deleted', false);
+
+      if (countError) throw countError;
+
+      const minRequired = await getMinProofPointsRequired();
+      const currentCount = count || 0;
+
+      if (currentCount <= minRequired) {
+        throw new Error(
+          `Minimum ${minRequired} proof points required. Please add a new proof point before deleting this one.`
+        );
+      }
+
       const user = (await supabase.auth.getUser()).data.user;
       
       const { error } = await supabase
@@ -293,7 +360,7 @@ export function useDeleteProofPoint() {
     },
     onError: (error) => {
       console.error('Error deleting proof point:', error);
-      toast.error('Failed to delete proof point. Please try again.');
+      toast.error(error instanceof Error ? error.message : 'Failed to delete proof point. Please try again.');
     },
   });
 }
@@ -314,6 +381,12 @@ export function useAddProofPointLink() {
       title?: string;
       providerId: string;
     }) => {
+      // Check content lock
+      const contentCheck = await checkContentLock(providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
+
       const { error } = await supabase
         .from('proof_point_links')
         .insert({
@@ -328,6 +401,10 @@ export function useAddProofPointLink() {
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['proof-points', result.providerId] });
       queryClient.invalidateQueries({ queryKey: ['proof-point', result.proofPointId] });
+    },
+    onError: (error) => {
+      console.error('Error adding link:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to add link');
     },
   });
 }
@@ -348,6 +425,12 @@ export function useUploadProofPointFile() {
       providerId: string;
       userId: string;
     }) => {
+      // Check content lock
+      const contentCheck = await checkContentLock(providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
+
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
         throw new Error('File exceeds 10 MB limit');
@@ -406,6 +489,12 @@ export function useDeleteProofPointFile() {
       proofPointId: string;
       providerId: string;
     }) => {
+      // Check content lock
+      const contentCheck = await checkContentLock(providerId);
+      if (!contentCheck.allowed) {
+        throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
+      }
+
       // Delete from storage
       const { error: storageError } = await supabase.storage
         .from('proof-point-files')
@@ -426,6 +515,10 @@ export function useDeleteProofPointFile() {
       queryClient.invalidateQueries({ queryKey: ['proof-points', result.providerId] });
       queryClient.invalidateQueries({ queryKey: ['proof-point', result.proofPointId] });
       toast.success('File deleted');
+    },
+    onError: (error) => {
+      console.error('Error deleting file:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to delete file');
     },
   });
 }
