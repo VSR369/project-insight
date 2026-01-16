@@ -1,7 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 import { Resend } from "https://esm.sh/resend@2.0.0";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -25,6 +24,38 @@ function generateSecurePassword(): string {
   const array = new Uint8Array(12);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => chars[byte % chars.length]).join('');
+}
+
+// PBKDF2 password hashing using Web Crypto API
+async function hashPassword(password: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const salt = crypto.getRandomValues(new Uint8Array(16));
+  
+  const keyMaterial = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  
+  const hash = await crypto.subtle.deriveBits(
+    {
+      name: "PBKDF2",
+      salt: salt,
+      iterations: 100000,
+      hash: "SHA-256",
+    },
+    keyMaterial,
+    256
+  );
+  
+  // Combine salt + hash and encode as base64
+  const combined = new Uint8Array(salt.length + new Uint8Array(hash).length);
+  combined.set(salt);
+  combined.set(new Uint8Array(hash), salt.length);
+  
+  return btoa(String.fromCharCode(...combined));
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -62,9 +93,8 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate temporary password
     const tempPassword = generateSecurePassword();
     
-    // Hash password using bcrypt
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(tempPassword, salt);
+    // Hash password using PBKDF2 (Web Crypto API)
+    const passwordHash = await hashPassword(tempPassword);
     
     // Calculate expiry (15 days from now)
     const expiresAt = new Date();
