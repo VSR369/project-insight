@@ -9,12 +9,10 @@
  * 
  * Run with: npm run test src/test/assessment-integration.test.ts
  * 
- * NOTE: Tests are skipped by default (.skip) because they require:
- * 1. A running Supabase instance
- * 2. An authenticated user session
- * 3. Test data that gets modified/cleaned up
- * 
- * To run integration tests, remove .skip and ensure proper test setup.
+ * SETUP:
+ * 1. Create a test user in Supabase with a provider record
+ * 2. Run with environment variables:
+ *    RUN_INTEGRATION_TESTS=true TEST_USER_EMAIL=test@example.com TEST_USER_PASSWORD=yourpassword npm run test
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
@@ -26,6 +24,19 @@ import {
   submitAssessment,
   getAssessmentHistory,
 } from '@/services/assessmentService';
+import {
+  shouldRunIntegrationTests,
+  getSkipReason,
+  authenticateTestUser,
+  signOutTestUser,
+  getTestProvider,
+  cleanupTestAttempts as cleanupProviderAttempts,
+  getSampleQuestionIds,
+} from './helpers/testAuth';
+
+// Conditional skip based on environment
+const SKIP_TESTS = !shouldRunIntegrationTests();
+const SKIP_REASON = getSkipReason();
 
 // Test data holders
 interface AssessmentTestData {
@@ -82,23 +93,21 @@ async function cleanupTestAttempts(): Promise<void> {
 // ============================================================================
 // SECTION 1: canStartAssessment Database Validation
 // ============================================================================
-describe.skip('Integration: canStartAssessment', () => {
+describe.skipIf(SKIP_TESTS)('Integration: canStartAssessment', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated - run tests with auth session');
-    testData.userId = user.id;
+    // Authenticate test user
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id, lifecycle_status, lifecycle_rank')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!provider) throw new Error('No provider found for current user');
-    testData.providerId = provider.id;
-    testData.originalLifecycleStatus = provider.lifecycle_status;
-    testData.originalLifecycleRank = provider.lifecycle_rank;
+    // Get test provider
+    const provider = await getTestProvider(auth.userId);
+    if (!provider) throw new Error('No provider found for test user');
+    
+    testData.providerId = provider.providerId;
+    testData.originalLifecycleStatus = provider.lifecycleStatus;
+    testData.originalLifecycleRank = provider.lifecycleRank;
   });
 
   afterAll(async () => {
@@ -218,28 +227,25 @@ describe.skip('Integration: canStartAssessment', () => {
 // ============================================================================
 // SECTION 2: startAssessment Database Operations
 // ============================================================================
-describe.skip('Integration: startAssessment', () => {
+describe.skipIf(SKIP_TESTS)('Integration: startAssessment', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    testData.userId = user.id;
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id, lifecycle_status, lifecycle_rank')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const provider = await getTestProvider(auth.userId);
     if (!provider) throw new Error('No provider found');
-    testData.providerId = provider.id;
-    testData.originalLifecycleStatus = provider.lifecycle_status;
-    testData.originalLifecycleRank = provider.lifecycle_rank;
+    
+    testData.providerId = provider.providerId;
+    testData.originalLifecycleStatus = provider.lifecycleStatus;
+    testData.originalLifecycleRank = provider.lifecycleRank;
   });
 
   afterAll(async () => {
     await restoreProviderState();
     await cleanupTestAttempts();
+    await signOutTestUser();
   });
 
   beforeEach(async () => {
@@ -357,28 +363,25 @@ describe.skip('Integration: startAssessment', () => {
 // ============================================================================
 // SECTION 3: getActiveAssessmentAttempt Database Retrieval
 // ============================================================================
-describe.skip('Integration: getActiveAssessmentAttempt', () => {
+describe.skipIf(SKIP_TESTS)('Integration: getActiveAssessmentAttempt', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    testData.userId = user.id;
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id, lifecycle_status, lifecycle_rank')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const provider = await getTestProvider(auth.userId);
     if (!provider) throw new Error('No provider found');
-    testData.providerId = provider.id;
-    testData.originalLifecycleStatus = provider.lifecycle_status;
-    testData.originalLifecycleRank = provider.lifecycle_rank;
+    
+    testData.providerId = provider.providerId;
+    testData.originalLifecycleStatus = provider.lifecycleStatus;
+    testData.originalLifecycleRank = provider.lifecycleRank;
   });
 
   afterAll(async () => {
     await restoreProviderState();
     await cleanupTestAttempts();
+    await signOutTestUser();
   });
 
   it('TC-GA-01: Should return null when no active attempt exists', async () => {
@@ -489,37 +492,28 @@ describe.skip('Integration: getActiveAssessmentAttempt', () => {
 // ============================================================================
 // SECTION 4: submitAssessment Database Operations
 // ============================================================================
-describe.skip('Integration: submitAssessment', () => {
+describe.skipIf(SKIP_TESTS)('Integration: submitAssessment', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    testData.userId = user.id;
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id, lifecycle_status, lifecycle_rank')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const provider = await getTestProvider(auth.userId);
     if (!provider) throw new Error('No provider found');
-    testData.providerId = provider.id;
-    testData.originalLifecycleStatus = provider.lifecycle_status;
-    testData.originalLifecycleRank = provider.lifecycle_rank;
+    
+    testData.providerId = provider.providerId;
+    testData.originalLifecycleStatus = provider.lifecycleStatus;
+    testData.originalLifecycleRank = provider.lifecycleRank;
 
     // Get some question IDs for test responses
-    const { data: questions } = await supabase
-      .from('question_bank')
-      .select('id')
-      .eq('is_active', true)
-      .limit(5);
-
-    testData.questionIds = questions?.map(q => q.id) ?? [];
+    testData.questionIds = await getSampleQuestionIds(10);
   });
 
   afterAll(async () => {
     await restoreProviderState();
     await cleanupTestAttempts();
+    await signOutTestUser();
   });
 
   beforeEach(async () => {
@@ -723,25 +717,22 @@ describe.skip('Integration: submitAssessment', () => {
 // ============================================================================
 // SECTION 5: getAssessmentHistory Database Retrieval
 // ============================================================================
-describe.skip('Integration: getAssessmentHistory', () => {
+describe.skipIf(SKIP_TESTS)('Integration: getAssessmentHistory', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    testData.userId = user.id;
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const provider = await getTestProvider(auth.userId);
     if (!provider) throw new Error('No provider found');
-    testData.providerId = provider.id;
+    
+    testData.providerId = provider.providerId;
   });
 
   afterAll(async () => {
     await cleanupTestAttempts();
+    await signOutTestUser();
   });
 
   it('TC-GH-01: Should return empty array for provider with no attempts', async () => {
@@ -851,37 +842,28 @@ describe.skip('Integration: getAssessmentHistory', () => {
 // ============================================================================
 // SECTION 6: Full Assessment Flow Integration
 // ============================================================================
-describe.skip('Integration: Full Assessment Flow', () => {
+describe.skipIf(SKIP_TESTS)('Integration: Full Assessment Flow', () => {
   
   beforeAll(async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Not authenticated');
-    testData.userId = user.id;
+    const auth = await authenticateTestUser();
+    if (!auth) throw new Error(`Authentication failed: ${SKIP_REASON}`);
+    testData.userId = auth.userId;
 
-    const { data: provider } = await supabase
-      .from('solution_providers')
-      .select('id, lifecycle_status, lifecycle_rank')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
+    const provider = await getTestProvider(auth.userId);
     if (!provider) throw new Error('No provider found');
-    testData.providerId = provider.id;
-    testData.originalLifecycleStatus = provider.lifecycle_status;
-    testData.originalLifecycleRank = provider.lifecycle_rank;
+    
+    testData.providerId = provider.providerId;
+    testData.originalLifecycleStatus = provider.lifecycleStatus;
+    testData.originalLifecycleRank = provider.lifecycleRank;
 
     // Get question IDs
-    const { data: questions } = await supabase
-      .from('question_bank')
-      .select('id, correct_option')
-      .eq('is_active', true)
-      .limit(10);
-
-    testData.questionIds = questions?.map(q => q.id) ?? [];
+    testData.questionIds = await getSampleQuestionIds(10);
   });
 
   afterAll(async () => {
     await restoreProviderState();
     await cleanupTestAttempts();
+    await signOutTestUser();
   });
 
   it('TC-FF-01: Complete flow: start → answer → submit → result', async () => {

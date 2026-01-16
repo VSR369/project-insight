@@ -315,7 +315,7 @@ This document summarizes all tests for the Lifecycle Governance system, which en
 
 ## Running Tests
 
-### All Tests
+### All Tests (Unit Only - Default)
 ```bash
 npm run test
 ```
@@ -323,11 +323,29 @@ npm run test
 ### Unit Tests Only
 ```bash
 npm run test src/test/lifecycle-governance.test.ts
+npm run test src/test/assessment-service.test.ts
+npm run test src/test/assessment-hooks.test.ts
 ```
 
-### Integration Tests Only
+### Integration Tests (Requires Setup)
+
+Integration tests require authentication. Set up as follows:
+
+1. Create a test user in Supabase Auth with email/password
+2. Ensure the test user has a solution_provider record
+3. Run with environment variables:
+
 ```bash
-npm run test src/test/lifecycle-integration.test.ts
+RUN_INTEGRATION_TESTS=true \
+TEST_USER_EMAIL=test@example.com \
+TEST_USER_PASSWORD=yourpassword \
+npm run test
+```
+
+### Specific Integration Test Files
+```bash
+RUN_INTEGRATION_TESTS=true TEST_USER_EMAIL=... TEST_USER_PASSWORD=... npm run test src/test/lifecycle-integration.test.ts
+RUN_INTEGRATION_TESTS=true TEST_USER_EMAIL=... TEST_USER_PASSWORD=... npm run test src/test/assessment-integration.test.ts
 ```
 
 ### Smoke Tests Only (Safe for Production)

@@ -24,6 +24,17 @@ import {
   executeExpertiseLevelChangeReset,
   getCascadeImpactCounts 
 } from '@/services/cascadeResetService';
+import {
+  shouldRunIntegrationTests,
+  getSkipReason,
+  authenticateTestUser,
+  signOutTestUser,
+  getTestProvider,
+} from './helpers/testAuth';
+
+// Conditional skip based on environment
+const SKIP_TESTS = !shouldRunIntegrationTests();
+const SKIP_REASON = getSkipReason();
 
 // Test data holders
 interface TestData {
@@ -98,7 +109,7 @@ async function getFirstSpeciality(proficiencyAreaId: string): Promise<string | n
 // ============================================================================
 // UNIT TESTS: get_cascade_impact_counts
 // ============================================================================
-describe.skip('Database Function: get_cascade_impact_counts', () => {
+describe.skipIf(SKIP_TESTS)('Database Function: get_cascade_impact_counts', () => {
   
   it('Should return zero counts for provider with no data', async () => {
     // Use a valid provider ID format but non-existent
@@ -136,7 +147,7 @@ describe.skip('Database Function: get_cascade_impact_counts', () => {
 // ============================================================================
 // INTEGRATION TESTS: execute_industry_change_reset
 // ============================================================================
-describe.skip('Database Function: execute_industry_change_reset', () => {
+describe.skipIf(SKIP_TESTS)('Database Function: execute_industry_change_reset', () => {
   
   beforeAll(async () => {
     // Get current user
@@ -268,7 +279,7 @@ describe.skip('Database Function: execute_industry_change_reset', () => {
 // ============================================================================
 // INTEGRATION TESTS: execute_expertise_change_reset
 // ============================================================================
-describe.skip('Database Function: execute_expertise_change_reset', () => {
+describe.skipIf(SKIP_TESTS)('Database Function: execute_expertise_change_reset', () => {
   
   beforeAll(async () => {
     // Get current user
@@ -362,7 +373,7 @@ describe.skip('Database Function: execute_expertise_change_reset', () => {
 // ============================================================================
 // INTEGRATION TESTS: handle_orphaned_proof_points
 // ============================================================================
-describe.skip('Database Function: handle_orphaned_proof_points', () => {
+describe.skipIf(SKIP_TESTS)('Database Function: handle_orphaned_proof_points', () => {
 
   it('Should convert orphaned specialty PPs to general category', async () => {
     if (!testData.providerId) return;
@@ -408,7 +419,7 @@ describe.skip('Database Function: handle_orphaned_proof_points', () => {
 // ============================================================================
 // FULL INTEGRATION TEST: Complete Cascade Flow
 // ============================================================================
-describe.skip('Integration: Full Cascade Reset Flow', () => {
+describe.skipIf(SKIP_TESTS)('Integration: Full Cascade Reset Flow', () => {
 
   // This test creates fresh data and tests the complete flow
   it('Industry change: Should cascade delete specialty data', async () => {
@@ -512,7 +523,7 @@ describe.skip('Integration: Full Cascade Reset Flow', () => {
 // ============================================================================
 // TERMINAL STATE ENFORCEMENT TESTS
 // ============================================================================
-describe.skip('Integration: Terminal State Enforcement', () => {
+describe.skipIf(SKIP_TESTS)('Integration: Terminal State Enforcement', () => {
 
   it('Verified provider: Cascade functions should still execute (DB level)', async () => {
     // Note: Terminal state enforcement is at the service/UI layer, not DB
