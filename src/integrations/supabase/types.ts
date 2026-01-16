@@ -1111,6 +1111,7 @@ export type Database = {
           industry_segment_id: string | null
           is_student: boolean
           last_name: string
+          lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
           onboarding_status: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id: string | null
@@ -1134,6 +1135,7 @@ export type Database = {
           industry_segment_id?: string | null
           is_student?: boolean
           last_name: string
+          lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id?: string | null
@@ -1157,6 +1159,7 @@ export type Database = {
           industry_segment_id?: string | null
           is_student?: boolean
           last_name?: string
+          lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           onboarding_status?: Database["public"]["Enums"]["onboarding_status"]
           participation_mode_id?: string | null
@@ -1397,6 +1400,7 @@ export type Database = {
       lifecycle_status:
         | "invited"
         | "registered"
+        | "enrolled"
         | "profile_building"
         | "assessment_pending"
         | "assessment_completed"
@@ -1561,6 +1565,7 @@ export const Constants = {
       lifecycle_status: [
         "invited",
         "registered",
+        "enrolled",
         "profile_building",
         "assessment_pending",
         "assessment_completed",

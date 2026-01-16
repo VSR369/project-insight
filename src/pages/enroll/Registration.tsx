@@ -143,7 +143,7 @@ export default function EnrollRegistration() {
         },
       });
       
-      navigate('/enroll/participation-mode');
+      navigate('/enroll/welcome');
     } catch (error) {
       console.error('Error saving profile:', error);
     }

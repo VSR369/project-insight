@@ -170,7 +170,8 @@ export async function updateProviderBasicProfile(
       country_id: data.countryId,
       industry_segment_id: data.industrySegmentId,
       is_student: data.isStudent,
-      lifecycle_status: 'profile_building',
+      lifecycle_status: 'enrolled',
+      lifecycle_rank: 20,
       onboarding_status: 'in_progress',
       updated_by: user.id,
     })
