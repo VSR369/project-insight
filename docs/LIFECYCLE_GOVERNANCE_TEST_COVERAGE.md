@@ -1,8 +1,8 @@
 # Lifecycle Governance Test Coverage Summary
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Last Updated:** January 2026  
-**Module:** Solution Provider Lifecycle Management  
+**Module:** Solution Provider Lifecycle Management + Assessment Service  
 
 ---
 
@@ -13,6 +13,7 @@ This document summarizes all tests for the Lifecycle Governance system, which en
 - Cascade resets when configuration fields change
 - Terminal state enforcement (verified/certified profiles)
 - Minimum proof points constraints
+- **Assessment lifecycle lock triggers** (NEW)
 
 ---
 
@@ -23,8 +24,124 @@ This document summarizes all tests for the Lifecycle Governance system, which en
 | `src/test/lifecycle-governance.test.ts` | Unit | 56+ | Core business logic validation |
 | `src/test/lifecycle-integration.test.ts` | Integration | 25+ | Database function validation |
 | `src/test/cascade-smoke.test.ts` | Smoke | 28 | Read-only production safety checks |
+| `src/test/assessment-service.test.ts` | Unit | 62+ | Assessment lifecycle lock trigger |
+| `src/test/assessment-hooks.test.ts` | Unit | 16+ | Assessment React hooks |
 
-**Total Tests:** 100+ across all suites
+**Total Tests:** 187+ across all suites
+
+---
+
+## Assessment Service Tests (NEW)
+
+### 4. Assessment Service Tests (`assessment-service.test.ts`)
+
+#### 4.1 Assessment Start Prerequisites (6 tests)
+| Test | Description | Business Rule |
+|------|-------------|---------------|
+| TC-AS-01 | Provider at rank 70 can start assessment | Minimum proof points met |
+| TC-AS-02 | Provider at rank 60 cannot start | Below minimum |
+| TC-AS-03 | Provider at rank 50 cannot start | Below minimum |
+| TC-AS-04 | Provider at rank 20 cannot start | Below minimum |
+| TC-AS-05 | Rank 100 cannot start new assessment | Already in assessment |
+| TC-AS-06 | Rank 110 cannot start new assessment | Already passed |
+
+#### 4.2 Configuration Lock at Assessment Start (6 tests)
+| Test | Description | Expected Result |
+|------|-------------|-----------------|
+| TC-CL-01 | Configuration locked at rank 100 | `allowed: false, lockLevel: 'configuration'` |
+| TC-CL-02 | Industry segment locked | Cannot modify |
+| TC-CL-03 | Expertise level locked | Cannot modify |
+| TC-CL-04 | Specialities locked | Cannot modify |
+| TC-CL-05 | Registration still editable | `allowed: true` |
+| TC-CL-06 | Content still editable | `allowed: true` |
+
+#### 4.3 Lifecycle Rank Transitions (6 tests)
+| Test | Description | Expected Value |
+|------|-------------|----------------|
+| TC-LT-01 | assessment_in_progress rank | 100 |
+| TC-LT-02 | assessment_passed rank | 110 |
+| TC-LT-03 | Lock threshold equals rank 100 | Match verified |
+| TC-LT-04 | proof_points_min_met below lock | < 100 |
+| TC-LT-05 | Valid progression: 70 → 100 | Ascending |
+| TC-LT-06 | Completion ranks: 105 or 110 | Pass/Fail |
+
+#### 4.4 Boundary Testing (6 tests)
+| Test | Rank | Assessment Allowed | Config Allowed |
+|------|------|-------------------|----------------|
+| TC-BT-01 | 69 | No | Yes |
+| TC-BT-02 | 70 | Yes | Yes |
+| TC-BT-03 | 99 | Yes | Yes |
+| TC-BT-04 | 100 | No | No |
+| TC-BT-05 | 99 | Can transition | - |
+| TC-BT-06 | 100 | Blocked | - |
+
+#### 4.5 Active Assessment Blocking (3 tests)
+| Test | Description | Expected Result |
+|------|-------------|-----------------|
+| TC-AB-01 | Active attempt blocks new start | Cannot start |
+| TC-AB-02 | Expired attempt allows new start | Can start |
+| TC-AB-03 | Multiple expired don't block | Can start |
+
+#### 4.6 Error Handling Paths (4 tests)
+| Test | Error Condition | Expected |
+|------|-----------------|----------|
+| TC-EH-01 | Missing providerId | Error returned |
+| TC-EH-02 | Not authenticated | Error returned |
+| TC-EH-03 | Already submitted | Error returned |
+| TC-EH-04 | Non-existent attemptId | Error returned |
+
+#### 4.7 Score Calculation Edge Cases (5 tests)
+| Test | Score | Passed |
+|------|-------|--------|
+| TC-SC-01 | 0% | false |
+| TC-SC-02 | 100% | true |
+| TC-SC-03 | 70% (exact) | true |
+| TC-SC-04 | 69% | false |
+| TC-SC-05 | 73.33% (decimal) | true |
+
+#### 4.8 Assessment Status Outcomes (4 tests)
+| Test | Condition | Resulting Rank |
+|------|-----------|----------------|
+| TC-SO-01 | Failed | 105 |
+| TC-SO-02 | Passed | 110 |
+| TC-SO-03 | After pass | Config still locked |
+| TC-SO-04 | Result stored | All fields set |
+
+---
+
+### 5. Assessment Hooks Tests (`assessment-hooks.test.ts`)
+
+#### 5.1 useAssessmentTimeRemaining (5 tests)
+| Test | Description |
+|------|-------------|
+| TC-TR-01 | Correct seconds remaining calculation |
+| TC-TR-02 | isExpired true when past limit |
+| TC-TR-03 | formatTime returns MM:SS correctly |
+| TC-TR-04 | Null values when no attempt |
+| TC-TR-05 | Edge case: 0 seconds remaining |
+
+#### 5.2 useCanStartAssessment (4 tests)
+| Test | Description |
+|------|-------------|
+| TC-CS-01 | Returns allowed:true for eligible |
+| TC-CS-02 | Returns false with reason (low rank) |
+| TC-CS-03 | Returns false with active attempt |
+| TC-CS-04 | Returns false at rank 100+ |
+
+#### 5.3 useStartAssessment Mutation (3 tests)
+| Test | Description |
+|------|-------------|
+| TC-SM-01 | Invalidates queries on success |
+| TC-SM-02 | Shows error toast on failure |
+| TC-SM-03 | Returns attempt data on success |
+
+#### 5.4 useSubmitAssessment Mutation (4 tests)
+| Test | Description |
+|------|-------------|
+| TC-SU-01 | Returns pass result with rank 110 |
+| TC-SU-02 | Returns fail result with rank 105 |
+| TC-SU-03 | Shows success toast with score |
+| TC-SU-04 | Invalidates all queries on submit |
 
 ---
 
@@ -159,16 +276,20 @@ This document summarizes all tests for the Lifecycle Governance system, which en
 
 ### Business Rules Coverage
 
-| Rule ID | Description | Unit | Integration | Smoke |
-|---------|-------------|------|-------------|-------|
-| BR-01 | Terminal state freeze | ✅ | ✅ | ✅ |
-| BR-3.1.2 | Registration lock after panel | ✅ | - | - |
-| BR-3.2.2 | Industry change cascade | ✅ | ✅ | ✅ |
-| BR-3.2.3 | Industry lock during assessment | ✅ | - | - |
-| BR-3.4.1 | Expertise change cascade | ✅ | ✅ | ✅ |
-| BR-3.4.2 | Expertise lock during assessment | ✅ | - | - |
-| BR-3.5.2 | Minimum proof points (2) | ✅ | - | - |
-| BR-3.5.4 | Content lock after panel | ✅ | - | - |
+| Rule ID | Description | Unit | Integration | Smoke | Assessment |
+|---------|-------------|------|-------------|-------|------------|
+| BR-01 | Terminal state freeze | ✅ | ✅ | ✅ | ✅ |
+| BR-3.1.2 | Registration lock after panel | ✅ | - | - | - |
+| BR-3.2.2 | Industry change cascade | ✅ | ✅ | ✅ | - |
+| BR-3.2.3 | Industry lock during assessment | ✅ | - | - | ✅ |
+| BR-3.4.1 | Expertise change cascade | ✅ | ✅ | ✅ | - |
+| BR-3.4.2 | Expertise lock during assessment | ✅ | - | - | ✅ |
+| BR-3.5.2 | Minimum proof points (2) | ✅ | - | - | ✅ |
+| BR-3.5.4 | Content lock after panel | ✅ | - | - | - |
+| **BR-ASM-01** | Assessment start prerequisites | - | - | - | ✅ |
+| **BR-ASM-02** | Configuration lock at assessment | - | - | - | ✅ |
+| **BR-ASM-03** | Active assessment blocking | - | - | - | ✅ |
+| **BR-ASM-04** | Score calculation & pass/fail | - | - | - | ✅ |
 
 ### Database Functions Coverage
 
@@ -211,6 +332,16 @@ npm run test src/test/lifecycle-integration.test.ts
 ### Smoke Tests Only (Safe for Production)
 ```bash
 npm run test src/test/cascade-smoke.test.ts
+```
+
+### Assessment Service Tests
+```bash
+npm run test src/test/assessment-service.test.ts
+```
+
+### Assessment Hooks Tests
+```bash
+npm run test src/test/assessment-hooks.test.ts
 ```
 
 ---
@@ -256,6 +387,19 @@ These tests require manual QA execution in staging:
 5. Delete one
 6. **Verify:** Deletion succeeds
 
+### TC-M06: Assessment Start Flow (NEW)
+1. Create provider at rank 70 (proof_points_min_met)
+2. Click "Start Assessment"
+3. **Verify:** Lifecycle transitions to assessment_in_progress (rank 100)
+4. **Verify:** Configuration fields become locked
+5. **Verify:** Cannot start another assessment
+
+### TC-M07: Assessment Completion Flow (NEW)
+1. Complete assessment with >70% score
+2. **Verify:** Status = assessment_passed, rank = 110
+3. Complete assessment with <70% score
+4. **Verify:** Status = assessment_completed, rank = 105
+
 ---
 
 ## Test Maintenance
@@ -266,6 +410,7 @@ These tests require manual QA execution in staging:
 - New cascade rules implemented
 - New terminal states defined
 - Database schema changes
+- Assessment rules or scoring changes
 
 ### Test Data Requirements
 - Integration tests need authenticated Supabase session
