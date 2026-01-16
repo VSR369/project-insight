@@ -96,39 +96,106 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    // Send notification email to old manager
+    // Send notification email to manager about the withdrawal
     if (previousManagerEmail) {
-      console.log('Sending withdrawal notification to:', previousManagerEmail);
+      console.log('[withdraw-approval-request] Sending withdrawal notification:', {
+        to: previousManagerEmail,
+        managerName: previousManagerName,
+        providerName,
+        orgName: org.org_name,
+        timestamp: new Date().toISOString()
+      });
       
       try {
-        await resend.emails.send({
+        const emailResponse = await resend.emails.send({
           from: 'CogniBlend <onboarding@resend.dev>',
           to: [previousManagerEmail],
-          subject: `Request Withdrawn - ${providerName}`,
+          subject: `Action No Longer Required: ${providerName}'s Request Withdrawn`,
           html: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h1 style="color: #333;">Approval Request Withdrawn</h1>
+            <!DOCTYPE html>
+            <html>
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            </head>
+            <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
               
-              <p>Hello ${previousManagerName || 'Manager'},</p>
+              <div style="text-align: center; margin-bottom: 30px;">
+                <div style="display: inline-block; width: 50px; height: 50px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; line-height: 50px; color: white; font-weight: bold; font-size: 20px;">
+                  CB
+                </div>
+              </div>
               
-              <p>The approval request from <strong>${providerName}</strong> to represent 
-              <strong>${org.org_name}</strong> on CogniBlend has been withdrawn by the applicant.</p>
+              <div style="background: #f8fafc; border-radius: 12px; padding: 24px; margin-bottom: 24px; border-left: 4px solid #f59e0b;">
+                <h2 style="margin: 0 0 8px 0; color: #1e293b; font-size: 20px;">
+                  ℹ️ Approval Request Withdrawn
+                </h2>
+                <p style="margin: 0; color: #64748b; font-size: 14px;">
+                  No action is required from you
+                </p>
+              </div>
+
+              <p style="color: #374151;">Hello ${previousManagerName || 'Manager'},</p>
               
-              ${withdrawalReason ? `<p><strong>Reason provided:</strong> ${withdrawalReason}</p>` : ''}
+              <p style="color: #374151;">
+                We're writing to inform you that <strong>${providerName}</strong> has withdrawn their 
+                request to participate as a representative of <strong>${org.org_name}</strong> on the 
+                CogniBlend platform.
+              </p>
               
-              <p style="color: #666;">Your previously issued login credentials are no longer valid.</p>
+              <div style="background: #fef3c7; border-radius: 8px; padding: 16px; margin: 24px 0; border: 1px solid #fcd34d;">
+                <p style="margin: 0; color: #92400e; font-size: 14px;">
+                  <strong>⚠️ Important:</strong> Your previously issued login credentials for the 
+                  CogniBlend Manager Portal are now invalid and can no longer be used.
+                </p>
+              </div>
               
-              <p>If you have any questions, please contact our support team.</p>
+              ${withdrawalReason ? `
+              <div style="background: #f1f5f9; border-radius: 8px; padding: 16px; margin: 24px 0;">
+                <p style="margin: 0 0 8px 0; color: #475569; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;">
+                  Reason Provided
+                </p>
+                <p style="margin: 0; color: #334155; font-style: italic;">
+                  "${withdrawalReason}"
+                </p>
+              </div>
+              ` : ''}
               
-              <p style="margin-top: 30px;">Best regards,<br>The CogniBlend Team</p>
-            </div>
+              <p style="color: #374151;">
+                If ${providerName} wishes to participate in the future, they will need to submit 
+                a new request, and you will receive new login credentials at that time.
+              </p>
+              
+              <p style="color: #6b7280; font-size: 14px; margin-top: 32px;">
+                If you have any questions, please contact our support team.
+              </p>
+              
+              <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 32px 0;">
+              
+              <p style="color: #9ca3af; font-size: 12px; text-align: center;">
+                This is an automated message from CogniBlend.<br>
+                Please do not reply to this email.
+              </p>
+            </body>
+            </html>
           `,
         });
-        console.log('Withdrawal notification sent successfully');
-      } catch (emailError) {
+        
+        console.log('[withdraw-approval-request] Email sent successfully:', {
+          emailId: emailResponse.data?.id || null,
+          to: previousManagerEmail,
+          success: !emailResponse.error,
+          error: emailResponse.error || null
+        });
+      } catch (emailError: any) {
         // Log but don't fail the operation if email fails
-        console.error('Failed to send withdrawal notification email:', emailError);
+        console.error('[withdraw-approval-request] Failed to send notification email:', {
+          error: emailError.message,
+          to: previousManagerEmail
+        });
       }
+    } else {
+      console.log('[withdraw-approval-request] No manager email found, skipping notification');
     }
 
     console.log('Withdrawal completed successfully');
