@@ -69,7 +69,7 @@ export default function EnrollProofPoints() {
       onBack={handleBack}
       onContinue={handleContinue}
       continueLabel={minimumMet ? 'Continue to Share Knowledge' : `Add ${MINIMUM_REQUIRED - currentCount} More to Continue`}
-      continueDisabled={!minimumMet}
+      canContinue={minimumMet}
     >
       <div className="space-y-6">
         {/* Header */}

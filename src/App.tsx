@@ -26,6 +26,7 @@ import {
   EnrollExpertiseSelection,
   EnrollProofPoints,
   PostEnrollmentWelcome,
+  AddProofPoint,
 } from "@/pages/enroll";
 
 // Placeholder Pages
@@ -133,6 +134,14 @@ const App = () => (
               element={
                 <AuthGuard>
                   <EnrollProofPoints />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/proof-points/add"
+              element={
+                <AuthGuard>
+                  <AddProofPoint />
                 </AuthGuard>
               }
             />

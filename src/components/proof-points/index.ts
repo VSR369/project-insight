@@ -4,6 +4,6 @@ export { EvidenceRequirementsPanel } from './EvidenceRequirementsPanel';
 export { WhyProofPointsMatter } from './WhyProofPointsMatter';
 export { SpecialityTreeSelector } from './SpecialityTreeSelector';
 export { SupportingLinksForm } from './SupportingLinksForm';
-export { SupportingFilesUploader } from './SupportingFilesUploader';
+export { SupportingFilesUploader, type UploadedFile } from './SupportingFilesUploader';
 export { ProofPointTypeSelect } from './ProofPointTypeSelect';
 export { CategorySelector } from './CategorySelector';
