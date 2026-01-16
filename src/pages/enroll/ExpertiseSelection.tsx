@@ -2,7 +2,12 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
-import { useCurrentProvider, useUpdateProviderExpertise } from '@/hooks/queries/useProvider';
+import { 
+  useCurrentProvider, 
+  useUpdateProviderExpertise,
+  useProviderProficiencyAreas,
+  useUpdateProviderProficiencyAreas 
+} from '@/hooks/queries/useProvider';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Loader2, CheckCircle, Star, AlertCircle, FolderOpen, ChevronDown, ChevronUp, Tag } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -22,9 +28,14 @@ export default function EnrollExpertise() {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
   const updateExpertise = useUpdateProviderExpertise();
+  const updateProficiencyAreas = useUpdateProviderProficiencyAreas();
   const [selectedLevel, setSelectedLevel] = useState<string>('');
+  const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
   const [expandedSubDomains, setExpandedSubDomains] = useState<string[]>([]);
+
+  // Fetch existing proficiency area selections
+  const { data: existingAreas } = useProviderProficiencyAreas(provider?.id);
 
   // Filter out Level 0 for experienced professionals (non-students)
   const filteredLevels = useMemo(() => {
@@ -48,10 +59,21 @@ export default function EnrollExpertise() {
     }
   }, [provider?.expertise_level_id]);
 
-  // Reset expanded state when level changes
+  // Load existing selected areas when data is available
+  useEffect(() => {
+    if (existingAreas && existingAreas.length > 0) {
+      setSelectedAreas(existingAreas);
+    }
+  }, [existingAreas]);
+
+  // Reset expanded state and selected areas when level changes
   useEffect(() => {
     setExpandedAreas([]);
     setExpandedSubDomains([]);
+    // Only reset selected areas if level actually changed from a previous value
+    if (provider?.expertise_level_id && selectedLevel !== provider.expertise_level_id) {
+      setSelectedAreas([]);
+    }
   }, [selectedLevel]);
 
   const handleBack = () => {
@@ -63,9 +85,32 @@ export default function EnrollExpertise() {
     }
   };
 
+  const handleAreaToggle = (areaId: string, checked: boolean) => {
+    if (checked) {
+      setSelectedAreas(prev => [...prev, areaId]);
+    } else {
+      setSelectedAreas(prev => prev.filter(id => id !== areaId));
+    }
+  };
+
+  const handleSelectAllAreas = () => {
+    if (taxonomy) {
+      setSelectedAreas(taxonomy.map(a => a.id));
+    }
+  };
+
+  const handleDeselectAllAreas = () => {
+    setSelectedAreas([]);
+  };
+
   const handleContinue = async () => {
     if (!selectedLevel) {
       toast.error('Please select an expertise level');
+      return;
+    }
+
+    if (selectedAreas.length === 0) {
+      toast.error('Please select at least one proficiency area');
       return;
     }
 
@@ -75,10 +120,18 @@ export default function EnrollExpertise() {
     }
 
     try {
+      // Save expertise level
       await updateExpertise.mutateAsync({
         providerId: provider.id,
         expertiseLevelId: selectedLevel,
       });
+
+      // Save selected proficiency areas
+      await updateProficiencyAreas.mutateAsync({
+        providerId: provider.id,
+        proficiencyAreaIds: selectedAreas,
+      });
+
       navigate('/enroll/proof-points');
     } catch (error) {
       toast.error('Failed to save expertise level. Please try again.');
@@ -124,13 +177,15 @@ export default function EnrollExpertise() {
     );
   }
 
+  const isSubmitting = updateExpertise.isPending || updateProficiencyAreas.isPending;
+
   return (
     <WizardLayout
       currentStep={4}
       onBack={handleBack}
       onContinue={handleContinue}
-      isSubmitting={updateExpertise.isPending}
-      canContinue={!!selectedLevel}
+      isSubmitting={isSubmitting}
+      canContinue={!!selectedLevel && selectedAreas.length > 0}
     >
       <div className="space-y-6">
         {/* Header */}
@@ -139,8 +194,8 @@ export default function EnrollExpertise() {
             Select Your Expertise Level
           </h1>
           <p className="text-muted-foreground mt-2">
-            Choose the level that best represents your professional experience.
-            The proficiency areas will be shown within your selected level.
+            Choose the level that best represents your professional experience,
+            then select one or more proficiency areas you want to focus on.
           </p>
         </div>
 
@@ -220,12 +275,33 @@ export default function EnrollExpertise() {
                               </div>
                             ) : (
                               <>
-                                {/* Header with expand/collapse buttons */}
-                                <div className="flex items-center justify-between mb-3">
-                                  <span className="text-sm font-medium text-foreground">
-                                    Available Proficiency Areas ({taxonomy.length})
-                                  </span>
-                                  <div className="flex gap-1">
+                                {/* Header with expand/collapse and select/deselect buttons */}
+                                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-medium text-foreground">
+                                      Select Proficiency Areas
+                                    </span>
+                                    <Badge variant={selectedAreas.length > 0 ? "default" : "secondary"} className="text-xs">
+                                      {selectedAreas.length} of {taxonomy.length} selected
+                                    </Badge>
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={(e) => { e.preventDefault(); handleSelectAllAreas(); }}
+                                      className="h-7 text-xs"
+                                    >
+                                      Select All
+                                    </Button>
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={(e) => { e.preventDefault(); handleDeselectAllAreas(); }}
+                                      className="h-7 text-xs"
+                                    >
+                                      Deselect All
+                                    </Button>
                                     <Button 
                                       variant="ghost" 
                                       size="sm" 
@@ -233,7 +309,7 @@ export default function EnrollExpertise() {
                                       className="h-7 text-xs"
                                     >
                                       <ChevronDown className="h-3 w-3 mr-1" />
-                                      Expand All
+                                      Expand
                                     </Button>
                                     <Button 
                                       variant="ghost" 
@@ -242,77 +318,103 @@ export default function EnrollExpertise() {
                                       className="h-7 text-xs"
                                     >
                                       <ChevronUp className="h-3 w-3 mr-1" />
-                                      Collapse All
+                                      Collapse
                                     </Button>
                                   </div>
                                 </div>
 
-                                {/* Areas Accordion */}
+                                {/* Areas Accordion with Checkboxes */}
                                 <Accordion 
                                   type="multiple" 
                                   value={expandedAreas}
                                   onValueChange={setExpandedAreas}
                                   className="space-y-2"
                                 >
-                                  {taxonomy.map((area) => (
-                                    <AccordionItem 
-                                      key={area.id} 
-                                      value={area.id}
-                                      className="border rounded-lg bg-muted/30"
-                                    >
-                                      <AccordionTrigger className="hover:no-underline px-4 py-3">
-                                        <div className="flex items-center gap-2">
-                                          <FolderOpen className="h-4 w-4 text-primary" />
-                                          <span className="font-medium text-sm">{area.name}</span>
-                                          <Badge variant="outline" className="text-xs ml-1">
-                                            {area.subDomains.length} sub-domains
-                                          </Badge>
-                                        </div>
-                                      </AccordionTrigger>
-                                      <AccordionContent className="px-4 pb-3">
-                                        {/* Sub-Domains Accordion */}
-                                        <Accordion 
-                                          type="multiple"
-                                          value={expandedSubDomains}
-                                          onValueChange={setExpandedSubDomains}
-                                          className="space-y-1.5"
-                                        >
-                                          {area.subDomains.map((subDomain) => (
-                                            <AccordionItem 
-                                              key={subDomain.id} 
-                                              value={subDomain.id}
-                                              className="border rounded-md bg-background"
+                                  {taxonomy.map((area) => {
+                                    const isAreaSelected = selectedAreas.includes(area.id);
+                                    
+                                    return (
+                                      <AccordionItem 
+                                        key={area.id} 
+                                        value={area.id}
+                                        className={cn(
+                                          "border rounded-lg transition-all",
+                                          isAreaSelected 
+                                            ? "border-primary bg-primary/5" 
+                                            : "bg-muted/30"
+                                        )}
+                                      >
+                                        <AccordionTrigger className="hover:no-underline px-4 py-3">
+                                          <div className="flex items-center gap-3 flex-1">
+                                            <Checkbox
+                                              checked={isAreaSelected}
+                                              onCheckedChange={(checked) => handleAreaToggle(area.id, checked as boolean)}
+                                              onClick={(e) => e.stopPropagation()}
+                                              className="data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+                                            />
+                                            <FolderOpen className={cn(
+                                              "h-4 w-4",
+                                              isAreaSelected ? "text-primary" : "text-muted-foreground"
+                                            )} />
+                                            <span className={cn(
+                                              "font-medium text-sm",
+                                              isAreaSelected && "text-primary"
+                                            )}>
+                                              {area.name}
+                                            </span>
+                                            <Badge 
+                                              variant={isAreaSelected ? "default" : "outline"} 
+                                              className="text-xs ml-1"
                                             >
-                                              <AccordionTrigger className="hover:no-underline px-3 py-2 text-sm">
-                                                <span>{subDomain.name}</span>
-                                                <Badge variant="secondary" className="text-xs ml-2">
-                                                  {subDomain.specialities.length}
-                                                </Badge>
-                                              </AccordionTrigger>
-                                              <AccordionContent className="px-3 pb-3">
-                                                <div className="flex flex-wrap gap-1.5 pt-1">
-                                                  {subDomain.specialities.map((spec) => (
-                                                    <div
-                                                      key={spec.id}
-                                                      className="flex items-center gap-1 text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground"
-                                                    >
-                                                      <Tag className="h-2.5 w-2.5" />
-                                                      {spec.name}
-                                                    </div>
-                                                  ))}
-                                                  {subDomain.specialities.length === 0 && (
-                                                    <span className="text-xs text-muted-foreground italic">
-                                                      No specialities defined
-                                                    </span>
-                                                  )}
-                                                </div>
-                                              </AccordionContent>
-                                            </AccordionItem>
-                                          ))}
-                                        </Accordion>
-                                      </AccordionContent>
-                                    </AccordionItem>
-                                  ))}
+                                              {area.subDomains.length} sub-domains
+                                            </Badge>
+                                          </div>
+                                        </AccordionTrigger>
+                                        <AccordionContent className="px-4 pb-3">
+                                          {/* Sub-Domains Accordion (Display Only) */}
+                                          <Accordion 
+                                            type="multiple"
+                                            value={expandedSubDomains}
+                                            onValueChange={setExpandedSubDomains}
+                                            className="space-y-1.5"
+                                          >
+                                            {area.subDomains.map((subDomain) => (
+                                              <AccordionItem 
+                                                key={subDomain.id} 
+                                                value={subDomain.id}
+                                                className="border rounded-md bg-background"
+                                              >
+                                                <AccordionTrigger className="hover:no-underline px-3 py-2 text-sm">
+                                                  <span>{subDomain.name}</span>
+                                                  <Badge variant="secondary" className="text-xs ml-2">
+                                                    {subDomain.specialities.length}
+                                                  </Badge>
+                                                </AccordionTrigger>
+                                                <AccordionContent className="px-3 pb-3">
+                                                  <div className="flex flex-wrap gap-1.5 pt-1">
+                                                    {subDomain.specialities.map((spec) => (
+                                                      <div
+                                                        key={spec.id}
+                                                        className="flex items-center gap-1 text-xs px-2 py-1 bg-muted rounded-full text-muted-foreground"
+                                                      >
+                                                        <Tag className="h-2.5 w-2.5" />
+                                                        {spec.name}
+                                                      </div>
+                                                    ))}
+                                                    {subDomain.specialities.length === 0 && (
+                                                      <span className="text-xs text-muted-foreground italic">
+                                                        No specialities defined
+                                                      </span>
+                                                    )}
+                                                  </div>
+                                                </AccordionContent>
+                                              </AccordionItem>
+                                            ))}
+                                          </Accordion>
+                                        </AccordionContent>
+                                      </AccordionItem>
+                                    );
+                                  })}
                                 </Accordion>
                               </>
                             )}

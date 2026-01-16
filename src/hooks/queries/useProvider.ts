@@ -7,6 +7,8 @@ import {
   updateProviderExpertise,
   completeOnboarding,
   updateProviderBasicProfile,
+  fetchProviderProficiencyAreas,
+  upsertProviderProficiencyAreas,
   type ProviderData 
 } from '@/services/providerService';
 
@@ -103,6 +105,29 @@ export function useCompleteOnboarding() {
     mutationFn: (providerId: string) => completeOnboarding(providerId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+    },
+  });
+}
+
+// Fetch provider's selected proficiency areas
+export function useProviderProficiencyAreas(providerId?: string) {
+  return useQuery({
+    queryKey: ['provider-proficiency-areas', providerId],
+    queryFn: () => fetchProviderProficiencyAreas(providerId!),
+    enabled: !!providerId,
+    staleTime: 30000,
+  });
+}
+
+// Update provider's proficiency area selections
+export function useUpdateProviderProficiencyAreas() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ providerId, proficiencyAreaIds }: { providerId: string; proficiencyAreaIds: string[] }) =>
+      upsertProviderProficiencyAreas(providerId, proficiencyAreaIds),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas', variables.providerId] });
     },
   });
 }
