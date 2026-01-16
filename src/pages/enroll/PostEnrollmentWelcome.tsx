@@ -202,7 +202,7 @@ export default function PostEnrollmentWelcome() {
       <div className="container mx-auto px-4 py-8 md:py-12 max-w-5xl">
         <div className="space-y-12">
           {/* Header Section */}
-          <div className="text-center space-y-4">
+          <div className="text-center space-y-4 animate-fade-in">
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground">
               Lead the way in{' '}
               <span className="text-primary">digital age innovation</span>
@@ -214,7 +214,7 @@ export default function PostEnrollmentWelcome() {
           </div>
 
           {/* Primary CTA Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-in" style={{ animationDelay: '150ms', animationFillMode: 'backwards' }}>
             <Button 
               size="lg" 
               onClick={handleBuildProfile}
@@ -256,8 +256,12 @@ export default function PostEnrollmentWelcome() {
               A complete profile demonstrates your expertise and builds trust with seekers.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {PROFILE_BENEFITS.map((benefit) => (
-                <Card key={benefit.title} className="bg-card hover:shadow-md transition-shadow">
+              {PROFILE_BENEFITS.map((benefit, index) => (
+                <Card 
+                  key={benefit.title} 
+                  className="bg-card hover:shadow-md transition-all duration-300 hover-scale animate-fade-in"
+                  style={{ animationDelay: `${index * 100}ms`, animationFillMode: 'backwards' }}
+                >
                   <CardContent className="pt-6 text-center space-y-3">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10">
                       <benefit.icon className="h-6 w-6 text-primary" />
@@ -276,8 +280,12 @@ export default function PostEnrollmentWelcome() {
               Verified solution providers gain:
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {VERIFIED_BENEFITS.map((benefit) => (
-                <Card key={benefit.title} className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-md transition-shadow">
+              {VERIFIED_BENEFITS.map((benefit, index) => (
+                <Card 
+                  key={benefit.title} 
+                  className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20 hover:shadow-md transition-all duration-300 hover-scale animate-fade-in"
+                  style={{ animationDelay: `${(index + 4) * 100}ms`, animationFillMode: 'backwards' }}
+                >
                   <CardContent className="pt-6 text-center space-y-3">
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/20">
                       <benefit.icon className="h-6 w-6 text-primary" />
