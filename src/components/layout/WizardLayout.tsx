@@ -7,6 +7,7 @@ import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
+import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 
 // Define all 9 enrollment steps
 const ENROLLMENT_STEPS: WizardStep[] = [
@@ -193,6 +194,9 @@ export function WizardLayout({
           onStepClick={handleStepClick}
         />
       </header>
+
+      {/* Hierarchy Breadcrumb - shows current selection path */}
+      <HierarchyBreadcrumb />
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">

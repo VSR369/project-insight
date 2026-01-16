@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppSidebar } from './AppSidebar';
 import { AppHeader } from './AppHeader';
+import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 
 interface AppLayoutProps {
   children: ReactNode;
@@ -16,6 +17,8 @@ export function AppLayout({ children }: AppLayoutProps) {
           <AppSidebar />
           <SidebarInset className="flex flex-col flex-1">
             <AppHeader />
+            {/* Hierarchy Breadcrumb - shows current selection path */}
+            <HierarchyBreadcrumb />
             <main className="flex-1 overflow-auto">
               {children}
             </main>
