@@ -34,6 +34,12 @@ export default function OrganizationPending() {
   const organization = provider?.organization;
   const approvalStatus = (organization as any)?.approval_status;
 
+  // If no organization exists, redirect to organization form
+  if (provider && !organization) {
+    navigate('/enroll/organization');
+    return null;
+  }
+
   // If approved, redirect to expertise
   if (approvalStatus === 'approved') {
     navigate('/enroll/expertise');
