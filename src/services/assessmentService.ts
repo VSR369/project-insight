@@ -146,7 +146,6 @@ export async function startAssessment(
       .single();
 
     if (attemptError) {
-      console.error('Failed to create assessment attempt:', attemptError);
       return { success: false, error: 'Failed to start assessment' };
     }
 
@@ -163,13 +162,10 @@ export async function startAssessment(
       .eq('id', providerId);
 
     if (updateError) {
-      console.error('Failed to update lifecycle status:', updateError);
       // Rollback: delete the attempt
       await supabase.from('assessment_attempts').delete().eq('id', attempt.id);
       return { success: false, error: 'Failed to update lifecycle status' };
     }
-
-    console.log(`Assessment started for provider ${providerId}, attempt ${attempt.id}`);
 
     return { 
       success: true, 
@@ -202,7 +198,6 @@ export async function getActiveAssessmentAttempt(
     .maybeSingle();
 
   if (error) {
-    console.error('Failed to fetch active attempt:', error);
     return null;
   }
 
@@ -291,15 +286,12 @@ export async function submitAssessment(
       })
       .eq('id', attempt.provider_id);
 
-    console.log(`Assessment submitted: score=${scorePercentage}%, passed=${isPassed}`);
-
     return { 
       success: true, 
       score: scorePercentage, 
       passed: isPassed 
     };
   } catch (error) {
-    console.error('Submit assessment error:', error);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -320,7 +312,6 @@ export async function getAssessmentHistory(
     .order('started_at', { ascending: false });
 
   if (error) {
-    console.error('Failed to fetch assessment history:', error);
     return [];
   }
 
