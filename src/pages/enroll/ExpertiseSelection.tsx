@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Loader2, CheckCircle, Star, AlertCircle, FolderOpen, ChevronDown, ChevronUp, Tag } from 'lucide-react';
+import { Loader2, CheckCircle, Star, AlertCircle, FolderOpen, ChevronDown, ChevronUp, Tag, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -213,9 +213,7 @@ export default function EnrollExpertise() {
     <WizardLayout
       currentStep={4}
       onBack={handleBack}
-      onContinue={handleContinue}
-      isSubmitting={isSubmitting}
-      canContinue={!!selectedLevel && selectedAreas.length > 0}
+      hideContinueButton
     >
       <div className="space-y-6">
         {/* Header */}
@@ -458,6 +456,34 @@ export default function EnrollExpertise() {
             );
           })}
         </RadioGroup>
+
+        {/* CTA Card - Strengthen Your Profile */}
+        {selectedLevel && selectedAreas.length > 0 && (
+          <Card className="bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5 border-primary/20">
+            <CardContent className="py-6 px-8 text-center">
+              <h3 className="text-lg font-semibold text-foreground mb-2">
+                Strengthen Your Profile & Get Benefits
+              </h3>
+              <p className="text-sm text-muted-foreground mb-4 max-w-lg mx-auto">
+                Take the next step to unlock high value opportunities, enhanced visibility, and exclusive access to complex challenges. Build a comprehensive profile that showcases your expertise and achievements.
+              </p>
+              <Button 
+                onClick={handleContinue}
+                disabled={isSubmitting}
+                className="gap-2"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Eye className="h-4 w-4" />
+                    Continue
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </WizardLayout>
   );
