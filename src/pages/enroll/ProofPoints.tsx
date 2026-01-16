@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Award, Loader2 } from 'lucide-react';
+import { Plus, Award, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
@@ -172,11 +173,29 @@ export default function EnrollProofPoints() {
         {/* Evidence Portfolio Section */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold">Evidence Portfolio</h2>
-              <p className="text-sm text-muted-foreground">
-                Showcase your expertise with real-world examples and achievements.
-              </p>
+            <div className="flex items-center gap-3">
+              <div>
+                <h2 className="text-lg font-semibold">Evidence Portfolio</h2>
+                <p className="text-sm text-muted-foreground">
+                  Showcase your expertise with real-world examples and achievements.
+                </p>
+              </div>
+              {/* Minimum Requirement Status Indicator */}
+              <Badge 
+                variant={minimumMet ? "default" : "secondary"}
+                className={`flex items-center gap-1.5 ${
+                  minimumMet 
+                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                    : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                }`}
+              >
+                {minimumMet ? (
+                  <CheckCircle2 className="h-3.5 w-3.5" />
+                ) : (
+                  <AlertCircle className="h-3.5 w-3.5" />
+                )}
+                {currentCount}/{minimumRequired} minimum
+              </Badge>
             </div>
             <Button 
               onClick={handleAddProofPoint} 
