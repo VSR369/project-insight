@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints } from '@/hooks/queries/useProofPoints';
-import { useProviderEnrollments, useActiveEnrollment, useSetPrimaryEnrollment } from '@/hooks/queries/useProviderEnrollments';
+import { useProviderEnrollments, useActiveEnrollment, useSetPrimaryEnrollment, useDeleteEnrollment } from '@/hooks/queries/useProviderEnrollments';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
@@ -25,7 +25,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, 
   Award, UserCircle, Loader2, ShieldCheck, Star, XCircle, Building2,
-  ChevronRight, Factory, Layers, Crown
+  ChevronRight, Factory, Layers, Crown, Trash2, AlertTriangle
 } from 'lucide-react';
 
 // Terminal lifecycle statuses where profile is complete/locked
@@ -61,6 +61,7 @@ export default function Dashboard() {
   const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
   const setPrimaryMutation = useSetPrimaryEnrollment();
+  const deleteEnrollmentMutation = useDeleteEnrollment();
 
   // State for set primary confirmation dialog
   const [primaryConfirmDialog, setPrimaryConfirmDialog] = useState<{
@@ -68,6 +69,15 @@ export default function Dashboard() {
     enrollmentId: string | null;
     industryName: string | null;
   }>({ open: false, enrollmentId: null, industryName: null });
+
+  // State for delete enrollment confirmation dialog
+  const [deleteConfirmDialog, setDeleteConfirmDialog] = useState<{
+    open: boolean;
+    enrollmentId: string | null;
+    industryName: string | null;
+    proofPointsCount: number;
+    lifecycleStatus: string | null;
+  }>({ open: false, enrollmentId: null, industryName: null, proofPointsCount: 0, lifecycleStatus: null });
 
   const firstName = user?.user_metadata?.first_name || provider?.first_name || 'Provider';
 
@@ -319,6 +329,29 @@ export default function Dashboard() {
 
                       {/* Action Buttons */}
                       <div className="shrink-0 flex items-center gap-2">
+                        {/* Delete Button - only show for non-primary enrollments that haven't started assessment */}
+                        {!enrollment.is_primary && enrollments.length > 1 && enrollment.lifecycle_rank < 100 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-destructive"
+                            disabled={deleteEnrollmentMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const industryProofPoints = proofPointsByIndustry[enrollment.industry_segment_id] || 0;
+                              setDeleteConfirmDialog({
+                                open: true,
+                                enrollmentId: enrollment.id,
+                                industryName: enrollment.industry_segment?.name || 'this industry',
+                                proofPointsCount: industryProofPoints,
+                                lifecycleStatus: enrollment.lifecycle_status,
+                              });
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
+
                         {/* Set as Primary Button - only show for non-primary enrollments */}
                         {!enrollment.is_primary && enrollments.length > 1 && (
                           <Button
@@ -529,6 +562,92 @@ export default function Dashboard() {
                 </>
               ) : (
                 'Set as Primary'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Enrollment Confirmation Dialog */}
+      <AlertDialog 
+        open={deleteConfirmDialog.open} 
+        onOpenChange={(open) => setDeleteConfirmDialog(prev => ({ ...prev, open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <AlertTriangle className="h-5 w-5" />
+              Delete Industry Enrollment?
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4">
+                <p>
+                  You are about to permanently delete your enrollment in{' '}
+                  <span className="font-semibold">{deleteConfirmDialog.industryName}</span>.
+                </p>
+
+                {/* Cascade Impact Warning */}
+                <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 space-y-2">
+                  <p className="font-medium text-destructive text-sm">This will permanently delete:</p>
+                  <ul className="text-sm space-y-1 text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                      All expertise selections for this industry
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                      All proficiency areas and specialities selected
+                    </li>
+                    {deleteConfirmDialog.proofPointsCount > 0 && (
+                      <li className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                        <span className="font-medium text-destructive">
+                          {deleteConfirmDialog.proofPointsCount} proof point(s)
+                        </span>{' '}
+                        linked to this industry
+                      </li>
+                    )}
+                    <li className="flex items-center gap-2">
+                      <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
+                      Any assessment progress for this industry
+                    </li>
+                  </ul>
+                </div>
+
+                <p className="text-sm text-muted-foreground">
+                  This action cannot be undone. Your primary industry and other enrollments will not be affected.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteEnrollmentMutation.isPending}
+              onClick={() => {
+                if (deleteConfirmDialog.enrollmentId) {
+                  deleteEnrollmentMutation.mutate(deleteConfirmDialog.enrollmentId, {
+                    onSuccess: () => {
+                      setDeleteConfirmDialog({ 
+                        open: false, 
+                        enrollmentId: null, 
+                        industryName: null, 
+                        proofPointsCount: 0,
+                        lifecycleStatus: null 
+                      });
+                    },
+                  });
+                }
+              }}
+            >
+              {deleteEnrollmentMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete Enrollment'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>
