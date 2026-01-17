@@ -22,7 +22,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
 import { LifecycleProgressIndicator } from './LifecycleProgressIndicator';
-import { useCurrentProvider, useProviderProficiencyAreas } from '@/hooks/queries/useProvider';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog, IndustryEnrollmentSelector } from '@/components/enrollment';
@@ -83,7 +84,7 @@ export function WizardLayout({
   const { isAdmin } = useUserRoles();
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
-  const { hasMultipleIndustries, activeEnrollment } = useEnrollmentContext();
+  const { hasMultipleIndustries, activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
   const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
@@ -92,8 +93,9 @@ export function WizardLayout({
   const [showProficiencyRequiredDialog, setShowProficiencyRequiredDialog] = useState(false);
   const [showApprovalPendingDialog, setShowApprovalPendingDialog] = useState(false);
   
-  // Fetch provider proficiency areas for Step 4 completion check
-  const { data: providerProficiencyAreas } = useProviderProficiencyAreas(provider?.id);
+  // Fetch ENROLLMENT-scoped proficiency areas for Step 4 completion check
+  // CRITICAL: Use enrollment ID, not provider ID, for multi-industry isolation
+  const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
   const [blockingStepTitle, setBlockingStepTitle] = useState('');
   const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
@@ -163,7 +165,8 @@ export function WizardLayout({
     // even if they have data from a previous mode selection
 
     // Step 4: Expertise Level + at least one proficiency area
-    if (provider.expertise_level_id && providerProficiencyAreas && providerProficiencyAreas.length > 0) {
+    // CRITICAL: Use ENROLLMENT-scoped data (not provider-level) for multi-industry isolation
+    if (activeEnrollment?.expertise_level_id && enrollmentProficiencyAreas && enrollmentProficiencyAreas.length > 0) {
       completed.push(4);
     }
 
@@ -173,7 +176,7 @@ export function WizardLayout({
     }
 
     return completed;
-  }, [provider, isOrgRequired, providerProficiencyAreas]);
+  }, [provider, isOrgRequired, activeEnrollment, enrollmentProficiencyAreas]);
 
   // Blocked steps - currently only step 2 (Mode) can be blocked
   const blockedSteps = useMemo(() => {
