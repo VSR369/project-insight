@@ -20,6 +20,7 @@ export interface ErrorContext {
   component?: string;
   userId?: string;
   providerId?: string;
+  enrollmentId?: string;
   additionalData?: Record<string, unknown>;
 }
 

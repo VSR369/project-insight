@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -88,7 +89,10 @@ const VERIFIED_BENEFITS = [
 function PostEnrollmentWelcomeContent() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
-  const { data: provider, isLoading, error } = useCurrentProvider();
+  const { data: provider, isLoading: providerLoading, error } = useCurrentProvider();
+  const { activeEnrollment, isLoading: enrollmentLoading } = useEnrollmentContext();
+  
+  const isLoading = providerLoading || enrollmentLoading;
 
   // Show toast on initial entry
   useEffect(() => {
@@ -190,9 +194,12 @@ function PostEnrollmentWelcomeContent() {
     );
   }
 
-  // Redirect check - if lifecycle_rank < 20 (ENROLLED), redirect to registration
-  const lifecycleRank = getLifecycleRank(provider.lifecycle_status);
-  if (lifecycleRank < LIFECYCLE_RANKS.enrolled) {
+  // Redirect check - use enrollment lifecycle if available, fallback to provider
+  const enrollmentLifecycleRank = activeEnrollment?.lifecycle_rank ?? 0;
+  const providerLifecycleRank = getLifecycleRank(provider.lifecycle_status);
+  const effectiveRank = activeEnrollment ? enrollmentLifecycleRank : providerLifecycleRank;
+  
+  if (effectiveRank < LIFECYCLE_RANKS.enrolled) {
     navigate('/enroll/registration');
     return null;
   }

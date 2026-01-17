@@ -1,8 +1,8 @@
 /**
  * Enrollment Expertise Hooks
  * 
- * Hooks for managing expertise level and proficiency areas
- * scoped to a specific industry enrollment.
+ * React Query hooks for managing expertise level and proficiency areas
+ * scoped to a specific enrollment (multi-industry support).
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -11,8 +11,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy, getCurrentUserId } from '@/lib/auditFields';
 import { canModifyField } from '@/services/lifecycleService';
 import { 
-  executeExpertiseLevelChangeReset,
-  getCascadeImpactCounts 
+  executeExpertiseLevelChangeResetV2,
+  getCascadeImpactCountsV2 
 } from '@/services/cascadeResetService';
 
 export interface UpdateEnrollmentExpertiseInput {
@@ -33,6 +33,7 @@ export interface UpdateEnrollmentExpertiseResult {
 
 /**
  * Update expertise level for a specific enrollment
+ * Uses V2 enrollment-scoped cascade reset functions
  */
 export function useUpdateEnrollmentExpertise() {
   const queryClient = useQueryClient();
@@ -63,10 +64,11 @@ export function useUpdateEnrollmentExpertise() {
       }
 
       // If level is changing and we have existing data, require confirmation
+      // Use V2 function scoped to enrollment (not provider)
       if (isLevelChanging && !confirmCascade) {
-        const impact = await getCascadeImpactCounts(enrollment.provider_id);
+        const impact = await getCascadeImpactCountsV2(enrollmentId);
         
-        if (impact.specialty_proof_points_count > 0 || impact.proficiency_areas_count > 0 || impact.specialities_count > 0) {
+        if (impact && (impact.specialty_proof_points_count > 0 || impact.proficiency_areas_count > 0 || impact.specialities_count > 0)) {
           return {
             success: false,
             requiresConfirmation: true,
@@ -80,8 +82,12 @@ export function useUpdateEnrollmentExpertise() {
       }
 
       // Execute cascade reset if confirmed and level is changing
+      // Use V2 function scoped to enrollment (not provider)
       if (isLevelChanging && confirmCascade) {
-        await executeExpertiseLevelChangeReset(enrollment.provider_id);
+        const resetResult = await executeExpertiseLevelChangeResetV2(enrollmentId);
+        if (!resetResult.success) {
+          throw new Error(resetResult.error || 'Failed to execute cascade reset');
+        }
       }
 
       // Update the enrollment's expertise level with audit fields
@@ -99,7 +105,7 @@ export function useUpdateEnrollmentExpertise() {
       
       return { success: true };
     },
-    onSuccess: (result, variables) => {
+    onSuccess: (result) => {
       if (result.success) {
         // Invalidate enrollment queries
         queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
