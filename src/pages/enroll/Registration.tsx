@@ -6,28 +6,26 @@ import { z } from 'zod';
 import { WizardLayout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
 import { useCountries } from '@/hooks/queries/useCountries';
-import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
-import { useProviderEnrollments, useCreateEnrollment } from '@/hooks/queries/useProviderEnrollments';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
-import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
-import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
+import { useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, User, GraduationCap, Factory, Building2, Plus, ArrowLeft } from 'lucide-react';
+import { Loader2, User, GraduationCap, Factory, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
 
 // India country code for PIN validation
 const INDIA_COUNTRY_CODE = 'IN';
 
+// Registration form schema - NO industry field (industry is selected via Dashboard)
 const registrationSchema = z.object({
   firstName: z.string()
     .min(2, 'First name must be at least 2 characters')
@@ -43,7 +41,6 @@ const registrationSchema = z.object({
     .trim(),
   pinCode: z.string().trim(),
   countryId: z.string().min(1, 'Country is required'),
-  industrySegmentId: z.string().min(1, 'Industry Segment is required'),
 }).superRefine((data, ctx) => {
   if (data.pinCode && data.pinCode.length > 12) {
     ctx.addIssue({
@@ -54,60 +51,32 @@ const registrationSchema = z.object({
   }
 });
 
-const addIndustrySchema = z.object({
-  industrySegmentId: z.string().min(1, 'Industry Segment is required'),
-  setAsPrimary: z.boolean().default(false),
-});
-
 type RegistrationFormData = z.infer<typeof registrationSchema>;
-type AddIndustryFormData = z.infer<typeof addIndustrySchema>;
 
 function RegistrationContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { data: countries, isLoading: countriesLoading } = useCountries();
-  const { data: industrySegments, isLoading: segmentsLoading } = useIndustrySegments();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
-  const { setActiveEnrollment } = useEnrollmentContext();
+  const { activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
   const updateProfile = useUpdateProviderBasicProfile();
-  const createEnrollment = useCreateEnrollment();
   
   const [activeTab, setActiveTab] = useState<'experienced' | 'student'>('experienced');
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>('');
 
-  // Determine if we're in "Add Industry" mode
+  // Redirect add-industry mode to Dashboard
   const isAddIndustryMode = searchParams.get('mode') === 'add-industry';
-  const hasExistingEnrollments = enrollments.length > 0;
-  const isExistingProvider = provider?.onboarding_status === 'completed' || hasExistingEnrollments;
-
-  // Get already enrolled industry IDs
-  const enrolledIndustryIds = useMemo(() => {
-    return new Set(enrollments.map(e => e.industry_segment_id));
-  }, [enrollments]);
-
-  // Filter available industries (exclude already enrolled ones in add-industry mode)
-  const availableIndustries = useMemo(() => {
-    if (!industrySegments) return [];
+  useEffect(() => {
     if (isAddIndustryMode) {
-      return industrySegments.filter(s => !enrolledIndustryIds.has(s.id));
+      toast.info('Please use Dashboard to add new industries.');
+      navigate('/dashboard', { replace: true });
     }
-    return industrySegments;
-  }, [industrySegments, isAddIndustryMode, enrolledIndustryIds]);
+  }, [isAddIndustryMode, navigate]);
 
   // Lifecycle validation
-  const configurationCheck = useCanModifyField('configuration');
   const terminalState = useIsTerminalState();
   const isTerminal = terminalState.isTerminal;
-  const { impact: industryCascadeImpact } = useCascadeImpact('industry_segment_id');
-  
-  // Cascade warning state
-  const [cascadeDialogOpen, setCascadeDialogOpen] = useState(false);
-  const [pendingCascadeData, setPendingCascadeData] = useState<{
-    formData: RegistrationFormData;
-    impact: { specialtyProofPointsCount: number; proficiencyAreasCount: number; specialitiesCount: number; generalProofPointsCount: number };
-  } | null>(null);
 
   // Registration form
   const form = useForm<RegistrationFormData>({
@@ -118,29 +87,18 @@ function RegistrationContent() {
       address: '',
       pinCode: '',
       countryId: '',
-      industrySegmentId: '',
-    },
-  });
-
-  // Add Industry form
-  const addIndustryForm = useForm<AddIndustryFormData>({
-    resolver: zodResolver(addIndustrySchema),
-    defaultValues: {
-      industrySegmentId: '',
-      setAsPrimary: false,
     },
   });
 
   // Pre-fill registration form from existing provider data
   useEffect(() => {
-    if (provider && !isAddIndustryMode) {
+    if (provider) {
       form.reset({
         firstName: provider.first_name || '',
         lastName: provider.last_name || '',
         address: provider.address || '',
         pinCode: provider.pin_code || '',
         countryId: provider.country_id || '',
-        industrySegmentId: provider.industry_segment_id || '',
       });
 
       if (provider.country_id && countries) {
@@ -150,7 +108,7 @@ function RegistrationContent() {
         }
       }
     }
-  }, [provider, countries, form, isAddIndustryMode]);
+  }, [provider, countries, form]);
 
   const handleCountryChange = (countryId: string) => {
     form.setValue('countryId', countryId);
@@ -173,40 +131,6 @@ function RegistrationContent() {
     return true;
   };
 
-  // Handle Add Industry submission
-  const handleAddIndustry = async () => {
-    const isValid = await addIndustryForm.trigger();
-    if (!isValid) return;
-
-    const data = addIndustryForm.getValues();
-
-    if (!provider?.id) {
-      toast.error('Provider profile not found. Please try again.');
-      return;
-    }
-
-    // Check if already enrolled in this industry
-    if (enrolledIndustryIds.has(data.industrySegmentId)) {
-      toast.error('You are already enrolled in this industry.');
-      return;
-    }
-
-    try {
-      const newEnrollment = await createEnrollment.mutateAsync({
-        providerId: provider.id,
-        industrySegmentId: data.industrySegmentId,
-        isPrimary: data.setAsPrimary,
-      });
-
-      // Switch to the new enrollment and navigate to expertise selection
-      setActiveEnrollment(newEnrollment.id);
-      toast.success(`Enrolled in ${newEnrollment.industry_segment?.name || 'new industry'} successfully!`);
-      navigate('/enroll/expertise');
-    } catch {
-      // Error handled by mutation
-    }
-  };
-
   // Handle Registration submission
   const handleContinue = async () => {
     const isValid = await form.trigger();
@@ -225,6 +149,14 @@ function RegistrationContent() {
       return;
     }
 
+    // Get current industry from enrollment or provider
+    const industrySegmentId = activeEnrollment?.industry_segment_id || provider.industry_segment_id;
+    if (!industrySegmentId) {
+      toast.error('No industry selected. Please select an industry from Dashboard.');
+      navigate('/dashboard');
+      return;
+    }
+
     try {
       const result = await updateProfile.mutateAsync({
         providerId: provider.id,
@@ -234,63 +166,18 @@ function RegistrationContent() {
           address: data.address,
           pinCode: data.pinCode,
           countryId: data.countryId,
-          industrySegmentId: data.industrySegmentId,
+          industrySegmentId: industrySegmentId,
           isStudent: activeTab === 'student',
         },
       });
 
-      // Check if cascade confirmation is required
-      if (!result.success && result.requiresConfirmation && result.cascadeImpact) {
-        setPendingCascadeData({
-          formData: data,
-          impact: {
-            ...result.cascadeImpact,
-            generalProofPointsCount: 0, // General proof points are preserved
-          },
-        });
-        setCascadeDialogOpen(true);
-        return;
-      }
-
       if (result.success) {
-        navigate('/enroll/welcome');
+        // Navigate to participation mode
+        navigate('/enroll/participation-mode');
       }
     } catch {
       // Error handled by mutation
     }
-  };
-
-  const handleConfirmCascade = async () => {
-    if (!pendingCascadeData || !provider?.id) return;
-
-    try {
-      const result = await updateProfile.mutateAsync({
-        providerId: provider.id,
-        data: {
-          firstName: pendingCascadeData.formData.firstName,
-          lastName: pendingCascadeData.formData.lastName,
-          address: pendingCascadeData.formData.address,
-          pinCode: pendingCascadeData.formData.pinCode,
-          countryId: pendingCascadeData.formData.countryId,
-          industrySegmentId: pendingCascadeData.formData.industrySegmentId,
-          isStudent: activeTab === 'student',
-        },
-        confirmCascade: true,
-      });
-
-      if (result.success) {
-        setCascadeDialogOpen(false);
-        setPendingCascadeData(null);
-        navigate('/enroll/welcome');
-      }
-    } catch {
-      // Error handled by mutation
-    }
-  };
-
-  const handleCancelCascade = () => {
-    setCascadeDialogOpen(false);
-    setPendingCascadeData(null);
   };
 
   const handleStudentTab = () => {
@@ -298,10 +185,7 @@ function RegistrationContent() {
     toast.info('Student registration coming soon');
   };
 
-  const isLoading = countriesLoading || segmentsLoading || providerLoading || enrollmentsLoading;
-  // Only lock if provider exists AND lifecycle doesn't allow configuration changes
-  // New users (no provider) should be able to edit freely
-  const isIndustryLocked = !!provider && !configurationCheck.allowed;
+  const isLoading = countriesLoading || providerLoading;
 
   if (isLoading) {
     return (
@@ -313,152 +197,7 @@ function RegistrationContent() {
     );
   }
 
-  // Render Add Industry Mode
-  if (isAddIndustryMode && isExistingProvider) {
-    return (
-      <WizardLayout
-        currentStep={1}
-        onContinue={handleAddIndustry}
-        isSubmitting={createEnrollment.isPending}
-        continueLabel="Add Industry"
-        onBack={() => navigate('/dashboard')}
-      >
-        <div className="space-y-6">
-          {/* Header */}
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => navigate('/dashboard')}
-                className="p-0 h-auto"
-              >
-                <ArrowLeft className="h-4 w-4 mr-1" />
-                Back to Dashboard
-              </Button>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground flex items-center gap-3">
-              <Factory className="h-8 w-8 text-primary" />
-              Add New Industry
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Expand your professional profile by enrolling in a new industry segment.
-            </p>
-          </div>
-
-          {/* Current Enrollments Summary */}
-          {enrollments.length > 0 && (
-            <Card className="bg-muted/50">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Your Current Industries</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {enrollments.map((enrollment) => (
-                    <Badge 
-                      key={enrollment.id} 
-                      variant={enrollment.is_primary ? 'default' : 'secondary'}
-                      className="gap-1"
-                    >
-                      <Building2 className="h-3 w-3" />
-                      {enrollment.industry_segment?.name}
-                      {enrollment.is_primary && (
-                        <span className="text-xs opacity-75">(Primary)</span>
-                      )}
-                    </Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Add Industry Form */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Select New Industry
-              </CardTitle>
-              <CardDescription>
-                Choose an industry segment to add to your profile. You can add multiple industries
-                and manage them independently.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {availableIndustries.length === 0 ? (
-                <Alert>
-                  <AlertDescription>
-                    You are already enrolled in all available industry segments.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <Form {...addIndustryForm}>
-                  <form className="space-y-6">
-                    <FormField
-                      control={addIndustryForm.control}
-                      name="industrySegmentId"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel>Industry Segment *</FormLabel>
-                          <Select 
-                            value={field.value} 
-                            onValueChange={field.onChange}
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select industry segment" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              {availableIndustries.map((segment) => (
-                                <SelectItem key={segment.id} value={segment.id}>
-                                  {segment.name}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                          <FormDescription>
-                            This will create a new enrollment with its own expertise level, 
-                            proof points, and assessment progress.
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={addIndustryForm.control}
-                      name="setAsPrimary"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center gap-3 space-y-0 rounded-lg border p-4">
-                          <FormControl>
-                            <input
-                              type="checkbox"
-                              checked={field.value}
-                              onChange={field.onChange}
-                              className="h-4 w-4 rounded border-input"
-                            />
-                          </FormControl>
-                          <div className="space-y-0.5">
-                            <FormLabel className="font-medium">Set as Primary Industry</FormLabel>
-                            <FormDescription>
-                              Your primary industry is displayed first in your profile and used as the default.
-                            </FormDescription>
-                          </div>
-                        </FormItem>
-                      )}
-                    />
-                  </form>
-                </Form>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </WizardLayout>
-    );
-  }
-
-  // Render normal registration form
+  // Render normal registration form (global profile, no industry selection)
   return (
     <WizardLayout
       currentStep={1}
@@ -485,22 +224,19 @@ function RegistrationContent() {
           />
         )}
 
-        {/* Existing Provider - Option to Add Industry */}
-        {isExistingProvider && !isTerminal && (
+        {/* Current Industry Indicator */}
+        {activeEnrollment && (
           <Alert className="bg-primary/5 border-primary/20">
             <Factory className="h-4 w-4" />
-            <AlertDescription className="flex items-center justify-between">
-              <span>
-                Want to expand into a new industry? You can add additional industry enrollments.
+            <AlertDescription className="flex items-center gap-2">
+              <span>Enrolling in:</span>
+              <Badge variant="secondary" className="gap-1">
+                <Building2 className="h-3 w-3" />
+                {activeEnrollment.industry_segment?.name}
+              </Badge>
+              <span className="text-xs text-muted-foreground">
+                (Change industry from Dashboard)
               </span>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={() => navigate('/enroll/registration?mode=add-industry')}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Add Industry
-              </Button>
             </AlertDescription>
           </Alert>
         )}
@@ -651,67 +387,11 @@ function RegistrationContent() {
                     )}
                   />
                 </div>
-
-                {/* Industry Segment with Lock Banner */}
-                {isIndustryLocked && !isTerminal && (
-                  <LockedFieldBanner 
-                    lockLevel="configuration"
-                    reason={configurationCheck.reason || undefined}
-                  />
-                )}
-
-                <FormField
-                  control={form.control}
-                  name="industrySegmentId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Industry Segment *</FormLabel>
-                      <Select 
-                        value={field.value} 
-                        onValueChange={field.onChange}
-                        disabled={isIndustryLocked || isTerminal}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select industry segment" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {industrySegments?.map((segment) => (
-                            <SelectItem key={segment.id} value={segment.id}>
-                              {segment.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </form>
             </Form>
           </CardContent>
         </Card>
       </div>
-
-      {/* Cascade Warning Dialog */}
-      {industryCascadeImpact && (
-        <CascadeWarningDialog
-          open={cascadeDialogOpen}
-          onOpenChange={setCascadeDialogOpen}
-          cascadeType="industry_change"
-          impact={industryCascadeImpact}
-          impactSummary={{
-            specialtyProofPointsCount: pendingCascadeData?.impact.specialtyProofPointsCount || 0,
-            generalProofPointsCount: pendingCascadeData?.impact.generalProofPointsCount || 0,
-            proficiencyAreasCount: pendingCascadeData?.impact.proficiencyAreasCount || 0,
-            specialitiesCount: pendingCascadeData?.impact.specialitiesCount || 0,
-          }}
-          onConfirm={handleConfirmCascade}
-          onCancel={handleCancelCascade}
-          isProcessing={updateProfile.isPending}
-        />
-      )}
     </WizardLayout>
   );
 }
