@@ -1,4 +1,4 @@
-import { Check, Lock } from 'lucide-react';
+import { Check, Lock, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Tooltip,
@@ -6,12 +6,15 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 export interface WizardStep {
   id: number;
   title: string;
   shortTitle: string;
 }
+
+export type OrgApprovalStatus = 'pending' | 'approved' | 'declined' | 'withdrawn' | null;
 
 interface WizardStepperProps {
   steps: WizardStep[];
@@ -22,6 +25,7 @@ interface WizardStepperProps {
   blockedSteps?: number[];
   lockedSteps?: number[]; // Steps locked due to lifecycle stage
   nextAccessibleStep?: number;
+  orgApprovalStatus?: OrgApprovalStatus; // Status for org step badge
   onStepClick?: (stepId: number) => void;
 }
 
@@ -34,8 +38,52 @@ export function WizardStepper({
   blockedSteps = [],
   lockedSteps = [],
   nextAccessibleStep,
+  orgApprovalStatus,
   onStepClick,
 }: WizardStepperProps) {
+  // Helper to render approval status badge for org step (step 3)
+  const renderApprovalBadge = (stepId: number) => {
+    if (stepId !== 3 || !orgApprovalStatus) return null;
+    
+    const badgeConfig = {
+      pending: { 
+        variant: 'outline' as const, 
+        className: 'bg-amber-50 text-amber-700 border-amber-300 text-[10px] px-1.5 py-0', 
+        icon: Clock, 
+        label: 'Pending' 
+      },
+      approved: { 
+        variant: 'outline' as const, 
+        className: 'bg-green-50 text-green-700 border-green-300 text-[10px] px-1.5 py-0', 
+        icon: CheckCircle, 
+        label: 'Approved' 
+      },
+      declined: { 
+        variant: 'outline' as const, 
+        className: 'bg-red-50 text-red-700 border-red-300 text-[10px] px-1.5 py-0', 
+        icon: XCircle, 
+        label: 'Declined' 
+      },
+      withdrawn: { 
+        variant: 'outline' as const, 
+        className: 'bg-slate-50 text-slate-600 border-slate-300 text-[10px] px-1.5 py-0', 
+        icon: null, 
+        label: 'Withdrawn' 
+      },
+    };
+    
+    const config = badgeConfig[orgApprovalStatus];
+    if (!config) return null;
+    
+    const Icon = config.icon;
+    
+    return (
+      <Badge variant={config.variant} className={cn("gap-0.5 h-4", config.className)}>
+        {Icon && <Icon className="h-2.5 w-2.5" />}
+        {config.label}
+      </Badge>
+    );
+  };
   return (
     <TooltipProvider>
       <div className="w-full px-4 py-3">
@@ -166,6 +214,8 @@ export function WizardStepper({
                   >
                     {step.shortTitle}
                   </span>
+                  {/* Approval status badge for org step */}
+                  {renderApprovalBadge(step.id)}
                 </div>
 
                 {/* Connector line */}
