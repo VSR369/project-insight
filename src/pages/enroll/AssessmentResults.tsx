@@ -352,7 +352,11 @@ export default function AssessmentResults() {
         <div className="flex flex-wrap gap-4 mb-8">
           {isPassed ? (
             <>
-              <Button size="lg" className="gap-2">
+              <Button 
+                size="lg" 
+                className="gap-2"
+                onClick={() => navigate('/enroll/interview-slot')}
+              >
                 <Calendar className="h-5 w-5" />
                 Schedule Discussion
                 <ArrowRight className="h-4 w-4" />
