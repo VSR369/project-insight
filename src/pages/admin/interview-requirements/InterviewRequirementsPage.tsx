@@ -18,9 +18,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info, RotateCcw, Save, Users, Globe } from "lucide-react";
+import { Info, RotateCcw, Save, Users, Globe, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { QuorumMatrixCell } from "./QuorumMatrixCell";
+import { InvitePanelMembersTab } from "./InvitePanelMembersTab";
 import {
   Table,
   TableBody,
@@ -201,7 +202,8 @@ export default function InterviewRequirementsPage() {
               <Users className="h-4 w-4" />
               Configure Interview Requirements
             </TabsTrigger>
-            <TabsTrigger value="reviewers" disabled className="flex items-center gap-2">
+            <TabsTrigger value="reviewers" className="flex items-center gap-2">
+              <UserPlus className="h-4 w-4" />
               Invite Panel Members
             </TabsTrigger>
           </TabsList>
@@ -354,10 +356,8 @@ export default function InterviewRequirementsPage() {
             )}
           </TabsContent>
 
-          <TabsContent value="reviewers">
-            <div className="text-center py-12 text-muted-foreground">
-              Panel member invitations coming soon.
-            </div>
+          <TabsContent value="reviewers" className="mt-6">
+            <InvitePanelMembersTab />
           </TabsContent>
         </Tabs>
       </div>

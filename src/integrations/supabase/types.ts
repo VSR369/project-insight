@@ -852,12 +852,24 @@ export type Database = {
           expertise_level_ids: string[]
           id: string
           industry_segment_ids: string[]
+          invitation_accepted_at: string | null
+          invitation_channel: string | null
+          invitation_message: string | null
+          invitation_sent_at: string | null
+          invitation_status: string | null
+          invitation_token_expires_at: string | null
+          invitation_token_hash: string | null
           is_active: boolean | null
+          languages: Json | null
           max_interviews_per_day: number | null
           name: string
+          notes: string | null
+          phone: string | null
+          timezone: string | null
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
+          years_experience: number | null
         }
         Insert: {
           created_at?: string | null
@@ -866,12 +878,24 @@ export type Database = {
           expertise_level_ids?: string[]
           id?: string
           industry_segment_ids?: string[]
+          invitation_accepted_at?: string | null
+          invitation_channel?: string | null
+          invitation_message?: string | null
+          invitation_sent_at?: string | null
+          invitation_status?: string | null
+          invitation_token_expires_at?: string | null
+          invitation_token_hash?: string | null
           is_active?: boolean | null
+          languages?: Json | null
           max_interviews_per_day?: number | null
           name: string
+          notes?: string | null
+          phone?: string | null
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          years_experience?: number | null
         }
         Update: {
           created_at?: string | null
@@ -880,12 +904,24 @@ export type Database = {
           expertise_level_ids?: string[]
           id?: string
           industry_segment_ids?: string[]
+          invitation_accepted_at?: string | null
+          invitation_channel?: string | null
+          invitation_message?: string | null
+          invitation_sent_at?: string | null
+          invitation_status?: string | null
+          invitation_token_expires_at?: string | null
+          invitation_token_hash?: string | null
           is_active?: boolean | null
+          languages?: Json | null
           max_interviews_per_day?: number | null
           name?: string
+          notes?: string | null
+          phone?: string | null
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          years_experience?: number | null
         }
         Relationships: []
       }
