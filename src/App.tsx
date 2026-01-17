@@ -34,6 +34,7 @@ import {
   AddProofPoint,
   OrganizationPending,
   OrganizationDeclined,
+  InterviewScheduling,
 } from "@/pages/enroll";
 
 // Manager Portal (public pages)
@@ -217,6 +218,16 @@ const App = () => (
                 <AuthGuard>
                   <EnrollmentRequiredGuard>
                     <AssessmentResults />
+                  </EnrollmentRequiredGuard>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/interview-slot"
+              element={
+                <AuthGuard>
+                  <EnrollmentRequiredGuard>
+                    <InterviewScheduling />
                   </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
