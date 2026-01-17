@@ -1,7 +1,14 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield } from 'lucide-react';
+import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield, Wrench, ClipboardCheck, BookOpen, LayoutDashboard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -464,6 +471,31 @@ export function WizardLayout({
 
           {/* Actions */}
           <div className="flex items-center gap-2">
+            {/* Tools Dropdown - Always Visible */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="gap-2">
+                  <Wrench className="h-4 w-4" />
+                  <span className="hidden sm:inline">Tools</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover z-50">
+                <DropdownMenuItem onClick={() => navigate('/tools/regression-test')}>
+                  <ClipboardCheck className="mr-2 h-4 w-4" />
+                  Regression Test
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => navigate('/tools/lifecycle-rules')}>
+                  <BookOpen className="mr-2 h-4 w-4" />
+                  Lifecycle Rules
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                  <LayoutDashboard className="mr-2 h-4 w-4" />
+                  Dashboard
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             {/* DEV: Admin toggle - remove for production */}
             {isAdmin && (
               <Button 
