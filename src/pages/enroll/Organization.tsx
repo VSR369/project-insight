@@ -9,6 +9,7 @@ import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/usePr
 import { useSendManagerCredentials, checkOrgApprovalStatus } from '@/hooks/queries/useManagerApproval';
 import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -29,7 +30,7 @@ const organizationSchema = z.object({
 
 type OrganizationFormData = z.infer<typeof organizationSchema>;
 
-export default function EnrollOrganization() {
+function OrganizationContent() {
   const navigate = useNavigate();
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
@@ -366,5 +367,13 @@ export default function EnrollOrganization() {
         </Form>
       </div>
     </WizardLayout>
+  );
+}
+
+export default function EnrollOrganization() {
+  return (
+    <FeatureErrorBoundary featureName="Organization Form">
+      <OrganizationContent />
+    </FeatureErrorBoundary>
   );
 }
