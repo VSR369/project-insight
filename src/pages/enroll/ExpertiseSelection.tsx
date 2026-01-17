@@ -2,15 +2,18 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useExpertiseLevels } from '@/hooks/queries/useMasterData';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { 
-  useCurrentProvider, 
-  useUpdateProviderExpertise,
-  useProviderProficiencyAreas,
-  useUpdateProviderProficiencyAreas 
-} from '@/hooks/queries/useProvider';
+  useUpdateEnrollmentExpertise,
+  useEnrollmentProficiencyAreas,
+  useUpdateEnrollmentProficiencyAreas,
+  useEnrollmentCanModifyField,
+  useEnrollmentIsTerminal,
+} from '@/hooks/queries/useEnrollmentExpertise';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
-import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
+import { useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
@@ -30,16 +33,27 @@ function ExpertiseContent() {
   const { data: levels, isLoading: levelsLoading, error: levelsError } = useExpertiseLevels();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
-  const updateExpertise = useUpdateProviderExpertise();
-  const updateProficiencyAreas = useUpdateProviderProficiencyAreas();
+  
+  // Get active enrollment from context
+  const { 
+    activeEnrollment, 
+    activeEnrollmentId, 
+    activeIndustryId,
+    isLoading: enrollmentLoading 
+  } = useEnrollmentContext();
+  
+  // Enrollment-scoped hooks
+  const updateExpertise = useUpdateEnrollmentExpertise();
+  const updateProficiencyAreas = useUpdateEnrollmentProficiencyAreas();
+  
   const [selectedLevel, setSelectedLevel] = useState<string>('');
   const [selectedAreas, setSelectedAreas] = useState<string[]>([]);
   const [expandedAreas, setExpandedAreas] = useState<string[]>([]);
   const [expandedSubDomains, setExpandedSubDomains] = useState<string[]>([]);
 
-  // Lifecycle validation
-  const configurationCheck = useCanModifyField('configuration');
-  const terminalState = useIsTerminalState();
+  // Lifecycle validation scoped to enrollment
+  const configurationCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'configuration');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
   const isLocked = !configurationCheck.allowed || isTerminal;
   const { impact: expertiseCascadeImpact } = useCascadeImpact('expertise_level_id');
@@ -52,8 +66,8 @@ function ExpertiseContent() {
     impact: { specialtyProofPointsCount: number; proficiencyAreasCount: number; specialitiesCount: number; generalProofPointsCount: number };
   } | null>(null);
 
-  // Fetch existing proficiency area selections
-  const { data: existingAreas } = useProviderProficiencyAreas(provider?.id);
+  // Fetch existing proficiency area selections for this enrollment
+  const { data: existingAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
 
   // Filter out Level 0 for experienced professionals (non-students)
   const filteredLevels = useMemo(() => {
@@ -65,17 +79,18 @@ function ExpertiseContent() {
     return levels;
   }, [levels, provider?.is_student]);
 
-  // Fetch taxonomy when level is selected
+  // Fetch taxonomy when level is selected - using enrollment's industry
   const { data: taxonomy, isLoading: taxonomyLoading } = useProficiencyTaxonomy(
-    provider?.industry_segment_id ?? undefined,
+    activeIndustryId ?? undefined,
     selectedLevel || undefined
   );
 
+  // Initialize selected level from enrollment's expertise
   useEffect(() => {
-    if (provider?.expertise_level_id) {
-      setSelectedLevel(provider.expertise_level_id);
+    if (activeEnrollment?.expertise_level_id) {
+      setSelectedLevel(activeEnrollment.expertise_level_id);
     }
-  }, [provider?.expertise_level_id]);
+  }, [activeEnrollment?.expertise_level_id]);
 
   // Load existing selected areas when data is available
   useEffect(() => {
@@ -99,13 +114,13 @@ function ExpertiseContent() {
     }
   };
 
-  // Save proficiency areas to DB
+  // Save proficiency areas to DB for this enrollment
   const saveProficiencyAreas = useCallback(async (newAreas: string[], previousAreas: string[]) => {
-    if (!provider?.id) return false;
+    if (!activeEnrollmentId) return false;
     
     try {
       await updateProficiencyAreas.mutateAsync({
-        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         proficiencyAreaIds: newAreas,
       });
       return true;
@@ -114,7 +129,7 @@ function ExpertiseContent() {
       toast.error('Failed to save proficiency area selection. Please try again.');
       return false;
     }
-  }, [provider?.id, updateProficiencyAreas]);
+  }, [activeEnrollmentId, updateProficiencyAreas]);
 
   const handleAreaToggle = async (areaId: string, checked: boolean) => {
     if (isLocked || updateProficiencyAreas.isPending) return;
@@ -188,17 +203,17 @@ function ExpertiseContent() {
 
   const handleLevelChange = async (newLevelId: string) => {
     if (isLocked || updateExpertise.isPending) return;
-    if (!provider?.id) return;
+    if (!activeEnrollmentId) return;
     
     const previousLevel = selectedLevel;
     setSelectedLevel(newLevelId);  // Optimistic UI update
     
     // Only save if actually changed from current DB value
-    if (newLevelId === provider.expertise_level_id) return;
+    if (newLevelId === activeEnrollment?.expertise_level_id) return;
     
     try {
       const result = await updateExpertise.mutateAsync({
-        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         expertiseLevelId: newLevelId,
       });
       
@@ -249,11 +264,11 @@ function ExpertiseContent() {
   };
 
   const handleConfirmCascade = async () => {
-    if (!pendingCascadeData || !provider?.id) return;
+    if (!pendingCascadeData || !activeEnrollmentId) return;
 
     try {
       const result = await updateExpertise.mutateAsync({
-        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         expertiseLevelId: pendingCascadeData.newLevelId,
         confirmCascade: true,
       });
@@ -290,7 +305,7 @@ function ExpertiseContent() {
     setExpandedSubDomains([]);
   };
 
-  if (levelsLoading) {
+  if (levelsLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={4} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -308,6 +323,21 @@ function ExpertiseContent() {
           <AlertTitle>Failed to load expertise levels</AlertTitle>
           <AlertDescription>
             Please refresh the page to try again.
+          </AlertDescription>
+        </Alert>
+      </WizardLayout>
+    );
+  }
+
+  // Show message if no enrollment is active
+  if (!activeEnrollment) {
+    return (
+      <WizardLayout currentStep={4} onBack={handleBack} hideContinueButton>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Industry Selected</AlertTitle>
+          <AlertDescription>
+            Please complete industry selection in the previous step before selecting expertise.
           </AlertDescription>
         </Alert>
       </WizardLayout>
