@@ -64,6 +64,7 @@ export function useResendManagerCredentials() {
 
 interface WithdrawParams {
   providerId: string;
+  enrollmentId?: string;
   withdrawalReason?: string;
   clearParticipationMode?: boolean;
 }
@@ -84,6 +85,7 @@ export function useWithdrawApprovalRequest() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
       toast.success('Approval request withdrawn. You can now update your organization details.');
     },
     onError: (error: Error) => {

@@ -1,6 +1,8 @@
 import { useNavigate } from 'react-router-dom';
-import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
+import { useUpdateEnrollmentParticipationMode } from '@/hooks/queries/useEnrollmentParticipationMode';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { WizardLayout } from '@/components/layout';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,13 +16,15 @@ function OrganizationDeclinedContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: participationModes, isLoading: modesLoading } = useParticipationModes();
-  const updateMode = useUpdateProviderMode();
+  const { activeEnrollment, activeEnrollmentId, isLoading: enrollmentLoading } = useEnrollmentContext();
+  const updateMode = useUpdateEnrollmentParticipationMode();
 
-  const organization = provider?.organization;
-  const declineReason = (organization as any)?.decline_reason;
+  // Use enrollment-scoped organization data
+  const organization = activeEnrollment?.organization as any;
+  const declineReason = organization?.decline_reason;
 
   const handleSwitchToIndividual = async () => {
-    if (!provider || !participationModes) return;
+    if (!activeEnrollmentId || !participationModes) return;
 
     // Find the individual/self-accountable mode
     const individualMode = participationModes.find(
@@ -34,7 +38,7 @@ function OrganizationDeclinedContent() {
 
     try {
       await updateMode.mutateAsync({
-        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         participationModeId: individualMode.id,
       });
 
@@ -49,7 +53,7 @@ function OrganizationDeclinedContent() {
     navigate('/enroll/participation-mode');
   };
 
-  if (providerLoading || modesLoading) {
+  if (providerLoading || modesLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={3} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">

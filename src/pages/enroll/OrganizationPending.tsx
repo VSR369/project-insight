@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { WizardLayout } from '@/components/layout';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,17 +31,19 @@ function OrganizationPendingContent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading, refetch } = useCurrentProvider();
+  const { activeEnrollment, activeEnrollmentId, isLoading: enrollmentLoading } = useEnrollmentContext();
   const withdrawRequest = useWithdrawApprovalRequest();
   const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   const [isResending, setIsResending] = useState(false);
   const [isChecking, setIsChecking] = useState(false);
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
 
-  const organization = provider?.organization;
-  const approvalStatus = (organization as any)?.approval_status;
+  // Use enrollment-scoped organization data
+  const organization = activeEnrollment?.organization as any;
+  const approvalStatus = organization?.approval_status;
 
   // If no organization exists, redirect to organization form
-  if (provider && !organization) {
+  if (activeEnrollment && !organization) {
     navigate('/enroll/organization');
     return null;
   }
@@ -68,10 +71,11 @@ function OrganizationPendingContent() {
     try {
       await refetch();
       await queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      await queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
       
       // Re-check after refetch
-      const updatedProvider = queryClient.getQueryData(['current-provider']) as any;
-      const updatedStatus = updatedProvider?.organization?.approval_status;
+      const updatedEnrollment = activeEnrollment;
+      const updatedStatus = (updatedEnrollment?.organization as any)?.approval_status;
       
       if (updatedStatus === 'approved') {
         toast.success('Your organization has been approved!');
@@ -97,6 +101,7 @@ function OrganizationPendingContent() {
       const { data: result, error } = await supabase.functions.invoke('send-manager-credentials', {
         body: {
           providerId: provider.id,
+          enrollmentId: activeEnrollmentId,
           providerName: `${provider.first_name} ${provider.last_name}`,
           providerEmail: '',
           providerDesignation: organization.designation,
@@ -119,7 +124,7 @@ function OrganizationPendingContent() {
   };
 
   const handleWithdrawRequest = async () => {
-    if (!provider?.id) return;
+    if (!provider?.id || !activeEnrollmentId) return;
 
     // If already withdrawn, just send user to edit screen
     if (approvalStatus === 'withdrawn') {
@@ -137,6 +142,7 @@ function OrganizationPendingContent() {
     try {
       await withdrawRequest.mutateAsync({
         providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         withdrawalReason: 'User requested to modify organization details',
       });
 
@@ -155,11 +161,12 @@ function OrganizationPendingContent() {
   // Handle cancel and reset from blocking dialog
   // Uses centralized hook with optimistic cache update
   const handleCancelAndReset = async () => {
-    if (!provider?.id) return;
+    if (!provider?.id || !activeEnrollmentId) return;
 
     try {
       await cancelOrgApproval.mutateAsync({
         providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         withdrawalReason: 'User cancelled to change participation mode',
       });
       setShowBlockedDialog(false);
@@ -172,7 +179,7 @@ function OrganizationPendingContent() {
     toast.error('Your organization manager approval is pending. You cannot proceed until your manager approves your request.');
   };
 
-  if (providerLoading) {
+  if (providerLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={3} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">

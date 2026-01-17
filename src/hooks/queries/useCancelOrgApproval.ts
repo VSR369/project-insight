@@ -24,10 +24,12 @@ export function useCancelOrgApprovalAndResetMode() {
 
   return useMutation({
     mutationFn: async ({ 
-      providerId, 
+      providerId,
+      enrollmentId,
       withdrawalReason 
     }: { 
-      providerId: string; 
+      providerId: string;
+      enrollmentId?: string;
       withdrawalReason?: string;
     }) => {
       // Step 1: OPTIMISTIC UPDATE - Update cache immediately before API call
@@ -53,6 +55,7 @@ export function useCancelOrgApprovalAndResetMode() {
       const { data, error } = await supabase.functions.invoke('withdraw-approval-request', {
         body: {
           providerId,
+          enrollmentId,
           withdrawalReason: withdrawalReason || 'User cancelled to change participation mode',
           clearParticipationMode: true,
         },
@@ -72,6 +75,7 @@ export function useCancelOrgApprovalAndResetMode() {
       // Log audit event for destructive action
       logAuditEvent('ORG_APPROVAL_WITHDRAWN', {
         providerId: variables.providerId,
+        enrollmentId: variables.enrollmentId,
         withdrawalReason: variables.withdrawalReason,
         clearParticipationMode: true,
       });
@@ -85,6 +89,7 @@ export function useCancelOrgApprovalAndResetMode() {
       // Step 5: Invalidate in background to ensure cache syncs with DB
       // This runs after navigation, so UI already reflects optimistic state
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
     },
     onError: (error: Error) => {
       toast.error(error.message || 'Failed to cancel request. Please try again.');
