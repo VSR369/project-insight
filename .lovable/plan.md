@@ -1,179 +1,154 @@
-# Plan: Clean Up Provider Test Data Only
+# Fix: Registration Page Shows "Configuration Locked" for New Users
 
-## Objective
-Delete all provider operational/transactional data to enable fresh testing of two industry enrollment lifecycles. Master data remains untouched.
+## Problem Identified
 
-## Provider IDs to Clean
-- `b0a56517-cabf-4dbf-82ec-28f63b9c171b` (Srinivasa Rao)
-- `b6463a7d-c852-453d-b5f5-9f1395dd9d68` (Second test provider)
+When a new user (or a user whose provider record was deleted) visits the Registration page, they see:
+- "Configuration Locked - Provider not found" warning banner
+- This is confusing because new users should be able to fill out the form
 
-## SQL Cleanup Script (Execute in Supabase SQL Editor)
+**Root Cause**: The `useCanModifyField` hook returns `{allowed: false, reason: 'Provider not found'}` when no provider record exists. The Registration page interprets this as "locked" and shows the banner.
 
-```sql
--- =====================================================
--- PROVIDER DATA CLEANUP SCRIPT
--- Cleans ONLY provider operational data
--- Master data tables are NOT touched
--- =====================================================
-
--- Step 1: Delete proof point related data (deepest children first)
-DELETE FROM proof_point_speciality_tags 
-WHERE proof_point_id IN (
-  SELECT id FROM proof_points 
-  WHERE provider_id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
-
-DELETE FROM proof_point_files 
-WHERE proof_point_id IN (
-  SELECT id FROM proof_points 
-  WHERE provider_id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
-
-DELETE FROM proof_point_links 
-WHERE proof_point_id IN (
-  SELECT id FROM proof_points 
-  WHERE provider_id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
-
-DELETE FROM proof_points 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 2: Delete assessment related data
-DELETE FROM assessment_attempt_responses 
-WHERE attempt_id IN (
-  SELECT id FROM assessment_attempts 
-  WHERE provider_id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
-
-DELETE FROM assessment_results_rollup 
-WHERE attempt_id IN (
-  SELECT id FROM assessment_attempts 
-  WHERE provider_id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
-
-DELETE FROM assessment_attempts 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 3: Delete question exposure logs
-DELETE FROM question_exposure_log 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 4: Delete provider selections
-DELETE FROM provider_specialities 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
-DELETE FROM provider_proficiency_areas 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 5: Delete organization data
-DELETE FROM solution_provider_organizations 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 6: Delete student profiles
-DELETE FROM student_profiles 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 7: Delete industry enrollments
-DELETE FROM provider_industry_enrollments 
-WHERE provider_id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 8: Delete main provider records
-DELETE FROM solution_providers 
-WHERE id IN (
-  'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-  'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-);
-
--- Step 9: Delete user profiles (linked to auth.users)
-DELETE FROM profiles 
-WHERE user_id IN (
-  SELECT user_id FROM solution_providers 
-  WHERE id IN (
-    'b0a56517-cabf-4dbf-82ec-28f63b9c171b',
-    'b6463a7d-c852-453d-b5f5-9f1395dd9d68'
-  )
-);
+**Current Logic (Registration.tsx line 302)**:
+```typescript
+const isIndustryLocked = !configurationCheck.allowed;
 ```
 
-## Verification Query (Run After Cleanup)
+This is too simplistic - it doesn't distinguish between:
+1. New user (no provider record yet) - should NOT be locked
+2. User at locked lifecycle stage (assessment started) - SHOULD be locked
 
-```sql
--- Verify all provider data is cleaned
-SELECT 'solution_providers' as table_name, COUNT(*) as remaining FROM solution_providers
-UNION ALL
-SELECT 'provider_industry_enrollments', COUNT(*) FROM provider_industry_enrollments
-UNION ALL
-SELECT 'proof_points', COUNT(*) FROM proof_points
-UNION ALL
-SELECT 'provider_proficiency_areas', COUNT(*) FROM provider_proficiency_areas
-UNION ALL
-SELECT 'solution_provider_organizations', COUNT(*) FROM solution_provider_organizations
-UNION ALL
-SELECT 'assessment_attempts', COUNT(*) FROM assessment_attempts;
+---
+
+## Solution
+
+### Option A: Fix in Registration.tsx (Recommended)
+
+The Registration page should check if `provider` exists before showing the lock banner. If there's no provider, they're a new user and the industry field should be editable.
+
+**Change in Registration.tsx (around line 302)**:
+
+```typescript
+// Current (buggy)
+const isIndustryLocked = !configurationCheck.allowed;
+
+// Fixed: Only show as locked if provider exists AND configuration is not allowed
+// New users (no provider yet) should be able to edit all fields
+const isIndustryLocked = provider && !configurationCheck.allowed;
 ```
 
-## Execution Steps
+### Option B: Also fix in useLifecycleValidation.ts
 
-1. Go to Supabase Dashboard > SQL Editor
-2. Copy and paste the cleanup script above
-3. Execute the script
-4. Run the verification query to confirm cleanup
-5. You can now register fresh and test two industry enrollment lifecycles
+The hook could return `allowed: true` when there's no provider, since a new user should be allowed to do anything:
 
-## What Remains Untouched
-- All master data (industries, expertise levels, proficiency taxonomy, etc.)
-- Question bank
-- Capability tags
-- Countries
-- Organization types
-- Participation modes
-- Lifecycle stages
-- Academic taxonomy
-- Invitations
+**Change in useLifecycleValidation.ts (lines 72-73)**:
 
-## After Cleanup - Fresh Test Flow
-1. Register new provider account
-2. Select first industry (e.g., Manufacturing)
-3. Complete full enrollment lifecycle
-4. Add second industry via "Add Industry" button
-5. Complete second industry enrollment lifecycle
-6. Verify both enrollments work independently
+```typescript
+// Current (wrong for new users)
+if (!provider) {
+  return { allowed: false, reason: 'Provider not found', isLoading: false };
+}
+
+// Fixed: New users (no provider) should have full access
+if (!provider) {
+  return { allowed: true, reason: undefined, isLoading: false };
+}
+```
+
+---
+
+## Recommended Approach
+
+Implement **both fixes** for defense in depth:
+
+1. **Fix `useCanModifyField`** to return `allowed: true` for new users (no provider)
+2. **Fix Registration.tsx** as a safety net to also check `provider` exists
+
+---
+
+## Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/hooks/queries/useLifecycleValidation.ts` | Return `allowed: true` when no provider exists |
+| `src/pages/enroll/Registration.tsx` | Check `provider` exists before marking as locked |
+
+---
+
+## Code Changes
+
+### 1. src/hooks/queries/useLifecycleValidation.ts (line 72-74)
+
+```typescript
+// BEFORE
+if (!provider) {
+  return { allowed: false, reason: 'Provider not found', isLoading: false };
+}
+
+// AFTER
+// New users (no provider yet) should have full access to all fields
+if (!provider) {
+  return { allowed: true, reason: undefined, isLoading: false };
+}
+```
+
+### 2. src/pages/enroll/Registration.tsx (line 302)
+
+```typescript
+// BEFORE
+const isIndustryLocked = !configurationCheck.allowed;
+
+// AFTER
+// Only lock if provider exists AND lifecycle doesn't allow configuration changes
+// New users (no provider) should be able to edit freely
+const isIndustryLocked = !!provider && !configurationCheck.allowed;
+```
+
+---
+
+## Your Test Data Issue
+
+After implementing the code fix, you still need to handle the missing provider record for your existing test user.
+
+**Option 1: Create a new test account**
+- Sign up with a new email
+- The trigger will create all required records
+
+**Option 2: Manually create provider record**
+Run this SQL in Supabase SQL Editor:
+```sql
+-- For provider@test.local (user_id: 32aec070-360a-4d73-a6dd-28961c629ca6)
+INSERT INTO profiles (user_id, email, first_name, last_name)
+VALUES ('32aec070-360a-4d73-a6dd-28961c629ca6', 'provider@test.local', '', '');
+
+INSERT INTO solution_providers (
+  user_id, first_name, last_name, is_student,
+  lifecycle_status, onboarding_status, created_by
+)
+VALUES (
+  '32aec070-360a-4d73-a6dd-28961c629ca6', '', '', false,
+  'registered', 'not_started', '32aec070-360a-4d73-a6dd-28961c629ca6'
+);
+
+INSERT INTO user_roles (user_id, role, created_by)
+VALUES ('32aec070-360a-4d73-a6dd-28961c629ca6', 'solution_provider', '32aec070-360a-4d73-a6dd-28961c629ca6')
+ON CONFLICT (user_id, role) DO NOTHING;
+```
+
+---
+
+## Test Scenarios After Fix
+
+1. **New user signup** - No lock banner, can edit all fields
+2. **Existing user at registered/enrolled stage** - No lock banner, can edit all fields
+3. **User who started assessment** - Lock banner shows, industry field disabled
+4. **User at terminal state (verified)** - Lock banner shows, all fields disabled
+
+---
+
+## Summary
+
+The fix ensures that:
+1. New users see an editable registration form
+2. Users at early lifecycle stages can still modify their profile
+3. Users at locked stages (assessment started) correctly see the lock banner
+4. The behavior is consistent and predictable
