@@ -210,7 +210,25 @@ export default function Dashboard() {
     }
   };
 
+  // Redirect first-time users (no provider record) to registration
+  useEffect(() => {
+    if (!isLoading && !provider && user) {
+      navigate('/enroll/registration', { replace: true });
+    }
+  }, [isLoading, provider, user, navigate]);
+
   if (isLoading || enrollmentsLoading) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </AppLayout>
+    );
+  }
+
+  // Show loading while redirecting first-time users
+  if (!provider && user) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
