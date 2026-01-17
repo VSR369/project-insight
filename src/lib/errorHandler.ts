@@ -2,13 +2,18 @@
  * Error Handler Utility
  * 
  * Provides consistent error handling patterns across the application.
- * Standardizes error logging, user-facing messages, and error classification.
+ * Standardizes error logging, user-facing messages, error classification,
+ * and structured logging with correlation IDs for production observability.
  */
 
 import { toast } from 'sonner';
 
-// Error classification types
+// ============================================================================
+// Types & Interfaces
+// ============================================================================
+
 export type ErrorSeverity = 'info' | 'warning' | 'error' | 'critical';
+export type LogLevel = 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 export interface ErrorContext {
   operation: string;
@@ -19,12 +24,156 @@ export interface ErrorContext {
 }
 
 export interface HandledError {
+  correlationId: string;
   message: string;
   severity: ErrorSeverity;
   originalError: unknown;
   context: ErrorContext;
   timestamp: string;
 }
+
+export interface StructuredLogEntry {
+  timestamp: string;
+  level: LogLevel;
+  correlationId: string;
+  message: string;
+  context: {
+    operation: string;
+    component?: string;
+    userId?: string;
+    providerId?: string;
+  };
+  error?: {
+    name?: string;
+    message: string;
+    stack?: string;
+  };
+  metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// Correlation ID Management
+// ============================================================================
+
+/**
+ * Generate a unique correlation ID for tracking requests/errors
+ * Format: timestamp-randomHex (e.g., "1705484400000-a1b2c3d4")
+ */
+export function generateCorrelationId(): string {
+  const timestamp = Date.now();
+  const randomPart = Math.random().toString(16).substring(2, 10);
+  return `${timestamp}-${randomPart}`;
+}
+
+// Session-level correlation ID for tracking user session
+let sessionCorrelationId: string | null = null;
+
+/**
+ * Get or create a session-level correlation ID
+ */
+export function getSessionCorrelationId(): string {
+  if (!sessionCorrelationId) {
+    sessionCorrelationId = generateCorrelationId();
+  }
+  return sessionCorrelationId;
+}
+
+/**
+ * Reset session correlation ID (e.g., on logout)
+ */
+export function resetSessionCorrelationId(): void {
+  sessionCorrelationId = null;
+}
+
+// ============================================================================
+// Structured Logging
+// ============================================================================
+
+/**
+ * Create a structured log entry in JSON format for production log aggregation
+ */
+function createStructuredLogEntry(
+  level: LogLevel,
+  message: string,
+  context: ErrorContext,
+  correlationId: string,
+  error?: unknown,
+  metadata?: Record<string, unknown>
+): StructuredLogEntry {
+  const entry: StructuredLogEntry = {
+    timestamp: new Date().toISOString(),
+    level,
+    correlationId,
+    message,
+    context: {
+      operation: context.operation,
+      component: context.component,
+      userId: context.userId,
+      providerId: context.providerId,
+    },
+  };
+
+  if (error) {
+    if (error instanceof Error) {
+      entry.error = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+      };
+    } else {
+      entry.error = {
+        message: String(error),
+      };
+    }
+  }
+
+  if (metadata || context.additionalData) {
+    entry.metadata = { ...context.additionalData, ...metadata };
+  }
+
+  return entry;
+}
+
+/**
+ * Log a structured entry to the console (development) or external service (production)
+ * 
+ * In production, this would send to a log aggregation service like:
+ * - Datadog, Splunk, ELK Stack, CloudWatch, etc.
+ */
+function logStructured(entry: StructuredLogEntry): void {
+  const isProduction = import.meta.env.PROD;
+  
+  if (isProduction) {
+    // Production: Output as single-line JSON for log aggregation
+    // Log aggregation services parse JSON logs automatically
+    console.log(JSON.stringify(entry));
+  } else {
+    // Development: Pretty print with color coding
+    const levelColors: Record<LogLevel, string> = {
+      DEBUG: '\x1b[36m', // Cyan
+      INFO: '\x1b[32m',  // Green
+      WARN: '\x1b[33m',  // Yellow
+      ERROR: '\x1b[31m', // Red
+    };
+    const reset = '\x1b[0m';
+    const color = levelColors[entry.level];
+    
+    console.group(`${color}[${entry.level}]${reset} ${entry.timestamp} | ${entry.correlationId}`);
+    console.log('Message:', entry.message);
+    console.log('Context:', entry.context);
+    if (entry.error) {
+      console.error('Error:', entry.error);
+    }
+    if (entry.metadata) {
+      console.log('Metadata:', entry.metadata);
+    }
+    console.groupEnd();
+  }
+}
+
+// ============================================================================
+// Error Message Utilities
+// ============================================================================
 
 /**
  * Extract user-friendly message from error
@@ -65,62 +214,6 @@ export function classifyErrorSeverity(error: unknown, _operation: string): Error
   
   // Default to error
   return 'error';
-}
-
-/**
- * Handle mutation errors with consistent logging and user feedback
- * 
- * @param error - The error that occurred
- * @param context - Context about where the error happened
- * @param showToast - Whether to show a toast notification (default: true)
- * @returns The handled error object for further processing
- */
-export function handleMutationError(
-  error: unknown,
-  context: ErrorContext,
-  showToast = true
-): HandledError {
-  const message = getErrorMessage(error);
-  const severity = classifyErrorSeverity(error, context.operation);
-  
-  const handledError: HandledError = {
-    message,
-    severity,
-    originalError: error,
-    context,
-    timestamp: new Date().toISOString(),
-  };
-  
-  // Log to console with structured format (avoid console.log in production)
-  if (process.env.NODE_ENV !== 'production') {
-    console.error(`[${context.operation}]`, {
-      message,
-      severity,
-      ...context,
-    });
-  }
-  
-  // Show user-facing toast if requested
-  if (showToast) {
-    const userMessage = getUserFacingMessage(message, context.operation);
-    
-    switch (severity) {
-      case 'critical':
-        toast.error(userMessage);
-        break;
-      case 'error':
-        toast.error(userMessage);
-        break;
-      case 'warning':
-        toast.warning(userMessage);
-        break;
-      case 'info':
-        toast.info(userMessage);
-        break;
-    }
-  }
-  
-  return handledError;
 }
 
 /**
@@ -168,6 +261,80 @@ export function getUserFacingMessage(technicalMessage: string, operation: string
   return `Failed to ${operation.toLowerCase()}. Please try again or contact support.`;
 }
 
+// ============================================================================
+// Error Handling Functions
+// ============================================================================
+
+/**
+ * Map error severity to log level
+ */
+function severityToLogLevel(severity: ErrorSeverity): LogLevel {
+  const mapping: Record<ErrorSeverity, LogLevel> = {
+    info: 'INFO',
+    warning: 'WARN',
+    error: 'ERROR',
+    critical: 'ERROR',
+  };
+  return mapping[severity];
+}
+
+/**
+ * Handle mutation errors with consistent logging and user feedback
+ * 
+ * @param error - The error that occurred
+ * @param context - Context about where the error happened
+ * @param showToast - Whether to show a toast notification (default: true)
+ * @returns The handled error object for further processing
+ */
+export function handleMutationError(
+  error: unknown,
+  context: ErrorContext,
+  showToast = true
+): HandledError {
+  const correlationId = generateCorrelationId();
+  const message = getErrorMessage(error);
+  const severity = classifyErrorSeverity(error, context.operation);
+  
+  const handledError: HandledError = {
+    correlationId,
+    message,
+    severity,
+    originalError: error,
+    context,
+    timestamp: new Date().toISOString(),
+  };
+  
+  // Create and log structured entry
+  const logEntry = createStructuredLogEntry(
+    severityToLogLevel(severity),
+    message,
+    context,
+    correlationId,
+    error
+  );
+  logStructured(logEntry);
+  
+  // Show user-facing toast if requested
+  if (showToast) {
+    const userMessage = getUserFacingMessage(message, context.operation);
+    
+    switch (severity) {
+      case 'critical':
+      case 'error':
+        toast.error(userMessage);
+        break;
+      case 'warning':
+        toast.warning(userMessage);
+        break;
+      case 'info':
+        toast.info(userMessage);
+        break;
+    }
+  }
+  
+  return handledError;
+}
+
 /**
  * Handle query errors (read operations)
  */
@@ -197,26 +364,84 @@ export async function withErrorHandling<T>(
   }
 }
 
+// ============================================================================
+// Logging Utilities
+// ============================================================================
+
+/**
+ * Log an info-level message with structured format
+ */
+export function logInfo(
+  message: string,
+  context: ErrorContext,
+  metadata?: Record<string, unknown>
+): void {
+  const correlationId = generateCorrelationId();
+  const entry = createStructuredLogEntry('INFO', message, context, correlationId, undefined, metadata);
+  logStructured(entry);
+}
+
+/**
+ * Log a debug-level message with structured format
+ */
+export function logDebug(
+  message: string,
+  context: ErrorContext,
+  metadata?: Record<string, unknown>
+): void {
+  // Only log debug in development
+  if (import.meta.env.PROD) return;
+  
+  const correlationId = generateCorrelationId();
+  const entry = createStructuredLogEntry('DEBUG', message, context, correlationId, undefined, metadata);
+  logStructured(entry);
+}
+
+/**
+ * Log a warning-level message with structured format
+ */
+export function logWarning(
+  message: string,
+  context: ErrorContext,
+  metadata?: Record<string, unknown>
+): void {
+  const correlationId = generateCorrelationId();
+  const entry = createStructuredLogEntry('WARN', message, context, correlationId, undefined, metadata);
+  logStructured(entry);
+}
+
+// ============================================================================
+// Audit Logging
+// ============================================================================
+
 /**
  * Log audit event for critical operations
  * 
- * This is a placeholder for future audit logging implementation.
- * Currently logs to console; can be extended to log to database/external service.
+ * Audit logs are always structured and include user context for compliance.
  */
 export function logAuditEvent(
   action: string,
   details: Record<string, unknown>,
   userId?: string
 ): void {
-  const auditEntry = {
-    action,
-    userId,
+  const correlationId = generateCorrelationId();
+  const sessionId = getSessionCorrelationId();
+  
+  const entry: StructuredLogEntry = {
     timestamp: new Date().toISOString(),
-    ...details,
+    level: 'INFO',
+    correlationId,
+    message: `AUDIT: ${action}`,
+    context: {
+      operation: action,
+      userId,
+    },
+    metadata: {
+      ...details,
+      sessionCorrelationId: sessionId,
+      auditEvent: true,
+    },
   };
   
-  // In production, this would send to an audit log service
-  if (process.env.NODE_ENV !== 'production') {
-    console.info('[AUDIT]', auditEntry);
-  }
+  logStructured(entry);
 }
