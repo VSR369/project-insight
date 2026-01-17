@@ -473,6 +473,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          default_quorum_count: number
           description: string | null
           id: string
           is_active: boolean
@@ -486,6 +487,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          default_quorum_count?: number
           description?: string | null
           id?: string
           is_active?: boolean
@@ -499,6 +501,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          default_quorum_count?: number
           description?: string | null
           id?: string
           is_active?: boolean
@@ -626,6 +629,7 @@ export type Database = {
       interview_quorum_requirements: {
         Row: {
           created_at: string | null
+          created_by: string | null
           expertise_level_id: string
           id: string
           industry_segment_id: string | null
@@ -633,9 +637,11 @@ export type Database = {
           is_active: boolean | null
           required_quorum_count: number
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string | null
+          created_by?: string | null
           expertise_level_id: string
           id?: string
           industry_segment_id?: string | null
@@ -643,9 +649,11 @@ export type Database = {
           is_active?: boolean | null
           required_quorum_count?: number
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string | null
+          created_by?: string | null
           expertise_level_id?: string
           id?: string
           industry_segment_id?: string | null
@@ -653,6 +661,7 @@ export type Database = {
           is_active?: boolean | null
           required_quorum_count?: number
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
