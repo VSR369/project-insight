@@ -48,7 +48,8 @@ const typeLabels: Record<string, string> = {
 
 interface ProofPointCardProps {
   proofPoint: ProofPointWithCounts;
-  currentIndustryId?: string; // NEW: To compare with proof point's industry
+  currentIndustryId?: string; // To compare with proof point's industry
+  industryName?: string; // Display name for the industry segment
   onView?: (proofPoint: ProofPointWithCounts) => void;
   onEdit?: (proofPoint: ProofPointWithCounts) => void;
   onDelete?: (proofPoint: ProofPointWithCounts) => void;
@@ -58,6 +59,7 @@ interface ProofPointCardProps {
 export function ProofPointCard({ 
   proofPoint, 
   currentIndustryId,
+  industryName,
   onView,
   onEdit, 
   onDelete,
@@ -68,7 +70,7 @@ export function ProofPointCard({
   const hasSpecialityTags = proofPoint.tagsCount > 0;
   
   // Check if proof point is from a different industry
-  const isFromPreviousIndustry = currentIndustryId && 
+  const isFromDifferentIndustry = currentIndustryId && 
     proofPoint.industry_segment_id && 
     proofPoint.industry_segment_id !== currentIndustryId;
 
@@ -109,10 +111,10 @@ export function ProofPointCard({
                       General
                     </Badge>
                   )}
-                  {/* Previous Industry Badge */}
-                  {isFromPreviousIndustry && (
+                  {/* Different Industry Badge - Show industry name */}
+                  {isFromDifferentIndustry && (
                     <Badge variant="outline" className="text-xs shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
-                      Previous Industry
+                      {industryName || 'Previous Industry'}
                     </Badge>
                   )}
                 </div>
