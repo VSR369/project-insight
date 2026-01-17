@@ -3,170 +3,84 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints } from '@/hooks/queries/useProofPoints';
+import { useProviderEnrollments, useActiveEnrollment } from '@/hooks/queries/useProviderEnrollments';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
+import { getStatusDisplayName } from '@/services/lifecycleService';
 import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, Award, UserCircle, Loader2, ShieldCheck, Star, XCircle } from 'lucide-react';
+import { 
+  User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, 
+  Award, UserCircle, Loader2, ShieldCheck, Star, XCircle, Building2,
+  ChevronRight, Factory, Layers
+} from 'lucide-react';
 
 // Terminal lifecycle statuses where profile is complete/locked
 const TERMINAL_STATUSES = ['verified', 'certified', 'not_verified'];
+
+// Lifecycle rank thresholds for progress calculation
+const LIFECYCLE_PROGRESS_MAP: Record<string, number> = {
+  'invited': 0,
+  'registered': 10,
+  'enrolled': 15,
+  'mode_selected': 25,
+  'org_info_pending': 30,
+  'org_validated': 40,
+  'expertise_selected': 50,
+  'proof_points_started': 60,
+  'proof_points_min_met': 70,
+  'assessment_pending': 75,
+  'assessment_in_progress': 80,
+  'assessment_passed': 85,
+  'assessment_completed': 90,
+  'panel_scheduled': 92,
+  'panel_completed': 95,
+  'verified': 100,
+  'certified': 100,
+  'not_verified': 100,
+};
 
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: provider, isLoading } = useCurrentProvider();
+  const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
+  const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
 
   const firstName = user?.user_metadata?.first_name || provider?.first_name || 'Provider';
 
-  const isTerminalState = useMemo(() => {
+  // Check if any enrollment is in a terminal state
+  const hasTerminalEnrollment = useMemo(() => {
+    return enrollments.some(e => TERMINAL_STATUSES.includes(e.lifecycle_status));
+  }, [enrollments]);
+
+  // Legacy: Check if provider is in terminal state (for single-industry compatibility)
+  const isProviderTerminal = useMemo(() => {
     return TERMINAL_STATUSES.includes(provider?.lifecycle_status || '');
   }, [provider?.lifecycle_status]);
 
-  // Calculate profile completion based on provider data
-  const calculateProfileCompletion = () => {
-    if (!provider) return 0;
-    
-    // If in terminal state, profile is 100% complete
-    if (isTerminalState) return 100;
-    
-    let completed = 0;
-    const steps = 6;
-    
-    // Step 1: Registration (basic profile)
-    if (provider.first_name && provider.address && provider.country_id && provider.industry_segment_id) {
-      completed += 1;
-    }
-    
-    // Step 2: Participation Mode
-    if (provider.participation_mode_id) {
-      completed += 1;
-    }
-    
-    // Step 3: Organization (conditional - count as done if not required or if exists)
-    if (provider.participation_mode_id) {
-      completed += 0.5;
-    }
-    
-    // Step 4: Expertise Level
-    if (provider.expertise_level_id) {
-      completed += 1;
-    }
-    
-    // Step 5: Proof Points
-    if (proofPoints.length >= 2) {
-      completed += 1;
-    } else if (proofPoints.length > 0) {
-      completed += 0.5;
-    }
-    
-    // Onboarding completed
-    if (provider.onboarding_status === 'completed') {
-      return 100;
-    }
-    
-    return Math.round((completed / steps) * 100);
+  // Get proof points count per industry
+  const proofPointsByIndustry = useMemo(() => {
+    const counts: Record<string, number> = {};
+    proofPoints.forEach(pp => {
+      const industryId = pp.industry_segment_id || 'general';
+      counts[industryId] = (counts[industryId] || 0) + 1;
+    });
+    return counts;
+  }, [proofPoints]);
+
+  // Calculate progress for an enrollment
+  const getEnrollmentProgress = (status: string) => {
+    return LIFECYCLE_PROGRESS_MAP[status] || 0;
   };
 
-  const profileCompletion = calculateProfileCompletion();
-  const currentStep = calculateCurrentStep(provider);
-
-  // Redirect to enrollment wizard if onboarding not complete (and not terminal)
-  useEffect(() => {
-    if (!isLoading && provider && provider.onboarding_status !== 'completed' && !isTerminalState) {
-      const enrollUrls: Record<number, string> = {
-        1: '/enroll/registration',
-        2: '/enroll/participation-mode',
-        3: '/enroll/organization',
-        4: '/enroll/expertise',
-        5: '/enroll/proof-points',
-        6: '/enroll/proof-points',
-      };
-      const url = enrollUrls[currentStep] || '/enroll/registration';
-      navigate(url);
-    }
-  }, [isLoading, provider, currentStep, navigate, isTerminalState]);
-
-  const nextSteps = useMemo(() => {
-    // For terminal states, show completed view
-    if (isTerminalState) {
-      return [];
-    }
-
-    return [
-      {
-        step: 1,
-        title: 'Complete Registration',
-        description: 'Enter your basic profile details',
-        icon: UserCircle,
-        href: '/profile/build/registration',
-        completed: currentStep > 1,
-        locked: false,
-      },
-      {
-        step: 2,
-        title: 'Choose Participation Mode',
-        description: 'Select how you want to engage with clients',
-        icon: Target,
-        href: '/profile/build/choose-mode',
-        completed: currentStep > 2,
-        locked: currentStep < 2,
-      },
-      {
-        step: 3,
-        title: 'Select Expertise Level',
-        description: 'Define your experience level',
-        icon: GraduationCap,
-        href: '/profile/build/expertise',
-        completed: currentStep > 4,
-        locked: currentStep < 4,
-      },
-      {
-        step: 4,
-        title: 'Add Proof Points',
-        description: 'Showcase your work and achievements',
-        icon: Award,
-        href: '/profile/build/proof-points',
-        completed: provider?.onboarding_status === 'completed',
-        locked: currentStep < 6,
-      },
-    ];
-  }, [currentStep, provider?.onboarding_status, isTerminalState]);
-
-  const getLifecycleStatusLabel = () => {
-    if (!provider) return 'New';
-    switch (provider.lifecycle_status) {
-      case 'registered': return 'Registered';
-      case 'enrolled': return 'Enrolled';
-      case 'mode_selected': return 'Mode Selected';
-      case 'org_info_pending': return 'Org Info Pending';
-      case 'org_validated': return 'Org Validated';
-      case 'expertise_selected': return 'Expertise Selected';
-      case 'proof_points_started': return 'Adding Proof Points';
-      case 'proof_points_min_met': return 'Proof Points Added';
-      case 'profile_building': return 'Building Profile';
-      case 'assessment_pending': return 'Assessment Pending';
-      case 'assessment_in_progress': return 'Assessment In Progress';
-      case 'assessment_passed': return 'Assessment Passed';
-      case 'assessment_completed': return 'Assessment Complete';
-      case 'panel_scheduled': return 'Panel Scheduled';
-      case 'panel_completed': return 'Panel Completed';
-      case 'verified': return 'Verified';
-      case 'certified': return 'Certified';
-      case 'not_verified': return 'Not Verified';
-      case 'active': return 'Active';
-      case 'suspended': return 'Suspended';
-      case 'inactive': return 'Inactive';
-      default: return provider.lifecycle_status;
-    }
-  };
-
-  const getStatusBadgeVariant = () => {
-    if (!provider) return 'secondary';
-    switch (provider.lifecycle_status) {
+  // Get badge variant for lifecycle status
+  const getStatusBadgeVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
+    switch (status) {
       case 'verified':
       case 'certified':
       case 'active':
@@ -180,9 +94,9 @@ export default function Dashboard() {
     }
   };
 
-  const getStatusIcon = () => {
-    if (!provider) return null;
-    switch (provider.lifecycle_status) {
+  // Get status icon
+  const getStatusIcon = (status: string) => {
+    switch (status) {
       case 'verified':
         return <ShieldCheck className="h-4 w-4" />;
       case 'certified':
@@ -194,7 +108,51 @@ export default function Dashboard() {
     }
   };
 
-  if (isLoading) {
+  const currentStep = calculateCurrentStep(provider);
+
+  // Redirect to enrollment wizard if onboarding not complete (and not terminal)
+  useEffect(() => {
+    if (!isLoading && provider && provider.onboarding_status !== 'completed' && !isProviderTerminal) {
+      const enrollUrls: Record<number, string> = {
+        1: '/enroll/registration',
+        2: '/enroll/participation-mode',
+        3: '/enroll/organization',
+        4: '/enroll/expertise',
+        5: '/enroll/proof-points',
+        6: '/enroll/proof-points',
+      };
+      const url = enrollUrls[currentStep] || '/enroll/registration';
+      navigate(url);
+    }
+  }, [isLoading, provider, currentStep, navigate, isProviderTerminal]);
+
+  // Handle enrollment switch
+  const handleEnrollmentSwitch = (enrollmentId: string) => {
+    setActiveEnrollment(enrollmentId);
+  };
+
+  // Navigate to enrollment step
+  const handleContinueEnrollment = (enrollmentId: string) => {
+    const enrollment = enrollments.find(e => e.id === enrollmentId);
+    if (enrollment) {
+      setActiveEnrollment(enrollmentId);
+      // Navigate based on enrollment lifecycle status
+      const status = enrollment.lifecycle_status;
+      if (status === 'enrolled' || status === 'registered') {
+        navigate('/enroll/participation-mode');
+      } else if (status === 'mode_selected' || status === 'org_info_pending' || status === 'org_validated') {
+        navigate('/enroll/expertise');
+      } else if (status === 'expertise_selected' || status === 'proof_points_started') {
+        navigate('/enroll/proof-points');
+      } else if (status === 'proof_points_min_met' || status === 'assessment_pending') {
+        navigate('/enroll/assessment');
+      } else {
+        navigate('/enroll/proof-points');
+      }
+    }
+  };
+
+  if (isLoading || enrollmentsLoading) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -203,6 +161,10 @@ export default function Dashboard() {
       </AppLayout>
     );
   }
+
+  // Check if we have multi-industry enrollments
+  const hasMultipleEnrollments = enrollments.length > 1;
+  const totalProofPoints = proofPoints.length;
 
   return (
     <AppLayout>
@@ -213,30 +175,163 @@ export default function Dashboard() {
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
               Welcome back, {firstName}! 👋
             </h1>
-            <p className="text-muted-foreground mt-1">Here's your profile overview</p>
+            <p className="text-muted-foreground mt-1">
+              {hasMultipleEnrollments 
+                ? `Managing ${enrollments.length} industry enrollments`
+                : 'Here\'s your profile overview'}
+            </p>
           </div>
-          {!isTerminalState && (
-            <Button onClick={() => navigate(getStepUrl(currentStep))}>
-              {currentStep === 1 ? 'Start Setup' : 'Continue Setup'}
+          {!isProviderTerminal && enrollments.length > 0 && (
+            <Button onClick={() => handleContinueEnrollment(activeEnrollment?.id || enrollments[0]?.id)}>
+              Continue Setup
               <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           )}
         </div>
 
-        {/* Terminal State Banner */}
-        {isTerminalState && (
-          <Card className={
-            provider?.lifecycle_status === 'verified' || provider?.lifecycle_status === 'certified'
-              ? 'bg-gradient-to-r from-green-500/10 via-green-500/5 to-green-500/10 border-green-500/30'
-              : 'bg-gradient-to-r from-red-500/10 via-red-500/5 to-red-500/10 border-red-500/30'
-          }>
-            <CardContent className="py-6 flex items-center justify-center gap-3">
-              {getStatusIcon()}
-              <span className="text-lg font-semibold">
-                {provider?.lifecycle_status === 'verified' && 'Your profile has been verified!'}
-                {provider?.lifecycle_status === 'certified' && 'Congratulations! You are certified!'}
-                {provider?.lifecycle_status === 'not_verified' && 'Your profile verification was unsuccessful.'}
-              </span>
+        {/* Multi-Industry Enrollments Overview */}
+        {enrollments.length > 0 && (
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Layers className="h-5 w-5" />
+                    Industry Enrollments
+                  </CardTitle>
+                  <CardDescription>
+                    {hasMultipleEnrollments 
+                      ? 'Track progress across your industry enrollments'
+                      : 'Your current industry enrollment progress'}
+                  </CardDescription>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => navigate('/enroll/registration')}
+                >
+                  <Factory className="mr-2 h-4 w-4" />
+                  Add Industry
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {enrollments.map((enrollment) => {
+                const progress = getEnrollmentProgress(enrollment.lifecycle_status);
+                const isActive = activeEnrollment?.id === enrollment.id;
+                const isTerminal = TERMINAL_STATUSES.includes(enrollment.lifecycle_status);
+                const industryProofPoints = proofPointsByIndustry[enrollment.industry_segment_id] || 0;
+
+                return (
+                  <div
+                    key={enrollment.id}
+                    className={`relative p-4 rounded-lg border transition-all cursor-pointer ${
+                      isActive 
+                        ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                        : 'hover:bg-muted/50'
+                    } ${isTerminal && enrollment.lifecycle_status !== 'not_verified' 
+                        ? 'border-green-500/30 bg-green-500/5' 
+                        : ''
+                    } ${enrollment.lifecycle_status === 'not_verified' 
+                        ? 'border-destructive/30 bg-destructive/5' 
+                        : ''
+                    }`}
+                    onClick={() => handleEnrollmentSwitch(enrollment.id)}
+                  >
+                    {/* Primary Badge */}
+                    {enrollment.is_primary && (
+                      <Badge 
+                        variant="outline" 
+                        className="absolute -top-2 right-4 bg-background text-xs"
+                      >
+                        Primary
+                      </Badge>
+                    )}
+
+                    <div className="flex items-start gap-4">
+                      {/* Industry Icon */}
+                      <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
+                        isTerminal && enrollment.lifecycle_status !== 'not_verified'
+                          ? 'bg-green-500/10 text-green-600'
+                          : enrollment.lifecycle_status === 'not_verified'
+                            ? 'bg-destructive/10 text-destructive'
+                            : isActive 
+                              ? 'bg-primary/10 text-primary' 
+                              : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {isTerminal ? getStatusIcon(enrollment.lifecycle_status) || <Building2 className="h-6 w-6" /> : <Building2 className="h-6 w-6" />}
+                      </div>
+
+                      {/* Content */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="font-semibold truncate">
+                            {enrollment.industry_segment?.name || 'Unknown Industry'}
+                          </h4>
+                          <Badge variant={getStatusBadgeVariant(enrollment.lifecycle_status)} className="gap-1">
+                            {getStatusIcon(enrollment.lifecycle_status)}
+                            {getStatusDisplayName(enrollment.lifecycle_status)}
+                          </Badge>
+                        </div>
+
+                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                          {enrollment.expertise_level && (
+                            <span className="flex items-center gap-1">
+                              <GraduationCap className="h-3 w-3" />
+                              {enrollment.expertise_level.name}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3 w-3" />
+                            {industryProofPoints} proof points
+                          </span>
+                        </div>
+
+                        {/* Progress Bar */}
+                        {!isTerminal && (
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between text-xs mb-1">
+                              <span className="text-muted-foreground">Progress</span>
+                              <span className="font-medium">{progress}%</span>
+                            </div>
+                            <Progress value={progress} className="h-2" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Button */}
+                      <div className="shrink-0">
+                        {isTerminal ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEnrollmentSwitch(enrollment.id);
+                              navigate('/profile');
+                            }}
+                          >
+                            View
+                            <ChevronRight className="ml-1 h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant={isActive ? 'default' : 'outline'}
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleContinueEnrollment(enrollment.id);
+                            }}
+                          >
+                            Continue
+                            <ChevronRight className="ml-1 h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </CardContent>
           </Card>
         )}
@@ -246,19 +341,34 @@ export default function Dashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
+                Industries
+              </CardTitle>
+              <Factory className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{enrollments.length}</div>
+              <p className="text-xs text-muted-foreground">
+                {enrollments.filter(e => TERMINAL_STATUSES.includes(e.lifecycle_status) && e.lifecycle_status !== 'not_verified').length} verified
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">
                 Profile Status
               </CardTitle>
               <User className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="flex items-center gap-2">
-                <Badge variant={getStatusBadgeVariant()} className="gap-1">
-                  {getStatusIcon()}
-                  {getLifecycleStatusLabel()}
+                <Badge variant={getStatusBadgeVariant(provider?.lifecycle_status || 'registered')} className="gap-1">
+                  {getStatusIcon(provider?.lifecycle_status || '')}
+                  {getStatusDisplayName(provider?.lifecycle_status || 'New')}
                 </Badge>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                {isTerminalState 
+                {isProviderTerminal 
                   ? 'Profile complete' 
                   : provider?.onboarding_status === 'completed' 
                     ? 'Profile complete' 
@@ -270,27 +380,14 @@ export default function Dashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Profile Completion
-              </CardTitle>
-              <CheckCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{profileCompletion}%</div>
-              <Progress value={profileCompletion} className="mt-2" />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Proof Points
+                Total Proof Points
               </CardTitle>
               <FileText className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{proofPoints.length}</div>
+              <div className="text-2xl font-bold">{totalProofPoints}</div>
               <p className="text-xs text-muted-foreground">
-                {proofPoints.length >= 2 ? 'Minimum met' : 'Add your evidence'}
+                Across all industries
               </p>
             </CardContent>
           </Card>
@@ -298,99 +395,59 @@ export default function Dashboard() {
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                {isTerminalState ? 'Lifecycle Stage' : 'Current Step'}
+                Active Enrollment
               </CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+              <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {isTerminalState ? 'Complete' : `${currentStep} of 6`}
+              <div className="text-lg font-bold truncate">
+                {activeEnrollment?.industry_segment?.name || 'None'}
               </div>
               <p className="text-xs text-muted-foreground">
-                {isTerminalState ? 'All steps done' : 'Steps completed'}
+                {activeEnrollment 
+                  ? getStatusDisplayName(activeEnrollment.lifecycle_status)
+                  : 'Select an industry'}
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Next Steps - Only show for non-terminal states */}
-        {!isTerminalState && nextSteps.length > 0 && (
+        {/* Empty State - No Enrollments */}
+        {enrollments.length === 0 && (
           <Card>
-            <CardHeader>
-              <CardTitle>Next Steps</CardTitle>
-              <CardDescription>Complete these steps to build your profile</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {nextSteps.map((step) => (
-                <div
-                  key={step.step}
-                  className={`flex items-center gap-4 p-4 rounded-lg border transition-colors ${
-                    step.locked
-                      ? 'bg-muted/30 opacity-60'
-                      : step.completed
-                      ? 'bg-green-500/5 border-green-500/20'
-                      : 'bg-muted/50 hover:bg-muted/80 cursor-pointer'
-                  }`}
-                  onClick={() => !step.locked && navigate(step.href)}
-                >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      step.completed
-                        ? 'bg-green-500/10 text-green-500'
-                        : step.locked
-                        ? 'bg-muted text-muted-foreground'
-                        : 'bg-primary/10 text-primary'
-                    }`}
-                  >
-                    {step.completed ? (
-                      <CheckCircle className="h-5 w-5" />
-                    ) : (
-                      <step.icon className="h-5 w-5" />
-                    )}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="font-medium truncate">{step.title}</h4>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {step.description}
-                    </p>
-                  </div>
-                  <Button
-                    size="sm"
-                    variant={step.locked ? 'outline' : 'default'}
-                    disabled={step.locked}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(step.href);
-                    }}
-                  >
-                    {step.locked ? 'Locked' : step.completed ? 'View' : 'Start'}
-                  </Button>
-                </div>
-              ))}
+            <CardContent className="py-12 text-center">
+              <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Industry Enrollments</h3>
+              <p className="text-muted-foreground mb-4">
+                Start by enrolling in your first industry to begin building your professional profile.
+              </p>
+              <Button onClick={() => navigate('/enroll/registration')}>
+                <Factory className="mr-2 h-4 w-4" />
+                Start Enrollment
+              </Button>
             </CardContent>
           </Card>
         )}
 
-        {/* Verified/Certified View */}
-        {isTerminalState && provider?.lifecycle_status !== 'not_verified' && (
+        {/* Quick Actions for Verified Users */}
+        {hasTerminalEnrollment && (
           <Card>
             <CardHeader>
-              <CardTitle>Your Profile</CardTitle>
-              <CardDescription>Your verified professional profile</CardDescription>
+              <CardTitle>Quick Actions</CardTitle>
+              <CardDescription>Manage your verified profile</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-lg bg-muted/50">
-                  <p className="text-sm text-muted-foreground">Full Name</p>
-                  <p className="font-medium">{provider?.first_name} {provider?.last_name}</p>
-                </div>
-                <div className="p-4 rounded-lg bg-muted/50">
-                  <p className="text-sm text-muted-foreground">Proof Points</p>
-                  <p className="font-medium">{proofPoints.length} added</p>
-                </div>
-              </div>
-              <Button variant="outline" onClick={() => navigate('/profile')}>
-                View Full Profile
+            <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <Button variant="outline" className="justify-start" onClick={() => navigate('/profile')}>
+                <UserCircle className="mr-2 h-4 w-4" />
+                View Profile
+              </Button>
+              <Button variant="outline" className="justify-start" onClick={() => navigate('/enroll/proof-points')}>
+                <Award className="mr-2 h-4 w-4" />
+                Manage Proof Points
+              </Button>
+              <Button variant="outline" className="justify-start" onClick={() => navigate('/enroll/registration')}>
+                <Factory className="mr-2 h-4 w-4" />
+                Add New Industry
               </Button>
             </CardContent>
           </Card>
