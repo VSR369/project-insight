@@ -226,7 +226,7 @@ export default function Dashboard() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => navigate('/enroll/registration')}
+                  onClick={() => navigate('/enroll/registration?mode=add-industry')}
                 >
                   <Factory className="mr-2 h-4 w-4" />
                   Add Industry
@@ -485,7 +485,7 @@ export default function Dashboard() {
                 <Award className="mr-2 h-4 w-4" />
                 Manage Proof Points
               </Button>
-              <Button variant="outline" className="justify-start" onClick={() => navigate('/enroll/registration')}>
+              <Button variant="outline" className="justify-start" onClick={() => navigate('/enroll/registration?mode=add-industry')}>
                 <Factory className="mr-2 h-4 w-4" />
                 Add New Industry
               </Button>
