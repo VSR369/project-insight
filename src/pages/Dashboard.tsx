@@ -7,7 +7,7 @@ import { useProviderEnrollments, useActiveEnrollment, useSetPrimaryEnrollment, u
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
-import { AppLayout } from '@/components/layout';
+import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -315,14 +315,14 @@ export default function Dashboard() {
                           </span>
                         </div>
 
-                        {/* Progress Bar */}
+                        {/* Lifecycle Progress Indicator */}
                         {!isTerminal && (
                           <div className="mt-3">
-                            <div className="flex items-center justify-between text-xs mb-1">
-                              <span className="text-muted-foreground">Progress</span>
-                              <span className="font-medium">{progress}%</span>
-                            </div>
-                            <Progress value={progress} className="h-2" />
+                            <LifecycleProgressIndicator
+                              currentStatus={enrollment.lifecycle_status}
+                              currentRank={enrollment.lifecycle_rank}
+                              className="justify-start"
+                            />
                           </div>
                         )}
                       </div>
