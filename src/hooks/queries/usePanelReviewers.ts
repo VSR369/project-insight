@@ -345,3 +345,54 @@ export function useCancelReviewerInvitation() {
     },
   });
 }
+
+interface DeleteReviewerData {
+  reviewer_id: string;
+  reason?: string; // Required if invitation was ACCEPTED
+}
+
+/**
+ * Permanently delete a panel reviewer via edge function
+ * Sends regret email if the reviewer was ACCEPTED
+ */
+export function useDeletePanelReviewer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: DeleteReviewerData) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("delete-panel-reviewer", {
+        body: data,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Failed to delete reviewer");
+      }
+
+      return response.data;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["panel-reviewers"] });
+      if (result.was_accepted) {
+        toast.success("Reviewer deleted and notification email sent");
+      } else {
+        toast.success("Reviewer permanently deleted");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to delete reviewer: ${error.message}`);
+    },
+  });
+}

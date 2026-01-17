@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.cancel-reviewer-invitation]
 verify_jwt = false
+
+[functions.delete-panel-reviewer]
+verify_jwt = false
