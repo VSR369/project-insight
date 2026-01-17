@@ -17,36 +17,43 @@ export type Database = {
       academic_disciplines: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
       academic_streams: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           discipline_id: string
           display_order: number | null
@@ -54,9 +61,11 @@ export type Database = {
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           discipline_id: string
           display_order?: number | null
@@ -64,9 +73,11 @@ export type Database = {
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           discipline_id?: string
           display_order?: number | null
@@ -74,6 +85,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -88,6 +100,7 @@ export type Database = {
       academic_subjects: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
@@ -95,9 +108,11 @@ export type Database = {
           name: string
           stream_id: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -105,9 +120,11 @@ export type Database = {
           name: string
           stream_id: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -115,6 +132,7 @@ export type Database = {
           name?: string
           stream_id?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -266,30 +284,36 @@ export type Database = {
       capability_tags: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -297,38 +321,45 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          created_by: string | null
           display_order: number | null
           id: string
           is_active: boolean
           name: string
           phone_code: string | null
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          created_by?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name: string
           phone_code?: string | null
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          created_by?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name?: string
           phone_code?: string | null
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
       expertise_levels: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           id: string
           is_active: boolean
@@ -337,9 +368,11 @@ export type Database = {
           min_years: number
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
@@ -348,9 +381,11 @@ export type Database = {
           min_years: number
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           id?: string
           is_active?: boolean
@@ -359,6 +394,7 @@ export type Database = {
           min_years?: number
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -366,53 +402,68 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
       level_speciality_map: {
         Row: {
           created_at: string
+          created_by: string | null
           expertise_level_id: string
           id: string
           speciality_id: string
+          updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           expertise_level_id: string
           id?: string
           speciality_id: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           expertise_level_id?: string
           id?: string
           speciality_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -474,32 +525,38 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
@@ -507,6 +564,7 @@ export type Database = {
         Row: {
           code: string
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
@@ -514,10 +572,12 @@ export type Database = {
           name: string
           requires_org_info: boolean
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           code: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -525,10 +585,12 @@ export type Database = {
           name: string
           requires_org_info?: boolean
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           code?: string
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -536,12 +598,14 @@ export type Database = {
           name?: string
           requires_org_info?: boolean
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: []
       }
       proficiency_areas: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           expertise_level_id: string
@@ -550,9 +614,11 @@ export type Database = {
           is_active: boolean
           name: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           expertise_level_id: string
@@ -561,9 +627,11 @@ export type Database = {
           is_active?: boolean
           name: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           expertise_level_id?: string
@@ -572,6 +640,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -1275,6 +1344,7 @@ export type Database = {
       specialities: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
@@ -1282,9 +1352,11 @@ export type Database = {
           name: string
           sub_domain_id: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1292,9 +1364,11 @@ export type Database = {
           name: string
           sub_domain_id: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1302,6 +1376,7 @@ export type Database = {
           name?: string
           sub_domain_id?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
@@ -1381,6 +1456,7 @@ export type Database = {
       sub_domains: {
         Row: {
           created_at: string
+          created_by: string | null
           description: string | null
           display_order: number | null
           id: string
@@ -1388,9 +1464,11 @@ export type Database = {
           name: string
           proficiency_area_id: string
           updated_at: string | null
+          updated_by: string | null
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1398,9 +1476,11 @@ export type Database = {
           name: string
           proficiency_area_id: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1408,6 +1488,7 @@ export type Database = {
           name?: string
           proficiency_area_id?: string
           updated_at?: string | null
+          updated_by?: string | null
         }
         Relationships: [
           {
