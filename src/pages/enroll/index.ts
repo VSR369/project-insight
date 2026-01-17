@@ -1,3 +1,4 @@
+// Enrollment wizard page exports
 export { default as EnrollRegistration } from './Registration';
 export { default as EnrollParticipationMode } from './ParticipationMode';
 export { default as EnrollOrganization } from './Organization';
