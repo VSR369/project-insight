@@ -37,13 +37,14 @@ import {
   useRestorePanelReviewer,
   useSendReviewerInvitation,
   useCancelReviewerInvitation,
+  useDeletePanelReviewer,
   PanelReviewer,
 } from "@/hooks/queries/usePanelReviewers";
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { MasterDataViewDialog } from "@/components/admin/MasterDataViewDialog";
-import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { CancelInvitationDialog } from "./CancelInvitationDialog";
+import { DeleteReviewerDialog } from "./DeleteReviewerDialog";
 
 // Status badge colors
 const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -83,6 +84,7 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
   const restore = useRestorePanelReviewer();
   const resendInvitation = useSendReviewerInvitation();
   const cancelInvitation = useCancelReviewerInvitation();
+  const deleteReviewer = useDeletePanelReviewer();
 
   // Create lookup maps
   const levelMap = useMemo(() => {
@@ -320,16 +322,18 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
         fields={viewFields}
       />
 
-      {/* Delete Confirmation */}
-      <DeleteConfirmDialog
+      {/* Delete Confirmation Dialog */}
+      <DeleteReviewerDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
-        title="Delete Panel Reviewer"
-        description={`Are you sure you want to delete ${selectedReviewer?.name}? This will also remove their associated auth user account.`}
-        onConfirm={async () => {
-          // For now, just deactivate (soft delete)
+        reviewer={selectedReviewer}
+        isLoading={deleteReviewer.isPending}
+        onConfirm={async (reason) => {
           if (selectedReviewer) {
-            await deactivate.mutateAsync(selectedReviewer.id);
+            await deleteReviewer.mutateAsync({
+              reviewer_id: selectedReviewer.id,
+              reason,
+            });
           }
           setDeleteDialogOpen(false);
           setSelectedReviewer(null);
