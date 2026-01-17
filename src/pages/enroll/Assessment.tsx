@@ -9,6 +9,8 @@ import {
   useActiveEnrollmentAssessmentAttempt,
   useActiveAssessmentAcrossEnrollments,
   useEnrollmentIsTerminal,
+  useRetakeEligibility,
+  useStartRetakeAssessment,
 } from '@/hooks/queries/useEnrollmentAssessment';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -26,7 +28,9 @@ import {
   PlayCircle,
   Shield,
   AlertCircle,
-  ArrowRight
+  ArrowRight,
+  RotateCcw,
+  CalendarClock
 } from 'lucide-react';
 
 function AssessmentContent() {
@@ -49,7 +53,13 @@ function AssessmentContent() {
   );
   const { data: activeAttempt } = useActiveEnrollmentAssessmentAttempt(activeEnrollmentId ?? undefined);
   const { data: activeAssessmentElsewhere } = useActiveAssessmentAcrossEnrollments(provider?.id);
+  const { data: retakeEligibility, isLoading: retakeLoading } = useRetakeEligibility(
+    activeEnrollmentId ?? undefined,
+    provider?.id
+  );
+  
   const startAssessment = useStartEnrollmentAssessment();
+  const startRetake = useStartRetakeAssessment();
   
   // Lifecycle validation scoped to enrollment
   const { data: terminalState } = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
@@ -85,6 +95,30 @@ function AssessmentContent() {
     }
   };
 
+  const handleRetakeAssessment = async () => {
+    if (!provider?.id || !activeEnrollmentId || !activeEnrollment) return;
+
+    const industrySegmentId = activeEnrollment.industry_segment_id;
+    const expertiseLevelId = activeEnrollment.expertise_level_id;
+
+    if (!industrySegmentId || !expertiseLevelId) {
+      return;
+    }
+
+    const result = await startRetake.mutateAsync({
+      enrollmentId: activeEnrollmentId,
+      providerId: provider.id,
+      industrySegmentId,
+      expertiseLevelId,
+      questionsCount: 20,
+      timeLimitMinutes: 60,
+    });
+
+    if (result.success) {
+      navigate('/enroll/assessment/take');
+    }
+  };
+
   const handleContinueAssessment = () => {
     navigate('/enroll/assessment/take');
   };
@@ -96,7 +130,7 @@ function AssessmentContent() {
     }
   };
 
-  const isLoading = providerLoading || canStartLoading || enrollmentLoading;
+  const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading;
 
   if (isLoading) {
     return (
@@ -132,6 +166,16 @@ function AssessmentContent() {
   const isInAssessment = enrollmentStatus === 'assessment_in_progress';
   const hasPassedAssessment = enrollmentStatus === 'assessment_passed';
   const hasCompletedAssessment = enrollmentStatus === 'assessment_completed';
+
+  // Format date helper
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
 
   return (
     <WizardLayout
@@ -194,14 +238,51 @@ function AssessmentContent() {
           </Alert>
         )}
 
-        {/* Assessment Completed (not passed) */}
-        {hasCompletedAssessment && (
+        {/* Assessment Completed (not passed) - Retake Available */}
+        {hasCompletedAssessment && retakeEligibility?.canRetake && (
           <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
-            <AlertTriangle className="h-4 w-4 text-amber-600" />
-            <AlertTitle className="text-amber-800 dark:text-amber-400">Assessment Completed</AlertTitle>
+            <RotateCcw className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-400">Ready for Another Attempt</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300">
-              You've completed the assessment but didn't reach the passing threshold. 
-              Contact support for next steps.
+              <p className="mb-2">
+                You have <strong>{retakeEligibility.attemptsRemaining}</strong> of {retakeEligibility.maxAttempts} attempts 
+                remaining in the current 90-day window.
+              </p>
+              {retakeEligibility.windowEndDate && (
+                <p className="text-sm opacity-80">
+                  Window expires: {formatDate(retakeEligibility.windowEndDate)}
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Assessment Completed - In Cooling Off Period */}
+        {hasCompletedAssessment && retakeEligibility?.isInCoolingOff && (
+          <Alert className="bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800">
+            <CalendarClock className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800 dark:text-red-400">Assessment Temporarily Locked</AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-300">
+              <p className="mb-2">
+                You have used all {retakeEligibility.maxAttempts} attempts within the 90-day window. 
+                The assessment is locked until <strong>{formatDate(retakeEligibility.lockedUntilDate)}</strong>.
+              </p>
+              {retakeEligibility.daysUntilUnlock && (
+                <p className="text-sm opacity-80">
+                  {retakeEligibility.daysUntilUnlock} days remaining in cooling-off period.
+                </p>
+              )}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Assessment Completed - Max Attempts (not in cooling off, past all windows) */}
+        {hasCompletedAssessment && !retakeEligibility?.canRetake && !retakeEligibility?.isInCoolingOff && (
+          <Alert className="bg-gray-50 border-gray-200 dark:bg-gray-950/20 dark:border-gray-800">
+            <AlertCircle className="h-4 w-4 text-gray-600" />
+            <AlertTitle className="text-gray-800 dark:text-gray-400">Assessment Status</AlertTitle>
+            <AlertDescription className="text-gray-700 dark:text-gray-300">
+              {retakeEligibility?.reason || 'Contact support for next steps.'}
             </AlertDescription>
           </Alert>
         )}
@@ -270,6 +351,16 @@ function AssessmentContent() {
                   <PlayCircle className="h-5 w-5 text-primary" />
                   Assessment In Progress
                 </>
+              ) : hasCompletedAssessment && retakeEligibility?.canRetake ? (
+                <>
+                  <RotateCcw className="h-5 w-5 text-primary" />
+                  Retake Available
+                </>
+              ) : hasCompletedAssessment && !retakeEligibility?.canRetake ? (
+                <>
+                  <Lock className="h-5 w-5 text-muted-foreground" />
+                  Assessment Locked
+                </>
               ) : (
                 <>
                   <ClipboardCheck className="h-5 w-5 text-primary" />
@@ -280,6 +371,12 @@ function AssessmentContent() {
             <CardDescription>
               {isInAssessment 
                 ? 'You have an active assessment. Continue where you left off.'
+                : hasCompletedAssessment && retakeEligibility?.canRetake
+                ? `You can retake the assessment. ${retakeEligibility.attemptsRemaining} attempt(s) remaining.`
+                : hasCompletedAssessment && !retakeEligibility?.canRetake
+                ? retakeEligibility?.isInCoolingOff 
+                  ? `Assessment will unlock on ${formatDate(retakeEligibility.lockedUntilDate)}`
+                  : 'Review your results below or contact support.'
                 : 'Review the information above before starting your assessment.'
               }
             </CardDescription>
@@ -294,6 +391,26 @@ function AssessmentContent() {
                   <Badge variant="secondary">Proficiency Areas</Badge>
                   <Badge variant="secondary">Specialities</Badge>
                 </div>
+              </div>
+            )}
+
+            {/* Retake Info */}
+            {hasCompletedAssessment && retakeEligibility && (
+              <div className={`rounded-lg p-4 ${retakeEligibility.canRetake ? 'bg-amber-50 dark:bg-amber-900/20' : 'bg-muted/50'}`}>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="font-medium">Attempts Used</span>
+                  <span className={retakeEligibility.canRetake ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground'}>
+                    {retakeEligibility.attemptsUsed} / {retakeEligibility.maxAttempts}
+                  </span>
+                </div>
+                {retakeEligibility.isInCoolingOff && retakeEligibility.daysUntilUnlock && (
+                  <div className="flex items-center justify-between text-sm mt-2">
+                    <span className="font-medium">Days Until Unlock</span>
+                    <span className="text-red-600 dark:text-red-400">
+                      {retakeEligibility.daysUntilUnlock} days
+                    </span>
+                  </div>
+                )}
               </div>
             )}
 
@@ -330,7 +447,39 @@ function AssessmentContent() {
                   <ArrowRight className="mr-2 h-4 w-4" />
                   Go to Active Assessment
                 </Button>
-              ) : !hasPassedAssessment && !hasCompletedAssessment ? (
+              ) : hasCompletedAssessment && retakeEligibility?.canRetake ? (
+                <Button 
+                  onClick={handleRetakeAssessment}
+                  className="flex-1"
+                  size="lg"
+                  disabled={startRetake.isPending}
+                >
+                  {startRetake.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Starting Retake...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="mr-2 h-4 w-4" />
+                      Retake Assessment ({retakeEligibility.attemptsRemaining} left)
+                    </>
+                  )}
+                </Button>
+              ) : hasCompletedAssessment && !retakeEligibility?.canRetake ? (
+                <Button 
+                  variant="outline" 
+                  size="lg" 
+                  disabled 
+                  className="flex-1"
+                >
+                  <Lock className="mr-2 h-4 w-4" />
+                  {retakeEligibility?.isInCoolingOff 
+                    ? `Locked Until ${formatDate(retakeEligibility.lockedUntilDate)}`
+                    : 'Assessment Locked'
+                  }
+                </Button>
+              ) : !hasPassedAssessment ? (
                 <Button 
                   onClick={handleStartAssessment}
                   className="flex-1"
@@ -361,7 +510,7 @@ function AssessmentContent() {
             </div>
 
             {/* Cannot Start Reason */}
-            {!canStart?.allowed && canStart?.reason && !isInAssessment && !hasAssessmentElsewhere && (
+            {!canStart?.allowed && canStart?.reason && !isInAssessment && !hasAssessmentElsewhere && !hasCompletedAssessment && (
               <p className="text-sm text-muted-foreground text-center">
                 {canStart.reason}
               </p>
@@ -395,6 +544,10 @@ function AssessmentContent() {
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 Complete one industry assessment before starting another
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                You have up to 3 attempts within a 90-day window
               </li>
             </ul>
           </CardContent>

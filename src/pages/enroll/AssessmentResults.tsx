@@ -10,7 +10,9 @@ import {
   Calendar,
   RotateCcw,
   Home,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Loader2 as Loader
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,6 +23,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useRetakeEligibility, useStartRetakeAssessment } from '@/hooks/queries/useEnrollmentAssessment';
 
 interface AssessmentResult {
   id: string;
@@ -53,12 +58,21 @@ interface AreaBreakdown {
   percentage: number;
 }
 
-const PASSING_SCORE = 50;
+const PASSING_SCORE = 70;
 
 export default function AssessmentResults() {
   const navigate = useNavigate();
   const location = useLocation();
   const attemptId = location.state?.attemptId;
+
+  // Enrollment context for retake
+  const { activeEnrollmentId, activeEnrollment } = useEnrollmentContext();
+  const { data: provider } = useCurrentProvider();
+  const { data: retakeEligibility, isLoading: retakeLoading } = useRetakeEligibility(
+    activeEnrollmentId ?? undefined,
+    provider?.id
+  );
+  const startRetake = useStartRetakeAssessment();
 
   const [result, setResult] = useState<AssessmentResult | null>(null);
   const [questions, setQuestions] = useState<QuestionResult[]>([]);
@@ -181,6 +195,44 @@ export default function AssessmentResults() {
     }
   };
 
+  const handleRetakeAssessment = async () => {
+    if (!provider?.id || !activeEnrollmentId || !activeEnrollment) {
+      navigate('/enroll/assessment');
+      return;
+    }
+
+    const industrySegmentId = activeEnrollment.industry_segment_id;
+    const expertiseLevelId = activeEnrollment.expertise_level_id;
+
+    if (!industrySegmentId || !expertiseLevelId) {
+      navigate('/enroll/assessment');
+      return;
+    }
+
+    const result = await startRetake.mutateAsync({
+      enrollmentId: activeEnrollmentId,
+      providerId: provider.id,
+      industrySegmentId,
+      expertiseLevelId,
+      questionsCount: 20,
+      timeLimitMinutes: 60,
+    });
+
+    if (result.success) {
+      navigate('/enroll/assessment/take');
+    }
+  };
+
+  // Format date helper
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -276,10 +328,21 @@ export default function AssessmentResults() {
                   You can now proceed to schedule your discussion with our panel.
                 </p>
               ) : (
-                <p className="text-red-800 dark:text-red-300">
-                  <strong>Unfortunately,</strong> your score did not meet the {PASSING_SCORE}% threshold required to proceed to the interview stage. 
-                  You have been marked as "Not Verified" for this attempt. Please review your declared expertise areas and try again.
-                </p>
+                <div className="text-red-800 dark:text-red-300">
+                  <p className="mb-2">
+                    <strong>Unfortunately,</strong> your score did not meet the {PASSING_SCORE}% threshold required to proceed. 
+                  </p>
+                  {retakeEligibility?.canRetake && (
+                    <p className="text-sm opacity-90">
+                      You have <strong>{retakeEligibility.attemptsRemaining}</strong> of {retakeEligibility.maxAttempts} retake attempts remaining.
+                    </p>
+                  )}
+                  {retakeEligibility?.isInCoolingOff && (
+                    <p className="text-sm opacity-90">
+                      Assessment locked until <strong>{formatDate(retakeEligibility.lockedUntilDate)}</strong>.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </CardContent>
@@ -300,10 +363,39 @@ export default function AssessmentResults() {
             </>
           ) : (
             <>
-              <Button variant="outline" size="lg" className="gap-2" onClick={() => navigate('/enroll/assessment')}>
-                <RotateCcw className="h-5 w-5" />
-                Retake Assessment
-              </Button>
+              {/* Retake button - conditional based on eligibility */}
+              {retakeLoading ? (
+                <Button variant="outline" size="lg" disabled className="gap-2">
+                  <Loader className="h-5 w-5 animate-spin" />
+                  Checking eligibility...
+                </Button>
+              ) : retakeEligibility?.canRetake ? (
+                <Button 
+                  size="lg" 
+                  className="gap-2" 
+                  onClick={handleRetakeAssessment}
+                  disabled={startRetake.isPending}
+                >
+                  {startRetake.isPending ? (
+                    <>
+                      <Loader className="h-5 w-5 animate-spin" />
+                      Starting Retake...
+                    </>
+                  ) : (
+                    <>
+                      <RotateCcw className="h-5 w-5" />
+                      Retake Assessment ({retakeEligibility.attemptsRemaining} left)
+                    </>
+                  )}
+                </Button>
+              ) : (
+                <Button variant="outline" size="lg" disabled className="gap-2">
+                  <Lock className="h-5 w-5" />
+                  {retakeEligibility?.isInCoolingOff 
+                    ? `Locked until ${formatDate(retakeEligibility?.lockedUntilDate)}`
+                    : 'Maximum Attempts Reached'}
+                </Button>
+              )}
               <Button variant="ghost" size="lg" onClick={() => navigate('/dashboard')}>
                 <Home className="h-4 w-4 mr-2" />
                 Exit to Dashboard
