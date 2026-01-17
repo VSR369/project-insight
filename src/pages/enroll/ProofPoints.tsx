@@ -142,11 +142,21 @@ function ProofPointsContent() {
     navigate('/enroll/assessment');
   };
 
+  // Check if expertise level is selected for this enrollment
+  const hasExpertiseSelected = activeEnrollment?.expertise_level_id != null;
+
   const handleAddProofPoint = () => {
     if (isContentLocked) {
       toast.error('Content modification is locked at this lifecycle stage.');
       return;
     }
+    
+    // Must have expertise selected before adding proof points
+    if (!hasExpertiseSelected) {
+      toast.info('Please select your expertise level first before adding proof points.');
+      return;
+    }
+    
     navigate('/enroll/proof-points/add');
   };
 
