@@ -1,14 +1,21 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Award, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
+import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -23,19 +30,36 @@ import { toast } from 'sonner';
 
 const DEFAULT_MINIMUM_REQUIRED = 2;
 
+type IndustryFilterMode = 'current' | 'all' | string; // string = specific segment ID
+
 function ProofPointsContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   
-  // Industry filter state
-  const [showAllIndustries, setShowAllIndustries] = useState(false);
+  // Fetch industry segments for the dropdown
+  const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments();
+  
+  // Industry filter state - default to 'current'
+  const [industryFilter, setIndustryFilter] = useState<IndustryFilterMode>('current');
+  
+  // Compute effective filter values
+  const { effectiveIndustryId, includeAllIndustries } = useMemo(() => {
+    if (industryFilter === 'all') {
+      return { effectiveIndustryId: undefined, includeAllIndustries: true };
+    }
+    if (industryFilter === 'current') {
+      return { effectiveIndustryId: provider?.industry_segment_id || undefined, includeAllIndustries: false };
+    }
+    // Specific segment ID selected
+    return { effectiveIndustryId: industryFilter, includeAllIndustries: false };
+  }, [industryFilter, provider?.industry_segment_id]);
   
   // Fetch proof points with industry filter
   const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(
     provider?.id,
     {
-      industrySegmentId: provider?.industry_segment_id || undefined,
-      includeAllIndustries: showAllIndustries,
+      industrySegmentId: effectiveIndustryId,
+      includeAllIndustries,
     }
   );
   const deleteProofPoint = useDeleteProofPoint();
@@ -52,6 +76,15 @@ function ProofPointsContent() {
   
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedProofPoint, setSelectedProofPoint] = useState<ProofPointWithCounts | null>(null);
+  
+  // Build industry name map for displaying on cards
+  const industryNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    industrySegments.forEach(seg => {
+      map[seg.id] = seg.name;
+    });
+    return map;
+  }, [industrySegments]);
 
   const currentCount = proofPoints.length;
   const minimumMet = currentCount >= minimumRequired;
@@ -221,16 +254,38 @@ function ProofPointsContent() {
               </Button>
             </div>
 
-            {/* Industry Filter Toggle */}
-            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
-              <Switch
-                id="show-all-industries"
-                checked={showAllIndustries}
-                onCheckedChange={setShowAllIndustries}
-              />
-              <Label htmlFor="show-all-industries" className="text-sm text-muted-foreground cursor-pointer">
-                Show proof points from all industries
+            {/* Industry Filter Dropdown */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <Label htmlFor="industry-filter" className="text-sm font-medium whitespace-nowrap">
+                Industry Segment:
               </Label>
+              <Select
+                value={industryFilter}
+                onValueChange={(value) => setIndustryFilter(value as IndustryFilterMode)}
+                disabled={segmentsLoading}
+              >
+                <SelectTrigger id="industry-filter" className="w-[280px] bg-background">
+                  <SelectValue placeholder="Select industry..." />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  <SelectItem value="current">
+                    Current Industry {provider?.industry_segment_id ? `(${industryNameMap[provider.industry_segment_id] || 'Selected'})` : ''}
+                  </SelectItem>
+                  <SelectItem value="all">All Industries</SelectItem>
+                  {industrySegments.length > 0 && (
+                    <>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
+                        Select specific industry:
+                      </div>
+                      {industrySegments.map((segment) => (
+                        <SelectItem key={segment.id} value={segment.id}>
+                          {segment.name}
+                        </SelectItem>
+                      ))}
+                    </>
+                  )}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -260,6 +315,7 @@ function ProofPointsContent() {
                   key={proof.id}
                   proofPoint={proof}
                   currentIndustryId={provider?.industry_segment_id || undefined}
+                  industryName={proof.industry_segment_id ? industryNameMap[proof.industry_segment_id] : undefined}
                   onView={handleView}
                   onEdit={isContentLocked ? undefined : handleEdit}
                   onDelete={isContentLocked || !canDelete ? undefined : handleDelete}
