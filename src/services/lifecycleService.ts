@@ -9,8 +9,8 @@
 export const LOCK_THRESHOLDS = {
   /** Configuration locked (Industry, Level, Specialities) - at assessment start */
   CONFIGURATION: 100,
-  /** Content locked (Registration, Proof Points) - at panel scheduled */
-  CONTENT: 120,
+  /** Content locked (Registration, Mode, Org, Proof Points) - at assessment start per plan */
+  CONTENT: 100,
   /** Everything frozen - at verification/terminal states */
   EVERYTHING: 140,
 } as const;
@@ -189,8 +189,12 @@ export function getCascadeImpact(
 /**
  * Check if step is locked based on lifecycle rank
  * 
+ * Step mapping (aligned with ENROLLMENT_STEPS in WizardLayout):
+ * 1 = Registration, 2 = Mode, 3 = Org, 4 = Expertise, 5 = Proof Points, 
+ * 6 = Assessment, 7 = Interview Slot, 8 = Panel, 9 = Certification
+ * 
  * @param stepId - Wizard step ID (1-9)
- * @param lifecycleRank - Current lifecycle rank
+ * @param lifecycleRank - Current lifecycle rank (from enrollment, NOT provider)
  * @returns boolean indicating if step is locked
  */
 export function isWizardStepLocked(stepId: number, lifecycleRank: number): boolean {
@@ -200,23 +204,23 @@ export function isWizardStepLocked(stepId: number, lifecycleRank: number): boole
   }
 
   switch (stepId) {
-    case 1: // Registration
+    case 1: // Registration - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-    case 2: // Participation Mode
+    case 2: // Participation Mode - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-    case 3: // Organization
+    case 3: // Organization - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-    case 4: // Expertise Level
+    case 4: // Expertise Level - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONFIGURATION;
-    case 5: // Proficiency
-      return lifecycleRank >= LOCK_THRESHOLDS.CONFIGURATION;
-    case 6: // Proof Points
+    case 5: // Proof Points - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-    case 7: // Assessment
+    case 6: // Assessment - locked at terminal states
       return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
-    case 8: // Panel
+    case 7: // Interview Slot - locked at terminal states
       return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
-    case 9: // Complete
+    case 8: // Panel Discussion - locked at terminal states
+      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
+    case 9: // Certification - locked at terminal states
       return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
     default:
       return false;

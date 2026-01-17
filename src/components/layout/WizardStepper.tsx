@@ -27,6 +27,7 @@ interface WizardStepperProps {
   nextAccessibleStep?: number;
   orgApprovalStatus?: OrgApprovalStatus; // Status for org step badge
   industryName?: string; // Current industry context
+  lifecycleStatus?: string | null; // Current lifecycle status for locked tooltip
   onStepClick?: (stepId: number) => void;
 }
 
@@ -41,8 +42,25 @@ export function WizardStepper({
   nextAccessibleStep,
   orgApprovalStatus,
   industryName,
+  lifecycleStatus,
   onStepClick,
 }: WizardStepperProps) {
+  // Helper to get display name for lifecycle status
+  const getStatusDisplayName = (status: string | null | undefined): string => {
+    if (!status) return 'this stage';
+    const displayNames: Record<string, string> = {
+      assessment_in_progress: 'Assessment In Progress',
+      assessment_completed: 'Assessment Completed',
+      assessment_passed: 'Assessment Passed',
+      panel_scheduled: 'Panel Scheduled',
+      panel_completed: 'Panel Completed',
+      verified: 'Verified',
+      certified: 'Certified',
+      not_verified: 'Not Verified',
+    };
+    return displayNames[status] || status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+  
   // Helper to render approval status badge for org step (step 3)
   const renderApprovalBadge = (stepId: number) => {
     if (stepId !== 3 || !orgApprovalStatus) return null;
@@ -178,8 +196,11 @@ export function WizardStepper({
                       <TooltipTrigger asChild>
                         {stepCircle}
                       </TooltipTrigger>
-                      <TooltipContent side="bottom" className="max-w-[200px] text-center">
-                        <p className="text-xs">This step is locked and cannot be modified</p>
+                      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                        <p className="text-xs font-medium">Locked at This Stage</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          This step cannot be modified because your enrollment is in "{getStatusDisplayName(lifecycleStatus)}" stage.
+                        </p>
                       </TooltipContent>
                     </Tooltip>
                   ) : isBlocked ? (
