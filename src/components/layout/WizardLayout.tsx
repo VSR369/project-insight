@@ -219,24 +219,13 @@ export function WizardLayout({
     return maxCompleted + 1;
   }, [completedSteps]);
 
-  // Check if a step is accessible (all preceding visible steps must be complete)
+  // Check if a step is accessible - ALL visible steps are always accessible (free navigation)
   const isStepAccessible = useMemo(() => {
     return (stepId: number): boolean => {
-      if (stepId === currentStep) return true;
-      
-      const visibleStepIds = visibleSteps.map(s => s.id);
-      const stepIndex = visibleStepIds.indexOf(stepId);
-      if (stepIndex === -1) return false;
-      
-      // Check all preceding visible steps are completed
-      for (let i = 0; i < stepIndex; i++) {
-        if (!completedSteps.includes(visibleStepIds[i])) {
-          return false; // A preceding step is incomplete
-        }
-      }
-      return true;
+      // All visible steps are always accessible - navigation is free
+      return visibleSteps.some(s => s.id === stepId);
     };
-  }, [visibleSteps, completedSteps, currentStep]);
+  }, [visibleSteps]);
 
   // Compute accessible steps array
   const accessibleSteps = useMemo(() => {
@@ -261,51 +250,14 @@ export function WizardLayout({
   }, [isOrgRequired, provider?.organization, orgApprovalStatus]);
 
   const handleStepClick = (stepId: number) => {
-    // Block navigation to step 2 (Mode) if pending approval
+    // Block navigation to step 2 (Mode) ONLY if pending approval exists
+    // This is the only true navigation block - prevents changing mode while approval is pending
     if (stepId === 2 && isModeStepBlocked) {
       setShowBlockedDialog(true);
       return;
     }
     
-    // Special case: org_rep mode selected but org details incomplete
-    // Block access to steps after org (step 4+) and show contextual dialog
-    if (isOrgRequired && isOrgIncomplete && stepId > 3) {
-      // Differentiate between "pending approval" vs "not submitted"
-      if (orgApprovalStatus === 'pending') {
-        // Manager approval is pending - show specific message
-        setShowApprovalPendingDialog(true);
-      } else {
-        // Org details not complete or other status - show generic message
-        setShowOrgRequiredDialog(true);
-      }
-      return; // Don't navigate
-    }
-    
-    // Special case: Expertise level selected but no proficiency areas
-    // Block access to Proof Points (step 5+) and show proficiency required dialog
-    if (stepId >= 5 && provider?.expertise_level_id && 
-        (!providerProficiencyAreas || providerProficiencyAreas.length === 0)) {
-      setShowProficiencyRequiredDialog(true);
-      return; // Don't navigate
-    }
-    
-    // Check if step is accessible (all preceding steps complete)
-    if (!isStepAccessible(stepId)) {
-      // Only show popup for COMPLETED steps that are blocked by an earlier incomplete step
-      // Gray (not started) steps just do nothing
-      if (completedSteps.includes(stepId)) {
-        const blockingStep = visibleSteps.find(s => 
-          !completedSteps.includes(s.id) && s.id < stepId
-        );
-        if (blockingStep) {
-          setBlockingStepTitle(blockingStep.title.toLowerCase());
-          setBlockingStepId(blockingStep.id);
-          setShowNavigationBlockDialog(true);
-        }
-      }
-      return; // Don't navigate
-    }
-    
+    // All other navigation is FREE - navigate to any visible step
     if (STEP_ROUTES[stepId]) {
       navigate(STEP_ROUTES[stepId]);
     }
