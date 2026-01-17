@@ -3,6 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { canModifyField } from '@/services/lifecycleService';
+import { withCreatedBy, withUpdatedBy, getCurrentUserId } from '@/lib/auditFields';
 
 type ProofPoint = Database['public']['Tables']['proof_points']['Row'];
 type ProofPointInsert = Database['public']['Tables']['proof_points']['Insert'];
@@ -188,17 +189,18 @@ export function useCreateProofPoint() {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
 
-      // Insert proof point
+      // Insert proof point with audit fields
+      const proofPointData = await withCreatedBy({
+        provider_id: input.providerId,
+        category: input.category,
+        type: input.type,
+        title: input.title,
+        description: input.description,
+      });
+      
       const { data: proofPoint, error: proofPointError } = await supabase
         .from('proof_points')
-        .insert({
-          provider_id: input.providerId,
-          category: input.category,
-          type: input.type,
-          title: input.title,
-          description: input.description,
-          created_by: (await supabase.auth.getUser()).data.user?.id,
-        })
+        .insert(proofPointData)
         .select()
         .single();
 
@@ -261,14 +263,15 @@ export function useUpdateProofPoint() {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
 
-      // Update proof point
+      // Update proof point with audit fields
+      const updateDataWithAudit = await withUpdatedBy({
+        ...updateData,
+        updated_at: new Date().toISOString(),
+      });
+      
       const { error: updateError } = await supabase
         .from('proof_points')
-        .update({
-          ...updateData,
-          updated_by: (await supabase.auth.getUser()).data.user?.id,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateDataWithAudit)
         .eq('id', id);
 
       if (updateError) throw updateError;
@@ -338,14 +341,14 @@ export function useDeleteProofPoint() {
         throw new Error('Minimum 2 proof points required.');
       }
 
-      const user = (await supabase.auth.getUser()).data.user;
+      const userId = await getCurrentUserId();
       
       const { error } = await supabase
         .from('proof_points')
         .update({
           is_deleted: true,
           deleted_at: new Date().toISOString(),
-          deleted_by: user?.id,
+          deleted_by: userId,
         })
         .eq('id', id);
 
