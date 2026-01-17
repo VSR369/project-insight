@@ -2,8 +2,10 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
-import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
-import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useUpdateEnrollmentParticipationMode } from '@/hooks/queries/useEnrollmentParticipationMode';
+import { useEnrollmentCanModifyField, useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,21 +25,23 @@ function ParticipationModeContent() {
   const navigate = useNavigate();
   const { data: modes, isLoading: modesLoading } = useParticipationModes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const updateMode = useUpdateProviderMode();
+  const { activeEnrollment, activeEnrollmentId, isLoading: enrollmentLoading } = useEnrollmentContext();
+  const updateMode = useUpdateEnrollmentParticipationMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
 
-  // Lifecycle validation
-  const configurationCheck = useCanModifyField('configuration');
-  const terminalState = useIsTerminalState();
+  // CRITICAL: Use ENROLLMENT-scoped lifecycle validation
+  const configurationCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'configuration');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
   const isLocked = !configurationCheck.allowed || isTerminal;
 
   // Check if there's a pending approval - redirect back to pending page
+  // CRITICAL: Use ENROLLMENT organization, not provider organization
   const hasPendingApproval = useMemo(() => {
-    if (!provider?.organization) return false;
-    const status = (provider.organization as any)?.approval_status;
+    if (!activeEnrollment?.organization) return false;
+    const status = (activeEnrollment.organization as any)?.approval_status;
     return status === 'pending';
-  }, [provider?.organization]);
+  }, [activeEnrollment?.organization]);
 
   // Redirect if pending approval exists
   useEffect(() => {
@@ -47,33 +51,34 @@ function ParticipationModeContent() {
     }
   }, [hasPendingApproval, navigate]);
 
+  // CRITICAL: Read from ENROLLMENT participation_mode_id, not provider
   useEffect(() => {
-    if (provider?.participation_mode_id) {
-      setSelectedMode(provider.participation_mode_id);
+    if (activeEnrollment?.participation_mode_id) {
+      setSelectedMode(activeEnrollment.participation_mode_id);
     }
-  }, [provider?.participation_mode_id]);
+  }, [activeEnrollment?.participation_mode_id]);
 
   const handleBack = () => {
     navigate('/enroll/registration');
   };
 
-  // Persist mode immediately on selection for proper navigation guards
+  // Persist mode immediately on selection to ENROLLMENT, not provider
   const handleModeChange = async (modeId: string) => {
-    if (isLocked || updateMode.isPending) return;
+    if (isLocked || updateMode.isPending || !activeEnrollmentId) return;
     
     // Optimistic UI update
     setSelectedMode(modeId);
     
-    // Only persist if provider exists and mode actually changed
-    if (provider?.id && modeId !== provider.participation_mode_id) {
+    // Only persist if enrollment exists and mode actually changed
+    if (activeEnrollmentId && modeId !== activeEnrollment?.participation_mode_id) {
       try {
         await updateMode.mutateAsync({
-          providerId: provider.id,
+          enrollmentId: activeEnrollmentId,
           participationModeId: modeId,
         });
       } catch {
         // Rollback on error
-        setSelectedMode(provider.participation_mode_id || '');
+        setSelectedMode(activeEnrollment?.participation_mode_id || '');
         toast.error('Failed to save mode selection');
       }
     }
@@ -94,7 +99,7 @@ function ParticipationModeContent() {
     }
   };
 
-  if (modesLoading || providerLoading) {
+  if (modesLoading || providerLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={2} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">

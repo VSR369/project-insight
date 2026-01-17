@@ -99,16 +99,16 @@ export function WizardLayout({
   const [blockingStepTitle, setBlockingStepTitle] = useState('');
   const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
-  // Determine if org step is required based on selected participation mode
+  // CRITICAL: Use ENROLLMENT-scoped participation mode for org requirement check
   // KEY FIX: If no mode is selected, default to FALSE (hide org step until mode chosen)
   const isOrgRequired = useMemo(() => {
     // No mode selected yet = org step not applicable
-    if (!provider?.participation_mode_id) return false;
+    if (!activeEnrollment?.participation_mode_id) return false;
     // Modes not loaded yet = wait (show loading or safe default)
     if (!participationModes) return false;
-    const selectedMode = participationModes.find(m => m.id === provider.participation_mode_id);
+    const selectedMode = participationModes.find(m => m.id === activeEnrollment.participation_mode_id);
     return selectedMode?.requires_org_info ?? false;
-  }, [provider?.participation_mode_id, participationModes]);
+  }, [activeEnrollment?.participation_mode_id, participationModes]);
 
   // Filter visible steps - hide Organization step when not required
   const visibleSteps = useMemo(() => {
@@ -118,23 +118,24 @@ export function WizardLayout({
     return ENROLLMENT_STEPS;
   }, [isOrgRequired]);
 
-  // Check if mode step (step 2) is blocked due to pending approval
+  // CRITICAL: Check if mode step (step 2) is blocked due to pending approval
+  // Use ENROLLMENT organization, not provider organization
   const isModeStepBlocked = useMemo(() => {
-    if (!provider?.organization) return false;
-    const org = provider.organization as OrganizationWithApprovalStatus;
+    if (!activeEnrollment?.organization) return false;
+    const org = activeEnrollment.organization as OrganizationWithApprovalStatus;
     return org.approval_status === 'pending';
-  }, [provider?.organization]);
+  }, [activeEnrollment?.organization]);
 
-  // Organization details for blocking dialog
+  // CRITICAL: Use ENROLLMENT organization for blocking dialog
   const orgDetails = useMemo(() => {
-    if (!provider?.organization) return null;
-    const org = provider.organization as OrganizationWithApprovalStatus;
+    if (!activeEnrollment?.organization) return null;
+    const org = activeEnrollment.organization as OrganizationWithApprovalStatus;
     return {
       orgName: org.org_name ?? '',
       managerName: org.manager_name ?? '',
       managerEmail: org.manager_email ?? '',
     };
-  }, [provider?.organization]);
+  }, [activeEnrollment?.organization]);
 
   // Calculate completed steps based on provider data
   const completedSteps = useMemo(() => {
@@ -146,17 +147,17 @@ export function WizardLayout({
       completed.push(1);
     }
 
-    // Step 2: Participation Mode
-    if (provider.participation_mode_id) {
+    // Step 2: Participation Mode - ENROLLMENT-scoped
+    if (activeEnrollment?.participation_mode_id) {
       completed.push(2);
     }
 
     // Step 3: Organization (only if required AND approved - not just org_name presence)
-    // KEY FIX: Use approval_status to determine completion, not just field presence
-    if (isOrgRequired && provider.organization?.org_name) {
-      const org = provider.organization as OrganizationWithApprovalStatus;
+    // CRITICAL: Use ENROLLMENT organization, not provider organization
+    if (isOrgRequired && activeEnrollment?.organization) {
+      const org = activeEnrollment.organization as OrganizationWithApprovalStatus;
       // Only mark complete if approved (not pending, withdrawn, or declined)
-      if (org.approval_status === 'approved') {
+      if (org.org_name && org.approval_status === 'approved') {
         completed.push(3);
       }
     }
@@ -237,20 +238,22 @@ export function WizardLayout({
       .map(s => s.id);
   }, [visibleSteps, isStepAccessible]);
 
-  // Get org approval status for contextual messaging
+  // CRITICAL: Use ENROLLMENT organization for approval status
   const orgApprovalStatus = useMemo(() => {
-    if (!provider?.organization) return null;
-    const org = provider.organization as OrganizationWithApprovalStatus;
+    if (!activeEnrollment?.organization) return null;
+    const org = activeEnrollment.organization as OrganizationWithApprovalStatus;
     return org.approval_status;
-  }, [provider?.organization]);
+  }, [activeEnrollment?.organization]);
 
   // Check if org details are incomplete when org_rep mode is selected
+  // CRITICAL: Use ENROLLMENT organization
   const isOrgIncomplete = useMemo(() => {
     if (!isOrgRequired) return false;
-    if (!provider?.organization?.org_name) return true;
-    // Incomplete if no approval status or not approved
-    return orgApprovalStatus !== 'approved';
-  }, [isOrgRequired, provider?.organization, orgApprovalStatus]);
+    if (!activeEnrollment?.organization) return true;
+    const org = activeEnrollment.organization as OrganizationWithApprovalStatus;
+    // Incomplete if no org_name or not approved
+    return !org.org_name || orgApprovalStatus !== 'approved';
+  }, [isOrgRequired, activeEnrollment?.organization, orgApprovalStatus]);
 
   const handleStepClick = (stepId: number) => {
     // Block navigation to step 2 (Mode) ONLY if pending approval exists

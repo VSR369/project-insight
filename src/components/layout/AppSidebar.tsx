@@ -20,6 +20,8 @@ import {
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext, useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { calculateCurrentStep } from '@/components/auth/OnboardingGuard';
 import {
   Sidebar,
@@ -71,8 +73,12 @@ export function AppSidebar() {
   const collapsed = state === 'collapsed';
   const location = useLocation();
   const { data: provider } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
+  const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
+  const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
+  const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
 
-  const currentStep = calculateCurrentStep(provider);
+  const currentStep = calculateCurrentStep(provider, activeEnrollment, enrollmentProficiencyAreas);
 
   const isActive = (path: string) => location.pathname === path;
   const isProfileBuildActive = location.pathname.startsWith('/profile/build');
