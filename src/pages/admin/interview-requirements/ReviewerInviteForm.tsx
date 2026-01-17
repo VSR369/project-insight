@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -72,6 +72,7 @@ function generatePassword(): string {
 export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormProps) {
   const [generatedPassword, setGeneratedPassword] = useState<string>("");
   const [newLanguage, setNewLanguage] = useState("");
+  const [isConfirmed, setIsConfirmed] = useState(false);
 
   const { data: levels, isLoading: levelsLoading } = useExpertiseLevels(false);
   const { data: industries, isLoading: industriesLoading } = useIndustrySegments(false);
@@ -101,6 +102,34 @@ export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormPr
   });
 
   const watchedValues = form.watch();
+
+  // Reset confirmation when key form values change
+  useEffect(() => {
+    setIsConfirmed(false);
+  }, [
+    watchedValues.name,
+    watchedValues.email,
+    watchedValues.password,
+    watchedValues.industry_segment_ids?.join(','),
+    watchedValues.expertise_level_ids?.join(','),
+    watchedValues.message,
+    watchedValues.expiry_days,
+  ]);
+
+  // Check if form has required fields for confirmation
+  const canConfirm = useMemo(() => {
+    return !!(
+      watchedValues.name?.trim() &&
+      watchedValues.email?.trim() &&
+      watchedValues.industry_segment_ids?.length &&
+      watchedValues.expertise_level_ids?.length
+    );
+  }, [
+    watchedValues.name,
+    watchedValues.email,
+    watchedValues.industry_segment_ids,
+    watchedValues.expertise_level_ids,
+  ]);
 
   // Handle password generation
   const handleGeneratePassword = () => {
@@ -614,24 +643,31 @@ export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormPr
               <Button type="button" variant="ghost" onClick={onCancel} disabled={isLoading}>
                 Cancel
               </Button>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleSaveDraft}
-                  disabled={isLoading}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  Save Draft
-                </Button>
-                <Button
-                  type="button"
-                  onClick={handleSendInvitation}
-                  disabled={isLoading}
-                >
-                  <Send className="mr-2 h-4 w-4" />
-                  {isLoading ? "Sending..." : "Send Invitation"}
-                </Button>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSaveDraft}
+                    disabled={isLoading}
+                  >
+                    <Save className="mr-2 h-4 w-4" />
+                    Save Draft
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleSendInvitation}
+                    disabled={isLoading || !isConfirmed}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    {isLoading ? "Sending..." : "Send Invitation"}
+                  </Button>
+                </div>
+                {!isConfirmed && (
+                  <p className="text-xs text-muted-foreground">
+                    Please confirm the invitation preview first
+                  </p>
+                )}
               </div>
             </div>
           </form>
@@ -649,6 +685,9 @@ export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormPr
               expiry_days: watchedValues.expiry_days,
             }}
             generatedPassword={generatedPassword || watchedValues.password}
+            isConfirmed={isConfirmed}
+            onConfirm={() => setIsConfirmed(true)}
+            canConfirm={canConfirm}
           />
         </div>
       </div>
