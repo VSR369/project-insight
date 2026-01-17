@@ -80,6 +80,7 @@ export function WizardLayout({
   const [showNavigationBlockDialog, setShowNavigationBlockDialog] = useState(false);
   const [showOrgRequiredDialog, setShowOrgRequiredDialog] = useState(false);
   const [showProficiencyRequiredDialog, setShowProficiencyRequiredDialog] = useState(false);
+  const [showApprovalPendingDialog, setShowApprovalPendingDialog] = useState(false);
   
   // Fetch provider proficiency areas for Step 4 completion check
   const { data: providerProficiencyAreas } = useProviderProficiencyAreas(provider?.id);
@@ -230,14 +231,20 @@ export function WizardLayout({
       .map(s => s.id);
   }, [visibleSteps, isStepAccessible]);
 
+  // Get org approval status for contextual messaging
+  const orgApprovalStatus = useMemo(() => {
+    if (!provider?.organization) return null;
+    const org = provider.organization as OrganizationWithApprovalStatus;
+    return org.approval_status;
+  }, [provider?.organization]);
+
   // Check if org details are incomplete when org_rep mode is selected
   const isOrgIncomplete = useMemo(() => {
     if (!isOrgRequired) return false;
     if (!provider?.organization?.org_name) return true;
-    const approvalStatus = (provider.organization as any)?.approval_status;
     // Incomplete if no approval status or not approved
-    return approvalStatus !== 'approved';
-  }, [isOrgRequired, provider?.organization]);
+    return orgApprovalStatus !== 'approved';
+  }, [isOrgRequired, provider?.organization, orgApprovalStatus]);
 
   const handleStepClick = (stepId: number) => {
     // Block navigation to step 2 (Mode) if pending approval
@@ -247,10 +254,14 @@ export function WizardLayout({
     }
     
     // Special case: org_rep mode selected but org details incomplete
-    // Block access to steps after org (step 4+) and show org required dialog
+    // Block access to steps after org (step 4+) and show contextual dialog
     if (isOrgRequired && isOrgIncomplete && stepId > 3) {
-      // Only show popup for COMPLETED steps (green circles)
-      if (completedSteps.includes(stepId)) {
+      // Differentiate between "pending approval" vs "not submitted"
+      if (orgApprovalStatus === 'pending') {
+        // Manager approval is pending - show specific message
+        setShowApprovalPendingDialog(true);
+      } else {
+        // Org details not complete or other status - show generic message
         setShowOrgRequiredDialog(true);
       }
       return; // Don't navigate
@@ -390,6 +401,28 @@ export function WizardLayout({
               navigate('/enroll/expertise');
             }}>
               Select Proficiency Areas
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Approval Pending Dialog - when trying to access steps while waiting for manager */}
+      <AlertDialog open={showApprovalPendingDialog} onOpenChange={setShowApprovalPendingDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Awaiting Manager Approval</AlertDialogTitle>
+            <AlertDialogDescription>
+              Your request for manager approval has been sent. Once your manager approves 
+              your organization details, you will be able to proceed with selecting your 
+              expertise level and proficiency areas.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogAction onClick={() => {
+              setShowApprovalPendingDialog(false);
+              navigate('/enroll/organization-pending');
+            }}>
+              Check Approval Status
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
