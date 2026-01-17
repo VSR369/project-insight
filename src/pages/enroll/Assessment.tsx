@@ -8,8 +8,8 @@ import {
   useStartEnrollmentAssessment, 
   useActiveEnrollmentAssessmentAttempt,
   useActiveAssessmentAcrossEnrollments,
+  useEnrollmentIsTerminal,
 } from '@/hooks/queries/useEnrollmentAssessment';
-import { useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,8 +52,8 @@ function AssessmentContent() {
   const startAssessment = useStartEnrollmentAssessment();
   
   // Lifecycle validation scoped to enrollment
-  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
-  const isTerminal = terminalState.isTerminal;
+  const { data: terminalState } = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
+  const isTerminal = terminalState?.isTerminal ?? false;
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
@@ -62,11 +62,20 @@ function AssessmentContent() {
   };
 
   const handleStartAssessment = async () => {
-    if (!provider?.id || !activeEnrollmentId) return;
+    if (!provider?.id || !activeEnrollmentId || !activeEnrollment) return;
+
+    const industrySegmentId = activeEnrollment.industry_segment_id;
+    const expertiseLevelId = activeEnrollment.expertise_level_id;
+
+    if (!industrySegmentId || !expertiseLevelId) {
+      return; // Cannot start without industry and expertise
+    }
 
     const result = await startAssessment.mutateAsync({
       enrollmentId: activeEnrollmentId,
       providerId: provider.id,
+      industrySegmentId,
+      expertiseLevelId,
       questionsCount: 20,
       timeLimitMinutes: 60,
     });
