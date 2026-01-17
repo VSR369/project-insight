@@ -9,6 +9,25 @@ export type InterviewQuorumRequirementInsert = TablesInsert<"interview_quorum_re
 export type InterviewQuorumRequirementUpdate = TablesUpdate<"interview_quorum_requirements">;
 
 /**
+ * Fetch all active quorum configurations (both global and industry-specific)
+ */
+export function useAllQuorumConfigs() {
+  return useQuery({
+    queryKey: ["interview-quorum-requirements", "all"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("interview_quorum_requirements")
+        .select("*")
+        .eq("is_active", true);
+
+      if (error) throw new Error(error.message);
+      return data as InterviewQuorumRequirement[];
+    },
+    staleTime: 60000, // 1 minute
+  });
+}
+
+/**
  * Fetch all global quorum configurations (industry_segment_id = null)
  */
 export function useInterviewQuorumConfigs() {
@@ -24,7 +43,7 @@ export function useInterviewQuorumConfigs() {
       if (error) throw new Error(error.message);
       return data as InterviewQuorumRequirement[];
     },
-    staleTime: 60000, // 1 minute
+    staleTime: 60000,
   });
 }
 
@@ -53,25 +72,85 @@ export function useInterviewQuorumByLevel(expertiseLevelId: string | null) {
   });
 }
 
-interface QuorumUpdatePayload {
+export interface QuorumUpdatePayload {
   expertise_level_id: string;
+  industry_segment_id: string | null;
   required_quorum_count: number;
+  configId?: string | null; // existing row ID if updating
 }
 
 /**
- * Upsert multiple quorum configurations at once
+ * Save multiple quorum configurations at once using insert/update pattern
+ * This handles both new configs and updates to existing ones
+ */
+export function useSaveQuorumConfigs() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (configs: QuorumUpdatePayload[]) => {
+      // Separate inserts from updates
+      const updates = configs.filter((c) => c.configId);
+      const inserts = configs.filter((c) => !c.configId);
+
+      // Process updates
+      for (const config of updates) {
+        const updateData = await withUpdatedBy({
+          required_quorum_count: config.required_quorum_count,
+        });
+
+        const { error } = await supabase
+          .from("interview_quorum_requirements")
+          .update(updateData)
+          .eq("id", config.configId!);
+
+        if (error) throw new Error(`Update failed: ${error.message}`);
+      }
+
+      // Process inserts in batch if any
+      if (inserts.length > 0) {
+        const insertData = await Promise.all(
+          inserts.map(async (config) => {
+            return await withCreatedBy({
+              expertise_level_id: config.expertise_level_id,
+              industry_segment_id: config.industry_segment_id,
+              required_quorum_count: config.required_quorum_count,
+              is_active: true,
+            });
+          })
+        );
+
+        const { error } = await supabase
+          .from("interview_quorum_requirements")
+          .insert(insertData);
+
+        if (error) throw new Error(`Insert failed: ${error.message}`);
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview-quorum-requirements"] });
+      toast.success("Configuration saved successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to save configuration: ${error.message}`);
+    },
+  });
+}
+
+/**
+ * @deprecated Use useSaveQuorumConfigs instead
+ * Legacy: Upsert multiple quorum configurations at once
  */
 export function useUpsertQuorumConfigs() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (configs: QuorumUpdatePayload[]) => {
+    mutationFn: async (configs: { expertise_level_id: string; required_quorum_count: number }[]) => {
       // Process each config with audit fields
       const upsertData = await Promise.all(
         configs.map(async (config) => {
           const base = {
             expertise_level_id: config.expertise_level_id,
-            industry_segment_id: null as string | null, // Global config
+            industry_segment_id: null as string | null,
             required_quorum_count: config.required_quorum_count,
             is_active: true,
           };

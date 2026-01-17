@@ -1,27 +1,45 @@
 import { useState, useEffect, useMemo } from "react";
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
+import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
-  useInterviewQuorumConfigs,
-  useUpsertQuorumConfigs,
+  useAllQuorumConfigs,
+  useSaveQuorumConfigs,
+  QuorumUpdatePayload,
 } from "@/hooks/queries/useInterviewQuorumAdmin";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Info, Minus, Plus, RotateCcw, Save, Users } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Info, RotateCcw, Save, Users, Globe } from "lucide-react";
 import { toast } from "sonner";
+import { QuorumMatrixCell } from "./QuorumMatrixCell";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-interface LocalQuorum {
+interface LocalQuorumCell {
   levelId: string;
   levelName: string;
   levelNumber: number;
-  description: string | null;
+  industryId: string | null;
+  industryName: string;
   originalValue: number;
   currentValue: number;
   defaultValue: number;
+  configId: string | null;
 }
 
 const LEVEL_BADGE_COLORS: Record<number, string> = {
@@ -37,102 +55,132 @@ const MAX_QUORUM = 20;
 const DEFAULT_QUORUM = 3;
 
 export default function InterviewRequirementsPage() {
-  const [localQuorums, setLocalQuorums] = useState<LocalQuorum[]>([]);
+  const [matrix, setMatrix] = useState<LocalQuorumCell[][]>([]);
 
   // Fetch data
   const { data: levels, isLoading: levelsLoading } = useExpertiseLevels(false);
-  const { data: quorumConfigs, isLoading: configsLoading } = useInterviewQuorumConfigs();
-  const upsertMutation = useUpsertQuorumConfigs();
+  const { data: industries, isLoading: industriesLoading } = useIndustrySegments(false);
+  const { data: allConfigs, isLoading: configsLoading } = useAllQuorumConfigs();
+  const saveMutation = useSaveQuorumConfigs();
 
-  // Initialize local state when data loads
+  // Build columns: Global + all industries
+  const columns = useMemo(() => {
+    if (!industries) return [];
+    return [
+      { id: null, name: "Global Default", code: "GLOBAL" },
+      ...industries.map((i) => ({ id: i.id, name: i.name, code: i.code })),
+    ];
+  }, [industries]);
+
+  // Initialize matrix when data loads
   useEffect(() => {
-    if (levels && quorumConfigs !== undefined) {
-      const quorumMap = new Map(
-        quorumConfigs?.map((q) => [q.expertise_level_id, q.required_quorum_count]) || []
-      );
+    if (levels && columns.length > 0 && allConfigs !== undefined) {
+      const newMatrix: LocalQuorumCell[][] = levels
+        .sort((a, b) => a.level_number - b.level_number)
+        .map((level) => {
+          return columns.map((col) => {
+            // Find existing config for this level + industry combination
+            const existing = allConfigs?.find(
+              (c) =>
+                c.expertise_level_id === level.id &&
+                (col.id === null
+                  ? c.industry_segment_id === null
+                  : c.industry_segment_id === col.id)
+            );
 
-      const initialState: LocalQuorum[] = levels.map((level) => {
-        const configuredValue = quorumMap.get(level.id);
-        // Use configured value, or default_quorum_count from level, or fallback
-        const defaultVal = (level as any).default_quorum_count ?? DEFAULT_QUORUM;
-        const currentVal = configuredValue ?? defaultVal;
+            const defaultVal = level.default_quorum_count ?? DEFAULT_QUORUM;
+            const currentVal = existing?.required_quorum_count ?? defaultVal;
 
-        return {
-          levelId: level.id,
-          levelName: level.name,
-          levelNumber: level.level_number,
-          description: level.description,
-          originalValue: currentVal,
-          currentValue: currentVal,
-          defaultValue: defaultVal,
-        };
-      });
+            return {
+              levelId: level.id,
+              levelName: level.name,
+              levelNumber: level.level_number,
+              industryId: col.id,
+              industryName: col.name,
+              originalValue: currentVal,
+              currentValue: currentVal,
+              defaultValue: defaultVal,
+              configId: existing?.id ?? null,
+            };
+          });
+        });
 
-      setLocalQuorums(initialState);
+      setMatrix(newMatrix);
     }
-  }, [levels, quorumConfigs]);
+  }, [levels, columns, allConfigs]);
 
-  // Check if there are changes
-  const hasChanges = useMemo(() => {
-    return localQuorums.some((q) => q.currentValue !== q.originalValue);
-  }, [localQuorums]);
+  // Count changes
+  const changesCount = useMemo(() => {
+    return matrix.flat().filter((cell) => cell.currentValue !== cell.originalValue).length;
+  }, [matrix]);
+
+  const hasChanges = changesCount > 0;
 
   // Handlers
-  const handleIncrement = (levelId: string) => {
-    setLocalQuorums((prev) =>
-      prev.map((q) =>
-        q.levelId === levelId && q.currentValue < MAX_QUORUM
-          ? { ...q, currentValue: q.currentValue + 1 }
-          : q
-      )
-    );
-  };
-
-  const handleDecrement = (levelId: string) => {
-    setLocalQuorums((prev) =>
-      prev.map((q) =>
-        q.levelId === levelId && q.currentValue > MIN_QUORUM
-          ? { ...q, currentValue: q.currentValue - 1 }
-          : q
+  const handleCellChange = (
+    levelId: string,
+    industryId: string | null,
+    delta: number
+  ) => {
+    setMatrix((prev) =>
+      prev.map((row) =>
+        row.map((cell) => {
+          if (cell.levelId === levelId && cell.industryId === industryId) {
+            const newValue = Math.max(
+              MIN_QUORUM,
+              Math.min(MAX_QUORUM, cell.currentValue + delta)
+            );
+            return { ...cell, currentValue: newValue };
+          }
+          return cell;
+        })
       )
     );
   };
 
   const handleReset = () => {
-    setLocalQuorums((prev) =>
-      prev.map((q) => ({
-        ...q,
-        currentValue: q.defaultValue,
-      }))
+    setMatrix((prev) =>
+      prev.map((row) =>
+        row.map((cell) => ({
+          ...cell,
+          currentValue: cell.defaultValue,
+        }))
+      )
     );
     toast.info("Values reset to defaults. Click Save to apply.");
   };
 
   const handleSave = async () => {
-    const changedConfigs = localQuorums
-      .filter((q) => q.currentValue !== q.originalValue)
-      .map((q) => ({
-        expertise_level_id: q.levelId,
-        required_quorum_count: q.currentValue,
-      }));
+    const changedCells = matrix.flat().filter(
+      (cell) => cell.currentValue !== cell.originalValue
+    );
 
-    if (changedConfigs.length === 0) {
+    if (changedCells.length === 0) {
       toast.info("No changes to save");
       return;
     }
 
-    await upsertMutation.mutateAsync(changedConfigs);
+    const updates: QuorumUpdatePayload[] = changedCells.map((cell) => ({
+      expertise_level_id: cell.levelId,
+      industry_segment_id: cell.industryId,
+      required_quorum_count: cell.currentValue,
+      configId: cell.configId,
+    }));
 
-    // Update original values after successful save
-    setLocalQuorums((prev) =>
-      prev.map((q) => ({
-        ...q,
-        originalValue: q.currentValue,
-      }))
+    await saveMutation.mutateAsync(updates);
+
+    // Update original values and configIds after save
+    setMatrix((prev) =>
+      prev.map((row) =>
+        row.map((cell) => ({
+          ...cell,
+          originalValue: cell.currentValue,
+        }))
+      )
     );
   };
 
-  const isLoading = levelsLoading || configsLoading;
+  const isLoading = levelsLoading || industriesLoading || configsLoading;
 
   const breadcrumbs = [
     { label: "Admin", href: "/admin" },
@@ -164,118 +212,143 @@ export default function InterviewRequirementsPage() {
               <Info className="h-4 w-4 text-blue-600" />
               <AlertDescription className="text-blue-800">
                 <strong>How booking works:</strong> Providers only see composite slots that already
-                have full panel quorum available. No quorum = slot not shown.
+                have full panel quorum available. Configure the required number of interviewers per
+                expertise level and industry segment below.
               </AlertDescription>
             </Alert>
 
-            {/* Level Cards */}
-            <div className="space-y-4">
-              {isLoading ? (
-                // Loading skeletons
-                Array.from({ length: 5 }).map((_, i) => (
-                  <Card key={i}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <Skeleton className="h-6 w-20" />
-                          <div>
-                            <Skeleton className="h-5 w-48 mb-2" />
-                            <Skeleton className="h-4 w-64" />
-                          </div>
-                        </div>
-                        <Skeleton className="h-10 w-32" />
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              ) : localQuorums.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center text-muted-foreground">
-                    No active expertise levels found. Please configure expertise levels first.
-                  </CardContent>
-                </Card>
-              ) : (
-                localQuorums.map((quorum) => (
-                  <Card
-                    key={quorum.levelId}
-                    className={
-                      quorum.currentValue !== quorum.originalValue
-                        ? "ring-2 ring-primary ring-offset-2"
-                        : ""
-                    }
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between">
-                        {/* Level Info */}
-                        <div className="flex items-center gap-4">
-                          <Badge
-                            variant="outline"
-                            className={
-                              LEVEL_BADGE_COLORS[quorum.levelNumber] ||
-                              "bg-gray-100 text-gray-800 border-gray-200"
-                            }
-                          >
-                            Level {quorum.levelNumber}
-                          </Badge>
-                          <div>
-                            <h3 className="font-medium text-foreground">{quorum.levelName}</h3>
-                            {quorum.description && (
-                              <p className="text-sm text-muted-foreground line-clamp-1">
-                                {quorum.description}
-                              </p>
-                            )}
-                          </div>
-                        </div>
+            {/* Matrix Table */}
+            {isLoading ? (
+              <div className="space-y-4">
+                <Skeleton className="h-8 w-full" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            ) : matrix.length === 0 ? (
+              <div className="text-center py-12 text-muted-foreground border rounded-lg">
+                No active expertise levels found. Please configure expertise levels first.
+              </div>
+            ) : (
+              <div className="border rounded-lg overflow-hidden">
+                <div className="overflow-x-auto">
+                  <TooltipProvider>
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-muted/50">
+                          <TableHead className="sticky left-0 bg-muted/50 z-10 min-w-[140px]">
+                            Expertise Level
+                          </TableHead>
+                          {columns.map((col, index) => (
+                            <TableHead
+                              key={col.id ?? "global"}
+                              className={`text-center min-w-[100px] ${
+                                index === 0 ? "bg-primary/5" : ""
+                              }`}
+                            >
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <div className="flex flex-col items-center gap-1">
+                                    {index === 0 && (
+                                      <Globe className="h-3 w-3 text-primary" />
+                                    )}
+                                    <span className="truncate max-w-[90px] text-xs font-medium">
+                                      {col.code === "GLOBAL" ? "Global" : col.code}
+                                    </span>
+                                  </div>
+                                </TooltipTrigger>
+                                <TooltipContent>
+                                  <p>{col.name}</p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {matrix.map((row, rowIndex) => {
+                          const level = row[0];
+                          const rowChanges = row.filter(
+                            (c) => c.currentValue !== c.originalValue
+                          ).length;
 
-                        {/* Stepper Control */}
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm text-muted-foreground mr-2">Interviewers:</span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleDecrement(quorum.levelId)}
-                            disabled={quorum.currentValue <= MIN_QUORUM}
-                          >
-                            <Minus className="h-4 w-4" />
-                          </Button>
-                          <span className="w-8 text-center font-semibold text-lg">
-                            {quorum.currentValue}
-                          </span>
-                          <Button
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => handleIncrement(quorum.levelId)}
-                            disabled={quorum.currentValue >= MAX_QUORUM}
-                          >
-                            <Plus className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))
-              )}
-            </div>
+                          return (
+                            <TableRow key={level.levelId}>
+                              <TableCell className="sticky left-0 bg-background z-10 border-r">
+                                <div className="flex items-center gap-2">
+                                  <Badge
+                                    variant="outline"
+                                    className={
+                                      LEVEL_BADGE_COLORS[level.levelNumber] ||
+                                      "bg-gray-100 text-gray-800 border-gray-200"
+                                    }
+                                  >
+                                    L{level.levelNumber}
+                                  </Badge>
+                                  <span className="font-medium text-sm truncate max-w-[100px]">
+                                    {level.levelName}
+                                  </span>
+                                  {rowChanges > 0 && (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {rowChanges}
+                                    </Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              {row.map((cell, colIndex) => (
+                                <TableCell
+                                  key={`${cell.levelId}-${cell.industryId ?? "global"}`}
+                                  className={`text-center p-1 ${
+                                    colIndex === 0 ? "bg-primary/5" : ""
+                                  }`}
+                                >
+                                  <QuorumMatrixCell
+                                    value={cell.currentValue}
+                                    originalValue={cell.originalValue}
+                                    minValue={MIN_QUORUM}
+                                    maxValue={MAX_QUORUM}
+                                    onIncrement={() =>
+                                      handleCellChange(cell.levelId, cell.industryId, 1)
+                                    }
+                                    onDecrement={() =>
+                                      handleCellChange(cell.levelId, cell.industryId, -1)
+                                    }
+                                    disabled={saveMutation.isPending}
+                                  />
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TooltipProvider>
+                </div>
+              </div>
+            )}
 
             {/* Action Buttons */}
-            {!isLoading && localQuorums.length > 0 && (
+            {!isLoading && matrix.length > 0 && (
               <div className="flex items-center justify-between pt-4 border-t">
-                <Button
-                  variant="ghost"
-                  onClick={handleReset}
-                  className="text-muted-foreground"
-                >
-                  <RotateCcw className="mr-2 h-4 w-4" />
-                  Reset to Defaults
-                </Button>
+                <div className="flex items-center gap-4">
+                  <Button
+                    variant="ghost"
+                    onClick={handleReset}
+                    className="text-muted-foreground"
+                  >
+                    <RotateCcw className="mr-2 h-4 w-4" />
+                    Reset to Defaults
+                  </Button>
+                  {hasChanges && (
+                    <Badge variant="outline" className="text-primary border-primary">
+                      {changesCount} unsaved change{changesCount > 1 ? "s" : ""}
+                    </Badge>
+                  )}
+                </div>
                 <Button
                   onClick={handleSave}
-                  disabled={!hasChanges || upsertMutation.isPending}
+                  disabled={!hasChanges || saveMutation.isPending}
                 >
                   <Save className="mr-2 h-4 w-4" />
-                  {upsertMutation.isPending ? "Saving..." : "Save Configuration"}
+                  {saveMutation.isPending ? "Saving..." : "Save Configuration"}
                 </Button>
               </div>
             )}
