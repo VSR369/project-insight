@@ -5,7 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Loader2, UserPlus, GraduationCap, Briefcase } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { registerSchema, studentRegisterSchema, RegisterFormData, StudentRegisterFormData } from '@/lib/validations/auth';
-import { useCountries, useIndustrySegments, useAcademicDisciplines, useAcademicStreams } from '@/hooks/queries/useMasterData';
+import { useCountries, useAcademicDisciplines, useAcademicStreams } from '@/hooks/queries/useMasterData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,7 +28,6 @@ export default function Register() {
 
   // Fetch master data
   const { data: countries } = useCountries();
-  const { data: industrySegments } = useIndustrySegments();
   const { data: disciplines } = useAcademicDisciplines();
 
   // Watch discipline for cascading streams
@@ -52,7 +51,6 @@ export default function Register() {
       address: '',
       pinCode: '',
       countryId: '',
-      industrySegmentId: '',
     },
   });
 
@@ -67,7 +65,6 @@ export default function Register() {
       address: '',
       pinCode: '',
       countryId: '',
-      industrySegmentId: '',
       institution: '',
       graduationYear: new Date().getFullYear() + 1,
       disciplineId: '',
@@ -87,7 +84,6 @@ export default function Register() {
         address: data.address || null,
         pin_code: data.pinCode || null,
         country_id: data.countryId || null,
-        industry_segment_id: data.industrySegmentId || null,
       };
 
       const { error } = await signUp(data.email, data.password, metadata);
@@ -285,30 +281,6 @@ export default function Register() {
         />
       </div>
 
-      <FormField
-        control={form.control}
-        name="industrySegmentId"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Industry Segment (Optional)</FormLabel>
-            <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-              <FormControl>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select industry" />
-                </SelectTrigger>
-              </FormControl>
-              <SelectContent>
-                {industrySegments?.map((segment) => (
-                  <SelectItem key={segment.id} value={segment.id}>
-                    {segment.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
     </>
   );
 

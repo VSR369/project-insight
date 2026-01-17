@@ -20,7 +20,6 @@ const baseRegisterSchema = z.object({
   address: z.string().optional(),
   pinCode: z.string().optional(),
   countryId: z.string().optional(),
-  industrySegmentId: z.string().optional(),
 });
 
 export const registerSchema = baseRegisterSchema.refine(
