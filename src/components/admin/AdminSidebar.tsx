@@ -25,6 +25,7 @@ import {
   ArrowLeft,
   Shield,
   Tags,
+  Calendar,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
@@ -39,6 +40,10 @@ const masterDataItems = [
 const taxonomyItems = [
   { title: 'Academic Taxonomy', icon: GraduationCap, path: '/admin/master-data/academic-taxonomy' },
   { title: 'Proficiency Taxonomy', icon: Network, path: '/admin/master-data/proficiency-taxonomy' },
+];
+
+const interviewItems = [
+  { title: 'Quorum Requirements', icon: Calendar, path: '/admin/interview/quorum-requirements' },
 ];
 
 const otherItems = [
@@ -104,6 +109,25 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {taxonomyItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.path)}
+                    isActive={isActive(item.path)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Interview Setup</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {interviewItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
