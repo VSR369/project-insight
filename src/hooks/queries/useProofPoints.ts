@@ -10,6 +10,7 @@ type ProofPointInsert = Database['public']['Tables']['proof_points']['Insert'];
 type ProofPointUpdate = Database['public']['Tables']['proof_points']['Update'];
 type ProofPointType = Database['public']['Enums']['proof_point_type'];
 type ProofPointCategory = Database['public']['Enums']['proof_point_category'];
+type LifecycleStatus = Database['public']['Enums']['lifecycle_status'];
 
 export interface ProofPointWithCounts extends ProofPoint {
   linksCount: number;
@@ -231,6 +232,87 @@ export function useProofPoint(proofPointId?: string) {
   });
 }
 
+// Helper to update enrollment lifecycle based on proof point count
+async function updateEnrollmentLifecycleForProofPoints(
+  enrollmentId: string,
+  providerId: string,
+  industrySegmentId: string | null
+) {
+  // Get current proof point count for this enrollment
+  let countQuery = supabase
+    .from('proof_points')
+    .select('id', { count: 'exact', head: true })
+    .eq('provider_id', providerId)
+    .eq('is_deleted', false);
+
+  if (enrollmentId) {
+    countQuery = countQuery.eq('enrollment_id', enrollmentId);
+  } else if (industrySegmentId) {
+    countQuery = countQuery.eq('industry_segment_id', industrySegmentId);
+  }
+
+  const { count, error: countError } = await countQuery;
+  if (countError) {
+    console.error('Error counting proof points:', countError);
+    return;
+  }
+
+  const currentCount = count || 0;
+  const minRequired = await getMinProofPointsRequired();
+
+  // Get current enrollment lifecycle
+  const { data: enrollment, error: enrollmentError } = await supabase
+    .from('provider_industry_enrollments')
+    .select('lifecycle_rank, lifecycle_status')
+    .eq('id', enrollmentId)
+    .single();
+
+  if (enrollmentError || !enrollment) {
+    console.error('Error fetching enrollment:', enrollmentError);
+    return;
+  }
+
+  // Determine target lifecycle based on proof point count
+  let targetStatus: LifecycleStatus | null = null;
+  let targetRank: number | null = null;
+
+  if (currentCount >= minRequired && enrollment.lifecycle_rank < 70) {
+    // Minimum met - advance to proof_points_min_met
+    targetStatus = 'proof_points_min_met';
+    targetRank = 70;
+  } else if (currentCount >= 1 && currentCount < minRequired && enrollment.lifecycle_rank < 60) {
+    // At least one proof point - advance to proof_points_started
+    targetStatus = 'proof_points_started';
+    targetRank = 60;
+  } else if (currentCount < minRequired && enrollment.lifecycle_rank === 70) {
+    // Dropped below minimum (after delete) - revert to proof_points_started
+    targetStatus = 'proof_points_started';
+    targetRank = 60;
+  } else if (currentCount === 0 && enrollment.lifecycle_rank === 60) {
+    // No proof points left - revert to expertise_selected (if that was previous state)
+    targetStatus = 'expertise_selected';
+    targetRank = 50;
+  }
+
+  // Update enrollment if lifecycle change is needed
+  if (targetStatus && targetRank !== null) {
+    const { error: updateError } = await supabase
+      .from('provider_industry_enrollments')
+      .update({
+        lifecycle_status: targetStatus,
+        lifecycle_rank: targetRank,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', enrollmentId);
+
+    if (updateError) {
+      console.error('Error updating enrollment lifecycle:', updateError);
+    } else {
+      console.log(`Enrollment ${enrollmentId} lifecycle updated to ${targetStatus} (rank ${targetRank})`);
+    }
+  }
+}
+
 // Create new proof point with links and tags
 export function useCreateProofPoint() {
   const queryClient = useQueryClient();
@@ -292,10 +374,22 @@ export function useCreateProofPoint() {
         if (linksError) throw linksError;
       }
 
+      // Update enrollment lifecycle based on new proof point count
+      if (input.enrollmentId) {
+        await updateEnrollmentLifecycleForProofPoints(
+          input.enrollmentId,
+          input.providerId,
+          input.industrySegmentId || null
+        );
+      }
+
       return proofPoint;
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['proof-points', variables.providerId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments', variables.providerId] });
+      queryClient.invalidateQueries({ queryKey: ['enrollment', variables.enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['can-start-enrollment-assessment'] });
       toast.success('Proof Point saved successfully');
     },
     onError: (error) => {
@@ -374,38 +468,21 @@ export function useDeleteProofPoint() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, providerId, enrollmentId }: { id: string; providerId: string; enrollmentId?: string }) => {
+    mutationFn: async ({ id, providerId, enrollmentId, industrySegmentId }: { 
+      id: string; 
+      providerId: string; 
+      enrollmentId?: string;
+      industrySegmentId?: string;
+    }) => {
       // Check content lock
       const contentCheck = await checkContentLock(providerId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
 
-      // Check minimum proof points constraint - scoped to enrollment if provided
-      let countQuery = supabase
-        .from('proof_points')
-        .select('id', { count: 'exact', head: true })
-        .eq('provider_id', providerId)
-        .eq('is_deleted', false);
-
-      // If enrollment provided, scope the count to that enrollment
-      if (enrollmentId) {
-        countQuery = countQuery.eq('enrollment_id', enrollmentId);
-      }
-
-      const { count, error: countError } = await countQuery;
-
-      if (countError) throw countError;
-
-      const minRequired = await getMinProofPointsRequired();
-      const currentCount = count || 0;
-
-      if (currentCount <= minRequired) {
-        throw new Error(`Minimum ${minRequired} proof points required for this enrollment.`);
-      }
-
       const userId = await getCurrentUserId();
       
+      // Soft delete the proof point
       const { error } = await supabase
         .from('proof_points')
         .update({
@@ -416,10 +493,23 @@ export function useDeleteProofPoint() {
         .eq('id', id);
 
       if (error) throw error;
+
+      // Update enrollment lifecycle after deletion
+      if (enrollmentId) {
+        await updateEnrollmentLifecycleForProofPoints(
+          enrollmentId,
+          providerId,
+          industrySegmentId || null
+        );
+      }
+
       return { id, providerId, enrollmentId };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['proof-points', result.providerId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments', result.providerId] });
+      queryClient.invalidateQueries({ queryKey: ['enrollment', result.enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['can-start-enrollment-assessment'] });
       toast.success('Proof Point deleted');
     },
     onError: (error) => {
