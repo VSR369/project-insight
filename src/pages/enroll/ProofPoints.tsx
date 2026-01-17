@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
+import { useProofPoints, useDeleteProofPoint, useProofPointCountsByIndustry, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
@@ -38,6 +38,9 @@ function ProofPointsContent() {
   
   // Fetch industry segments for the dropdown
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments();
+  
+  // Fetch proof point counts by industry
+  const { data: industryCounts = [] } = useProofPointCountsByIndustry(provider?.id);
   
   // Industry filter state - default to 'current'
   const [industryFilter, setIndustryFilter] = useState<IndustryFilterMode>('current');
@@ -85,6 +88,22 @@ function ProofPointsContent() {
     });
     return map;
   }, [industrySegments]);
+
+  // Build industry count map for dropdown indicators
+  const industryCountMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    industryCounts.forEach(ic => {
+      if (ic.industrySegmentId) {
+        map[ic.industrySegmentId] = ic.count;
+      }
+    });
+    return map;
+  }, [industryCounts]);
+
+  // Calculate total proof points across all industries
+  const totalProofPoints = useMemo(() => {
+    return industryCounts.reduce((sum, ic) => sum + ic.count, 0);
+  }, [industryCounts]);
 
   const currentCount = proofPoints.length;
   const minimumMet = currentCount >= minimumRequired;
@@ -264,24 +283,50 @@ function ProofPointsContent() {
                 onValueChange={(value) => setIndustryFilter(value as IndustryFilterMode)}
                 disabled={segmentsLoading}
               >
-                <SelectTrigger id="industry-filter" className="w-[280px] bg-background">
+                <SelectTrigger id="industry-filter" className="w-[320px] bg-background">
                   <SelectValue placeholder="Select industry..." />
                 </SelectTrigger>
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="current">
-                    Current Industry {provider?.industry_segment_id ? `(${industryNameMap[provider.industry_segment_id] || 'Selected'})` : ''}
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      <span>Current Industry {provider?.industry_segment_id ? `(${industryNameMap[provider.industry_segment_id] || 'Selected'})` : ''}</span>
+                      {provider?.industry_segment_id && industryCountMap[provider.industry_segment_id] !== undefined && (
+                        <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0">
+                          {industryCountMap[provider.industry_segment_id]}
+                        </Badge>
+                      )}
+                    </span>
                   </SelectItem>
-                  <SelectItem value="all">All Industries</SelectItem>
+                  <SelectItem value="all">
+                    <span className="flex items-center justify-between gap-2 w-full">
+                      <span>All Industries</span>
+                      {totalProofPoints > 0 && (
+                        <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0">
+                          {totalProofPoints}
+                        </Badge>
+                      )}
+                    </span>
+                  </SelectItem>
                   {industrySegments.length > 0 && (
                     <>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
                         Select specific industry:
                       </div>
-                      {industrySegments.map((segment) => (
-                        <SelectItem key={segment.id} value={segment.id}>
-                          {segment.name}
-                        </SelectItem>
-                      ))}
+                      {industrySegments.map((segment) => {
+                        const count = industryCountMap[segment.id] || 0;
+                        return (
+                          <SelectItem key={segment.id} value={segment.id}>
+                            <span className="flex items-center justify-between gap-2 w-full">
+                              <span>{segment.name}</span>
+                              {count > 0 && (
+                                <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0">
+                                  {count}
+                                </Badge>
+                              )}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
                     </>
                   )}
                 </SelectContent>

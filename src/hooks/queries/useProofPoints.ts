@@ -74,6 +74,45 @@ export interface UseProofPointsOptions {
   includeAllIndustries?: boolean;
 }
 
+// Proof point counts by industry segment
+export interface ProofPointCountByIndustry {
+  industrySegmentId: string | null;
+  count: number;
+}
+
+// Fetch proof point counts grouped by industry segment
+export function useProofPointCountsByIndustry(providerId?: string) {
+  return useQuery({
+    queryKey: ['proof-point-counts-by-industry', providerId],
+    queryFn: async (): Promise<ProofPointCountByIndustry[]> => {
+      if (!providerId) return [];
+
+      const { data, error } = await supabase
+        .from('proof_points')
+        .select('industry_segment_id')
+        .eq('provider_id', providerId)
+        .eq('is_deleted', false);
+
+      if (error) throw error;
+      if (!data?.length) return [];
+
+      // Count by industry segment
+      const countMap = new Map<string | null, number>();
+      data.forEach(pp => {
+        const key = pp.industry_segment_id;
+        countMap.set(key, (countMap.get(key) || 0) + 1);
+      });
+
+      return Array.from(countMap.entries()).map(([industrySegmentId, count]) => ({
+        industrySegmentId,
+        count,
+      }));
+    },
+    enabled: !!providerId,
+    staleTime: 30000,
+  });
+}
+
 // Fetch all proof points for a provider with counts
 export function useProofPoints(providerId?: string, options?: UseProofPointsOptions) {
   return useQuery({
