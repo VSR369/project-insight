@@ -9,12 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Save, Loader2, GraduationCap } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, GraduationCap, Building2 } from 'lucide-react';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useCreateProofPoint, useUploadProofPointFile } from '@/hooks/queries/useProofPoints';
 import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
-import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
+import { 
+  useEnrollmentCanModifyField, 
+  useEnrollmentIsTerminal 
+} from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { 
@@ -44,17 +49,28 @@ function AddProofPointContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: expertiseLevels } = useExpertiseLevels();
+  const { data: industrySegments } = useIndustrySegments();
+  
+  // Get active enrollment from context
+  const { 
+    activeEnrollment, 
+    activeEnrollmentId,
+    activeIndustryId,
+    isLoading: enrollmentLoading 
+  } = useEnrollmentContext();
+  
+  // Fetch taxonomy using enrollment's industry and expertise
   const { data: taxonomy = [], isLoading: taxonomyLoading } = useProficiencyTaxonomy(
-    provider?.industry_segment_id || undefined,
-    provider?.expertise_level_id || undefined
+    activeIndustryId || undefined,
+    activeEnrollment?.expertise_level_id || undefined
   );
   
   const createProofPoint = useCreateProofPoint();
   const uploadFile = useUploadProofPointFile();
 
-  // Lifecycle validation
-  const contentCheck = useCanModifyField('content');
-  const terminalState = useIsTerminalState();
+  // Lifecycle validation scoped to enrollment
+  const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
   const isContentLocked = !contentCheck.allowed || isTerminal;
 
@@ -62,7 +78,9 @@ function AddProofPointContent() {
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
 
-  const expertiseLevel = expertiseLevels?.find(l => l.id === provider?.expertise_level_id);
+  // Get expertise level and industry names for display
+  const expertiseLevel = expertiseLevels?.find(l => l.id === activeEnrollment?.expertise_level_id);
+  const industryName = industrySegments?.find(s => s.id === activeIndustryId)?.name;
 
   const form = useForm<FormValues>({
     resolver: zodResolver(proofPointSchema),
@@ -76,11 +94,11 @@ function AddProofPointContent() {
 
   // Redirect if content is locked
   useEffect(() => {
-    if (!providerLoading && isContentLocked) {
+    if (!providerLoading && !enrollmentLoading && isContentLocked) {
       toast.error('Content modification is locked at this lifecycle stage.');
       navigate('/enroll/proof-points');
     }
-  }, [providerLoading, isContentLocked, navigate]);
+  }, [providerLoading, enrollmentLoading, isContentLocked, navigate]);
 
   const category = form.watch('category');
   const isSubmitting = createProofPoint.isPending || uploadFile.isPending;
@@ -101,10 +119,10 @@ function AddProofPointContent() {
       // Filter valid links
       const validLinks = links.filter(l => l.url.trim());
 
-      // Create proof point with industry context
+      // Create proof point with enrollment's industry context
       const proofPoint = await createProofPoint.mutateAsync({
         providerId: provider.id,
-        industrySegmentId: provider.industry_segment_id || undefined, // NEW: Track industry
+        industrySegmentId: activeIndustryId || undefined, // Use active enrollment's industry
         category: values.category as ProofPointCategory,
         type: values.type as ProofPointType,
         title: values.title,
@@ -132,7 +150,7 @@ function AddProofPointContent() {
     }
   };
 
-  if (providerLoading) {
+  if (providerLoading || enrollmentLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -221,6 +239,18 @@ function AddProofPointContent() {
                   <CardTitle className="text-lg">Basic Information</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Industry Context (read-only) */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Industry</Label>
+                    <div className="flex items-center gap-2 p-3 bg-muted rounded-md">
+                      <Building2 className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm">
+                        {industryName || 'Not set'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Auto-populated from your active enrollment</p>
+                  </div>
+
                   {/* Expertise Level (read-only) */}
                   <div className="space-y-2">
                     <Label className="text-sm font-medium">Expertise Level</Label>
@@ -230,7 +260,7 @@ function AddProofPointContent() {
                         {expertiseLevel ? `Level ${expertiseLevel.level_number}: ${expertiseLevel.name}` : 'Not set'}
                       </span>
                     </div>
-                    <p className="text-xs text-muted-foreground">Auto-populated from your profile</p>
+                    <p className="text-xs text-muted-foreground">Auto-populated from your active enrollment</p>
                   </div>
 
                   {/* Title */}
