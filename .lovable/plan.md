@@ -1,181 +1,201 @@
-# Fix: Registration Flow Does Not Create Enrollment Record
+# Free Navigation with Action-Level Blocking
 
-## Problem Identified
+## Core UX Paradigm
 
-When a new provider completes Registration, the system:
-1. Updates `solution_providers` table with `industry_segment_id`
-2. Sets lifecycle to `enrolled` (rank 20)
-3. **BUT does NOT create a record in `provider_industry_enrollments`**
-
-The Expertise page (and other enrollment-scoped pages) use `useEnrollmentContext()` which reads from `provider_industry_enrollments`. Since no record exists, `activeEnrollment` is `null`, causing the "No Industry Selected" message.
-
-**Database Evidence:**
-- `solution_providers.industry_segment_id` = Manufacturing Auto Components
-- `provider_industry_enrollments` = EMPTY for this provider
+**Navigation is ALWAYS free** - users can move between any wizard steps at any time.
+**Actions are controlled** - saving/modifying data is blocked or warned based on rules and data dependencies.
 
 ---
 
-## Solution: Dual-Phase Fix
+## Business Rules Summary
 
-### Phase 1: Immediate Database Fix
-
-Run this SQL in Supabase SQL Editor to create the missing enrollment for the test provider:
-
-```sql
-INSERT INTO provider_industry_enrollments (
-  provider_id,
-  industry_segment_id,
-  is_primary,
-  lifecycle_status,
-  lifecycle_rank,
-  created_by
-)
-VALUES (
-  'c36013a0-5b22-4451-bd6e-052815912024',
-  'a333531e-8a60-4682-87df-a9fdc617a232',
-  true,
-  'enrolled',
-  20,
-  '32aec070-360a-4d73-a6dd-28961c629ca6'
-);
-```
-
-### Phase 2: Code Fix (Prevents Future Issues)
-
-#### File 1: `src/services/providerService.ts`
-
-Modify `updateProviderBasicProfile` function to also create an enrollment record when updating a provider's industry:
-
-**Current Logic (lines 146-179):**
-- Updates `solution_providers` table only
-
-**New Logic:**
-1. Update `solution_providers` table (existing behavior)
-2. Check if enrollment exists for this provider + industry
-3. If no enrollment exists, create one in `provider_industry_enrollments`
-4. Return the enrollment ID for context synchronization
-
-```typescript
-export async function updateProviderBasicProfile(
-  providerId: string,
-  data: {
-    firstName: string;
-    lastName: string;
-    address: string;
-    pinCode: string;
-    countryId: string;
-    industrySegmentId: string;
-    isStudent: boolean;
-  }
-): Promise<{ enrollmentId?: string }> {
-  const userId = await getCurrentUserId();
-  if (!userId) throw new Error('Not authenticated');
-
-  // Update solution_providers
-  const { error } = await supabase
-    .from('solution_providers')
-    .update({
-      first_name: data.firstName,
-      last_name: data.lastName,
-      address: data.address,
-      pin_code: data.pinCode,
-      country_id: data.countryId,
-      industry_segment_id: data.industrySegmentId,
-      is_student: data.isStudent,
-      lifecycle_status: 'enrolled',
-      lifecycle_rank: 20,
-      onboarding_status: 'in_progress',
-      updated_by: userId,
-    })
-    .eq('id', providerId);
-
-  if (error) throw error;
-
-  // Check if enrollment already exists for this provider + industry
-  const { data: existingEnrollment } = await supabase
-    .from('provider_industry_enrollments')
-    .select('id')
-    .eq('provider_id', providerId)
-    .eq('industry_segment_id', data.industrySegmentId)
-    .maybeSingle();
-
-  let enrollmentId = existingEnrollment?.id;
-
-  // Create enrollment if it doesn't exist
-  if (!enrollmentId) {
-    // Check if this is the first enrollment (to set is_primary)
-    const { data: anyEnrollments } = await supabase
-      .from('provider_industry_enrollments')
-      .select('id')
-      .eq('provider_id', providerId)
-      .limit(1);
-
-    const isPrimary = !anyEnrollments || anyEnrollments.length === 0;
-
-    const { data: newEnrollment, error: enrollmentError } = await supabase
-      .from('provider_industry_enrollments')
-      .insert({
-        provider_id: providerId,
-        industry_segment_id: data.industrySegmentId,
-        is_primary: isPrimary,
-        lifecycle_status: 'enrolled',
-        lifecycle_rank: 20,
-        created_by: userId,
-      })
-      .select('id')
-      .single();
-
-    if (enrollmentError) throw enrollmentError;
-    enrollmentId = newEnrollment.id;
-  }
-
-  return { enrollmentId };
-}
-```
-
-#### File 2: `src/hooks/queries/useProvider.ts`
-
-Update `useUpdateProviderBasicProfile` to:
-1. Accept the new return type with `enrollmentId`
-2. Invalidate enrollment-related queries on success
-3. Return the enrollment ID for context synchronization
-
-**Changes to `onSuccess` callback:**
-```typescript
-onSuccess: (result) => {
-  if (result.success) {
-    queryClient.invalidateQueries({ queryKey: ['current-provider'] });
-    queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });  // ADD
-    queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });     // ADD
-    queryClient.invalidateQueries({ queryKey: ['proof-points'] });
-    queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas'] });
-    toast.success('Saved. Continue to Participation Mode.');
-  }
-},
-```
+| Scenario | Rule |
+|----------|------|
+| Navigate between steps | Always allowed (no blocking) |
+| Change Expertise (0 proof points) | Allowed freely |
+| Change Expertise (has proof points) | Show cascade warning - must delete proof points first OR confirm cascade deletion |
+| Change Participation Mode | Always allowed (with cascade rules if dependent data exists) |
+| Change Industry Segment | Constrained by lifecycle rules and requires cascade handling |
+| Add Proof Point (no expertise selected) | Show info message - must select expertise first |
 
 ---
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/services/providerService.ts` | Add enrollment creation to `updateProviderBasicProfile` |
-| `src/hooks/queries/useProvider.ts` | Invalidate enrollment queries, update return type |
+### 1. `src/components/layout/WizardLayout.tsx`
+
+**Current Issue:** Navigation is blocked based on step completion status.
+
+**Changes:**
+- Simplify `isStepAccessible` to return `true` for all visible steps
+- Remove blocking logic from `handleStepClick` - allow free navigation
+- Remove special case checks that block navigation (org incomplete, proficiency areas missing, etc.)
+
+**Before (lines 222-239):**
+```typescript
+const isStepAccessible = (stepId: number): boolean => {
+  const stepIndex = visibleSteps.findIndex(s => s.id === stepId);
+  if (stepIndex === -1) return false;
+  
+  // Check all preceding visible steps are complete
+  for (let i = 0; i < stepIndex; i++) {
+    const precedingStep = visibleSteps[i];
+    if (!completedSteps.includes(precedingStep.id)) {
+      return false;
+    }
+  }
+  return true;
+};
+```
+
+**After:**
+```typescript
+const isStepAccessible = (stepId: number): boolean => {
+  // All visible steps are always accessible - navigation is free
+  return visibleSteps.some(s => s.id === stepId);
+};
+```
+
+**Also update `handleStepClick` (lines 263-312):**
+- Remove all blocking checks for navigation
+- Simply navigate to the requested step
+- Keep only the dialog for mode-blocked scenario (when org approval is pending)
 
 ---
 
-## Test Scenarios After Fix
+### 2. `src/pages/enroll/ExpertiseSelection.tsx`
 
-1. **New user registration** - Creates both provider AND enrollment records
-2. **Existing user re-registering** - Uses existing enrollment, no duplicate
-3. **Expertise page** - Shows expertise levels (no "No Industry Selected")
-4. **Multi-industry flow** - Works correctly via "Add Industry" mode
+**Current Issue:** No check for existing proof points when changing expertise.
+
+**Changes:**
+- Add hook to fetch proof points count for current provider
+- Before saving expertise changes, check if proof points exist
+- If proof points exist (count > 0): Show `CascadeWarningDialog` with option to confirm or cancel
+- If NO proof points (count === 0): Allow save freely without warning
+- On cascade confirm: Execute cascade reset, then save new expertise
+
+**New Logic Flow:**
+```typescript
+const handleSaveExpertise = async () => {
+  // Get proof points count
+  const proofPointsCount = await getProofPointsCount(provider.id);
+  
+  if (proofPointsCount > 0) {
+    // Show cascade warning dialog
+    setShowCascadeWarning(true);
+    setCascadeImpact({
+      type: 'expertise_change',
+      proofPointsToDelete: proofPointsCount,
+      message: 'Changing expertise will delete all specialty proof points.'
+    });
+  } else {
+    // No proof points - save freely
+    await saveExpertise();
+  }
+};
+
+const handleCascadeConfirm = async () => {
+  // Execute cascade reset (delete proof points, clear specialties)
+  await executeExpertiseLevelChangeReset(provider.id);
+  // Then save new expertise
+  await saveExpertise();
+  setShowCascadeWarning(false);
+};
+```
 
 ---
 
-## Execution Order
+### 3. `src/pages/enroll/ProofPoints.tsx`
 
-1. Run the SQL fix to unblock your testing immediately
-2. Approve this plan to implement the code fix
-3. After implementation, register a fresh user to verify the complete flow
+**Current Issue:** May allow adding proof points without expertise selection.
+
+**Changes:**
+- Add check for selected expertise before allowing proof point creation
+- If no expertise selected: Show info message with link to Expertise step
+- If expertise selected: Allow normal proof point creation
+
+**New Logic:**
+```typescript
+const hasExpertiseSelected = activeEnrollment?.expertise_level_id != null;
+
+const handleAddProofPoint = () => {
+  if (!hasExpertiseSelected) {
+    toast.info('Please select your expertise level first before adding proof points.');
+    return;
+  }
+  navigate('/enroll/add-proof-point');
+};
+```
+
+---
+
+### 4. `src/pages/enroll/ParticipationMode.tsx`
+
+**Verify/Update:**
+- Mode changes should always be allowed
+- If mode change affects dependent data (e.g., organization details), apply cascade rules
+- Show appropriate warnings but don't block the action
+
+---
+
+## Data Flow Diagram
+
+```
+User clicks step in wizard
+        |
+        v
+  [Navigate freely]
+        |
+        v
+  [Render page content]
+        |
+        v
+  User attempts action (Save/Edit/Delete)
+        |
+        v
+  [Check data dependencies]
+        |
+        +-- No dependencies --> [Allow action]
+        |
+        +-- Has dependencies --> [Show warning dialog]
+                                        |
+                                        +-- User confirms --> [Execute cascade + action]
+                                        |
+                                        +-- User cancels --> [No change]
+```
+
+---
+
+## Test Scenarios
+
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Navigate from Proof Points to Expertise (0 proof points) | Navigate freely |
+| Navigate from Proof Points to Expertise (has proof points) | Navigate freely (warning shown only when SAVING expertise change) |
+| Change expertise with 0 proof points | Save immediately, no warning |
+| Change expertise with 5 proof points | Show cascade warning dialog |
+| Confirm cascade warning | Delete proof points, save new expertise |
+| Cancel cascade warning | No changes made |
+| Add proof point without expertise | Show info toast, block action |
+| Change participation mode | Always allowed with applicable cascade rules |
+
+---
+
+## Implementation Order
+
+1. Update `WizardLayout.tsx` - Enable free navigation
+2. Update `ExpertiseSelection.tsx` - Add proof point check and cascade warning
+3. Update `ProofPoints.tsx` - Add expertise requirement check
+4. Verify `ParticipationMode.tsx` - Ensure mode changes work correctly
+5. Test all navigation and action scenarios
+
+---
+
+## Files Summary
+
+| File | Change Type |
+|------|-------------|
+| `src/components/layout/WizardLayout.tsx` | Simplify navigation logic |
+| `src/pages/enroll/ExpertiseSelection.tsx` | Add cascade warning for expertise changes |
+| `src/pages/enroll/ProofPoints.tsx` | Add expertise requirement check |
+| `src/pages/enroll/ParticipationMode.tsx` | Verify cascade rules for mode changes |
