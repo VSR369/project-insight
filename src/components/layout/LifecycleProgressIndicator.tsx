@@ -14,6 +14,8 @@ import { LIFECYCLE_RANKS, getStatusDisplayName } from '@/services/lifecycleServi
 interface LifecycleProgressIndicatorProps {
   currentStatus: string;
   currentRank: number;
+  /** Compact mode shows just badge and percentage, suitable for mobile */
+  compact?: boolean;
   className?: string;
 }
 
@@ -29,6 +31,7 @@ const MILESTONES = [
 export function LifecycleProgressIndicator({
   currentStatus,
   currentRank,
+  compact = false,
   className,
 }: LifecycleProgressIndicatorProps) {
   // Calculate progress percentage based on milestones
@@ -61,6 +64,41 @@ export function LifecycleProgressIndicator({
   const isTerminal = currentRank >= LIFECYCLE_RANKS.verified;
   const displayStatus = getStatusDisplayName(currentStatus);
 
+  // Compact mode - just badge and percentage
+  if (compact) {
+    return (
+      <TooltipProvider>
+        <div className={cn("flex items-center gap-2", className)}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={cn(
+                  "gap-1 px-1.5 py-0 text-[10px] font-medium cursor-help h-5",
+                  isTerminal 
+                    ? "bg-green-50 text-green-700 border-green-300" 
+                    : "bg-primary/5 text-primary border-primary/20"
+                )}
+              >
+                <Target className="h-2.5 w-2.5" />
+                {isTerminal ? 'Done' : `${Math.round(progressPercent)}%`}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-[180px]">
+              <div className="text-xs space-y-1">
+                <p className="font-medium">{displayStatus}</p>
+                {!isTerminal && nextMilestone && (
+                  <p className="text-muted-foreground">Next: {nextMilestone.label}</p>
+                )}
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
+    );
+  }
+
+  // Full mode
   return (
     <TooltipProvider>
       <div className={cn("flex items-center gap-3", className)}>
