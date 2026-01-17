@@ -20,7 +20,8 @@ export interface ProofPointWithCounts extends ProofPoint {
 
 export interface CreateProofPointInput {
   providerId: string;
-  industrySegmentId?: string; // NEW: Track industry context
+  enrollmentId?: string; // Enrollment-scoped tracking
+  industrySegmentId?: string; // Industry context
   category: ProofPointCategory;
   type: ProofPointType;
   title: string;
@@ -70,6 +71,7 @@ async function checkContentLock(providerId: string): Promise<{ allowed: boolean;
 
 // Options for useProofPoints hook
 export interface UseProofPointsOptions {
+  enrollmentId?: string; // Filter by specific enrollment
   industrySegmentId?: string;
   includeAllIndustries?: boolean;
 }
@@ -241,10 +243,11 @@ export function useCreateProofPoint() {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
 
-      // Insert proof point with audit fields
+      // Insert proof point with audit fields and enrollment scope
       const proofPointData = await withCreatedBy({
         provider_id: input.providerId,
-        industry_segment_id: input.industrySegmentId || null, // NEW: Track industry context
+        enrollment_id: input.enrollmentId || null, // Enrollment-scoped tracking
+        industry_segment_id: input.industrySegmentId || null,
         category: input.category,
         type: input.type,
         title: input.title,
@@ -366,24 +369,31 @@ export function useUpdateProofPoint() {
   });
 }
 
-// Soft delete proof point with minimum constraint check
+// Soft delete proof point with minimum constraint check (enrollment-scoped)
 export function useDeleteProofPoint() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, providerId }: { id: string; providerId: string }) => {
+    mutationFn: async ({ id, providerId, enrollmentId }: { id: string; providerId: string; enrollmentId?: string }) => {
       // Check content lock
       const contentCheck = await checkContentLock(providerId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
 
-      // Check minimum proof points constraint
-      const { count, error: countError } = await supabase
+      // Check minimum proof points constraint - scoped to enrollment if provided
+      let countQuery = supabase
         .from('proof_points')
         .select('id', { count: 'exact', head: true })
         .eq('provider_id', providerId)
         .eq('is_deleted', false);
+
+      // If enrollment provided, scope the count to that enrollment
+      if (enrollmentId) {
+        countQuery = countQuery.eq('enrollment_id', enrollmentId);
+      }
+
+      const { count, error: countError } = await countQuery;
 
       if (countError) throw countError;
 
@@ -391,7 +401,7 @@ export function useDeleteProofPoint() {
       const currentCount = count || 0;
 
       if (currentCount <= minRequired) {
-        throw new Error('Minimum 2 proof points required.');
+        throw new Error(`Minimum ${minRequired} proof points required for this enrollment.`);
       }
 
       const userId = await getCurrentUserId();
@@ -406,7 +416,7 @@ export function useDeleteProofPoint() {
         .eq('id', id);
 
       if (error) throw error;
-      return { id, providerId };
+      return { id, providerId, enrollmentId };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ['proof-points', result.providerId] });

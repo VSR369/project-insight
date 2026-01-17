@@ -119,10 +119,11 @@ function AddProofPointContent() {
       // Filter valid links
       const validLinks = links.filter(l => l.url.trim());
 
-      // Create proof point with enrollment's industry context
+      // Create proof point with enrollment scope
       const proofPoint = await createProofPoint.mutateAsync({
         providerId: provider.id,
-        industrySegmentId: activeIndustryId || undefined, // Use active enrollment's industry
+        enrollmentId: activeEnrollmentId || undefined, // Enrollment-scoped tracking
+        industrySegmentId: activeIndustryId || undefined,
         category: values.category as ProofPointCategory,
         type: values.type as ProofPointType,
         title: values.title,
