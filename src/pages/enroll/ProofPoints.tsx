@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Award, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
@@ -24,7 +26,18 @@ const DEFAULT_MINIMUM_REQUIRED = 2;
 function ProofPointsContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(provider?.id);
+  
+  // Industry filter state
+  const [showAllIndustries, setShowAllIndustries] = useState(false);
+  
+  // Fetch proof points with industry filter
+  const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(
+    provider?.id,
+    {
+      industrySegmentId: provider?.industry_segment_id || undefined,
+      includeAllIndustries: showAllIndustries,
+    }
+  );
   const deleteProofPoint = useDeleteProofPoint();
   
   // Get minimum required from system settings
@@ -172,39 +185,53 @@ function ProofPointsContent() {
 
         {/* Evidence Portfolio Section */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div>
-                <h2 className="text-lg font-semibold">Evidence Portfolio</h2>
-                <p className="text-sm text-muted-foreground">
-                  Showcase your expertise with real-world examples and achievements.
-                </p>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-lg font-semibold">Evidence Portfolio</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Showcase your expertise with real-world examples and achievements.
+                  </p>
+                </div>
+                {/* Minimum Requirement Status Indicator */}
+                <Badge 
+                  variant={minimumMet ? "default" : "secondary"}
+                  className={`flex items-center gap-1.5 ${
+                    minimumMet 
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
+                      : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
+                  }`}
+                >
+                  {minimumMet ? (
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                  ) : (
+                    <AlertCircle className="h-3.5 w-3.5" />
+                  )}
+                  {currentCount}/{minimumRequired} minimum
+                </Badge>
               </div>
-              {/* Minimum Requirement Status Indicator */}
-              <Badge 
-                variant={minimumMet ? "default" : "secondary"}
-                className={`flex items-center gap-1.5 ${
-                  minimumMet 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' 
-                    : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400'
-                }`}
+              <Button 
+                onClick={handleAddProofPoint} 
+                className="gap-2"
+                disabled={isContentLocked}
               >
-                {minimumMet ? (
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                ) : (
-                  <AlertCircle className="h-3.5 w-3.5" />
-                )}
-                {currentCount}/{minimumRequired} minimum
-              </Badge>
+                <Plus className="h-4 w-4" />
+                Add Proof Point
+              </Button>
             </div>
-            <Button 
-              onClick={handleAddProofPoint} 
-              className="gap-2"
-              disabled={isContentLocked}
-            >
-              <Plus className="h-4 w-4" />
-              Add Proof Point
-            </Button>
+
+            {/* Industry Filter Toggle */}
+            <div className="flex items-center gap-2 p-3 bg-muted/50 rounded-lg">
+              <Switch
+                id="show-all-industries"
+                checked={showAllIndustries}
+                onCheckedChange={setShowAllIndustries}
+              />
+              <Label htmlFor="show-all-industries" className="text-sm text-muted-foreground cursor-pointer">
+                Show proof points from all industries
+              </Label>
+            </div>
           </div>
 
           {/* Proof Points List */}
@@ -232,6 +259,7 @@ function ProofPointsContent() {
                 <ProofPointCard
                   key={proof.id}
                   proofPoint={proof}
+                  currentIndustryId={provider?.industry_segment_id || undefined}
                   onView={handleView}
                   onEdit={isContentLocked ? undefined : handleEdit}
                   onDelete={isContentLocked || !canDelete ? undefined : handleDelete}

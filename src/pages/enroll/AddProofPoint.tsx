@@ -101,9 +101,10 @@ function AddProofPointContent() {
       // Filter valid links
       const validLinks = links.filter(l => l.url.trim());
 
-      // Create proof point
+      // Create proof point with industry context
       const proofPoint = await createProofPoint.mutateAsync({
         providerId: provider.id,
+        industrySegmentId: provider.industry_segment_id || undefined, // NEW: Track industry
         category: values.category as ProofPointCategory,
         type: values.type as ProofPointType,
         title: values.title,
