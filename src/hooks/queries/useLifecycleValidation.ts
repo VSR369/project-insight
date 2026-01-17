@@ -69,8 +69,9 @@ export function useCanModifyField(fieldCategory: FieldCategory): LockCheckResult
       return { allowed: false, reason: 'Loading...', isLoading: true };
     }
 
+    // New users (no provider yet) should have full access to all fields
     if (!provider) {
-      return { allowed: false, reason: 'Provider not found', isLoading: false };
+      return { allowed: true, reason: undefined, isLoading: false };
     }
 
     // Use enrollment lifecycle rank if available, fallback to provider for backward compatibility

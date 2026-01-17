@@ -299,7 +299,9 @@ function RegistrationContent() {
   };
 
   const isLoading = countriesLoading || segmentsLoading || providerLoading || enrollmentsLoading;
-  const isIndustryLocked = !configurationCheck.allowed;
+  // Only lock if provider exists AND lifecycle doesn't allow configuration changes
+  // New users (no provider) should be able to edit freely
+  const isIndustryLocked = !!provider && !configurationCheck.allowed;
 
   if (isLoading) {
     return (
