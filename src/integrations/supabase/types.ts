@@ -2113,6 +2113,7 @@ export type Database = {
         | "tenant_admin"
         | "solution_provider"
         | "seeker"
+        | "panel_reviewer"
       invitation_type: "standard" | "vip_expert"
       lifecycle_status:
         | "invited"
@@ -2289,6 +2290,7 @@ export const Constants = {
         "tenant_admin",
         "solution_provider",
         "seeker",
+        "panel_reviewer",
       ],
       invitation_type: ["standard", "vip_expert"],
       lifecycle_status: [
