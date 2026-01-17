@@ -48,6 +48,7 @@ const typeLabels: Record<string, string> = {
 
 interface ProofPointCardProps {
   proofPoint: ProofPointWithCounts;
+  currentIndustryId?: string; // NEW: To compare with proof point's industry
   onView?: (proofPoint: ProofPointWithCounts) => void;
   onEdit?: (proofPoint: ProofPointWithCounts) => void;
   onDelete?: (proofPoint: ProofPointWithCounts) => void;
@@ -56,6 +57,7 @@ interface ProofPointCardProps {
 
 export function ProofPointCard({ 
   proofPoint, 
+  currentIndustryId,
   onView,
   onEdit, 
   onDelete,
@@ -64,6 +66,11 @@ export function ProofPointCard({
   const Icon = typeIcons[proofPoint.type] || FileText;
   const isSpecialty = proofPoint.category === 'specialty_specific';
   const hasSpecialityTags = proofPoint.tagsCount > 0;
+  
+  // Check if proof point is from a different industry
+  const isFromPreviousIndustry = currentIndustryId && 
+    proofPoint.industry_segment_id && 
+    proofPoint.industry_segment_id !== currentIndustryId;
 
   return (
     <Card 
@@ -80,7 +87,7 @@ export function ProofPointCard({
           
           <div className="flex-1 min-w-0">
             {/* Title and Badges */}
-            <div className="flex items-start justify-between gap-2">
+                <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-medium truncate">{proofPoint.title}</h3>
@@ -100,6 +107,12 @@ export function ProofPointCard({
                   ) : (
                     <Badge variant="secondary" className="text-xs shrink-0 bg-secondary/50">
                       General
+                    </Badge>
+                  )}
+                  {/* Previous Industry Badge */}
+                  {isFromPreviousIndustry && (
+                    <Badge variant="outline" className="text-xs shrink-0 bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800">
+                      Previous Industry
                     </Badge>
                   )}
                 </div>

@@ -20,6 +20,7 @@ export interface ProofPointWithCounts extends ProofPoint {
 
 export interface CreateProofPointInput {
   providerId: string;
+  industrySegmentId?: string; // NEW: Track industry context
   category: ProofPointCategory;
   type: ProofPointType;
   title: string;
@@ -67,20 +68,32 @@ async function checkContentLock(providerId: string): Promise<{ allowed: boolean;
   return canModifyField(provider?.lifecycle_rank || 0, 'content');
 }
 
+// Options for useProofPoints hook
+export interface UseProofPointsOptions {
+  industrySegmentId?: string;
+  includeAllIndustries?: boolean;
+}
+
 // Fetch all proof points for a provider with counts
-export function useProofPoints(providerId?: string) {
+export function useProofPoints(providerId?: string, options?: UseProofPointsOptions) {
   return useQuery({
-    queryKey: ['proof-points', providerId],
+    queryKey: ['proof-points', providerId, options?.industrySegmentId, options?.includeAllIndustries],
     queryFn: async () => {
       if (!providerId) return [];
 
       // Fetch proof points
-      const { data: proofPoints, error: proofPointsError } = await supabase
+      let query = supabase
         .from('proof_points')
         .select('*')
         .eq('provider_id', providerId)
-        .eq('is_deleted', false)
-        .order('created_at', { ascending: false });
+        .eq('is_deleted', false);
+
+      // Filter by industry unless explicitly showing all
+      if (options?.industrySegmentId && !options?.includeAllIndustries) {
+        query = query.eq('industry_segment_id', options.industrySegmentId);
+      }
+
+      const { data: proofPoints, error: proofPointsError } = await query.order('created_at', { ascending: false });
 
       if (proofPointsError) throw proofPointsError;
       if (!proofPoints?.length) return [];
@@ -192,6 +205,7 @@ export function useCreateProofPoint() {
       // Insert proof point with audit fields
       const proofPointData = await withCreatedBy({
         provider_id: input.providerId,
+        industry_segment_id: input.industrySegmentId || null, // NEW: Track industry context
         category: input.category,
         type: input.type,
         title: input.title,

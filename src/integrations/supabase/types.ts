@@ -813,6 +813,7 @@ export type Database = {
           deleted_by: string | null
           description: string
           id: string
+          industry_segment_id: string | null
           is_deleted: boolean
           provider_id: string
           title: string
@@ -828,6 +829,7 @@ export type Database = {
           deleted_by?: string | null
           description: string
           id?: string
+          industry_segment_id?: string | null
           is_deleted?: boolean
           provider_id: string
           title: string
@@ -843,6 +845,7 @@ export type Database = {
           deleted_by?: string | null
           description?: string
           id?: string
+          industry_segment_id?: string | null
           is_deleted?: boolean
           provider_id?: string
           title?: string
@@ -851,6 +854,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proof_points_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proof_points_provider_id_fkey"
             columns: ["provider_id"]
