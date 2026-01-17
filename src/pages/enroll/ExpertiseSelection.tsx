@@ -12,6 +12,7 @@ import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -24,7 +25,7 @@ import { Loader2, CheckCircle, Star, AlertCircle, FolderOpen, ChevronDown, Chevr
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
-export default function EnrollExpertise() {
+function ExpertiseContent() {
   const navigate = useNavigate();
   const { data: levels, isLoading: levelsLoading, error: levelsError } = useExpertiseLevels();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
@@ -649,5 +650,13 @@ export default function EnrollExpertise() {
         />
       )}
     </WizardLayout>
+  );
+}
+
+export default function EnrollExpertise() {
+  return (
+    <FeatureErrorBoundary featureName="Expertise Selection">
+      <ExpertiseContent />
+    </FeatureErrorBoundary>
   );
 }

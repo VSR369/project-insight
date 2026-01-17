@@ -9,6 +9,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints, useDeleteProofPoint, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { 
   ProofPointCard, 
   ProofPointViewDialog,
@@ -20,7 +21,7 @@ import { toast } from 'sonner';
 
 const DEFAULT_MINIMUM_REQUIRED = 2;
 
-export default function EnrollProofPoints() {
+function ProofPointsContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(provider?.id);
@@ -261,5 +262,13 @@ export default function EnrollProofPoints() {
         onEdit={isContentLocked ? undefined : handleEditFromDialog}
       />
     </WizardLayout>
+  );
+}
+
+export default function EnrollProofPoints() {
+  return (
+    <FeatureErrorBoundary featureName="Proof Points">
+      <ProofPointsContent />
+    </FeatureErrorBoundary>
   );
 }
