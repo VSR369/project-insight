@@ -59,6 +59,10 @@ import { InvitationPreviewPanel } from "./InvitationPreviewPanel";
 interface ReviewerInviteFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
+  editingReviewer?: {
+    id: string;
+    invitation_status: string | null;
+  } | null;
 }
 
 // Generate secure password
@@ -69,10 +73,14 @@ function generatePassword(): string {
   return Array.from(array, (byte) => chars[byte % chars.length]).join('');
 }
 
-export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormProps) {
+export function ReviewerInviteForm({ onSuccess, onCancel, editingReviewer }: ReviewerInviteFormProps) {
   const [generatedPassword, setGeneratedPassword] = useState<string>("");
   const [newLanguage, setNewLanguage] = useState("");
   const [isConfirmed, setIsConfirmed] = useState(false);
+
+  // Determine if invitation has already been sent (disable Save Draft)
+  const invitationAlreadySent = editingReviewer?.invitation_status === "SENT" || 
+                                 editingReviewer?.invitation_status === "ACCEPTED";
 
   const { data: levels, isLoading: levelsLoading } = useExpertiseLevels(false);
   const { data: industries, isLoading: industriesLoading } = useIndustrySegments(false);
@@ -649,7 +657,8 @@ export function ReviewerInviteForm({ onSuccess, onCancel }: ReviewerInviteFormPr
                     type="button"
                     variant="outline"
                     onClick={handleSaveDraft}
-                    disabled={isLoading}
+                    disabled={isLoading || invitationAlreadySent}
+                    title={invitationAlreadySent ? "Cannot save as draft after invitation is sent" : undefined}
                   >
                     <Save className="mr-2 h-4 w-4" />
                     Save Draft

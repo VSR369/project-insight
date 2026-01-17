@@ -846,6 +846,9 @@ export type Database = {
       }
       panel_reviewers: {
         Row: {
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
           created_at: string | null
           created_by: string | null
           email: string
@@ -872,6 +875,9 @@ export type Database = {
           years_experience: number | null
         }
         Insert: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           created_by?: string | null
           email: string
@@ -898,6 +904,9 @@ export type Database = {
           years_experience?: number | null
         }
         Update: {
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string
