@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -9,6 +9,16 @@ import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGu
 import { getStatusDisplayName } from '@/services/lifecycleService';
 import { AppLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -51,6 +61,13 @@ export default function Dashboard() {
   const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
   const setPrimaryMutation = useSetPrimaryEnrollment();
+
+  // State for set primary confirmation dialog
+  const [primaryConfirmDialog, setPrimaryConfirmDialog] = useState<{
+    open: boolean;
+    enrollmentId: string | null;
+    industryName: string | null;
+  }>({ open: false, enrollmentId: null, industryName: null });
 
   const firstName = user?.user_metadata?.first_name || provider?.first_name || 'Provider';
 
@@ -311,12 +328,11 @@ export default function Dashboard() {
                             disabled={setPrimaryMutation.isPending}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (provider?.id) {
-                                setPrimaryMutation.mutate({
-                                  providerId: provider.id,
-                                  enrollmentId: enrollment.id,
-                                });
-                              }
+                              setPrimaryConfirmDialog({
+                                open: true,
+                                enrollmentId: enrollment.id,
+                                industryName: enrollment.industry_segment?.name || 'this industry',
+                              });
                             }}
                           >
                             <Crown className="h-4 w-4" />
@@ -477,6 +493,47 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      {/* Set Primary Confirmation Dialog */}
+      <AlertDialog 
+        open={primaryConfirmDialog.open} 
+        onOpenChange={(open) => setPrimaryConfirmDialog(prev => ({ ...prev, open }))}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Set as Primary Industry?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will make <span className="font-semibold">{primaryConfirmDialog.industryName}</span> your 
+              primary industry. Your primary industry is shown first in your profile and used as the default 
+              for new activities.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={setPrimaryMutation.isPending}
+              onClick={() => {
+                if (provider?.id && primaryConfirmDialog.enrollmentId) {
+                  setPrimaryMutation.mutate({
+                    providerId: provider.id,
+                    enrollmentId: primaryConfirmDialog.enrollmentId,
+                  });
+                  setPrimaryConfirmDialog({ open: false, enrollmentId: null, industryName: null });
+                }
+              }}
+            >
+              {setPrimaryMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Setting...
+                </>
+              ) : (
+                'Set as Primary'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppLayout>
   );
 }
