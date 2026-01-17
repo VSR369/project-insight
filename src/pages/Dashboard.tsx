@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints } from '@/hooks/queries/useProofPoints';
-import { useProviderEnrollments, useActiveEnrollment } from '@/hooks/queries/useProviderEnrollments';
+import { useProviderEnrollments, useActiveEnrollment, useSetPrimaryEnrollment } from '@/hooks/queries/useProviderEnrollments';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
@@ -15,7 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, 
   Award, UserCircle, Loader2, ShieldCheck, Star, XCircle, Building2,
-  ChevronRight, Factory, Layers
+  ChevronRight, Factory, Layers, Crown
 } from 'lucide-react';
 
 // Terminal lifecycle statuses where profile is complete/locked
@@ -50,6 +50,7 @@ export default function Dashboard() {
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
   const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
+  const setPrimaryMutation = useSetPrimaryEnrollment();
 
   const firstName = user?.user_metadata?.first_name || provider?.first_name || 'Provider';
 
@@ -299,8 +300,31 @@ export default function Dashboard() {
                         )}
                       </div>
 
-                      {/* Action Button */}
-                      <div className="shrink-0">
+                      {/* Action Buttons */}
+                      <div className="shrink-0 flex items-center gap-2">
+                        {/* Set as Primary Button - only show for non-primary enrollments */}
+                        {!enrollment.is_primary && enrollments.length > 1 && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted-foreground hover:text-foreground"
+                            disabled={setPrimaryMutation.isPending}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (provider?.id) {
+                                setPrimaryMutation.mutate({
+                                  providerId: provider.id,
+                                  enrollmentId: enrollment.id,
+                                });
+                              }
+                            }}
+                          >
+                            <Crown className="h-4 w-4" />
+                            <span className="hidden sm:inline ml-1">Set Primary</span>
+                          </Button>
+                        )}
+
+                        {/* View/Continue Button */}
                         {isTerminal ? (
                           <Button
                             variant="ghost"
