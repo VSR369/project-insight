@@ -822,6 +822,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           description: string
+          enrollment_id: string | null
           id: string
           industry_segment_id: string | null
           is_deleted: boolean
@@ -838,6 +839,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description: string
+          enrollment_id?: string | null
           id?: string
           industry_segment_id?: string | null
           is_deleted?: boolean
@@ -854,6 +856,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string
+          enrollment_id?: string | null
           id?: string
           industry_segment_id?: string | null
           is_deleted?: boolean
@@ -864,6 +867,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "proof_points_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "proof_points_industry_segment_id_fkey"
             columns: ["industry_segment_id"]
@@ -890,6 +900,9 @@ export type Database = {
           is_primary: boolean
           lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
+          org_approval_status: string | null
+          organization: Json | null
+          participation_mode_id: string | null
           provider_id: string
           updated_at: string | null
           updated_by: string | null
@@ -903,6 +916,9 @@ export type Database = {
           is_primary?: boolean
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          org_approval_status?: string | null
+          organization?: Json | null
+          participation_mode_id?: string | null
           provider_id: string
           updated_at?: string | null
           updated_by?: string | null
@@ -916,6 +932,9 @@ export type Database = {
           is_primary?: boolean
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          org_approval_status?: string | null
+          organization?: Json | null
+          participation_mode_id?: string | null
           provider_id?: string
           updated_at?: string | null
           updated_by?: string | null
@@ -933,6 +952,13 @@ export type Database = {
             columns: ["industry_segment_id"]
             isOneToOne: false
             referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_participation_mode_id_fkey"
+            columns: ["participation_mode_id"]
+            isOneToOne: false
+            referencedRelation: "participation_modes"
             referencedColumns: ["id"]
           },
           {
