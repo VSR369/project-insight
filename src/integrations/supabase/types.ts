@@ -193,6 +193,7 @@ export type Database = {
         Row: {
           answered_questions: number | null
           created_at: string
+          enrollment_id: string | null
           id: string
           is_passed: boolean | null
           provider_id: string
@@ -205,6 +206,7 @@ export type Database = {
         Insert: {
           answered_questions?: number | null
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           is_passed?: boolean | null
           provider_id: string
@@ -217,6 +219,7 @@ export type Database = {
         Update: {
           answered_questions?: number | null
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           is_passed?: boolean | null
           provider_id?: string
@@ -227,6 +230,13 @@ export type Database = {
           total_questions?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "assessment_attempts_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "assessment_attempts_provider_id_fkey"
             columns: ["provider_id"]
@@ -870,10 +880,75 @@ export type Database = {
           },
         ]
       }
+      provider_industry_enrollments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          expertise_level_id: string | null
+          id: string
+          industry_segment_id: string
+          is_primary: boolean
+          lifecycle_rank: number
+          lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
+          provider_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          expertise_level_id?: string | null
+          id?: string
+          industry_segment_id: string
+          is_primary?: boolean
+          lifecycle_rank?: number
+          lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          provider_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          expertise_level_id?: string | null
+          id?: string
+          industry_segment_id?: string
+          is_primary?: boolean
+          lifecycle_rank?: number
+          lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
+          provider_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_industry_enrollments_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_proficiency_areas: {
         Row: {
           created_at: string
           created_by: string | null
+          enrollment_id: string | null
           id: string
           proficiency_area_id: string
           provider_id: string
@@ -883,6 +958,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          enrollment_id?: string | null
           id?: string
           proficiency_area_id: string
           provider_id: string
@@ -892,6 +968,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          enrollment_id?: string | null
           id?: string
           proficiency_area_id?: string
           provider_id?: string
@@ -899,6 +976,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "provider_proficiency_areas_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "provider_proficiency_areas_proficiency_area_id_fkey"
             columns: ["proficiency_area_id"]
@@ -918,23 +1002,33 @@ export type Database = {
       provider_specialities: {
         Row: {
           created_at: string
+          enrollment_id: string | null
           id: string
           provider_id: string
           speciality_id: string
         }
         Insert: {
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           provider_id: string
           speciality_id: string
         }
         Update: {
           created_at?: string
+          enrollment_id?: string | null
           id?: string
           provider_id?: string
           speciality_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "provider_specialities_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "provider_specialities_provider_id_fkey"
             columns: ["provider_id"]
