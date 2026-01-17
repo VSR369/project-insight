@@ -13,10 +13,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useProofPoints, useDeleteProofPoint, useProofPointCountsByIndustry, type ProofPointWithCounts } from '@/hooks/queries/useProofPoints';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
-import { useCanModifyField, useIsTerminalState, useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
+import { useMinProofPointsRequired } from '@/hooks/queries/useLifecycleValidation';
+import { 
+  useEnrollmentCanModifyField, 
+  useEnrollmentIsTerminal 
+} from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { 
@@ -36,26 +42,35 @@ function ProofPointsContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   
+  // Get active enrollment from context
+  const { 
+    activeEnrollment, 
+    activeEnrollmentId, 
+    activeIndustryId,
+    enrollments,
+    isLoading: enrollmentLoading 
+  } = useEnrollmentContext();
+  
   // Fetch industry segments for the dropdown
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments();
   
   // Fetch proof point counts by industry
   const { data: industryCounts = [] } = useProofPointCountsByIndustry(provider?.id);
   
-  // Industry filter state - default to 'current'
+  // Industry filter state - default to 'current' (active enrollment's industry)
   const [industryFilter, setIndustryFilter] = useState<IndustryFilterMode>('current');
   
-  // Compute effective filter values
+  // Compute effective filter values - using active enrollment's industry
   const { effectiveIndustryId, includeAllIndustries } = useMemo(() => {
     if (industryFilter === 'all') {
       return { effectiveIndustryId: undefined, includeAllIndustries: true };
     }
     if (industryFilter === 'current') {
-      return { effectiveIndustryId: provider?.industry_segment_id || undefined, includeAllIndustries: false };
+      return { effectiveIndustryId: activeIndustryId || undefined, includeAllIndustries: false };
     }
     // Specific segment ID selected
     return { effectiveIndustryId: industryFilter, includeAllIndustries: false };
-  }, [industryFilter, provider?.industry_segment_id]);
+  }, [industryFilter, activeIndustryId]);
   
   // Fetch proof points with industry filter
   const { data: proofPoints = [], isLoading: proofPointsLoading } = useProofPoints(
@@ -71,9 +86,9 @@ function ProofPointsContent() {
   const minRequiredSetting = useMinProofPointsRequired();
   const minimumRequired = minRequiredSetting ?? DEFAULT_MINIMUM_REQUIRED;
 
-  // Lifecycle validation
-  const contentCheck = useCanModifyField('content');
-  const terminalState = useIsTerminalState();
+  // Lifecycle validation scoped to enrollment
+  const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
   const isContentLocked = !contentCheck.allowed || isTerminal;
   
@@ -104,6 +119,11 @@ function ProofPointsContent() {
   const totalProofPoints = useMemo(() => {
     return industryCounts.reduce((sum, ic) => sum + ic.count, 0);
   }, [industryCounts]);
+
+  // Get enrolled industry IDs for filtering the dropdown
+  const enrolledIndustryIds = useMemo(() => {
+    return enrollments.map(e => e.industry_segment_id);
+  }, [enrollments]);
 
   const currentCount = proofPoints.length;
   const minimumMet = currentCount >= minimumRequired;
@@ -176,12 +196,27 @@ function ProofPointsContent() {
     }
   };
 
-  if (providerLoading || proofPointsLoading) {
+  if (providerLoading || proofPointsLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={5} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
+      </WizardLayout>
+    );
+  }
+
+  // Show message if no enrollment is active
+  if (!activeEnrollment) {
+    return (
+      <WizardLayout currentStep={5} onBack={handleBack} hideContinueButton>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Industry Selected</AlertTitle>
+          <AlertDescription>
+            Please complete industry and expertise selection before adding proof points.
+          </AlertDescription>
+        </Alert>
       </WizardLayout>
     );
   }
@@ -289,10 +324,10 @@ function ProofPointsContent() {
                 <SelectContent className="bg-background z-50">
                   <SelectItem value="current">
                     <span className="flex items-center justify-between gap-2 w-full">
-                      <span>Current Industry {provider?.industry_segment_id ? `(${industryNameMap[provider.industry_segment_id] || 'Selected'})` : ''}</span>
-                      {provider?.industry_segment_id && industryCountMap[provider.industry_segment_id] !== undefined && (
+                      <span>Current Industry {activeIndustryId ? `(${industryNameMap[activeIndustryId] || 'Selected'})` : ''}</span>
+                      {activeIndustryId && industryCountMap[activeIndustryId] !== undefined && (
                         <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0">
-                          {industryCountMap[provider.industry_segment_id]}
+                          {industryCountMap[activeIndustryId]}
                         </Badge>
                       )}
                     </span>
@@ -307,17 +342,23 @@ function ProofPointsContent() {
                       )}
                     </span>
                   </SelectItem>
-                  {industrySegments.length > 0 && (
+                  {/* Show enrolled industries */}
+                  {enrolledIndustryIds.length > 0 && (
                     <>
                       <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground border-t mt-1 pt-2">
-                        Select specific industry:
+                        Your enrolled industries:
                       </div>
-                      {industrySegments.map((segment) => {
-                        const count = industryCountMap[segment.id] || 0;
+                      {enrollments.map((enrollment) => {
+                        const count = industryCountMap[enrollment.industry_segment_id] || 0;
+                        const industryName = industryNameMap[enrollment.industry_segment_id] || 'Unknown';
+                        const isPrimary = enrollment.is_primary;
                         return (
-                          <SelectItem key={segment.id} value={segment.id}>
+                          <SelectItem key={enrollment.industry_segment_id} value={enrollment.industry_segment_id}>
                             <span className="flex items-center justify-between gap-2 w-full">
-                              <span>{segment.name}</span>
+                              <span className="flex items-center gap-1">
+                                {industryName}
+                                {isPrimary && <Badge variant="outline" className="text-xs px-1 py-0">Primary</Badge>}
+                              </span>
                               {count > 0 && (
                                 <Badge variant="secondary" className="ml-2 text-xs px-1.5 py-0">
                                   {count}
@@ -359,7 +400,7 @@ function ProofPointsContent() {
                 <ProofPointCard
                   key={proof.id}
                   proofPoint={proof}
-                  currentIndustryId={provider?.industry_segment_id || undefined}
+                  currentIndustryId={activeIndustryId || undefined}
                   industryName={proof.industry_segment_id ? industryNameMap[proof.industry_segment_id] : undefined}
                   onView={handleView}
                   onEdit={isContentLocked ? undefined : handleEdit}
