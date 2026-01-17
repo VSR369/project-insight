@@ -5,6 +5,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints } from '@/hooks/queries/useProofPoints';
 import { useProviderEnrollments, useActiveEnrollment, useSetPrimaryEnrollment, useDeleteEnrollment } from '@/hooks/queries/useProviderEnrollments';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
 import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
@@ -60,7 +61,8 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { data: provider, isLoading } = useCurrentProvider();
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
-  const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
+  const { activeEnrollment, activeEnrollmentId, setActiveEnrollment } = useEnrollmentContext();
+  const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
   const { data: participationModes = [] } = useParticipationModes();
   const setPrimaryMutation = useSetPrimaryEnrollment();
@@ -179,7 +181,7 @@ export default function Dashboard() {
     }
   };
 
-  const currentStep = calculateCurrentStep(provider);
+  const currentStep = calculateCurrentStep(provider, activeEnrollment, enrollmentProficiencyAreas);
 
   // NOTE: Removed auto-redirect - Dashboard now shows for all users
   // Users can see their enrollment status and manually continue enrollment
