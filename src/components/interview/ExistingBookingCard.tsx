@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,8 +16,9 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { CalendarCheck, Clock, RefreshCw, XCircle, CheckCircle, Loader2 } from "lucide-react";
+import { CalendarCheck, Clock, RefreshCw, XCircle, CheckCircle, Loader2, Info } from "lucide-react";
 import { InterviewBooking, QuorumRequirement } from "@/hooks/queries/useInterviewScheduling";
+import { RescheduleEligibility, CancelEligibility } from "@/services/rescheduleService";
 import { formatInTimezone } from "./TimeZoneSelector";
 
 interface ExistingBookingCardProps {
@@ -28,6 +30,8 @@ interface ExistingBookingCardProps {
   onCancel: (reason: string) => Promise<void>;
   maxReschedules?: number;
   isCancelling?: boolean;
+  rescheduleEligibility: RescheduleEligibility & { isLoading?: boolean };
+  cancelEligibility: CancelEligibility & { isLoading?: boolean };
 }
 
 export function ExistingBookingCard({
@@ -39,11 +43,12 @@ export function ExistingBookingCard({
   onCancel,
   maxReschedules = 2,
   isCancelling,
+  rescheduleEligibility,
+  cancelEligibility,
 }: ExistingBookingCardProps) {
   const [showCancelDialog, setShowCancelDialog] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
 
-  const canReschedule = booking.reschedule_count < maxReschedules;
   const duration = quorumRequirement?.interview_duration_minutes || 60;
 
   const dateStr = formatInTimezone(booking.scheduled_at, timezone, {
@@ -75,12 +80,18 @@ export function ExistingBookingCard({
         return <Badge variant="destructive">Cancelled</Badge>;
       case "completed":
         return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+      case "in_progress":
+        return <Badge className="bg-yellow-100 text-yellow-800">In Progress</Badge>;
       case "no_show":
         return <Badge variant="destructive">No Show</Badge>;
       default:
         return <Badge variant="outline">{booking.status}</Badge>;
     }
   };
+
+  const canReschedule = rescheduleEligibility.allowed;
+  const canCancel = cancelEligibility.allowed;
+  const isLoadingEligibility = rescheduleEligibility.isLoading || cancelEligibility.isLoading;
 
   return (
     <>
@@ -131,29 +142,64 @@ export function ExistingBookingCard({
             </p>
           </div>
 
+          {/* Eligibility warning alerts */}
+          {!isLoadingEligibility && !canReschedule && rescheduleEligibility.reasons.length > 0 && (
+            <Alert variant="default" className="bg-muted/50">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-medium">Rescheduling is not available:</span>
+                <ul className="mt-1 list-disc list-inside text-sm">
+                  {rescheduleEligibility.reasons.map((reason, index) => (
+                    <li key={index}>{reason}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {!isLoadingEligibility && !canCancel && cancelEligibility.reasons.length > 0 && (
+            <Alert variant="default" className="bg-muted/50">
+              <Info className="h-4 w-4" />
+              <AlertDescription>
+                <span className="font-medium">Cancellation is not available:</span>
+                <ul className="mt-1 list-disc list-inside text-sm">
+                  {cancelEligibility.reasons.map((reason, index) => (
+                    <li key={index}>{reason}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Actions */}
           <div className="flex gap-3">
-            {canReschedule && (
-              <Button variant="outline" className="flex-1" onClick={onReschedule}>
+            <Button 
+              variant="outline" 
+              className="flex-1" 
+              onClick={onReschedule}
+              disabled={!canReschedule || isLoadingEligibility}
+            >
+              {isLoadingEligibility ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Reschedule
-              </Button>
-            )}
+              )}
+              Reschedule
+            </Button>
             <Button
               variant="ghost"
               className="flex-1 text-destructive hover:text-destructive hover:bg-destructive/10"
               onClick={() => setShowCancelDialog(true)}
+              disabled={!canCancel || isLoadingEligibility}
             >
-              <XCircle className="mr-2 h-4 w-4" />
+              {isLoadingEligibility ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
               Cancel Booking
             </Button>
           </div>
-
-          {!canReschedule && (
-            <p className="text-xs text-muted-foreground text-center">
-              Maximum reschedules reached. Contact support for assistance.
-            </p>
-          )}
         </CardContent>
       </Card>
 

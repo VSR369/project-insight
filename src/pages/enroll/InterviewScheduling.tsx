@@ -25,6 +25,11 @@ import {
   useCanScheduleInterview,
 } from "@/hooks/queries/useInterviewScheduling";
 import {
+  useRescheduleEligibility,
+  useCancelEligibility,
+  useMaxReschedules,
+} from "@/hooks/queries/useRescheduleEligibility";
+import {
   InterviewCalendar,
   SlotDetailsPanel,
   BookingConfirmDialog,
@@ -64,6 +69,11 @@ export default function InterviewScheduling() {
     activeLifecycleRank
   );
 
+  // Reschedule/Cancel eligibility hooks
+  const rescheduleEligibility = useRescheduleEligibility(existingBooking ?? null, compositeSlots);
+  const cancelEligibility = useCancelEligibility(existingBooking ?? null);
+  const maxReschedules = useMaxReschedules();
+
   // UI State
   const [timezone, setTimezone] = useState(getUserTimezone());
   const [selectedSlot, setSelectedSlot] = useState<CompositeSlot | null>(null);
@@ -94,6 +104,7 @@ export default function InterviewScheduling() {
 
     setShowConfirmDialog(false);
     setSelectedSlot(null);
+    setIsRescheduling(false);
   };
 
   const handleCancelBooking = async (reason: string) => {
@@ -172,7 +183,10 @@ export default function InterviewScheduling() {
             expertiseLevelName={expertiseLevelName}
             onReschedule={handleReschedule}
             onCancel={handleCancelBooking}
+            maxReschedules={maxReschedules}
             isCancelling={cancelBooking.isPending}
+            rescheduleEligibility={rescheduleEligibility}
+            cancelEligibility={cancelEligibility}
           />
 
           {/* Navigation */}

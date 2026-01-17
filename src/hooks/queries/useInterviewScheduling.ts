@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { getCurrentUserId } from "@/lib/auditFields";
+import { checkRescheduleEligibility, checkCancelEligibility } from "@/services/rescheduleService";
 
 // Types
 export interface CompositeSlot {
@@ -185,9 +186,42 @@ export function useCancelBooking() {
     mutationFn: async (input: {
       bookingId: string;
       reason?: string;
+      skipValidation?: boolean; // Used during reschedule flow
     }) => {
       const userId = await getCurrentUserId();
       if (!userId) throw new Error("Not authenticated");
+
+      // Get current booking for validation (unless skipped)
+      if (!input.skipValidation) {
+        const { data: booking, error: fetchError } = await supabase
+          .from("interview_bookings")
+          .select("*")
+          .eq("id", input.bookingId)
+          .single();
+
+        if (fetchError) throw new Error(fetchError.message);
+        if (!booking) throw new Error("Booking not found");
+
+        // Fetch system lock status
+        const { data: lockSetting } = await supabase
+          .from("system_settings")
+          .select("setting_value")
+          .eq("setting_key", "interview_system_lock")
+          .maybeSingle();
+
+        const lockValue = lockSetting?.setting_value as { locked?: boolean } | null;
+        const isSystemLocked = lockValue?.locked ?? false;
+
+        // Validate cancellation eligibility
+        const cancelEligibility = checkCancelEligibility({
+          booking: booking as InterviewBooking,
+          isSystemLocked,
+        });
+
+        if (!cancelEligibility.allowed) {
+          throw new Error(cancelEligibility.reasons[0] || "Cancellation not allowed");
+        }
+      }
 
       const { data, error } = await supabase.rpc("cancel_interview_booking", {
         p_booking_id: input.bookingId,
@@ -230,32 +264,59 @@ export function useRescheduleBooking() {
       const userId = await getCurrentUserId();
       if (!userId) throw new Error("Not authenticated");
 
-      // Get current booking to check reschedule count
+      // Get current booking with all fields for validation
       const { data: currentBooking, error: fetchError } = await supabase
         .from("interview_bookings")
-        .select("reschedule_count")
+        .select("*")
         .eq("id", input.currentBookingId)
         .single();
 
       if (fetchError) throw new Error(fetchError.message);
+      if (!currentBooking) throw new Error("Booking not found");
 
-      // Check max reschedules (default 2)
-      const { data: settings } = await supabase
+      // Fetch system settings
+      const { data: maxRescheduleSetting } = await supabase
         .from("system_settings")
         .select("setting_value")
         .eq("setting_key", "panel_max_reschedules")
         .maybeSingle();
 
-      const settingValue = settings?.setting_value as { value?: number } | null;
+      const { data: cutoffSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "interview_booking_advance_hours")
+        .maybeSingle();
 
-      const maxReschedules = settingValue?.value ?? 2;
-      const currentCount = currentBooking?.reschedule_count ?? 0;
+      const { data: lockSetting } = await supabase
+        .from("system_settings")
+        .select("setting_value")
+        .eq("setting_key", "interview_system_lock")
+        .maybeSingle();
 
-      if (currentCount >= maxReschedules) {
-        throw new Error(`Maximum ${maxReschedules} reschedules allowed`);
+      const maxReschedulesValue = maxRescheduleSetting?.setting_value as { value?: number } | null;
+      const cutoffValue = cutoffSetting?.setting_value as { value?: number } | null;
+      const lockValue = lockSetting?.setting_value as { locked?: boolean } | null;
+
+      const maxReschedules = maxReschedulesValue?.value ?? 2;
+      const cutoffHours = cutoffValue?.value ?? 24;
+      const isSystemLocked = lockValue?.locked ?? false;
+
+      // Validate reschedule eligibility
+      const rescheduleEligibility = checkRescheduleEligibility({
+        booking: currentBooking as InterviewBooking,
+        maxReschedules,
+        cutoffHours,
+        hasAvailableSlots: true, // We already have a new slot selected
+        isSystemLocked,
+      });
+
+      if (!rescheduleEligibility.allowed) {
+        throw new Error(rescheduleEligibility.reasons[0] || "Reschedule not allowed");
       }
 
-      // Cancel current booking
+      const currentCount = currentBooking?.reschedule_count ?? 0;
+
+      // Cancel current booking (skip validation since we already validated)
       const { error: cancelError } = await supabase.rpc("cancel_interview_booking", {
         p_booking_id: input.currentBookingId,
         p_reason: "Rescheduled by provider",
