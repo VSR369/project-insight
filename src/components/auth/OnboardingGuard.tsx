@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useCurrentProvider, useProviderProficiencyAreas } from '@/hooks/queries/useProvider';
+import { useProofPoints } from '@/hooks/queries/useProofPoints';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ProviderData } from '@/services/providerService';
@@ -11,7 +12,11 @@ interface OnboardingGuardProps {
 }
 
 // Calculate which step the provider is currently on
-export function calculateCurrentStep(provider: ProviderData | null): number {
+export function calculateCurrentStep(
+  provider: ProviderData | null,
+  proficiencyAreas?: string[],
+  proofPointsCount?: number
+): number {
   if (!provider) return 1;
 
   // Step 1: Registration (Basic Profile)
@@ -33,11 +38,15 @@ export function calculateCurrentStep(provider: ProviderData | null): number {
     return 4;
   }
 
-  // Step 5: Proficiency Areas
-  // TODO: Check if provider has selected proficiency areas
+  // Step 5: Proficiency Areas - check if provider has selected proficiency areas
+  if (!proficiencyAreas || proficiencyAreas.length === 0) {
+    return 5;
+  }
 
-  // Step 6: Proof Points
-  // TODO: Check if provider has added proof points
+  // Step 6: Proof Points - check if provider has added proof points
+  if (!proofPointsCount || proofPointsCount === 0) {
+    return 6;
+  }
 
   // If all steps completed
   if (provider.onboarding_status === 'completed') {
@@ -51,36 +60,41 @@ export function calculateCurrentStep(provider: ProviderData | null): number {
 export function getStepUrl(step: number): string {
   switch (step) {
     case 1:
-      return '/profile/build/registration';
+      return '/enroll/registration';
     case 2:
-      return '/profile/build/choose-mode';
+      return '/enroll/participation-mode';
     case 3:
-      return '/profile/build/organization';
+      return '/enroll/organization';
     case 4:
-      return '/profile/build/expertise';
+      return '/enroll/expertise';
     case 5:
-      return '/profile/build/proficiency';
+      return '/enroll/expertise'; // Proficiency areas are on expertise page
     case 6:
-      return '/profile/build/proof-points';
+      return '/enroll/proof-points';
     default:
       return '/dashboard';
   }
 }
 
 export function OnboardingGuard({ requiredStep, children }: OnboardingGuardProps) {
-  const { data: provider, isLoading } = useCurrentProvider();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const { data: proficiencyAreas, isLoading: areasLoading } = useProviderProficiencyAreas(provider?.id);
+  const { data: proofPoints, isLoading: proofsLoading } = useProofPoints(provider?.id);
   const navigate = useNavigate();
+
+  const isLoading = providerLoading || areasLoading || proofsLoading;
 
   useEffect(() => {
     if (!isLoading && provider) {
-      const currentStep = calculateCurrentStep(provider);
+      const proofPointsCount = proofPoints?.length ?? 0;
+      const currentStep = calculateCurrentStep(provider, proficiencyAreas, proofPointsCount);
       
       if (currentStep < requiredStep) {
         toast.info('Please complete the previous step first');
         navigate(getStepUrl(currentStep));
       }
     }
-  }, [provider, isLoading, requiredStep, navigate]);
+  }, [provider, proficiencyAreas, proofPoints, isLoading, requiredStep, navigate]);
 
   if (isLoading) {
     return (
@@ -91,7 +105,8 @@ export function OnboardingGuard({ requiredStep, children }: OnboardingGuardProps
   }
 
   // Check if user should be on this step
-  const currentStep = calculateCurrentStep(provider);
+  const proofPointsCount = proofPoints?.length ?? 0;
+  const currentStep = calculateCurrentStep(provider, proficiencyAreas, proofPointsCount);
   if (currentStep < requiredStep) {
     return null; // Will redirect via useEffect
   }

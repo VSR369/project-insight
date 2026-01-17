@@ -6,6 +6,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUserId } from '@/lib/auditFields';
+import { handleMutationError, logWarning, logAuditEvent } from '@/lib/errorHandler';
 
 export interface CascadeResetResult {
   success: boolean;
@@ -23,24 +25,36 @@ export interface CascadeResetResult {
  */
 export async function executeIndustryChangeReset(providerId: string): Promise<CascadeResetResult> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
     const { error } = await supabase.rpc('execute_industry_change_reset', {
       p_provider_id: providerId,
-      p_user_id: user.id,
+      p_user_id: userId,
     });
 
     if (error) {
-      console.error('Industry change reset failed:', error);
+      handleMutationError(error, { 
+        operation: 'executeIndustryChangeReset', 
+        providerId 
+      }, false);
       return { success: false, error: error.message };
     }
 
+    // Log audit event for destructive action
+    logAuditEvent('INDUSTRY_RESET_EXECUTED', {
+      providerId,
+      resetType: 'industry_change',
+    }, userId);
+
     return { success: true };
   } catch (error) {
-    console.error('Industry change reset error:', error);
+    handleMutationError(error, { 
+      operation: 'executeIndustryChangeReset', 
+      providerId 
+    }, false);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -59,24 +73,36 @@ export async function executeIndustryChangeReset(providerId: string): Promise<Ca
  */
 export async function executeExpertiseLevelChangeReset(providerId: string): Promise<CascadeResetResult> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
     const { error } = await supabase.rpc('execute_expertise_change_reset', {
       p_provider_id: providerId,
-      p_user_id: user.id,
+      p_user_id: userId,
     });
 
     if (error) {
-      console.error('Expertise change reset failed:', error);
+      handleMutationError(error, { 
+        operation: 'executeExpertiseLevelChangeReset', 
+        providerId 
+      }, false);
       return { success: false, error: error.message };
     }
 
+    // Log audit event for destructive action
+    logAuditEvent('EXPERTISE_RESET_EXECUTED', {
+      providerId,
+      resetType: 'expertise_change',
+    }, userId);
+
     return { success: true };
   } catch (error) {
-    console.error('Expertise change reset error:', error);
+    handleMutationError(error, { 
+      operation: 'executeExpertiseLevelChangeReset', 
+      providerId 
+    }, false);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -102,13 +128,19 @@ export async function getCascadeImpactCounts(providerId: string): Promise<{
     });
 
     if (error) {
-      console.error('Failed to get cascade impact counts:', error);
+      logWarning('Failed to get cascade impact counts', { 
+        operation: 'getCascadeImpactCounts', 
+        providerId 
+      });
       return null;
     }
 
     return data?.[0] ?? null;
   } catch (error) {
-    console.error('Get cascade impact counts error:', error);
+    logWarning('Get cascade impact counts error', { 
+      operation: 'getCascadeImpactCounts', 
+      providerId 
+    });
     return null;
   }
 }

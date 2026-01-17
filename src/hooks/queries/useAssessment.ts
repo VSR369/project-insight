@@ -75,9 +75,8 @@ export function useStartAssessment() {
         toast.error(result.error || 'Failed to start assessment');
       }
     },
-    onError: (error) => {
-      console.error('Start assessment error:', error);
-      toast.error('Failed to start assessment. Please try again.');
+    onError: (error: Error) => {
+      toast.error(`Failed to start assessment: ${error.message}`);
     },
   });
 }
@@ -106,9 +105,8 @@ export function useSubmitAssessment() {
         toast.error(result.error || 'Failed to submit assessment');
       }
     },
-    onError: (error) => {
-      console.error('Submit assessment error:', error);
-      toast.error('Failed to submit assessment. Please try again.');
+    onError: (error: Error) => {
+      toast.error(`Failed to submit assessment: ${error.message}`);
     },
   });
 }

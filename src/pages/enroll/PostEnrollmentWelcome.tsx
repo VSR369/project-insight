@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,7 +11,6 @@ import {
   BarChart3, 
   Sparkles, 
   Award, 
-  Loader2,
   ArrowRight,
   BookOpen,
   LogOut,
@@ -85,7 +85,7 @@ const VERIFIED_BENEFITS = [
   },
 ];
 
-export default function PostEnrollmentWelcome() {
+function PostEnrollmentWelcomeContent() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
   const { data: provider, isLoading, error } = useCurrentProvider();
@@ -317,5 +317,13 @@ export default function PostEnrollmentWelcome() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PostEnrollmentWelcome() {
+  return (
+    <FeatureErrorBoundary featureName="Welcome">
+      <PostEnrollmentWelcomeContent />
+    </FeatureErrorBoundary>
   );
 }

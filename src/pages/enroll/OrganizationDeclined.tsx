@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { WizardLayout } from '@/components/layout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -9,7 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { XCircle, Loader2, UserCircle, AlertCircle, ArrowRight, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-export default function OrganizationDeclined() {
+function OrganizationDeclinedContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: participationModes, isLoading: modesLoading } = useParticipationModes();
@@ -39,8 +40,7 @@ export default function OrganizationDeclined() {
 
       toast.success('Switched to Individual mode');
       navigate('/enroll/expertise');
-    } catch (error) {
-      console.error('Error switching mode:', error);
+    } catch {
       toast.error('Failed to switch participation mode');
     }
   };
@@ -177,5 +177,13 @@ export default function OrganizationDeclined() {
         </Alert>
       </div>
     </WizardLayout>
+  );
+}
+
+export default function OrganizationDeclined() {
+  return (
+    <FeatureErrorBoundary featureName="Organization Declined">
+      <OrganizationDeclinedContent />
+    </FeatureErrorBoundary>
   );
 }

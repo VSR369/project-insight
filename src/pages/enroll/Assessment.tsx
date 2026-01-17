@@ -5,6 +5,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useCanStartAssessment, useStartAssessment, useActiveAssessmentAttempt } from '@/hooks/queries/useAssessment';
 import { useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,9 +20,8 @@ import {
   PlayCircle,
   Shield
 } from 'lucide-react';
-import { toast } from 'sonner';
 
-export default function EnrollAssessment() {
+function AssessmentContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: canStart, isLoading: canStartLoading } = useCanStartAssessment(provider?.id);
@@ -306,5 +306,13 @@ export default function EnrollAssessment() {
         </Card>
       </div>
     </WizardLayout>
+  );
+}
+
+export default function EnrollAssessment() {
+  return (
+    <FeatureErrorBoundary featureName="Assessment">
+      <AssessmentContent />
+    </FeatureErrorBoundary>
   );
 }

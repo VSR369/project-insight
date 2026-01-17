@@ -5,6 +5,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useWithdrawApprovalRequest } from '@/hooks/queries/useManagerApproval';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { WizardLayout } from '@/components/layout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -25,7 +26,7 @@ import { Clock, Mail, RefreshCw, Loader2, AlertCircle, Building2, Edit } from 'l
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 
-export default function OrganizationPending() {
+function OrganizationPendingContent() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading, refetch } = useCurrentProvider();
@@ -81,8 +82,7 @@ export default function OrganizationPending() {
       } else {
         toast.info('Still waiting for manager approval');
       }
-    } catch (error) {
-      console.error('Error checking status:', error);
+    } catch {
       toast.error('Failed to check status');
     } finally {
       setIsChecking(false);
@@ -112,7 +112,6 @@ export default function OrganizationPending() {
 
       toast.success('Approval request resent to manager');
     } catch (error: any) {
-      console.error('Error resending:', error);
       toast.error(error.message || 'Failed to resend email');
     } finally {
       setIsResending(false);
@@ -143,9 +142,8 @@ export default function OrganizationPending() {
 
       // Navigate to organization form after successful withdrawal
       navigate('/enroll/organization');
-    } catch (error) {
+    } catch {
       // Error is handled in the mutation
-      console.error('Withdrawal failed:', error);
     }
   };
 
@@ -166,8 +164,7 @@ export default function OrganizationPending() {
       });
       setShowBlockedDialog(false);
       // Navigation happens inside the hook
-    } catch (error) {
-      console.error('Error cancelling request:', error);
+    } catch {
       // Error toast is handled in the hook
     }
   };
@@ -401,5 +398,13 @@ export default function OrganizationPending() {
       </div>
       </WizardLayout>
     </>
+  );
+}
+
+export default function OrganizationPending() {
+  return (
+    <FeatureErrorBoundary featureName="Organization Pending">
+      <OrganizationPendingContent />
+    </FeatureErrorBoundary>
   );
 }

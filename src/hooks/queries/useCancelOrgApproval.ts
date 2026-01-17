@@ -2,6 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { logAuditEvent } from '@/lib/errorHandler';
 
 /**
  * Centralized hook for cancelling organization approval and resetting participation mode.
@@ -67,7 +68,14 @@ export function useCancelOrgApprovalAndResetMode() {
 
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Log audit event for destructive action
+      logAuditEvent('ORG_APPROVAL_WITHDRAWN', {
+        providerId: variables.providerId,
+        withdrawalReason: variables.withdrawalReason,
+        clearParticipationMode: true,
+      });
+
       // Step 3: Navigate IMMEDIATELY to participation mode (with replace to prevent back nav issues)
       navigate('/enroll/participation-mode', { replace: true });
       
@@ -79,7 +87,6 @@ export function useCancelOrgApprovalAndResetMode() {
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
     },
     onError: (error: Error) => {
-      console.error('Cancel org approval error:', error);
       toast.error(error.message || 'Failed to cancel request. Please try again.');
       
       // Rollback optimistic update by refetching

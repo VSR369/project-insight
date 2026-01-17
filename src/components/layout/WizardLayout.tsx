@@ -193,10 +193,10 @@ export function WizardLayout({
     3: '/enroll/organization',
     4: '/enroll/expertise',
     5: '/enroll/proof-points',
-    6: '/enroll/assessment',       // TODO: create these routes
-    7: '/enroll/interview-slot',   // TODO: create these routes
-    8: '/enroll/panel-discussion', // TODO: create these routes
-    9: '/enroll/certification',    // TODO: create these routes
+    6: '/enroll/assessment',
+    7: '/enroll/interview-slot',
+    8: '/enroll/panel-discussion',
+    9: '/enroll/certification',
   };
 
   // Calculate next accessible step (first incomplete step after all completed)
@@ -323,8 +323,7 @@ export function WizardLayout({
       });
       setShowBlockedDialog(false);
       // Navigation happens inside the hook
-    } catch (error) {
-      console.error('Error cancelling request:', error);
+    } catch {
       // Error toast is handled in the hook
     }
   };
