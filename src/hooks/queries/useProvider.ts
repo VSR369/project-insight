@@ -138,15 +138,19 @@ export function useUpdateProviderMode() {
   });
 }
 
+/**
+ * Upsert organization details to enrollment's organization JSONB column.
+ * This is enrollment-scoped to support multi-industry enrollments.
+ */
 export function useUpsertOrganization() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ 
-      providerId, 
+    mutationFn: async ({ 
+      enrollmentId, 
       data 
     }: { 
-      providerId: string; 
+      enrollmentId: string; 
       data: {
         orgName: string;
         orgTypeId: string;
@@ -156,9 +160,41 @@ export function useUpsertOrganization() {
         managerEmail: string;
         managerPhone?: string;
       };
-    }) => upsertOrganization(providerId, data),
+    }) => {
+      const supabase = (await import('@/integrations/supabase/client')).supabase;
+      
+      const organizationData = {
+        org_name: data.orgName,
+        org_type_id: data.orgTypeId,
+        org_website: data.orgWebsite || null,
+        designation: data.designation || null,
+        manager_name: data.managerName,
+        manager_email: data.managerEmail,
+        manager_phone: data.managerPhone || null,
+        approval_status: 'pending',
+        submitted_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase
+        .from('provider_industry_enrollments')
+        .update({
+          organization: organizationData,
+          org_approval_status: 'pending',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', enrollmentId);
+
+      if (error) throw error;
+    },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      toast.success('Organization details saved');
+    },
+    onError: (error) => {
+      console.error('Error saving organization:', error);
+      toast.error('Failed to save organization details');
     },
   });
 }

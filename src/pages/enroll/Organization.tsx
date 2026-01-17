@@ -7,7 +7,8 @@ import { WizardLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
 import { useSendManagerCredentials, checkOrgApprovalStatus } from '@/hooks/queries/useManagerApproval';
-import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { useEnrollmentCanModifyField, useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,12 +35,13 @@ function OrganizationContent() {
   const navigate = useNavigate();
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const { activeEnrollment, activeEnrollmentId, isLoading: enrollmentLoading } = useEnrollmentContext();
   const upsertOrg = useUpsertOrganization();
   const sendCredentials = useSendManagerCredentials();
 
-  // Lifecycle validation
-  const contentCheck = useCanModifyField('content');
-  const terminalState = useIsTerminalState();
+  // Lifecycle validation - enrollment-scoped
+  const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
 
   const form = useForm<OrganizationFormData>({
@@ -55,10 +57,12 @@ function OrganizationContent() {
     },
   });
 
-  // Check approval status on load
+  // Check approval status on load - from enrollment's organization JSONB
   useEffect(() => {
-    if (provider?.organization) {
-      const { status, canContinue } = checkOrgApprovalStatus(provider.organization);
+    const enrollmentOrg = activeEnrollment?.organization as any;
+    
+    if (enrollmentOrg) {
+      const { status, canContinue } = checkOrgApprovalStatus(enrollmentOrg);
       
       if (status === 'pending') {
         navigate('/enroll/organization-pending');
@@ -71,18 +75,17 @@ function OrganizationContent() {
       // For 'withdrawn' status, allow editing (canContinue is true)
       // For 'approved' status, can proceed but fields are locked
 
-      const org = provider.organization;
       form.reset({
-        orgName: org.org_name || '',
-        orgTypeId: org.org_type_id || '',
-        orgWebsite: org.org_website || '',
-        designation: org.designation || '',
-        managerName: org.manager_name || '',
-        managerEmail: org.manager_email || '',
-        managerPhone: org.manager_phone || '',
+        orgName: enrollmentOrg.org_name || '',
+        orgTypeId: enrollmentOrg.org_type_id || '',
+        orgWebsite: enrollmentOrg.org_website || '',
+        designation: enrollmentOrg.designation || '',
+        managerName: enrollmentOrg.manager_name || '',
+        managerEmail: enrollmentOrg.manager_email || '',
+        managerPhone: enrollmentOrg.manager_phone || '',
       });
     }
-  }, [provider?.organization, form, navigate]);
+  }, [activeEnrollment?.organization, form, navigate]);
 
   const handleBack = () => {
     navigate('/enroll/participation-mode');
@@ -99,15 +102,15 @@ function OrganizationContent() {
 
     const data = form.getValues();
 
-    if (!provider?.id) {
-      toast.error('Provider profile not found. Please try again.');
+    if (!provider?.id || !activeEnrollmentId) {
+      toast.error('Provider profile or enrollment not found. Please try again.');
       return;
     }
 
     try {
-      // Save organization details
+      // Save organization details to enrollment's organization JSONB
       await upsertOrg.mutateAsync({
-        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
         data: {
           orgName: data.orgName,
           orgTypeId: data.orgTypeId,
@@ -119,8 +122,8 @@ function OrganizationContent() {
         },
       });
 
-      // Check if already approved (editing existing approved org)
-      const currentStatus = (provider.organization as any)?.approval_status;
+      // Check if already approved (from enrollment's organization)
+      const currentStatus = (activeEnrollment?.organization as any)?.approval_status;
       if (currentStatus === 'approved') {
         navigate('/enroll/expertise');
         return;
@@ -144,7 +147,7 @@ function OrganizationContent() {
     }
   };
 
-  if (orgTypesLoading || providerLoading) {
+  if (orgTypesLoading || providerLoading || enrollmentLoading) {
     return (
       <WizardLayout currentStep={3} hideBackButton hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -154,7 +157,8 @@ function OrganizationContent() {
     );
   }
 
-  const approvalStatus = (provider?.organization as any)?.approval_status;
+  // Read approval status from enrollment's organization JSONB
+  const approvalStatus = (activeEnrollment?.organization as any)?.approval_status;
   const isApproved = approvalStatus === 'approved';
   const isWithdrawn = approvalStatus === 'withdrawn';
   const isFormDisabled = isApproved || isTerminal;
