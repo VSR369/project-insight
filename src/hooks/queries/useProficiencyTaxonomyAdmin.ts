@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 // Import types for bulk import
 import type { ParsedTaxonomyRow } from "@/pages/admin/proficiency-taxonomy/ProficiencyExcelExport";
@@ -67,9 +68,10 @@ export function useCreateProficiencyArea() {
 
   return useMutation({
     mutationFn: async (area: ProficiencyAreaInsert) => {
+      const areaWithAudit = await withCreatedBy(area);
       const { data, error } = await supabase
         .from("proficiency_areas")
-        .insert(area)
+        .insert(areaWithAudit)
         .select()
         .single();
 
@@ -91,9 +93,10 @@ export function useUpdateProficiencyArea() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: ProficiencyAreaUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("proficiency_areas")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
@@ -228,9 +231,10 @@ export function useCreateSubDomain() {
 
   return useMutation({
     mutationFn: async (subDomain: SubDomainInsert) => {
+      const subDomainWithAudit = await withCreatedBy(subDomain);
       const { data, error } = await supabase
         .from("sub_domains")
-        .insert(subDomain)
+        .insert(subDomainWithAudit)
         .select()
         .single();
 
@@ -252,9 +256,10 @@ export function useUpdateSubDomain() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: SubDomainUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("sub_domains")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
@@ -389,9 +394,10 @@ export function useCreateSpeciality() {
 
   return useMutation({
     mutationFn: async (speciality: SpecialityInsert) => {
+      const specialityWithAudit = await withCreatedBy(speciality);
       const { data, error } = await supabase
         .from("specialities")
-        .insert(speciality)
+        .insert(specialityWithAudit)
         .select()
         .single();
 
@@ -413,9 +419,10 @@ export function useUpdateSpeciality() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: SpecialityUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("specialities")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

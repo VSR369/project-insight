@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 // Base question type from database
 type BaseQuestion = Tables<"question_bank">;
@@ -119,9 +120,10 @@ export function useCreateQuestion() {
 
   return useMutation({
     mutationFn: async (question: QuestionInsert) => {
+      const questionWithAudit = await withCreatedBy(question);
       const { data, error } = await supabase
         .from("question_bank")
-        .insert(question)
+        .insert(questionWithAudit)
         .select()
         .single();
 
@@ -143,9 +145,10 @@ export function useUpdateQuestion() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: QuestionUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("question_bank")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

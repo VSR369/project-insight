@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 // Import types for bulk import
 import type { ParsedAcademicRow } from "@/pages/admin/academic-taxonomy/types";
@@ -46,9 +47,10 @@ export function useCreateAcademicDiscipline() {
 
   return useMutation({
     mutationFn: async (discipline: AcademicDisciplineInsert) => {
+      const disciplineWithAudit = await withCreatedBy(discipline);
       const { data, error } = await supabase
         .from("academic_disciplines")
-        .insert(discipline)
+        .insert(disciplineWithAudit)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -69,9 +71,10 @@ export function useUpdateAcademicDiscipline() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: AcademicDisciplineUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("academic_disciplines")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
@@ -184,9 +187,10 @@ export function useCreateAcademicStream() {
 
   return useMutation({
     mutationFn: async (stream: AcademicStreamInsert) => {
+      const streamWithAudit = await withCreatedBy(stream);
       const { data, error } = await supabase
         .from("academic_streams")
-        .insert(stream)
+        .insert(streamWithAudit)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -207,9 +211,10 @@ export function useUpdateAcademicStream() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: AcademicStreamUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("academic_streams")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
@@ -322,9 +327,10 @@ export function useCreateAcademicSubject() {
 
   return useMutation({
     mutationFn: async (subject: AcademicSubjectInsert) => {
+      const subjectWithAudit = await withCreatedBy(subject);
       const { data, error } = await supabase
         .from("academic_subjects")
-        .insert(subject)
+        .insert(subjectWithAudit)
         .select()
         .single();
       if (error) throw new Error(error.message);
@@ -345,9 +351,10 @@ export function useUpdateAcademicSubject() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: AcademicSubjectUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("academic_subjects")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

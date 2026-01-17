@@ -52,9 +52,10 @@ export function useCreateCapabilityTag() {
 
   return useMutation({
     mutationFn: async (tag: CapabilityTagInsert) => {
+      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
       const { data, error } = await supabase
         .from("capability_tags")
-        .insert(tag)
+        .insert({ ...tag, created_by: userId })
         .select()
         .single();
 
@@ -76,9 +77,10 @@ export function useUpdateCapabilityTag() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: CapabilityTagUpdate) => {
+      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
       const { data, error } = await supabase
         .from("capability_tags")
-        .update(updates)
+        .update({ ...updates, updated_by: userId })
         .eq("id", id)
         .select()
         .single();

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type Country = Tables<"countries">;
 export type CountryInsert = TablesInsert<"countries">;
@@ -59,9 +60,10 @@ export function useCreateCountry() {
 
   return useMutation({
     mutationFn: async (country: CountryInsert) => {
+      const countryWithAudit = await withCreatedBy(country);
       const { data, error } = await supabase
         .from("countries")
-        .insert(country)
+        .insert(countryWithAudit)
         .select()
         .single();
 
@@ -86,9 +88,10 @@ export function useUpdateCountry() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: CountryUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("countries")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

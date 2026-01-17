@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type OrganizationType = Tables<"organization_types">;
 export type OrganizationTypeInsert = TablesInsert<"organization_types">;
@@ -37,9 +38,10 @@ export function useCreateOrganizationType() {
 
   return useMutation({
     mutationFn: async (orgType: OrganizationTypeInsert) => {
+      const orgTypeWithAudit = await withCreatedBy(orgType);
       const { data, error } = await supabase
         .from("organization_types")
-        .insert(orgType)
+        .insert(orgTypeWithAudit)
         .select()
         .single();
 
@@ -64,9 +66,10 @@ export function useUpdateOrganizationType() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: OrganizationTypeUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("organization_types")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
