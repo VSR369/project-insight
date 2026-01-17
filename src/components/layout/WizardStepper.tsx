@@ -26,6 +26,7 @@ interface WizardStepperProps {
   lockedSteps?: number[]; // Steps locked due to lifecycle stage
   nextAccessibleStep?: number;
   orgApprovalStatus?: OrgApprovalStatus; // Status for org step badge
+  industryName?: string; // Current industry context
   onStepClick?: (stepId: number) => void;
 }
 
@@ -39,6 +40,7 @@ export function WizardStepper({
   lockedSteps = [],
   nextAccessibleStep,
   orgApprovalStatus,
+  industryName,
   onStepClick,
 }: WizardStepperProps) {
   // Helper to render approval status badge for org step (step 3)
@@ -87,6 +89,15 @@ export function WizardStepper({
   return (
     <TooltipProvider>
       <div className="w-full px-4 py-3">
+        {/* Industry context badge */}
+        {industryName && (
+          <div className="flex justify-center mb-3">
+            <Badge variant="secondary" className="text-xs font-medium px-3 py-1 bg-primary/10 text-primary border-primary/20">
+              Enrolling in: {industryName}
+            </Badge>
+          </div>
+        )}
+        
         {/* Desktop view - horizontal stepper */}
         <div className="hidden md:flex items-center justify-center gap-1">
           {steps.map((step, index) => {
@@ -275,6 +286,12 @@ export function WizardStepper({
           <span className="text-sm text-muted-foreground">
             Step {currentStep} of {steps.length}: {steps.find(s => s.id === currentStep)?.title}
           </span>
+          {/* Mobile industry context */}
+          {industryName && (
+            <span className="text-xs text-primary font-medium">
+              {industryName}
+            </span>
+          )}
         </div>
       </div>
     </TooltipProvider>

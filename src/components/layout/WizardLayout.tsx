@@ -496,6 +496,7 @@ export function WizardLayout({
             lockedSteps={lockedSteps}
             nextAccessibleStep={nextAccessibleStep}
             orgApprovalStatus={orgApprovalStatus}
+            industryName={activeEnrollment?.industry_segment?.name}
             onStepClick={handleStepClick}
           />
         </header>
