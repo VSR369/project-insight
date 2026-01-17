@@ -188,7 +188,11 @@ function ProofPointsContent() {
 
     if (confirm('Are you sure you want to delete this proof point?')) {
       try {
-        await deleteProofPoint.mutateAsync({ id: proofPoint.id, providerId: provider.id });
+        await deleteProofPoint.mutateAsync({ 
+          id: proofPoint.id, 
+          providerId: provider.id,
+          enrollmentId: activeEnrollmentId || undefined // Enrollment-scoped delete constraint
+        });
       } catch (error) {
         // Error is already handled by the mutation's onError
         console.error('Delete error:', error);
