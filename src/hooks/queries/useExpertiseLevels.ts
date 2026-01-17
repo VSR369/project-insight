@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type ExpertiseLevel = Tables<"expertise_levels">;
 export type ExpertiseLevelInsert = TablesInsert<"expertise_levels">;
@@ -36,9 +37,10 @@ export function useCreateExpertiseLevel() {
 
   return useMutation({
     mutationFn: async (level: ExpertiseLevelInsert) => {
+      const levelWithAudit = await withCreatedBy(level);
       const { data, error } = await supabase
         .from("expertise_levels")
-        .insert(level)
+        .insert(levelWithAudit)
         .select()
         .single();
 
@@ -63,9 +65,10 @@ export function useUpdateExpertiseLevel() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: ExpertiseLevelUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("expertise_levels")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

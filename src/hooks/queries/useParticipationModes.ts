@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type ParticipationMode = Tables<"participation_modes">;
 export type ParticipationModeInsert = TablesInsert<"participation_modes">;
@@ -37,9 +38,10 @@ export function useCreateParticipationMode() {
 
   return useMutation({
     mutationFn: async (mode: ParticipationModeInsert) => {
+      const modeWithAudit = await withCreatedBy(mode);
       const { data, error } = await supabase
         .from("participation_modes")
-        .insert(mode)
+        .insert(modeWithAudit)
         .select()
         .single();
 
@@ -64,9 +66,10 @@ export function useUpdateParticipationMode() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: ParticipationModeUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("participation_modes")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();

@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type IndustrySegment = Tables<"industry_segments">;
 export type IndustrySegmentInsert = TablesInsert<"industry_segments">;
@@ -37,9 +38,10 @@ export function useCreateIndustrySegment() {
 
   return useMutation({
     mutationFn: async (segment: IndustrySegmentInsert) => {
+      const segmentWithAudit = await withCreatedBy(segment);
       const { data, error } = await supabase
         .from("industry_segments")
-        .insert(segment)
+        .insert(segmentWithAudit)
         .select()
         .single();
 
@@ -64,9 +66,10 @@ export function useUpdateIndustrySegment() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: IndustrySegmentUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("industry_segments")
-        .update(updates)
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
