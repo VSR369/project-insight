@@ -287,10 +287,61 @@ export function usePanelReviewerStats() {
         sent: data.filter(r => r.invitation_status === "SENT").length,
         accepted: data.filter(r => r.invitation_status === "ACCEPTED").length,
         expired: data.filter(r => r.invitation_status === "EXPIRED").length,
+        cancelled: data.filter(r => r.invitation_status === "CANCELLED").length,
       };
 
       return stats;
     },
     staleTime: 30000,
+  });
+}
+
+interface CancelInvitationData {
+  reviewer_id: string;
+  reason?: string;
+}
+
+/**
+ * Cancel a panel reviewer invitation via edge function
+ */
+export function useCancelReviewerInvitation() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (data: CancelInvitationData) => {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("cancel-reviewer-invitation", {
+        body: data,
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Failed to cancel invitation");
+      }
+
+      return response.data;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["panel-reviewers"] });
+      if (result.was_accepted) {
+        toast.success("Invitation cancelled and regret email sent");
+      } else {
+        toast.success("Invitation cancelled successfully");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to cancel invitation: ${error.message}`);
+    },
   });
 }

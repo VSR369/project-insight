@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.send-reviewer-invitation]
 verify_jwt = false
+
+[functions.cancel-reviewer-invitation]
+verify_jwt = false

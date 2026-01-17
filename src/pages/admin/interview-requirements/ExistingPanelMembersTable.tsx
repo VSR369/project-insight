@@ -28,6 +28,7 @@ import {
   UserCheck,
   UserX,
   Trash2,
+  XCircle,
 } from "lucide-react";
 
 import { 
@@ -35,12 +36,14 @@ import {
   useDeactivatePanelReviewer,
   useRestorePanelReviewer,
   useSendReviewerInvitation,
+  useCancelReviewerInvitation,
   PanelReviewer,
 } from "@/hooks/queries/usePanelReviewers";
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { MasterDataViewDialog } from "@/components/admin/MasterDataViewDialog";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
+import { CancelInvitationDialog } from "./CancelInvitationDialog";
 
 // Status badge colors
 const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" | "destructive"> = {
@@ -49,6 +52,7 @@ const STATUS_BADGE_VARIANTS: Record<string, "default" | "secondary" | "outline" 
   SENT: "default",
   ACCEPTED: "default",
   EXPIRED: "destructive",
+  CANCELLED: "destructive",
 };
 
 const INVITATION_STATUS_LABELS: Record<string, string> = {
@@ -57,6 +61,7 @@ const INVITATION_STATUS_LABELS: Record<string, string> = {
   SENT: "Sent",
   ACCEPTED: "Accepted",
   EXPIRED: "Expired",
+  CANCELLED: "Cancelled",
 };
 
 interface ExistingPanelMembersTableProps {
@@ -67,6 +72,7 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
   const [search, setSearch] = useState("");
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [selectedReviewer, setSelectedReviewer] = useState<PanelReviewer | null>(null);
 
   const { data: reviewers, isLoading } = usePanelReviewers({ includeInactive: true });
@@ -76,6 +82,7 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
   const deactivate = useDeactivatePanelReviewer();
   const restore = useRestorePanelReviewer();
   const resendInvitation = useSendReviewerInvitation();
+  const cancelInvitation = useCancelReviewerInvitation();
 
   // Create lookup maps
   const levelMap = useMemo(() => {
@@ -255,6 +262,18 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
                             Resend Invitation
                           </DropdownMenuItem>
                         )}
+                        {(reviewer.invitation_status === "SENT" || reviewer.invitation_status === "ACCEPTED") && (
+                          <DropdownMenuItem
+                            onClick={() => {
+                              setSelectedReviewer(reviewer);
+                              setCancelDialogOpen(true);
+                            }}
+                            className="text-amber-600"
+                          >
+                            <XCircle className="mr-2 h-4 w-4" />
+                            Cancel Invitation
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuSeparator />
                         {reviewer.is_active ? (
                           <DropdownMenuItem
@@ -313,6 +332,24 @@ export function ExistingPanelMembersTable({ onEdit }: ExistingPanelMembersTableP
             await deactivate.mutateAsync(selectedReviewer.id);
           }
           setDeleteDialogOpen(false);
+          setSelectedReviewer(null);
+        }}
+      />
+
+      {/* Cancel Invitation Dialog */}
+      <CancelInvitationDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        reviewer={selectedReviewer}
+        isLoading={cancelInvitation.isPending}
+        onConfirm={async (reason) => {
+          if (selectedReviewer) {
+            await cancelInvitation.mutateAsync({
+              reviewer_id: selectedReviewer.id,
+              reason,
+            });
+          }
+          setCancelDialogOpen(false);
           setSelectedReviewer(null);
         }}
       />

@@ -4,3 +4,4 @@ export { InvitePanelMembersTab } from "./InvitePanelMembersTab";
 export { ReviewerInviteForm } from "./ReviewerInviteForm";
 export { InvitationPreviewPanel } from "./InvitationPreviewPanel";
 export { ExistingPanelMembersTable } from "./ExistingPanelMembersTable";
+export { CancelInvitationDialog } from "./CancelInvitationDialog";
