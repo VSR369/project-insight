@@ -17,8 +17,9 @@ import { WizardStepper, type WizardStep } from './WizardStepper';
 import { useCurrentProvider, useProviderProficiencyAreas } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
-import { BlockedModeChangeDialog } from '@/components/enrollment/BlockedModeChangeDialog';
+import { BlockedModeChangeDialog, IndustryEnrollmentSelector } from '@/components/enrollment';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
 // Type for organization with approval status (prevents unsafe `as any` casts)
 interface OrganizationWithApprovalStatus {
@@ -74,6 +75,7 @@ export function WizardLayout({
   const { isAdmin } = useUserRoles();
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
+  const { hasMultipleIndustries, activeEnrollment } = useEnrollmentContext();
   const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);
@@ -431,12 +433,19 @@ export function WizardLayout({
         {/* Header */}
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex items-center justify-between h-14 px-4">
-            {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <span className="text-primary-foreground font-bold text-sm">CB</span>
+            {/* Logo and Industry Selector */}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+                  <span className="text-primary-foreground font-bold text-sm">CB</span>
+                </div>
+                <span className="font-semibold text-sm hidden sm:inline">CogniBlend</span>
               </div>
-              <span className="font-semibold text-sm hidden sm:inline">CogniBlend</span>
+              
+              {/* Industry Enrollment Selector - show when multiple industries or always for context */}
+              {(hasMultipleIndustries || activeEnrollment) && (
+                <IndustryEnrollmentSelector compact showAddButton={hasMultipleIndustries} />
+              )}
             </div>
 
           {/* Actions */}
