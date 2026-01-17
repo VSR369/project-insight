@@ -9,6 +9,8 @@
  */
 
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUserId } from '@/lib/auditFields';
+import { handleMutationError } from '@/lib/errorHandler';
 
 // Assessment configuration
 const DEFAULT_TIME_LIMIT_MINUTES = 60;
@@ -128,8 +130,8 @@ export async function startAssessment(
     }
 
     // Get current user
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
+    const userId = await getCurrentUserId();
+    if (!userId) {
       return { success: false, error: 'Not authenticated' };
     }
 
@@ -156,7 +158,7 @@ export async function startAssessment(
       .update({
         lifecycle_status: 'assessment_in_progress',
         lifecycle_rank: 100,
-        updated_by: user.id,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', providerId);
@@ -174,7 +176,10 @@ export async function startAssessment(
       timeLimitMinutes,
     };
   } catch (error) {
-    console.error('Start assessment error:', error);
+    handleMutationError(error, { 
+      operation: 'startAssessment', 
+      providerId 
+    }, false);
     return { 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error' 
@@ -275,13 +280,13 @@ export async function submitAssessment(
     }
 
     // Update provider lifecycle
-    const { data: { user } } = await supabase.auth.getUser();
+    const userId = await getCurrentUserId();
     await supabase
       .from('solution_providers')
       .update({
         lifecycle_status: newStatus,
         lifecycle_rank: newRank,
-        updated_by: user?.id,
+        updated_by: userId,
         updated_at: new Date().toISOString(),
       })
       .eq('id', attempt.provider_id);

@@ -5,6 +5,7 @@ import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpdateProviderMode } from '@/hooks/queries/useProvider';
 import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -18,7 +19,7 @@ const modeIcons: Record<string, typeof Briefcase> = {
   individual_self: User,
 };
 
-export default function EnrollParticipationMode() {
+function ParticipationModeContent() {
   const navigate = useNavigate();
   const { data: modes, isLoading: modesLoading } = useParticipationModes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
@@ -202,5 +203,13 @@ export default function EnrollParticipationMode() {
         </RadioGroup>
       </div>
     </WizardLayout>
+  );
+}
+
+export default function EnrollParticipationMode() {
+  return (
+    <FeatureErrorBoundary featureName="Participation Mode">
+      <ParticipationModeContent />
+    </FeatureErrorBoundary>
   );
 }

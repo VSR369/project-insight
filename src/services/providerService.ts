@@ -1,13 +1,11 @@
 import { supabase } from '@/integrations/supabase/client';
+import { getCurrentUserId } from '@/lib/auditFields';
+import { logWarning } from '@/lib/errorHandler';
 import type { Database } from '@/integrations/supabase/types';
 
 type SolutionProvider = Database['public']['Tables']['solution_providers']['Row'];
-type SolutionProviderInsert = Database['public']['Tables']['solution_providers']['Insert'];
-type SolutionProviderUpdate = Database['public']['Tables']['solution_providers']['Update'];
 type SolutionProviderOrganization = Database['public']['Tables']['solution_provider_organizations']['Row'];
-type SolutionProviderOrganizationInsert = Database['public']['Tables']['solution_provider_organizations']['Insert'];
 type StudentProfile = Database['public']['Tables']['student_profiles']['Row'];
-type StudentProfileInsert = Database['public']['Tables']['student_profiles']['Insert'];
 
 export interface ProviderData extends SolutionProvider {
   organization?: SolutionProviderOrganization | null;
@@ -15,8 +13,8 @@ export interface ProviderData extends SolutionProvider {
 }
 
 export async function fetchCurrentProvider(): Promise<ProviderData | null> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return null;
+  const userId = await getCurrentUserId();
+  if (!userId) return null;
 
   const { data, error } = await supabase
     .from('solution_providers')
@@ -25,7 +23,7 @@ export async function fetchCurrentProvider(): Promise<ProviderData | null> {
       organization:solution_provider_organizations(*),
       student_profile:student_profiles(*)
     `)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle();
 
   if (error) throw error;
@@ -39,13 +37,13 @@ export async function createProvider(data: {
   industrySegmentId?: string;
   countryId?: string;
 }): Promise<SolutionProvider> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   const { data: provider, error } = await supabase
     .from('solution_providers')
     .insert({
-      user_id: user.id,
+      user_id: userId,
       first_name: data.firstName,
       last_name: data.lastName,
       is_student: data.isStudent,
@@ -53,7 +51,7 @@ export async function createProvider(data: {
       country_id: data.countryId,
       lifecycle_status: 'profile_building',
       onboarding_status: 'in_progress',
-      created_by: user.id,
+      created_by: userId,
     })
     .select()
     .single();
@@ -63,14 +61,14 @@ export async function createProvider(data: {
 }
 
 export async function updateProviderMode(providerId: string, participationModeId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
     .from('solution_providers')
     .update({
       participation_mode_id: participationModeId,
-      updated_by: user.id,
+      updated_by: userId,
     })
     .eq('id', providerId);
 
@@ -114,14 +112,14 @@ export async function updateProviderExpertise(
   providerId: string,
   expertiseLevelId: string
 ): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
     .from('solution_providers')
     .update({
       expertise_level_id: expertiseLevelId,
-      updated_by: user.id,
+      updated_by: userId,
     })
     .eq('id', providerId);
 
@@ -129,8 +127,8 @@ export async function updateProviderExpertise(
 }
 
 export async function completeOnboarding(providerId: string): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
     .from('solution_providers')
@@ -138,7 +136,7 @@ export async function completeOnboarding(providerId: string): Promise<void> {
       onboarding_status: 'completed',
       lifecycle_status: 'assessment_pending',
       profile_completion_percentage: 100,
-      updated_by: user.id,
+      updated_by: userId,
     })
     .eq('id', providerId);
 
@@ -157,8 +155,8 @@ export async function updateProviderBasicProfile(
     isStudent: boolean;
   }
 ): Promise<void> {
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
     .from('solution_providers')
@@ -173,7 +171,7 @@ export async function updateProviderBasicProfile(
       lifecycle_status: 'enrolled',
       lifecycle_rank: 20,
       onboarding_status: 'in_progress',
-      updated_by: user.id,
+      updated_by: userId,
     })
     .eq('id', providerId);
 
@@ -227,8 +225,8 @@ export async function upsertProviderProficiencyAreas(
   proficiencyAreaIds: string[]
 ): Promise<{ orphanedCount: number }> {
   // Get current user for audit fields
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) throw new Error('Not authenticated');
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
   // 1. Fetch current selections to detect removed areas
   const { data: existingAreas, error: fetchError } = await supabase
@@ -252,7 +250,10 @@ export async function upsertProviderProficiencyAreas(
       });
 
     if (orphanError) {
-      console.error('Error handling orphaned proof points:', orphanError);
+      logWarning('Error handling orphaned proof points', { 
+        operation: 'upsertProviderProficiencyAreas', 
+        providerId 
+      });
       // Continue with the upsert even if orphan handling fails
     } else {
       orphanedCount = result || 0;
@@ -272,7 +273,7 @@ export async function upsertProviderProficiencyAreas(
     const rows = proficiencyAreaIds.map(areaId => ({
       provider_id: providerId,
       proficiency_area_id: areaId,
-      created_by: user.id,
+      created_by: userId,
     }));
 
     const { error: insertError } = await supabase

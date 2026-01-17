@@ -16,6 +16,7 @@ import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useCanModifyField, useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner } from '@/components/enrollment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { 
   CategorySelector, 
   ProofPointTypeSelect, 
@@ -39,7 +40,7 @@ const proofPointSchema = z.object({
 
 type FormValues = z.infer<typeof proofPointSchema>;
 
-export default function AddProofPoint() {
+function AddProofPointContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: expertiseLevels } = useExpertiseLevels();
@@ -125,8 +126,8 @@ export default function AddProofPoint() {
       }
 
       navigate('/enroll/proof-points');
-    } catch (error) {
-      console.error('Error saving proof point:', error);
+    } catch {
+      // Error handled by mutation
     }
   };
 
@@ -324,5 +325,13 @@ export default function AddProofPoint() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AddProofPoint() {
+  return (
+    <FeatureErrorBoundary featureName="Add Proof Point">
+      <AddProofPointContent />
+    </FeatureErrorBoundary>
   );
 }

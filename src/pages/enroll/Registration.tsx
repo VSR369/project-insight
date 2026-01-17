@@ -10,7 +10,7 @@ import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
 import { useCanModifyField, useIsTerminalState, useCascadeImpact } from '@/hooks/queries/useLifecycleValidation';
 import { LockedFieldBanner, CascadeWarningDialog } from '@/components/enrollment';
-import { getCascadeImpact } from '@/services/lifecycleService';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -51,7 +51,7 @@ const registrationSchema = z.object({
 
 type RegistrationFormData = z.infer<typeof registrationSchema>;
 
-export default function EnrollRegistration() {
+function RegistrationContent() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { data: countries, isLoading: countriesLoading } = useCountries();
@@ -465,5 +465,13 @@ export default function EnrollRegistration() {
         />
       )}
     </WizardLayout>
+  );
+}
+
+export default function EnrollRegistration() {
+  return (
+    <FeatureErrorBoundary featureName="Registration">
+      <RegistrationContent />
+    </FeatureErrorBoundary>
   );
 }
