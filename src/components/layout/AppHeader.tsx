@@ -1,5 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Bell, LogOut, User, ChevronDown, Shield, ArrowLeftRight, LayoutDashboard, Settings } from 'lucide-react';
+import { Bell, LogOut, User, ChevronDown, Shield, ArrowLeftRight, LayoutDashboard, Settings, Wrench, ClipboardCheck, BookOpen } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -90,6 +90,26 @@ export function AppHeader() {
             </TooltipContent>
           </Tooltip>
         )}
+
+        {/* Tools Dropdown - Always Visible */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="sm" className="gap-2">
+              <Wrench className="h-4 w-4" />
+              <span className="hidden sm:inline">Tools</span>
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="bg-popover z-50">
+            <DropdownMenuItem onClick={() => navigate('/tools/regression-test')}>
+              <ClipboardCheck className="mr-2 h-4 w-4" />
+              Regression Test
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/tools/lifecycle-rules')}>
+              <BookOpen className="mr-2 h-4 w-4" />
+              Lifecycle Rules
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative">

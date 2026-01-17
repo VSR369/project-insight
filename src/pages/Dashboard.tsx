@@ -25,8 +25,10 @@ import { Badge } from '@/components/ui/badge';
 import { 
   User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, 
   Award, UserCircle, Loader2, ShieldCheck, Star, XCircle, Building2,
-  ChevronRight, Factory, Layers, Crown, Trash2, AlertTriangle
+  ChevronRight, Factory, Layers, Crown, Trash2, AlertTriangle, Users, 
+  Briefcase, ClipboardList
 } from 'lucide-react';
+import { useParticipationModes } from '@/hooks/queries/useMasterData';
 
 // Terminal lifecycle statuses where profile is complete/locked
 const TERMINAL_STATUSES = ['verified', 'certified', 'not_verified'];
@@ -60,8 +62,49 @@ export default function Dashboard() {
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
   const { activeEnrollment, setActiveEnrollment } = useEnrollmentContext();
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
+  const { data: participationModes = [] } = useParticipationModes();
   const setPrimaryMutation = useSetPrimaryEnrollment();
   const deleteEnrollmentMutation = useDeleteEnrollment();
+
+  // Helper to get participation mode name
+  const getModeName = (modeId: string | null | undefined) => {
+    if (!modeId) return null;
+    const mode = participationModes.find(m => m.id === modeId);
+    return mode?.name || null;
+  };
+
+  // Helper to get next action text based on lifecycle status
+  const getNextAction = (enrollment: typeof enrollments[0]) => {
+    const status = enrollment.lifecycle_status;
+    switch (status) {
+      case 'registered':
+      case 'enrolled':
+        return 'Select participation mode';
+      case 'mode_selected':
+        return 'Complete organization details';
+      case 'org_info_pending':
+        return 'Awaiting manager approval';
+      case 'org_validated':
+        return 'Select expertise level';
+      case 'expertise_selected':
+        return 'Add proof points';
+      case 'proof_points_started':
+        return 'Add more proof points (min 5)';
+      case 'proof_points_min_met':
+        return 'Start assessment';
+      case 'assessment_pending':
+        return 'Complete assessment';
+      case 'assessment_in_progress':
+        return 'Continue assessment';
+      case 'assessment_passed':
+        return 'Schedule panel interview';
+      case 'verified':
+      case 'certified':
+        return null; // Complete
+      default:
+        return 'Continue setup';
+    }
+  };
 
   // State for set primary confirmation dialog
   const [primaryConfirmDialog, setPrimaryConfirmDialog] = useState<{
@@ -138,21 +181,8 @@ export default function Dashboard() {
 
   const currentStep = calculateCurrentStep(provider);
 
-  // Redirect to enrollment wizard if onboarding not complete (and not terminal)
-  useEffect(() => {
-    if (!isLoading && provider && provider.onboarding_status !== 'completed' && !isProviderTerminal) {
-      const enrollUrls: Record<number, string> = {
-        1: '/enroll/registration',
-        2: '/enroll/participation-mode',
-        3: '/enroll/organization',
-        4: '/enroll/expertise',
-        5: '/enroll/proof-points',
-        6: '/enroll/proof-points',
-      };
-      const url = enrollUrls[currentStep] || '/enroll/registration';
-      navigate(url);
-    }
-  }, [isLoading, provider, currentStep, navigate, isProviderTerminal]);
+  // NOTE: Removed auto-redirect - Dashboard now shows for all users
+  // Users can see their enrollment status and manually continue enrollment
 
   // Handle enrollment switch
   const handleEnrollmentSwitch = (enrollmentId: string) => {
@@ -300,29 +330,66 @@ export default function Dashboard() {
                             {getStatusIcon(enrollment.lifecycle_status)}
                             {getStatusDisplayName(enrollment.lifecycle_status)}
                           </Badge>
-                        </div>
-
-                        <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
-                          {enrollment.expertise_level && (
-                            <span className="flex items-center gap-1">
-                              <GraduationCap className="h-3 w-3" />
-                              {enrollment.expertise_level.name}
+                          {!isTerminal && (
+                            <span className="text-xs text-muted-foreground">
+                              Rank {enrollment.lifecycle_rank} ({progress}%)
                             </span>
                           )}
-                          <span className="flex items-center gap-1">
-                            <FileText className="h-3 w-3" />
-                            {industryProofPoints} proof points
-                          </span>
                         </div>
 
-                        {/* Lifecycle Progress Indicator */}
+                        {/* Details Grid */}
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                          {/* Expertise Level */}
+                          <span className="flex items-center gap-1">
+                            <GraduationCap className="h-3 w-3 shrink-0" />
+                            {enrollment.expertise_level?.name || 'Not selected'}
+                          </span>
+                          
+                          {/* Participation Mode */}
+                          <span className="flex items-center gap-1">
+                            <Users className="h-3 w-3 shrink-0" />
+                            {getModeName(enrollment.participation_mode_id) || 'Not selected'}
+                          </span>
+                          
+                          {/* Proof Points */}
+                          <span className="flex items-center gap-1">
+                            <FileText className="h-3 w-3 shrink-0" />
+                            {industryProofPoints} proof points
+                          </span>
+                          
+                          {/* Org Approval Status (if org_rep mode) */}
+                          {enrollment.org_approval_status && (
+                            <span className="flex items-center gap-1">
+                              <Briefcase className="h-3 w-3 shrink-0" />
+                              <span className={
+                                enrollment.org_approval_status === 'approved' 
+                                  ? 'text-green-600' 
+                                  : enrollment.org_approval_status === 'pending'
+                                    ? 'text-amber-600'
+                                    : 'text-destructive'
+                              }>
+                                Org: {enrollment.org_approval_status}
+                              </span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Progress Bar + Next Action */}
                         {!isTerminal && (
-                          <div className="mt-3">
-                            <LifecycleProgressIndicator
-                              currentStatus={enrollment.lifecycle_status}
-                              currentRank={enrollment.lifecycle_rank}
-                              className="justify-start"
-                            />
+                          <div className="mt-3 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Progress value={progress} className="flex-1 h-2" />
+                              <span className="text-xs font-medium text-muted-foreground w-10 text-right">
+                                {progress}%
+                              </span>
+                            </div>
+                            {getNextAction(enrollment) && (
+                              <div className="flex items-center gap-1.5 text-xs">
+                                <ClipboardList className="h-3 w-3 text-primary" />
+                                <span className="text-primary font-medium">Next:</span>
+                                <span className="text-muted-foreground">{getNextAction(enrollment)}</span>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
