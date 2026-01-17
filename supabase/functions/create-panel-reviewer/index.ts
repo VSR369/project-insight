@@ -130,45 +130,70 @@ const handler = async (req: Request): Promise<Response> => {
     // Generate password if not provided
     const finalPassword = password || generateSecurePassword();
 
-    // Step 1: Create user in Supabase Auth
-    const { data: authData, error: createAuthError } = await supabase.auth.admin.createUser({
-      email,
-      password: finalPassword,
-      email_confirm: true, // Auto-confirm email
-      user_metadata: {
-        name,
-        role: "panel_reviewer",
-      },
-    });
+    let userId: string;
+    let isExistingUser = false;
 
-    if (createAuthError) {
-      console.error("[create-panel-reviewer] Auth user creation failed:", createAuthError);
-      return new Response(
-        JSON.stringify({ success: false, error: `Failed to create user: ${createAuthError.message}` }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
+    // Step 1: Check if user already exists in auth.users
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const existingAuthUser = existingUsers?.users?.find(u => u.email === email);
 
-    const userId = authData.user.id;
-    console.log("[create-panel-reviewer] Auth user created:", userId);
-
-    // Step 2: Assign panel_reviewer role
-    const { error: roleError } = await supabase
-      .from("user_roles")
-      .insert({
-        user_id: userId,
-        role: "panel_reviewer",
-        created_by: caller.id,
+    if (existingAuthUser) {
+      // User exists in auth - use their ID
+      userId = existingAuthUser.id;
+      isExistingUser = true;
+      console.log("[create-panel-reviewer] Using existing auth user:", userId);
+    } else {
+      // Create new user in Supabase Auth
+      const { data: authData, error: createAuthError } = await supabase.auth.admin.createUser({
+        email,
+        password: finalPassword,
+        email_confirm: true,
+        user_metadata: {
+          name,
+          role: "panel_reviewer",
+        },
       });
 
-    if (roleError) {
-      console.error("[create-panel-reviewer] Role assignment failed:", roleError);
-      // Cleanup: delete the auth user
-      await supabase.auth.admin.deleteUser(userId);
-      return new Response(
-        JSON.stringify({ success: false, error: `Failed to assign role: ${roleError.message}` }),
-        { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
+      if (createAuthError) {
+        console.error("[create-panel-reviewer] Auth user creation failed:", createAuthError);
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to create user: ${createAuthError.message}` }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
+
+      userId = authData.user.id;
+      console.log("[create-panel-reviewer] Auth user created:", userId);
+    }
+
+    // Step 2: Check if role already exists, if not assign it
+    const { data: existingRole } = await supabase
+      .from("user_roles")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("role", "panel_reviewer")
+      .single();
+
+    if (!existingRole) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .insert({
+          user_id: userId,
+          role: "panel_reviewer",
+          created_by: caller.id,
+        });
+
+      if (roleError) {
+        console.error("[create-panel-reviewer] Role assignment failed:", roleError);
+        // Cleanup only if we created the user
+        if (!isExistingUser) {
+          await supabase.auth.admin.deleteUser(userId);
+        }
+        return new Response(
+          JSON.stringify({ success: false, error: `Failed to assign role: ${roleError.message}` }),
+          { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
+        );
+      }
     }
 
     // Step 3: Create panel_reviewers record
@@ -195,8 +220,10 @@ const handler = async (req: Request): Promise<Response> => {
 
     if (reviewerError) {
       console.error("[create-panel-reviewer] Reviewer record creation failed:", reviewerError);
-      // Cleanup: delete the auth user
-      await supabase.auth.admin.deleteUser(userId);
+      // Cleanup only if we created the user
+      if (!isExistingUser) {
+        await supabase.auth.admin.deleteUser(userId);
+      }
       return new Response(
         JSON.stringify({ success: false, error: `Failed to create reviewer: ${reviewerError.message}` }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
@@ -212,7 +239,8 @@ const handler = async (req: Request): Promise<Response> => {
           reviewer_id: reviewer.id,
           user_id: userId,
           email,
-          password: finalPassword, // Return password for display (only time it's available)
+          password: isExistingUser ? undefined : finalPassword, // Only return password for new users
+          isExistingUser,
         },
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
