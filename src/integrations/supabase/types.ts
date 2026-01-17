@@ -291,6 +291,55 @@ export type Database = {
           },
         ]
       }
+      booking_reviewers: {
+        Row: {
+          booking_id: string
+          created_at: string | null
+          id: string
+          reviewer_id: string
+          slot_id: string
+          status: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string | null
+          id?: string
+          reviewer_id: string
+          slot_id: string
+          status?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string | null
+          id?: string
+          reviewer_id?: string
+          slot_id?: string
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "booking_reviewers_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "interview_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_reviewers_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "panel_reviewers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "booking_reviewers_slot_id_fkey"
+            columns: ["slot_id"]
+            isOneToOne: false
+            referencedRelation: "interview_slots"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       capability_tags: {
         Row: {
           created_at: string
@@ -326,6 +375,60 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      composite_interview_slots: {
+        Row: {
+          available_reviewer_count: number
+          backing_slot_ids: string[]
+          created_at: string | null
+          end_at: string
+          expertise_level_id: string
+          id: string
+          industry_segment_id: string
+          start_at: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          available_reviewer_count: number
+          backing_slot_ids?: string[]
+          created_at?: string | null
+          end_at: string
+          expertise_level_id: string
+          id?: string
+          industry_segment_id: string
+          start_at: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          available_reviewer_count?: number
+          backing_slot_ids?: string[]
+          created_at?: string | null
+          end_at?: string
+          expertise_level_id?: string
+          id?: string
+          industry_segment_id?: string
+          start_at?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "composite_interview_slots_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "composite_interview_slots_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       countries: {
         Row: {
@@ -447,6 +550,168 @@ export type Database = {
         }
         Relationships: []
       }
+      interview_bookings: {
+        Row: {
+          cancelled_at: string | null
+          cancelled_reason: string | null
+          composite_slot_id: string | null
+          created_at: string | null
+          created_by: string | null
+          enrollment_id: string
+          id: string
+          notes: string | null
+          provider_id: string
+          reschedule_count: number | null
+          scheduled_at: string
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          composite_slot_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          enrollment_id: string
+          id?: string
+          notes?: string | null
+          provider_id: string
+          reschedule_count?: number | null
+          scheduled_at: string
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          cancelled_at?: string | null
+          cancelled_reason?: string | null
+          composite_slot_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          enrollment_id?: string
+          id?: string
+          notes?: string | null
+          provider_id?: string
+          reschedule_count?: number | null
+          scheduled_at?: string
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_bookings_composite_slot_id_fkey"
+            columns: ["composite_slot_id"]
+            isOneToOne: false
+            referencedRelation: "composite_interview_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_quorum_requirements: {
+        Row: {
+          created_at: string | null
+          expertise_level_id: string
+          id: string
+          industry_segment_id: string | null
+          interview_duration_minutes: number | null
+          is_active: boolean | null
+          required_quorum_count: number
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expertise_level_id: string
+          id?: string
+          industry_segment_id?: string | null
+          interview_duration_minutes?: number | null
+          is_active?: boolean | null
+          required_quorum_count?: number
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expertise_level_id?: string
+          id?: string
+          industry_segment_id?: string | null
+          interview_duration_minutes?: number | null
+          is_active?: boolean | null
+          required_quorum_count?: number
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_quorum_requirements_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_quorum_requirements_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_slots: {
+        Row: {
+          created_at: string | null
+          end_at: string
+          hold_expires_at: string | null
+          id: string
+          reviewer_id: string
+          start_at: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          end_at: string
+          hold_expires_at?: string | null
+          id?: string
+          reviewer_id: string
+          start_at: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          end_at?: string
+          hold_expires_at?: string | null
+          id?: string
+          reviewer_id?: string
+          start_at?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_slots_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "panel_reviewers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       level_speciality_map: {
         Row: {
           created_at: string
@@ -567,6 +832,51 @@ export type Database = {
           name?: string
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      panel_reviewers: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          email: string
+          expertise_level_ids: string[]
+          id: string
+          industry_segment_ids: string[]
+          is_active: boolean | null
+          max_interviews_per_day: number | null
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          email: string
+          expertise_level_ids?: string[]
+          id?: string
+          industry_segment_ids?: string[]
+          is_active?: boolean | null
+          max_interviews_per_day?: number | null
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          email?: string
+          expertise_level_ids?: string[]
+          id?: string
+          industry_segment_ids?: string[]
+          is_active?: boolean | null
+          max_interviews_per_day?: number | null
+          name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1689,6 +1999,19 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      book_interview_slot: {
+        Args: {
+          p_composite_slot_id: string
+          p_enrollment_id: string
+          p_provider_id: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
+      cancel_interview_booking: {
+        Args: { p_booking_id: string; p_reason: string; p_user_id: string }
+        Returns: Json
+      }
       execute_expertise_change_reset: {
         Args: { p_provider_id: string; p_user_id: string }
         Returns: undefined
