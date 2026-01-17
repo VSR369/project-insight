@@ -297,12 +297,24 @@ const lifecycleRankTests: TestCase[] = [
   {
     id: "LR-001",
     category: "lifecycle-ranks",
-    name: "Registered rank is 20",
-    description: "Verify 'registered' status has rank 20",
+    name: "Registered rank is 15",
+    description: "Verify 'registered' status has rank 15",
     run: () => runTest(async () => {
       const rank = getLifecycleRank("registered");
+      if (rank !== 15) {
+        throw new Error(`Expected registered rank = 15, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "LR-001a",
+    category: "lifecycle-ranks",
+    name: "Enrolled rank is 20",
+    description: "Verify 'enrolled' status has rank 20",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("enrolled");
       if (rank !== 20) {
-        throw new Error(`Expected registered rank = 20, got: ${rank}`);
+        throw new Error(`Expected enrolled rank = 20, got: ${rank}`);
       }
     }),
   },
