@@ -487,6 +487,7 @@ export function WizardLayout({
             blockedSteps={blockedSteps}
             lockedSteps={lockedSteps}
             nextAccessibleStep={nextAccessibleStep}
+            orgApprovalStatus={orgApprovalStatus}
             onStepClick={handleStepClick}
           />
         </header>
