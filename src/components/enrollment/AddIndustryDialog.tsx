@@ -40,10 +40,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
-import { useCreateEnrollment } from '@/hooks/queries/useProviderEnrollments';
+import { useCreateEnrollment, useProviderEnrollments } from '@/hooks/queries/useProviderEnrollments';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useQueryClient } from '@tanstack/react-query';
+import { withCreatedBy } from '@/lib/auditFields';
 
 const formSchema = z.object({
   industrySegmentId: z.string().min(1, 'Please select an industry'),
@@ -61,9 +62,11 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
   const queryClient = useQueryClient();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const enrollmentContext = useOptionalEnrollmentContext();
-  const enrollments = enrollmentContext?.enrollments ?? [];
   const setActiveEnrollment = enrollmentContext?.setActiveEnrollment;
   const refreshEnrollments = enrollmentContext?.refreshEnrollments;
+  
+  // Fetch enrollments directly to ensure we have latest data for filtering
+  const { data: providerEnrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
   
   const { data: allIndustries = [], isLoading: industriesLoading } = useIndustrySegments();
   const createEnrollment = useCreateEnrollment();
@@ -76,10 +79,11 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
   });
 
   // Filter out industries the provider is already enrolled in
+  // Use directly fetched enrollments for accurate filtering
   const availableIndustries = useMemo(() => {
-    const enrolledIds = new Set(enrollments.map(e => e.industry_segment_id));
+    const enrolledIds = new Set(providerEnrollments.map(e => e.industry_segment_id));
     return allIndustries.filter(industry => !enrolledIds.has(industry.id));
-  }, [allIndustries, enrollments]);
+  }, [allIndustries, providerEnrollments]);
 
   // Check if provider has completed basic registration
   const isRegistrationComplete = useMemo(() => {
@@ -89,39 +93,77 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
 
   const onSubmit = async (values: FormValues) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast.error('Please log in to continue');
+        return;
+      }
+
       let providerId = provider?.id;
 
-      // If no provider exists, create one first
+      // UPSERT pattern: Check for existing provider first, then create if needed
       if (!providerId) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast.error('Please log in to continue');
+        // First, check if provider already exists (handles race conditions)
+        const { data: existingProvider, error: fetchError } = await supabase
+          .from('solution_providers')
+          .select('id')
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+        if (fetchError) {
+          console.error('Error checking for existing provider:', fetchError);
+          toast.error('Failed to verify profile. Please try again.');
           return;
         }
 
-        // Create minimal provider record
-        const { data: newProvider, error: providerError } = await supabase
-          .from('solution_providers')
-          .insert({
+        if (existingProvider) {
+          // Provider exists, use existing ID
+          providerId = existingProvider.id;
+          console.log('Found existing provider:', providerId);
+        } else {
+          // Create new provider with audit fields
+          const providerData = await withCreatedBy({
             user_id: user.id,
             first_name: user.user_metadata?.first_name || 'Provider',
             last_name: user.user_metadata?.last_name || '',
-            is_student: false,
-            lifecycle_status: 'registered',
+            is_student: user.user_metadata?.is_student || false,
+            lifecycle_status: 'registered' as const,
             lifecycle_rank: 10,
-            onboarding_status: 'in_progress',
-            created_by: user.id,
-          })
-          .select('id')
-          .single();
+            onboarding_status: 'in_progress' as const,
+          });
 
-        if (providerError) {
-          console.error('Error creating provider:', providerError);
-          toast.error('Failed to create profile. Please try again.');
-          return;
+          const { data: newProvider, error: providerError } = await supabase
+            .from('solution_providers')
+            .insert(providerData)
+            .select('id')
+            .single();
+
+          if (providerError) {
+            // Handle unique constraint violation (race condition)
+            if (providerError.code === '23505') {
+              // Provider was created by another process, fetch it
+              const { data: raceProvider } = await supabase
+                .from('solution_providers')
+                .select('id')
+                .eq('user_id', user.id)
+                .single();
+              
+              if (raceProvider) {
+                providerId = raceProvider.id;
+                console.log('Found provider after race condition:', providerId);
+              } else {
+                throw new Error('Failed to create or find provider');
+              }
+            } else {
+              console.error('Error creating provider:', providerError);
+              toast.error('Failed to create profile. Please try again.');
+              return;
+            }
+          } else {
+            providerId = newProvider.id;
+            console.log('Created new provider:', providerId);
+          }
         }
-
-        providerId = newProvider.id;
         
         // Invalidate provider query to refresh
         queryClient.invalidateQueries({ queryKey: ['current-provider'] });
@@ -131,7 +173,7 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
       const newEnrollment = await createEnrollment.mutateAsync({
         providerId,
         industrySegmentId: values.industrySegmentId,
-        isPrimary: enrollments.length === 0, // First enrollment is primary
+        isPrimary: providerEnrollments.length === 0, // First enrollment is primary
       });
       
       // Set as active enrollment
@@ -156,7 +198,7 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
     }
   };
 
-  const isLoading = providerLoading || industriesLoading;
+  const isLoading = providerLoading || industriesLoading || enrollmentsLoading;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
