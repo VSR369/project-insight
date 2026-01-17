@@ -1,67 +1,158 @@
-# Fix: Registration Page Shows "Configuration Locked" for New Users
+# Fix: Registration Flow Does Not Create Enrollment Record
 
 ## Problem Identified
 
-When a new user (or a user whose provider record was deleted) visits the Registration page, they see:
-- "Configuration Locked - Provider not found" warning banner
-- This is confusing because new users should be able to fill out the form
+When a new provider completes Registration, the system:
+1. Updates `solution_providers` table with `industry_segment_id`
+2. Sets lifecycle to `enrolled` (rank 20)
+3. **BUT does NOT create a record in `provider_industry_enrollments`**
 
-**Root Cause**: The `useCanModifyField` hook returns `{allowed: false, reason: 'Provider not found'}` when no provider record exists. The Registration page interprets this as "locked" and shows the banner.
+The Expertise page (and other enrollment-scoped pages) use `useEnrollmentContext()` which reads from `provider_industry_enrollments`. Since no record exists, `activeEnrollment` is `null`, causing the "No Industry Selected" message.
 
-**Current Logic (Registration.tsx line 302)**:
-```typescript
-const isIndustryLocked = !configurationCheck.allowed;
-```
-
-This is too simplistic - it doesn't distinguish between:
-1. New user (no provider record yet) - should NOT be locked
-2. User at locked lifecycle stage (assessment started) - SHOULD be locked
+**Database Evidence:**
+- `solution_providers.industry_segment_id` = Manufacturing Auto Components
+- `provider_industry_enrollments` = EMPTY for this provider
 
 ---
 
-## Solution
+## Solution: Dual-Phase Fix
 
-### Option A: Fix in Registration.tsx (Recommended)
+### Phase 1: Immediate Database Fix
 
-The Registration page should check if `provider` exists before showing the lock banner. If there's no provider, they're a new user and the industry field should be editable.
+Run this SQL in Supabase SQL Editor to create the missing enrollment for the test provider:
 
-**Change in Registration.tsx (around line 302)**:
-
-```typescript
-// Current (buggy)
-const isIndustryLocked = !configurationCheck.allowed;
-
-// Fixed: Only show as locked if provider exists AND configuration is not allowed
-// New users (no provider yet) should be able to edit all fields
-const isIndustryLocked = provider && !configurationCheck.allowed;
+```sql
+INSERT INTO provider_industry_enrollments (
+  provider_id,
+  industry_segment_id,
+  is_primary,
+  lifecycle_status,
+  lifecycle_rank,
+  created_by
+)
+VALUES (
+  'c36013a0-5b22-4451-bd6e-052815912024',
+  'a333531e-8a60-4682-87df-a9fdc617a232',
+  true,
+  'enrolled',
+  20,
+  '32aec070-360a-4d73-a6dd-28961c629ca6'
+);
 ```
 
-### Option B: Also fix in useLifecycleValidation.ts
+### Phase 2: Code Fix (Prevents Future Issues)
 
-The hook could return `allowed: true` when there's no provider, since a new user should be allowed to do anything:
+#### File 1: `src/services/providerService.ts`
 
-**Change in useLifecycleValidation.ts (lines 72-73)**:
+Modify `updateProviderBasicProfile` function to also create an enrollment record when updating a provider's industry:
+
+**Current Logic (lines 146-179):**
+- Updates `solution_providers` table only
+
+**New Logic:**
+1. Update `solution_providers` table (existing behavior)
+2. Check if enrollment exists for this provider + industry
+3. If no enrollment exists, create one in `provider_industry_enrollments`
+4. Return the enrollment ID for context synchronization
 
 ```typescript
-// Current (wrong for new users)
-if (!provider) {
-  return { allowed: false, reason: 'Provider not found', isLoading: false };
-}
+export async function updateProviderBasicProfile(
+  providerId: string,
+  data: {
+    firstName: string;
+    lastName: string;
+    address: string;
+    pinCode: string;
+    countryId: string;
+    industrySegmentId: string;
+    isStudent: boolean;
+  }
+): Promise<{ enrollmentId?: string }> {
+  const userId = await getCurrentUserId();
+  if (!userId) throw new Error('Not authenticated');
 
-// Fixed: New users (no provider) should have full access
-if (!provider) {
-  return { allowed: true, reason: undefined, isLoading: false };
+  // Update solution_providers
+  const { error } = await supabase
+    .from('solution_providers')
+    .update({
+      first_name: data.firstName,
+      last_name: data.lastName,
+      address: data.address,
+      pin_code: data.pinCode,
+      country_id: data.countryId,
+      industry_segment_id: data.industrySegmentId,
+      is_student: data.isStudent,
+      lifecycle_status: 'enrolled',
+      lifecycle_rank: 20,
+      onboarding_status: 'in_progress',
+      updated_by: userId,
+    })
+    .eq('id', providerId);
+
+  if (error) throw error;
+
+  // Check if enrollment already exists for this provider + industry
+  const { data: existingEnrollment } = await supabase
+    .from('provider_industry_enrollments')
+    .select('id')
+    .eq('provider_id', providerId)
+    .eq('industry_segment_id', data.industrySegmentId)
+    .maybeSingle();
+
+  let enrollmentId = existingEnrollment?.id;
+
+  // Create enrollment if it doesn't exist
+  if (!enrollmentId) {
+    // Check if this is the first enrollment (to set is_primary)
+    const { data: anyEnrollments } = await supabase
+      .from('provider_industry_enrollments')
+      .select('id')
+      .eq('provider_id', providerId)
+      .limit(1);
+
+    const isPrimary = !anyEnrollments || anyEnrollments.length === 0;
+
+    const { data: newEnrollment, error: enrollmentError } = await supabase
+      .from('provider_industry_enrollments')
+      .insert({
+        provider_id: providerId,
+        industry_segment_id: data.industrySegmentId,
+        is_primary: isPrimary,
+        lifecycle_status: 'enrolled',
+        lifecycle_rank: 20,
+        created_by: userId,
+      })
+      .select('id')
+      .single();
+
+    if (enrollmentError) throw enrollmentError;
+    enrollmentId = newEnrollment.id;
+  }
+
+  return { enrollmentId };
 }
 ```
 
----
+#### File 2: `src/hooks/queries/useProvider.ts`
 
-## Recommended Approach
+Update `useUpdateProviderBasicProfile` to:
+1. Accept the new return type with `enrollmentId`
+2. Invalidate enrollment-related queries on success
+3. Return the enrollment ID for context synchronization
 
-Implement **both fixes** for defense in depth:
-
-1. **Fix `useCanModifyField`** to return `allowed: true` for new users (no provider)
-2. **Fix Registration.tsx** as a safety net to also check `provider` exists
+**Changes to `onSuccess` callback:**
+```typescript
+onSuccess: (result) => {
+  if (result.success) {
+    queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+    queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });  // ADD
+    queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });     // ADD
+    queryClient.invalidateQueries({ queryKey: ['proof-points'] });
+    queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas'] });
+    toast.success('Saved. Continue to Participation Mode.');
+  }
+},
+```
 
 ---
 
@@ -69,86 +160,22 @@ Implement **both fixes** for defense in depth:
 
 | File | Change |
 |------|--------|
-| `src/hooks/queries/useLifecycleValidation.ts` | Return `allowed: true` when no provider exists |
-| `src/pages/enroll/Registration.tsx` | Check `provider` exists before marking as locked |
-
----
-
-## Code Changes
-
-### 1. src/hooks/queries/useLifecycleValidation.ts (line 72-74)
-
-```typescript
-// BEFORE
-if (!provider) {
-  return { allowed: false, reason: 'Provider not found', isLoading: false };
-}
-
-// AFTER
-// New users (no provider yet) should have full access to all fields
-if (!provider) {
-  return { allowed: true, reason: undefined, isLoading: false };
-}
-```
-
-### 2. src/pages/enroll/Registration.tsx (line 302)
-
-```typescript
-// BEFORE
-const isIndustryLocked = !configurationCheck.allowed;
-
-// AFTER
-// Only lock if provider exists AND lifecycle doesn't allow configuration changes
-// New users (no provider) should be able to edit freely
-const isIndustryLocked = !!provider && !configurationCheck.allowed;
-```
-
----
-
-## Your Test Data Issue
-
-After implementing the code fix, you still need to handle the missing provider record for your existing test user.
-
-**Option 1: Create a new test account**
-- Sign up with a new email
-- The trigger will create all required records
-
-**Option 2: Manually create provider record**
-Run this SQL in Supabase SQL Editor:
-```sql
--- For provider@test.local (user_id: 32aec070-360a-4d73-a6dd-28961c629ca6)
-INSERT INTO profiles (user_id, email, first_name, last_name)
-VALUES ('32aec070-360a-4d73-a6dd-28961c629ca6', 'provider@test.local', '', '');
-
-INSERT INTO solution_providers (
-  user_id, first_name, last_name, is_student,
-  lifecycle_status, onboarding_status, created_by
-)
-VALUES (
-  '32aec070-360a-4d73-a6dd-28961c629ca6', '', '', false,
-  'registered', 'not_started', '32aec070-360a-4d73-a6dd-28961c629ca6'
-);
-
-INSERT INTO user_roles (user_id, role, created_by)
-VALUES ('32aec070-360a-4d73-a6dd-28961c629ca6', 'solution_provider', '32aec070-360a-4d73-a6dd-28961c629ca6')
-ON CONFLICT (user_id, role) DO NOTHING;
-```
+| `src/services/providerService.ts` | Add enrollment creation to `updateProviderBasicProfile` |
+| `src/hooks/queries/useProvider.ts` | Invalidate enrollment queries, update return type |
 
 ---
 
 ## Test Scenarios After Fix
 
-1. **New user signup** - No lock banner, can edit all fields
-2. **Existing user at registered/enrolled stage** - No lock banner, can edit all fields
-3. **User who started assessment** - Lock banner shows, industry field disabled
-4. **User at terminal state (verified)** - Lock banner shows, all fields disabled
+1. **New user registration** - Creates both provider AND enrollment records
+2. **Existing user re-registering** - Uses existing enrollment, no duplicate
+3. **Expertise page** - Shows expertise levels (no "No Industry Selected")
+4. **Multi-industry flow** - Works correctly via "Add Industry" mode
 
 ---
 
-## Summary
+## Execution Order
 
-The fix ensures that:
-1. New users see an editable registration form
-2. Users at early lifecycle stages can still modify their profile
-3. Users at locked stages (assessment started) correctly see the lock banner
-4. The behavior is consistent and predictable
+1. Run the SQL fix to unblock your testing immediately
+2. Approve this plan to implement the code fix
+3. After implementation, register a fresh user to verify the complete flow
