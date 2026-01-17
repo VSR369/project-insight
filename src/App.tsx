@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
+import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 
 // Auth Pages
 import Login from "@/pages/Login";
@@ -122,7 +123,9 @@ const App = () => (
               path="/enroll/participation-mode"
               element={
                 <AuthGuard>
-                  <EnrollParticipationMode />
+                  <EnrollmentRequiredGuard>
+                    <EnrollParticipationMode />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -130,7 +133,9 @@ const App = () => (
               path="/enroll/organization"
               element={
                 <AuthGuard>
-                  <EnrollOrganization />
+                  <EnrollmentRequiredGuard>
+                    <EnrollOrganization />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -138,7 +143,9 @@ const App = () => (
               path="/enroll/expertise"
               element={
                 <AuthGuard>
-                  <EnrollExpertiseSelection />
+                  <EnrollmentRequiredGuard>
+                    <EnrollExpertiseSelection />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -146,7 +153,9 @@ const App = () => (
               path="/enroll/proof-points"
               element={
                 <AuthGuard>
-                  <EnrollProofPoints />
+                  <EnrollmentRequiredGuard>
+                    <EnrollProofPoints />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -154,7 +163,9 @@ const App = () => (
               path="/enroll/proof-points/add"
               element={
                 <AuthGuard>
-                  <AddProofPoint />
+                  <EnrollmentRequiredGuard>
+                    <AddProofPoint />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -162,7 +173,9 @@ const App = () => (
               path="/enroll/organization-pending"
               element={
                 <AuthGuard>
-                  <OrganizationPending />
+                  <EnrollmentRequiredGuard>
+                    <OrganizationPending />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -170,7 +183,9 @@ const App = () => (
               path="/enroll/organization-declined"
               element={
                 <AuthGuard>
-                  <OrganizationDeclined />
+                  <EnrollmentRequiredGuard>
+                    <OrganizationDeclined />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />
@@ -178,7 +193,9 @@ const App = () => (
               path="/enroll/assessment"
               element={
                 <AuthGuard>
-                  <EnrollAssessment />
+                  <EnrollmentRequiredGuard>
+                    <EnrollAssessment />
+                  </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
             />

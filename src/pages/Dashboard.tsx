@@ -9,6 +9,7 @@ import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpe
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
 import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
+import { AddIndustryDialog } from '@/components/enrollment';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -27,7 +28,7 @@ import {
   User, CheckCircle, Clock, FileText, ArrowRight, Target, GraduationCap, 
   Award, UserCircle, Loader2, ShieldCheck, Star, XCircle, Building2,
   ChevronRight, Factory, Layers, Crown, Trash2, AlertTriangle, Users, 
-  Briefcase, ClipboardList
+  Briefcase, ClipboardList, Plus
 } from 'lucide-react';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 
@@ -124,6 +125,9 @@ export default function Dashboard() {
     lifecycleStatus: string | null;
   }>({ open: false, enrollmentId: null, industryName: null, proofPointsCount: 0, lifecycleStatus: null });
 
+  // State for Add Industry Dialog
+  const [showAddIndustryDialog, setShowAddIndustryDialog] = useState(false);
+
   const firstName = user?.user_metadata?.first_name || provider?.first_name || 'Provider';
 
   // Check if any enrollment is in a terminal state
@@ -212,25 +216,10 @@ export default function Dashboard() {
     }
   };
 
-  // Redirect first-time users (no provider record) to registration
-  useEffect(() => {
-    if (!isLoading && !provider && user) {
-      navigate('/enroll/registration', { replace: true });
-    }
-  }, [isLoading, provider, user, navigate]);
+  // NOTE: Removed auto-redirect - Dashboard is now the primary entry point
+  // First-time users see "Add Your First Industry" CTA instead of auto-redirect
 
   if (isLoading || enrollmentsLoading) {
-    return (
-      <AppLayout>
-        <div className="flex items-center justify-center min-h-[50vh]">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </AppLayout>
-    );
-  }
-
-  // Show loading while redirecting first-time users
-  if (!provider && user) {
     return (
       <AppLayout>
         <div className="flex items-center justify-center min-h-[50vh]">
@@ -244,28 +233,60 @@ export default function Dashboard() {
   const hasMultipleEnrollments = enrollments.length > 1;
   const totalProofPoints = proofPoints.length;
 
+  // Check if user is a first-time user (no provider record yet)
+  const isFirstTimeUser = !provider && user;
+
   return (
     <AppLayout>
+      {/* Add Industry Dialog */}
+      <AddIndustryDialog 
+        open={showAddIndustryDialog} 
+        onOpenChange={setShowAddIndustryDialog} 
+      />
+
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
-        {/* Welcome Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-              Welcome back, {firstName}! 👋
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              {hasMultipleEnrollments 
-                ? `Managing ${enrollments.length} industry enrollments`
-                : 'Here\'s your profile overview'}
-            </p>
+        {/* First-Time User Welcome Section */}
+        {isFirstTimeUser && (
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-background">
+            <CardHeader className="text-center pb-4">
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Factory className="h-8 w-8 text-primary" />
+              </div>
+              <CardTitle className="text-2xl">Welcome to CogniBlend! 👋</CardTitle>
+              <CardDescription className="text-base max-w-md mx-auto">
+                Start by selecting your first industry segment to begin building your professional profile.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="flex justify-center pb-8">
+              <Button size="lg" onClick={() => setShowAddIndustryDialog(true)} className="gap-2">
+                <Plus className="h-5 w-5" />
+                Add Your First Industry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Welcome Section - for returning users */}
+        {!isFirstTimeUser && (
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+                Welcome back, {firstName}! 👋
+              </h1>
+              <p className="text-muted-foreground mt-1">
+                {hasMultipleEnrollments 
+                  ? `Managing ${enrollments.length} industry enrollments`
+                  : 'Here\'s your profile overview'}
+              </p>
+            </div>
+            {!isProviderTerminal && enrollments.length > 0 && (
+              <Button onClick={() => handleContinueEnrollment(activeEnrollment?.id || enrollments[0]?.id)}>
+                Continue Setup
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </div>
-          {!isProviderTerminal && enrollments.length > 0 && (
-            <Button onClick={() => handleContinueEnrollment(activeEnrollment?.id || enrollments[0]?.id)}>
-              Continue Setup
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          )}
-        </div>
+        )}
 
         {/* Multi-Industry Enrollments Overview */}
         {enrollments.length > 0 && (
@@ -286,7 +307,7 @@ export default function Dashboard() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => navigate('/enroll/registration?mode=add-industry')}
+                  onClick={() => setShowAddIndustryDialog(true)}
                 >
                   <Factory className="mr-2 h-4 w-4" />
                   Add Industry
@@ -572,8 +593,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Empty State - No Enrollments */}
-        {enrollments.length === 0 && (
+        {/* Empty State - No Enrollments (for existing providers) */}
+        {!isFirstTimeUser && enrollments.length === 0 && (
           <Card>
             <CardContent className="py-12 text-center">
               <Factory className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
@@ -581,9 +602,9 @@ export default function Dashboard() {
               <p className="text-muted-foreground mb-4">
                 Start by enrolling in your first industry to begin building your professional profile.
               </p>
-              <Button onClick={() => navigate('/enroll/registration')}>
-                <Factory className="mr-2 h-4 w-4" />
-                Start Enrollment
+              <Button onClick={() => setShowAddIndustryDialog(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Add Your First Industry
               </Button>
             </CardContent>
           </Card>
@@ -605,7 +626,7 @@ export default function Dashboard() {
                 <Award className="mr-2 h-4 w-4" />
                 Manage Proof Points
               </Button>
-              <Button variant="outline" className="justify-start" onClick={() => navigate('/enroll/registration?mode=add-industry')}>
+              <Button variant="outline" className="justify-start" onClick={() => setShowAddIndustryDialog(true)}>
                 <Factory className="mr-2 h-4 w-4" />
                 Add New Industry
               </Button>

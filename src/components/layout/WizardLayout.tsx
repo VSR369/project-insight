@@ -1,7 +1,8 @@
 import { ReactNode, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield, Wrench, ClipboardCheck, BookOpen, LayoutDashboard } from 'lucide-react';
+import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield, Wrench, ClipboardCheck, BookOpen, LayoutDashboard, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,7 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
-import { BlockedModeChangeDialog, IndustryEnrollmentSelector } from '@/components/enrollment';
+import { BlockedModeChangeDialog } from '@/components/enrollment';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
@@ -403,7 +404,7 @@ export function WizardLayout({
         {/* Header */}
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex items-center justify-between h-14 px-4">
-            {/* Logo and Industry Selector */}
+            {/* Logo and Industry Label (Read-Only) */}
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
@@ -412,9 +413,24 @@ export function WizardLayout({
                 <span className="font-semibold text-sm hidden sm:inline">CogniBlend</span>
               </div>
               
-              {/* Industry Enrollment Selector - show when multiple industries or always for context */}
-              {(hasMultipleIndustries || activeEnrollment) && (
-                <IndustryEnrollmentSelector compact showAddButton={hasMultipleIndustries} />
+              {/* Industry Label - READ ONLY (no selector/dropdown) */}
+              {activeEnrollment && (
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="gap-1.5 px-3 py-1">
+                    <Building2 className="h-3.5 w-3.5" />
+                    <span className="text-xs font-medium">
+                      {activeEnrollment.industry_segment?.name || 'Unknown Industry'}
+                    </span>
+                  </Badge>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate('/dashboard')}
+                  >
+                    Switch Industry
+                  </Button>
+                </div>
               )}
               
               {/* Lifecycle Progress Indicator */}
