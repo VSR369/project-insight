@@ -135,7 +135,8 @@ export function WizardStepper({
             const isClickable = !isLocked && (isCompleted || isCurrent || isNextAccessible);
             
             // Completed but not accessible (blocked by earlier incomplete step)
-            const isCompletedButBlocked = isCompleted && !isAccessible;
+            // Only apply to FUTURE steps - past completed steps should always be navigable
+            const isCompletedButBlocked = isCompleted && !isAccessible && step.id > currentStep;
 
             const stepCircle = (
               <div
