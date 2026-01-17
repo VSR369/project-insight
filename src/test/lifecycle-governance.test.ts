@@ -76,17 +76,18 @@ describe('BR-3.1: Registration Data Modification', () => {
     expect(result.allowed).toBe(true);
   });
 
-  it('TC-BR31-03: Registration fields editable until ASSESSMENT_COMPLETED (rank 105)', () => {
-    // Just before content lock at 120
-    const result = canModifyField(105, 'registration');
+  it('TC-BR31-03: Registration fields editable until ASSESSMENT_PENDING (rank 90)', () => {
+    // Just before content lock at 100
+    const result = canModifyField(LIFECYCLE_RANKS.assessment_pending, 'registration');
     expect(result.allowed).toBe(true);
   });
 
-  it('TC-BR31-04: Registration fields LOCKED at PANEL_SCHEDULED (rank 120)', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.panel_scheduled, 'registration');
+  it('TC-BR31-04: Registration fields LOCKED at ASSESSMENT_IN_PROGRESS (rank 100)', () => {
+    // Content lock now at 100 per updated plan
+    const result = canModifyField(LIFECYCLE_RANKS.assessment_in_progress, 'registration');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('content');
-    expect(result.reason).toContain('panel');
+    expect(result.reason).toContain('assessment');
   });
 
   it('TC-BR31-05: Registration fields LOCKED at PANEL_COMPLETED (rank 130)', () => {
@@ -201,19 +202,21 @@ describe('BR-3.5: Proof Points Management', () => {
     expect(result.allowed).toBe(true);
   });
 
-  it('TC-BR35-02: Proof points editable at ASSESSMENT_PASSED (rank 110)', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.assessment_passed, 'content');
+  it('TC-BR35-02: Proof points editable at ASSESSMENT_PENDING (rank 90)', () => {
+    // Just before content lock at 100
+    const result = canModifyField(LIFECYCLE_RANKS.assessment_pending, 'content');
     expect(result.allowed).toBe(true);
   });
 
-  it('TC-BR35-03: Proof points LOCKED at PANEL_SCHEDULED (rank 120)', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.panel_scheduled, 'content');
+  it('TC-BR35-03: Proof points LOCKED at ASSESSMENT_IN_PROGRESS (rank 100)', () => {
+    // Content lock now at 100 per updated plan
+    const result = canModifyField(LIFECYCLE_RANKS.assessment_in_progress, 'content');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('content');
   });
 
-  it('TC-BR35-04: Content lock threshold is 120', () => {
-    expect(LOCK_THRESHOLDS.CONTENT).toBe(120);
+  it('TC-BR35-04: Content lock threshold is 100 (assessment start)', () => {
+    expect(LOCK_THRESHOLDS.CONTENT).toBe(100);
   });
 
   it('TC-BR35-05: Proof points LOCKED at PANEL_COMPLETED (rank 130)', () => {
@@ -227,16 +230,18 @@ describe('BR-3.5: Proof Points Management', () => {
 // ============================================================================
 describe('BR-5.1: Tab Visibility & Locking', () => {
 
-  it('TC-BR51-01: Registration step (1) locked at PANEL_SCHEDULED', () => {
-    expect(isWizardStepLocked(1, LIFECYCLE_RANKS.panel_scheduled)).toBe(true);
+  it('TC-BR51-01: Registration step (1) locked at ASSESSMENT_IN_PROGRESS', () => {
+    // Content lock now at 100
+    expect(isWizardStepLocked(1, LIFECYCLE_RANKS.assessment_in_progress)).toBe(true);
   });
 
   it('TC-BR51-02: Expertise step (4) locked at ASSESSMENT_IN_PROGRESS', () => {
     expect(isWizardStepLocked(4, LIFECYCLE_RANKS.assessment_in_progress)).toBe(true);
   });
 
-  it('TC-BR51-03: Proof Points step (6) locked at PANEL_SCHEDULED', () => {
-    expect(isWizardStepLocked(6, LIFECYCLE_RANKS.panel_scheduled)).toBe(true);
+  it('TC-BR51-03: Proof Points step (5) locked at ASSESSMENT_IN_PROGRESS', () => {
+    // Step 5 is Proof Points (not 6), locked at content threshold
+    expect(isWizardStepLocked(5, LIFECYCLE_RANKS.assessment_in_progress)).toBe(true);
   });
 
   it('TC-BR51-04: All steps (1-9) locked at VERIFIED (terminal)', () => {
@@ -272,9 +277,10 @@ describe('Lock Thresholds Configuration', () => {
     expect(LIFECYCLE_RANKS.assessment_in_progress).toBe(100);
   });
 
-  it('TC-LT-02: Content lock threshold is 120 (PANEL_SCHEDULED)', () => {
-    expect(LOCK_THRESHOLDS.CONTENT).toBe(120);
-    expect(LIFECYCLE_RANKS.panel_scheduled).toBe(120);
+  it('TC-LT-02: Content lock threshold is 100 (ASSESSMENT_IN_PROGRESS)', () => {
+    // Updated from 120 to 100 per plan
+    expect(LOCK_THRESHOLDS.CONTENT).toBe(100);
+    expect(LIFECYCLE_RANKS.assessment_in_progress).toBe(100);
   });
 
   it('TC-LT-03: Everything lock threshold is 140 (VERIFIED)', () => {
@@ -283,7 +289,7 @@ describe('Lock Thresholds Configuration', () => {
   });
 
   it('TC-LT-04: Thresholds are in ascending order', () => {
-    expect(LOCK_THRESHOLDS.CONFIGURATION).toBeLessThan(LOCK_THRESHOLDS.CONTENT);
+    expect(LOCK_THRESHOLDS.CONFIGURATION).toBeLessThanOrEqual(LOCK_THRESHOLDS.CONTENT);
     expect(LOCK_THRESHOLDS.CONTENT).toBeLessThan(LOCK_THRESHOLDS.EVERYTHING);
   });
 });
@@ -351,13 +357,15 @@ describe('Boundary Testing', () => {
     expect(result.allowed).toBe(false);
   });
 
-  it('TC-BT-03: Rank 119 allows content changes', () => {
-    const result = canModifyField(119, 'content');
+  it('TC-BT-03: Rank 99 allows content changes', () => {
+    // Content threshold now at 100
+    const result = canModifyField(99, 'content');
     expect(result.allowed).toBe(true);
   });
 
-  it('TC-BT-04: Rank 120 blocks content changes', () => {
-    const result = canModifyField(120, 'content');
+  it('TC-BT-04: Rank 100 blocks content changes', () => {
+    // Content threshold now at 100
+    const result = canModifyField(100, 'content');
     expect(result.allowed).toBe(false);
   });
 

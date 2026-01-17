@@ -97,12 +97,13 @@ export function canModifyField(
     };
   }
 
-  // Content lock check - registration and proof points (BR-3.1.2, BR-3.5.4)
+  // Content lock check - registration, mode, org, proof points (BR-3.1.2, BR-3.5.4)
+  // Updated: Now locked at assessment start (rank 100) per multi-industry plan
   if (fieldCategory === 'content' || fieldCategory === 'registration') {
     if (lifecycleRank >= LOCK_THRESHOLDS.CONTENT) {
       return {
         allowed: false,
-        reason: 'This section is locked after panel scheduling. Please contact support if changes are needed.',
+        reason: 'This section is locked after assessment starts. Please contact support if changes are needed.',
         lockLevel: 'content',
       };
     }
