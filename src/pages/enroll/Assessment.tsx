@@ -2,8 +2,14 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { useCanStartAssessment, useStartAssessment, useActiveAssessmentAttempt } from '@/hooks/queries/useAssessment';
-import { useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { 
+  useCanStartEnrollmentAssessment, 
+  useStartEnrollmentAssessment, 
+  useActiveEnrollmentAssessmentAttempt,
+  useActiveAssessmentAcrossEnrollments,
+} from '@/hooks/queries/useEnrollmentAssessment';
+import { useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,18 +24,35 @@ import {
   AlertTriangle,
   CheckCircle2,
   PlayCircle,
-  Shield
+  Shield,
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 
 function AssessmentContent() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { data: canStart, isLoading: canStartLoading } = useCanStartAssessment(provider?.id);
-  const { data: activeAttempt } = useActiveAssessmentAttempt(provider?.id);
-  const startAssessment = useStartAssessment();
   
-  // Lifecycle validation
-  const terminalState = useIsTerminalState();
+  // Get active enrollment from context
+  const { 
+    activeEnrollment, 
+    activeEnrollmentId,
+    activeIndustryId,
+    setActiveEnrollment,
+    isLoading: enrollmentLoading 
+  } = useEnrollmentContext();
+  
+  // Enrollment-scoped assessment hooks
+  const { data: canStart, isLoading: canStartLoading } = useCanStartEnrollmentAssessment(
+    activeEnrollmentId ?? undefined, 
+    provider?.id
+  );
+  const { data: activeAttempt } = useActiveEnrollmentAssessmentAttempt(activeEnrollmentId ?? undefined);
+  const { data: activeAssessmentElsewhere } = useActiveAssessmentAcrossEnrollments(provider?.id);
+  const startAssessment = useStartEnrollmentAssessment();
+  
+  // Lifecycle validation scoped to enrollment
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -39,16 +62,16 @@ function AssessmentContent() {
   };
 
   const handleStartAssessment = async () => {
-    if (!provider?.id) return;
+    if (!provider?.id || !activeEnrollmentId) return;
 
     const result = await startAssessment.mutateAsync({
+      enrollmentId: activeEnrollmentId,
       providerId: provider.id,
       questionsCount: 20,
       timeLimitMinutes: 60,
     });
 
     if (result.success) {
-      // Navigate to assessment taking page (placeholder for now)
       navigate('/enroll/assessment/take');
     }
   };
@@ -57,7 +80,14 @@ function AssessmentContent() {
     navigate('/enroll/assessment/take');
   };
 
-  const isLoading = providerLoading || canStartLoading;
+  const handleGoToOtherAssessment = () => {
+    if (activeAssessmentElsewhere?.enrollmentId) {
+      setActiveEnrollment(activeAssessmentElsewhere.enrollmentId);
+      navigate('/enroll/assessment/take');
+    }
+  };
+
+  const isLoading = providerLoading || canStartLoading || enrollmentLoading;
 
   if (isLoading) {
     return (
@@ -69,10 +99,30 @@ function AssessmentContent() {
     );
   }
 
-  // Already in assessment
-  const isInAssessment = provider?.lifecycle_status === 'assessment_in_progress';
-  const hasPassedAssessment = provider?.lifecycle_status === 'assessment_passed';
-  const hasCompletedAssessment = provider?.lifecycle_status === 'assessment_completed';
+  // No enrollment selected
+  if (!activeEnrollment) {
+    return (
+      <WizardLayout currentStep={6} onBack={handleBack} hideContinueButton>
+        <Alert>
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>No Industry Selected</AlertTitle>
+          <AlertDescription>
+            Please complete industry and expertise selection before taking the assessment.
+          </AlertDescription>
+        </Alert>
+      </WizardLayout>
+    );
+  }
+
+  // Check if there's an active assessment for another enrollment (sequential rule)
+  const hasAssessmentElsewhere = activeAssessmentElsewhere && 
+    activeAssessmentElsewhere.enrollmentId !== activeEnrollmentId;
+
+  // Enrollment assessment states
+  const enrollmentStatus = activeEnrollment?.lifecycle_status;
+  const isInAssessment = enrollmentStatus === 'assessment_in_progress';
+  const hasPassedAssessment = enrollmentStatus === 'assessment_passed';
+  const hasCompletedAssessment = enrollmentStatus === 'assessment_completed';
 
   return (
     <WizardLayout
@@ -100,13 +150,36 @@ function AssessmentContent() {
           />
         )}
 
+        {/* Sequential Assessment Rule - Active Assessment Elsewhere */}
+        {hasAssessmentElsewhere && (
+          <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <AlertTitle className="text-blue-800 dark:text-blue-400">Assessment In Progress</AlertTitle>
+            <AlertDescription className="text-blue-700 dark:text-blue-300">
+              <p className="mb-3">
+                You have an active assessment for <strong>{activeAssessmentElsewhere.industryName || 'another industry'}</strong>. 
+                Complete it before starting a new one.
+              </p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleGoToOtherAssessment}
+                className="gap-2"
+              >
+                <ArrowRight className="h-4 w-4" />
+                Go to Active Assessment
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Assessment Already Passed */}
         {hasPassedAssessment && (
           <Alert className="bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800">
             <CheckCircle2 className="h-4 w-4 text-green-600" />
             <AlertTitle className="text-green-800 dark:text-green-400">Assessment Passed!</AlertTitle>
             <AlertDescription className="text-green-700 dark:text-green-300">
-              Congratulations! You've successfully passed the knowledge assessment. 
+              Congratulations! You've successfully passed the knowledge assessment for this industry. 
               You can now proceed to schedule your panel discussion.
             </AlertDescription>
           </Alert>
@@ -125,13 +198,13 @@ function AssessmentContent() {
         )}
 
         {/* Configuration Lock Warning */}
-        {!isInAssessment && !hasPassedAssessment && !hasCompletedAssessment && (
+        {!isInAssessment && !hasPassedAssessment && !hasCompletedAssessment && !hasAssessmentElsewhere && (
           <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-800">
             <Lock className="h-4 w-4 text-amber-600" />
             <AlertTitle className="text-amber-800 dark:text-amber-400">Important: Configuration Lock</AlertTitle>
             <AlertDescription className="text-amber-700 dark:text-amber-300">
-              Once you start the assessment, your <strong>industry segment</strong>, <strong>expertise level</strong>, 
-              and <strong>speciality selections</strong> will be permanently locked. 
+              Once you start the assessment, your <strong>expertise level</strong> and <strong>speciality selections</strong> 
+              for this industry will be permanently locked. 
               Make sure you've reviewed your profile before proceeding.
             </AlertDescription>
           </Alert>
@@ -204,11 +277,10 @@ function AssessmentContent() {
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Current Locked Items Preview */}
-            {!isInAssessment && !hasPassedAssessment && !hasCompletedAssessment && (
+            {!isInAssessment && !hasPassedAssessment && !hasCompletedAssessment && !hasAssessmentElsewhere && (
               <div className="bg-muted/50 rounded-lg p-4 space-y-2">
-                <p className="text-sm font-medium">Items that will be locked:</p>
+                <p className="text-sm font-medium">Items that will be locked for this industry:</p>
                 <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">Industry Segment</Badge>
                   <Badge variant="secondary">Expertise Level</Badge>
                   <Badge variant="secondary">Proficiency Areas</Badge>
                   <Badge variant="secondary">Specialities</Badge>
@@ -238,6 +310,16 @@ function AssessmentContent() {
                 >
                   <PlayCircle className="mr-2 h-4 w-4" />
                   Continue Assessment
+                </Button>
+              ) : hasAssessmentElsewhere ? (
+                <Button 
+                  onClick={handleGoToOtherAssessment}
+                  className="flex-1"
+                  size="lg"
+                  variant="outline"
+                >
+                  <ArrowRight className="mr-2 h-4 w-4" />
+                  Go to Active Assessment
                 </Button>
               ) : !hasPassedAssessment && !hasCompletedAssessment ? (
                 <Button 
@@ -270,7 +352,7 @@ function AssessmentContent() {
             </div>
 
             {/* Cannot Start Reason */}
-            {!canStart?.allowed && canStart?.reason && !isInAssessment && (
+            {!canStart?.allowed && canStart?.reason && !isInAssessment && !hasAssessmentElsewhere && (
               <p className="text-sm text-muted-foreground text-center">
                 {canStart.reason}
               </p>
@@ -300,6 +382,10 @@ function AssessmentContent() {
               <li className="flex items-start gap-2">
                 <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
                 Auto-submit occurs when time expires
+              </li>
+              <li className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-500 mt-0.5 flex-shrink-0" />
+                Complete one industry assessment before starting another
               </li>
             </ul>
           </CardContent>
