@@ -15,6 +15,8 @@ import {
   CheckCircle,
   Lock,
   UserCircle,
+  ClipboardCheck,
+  BookOpen,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -52,6 +54,11 @@ const profileBuildingItems = [
 
 const assessmentItems = [
   { title: 'Assessment', url: '/assessment', icon: FileText },
+];
+
+const toolsItems = [
+  { title: 'Regression Test', url: '/tools/regression-test', icon: ClipboardCheck },
+  { title: 'Lifecycle Rules', url: '/tools/lifecycle-rules', icon: BookOpen },
 ];
 
 const supportItems = [
@@ -189,6 +196,29 @@ export function AppSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {assessmentItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink 
+                      to={item.url}
+                      className="flex items-center gap-2"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Tools */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Tools</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {toolsItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink 
