@@ -1693,8 +1693,16 @@ export type Database = {
         Args: { p_provider_id: string; p_user_id: string }
         Returns: undefined
       }
+      execute_expertise_change_reset_v2: {
+        Args: { p_enrollment_id: string; p_user_id: string }
+        Returns: undefined
+      }
       execute_industry_change_reset: {
         Args: { p_provider_id: string; p_user_id: string }
+        Returns: undefined
+      }
+      execute_industry_change_reset_v2: {
+        Args: { p_enrollment_id: string; p_user_id: string }
         Returns: undefined
       }
       get_cascade_impact_counts: {
@@ -1706,8 +1714,21 @@ export type Database = {
           specialty_proof_points_count: number
         }[]
       }
+      get_cascade_impact_counts_v2: {
+        Args: { p_enrollment_id: string }
+        Returns: {
+          general_proof_points_count: number
+          proficiency_areas_count: number
+          specialities_count: number
+          specialty_proof_points_count: number
+        }[]
+      }
       handle_orphaned_proof_points: {
         Args: { p_provider_id: string; p_removed_area_ids: string[] }
+        Returns: number
+      }
+      handle_orphaned_proof_points_v2: {
+        Args: { p_enrollment_id: string; p_removed_area_ids: string[] }
         Returns: number
       }
       has_role: {
