@@ -11,3 +11,9 @@ verify_jwt = false
 
 [functions.withdraw-approval-request]
 verify_jwt = false
+
+[functions.create-panel-reviewer]
+verify_jwt = false
+
+[functions.send-reviewer-invitation]
+verify_jwt = false
