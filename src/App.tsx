@@ -65,6 +65,7 @@ import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
 import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 import SmokeTestPage from "@/pages/admin/SmokeTestPage";
+import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
 import RegressionTestPage from "@/pages/provider/RegressionTestPage";
 import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 
@@ -411,6 +412,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <AdminSettingsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/interview/quorum-requirements"
+              element={
+                <AdminGuard>
+                  <InterviewRequirementsPage />
                 </AdminGuard>
               }
             />
