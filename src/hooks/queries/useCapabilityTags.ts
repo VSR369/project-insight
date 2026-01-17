@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export interface CapabilityTag {
   id: string;
@@ -52,10 +53,10 @@ export function useCreateCapabilityTag() {
 
   return useMutation({
     mutationFn: async (tag: CapabilityTagInsert) => {
-      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const tagWithAudit = await withCreatedBy(tag);
       const { data, error } = await supabase
         .from("capability_tags")
-        .insert({ ...tag, created_by: userId })
+        .insert(tagWithAudit)
         .select()
         .single();
 
@@ -77,10 +78,10 @@ export function useUpdateCapabilityTag() {
 
   return useMutation({
     mutationFn: async ({ id, ...updates }: CapabilityTagUpdate) => {
-      const userId = (await supabase.auth.getUser()).data.user?.id ?? null;
+      const updatesWithAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("capability_tags")
-        .update({ ...updates, updated_by: userId })
+        .update(updatesWithAudit)
         .eq("id", id)
         .select()
         .single();
