@@ -14,6 +14,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { WizardStepper, type WizardStep } from './WizardStepper';
+import { LifecycleProgressIndicator } from './LifecycleProgressIndicator';
 import { useCurrentProvider, useProviderProficiencyAreas } from '@/hooks/queries/useProvider';
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
@@ -445,6 +446,15 @@ export function WizardLayout({
               {/* Industry Enrollment Selector - show when multiple industries or always for context */}
               {(hasMultipleIndustries || activeEnrollment) && (
                 <IndustryEnrollmentSelector compact showAddButton={hasMultipleIndustries} />
+              )}
+              
+              {/* Lifecycle Progress Indicator */}
+              {activeEnrollment && (
+                <LifecycleProgressIndicator
+                  currentStatus={activeEnrollment.lifecycle_status}
+                  currentRank={activeEnrollment.lifecycle_rank}
+                  className="hidden lg:flex"
+                />
               )}
             </div>
 
