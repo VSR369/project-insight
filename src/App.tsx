@@ -61,6 +61,8 @@ import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
 import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 import SmokeTestPage from "@/pages/admin/SmokeTestPage";
+import RegressionTestPage from "@/pages/provider/RegressionTestPage";
+import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 
 const queryClient = new QueryClient();
 
@@ -227,6 +229,24 @@ const App = () => (
               element={
                 <AuthGuard>
                   <SettingsPage />
+                </AuthGuard>
+              }
+            />
+
+            {/* Tools Routes */}
+            <Route
+              path="/tools/regression-test"
+              element={
+                <AuthGuard>
+                  <RegressionTestPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/tools/lifecycle-rules"
+              element={
+                <AuthGuard>
+                  <LifecycleRulesPage />
                 </AuthGuard>
               }
             />
