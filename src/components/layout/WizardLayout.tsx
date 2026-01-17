@@ -174,17 +174,21 @@ export function WizardLayout({
     return [];
   }, [isModeStepBlocked]);
 
-  // Locked steps - based on lifecycle rank (terminal state, assessment, panel)
+  // Locked steps - based on ENROLLMENT lifecycle rank (not provider) for multi-industry isolation
+  // CRITICAL: Use activeEnrollment.lifecycle_rank to ensure each industry's wizard is locked independently
   const lockedSteps = useMemo(() => {
-    if (!provider?.lifecycle_rank) return [];
+    // Use enrollment lifecycle rank, fallback to provider for backward compatibility
+    const lifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
+    if (!lifecycleRank) return [];
+    
     const locked: number[] = [];
     visibleSteps.forEach(step => {
-      if (isWizardStepLocked(step.id, provider.lifecycle_rank)) {
+      if (isWizardStepLocked(step.id, lifecycleRank)) {
         locked.push(step.id);
       }
     });
     return locked;
-  }, [provider?.lifecycle_rank, visibleSteps]);
+  }, [activeEnrollment?.lifecycle_rank, provider?.lifecycle_rank, visibleSteps]);
 
   // No skipped steps needed since we hide the step entirely
   const skippedSteps: number[] = [];
@@ -507,6 +511,7 @@ export function WizardLayout({
             nextAccessibleStep={nextAccessibleStep}
             orgApprovalStatus={orgApprovalStatus}
             industryName={activeEnrollment?.industry_segment?.name}
+            lifecycleStatus={activeEnrollment?.lifecycle_status ?? provider?.lifecycle_status}
             onStepClick={handleStepClick}
           />
         </header>

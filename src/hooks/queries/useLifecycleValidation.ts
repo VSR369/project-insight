@@ -4,10 +4,11 @@
  * React Query hooks for lifecycle validation and cascade impact detection.
  */
 
-import { useMemo } from 'react';
+import { useMemo, useContext } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentProvider } from './useProvider';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import {
   canModifyField,
   getCascadeImpact,
@@ -52,14 +53,18 @@ export function useLifecycleStages() {
 
 /**
  * Hook to check if a field category can be modified based on current lifecycle
+ * IMPORTANT: Uses ENROLLMENT lifecycle rank for multi-industry isolation
  * 
  * @param fieldCategory - Category of fields to check
  * @returns LockCheckResult with allowed status and reason
  */
 export function useCanModifyField(fieldCategory: FieldCategory): LockCheckResult & { isLoading: boolean } {
-  const { data: provider, isLoading } = useCurrentProvider();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
 
   return useMemo(() => {
+    const isLoading = providerLoading || (enrollmentContext?.isLoading ?? false);
+    
     if (isLoading) {
       return { allowed: false, reason: 'Loading...', isLoading: true };
     }
@@ -68,13 +73,16 @@ export function useCanModifyField(fieldCategory: FieldCategory): LockCheckResult
       return { allowed: false, reason: 'Provider not found', isLoading: false };
     }
 
-    const result = canModifyField(provider.lifecycle_rank, fieldCategory);
+    // Use enrollment lifecycle rank if available, fallback to provider for backward compatibility
+    const lifecycleRank = enrollmentContext?.activeLifecycleRank ?? provider.lifecycle_rank;
+    const result = canModifyField(lifecycleRank, fieldCategory);
     return { ...result, isLoading: false };
-  }, [provider?.lifecycle_rank, fieldCategory, isLoading]);
+  }, [provider, enrollmentContext?.activeLifecycleRank, enrollmentContext?.isLoading, fieldCategory, providerLoading]);
 }
 
 /**
  * Hook to get cascade impact for a field change
+ * IMPORTANT: Uses ENROLLMENT lifecycle rank and data for multi-industry isolation
  * 
  * @param fieldName - Name of the field that might change
  * @returns CascadeImpact or null if loading
@@ -84,19 +92,27 @@ export function useCascadeImpact(fieldName: string): {
   isLoading: boolean;
 } {
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
+  const activeEnrollment = enrollmentContext?.activeEnrollment;
 
-  // Check for specialty proof points
+  // Check for specialty proof points - scoped to enrollment if available
   const { data: proofPointCounts, isLoading: countsLoading } = useQuery({
-    queryKey: ['proof-point-counts', provider?.id],
+    queryKey: ['proof-point-counts', provider?.id, activeEnrollment?.industry_segment_id],
     queryFn: async () => {
       if (!provider?.id) return { specialty: 0, general: 0 };
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('proof_points')
         .select('category')
         .eq('provider_id', provider.id)
         .eq('is_deleted', false);
+      
+      // Scope to active industry if available
+      if (activeEnrollment?.industry_segment_id) {
+        query = query.eq('industry_segment_id', activeEnrollment.industry_segment_id);
+      }
 
+      const { data, error } = await query;
       if (error) throw error;
 
       const specialty = data?.filter(p => p.category === 'specialty_specific').length ?? 0;
@@ -109,24 +125,26 @@ export function useCascadeImpact(fieldName: string): {
   });
 
   return useMemo(() => {
-    const isLoading = providerLoading || countsLoading;
+    const isLoading = providerLoading || countsLoading || (enrollmentContext?.isLoading ?? false);
 
     if (isLoading || !provider) {
       return { impact: null, isLoading };
     }
 
-    const hasExpertiseSelected = !!provider.expertise_level_id;
+    // Use enrollment data if available, fallback to provider
+    const hasExpertiseSelected = !!(activeEnrollment?.expertise_level_id ?? provider.expertise_level_id);
     const hasSpecialtyProofPoints = (proofPointCounts?.specialty ?? 0) > 0;
+    const lifecycleRank = enrollmentContext?.activeLifecycleRank ?? provider.lifecycle_rank;
 
     const impact = getCascadeImpact(
       fieldName,
-      provider.lifecycle_rank,
+      lifecycleRank,
       hasExpertiseSelected,
       hasSpecialtyProofPoints
     );
 
     return { impact, isLoading: false };
-  }, [provider, fieldName, proofPointCounts, providerLoading, countsLoading]);
+  }, [provider, activeEnrollment, enrollmentContext?.activeLifecycleRank, enrollmentContext?.isLoading, fieldName, proofPointCounts, providerLoading, countsLoading]);
 }
 
 /**
@@ -166,6 +184,7 @@ export function useCascadeImpactCounts() {
 
 /**
  * Hook to check if a wizard step is locked
+ * IMPORTANT: Uses ENROLLMENT lifecycle rank for multi-industry isolation
  * 
  * @param stepId - Wizard step ID (1-9)
  * @returns boolean indicating if step is locked
@@ -174,32 +193,41 @@ export function useIsStepLocked(stepId: number): {
   isLocked: boolean;
   isLoading: boolean;
 } {
-  const { data: provider, isLoading } = useCurrentProvider();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
 
   return useMemo(() => {
+    const isLoading = providerLoading || (enrollmentContext?.isLoading ?? false);
+    
     if (isLoading || !provider) {
       return { isLocked: false, isLoading };
     }
 
+    // Use enrollment lifecycle rank, fallback to provider for backward compatibility
+    const lifecycleRank = enrollmentContext?.activeLifecycleRank ?? provider.lifecycle_rank;
     return {
-      isLocked: isWizardStepLocked(stepId, provider.lifecycle_rank),
+      isLocked: isWizardStepLocked(stepId, lifecycleRank),
       isLoading: false,
     };
-  }, [provider?.lifecycle_rank, stepId, isLoading]);
+  }, [provider, enrollmentContext?.activeLifecycleRank, enrollmentContext?.isLoading, stepId, providerLoading]);
 }
 
 /**
  * Hook to get step lock status function for WizardStepper
+ * IMPORTANT: Uses ENROLLMENT lifecycle rank for multi-industry isolation
  */
 export function useStepLockChecker(): (stepId: number) => boolean {
   const { data: provider } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
 
   return useMemo(() => {
     return (stepId: number): boolean => {
-      if (!provider?.lifecycle_rank) return false;
-      return isWizardStepLocked(stepId, provider.lifecycle_rank);
+      // Use enrollment lifecycle rank, fallback to provider for backward compatibility
+      const lifecycleRank = enrollmentContext?.activeLifecycleRank ?? provider?.lifecycle_rank ?? 0;
+      if (!lifecycleRank) return false;
+      return isWizardStepLocked(stepId, lifecycleRank);
     };
-  }, [provider?.lifecycle_rank]);
+  }, [provider?.lifecycle_rank, enrollmentContext?.activeLifecycleRank]);
 }
 
 /**
@@ -232,28 +260,34 @@ export function useMinProofPointsRequired() {
 
 /**
  * Hook to check if terminal state is reached
+ * IMPORTANT: Uses ENROLLMENT lifecycle status for multi-industry isolation
  */
 export function useIsTerminalState(): {
   isTerminal: boolean;
   status: string | null;
   isLoading: boolean;
 } {
-  const { data: provider, isLoading } = useCurrentProvider();
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const enrollmentContext = useOptionalEnrollmentContext();
 
   return useMemo(() => {
+    const isLoading = providerLoading || (enrollmentContext?.isLoading ?? false);
+    
     if (isLoading || !provider) {
       return { isTerminal: false, status: null, isLoading };
     }
 
     const terminalStatuses = ['verified', 'certified', 'not_verified', 'active', 'suspended', 'inactive'];
-    const isTerminal = terminalStatuses.includes(provider.lifecycle_status);
+    // Use enrollment lifecycle status, fallback to provider for backward compatibility
+    const lifecycleStatus = enrollmentContext?.activeLifecycleStatus ?? provider.lifecycle_status;
+    const isTerminal = terminalStatuses.includes(lifecycleStatus);
 
     return {
       isTerminal,
-      status: provider.lifecycle_status,
+      status: lifecycleStatus,
       isLoading: false,
     };
-  }, [provider, isLoading]);
+  }, [provider, enrollmentContext?.activeLifecycleStatus, enrollmentContext?.isLoading, providerLoading]);
 }
 
 // Re-export types and constants for convenience
