@@ -112,6 +112,8 @@ export function useUpdateProviderBasicProfile() {
     onSuccess: (result) => {
       if (result.success) {
         queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+        queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+        queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
         queryClient.invalidateQueries({ queryKey: ['proof-points'] });
         queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas'] });
         toast.success('Saved. Continue to Participation Mode.');
