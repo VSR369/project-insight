@@ -154,10 +154,11 @@ export async function updateProviderBasicProfile(
     industrySegmentId: string;
     isStudent: boolean;
   }
-): Promise<void> {
+): Promise<{ enrollmentId?: string }> {
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('Not authenticated');
 
+  // Update solution_providers
   const { error } = await supabase
     .from('solution_providers')
     .update({
@@ -176,6 +177,46 @@ export async function updateProviderBasicProfile(
     .eq('id', providerId);
 
   if (error) throw error;
+
+  // Check if enrollment already exists for this provider + industry
+  const { data: existingEnrollment } = await supabase
+    .from('provider_industry_enrollments')
+    .select('id')
+    .eq('provider_id', providerId)
+    .eq('industry_segment_id', data.industrySegmentId)
+    .maybeSingle();
+
+  let enrollmentId = existingEnrollment?.id;
+
+  // Create enrollment if it doesn't exist
+  if (!enrollmentId) {
+    // Check if this is the first enrollment (to set is_primary)
+    const { data: anyEnrollments } = await supabase
+      .from('provider_industry_enrollments')
+      .select('id')
+      .eq('provider_id', providerId)
+      .limit(1);
+
+    const isPrimary = !anyEnrollments || anyEnrollments.length === 0;
+
+    const { data: newEnrollment, error: enrollmentError } = await supabase
+      .from('provider_industry_enrollments')
+      .insert({
+        provider_id: providerId,
+        industry_segment_id: data.industrySegmentId,
+        is_primary: isPrimary,
+        lifecycle_status: 'enrolled',
+        lifecycle_rank: 20,
+        created_by: userId,
+      })
+      .select('id')
+      .single();
+
+    if (enrollmentError) throw enrollmentError;
+    enrollmentId = newEnrollment.id;
+  }
+
+  return { enrollmentId };
 }
 
 export async function upsertStudentProfile(
