@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Mail, User, Key, Link2, Clock } from "lucide-react";
+import { Mail, User, Key, Link2, Clock, CheckCircle } from "lucide-react";
 import { PanelReviewerFormData, InvitationSettingsData } from "@/lib/validations/reviewer";
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
@@ -12,12 +12,18 @@ interface InvitationPreviewPanelProps {
   formData: Partial<PanelReviewerFormData>;
   invitationSettings: Partial<InvitationSettingsData>;
   generatedPassword?: string;
+  isConfirmed?: boolean;
+  onConfirm?: () => void;
+  canConfirm?: boolean;
 }
 
 export function InvitationPreviewPanel({
   formData,
   invitationSettings,
   generatedPassword,
+  isConfirmed = false,
+  onConfirm,
+  canConfirm = false,
 }: InvitationPreviewPanelProps) {
   const { data: levels } = useExpertiseLevels(false);
   const { data: industries } = useIndustrySegments(false);
@@ -148,13 +154,29 @@ export function InvitationPreviewPanel({
           </>
         )}
 
-        {/* Confirm Button (visual only) */}
-        <Button className="w-full" disabled variant="default">
-          Confirm Invitation
+        {/* Confirm Button */}
+        <Button 
+          className="w-full" 
+          variant={isConfirmed ? "secondary" : "default"}
+          disabled={isConfirmed || !canConfirm}
+          onClick={onConfirm}
+        >
+          {isConfirmed ? (
+            <>
+              <CheckCircle className="mr-2 h-4 w-4" />
+              Confirmed
+            </>
+          ) : (
+            "Confirm Invitation"
+          )}
         </Button>
 
         <p className="text-xs text-center text-muted-foreground">
-          Preferences can be changed later.
+          {!canConfirm 
+            ? "Fill in required fields to confirm" 
+            : isConfirmed 
+              ? "You can now send the invitation" 
+              : "Confirm to enable Send Invitation"}
         </p>
       </CardContent>
     </Card>
