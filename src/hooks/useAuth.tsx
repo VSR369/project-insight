@@ -75,8 +75,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     // Clear React Query cache before signing out
     queryClient.clear();
-    // Clear enrollment session storage
+    // Clear all portal-related session storage
     sessionStorage.removeItem('activeEnrollmentId');
+    sessionStorage.removeItem('activePortal');
     // Sign out from Supabase
     await supabase.auth.signOut();
   };

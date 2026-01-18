@@ -15,7 +15,6 @@ import {
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { EnrollmentSwitcher } from './EnrollmentSwitcher';
-import { RoleSwitcher } from './RoleSwitcher';
 import { toast } from 'sonner';
 
 export function AppHeader() {
@@ -42,9 +41,6 @@ export function AppHeader() {
     <header className="sticky top-0 z-40 flex h-14 items-center gap-4 border-b border-border bg-background px-4 sm:px-6">
       {/* Mobile menu trigger */}
       <SidebarTrigger className="-ml-2" />
-
-      {/* Role Switcher */}
-      <RoleSwitcher />
 
       {/* Industry Enrollment Switcher - Provider area only */}
       {!isInAdminArea && <EnrollmentSwitcher />}
