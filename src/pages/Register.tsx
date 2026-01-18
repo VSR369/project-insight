@@ -189,26 +189,32 @@ export default function Register() {
   const onReviewerSubmit = async (data: ReviewerRegisterFormData) => {
     setIsLoading(true);
     try {
-      // Create user with metadata
-      const metadata = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        role_type: 'reviewer',
-      };
+      // Call edge function to create user and panel_reviewers record
+      const response = await supabase.functions.invoke("register-reviewer-application", {
+        body: {
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
+          password: data.password,
+          phone: data.phone || undefined,
+          industrySegmentIds: data.industrySegmentIds,
+          expertiseLevelIds: data.expertiseLevelIds,
+          yearsExperience: data.yearsExperience || undefined,
+          timezone: data.timezone,
+          whyJoinStatement: data.whyJoinStatement,
+        },
+      });
 
-      const { error: signUpError } = await signUp(data.email, data.password, metadata);
-      
-      if (signUpError) {
-        if (signUpError.message.includes('User already registered')) {
-          toast.error('An account with this email already exists');
-        } else {
-          toast.error(signUpError.message);
-        }
+      if (response.error) {
+        toast.error(response.error.message || 'Failed to submit application');
         return;
       }
 
-      // Note: The panel_reviewers record will be created by a trigger or edge function
-      // For now, we'll show a pending message
+      if (!response.data?.success) {
+        toast.error(response.data?.error || 'Failed to submit application');
+        return;
+      }
+
       toast.success('Application submitted! Your reviewer application is pending admin approval.');
       navigate('/login');
     } catch (err) {
