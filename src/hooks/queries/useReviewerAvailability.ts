@@ -7,9 +7,32 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import { handleMutationError, logInfo } from "@/lib/errorHandler";
+import { handleMutationError, logInfo, logAuditEvent } from "@/lib/errorHandler";
 import { getCurrentUserId } from "@/lib/auditFields";
 import type { Tables } from "@/integrations/supabase/types";
+
+// Types for cancellation
+export interface CancellationResult {
+  success: boolean;
+  error?: string;
+  booking_id?: string;
+  provider_id?: string;
+  provider_name?: string;
+  provider_email?: string;
+  scheduled_at?: string;
+  industry_name?: string;
+  expertise_name?: string;
+  cancelled_slots_count?: number;
+}
+
+export interface BookingForSlot {
+  bookingId: string;
+  providerName: string;
+  providerEmail: string;
+  scheduledAt: string;
+  industryName?: string;
+  expertiseName?: string;
+}
 
 // Types
 export type InterviewSlot = Tables<"interview_slots">;
@@ -180,6 +203,160 @@ export function useDeleteReviewerSlot() {
     onError: (error: Error) => {
       handleMutationError(error, {
         operation: "delete_reviewer_slot",
+        component: "ReviewerAvailability",
+      });
+    },
+  });
+}
+
+// Get booking details for a booked slot
+export function useBookingForSlot(slotId: string | null) {
+  return useQuery({
+    queryKey: ["booking-for-slot", slotId],
+    queryFn: async (): Promise<BookingForSlot | null> => {
+      if (!slotId) return null;
+
+      // Find the booking linked to this slot
+      const { data: bookingReviewer, error: brError } = await supabase
+        .from("booking_reviewers")
+        .select(`
+          booking_id,
+          interview_bookings!inner (
+            id,
+            provider_id,
+            scheduled_at,
+            status,
+            enrollment_id
+          )
+        `)
+        .eq("slot_id", slotId)
+        .maybeSingle();
+
+      if (brError) throw new Error(brError.message);
+      if (!bookingReviewer) return null;
+
+      const booking = (bookingReviewer as any).interview_bookings;
+      if (!booking || !['scheduled', 'confirmed'].includes(booking.status)) {
+        return null;
+      }
+
+      // Get provider details
+      const { data: provider, error: provError } = await supabase
+        .from("solution_providers")
+        .select(`
+          id,
+          first_name,
+          last_name,
+          user_id,
+          profiles!inner (email)
+        `)
+        .eq("id", booking.provider_id)
+        .single();
+
+      if (provError) throw new Error(provError.message);
+
+      // Get enrollment details for industry/expertise names
+      const { data: enrollment, error: enrError } = await supabase
+        .from("provider_industry_enrollments")
+        .select(`
+          industry_segments (name),
+          expertise_levels (name)
+        `)
+        .eq("id", booking.enrollment_id)
+        .single();
+
+      const providerName = [provider?.first_name, provider?.last_name]
+        .filter(Boolean)
+        .join(" ") || "Provider";
+      const providerEmail = (provider as any)?.profiles?.email || "";
+
+      return {
+        bookingId: booking.id,
+        providerName,
+        providerEmail,
+        scheduledAt: booking.scheduled_at,
+        industryName: (enrollment as any)?.industry_segments?.name,
+        expertiseName: (enrollment as any)?.expertise_levels?.name,
+      };
+    },
+    enabled: !!slotId,
+  });
+}
+
+// Cancel a booked slot (cancels entire booking, notifies provider)
+export function useCancelBookedSlot() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ 
+      slotId, 
+      reviewerId, 
+      reason = "Reviewer cancelled availability" 
+    }: { 
+      slotId: string; 
+      reviewerId: string;
+      reason?: string;
+    }) => {
+      // Call the RPC function to cancel the booking
+      const { data, error } = await supabase.rpc("cancel_booked_slot_by_reviewer", {
+        p_slot_id: slotId,
+        p_reviewer_id: reviewerId,
+        p_reason: reason,
+      });
+
+      if (error) throw new Error(error.message);
+
+      const result = data as unknown as CancellationResult;
+      if (!result.success) {
+        throw new Error(result.error || "Failed to cancel booking");
+      }
+
+      // Send email notification to provider
+      if (result.provider_email) {
+        try {
+          const { error: notifyError } = await supabase.functions.invoke(
+            "notify-booking-cancelled",
+            {
+              body: {
+                provider_email: result.provider_email,
+                provider_name: result.provider_name,
+                scheduled_at: result.scheduled_at,
+                industry_name: result.industry_name,
+                expertise_name: result.expertise_name,
+                booking_id: result.booking_id,
+              },
+            }
+          );
+
+          if (notifyError) {
+            console.error("Failed to send cancellation email:", notifyError);
+            // Don't throw - booking is already cancelled, email is best-effort
+          }
+        } catch (emailError) {
+          console.error("Error calling notification function:", emailError);
+        }
+      }
+
+      logAuditEvent("booked_slot_cancelled_by_reviewer", {
+        slot_id: slotId,
+        reviewer_id: reviewerId,
+        booking_id: result.booking_id,
+        provider_id: result.provider_id,
+        cancelled_slots_count: result.cancelled_slots_count,
+      });
+
+      return result;
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ["reviewer-slots"] });
+      queryClient.invalidateQueries({ queryKey: ["booking-for-slot"] });
+      toast.success(
+        `Interview cancelled. ${result.provider_name} has been notified by email.`
+      );
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, {
+        operation: "cancel_booked_slot",
         component: "ReviewerAvailability",
       });
     },

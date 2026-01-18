@@ -718,6 +718,9 @@ export type Database = {
       }
       interview_slots: {
         Row: {
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_reason: string | null
           created_at: string | null
           end_at: string
           hold_expires_at: string | null
@@ -728,6 +731,9 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
           created_at?: string | null
           end_at: string
           hold_expires_at?: string | null
@@ -738,6 +744,9 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_reason?: string | null
           created_at?: string | null
           end_at?: string
           hold_expires_at?: string | null
@@ -2114,6 +2123,10 @@ export type Database = {
           p_provider_id: string
           p_user_id: string
         }
+        Returns: Json
+      }
+      cancel_booked_slot_by_reviewer: {
+        Args: { p_reason?: string; p_reviewer_id: string; p_slot_id: string }
         Returns: Json
       }
       cancel_interview_booking: {

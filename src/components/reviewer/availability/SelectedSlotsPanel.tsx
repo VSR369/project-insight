@@ -5,7 +5,7 @@
  */
 
 import { useState } from "react";
-import { X, Trash2, CalendarDays, Clock, Check, ListOrdered } from "lucide-react";
+import { X, Trash2, CalendarDays, Clock, Check, ListOrdered, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -17,6 +17,7 @@ import {
   type DraftSlot,
 } from "@/services/availabilityService";
 import { DeleteSlotConfirmDialog } from "./DeleteSlotConfirmDialog";
+import { BookedSlotCancelDialog, type BookingInfo } from "./BookedSlotCancelDialog";
 import type { InterviewSlot } from "@/hooks/queries/useReviewerAvailability";
 
 interface SelectedSlotsPanelProps {
@@ -24,10 +25,13 @@ interface SelectedSlotsPanelProps {
   existingSlots: InterviewSlot[];
   onRemoveDraft: (key: string) => void;
   onDeleteExisting: (slotId: string) => void;
+  onCancelBooked?: (slotId: string) => void;
   onClearAllDrafts: () => void;
   onConfirmSelection: () => void;
   isSubmitting: boolean;
   isDeletingSlot?: boolean;
+  isCancellingBooked?: boolean;
+  getBookingInfo?: (slotId: string) => BookingInfo | null;
 }
 
 export function SelectedSlotsPanel({
@@ -35,13 +39,21 @@ export function SelectedSlotsPanel({
   existingSlots,
   onRemoveDraft,
   onDeleteExisting,
+  onCancelBooked,
   onClearAllDrafts,
   onConfirmSelection,
   isSubmitting,
   isDeletingSlot = false,
+  isCancellingBooked = false,
+  getBookingInfo,
 }: SelectedSlotsPanelProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [slotToDelete, setSlotToDelete] = useState<InterviewSlot | null>(null);
+  
+  // Booked slot cancellation state
+  const [bookedCancelDialogOpen, setBookedCancelDialogOpen] = useState(false);
+  const [bookedSlotToCancel, setBookedSlotToCancel] = useState<InterviewSlot | null>(null);
+  const [bookingInfoForDialog, setBookingInfoForDialog] = useState<BookingInfo | null>(null);
 
   const openSlots = existingSlots.filter(
     (slot) => slot.status === 'open' && !isSlotInPast(new Date(slot.start_at))
@@ -63,6 +75,26 @@ export function SelectedSlotsPanel({
       onDeleteExisting(slotToDelete.id);
       setDeleteDialogOpen(false);
       setSlotToDelete(null);
+    }
+  };
+
+  const handleBookedCancelClick = (slot: InterviewSlot) => {
+    if (getBookingInfo) {
+      const info = getBookingInfo(slot.id);
+      if (info) {
+        setBookingInfoForDialog(info);
+        setBookedSlotToCancel(slot);
+        setBookedCancelDialogOpen(true);
+      }
+    }
+  };
+
+  const handleConfirmBookedCancel = () => {
+    if (bookedSlotToCancel && onCancelBooked) {
+      onCancelBooked(bookedSlotToCancel.id);
+      setBookedCancelDialogOpen(false);
+      setBookedSlotToCancel(null);
+      setBookingInfoForDialog(null);
     }
   };
 
@@ -157,12 +189,12 @@ export function SelectedSlotsPanel({
               </div>
             )}
 
-            {/* Booked Slots Section (Read-only) */}
+            {/* Booked Slots Section */}
             {bookedSlots.length > 0 && (
               <div className="space-y-2">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-medium">Booked</span>
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="bg-amber-100 text-amber-700">
                     {bookedSlots.length}
                   </Badge>
                 </div>
@@ -170,7 +202,7 @@ export function SelectedSlotsPanel({
                   {bookedSlots.map((slot) => (
                     <div
                       key={slot.id}
-                      className="flex items-center justify-between p-2 bg-muted/50 border rounded-md opacity-60"
+                      className="flex items-center justify-between p-2 bg-amber-50 border border-amber-200 rounded-md"
                     >
                       <div className="text-sm">
                         <div className="font-medium">
@@ -183,7 +215,23 @@ export function SelectedSlotsPanel({
                           )}
                         </div>
                       </div>
-                      <Badge variant="outline">Booked</Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="bg-amber-100 border-amber-300 text-amber-700">
+                          Booked
+                        </Badge>
+                        {onCancelBooked && getBookingInfo && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleBookedCancelClick(slot)}
+                            disabled={isCancellingBooked}
+                            aria-label="Cancel booked slot"
+                          >
+                            <AlertTriangle className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -259,7 +307,7 @@ export function SelectedSlotsPanel({
         </div>
       </div>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Confirmation Dialog (for open slots) */}
       <DeleteSlotConfirmDialog
         open={deleteDialogOpen}
         onOpenChange={setDeleteDialogOpen}
@@ -267,6 +315,15 @@ export function SelectedSlotsPanel({
         isDeleting={isDeletingSlot}
         slotStartAt={slotToDelete?.start_at}
         slotEndAt={slotToDelete?.end_at}
+      />
+
+      {/* Booked Slot Cancel Dialog (for booked slots) */}
+      <BookedSlotCancelDialog
+        open={bookedCancelDialogOpen}
+        onOpenChange={setBookedCancelDialogOpen}
+        onConfirm={handleConfirmBookedCancel}
+        isCancelling={isCancellingBooked}
+        booking={bookingInfoForDialog}
       />
     </>
   );
