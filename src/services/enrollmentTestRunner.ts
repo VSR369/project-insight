@@ -424,7 +424,7 @@ const enrollmentDataTests: TestCase[] = [
         .single();
       
       if (error || !data) {
-        throw new Error("No provider record found for current user");
+        throw new Error("SKIP: No provider record - complete onboarding first");
       }
     }),
   },
@@ -443,7 +443,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments, error } = await supabase
         .from("provider_industry_enrollments")
@@ -471,7 +471,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments } = await supabase
         .from("provider_industry_enrollments")
@@ -503,7 +503,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments } = await supabase
         .from("provider_industry_enrollments")
@@ -537,7 +537,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments } = await supabase
         .from("provider_industry_enrollments")
@@ -575,7 +575,7 @@ const multiIndustryTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments } = await supabase
         .from("provider_industry_enrollments")
@@ -608,7 +608,7 @@ const multiIndustryTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: proofPoints } = await supabase
         .from("proof_points")
@@ -636,7 +636,7 @@ const multiIndustryTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: areas } = await supabase
         .from("provider_proficiency_areas")
@@ -737,7 +737,7 @@ const proofPointsMinTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: proofPoints, error } = await supabase
         .from("proof_points")
@@ -763,7 +763,7 @@ const proofPointsMinTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("proof_points")
@@ -830,7 +830,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data, error } = await supabase
         .from("provider_industry_enrollments")
@@ -856,7 +856,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("solution_provider_organizations")
@@ -894,7 +894,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("solution_provider_organizations")
@@ -920,7 +920,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("solution_provider_organizations")
@@ -946,7 +946,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("solution_provider_organizations")
@@ -972,7 +972,7 @@ const orgApprovalTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("solution_provider_organizations")
@@ -1417,7 +1417,7 @@ const auditTrailTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("provider_industry_enrollments")
@@ -1443,7 +1443,7 @@ const auditTrailTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("proof_points")
@@ -1469,7 +1469,7 @@ const auditTrailTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { error } = await supabase
         .from("proof_points")
@@ -1582,7 +1582,7 @@ const securityRlsTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: enrollments, error } = await supabase
         .from("provider_industry_enrollments")
@@ -1613,7 +1613,7 @@ const securityRlsTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: proofPoints, error } = await supabase
         .from("proof_points")
@@ -1644,7 +1644,7 @@ const securityRlsTests: TestCase[] = [
         .eq("user_id", user.id)
         .single();
       
-      if (!provider) throw new Error("No provider record");
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
       
       const { data: attempts, error } = await supabase
         .from("assessment_attempts")
