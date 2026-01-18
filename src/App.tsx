@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
+import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 
 // Auth Pages
@@ -68,6 +69,9 @@ import SmokeTestPage from "@/pages/admin/SmokeTestPage";
 import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
 import RegressionTestPage from "@/pages/provider/RegressionTestPage";
 import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
+
+// Reviewer Pages
+import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
 
 const queryClient = new QueryClient();
 
@@ -421,6 +425,16 @@ const App = () => (
                 <AdminGuard>
                   <InterviewRequirementsPage />
                 </AdminGuard>
+              }
+            />
+
+            {/* Reviewer Routes */}
+            <Route
+              path="/reviewer/dashboard"
+              element={
+                <ReviewerGuard>
+                  <ReviewerDashboard />
+                </ReviewerGuard>
               }
             />
 
