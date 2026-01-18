@@ -14,6 +14,7 @@ interface UserRolesResult {
   isProvider: boolean;
   isSeeker: boolean;
   isTenantAdmin: boolean;
+  isReviewer: boolean;
 }
 
 export function useUserRoles(): UserRolesResult {
@@ -49,5 +50,6 @@ export function useUserRoles(): UserRolesResult {
     isProvider: hasRole('solution_provider'),
     isSeeker: hasRole('seeker'),
     isTenantAdmin: hasRole('tenant_admin'),
+    isReviewer: hasRole('panel_reviewer'),
   };
 }

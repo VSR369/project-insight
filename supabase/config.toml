@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.delete-panel-reviewer]
 verify_jwt = false
+
+[functions.seed-test-reviewer]
+verify_jwt = false
