@@ -5,4 +5,11 @@
  */
 
 export * from './testAuth';
-export * from './reviewerTestAuth';
+export {
+  authenticateTestReviewer,
+  createTestReviewerApplication,
+  getReviewerByEmail,
+  cleanupTestReviewers,
+  simulateInvitationExpiry,
+  // signOutTestUser excluded - already exported from testAuth
+} from './reviewerTestAuth';
