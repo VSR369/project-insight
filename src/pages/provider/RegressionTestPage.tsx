@@ -33,7 +33,7 @@ import {
   XCircle,
   Clock,
   Loader2,
-  AlertCircle,
+  SkipForward,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useRef, useEffect } from "react";
@@ -46,6 +46,7 @@ export default function RegressionTestPage() {
     completedTests,
     passedTests,
     failedTests,
+    skippedTests,
     results,
     logs,
     currentCategory,
@@ -82,7 +83,7 @@ export default function RegressionTestPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Tests</CardDescription>
@@ -99,6 +100,12 @@ export default function RegressionTestPage() {
             <CardHeader className="pb-2">
               <CardDescription>Failed</CardDescription>
               <CardTitle className="text-3xl text-red-600">{failedTests}</CardTitle>
+            </CardHeader>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardDescription>Skipped</CardDescription>
+              <CardTitle className="text-3xl text-amber-600">{skippedTests}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
@@ -178,6 +185,7 @@ export default function RegressionTestPage() {
                       "py-0.5",
                       log.includes("✓") && "text-green-600",
                       log.includes("✗") && "text-red-600",
+                      log.includes("⊘") && "text-amber-600",
                       log.includes("===") && "font-semibold text-primary",
                       log.includes("---") && "text-muted-foreground",
                     )}
@@ -204,6 +212,7 @@ export default function RegressionTestPage() {
                 const categoryResults = results.filter(r => r.categoryId === category.id);
                 const categoryPassed = categoryResults.filter(r => r.status === "pass").length;
                 const categoryFailed = categoryResults.filter(r => r.status === "fail").length;
+                const categorySkipped = categoryResults.filter(r => r.status === "skipped").length;
                 const isCurrentCategory = currentCategory === category.name;
 
                 return (
@@ -228,6 +237,11 @@ export default function RegressionTestPage() {
                           {categoryFailed > 0 && (
                             <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
                               {categoryFailed} failed
+                            </Badge>
+                          )}
+                          {categorySkipped > 0 && (
+                            <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                              {categorySkipped} skipped
                             </Badge>
                           )}
                           <Badge variant="secondary">
@@ -316,6 +330,13 @@ function TestStatusBadge({ status }: { status: string }) {
         <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 gap-1">
           <XCircle className="h-3 w-3" />
           Fail
+        </Badge>
+      );
+    case "skipped":
+      return (
+        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 gap-1">
+          <SkipForward className="h-3 w-3" />
+          Skipped
         </Badge>
       );
     case "running":

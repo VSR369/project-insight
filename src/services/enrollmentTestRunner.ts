@@ -37,10 +37,10 @@ import {
 } from "@/constants/assessment.constants";
 
 // Test result types
-export type TestStatus = "not_tested" | "running" | "pass" | "fail";
+export type TestStatus = "not_tested" | "running" | "pass" | "fail" | "skipped";
 
 export interface TestResult {
-  status: "pass" | "fail";
+  status: "pass" | "fail" | "skipped";
   duration: number;
   error?: string;
 }
@@ -70,10 +70,19 @@ async function runTest(testFn: () => Promise<void>): Promise<TestResult> {
       duration: Math.round(performance.now() - start),
     };
   } catch (error: any) {
+    const errorMessage = error.message || String(error);
+    // Check if this is a SKIP error (test prerequisite not met)
+    if (errorMessage.startsWith("SKIP:")) {
+      return {
+        status: "skipped",
+        duration: Math.round(performance.now() - start),
+        error: errorMessage.replace("SKIP:", "").trim(),
+      };
+    }
     return {
       status: "fail",
       duration: Math.round(performance.now() - start),
-      error: error.message || String(error),
+      error: errorMessage,
     };
   }
 }
@@ -196,6 +205,7 @@ const cascadeResetTests: TestCase[] = [
       if (impact.type !== "HARD_RESET") {
         throw new Error(`Expected HARD_RESET type, got: ${impact.type}`);
       }
+      // deletesProofPoints can be true or 'specialty_only' - both are valid truthy values
       if (!impact.deletesProofPoints || !impact.deletesSpecialities) {
         throw new Error("Expected industry change to delete proof points and specialities");
       }
@@ -404,7 +414,7 @@ const enrollmentDataTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        throw new Error("No authenticated user");
+        throw new Error("SKIP: Authentication required");
       }
       
       const { data, error } = await supabase
@@ -425,7 +435,7 @@ const enrollmentDataTests: TestCase[] = [
     description: "Verify provider has industry enrollment(s)",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -453,7 +463,7 @@ const enrollmentDataTests: TestCase[] = [
     description: "Verify exactly one enrollment is primary",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -485,7 +495,7 @@ const enrollmentDataTests: TestCase[] = [
     description: "Verify enrollment lifecycle_status is a valid value",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -519,7 +529,7 @@ const enrollmentDataTests: TestCase[] = [
     description: "Verify lifecycle_rank column matches calculated rank from status",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -557,7 +567,7 @@ const multiIndustryTests: TestCase[] = [
     description: "Verify each enrollment points to a unique industry",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -590,7 +600,7 @@ const multiIndustryTests: TestCase[] = [
     description: "Verify proof points have enrollment_id set",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -618,7 +628,7 @@ const multiIndustryTests: TestCase[] = [
     description: "Verify proficiency areas have enrollment_id set",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -719,7 +729,7 @@ const proofPointsMinTests: TestCase[] = [
     description: "Verify can query proof points for current provider",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -745,7 +755,7 @@ const proofPointsMinTests: TestCase[] = [
     description: "Verify proof points use is_deleted flag",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -812,7 +822,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify enrollment has org_approval_status column",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -838,7 +848,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify solution_provider_organizations table is accessible",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -876,7 +886,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify manager_email column exists for org approval",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -902,7 +912,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify approval_token column for manager verification",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -928,7 +938,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify decline_reason column for rejected approvals",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -954,7 +964,7 @@ const orgApprovalTests: TestCase[] = [
     description: "Verify withdrawal_reason and withdrawn_at for cancelled requests",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1381,7 +1391,7 @@ const auditTrailTests: TestCase[] = [
     description: "Verify created_by, updated_by columns exist",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { error } = await supabase
         .from("solution_providers")
@@ -1399,7 +1409,7 @@ const auditTrailTests: TestCase[] = [
     description: "Verify created_at, updated_at columns exist",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1425,7 +1435,7 @@ const auditTrailTests: TestCase[] = [
     description: "Verify created_by, updated_by, deleted_by columns",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1451,7 +1461,7 @@ const auditTrailTests: TestCase[] = [
     description: "Verify is_deleted, deleted_at, deleted_by fields",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1539,7 +1549,7 @@ const securityRlsTests: TestCase[] = [
     description: "Verify RLS policy filters by user_id",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       // Query should only return user's own provider
       const { data: providers, error } = await supabase
@@ -1564,7 +1574,7 @@ const securityRlsTests: TestCase[] = [
     description: "Verify RLS filters enrollments to user's provider",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1595,7 +1605,7 @@ const securityRlsTests: TestCase[] = [
     description: "Verify RLS filters proof points to user's provider",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1626,7 +1636,7 @@ const securityRlsTests: TestCase[] = [
     description: "Verify RLS filters assessment attempts to user's provider",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { data: provider } = await supabase
         .from("solution_providers")
@@ -1657,7 +1667,7 @@ const securityRlsTests: TestCase[] = [
     description: "Verify user_roles table is accessible",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { error } = await supabase
         .from("user_roles")
@@ -2023,20 +2033,17 @@ const errorHandlingTests: TestCase[] = [
     name: "Invalid table query fails gracefully",
     description: "Verify proper error handling for bad queries",
     run: () => runTest(async () => {
-      // Query a table that shouldn't exist for this user
-      try {
-        const { error } = await supabase
-          .from("solution_providers")
-          .select("nonexistent_column")
-          .limit(1);
-        
-        // Should get an error about the column
-        if (!error) {
-          throw new Error("Expected error for nonexistent column");
-        }
-      } catch (e) {
-        // Expected behavior
+      // Query with a nonexistent column should return an error
+      const { error } = await supabase
+        .from("solution_providers")
+        .select("nonexistent_column")
+        .limit(1);
+      
+      // Should get an error about the column
+      if (!error) {
+        throw new Error("Expected error for nonexistent column, but query succeeded");
       }
+      // Error received as expected - test passes
     }),
   },
 ];
@@ -2081,17 +2088,18 @@ const systemSettingsTests: TestCase[] = [
     description: "Schema validation for profiles",
     run: () => runTest(async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("No authenticated user");
+      if (!user) throw new Error("SKIP: Authentication required");
       
       const { error } = await supabase
         .from("profiles")
         .select("id, email, first_name, last_name")
         .eq("user_id", user.id)
-        .single();
+        .maybeSingle();
       
-      if (error && !error.message.includes("not found")) {
+      if (error) {
         throw new Error(`profiles table query failed: ${error.message}`);
       }
+      // Profile may not exist, which is acceptable
     }),
   },
   {

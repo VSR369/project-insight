@@ -15,7 +15,7 @@ import {
 export interface TestResultEntry {
   testId: string;
   categoryId: string;
-  status: "pass" | "fail";
+  status: "pass" | "fail" | "skipped";
   duration: number;
   error?: string;
 }
@@ -30,6 +30,7 @@ export interface RunnerState {
   completedTests: number;
   passedTests: number;
   failedTests: number;
+  skippedTests: number;
   results: TestResultEntry[];
   logs: string[];
 }
@@ -44,6 +45,7 @@ const initialState: RunnerState = {
   completedTests: 0,
   passedTests: 0,
   failedTests: 0,
+  skippedTests: 0,
   results: [],
   logs: [],
 };
@@ -78,6 +80,7 @@ export function useEnrollmentTestRunner() {
         completedTests: 0,
         passedTests: 0,
         failedTests: 0,
+        skippedTests: 0,
         progress: 0,
         results: [],
         logs: [],
@@ -115,11 +118,14 @@ export function useEnrollmentTestRunner() {
           completedTests: prev.completedTests + 1,
           passedTests: prev.passedTests + (result.status === "pass" ? 1 : 0),
           failedTests: prev.failedTests + (result.status === "fail" ? 1 : 0),
+          skippedTests: prev.skippedTests + (result.status === "skipped" ? 1 : 0),
           progress: ((prev.completedTests + 1) / category.tests.length) * 100,
         }));
 
         if (result.status === "pass") {
           addLog(`✓ ${test.id} passed (${result.duration}ms)`);
+        } else if (result.status === "skipped") {
+          addLog(`⊘ ${test.id} skipped: ${result.error}`);
         } else {
           addLog(`✗ ${test.id} failed: ${result.error}`);
         }
@@ -127,7 +133,8 @@ export function useEnrollmentTestRunner() {
 
       const passed = results.filter((r) => r.status === "pass").length;
       const failed = results.filter((r) => r.status === "fail").length;
-      addLog(`=== ${category.name} Complete: ${passed} passed, ${failed} failed ===`);
+      const skipped = results.filter((r) => r.status === "skipped").length;
+      addLog(`=== ${category.name} Complete: ${passed} passed, ${failed} failed, ${skipped} skipped ===`);
 
       setState((prev) => ({
         ...prev,
@@ -155,6 +162,7 @@ export function useEnrollmentTestRunner() {
       completedTests: 0,
       passedTests: 0,
       failedTests: 0,
+      skippedTests: 0,
       results: [],
       logs: [],
     });
@@ -208,11 +216,14 @@ export function useEnrollmentTestRunner() {
           completedTests: completedSoFar,
           passedTests: prev.passedTests + (result.status === "pass" ? 1 : 0),
           failedTests: prev.failedTests + (result.status === "fail" ? 1 : 0),
+          skippedTests: prev.skippedTests + (result.status === "skipped" ? 1 : 0),
           progress: (completedSoFar / totalCount) * 100,
         }));
 
         if (result.status === "pass") {
           addLog(`✓ ${test.id} passed (${result.duration}ms)`);
+        } else if (result.status === "skipped") {
+          addLog(`⊘ ${test.id} skipped: ${result.error}`);
         } else {
           addLog(`✗ ${test.id} failed: ${result.error}`);
         }
@@ -221,9 +232,10 @@ export function useEnrollmentTestRunner() {
 
     const passed = allResults.filter((r) => r.status === "pass").length;
     const failed = allResults.filter((r) => r.status === "fail").length;
+    const skipped = allResults.filter((r) => r.status === "skipped").length;
 
     addLog(`\n=== All Tests Complete ===`);
-    addLog(`Passed: ${passed}, Failed: ${failed}, Total: ${allResults.length}`);
+    addLog(`Passed: ${passed}, Failed: ${failed}, Skipped: ${skipped}, Total: ${allResults.length}`);
 
     setState((prev) => ({
       ...prev,
@@ -278,6 +290,7 @@ export function useEnrollmentTestRunner() {
         total: state.totalTests,
         passed: state.passedTests,
         failed: state.failedTests,
+        skipped: state.skippedTests,
         passRate: state.totalTests > 0 
           ? Math.round((state.passedTests / state.totalTests) * 100) 
           : 0,
