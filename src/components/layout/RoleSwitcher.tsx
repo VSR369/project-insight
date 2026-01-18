@@ -2,6 +2,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Shield, User, ClipboardCheck, ChevronDown, Check } from 'lucide-react';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -46,6 +48,7 @@ const PORTALS: PortalOption[] = [
       path.startsWith('/dashboard') || 
       path.startsWith('/enroll') || 
       path.startsWith('/tools') ||
+      path.startsWith('/profile') ||
       path === '/',
   },
   {
@@ -73,14 +76,29 @@ export function RoleSwitcher() {
     return false;
   });
 
-  // Don't show if no portals available or still loading
-  if (isLoading || availablePortals.length === 0) {
+  // Show loading skeleton
+  if (isLoading) {
+    return <Skeleton className="h-8 w-24" />;
+  }
+
+  // Don't show if no portals available
+  if (availablePortals.length === 0) {
     return null;
   }
 
   // Find current portal
   const currentPortal = availablePortals.find((p) => p.checkPath(location.pathname)) || availablePortals[0];
   const CurrentIcon = currentPortal.icon;
+
+  // If only one portal, show as a badge (no dropdown needed)
+  if (availablePortals.length === 1) {
+    return (
+      <Badge variant="outline" className="gap-2 py-1.5 px-3">
+        <CurrentIcon className={`h-4 w-4 ${currentPortal.color}`} />
+        <span className="hidden sm:inline">{currentPortal.shortLabel}</span>
+      </Badge>
+    );
+  }
 
   const handleSwitch = (portal: PortalOption) => {
     if (portal.id === currentPortal.id) return;
