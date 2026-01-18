@@ -105,6 +105,9 @@ export function RoleSwitcher() {
   const handleSwitch = (portal: PortalOption) => {
     if (portal.id === currentPortal.id) return;
     
+    // Persist portal choice so refresh/login honors it
+    sessionStorage.setItem('activePortal', portal.id);
+    
     // CRITICAL: When switching TO provider portal, invalidate provider-related queries
     // to ensure fresh data is fetched for the current user
     if (portal.id === 'provider') {
