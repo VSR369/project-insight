@@ -58,9 +58,8 @@ export function DeleteConfirmDialog({
     try {
       await onConfirm();
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       // Error handling is done in the parent component
-      console.error("Delete error:", error);
     }
   };
 
@@ -69,9 +68,8 @@ export function DeleteConfirmDialog({
     try {
       await onHardDelete();
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       // Error handling is done in the parent component
-      console.error("Hard delete error:", error);
     }
   };
 

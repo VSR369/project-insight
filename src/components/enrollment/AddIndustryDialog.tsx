@@ -111,7 +111,6 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
           .maybeSingle();
 
         if (fetchError) {
-          console.error('Error checking for existing provider:', fetchError);
           toast.error('Failed to verify profile. Please try again.');
           return;
         }
@@ -119,7 +118,6 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
         if (existingProvider) {
           // Provider exists, use existing ID
           providerId = existingProvider.id;
-          console.log('Found existing provider:', providerId);
         } else {
           // Create new provider with audit fields
           const providerData = await withCreatedBy({
@@ -150,18 +148,15 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
               
               if (raceProvider) {
                 providerId = raceProvider.id;
-                console.log('Found provider after race condition:', providerId);
               } else {
                 throw new Error('Failed to create or find provider');
               }
             } else {
-              console.error('Error creating provider:', providerError);
               toast.error('Failed to create profile. Please try again.');
               return;
             }
           } else {
             providerId = newProvider.id;
-            console.log('Created new provider:', providerId);
           }
         }
         
@@ -192,8 +187,7 @@ export function AddIndustryDialog({ open, onOpenChange }: AddIndustryDialogProps
         toast.success(`Industry selected! Now complete your profile.`);
         navigate('/enroll/registration');
       }
-    } catch (error) {
-      console.error('Error creating enrollment:', error);
+    } catch {
       toast.error('Failed to create enrollment. Please try again.');
     }
   };
