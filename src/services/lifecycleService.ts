@@ -165,35 +165,37 @@ export function getCascadeImpact(
  * 1 = Registration, 2 = Mode, 3 = Org, 4 = Expertise, 5 = Proof Points, 
  * 6 = Assessment, 7 = Interview Slot, 8 = Panel, 9 = Certification
  * 
+ * Each step locks at a different threshold based on lifecycle progression.
+ * 
  * @param stepId - Wizard step ID (1-9)
  * @param lifecycleRank - Current lifecycle rank (from enrollment, NOT provider)
  * @returns boolean indicating if step is locked
  */
 export function isWizardStepLocked(stepId: number, lifecycleRank: number): boolean {
-  // Terminal state - all steps locked
-  if (lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING) {
-    return true;
-  }
-
   switch (stepId) {
     case 1: // Registration - locked at assessment start
-      return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
     case 2: // Participation Mode - locked at assessment start
-      return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
     case 3: // Organization - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
+    
     case 4: // Expertise Level - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONFIGURATION;
+    
     case 5: // Proof Points - locked at assessment start
       return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-    case 6: // Assessment - locked at terminal states
-      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
-    case 7: // Interview Slot - locked at terminal states
-      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
-    case 8: // Panel Discussion - locked at terminal states
-      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
+    
+    case 6: // Assessment - locked after passing
+      return lifecycleRank >= LIFECYCLE_RANKS.assessment_passed;
+    
+    case 7: // Interview Slot - locked after scheduling
+      return lifecycleRank >= LIFECYCLE_RANKS.panel_scheduled;
+    
+    case 8: // Panel Discussion - locked after completion
+      return lifecycleRank >= LIFECYCLE_RANKS.panel_completed;
+    
     case 9: // Certification - locked at terminal states
       return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
+    
     default:
       return false;
   }

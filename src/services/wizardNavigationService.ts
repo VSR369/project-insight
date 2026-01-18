@@ -5,7 +5,7 @@
  * Provides consistent navigation behavior across all enrollment pages.
  */
 
-import { LOCK_THRESHOLDS } from './lifecycleService';
+import { LOCK_THRESHOLDS, LIFECYCLE_RANKS } from './lifecycleService';
 
 // Step routes mapping (must match App.tsx routes)
 export const STEP_ROUTES: Record<number, string> = {
@@ -253,21 +253,39 @@ export function getStepFromRoute(pathname: string): number | null {
 
 /**
  * Determine if a step is in view-only mode based on lifecycle
+ * Each step has its own lock threshold based on lifecycle progression
  * @param stepId Step ID to check
  * @param lifecycleRank Current lifecycle rank
  * @returns True if step should be view-only
  */
 export function isStepViewOnly(stepId: number, lifecycleRank: number): boolean {
-  const isConfigStep = stepId <= 4;
-  const isContentStep = stepId === 5;
-  
-  const isConfigLocked = lifecycleRank >= LOCK_THRESHOLDS.CONFIGURATION;
-  const isContentLocked = lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
-  const isEverythingLocked = lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
-  
-  return isEverythingLocked || 
-    (isConfigStep && isConfigLocked) || 
-    (isContentStep && isContentLocked);
+  switch (stepId) {
+    case 1: // Registration - view only after assessment starts
+    case 2: // Participation Mode
+    case 3: // Organization
+      return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
+    
+    case 4: // Expertise Level - view only after assessment starts
+      return lifecycleRank >= LOCK_THRESHOLDS.CONFIGURATION;
+    
+    case 5: // Proof Points - view only after assessment starts
+      return lifecycleRank >= LOCK_THRESHOLDS.CONTENT;
+    
+    case 6: // Assessment - view only after passing
+      return lifecycleRank >= LIFECYCLE_RANKS.assessment_passed;
+    
+    case 7: // Interview Slot - view only after scheduling
+      return lifecycleRank >= LIFECYCLE_RANKS.panel_scheduled;
+    
+    case 8: // Panel Discussion - view only after completion
+      return lifecycleRank >= LIFECYCLE_RANKS.panel_completed;
+    
+    case 9: // Certification - view only at terminal states
+      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
+    
+    default:
+      return lifecycleRank >= LOCK_THRESHOLDS.EVERYTHING;
+  }
 }
 
 /**
