@@ -1,5 +1,8 @@
 project_id = "izwimkvabbvnqcrrubpf"
 
+[functions.accept-reviewer-invitation]
+verify_jwt = false
+
 [functions.approve-reviewer-application]
 verify_jwt = false
 
@@ -7,6 +10,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.create-panel-reviewer]
+verify_jwt = false
+
+[functions.decline-reviewer-invitation]
 verify_jwt = false
 
 [functions.delete-panel-reviewer]

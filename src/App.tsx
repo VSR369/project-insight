@@ -73,6 +73,7 @@ import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 
 // Reviewer Pages
 import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
+import InvitationResponsePage from "@/pages/reviewer/InvitationResponsePage";
 
 const queryClient = new QueryClient();
 
@@ -438,6 +439,14 @@ const App = () => (
             />
 
             {/* Reviewer Routes */}
+            <Route
+              path="/reviewer/invitation-response"
+              element={
+                <AuthGuard>
+                  <InvitationResponsePage />
+                </AuthGuard>
+              }
+            />
             <Route
               path="/reviewer/dashboard"
               element={
