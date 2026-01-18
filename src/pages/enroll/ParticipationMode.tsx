@@ -58,9 +58,8 @@ function ParticipationModeContent() {
     }
   }, [activeEnrollment?.participation_mode_id]);
 
-  const handleBack = () => {
-    navigate('/enroll/registration');
-  };
+  // Back navigation is handled by WizardLayout's default handler
+  // No need for handleBack - WizardLayout navigates to previous visible step
 
   // Persist mode immediately on selection to ENROLLMENT, not provider
   const handleModeChange = async (modeId: string) => {
@@ -112,7 +111,6 @@ function ParticipationModeContent() {
   return (
     <WizardLayout
       currentStep={2}
-      onBack={handleBack}
       onContinue={handleContinue}
       isSubmitting={updateMode.isPending}
       canContinue={!!selectedMode && !isLocked && !updateMode.isPending}

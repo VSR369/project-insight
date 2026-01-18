@@ -67,9 +67,7 @@ function AssessmentContent() {
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
-  const handleBack = () => {
-    navigate('/enroll/proof-points');
-  };
+  // Back navigation is handled by WizardLayout's default handler
 
   const handleStartAssessment = async () => {
     if (!provider?.id || !activeEnrollmentId || !activeEnrollment) return;
@@ -134,7 +132,7 @@ function AssessmentContent() {
 
   if (isLoading) {
     return (
-      <WizardLayout currentStep={6} hideBackButton hideContinueButton>
+      <WizardLayout currentStep={6} hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -145,7 +143,7 @@ function AssessmentContent() {
   // No enrollment selected
   if (!activeEnrollment) {
     return (
-      <WizardLayout currentStep={6} onBack={handleBack} hideContinueButton>
+      <WizardLayout currentStep={6} hideContinueButton>
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Industry Selected</AlertTitle>
@@ -177,10 +175,11 @@ function AssessmentContent() {
     });
   };
 
+  // Assessment page uses custom action buttons inside the card
+  // Use WizardLayout's default back navigation
   return (
     <WizardLayout
       currentStep={6}
-      onBack={handleBack}
       hideContinueButton
     >
       <div className="space-y-6">

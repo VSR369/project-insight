@@ -79,9 +79,7 @@ function ProofPointsContent() {
   const minimumMet = currentCount >= minimumRequired;
   const canDelete = currentCount > minimumRequired;
 
-  const handleBack = () => {
-    navigate('/enroll/expertise');
-  };
+  // Back navigation is handled by WizardLayout's default handler
 
   const handleContinue = () => {
     if (!minimumMet) {
@@ -162,7 +160,7 @@ function ProofPointsContent() {
 
   if (providerLoading || proofPointsLoading || enrollmentLoading) {
     return (
-      <WizardLayout currentStep={5} hideBackButton hideContinueButton>
+      <WizardLayout currentStep={5} hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -173,7 +171,7 @@ function ProofPointsContent() {
   // Show message if no enrollment is active
   if (!activeEnrollment) {
     return (
-      <WizardLayout currentStep={5} onBack={handleBack} hideContinueButton>
+      <WizardLayout currentStep={5} hideContinueButton>
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Industry Selected</AlertTitle>
@@ -188,9 +186,8 @@ function ProofPointsContent() {
   return (
     <WizardLayout
       currentStep={5}
-      onBack={handleBack}
       onContinue={handleContinue}
-      continueLabel={minimumMet ? 'Continue to Share Knowledge' : `Add ${minimumRequired - currentCount} More to Continue`}
+      continueLabel={minimumMet ? 'Continue to Assessment' : `Add ${minimumRequired - currentCount} More to Continue`}
       canContinue={minimumMet}
     >
       <div className="space-y-6">

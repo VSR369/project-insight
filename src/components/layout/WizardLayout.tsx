@@ -216,18 +216,8 @@ export function WizardLayout({
   // No skipped steps needed since we hide the step entirely
   const skippedSteps: number[] = [];
 
-  // Route mapping for step navigation (must match App.tsx routes)
-  const STEP_ROUTES: Record<number, string> = {
-    1: '/enroll/registration',
-    2: '/enroll/participation-mode',
-    3: '/enroll/organization',
-    4: '/enroll/expertise',
-    5: '/enroll/proof-points',
-    6: '/enroll/assessment',
-    7: '/enroll/interview-slot',
-    8: '/enroll/panel-discussion',
-    9: '/enroll/certification',
-  };
+  // Use centralized STEP_ROUTES from navigation service (imported as NAV_STEP_ROUTES)
+  const STEP_ROUTES = NAV_STEP_ROUTES;
 
   // Calculate next accessible step (first incomplete step after all completed)
   const nextAccessibleStep = useMemo(() => {

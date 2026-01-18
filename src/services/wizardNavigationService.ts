@@ -48,6 +48,15 @@ export const STEP_TITLES: Record<number, string> = {
 export type NavigationMode = 'edit' | 'view' | 'blocked';
 
 /**
+ * Get the first step in visible steps (for "Review" flow)
+ * @param visibleSteps Array of visible step IDs
+ * @returns First step ID or 1 as fallback
+ */
+export function getFirstStep(visibleSteps: number[]): number {
+  return visibleSteps[0] || 1;
+}
+
+/**
  * Get the next step in the wizard
  * @param currentStep Current step ID
  * @param visibleSteps Array of visible step IDs (some steps may be hidden)
@@ -102,6 +111,71 @@ export function getStepForStatus(lifecycleStatus: string): number {
     'not_verified': 9,
   };
   return statusToStep[lifecycleStatus] || 1;
+}
+
+/**
+ * Get the next step based on current lifecycle status (for "Continue" flow)
+ * Returns the appropriate next step that follows the current lifecycle position
+ * @param lifecycleStatus Current lifecycle status
+ * @param visibleSteps Array of visible step IDs
+ * @param requiresOrgInfo Whether organization step is required
+ * @returns Next step ID to navigate to
+ */
+export function getNextStepForStatus(
+  lifecycleStatus: string,
+  visibleSteps: number[],
+  requiresOrgInfo: boolean = false
+): number {
+  // Map lifecycle status to the current logical step
+  const currentLogicalStep = getStepForStatus(lifecycleStatus);
+  
+  // Handle special cases based on lifecycle status
+  switch (lifecycleStatus) {
+    case 'registered':
+    case 'enrolled':
+      return 2; // Go to participation mode
+    
+    case 'mode_selected':
+      // If org is required, go to org step, otherwise go to expertise
+      return requiresOrgInfo && visibleSteps.includes(3) ? 3 : 4;
+    
+    case 'org_info_pending':
+      return 3; // Stay on org step (pending approval)
+    
+    case 'org_validated':
+      return 4; // Go to expertise
+    
+    case 'expertise_selected':
+    case 'proof_points_started':
+      return 5; // Go to proof points
+    
+    case 'proof_points_min_met':
+    case 'assessment_pending':
+      return 6; // Go to assessment
+    
+    case 'assessment_in_progress':
+      return 6; // Continue assessment
+    
+    case 'assessment_completed':
+      return 6; // Stay on assessment (retake or view results)
+    
+    case 'assessment_passed':
+      return 7; // Go to interview scheduling
+    
+    case 'panel_scheduled':
+      return 8; // Go to panel discussion
+    
+    case 'panel_completed':
+    case 'verified':
+    case 'certified':
+    case 'not_verified':
+      return 9; // Go to certification/final step
+    
+    default:
+      // Find next visible step after current logical step
+      const nextStep = getNextStep(currentLogicalStep, visibleSteps);
+      return nextStep || currentLogicalStep;
+  }
 }
 
 /**
