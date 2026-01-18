@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User, ChevronDown, Shield, LayoutDashboard, ArrowLeftRight, Settings } from 'lucide-react';
+import { LogOut, User, ChevronDown, Shield, Settings } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -8,7 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { RoleSwitcher } from '@/components/layout/RoleSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -61,11 +61,6 @@ export function AdminHeader() {
     navigate('/login');
   };
 
-  const handleSwitchToProvider = () => {
-    navigate('/dashboard');
-    toast.info('Switched to Provider View');
-  };
-
   return (
     <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
@@ -98,24 +93,8 @@ export function AdminHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* View Switcher */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button 
-              variant="outline"
-              size="sm"
-              onClick={handleSwitchToProvider}
-              className="gap-2"
-            >
-              <LayoutDashboard className="h-4 w-4" />
-              <span className="hidden sm:inline">Provider View</span>
-              <ArrowLeftRight className="h-3 w-3 opacity-50" />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent>
-            Switch to Provider Dashboard
-          </TooltipContent>
-        </Tooltip>
+        {/* Role Switcher */}
+        <RoleSwitcher />
 
         {/* User menu */}
         <DropdownMenu>
@@ -151,11 +130,6 @@ export function AdminHeader() {
             <DropdownMenuItem onClick={() => navigate('/settings')}>
               <Settings className="mr-2 h-4 w-4" />
               Settings
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSwitchToProvider}>
-              <ArrowLeftRight className="mr-2 h-4 w-4" />
-              Switch to Provider View
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
