@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 /**
  * Hook to clear the provider's participation mode.
@@ -25,8 +26,7 @@ export function useClearProviderMode() {
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
     },
     onError: (error: Error) => {
-      console.error('Error clearing provider mode:', error);
-      toast.error('Failed to clear participation mode');
+      handleMutationError(error, { operation: 'clearProviderMode' }, true);
     },
   });
 }

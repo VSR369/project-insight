@@ -14,6 +14,7 @@ import {
   type GenerationResult,
   type QuestionWithMetadata,
 } from '@/services/questionGenerationService';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 
 /**
  * Hook to generate balanced assessment questions
@@ -34,7 +35,7 @@ export function useGenerateAssessmentQuestions() {
         );
         
         if (result.warnings.length > 0) {
-          console.warn('Assessment generation warnings:', result.warnings);
+          logWarning('Assessment generation warnings', { operation: 'generateAssessmentQuestions' }, { warnings: result.warnings });
         }
       } else {
         toast.error('Failed to generate assessment questions');
@@ -77,7 +78,7 @@ export function useLogQuestionExposure() {
       );
     },
     onError: (error: Error) => {
-      console.error('Failed to log question exposure:', error);
+      handleMutationError(error, { operation: 'logQuestionExposure' }, false);
     },
   });
 }

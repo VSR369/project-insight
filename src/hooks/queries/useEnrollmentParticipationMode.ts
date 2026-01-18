@@ -9,6 +9,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy } from '@/lib/auditFields';
+import { handleMutationError } from '@/lib/errorHandler';
 
 export interface UpdateEnrollmentParticipationModeInput {
   enrollmentId: string;
@@ -48,8 +49,7 @@ export function useUpdateEnrollmentParticipationMode() {
       queryClient.invalidateQueries({ queryKey: ['current-provider'] });
     },
     onError: (error) => {
-      console.error('Error updating enrollment participation mode:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update participation mode');
+      handleMutationError(error, { operation: 'updateEnrollmentParticipationMode' }, true);
     },
   });
 }
