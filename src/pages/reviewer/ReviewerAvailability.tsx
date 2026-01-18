@@ -26,10 +26,13 @@ import {
   type TimeSlot,
 } from "@/services/availabilityService";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { AlertCircle, Globe } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, Globe, UserX, ShieldX, LogIn } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export default function ReviewerAvailability() {
+  const navigate = useNavigate();
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [draftSlots, setDraftSlots] = useState<DraftSlot[]>([]);
@@ -161,16 +164,46 @@ export default function ReviewerAvailability() {
     );
   }
 
-  // Error state
+  // Error state with specific messages
   if (reviewerError || !reviewer) {
+    const errorCode = reviewerError?.message;
+    
+    let ErrorIcon = AlertCircle;
+    let errorTitle = "Access Denied";
+    let errorDescription = "Unable to load reviewer profile.";
+    
+    if (errorCode === "NOT_AUTHENTICATED") {
+      ErrorIcon = LogIn;
+      errorTitle = "Not Logged In";
+      errorDescription = "Please log in to access this page.";
+    } else if (errorCode === "NOT_A_REVIEWER") {
+      ErrorIcon = UserX;
+      errorTitle = "Not a Panel Reviewer";
+      errorDescription = "You are not registered as a panel reviewer. This page is only accessible to approved panel reviewers.";
+    } else if (errorCode === "REVIEWER_INACTIVE") {
+      ErrorIcon = ShieldX;
+      errorTitle = "Account Inactive";
+      errorDescription = "Your reviewer account is currently inactive. Please contact the platform administrator.";
+    }
+    
     return (
       <ReviewerLayout>
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            {reviewerError?.message || "Unable to load reviewer profile. Please try again."}
-          </AlertDescription>
-        </Alert>
+        <div className="max-w-md mx-auto mt-12">
+          <Alert variant="destructive">
+            <ErrorIcon className="h-4 w-4" />
+            <AlertTitle>{errorTitle}</AlertTitle>
+            <AlertDescription className="mt-2">
+              {errorDescription}
+            </AlertDescription>
+          </Alert>
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/dashboard')} 
+            className="mt-4 w-full"
+          >
+            Return to Dashboard
+          </Button>
+        </div>
       </ReviewerLayout>
     );
   }

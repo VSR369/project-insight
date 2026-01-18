@@ -25,14 +25,34 @@ export function useCurrentReviewer() {
     queryKey: ["current-reviewer"],
     queryFn: async () => {
       const userId = await getCurrentUserId();
-      if (!userId) throw new Error("Not authenticated");
+      if (!userId) throw new Error("NOT_AUTHENTICATED");
 
+      // First check if ANY reviewer record exists for this user
+      const { data: anyReviewer, error: checkError } = await supabase
+        .from("panel_reviewers")
+        .select("id, is_active, approval_status")
+        .eq("user_id", userId)
+        .maybeSingle();
+
+      if (checkError) throw new Error(checkError.message);
+      
+      // No reviewer record at all
+      if (!anyReviewer) {
+        throw new Error("NOT_A_REVIEWER");
+      }
+      
+      // Reviewer exists but is inactive
+      if (!anyReviewer.is_active) {
+        throw new Error("REVIEWER_INACTIVE");
+      }
+
+      // Fetch full profile for active reviewer
       const { data, error } = await supabase
         .from("panel_reviewers")
         .select("*")
         .eq("user_id", userId)
         .eq("is_active", true)
-        .maybeSingle();
+        .single();
 
       if (error) throw new Error(error.message);
       return data;
