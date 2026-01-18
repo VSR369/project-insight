@@ -113,7 +113,7 @@ serve(async (req) => {
         why_join_statement: data.whyJoinStatement,
         enrollment_source: "self_signup",
         approval_status: "pending",
-        invitation_status: "not_applicable",
+        invitation_status: null,  // Self-signup applicants don't go through invitation flow
         is_active: false,
         created_at: new Date().toISOString(),
       });
