@@ -8,7 +8,6 @@ import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { RoleSwitcher } from '@/components/layout/RoleSwitcher';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -93,9 +92,6 @@ export function AdminHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
-        {/* Role Switcher */}
-        <RoleSwitcher />
-
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

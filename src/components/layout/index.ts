@@ -5,4 +5,3 @@ export { LifecycleProgressIndicator } from './LifecycleProgressIndicator';
 export { AppSidebar } from './AppSidebar';
 export { AppHeader } from './AppHeader';
 export { EnrollmentSwitcher } from './EnrollmentSwitcher';
-export { RoleSwitcher } from './RoleSwitcher';

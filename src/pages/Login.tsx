@@ -178,9 +178,10 @@ export default function Login() {
           }
         } else {
           // No explicit choice - use role priority
+          // Priority: Admin > Reviewer > Provider (ensures reviewers go to reviewer portal)
           if (isPlatformAdmin) targetPortal = 'admin';
-          else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
           else if (isPanelReviewer) targetPortal = 'reviewer';
+          else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
         }
         
         // Persist portal choice for future sessions/refreshes
