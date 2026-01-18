@@ -17,17 +17,19 @@ interface EnrollmentRequiredGuardProps {
 
 export function EnrollmentRequiredGuard({ children }: EnrollmentRequiredGuardProps) {
   const navigate = useNavigate();
-  const { activeEnrollmentId, isLoading } = useEnrollmentContext();
+  const { activeEnrollmentId, isLoading, contextReady } = useEnrollmentContext();
 
   useEffect(() => {
-    if (!isLoading && !activeEnrollmentId) {
+    // PHASE D: Only redirect when context is fully ready (not during intermediate states)
+    if (contextReady && !activeEnrollmentId) {
       toast.info('Please select or add an industry to begin enrollment.');
       navigate('/dashboard', { replace: true });
     }
-  }, [isLoading, activeEnrollmentId, navigate]);
+  }, [contextReady, activeEnrollmentId, navigate]);
 
-  // Show loading while checking enrollment
-  if (isLoading) {
+  // Show loading while checking enrollment OR while context is stabilizing
+  // This prevents wizard from rendering with stale data during portal switches
+  if (isLoading || !contextReady) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
