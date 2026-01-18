@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.seed-test-reviewer]
 verify_jwt = false
+
+[functions.approve-reviewer-application]
+verify_jwt = false
+
+[functions.reject-reviewer-application]
+verify_jwt = false

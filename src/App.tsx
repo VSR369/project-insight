@@ -67,6 +67,7 @@ import { InvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 import SmokeTestPage from "@/pages/admin/SmokeTestPage";
 import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
+import { ReviewerApprovalsPage } from "@/pages/admin/reviewer-approvals";
 import RegressionTestPage from "@/pages/provider/RegressionTestPage";
 import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 
@@ -424,6 +425,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <InterviewRequirementsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/reviewer-approvals"
+              element={
+                <AdminGuard>
+                  <ReviewerApprovalsPage />
                 </AdminGuard>
               }
             />
