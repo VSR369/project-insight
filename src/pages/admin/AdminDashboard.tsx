@@ -1,5 +1,6 @@
 import { AdminLayout } from '@/components/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { 
   Globe, 
   Building2, 
@@ -12,9 +13,11 @@ import {
   Link2,
   Mail,
   ArrowRight,
+  UserCheck,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
+import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 
 const sections = [
   {
@@ -87,10 +90,19 @@ const sections = [
     path: '/admin/invitations',
     color: 'text-teal-500',
   },
+  {
+    title: 'Reviewer Approvals',
+    description: 'Approve or reject reviewer applications',
+    icon: UserCheck,
+    path: '/admin/reviewer-approvals',
+    color: 'text-amber-500',
+    hasBadge: true,
+  },
 ];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+  const { data: pendingCount } = usePendingReviewerCount();
 
   return (
     <AdminLayout>
@@ -110,8 +122,13 @@ export default function AdminDashboard() {
               onClick={() => navigate(section.path)}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">
+                <CardTitle className="text-sm font-medium flex items-center gap-2">
                   {section.title}
+                  {section.hasBadge && pendingCount && pendingCount > 0 && (
+                    <Badge variant="destructive" className="h-5 min-w-5 px-1 text-xs">
+                      {pendingCount}
+                    </Badge>
+                  )}
                 </CardTitle>
                 <section.icon className={`h-5 w-5 ${section.color}`} />
               </CardHeader>

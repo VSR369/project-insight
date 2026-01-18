@@ -26,8 +26,11 @@ import {
   Shield,
   Tags,
   Calendar,
+  UserCheck,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 
 const masterDataItems = [
   { title: 'Countries', icon: Globe, path: '/admin/master-data/countries' },
@@ -44,6 +47,7 @@ const taxonomyItems = [
 
 const interviewItems = [
   { title: 'Quorum Requirements', icon: Calendar, path: '/admin/interview/quorum-requirements' },
+  { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
 ];
 
 const otherItems = [
@@ -56,6 +60,7 @@ const otherItems = [
 export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { data: pendingCount } = usePendingReviewerCount();
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -134,7 +139,12 @@ export function AdminSidebar() {
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <span className="flex-1">{item.title}</span>
+                    {item.hasBadge && pendingCount && pendingCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingCount}
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

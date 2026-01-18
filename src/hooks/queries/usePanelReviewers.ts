@@ -396,3 +396,151 @@ export function useDeletePanelReviewer() {
     },
   });
 }
+
+// ============================================
+// REVIEWER APPROVAL HOOKS (Admin Approval Flow)
+// ============================================
+
+/**
+ * Fetch pending reviewer applications (self-signup with pending approval)
+ */
+export function usePendingReviewers() {
+  return useQuery({
+    queryKey: ["panel-reviewers", "pending-approvals"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("panel_reviewers")
+        .select("*")
+        .eq("enrollment_source", "self_signup")
+        .eq("approval_status", "pending")
+        .order("created_at", { ascending: true });
+
+      if (error) throw new Error(error.message);
+      return data as PanelReviewer[];
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Fetch approval history (approved or rejected applications)
+ */
+export function useReviewerApprovalHistory(status: "approved" | "rejected") {
+  return useQuery({
+    queryKey: ["panel-reviewers", "history", status],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("panel_reviewers")
+        .select("*")
+        .eq("enrollment_source", "self_signup")
+        .eq("approval_status", status)
+        .order("approved_at", { ascending: false });
+
+      if (error) throw new Error(error.message);
+      return data as PanelReviewer[];
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Get count of pending reviewer applications (for badge display)
+ */
+export function usePendingReviewerCount() {
+  return useQuery({
+    queryKey: ["panel-reviewers", "pending-count"],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from("panel_reviewers")
+        .select("*", { count: "exact", head: true })
+        .eq("enrollment_source", "self_signup")
+        .eq("approval_status", "pending");
+
+      if (error) throw new Error(error.message);
+      return count || 0;
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Approve a reviewer application via edge function
+ */
+export function useApproveReviewer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (reviewerId: string) => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("approve-reviewer-application", {
+        body: { reviewer_id: reviewerId },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Failed to approve reviewer");
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["panel-reviewers"] });
+      toast.success("Reviewer approved successfully");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to approve: ${error.message}`);
+    },
+  });
+}
+
+/**
+ * Reject a reviewer application via edge function
+ */
+export function useRejectReviewer() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ reviewerId, reason }: { reviewerId: string; reason: string }) => {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error("Not authenticated");
+      }
+
+      const response = await supabase.functions.invoke("reject-reviewer-application", {
+        body: { reviewer_id: reviewerId, reason },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+
+      if (response.error) {
+        throw new Error(response.error.message);
+      }
+
+      if (!response.data.success) {
+        throw new Error(response.data.error || "Failed to reject application");
+      }
+
+      return response.data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["panel-reviewers"] });
+      toast.success("Application rejected");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to reject: ${error.message}`);
+    },
+  });
+}
