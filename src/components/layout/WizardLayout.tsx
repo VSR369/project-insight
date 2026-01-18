@@ -1,6 +1,6 @@
-import { ReactNode, useMemo, useState } from 'react';
+import { ReactNode, useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield, Wrench, ClipboardCheck, BookOpen, LayoutDashboard, Building2 } from 'lucide-react';
+import { LogOut, Save, ArrowLeft, ArrowRight, Loader2, Shield, Wrench, ClipboardCheck, BookOpen, LayoutDashboard, Building2, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -31,6 +31,14 @@ import { BlockedModeChangeDialog } from '@/components/enrollment';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
+import { 
+  getNextStep, 
+  getPreviousStep, 
+  getStepRoute, 
+  isStepViewOnly,
+  STEP_ROUTES as NAV_STEP_ROUTES,
+} from '@/services/wizardNavigationService';
+
 // Type for organization with approval status (prevents unsafe `as any` casts)
 interface OrganizationWithApprovalStatus {
   org_name?: string;
@@ -65,6 +73,8 @@ interface WizardLayoutProps {
   hideBackButton?: boolean;
   hideContinueButton?: boolean;
   showSaveAndExit?: boolean;
+  /** Override default navigation mode detection */
+  navigationMode?: 'edit' | 'view' | 'auto';
 }
 
 export function WizardLayout({
@@ -72,13 +82,14 @@ export function WizardLayout({
   currentStep,
   onBack,
   onContinue,
-  continueLabel = 'Continue',
-  backLabel = 'Back',
+  continueLabel,
+  backLabel,
   isSubmitting = false,
   canContinue = true,
   hideBackButton = false,
   hideContinueButton = false,
   showSaveAndExit = true,
+  navigationMode = 'auto',
 }: WizardLayoutProps) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -238,6 +249,40 @@ export function WizardLayout({
       .filter(step => isStepAccessible(step.id))
       .map(s => s.id);
   }, [visibleSteps, isStepAccessible]);
+
+  // Compute if current step is in view-only mode (locked but completed)
+  const lifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
+  const isViewMode = useMemo(() => {
+    if (navigationMode === 'edit') return false;
+    if (navigationMode === 'view') return true;
+    // Auto: check if step is view-only based on lifecycle
+    return isStepViewOnly(currentStep, lifecycleRank);
+  }, [navigationMode, currentStep, lifecycleRank]);
+
+  // Default navigation handlers using centralized service
+  const visibleStepIds = useMemo(() => visibleSteps.map(s => s.id), [visibleSteps]);
+  
+  const defaultBackHandler = useCallback(() => {
+    const prevStep = getPreviousStep(currentStep, visibleStepIds);
+    if (prevStep) {
+      const route = getStepRoute(prevStep);
+      if (route) navigate(route);
+    } else {
+      navigate('/dashboard');
+    }
+  }, [currentStep, visibleStepIds, navigate]);
+
+  const defaultContinueHandler = useCallback(() => {
+    const nextStep = getNextStep(currentStep, visibleStepIds);
+    if (nextStep) {
+      const route = getStepRoute(nextStep);
+      if (route) navigate(route);
+    }
+  }, [currentStep, visibleStepIds, navigate]);
+
+  // Computed labels with view mode awareness
+  const computedBackLabel = backLabel ?? (getPreviousStep(currentStep, visibleStepIds) ? 'Back' : 'Dashboard');
+  const computedContinueLabel = continueLabel ?? (isViewMode ? 'View Next' : 'Continue');
 
   // CRITICAL: Use ENROLLMENT organization for approval status
   const orgApprovalStatus = useMemo(() => {
@@ -536,30 +581,38 @@ export function WizardLayout({
         <footer className="border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex items-center justify-between h-16 px-4">
             <div>
-              {!hideBackButton && onBack && (
+              {!hideBackButton && (
                 <Button
                   variant="outline"
-                  onClick={onBack}
+                  onClick={onBack ?? defaultBackHandler}
                   disabled={isSubmitting}
                   className="gap-2"
                 >
                   <ArrowLeft className="h-4 w-4" />
-                  {backLabel}
+                  {computedBackLabel}
                 </Button>
               )}
             </div>
-            <div>
-              {!hideContinueButton && onContinue && (
+            <div className="flex items-center gap-2">
+              {/* View mode indicator */}
+              {isViewMode && (
+                <Badge variant="secondary" className="gap-1">
+                  <Eye className="h-3 w-3" />
+                  View Only
+                </Badge>
+              )}
+              {!hideContinueButton && getNextStep(currentStep, visibleStepIds) && (
                 <Button
-                  onClick={onContinue}
+                  onClick={onContinue ?? defaultContinueHandler}
                   disabled={!canContinue || isSubmitting}
                   className="gap-2"
+                  variant={isViewMode ? "outline" : "default"}
                 >
                   {isSubmitting ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     <>
-                      {continueLabel}
+                      {computedContinueLabel}
                       <ArrowRight className="h-4 w-4" />
                     </>
                   )}

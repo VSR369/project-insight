@@ -128,11 +128,14 @@ export function WizardStepper({
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
             const isAccessible = accessibleSteps.includes(step.id);
             
-            // Locked steps are NOT clickable (frozen by lifecycle)
-            // Completed steps are "clickable" - parent handles navigation or popup
-            // Current step and next accessible step are clickable
-            // Gray (not started, not accessible) steps are NOT clickable
-            const isClickable = !isLocked && (isCompleted || isCurrent || isNextAccessible);
+            // UNIFIED NAVIGATION: Locked steps ARE clickable if completed (view mode)
+            // This allows users to review their data even after lifecycle locks it
+            // - Locked + Completed = clickable (view-only mode)
+            // - Locked + Not Completed = NOT clickable (truly blocked)
+            // - Not Locked + Completed = clickable (edit mode)
+            // - Current step and next accessible = clickable
+            const isViewOnlyStep = isLocked && isCompleted;
+            const isClickable = isViewOnlyStep || (!isLocked && (isCompleted || isCurrent || isNextAccessible));
             
             // Completed but not accessible (blocked by earlier incomplete step)
             // Only apply to FUTURE steps - past completed steps should always be navigable
@@ -142,8 +145,10 @@ export function WizardStepper({
               <div
                 className={cn(
                   "w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium transition-all relative",
-                  // Locked state (lifecycle freeze) - greyed out with lock overlay
-                  isLocked && isCompleted && "bg-slate-400 text-white cursor-not-allowed opacity-75",
+                  // Locked state (lifecycle freeze)
+                  // View-only (locked but completed) - subtle styling, still clickable
+                  isViewOnlyStep && "bg-slate-400 text-white cursor-pointer hover:bg-slate-500 hover:scale-105",
+                  // Truly locked (locked and not completed) - greyed out, not clickable
                   isLocked && !isCompleted && "bg-slate-300 text-slate-500 cursor-not-allowed opacity-75",
                   // Normal states when not locked
                   !isLocked && isCompleted && !isBlocked && !isCompletedButBlocked && "bg-green-500 text-white cursor-pointer hover:bg-green-600 hover:scale-105",
@@ -192,15 +197,27 @@ export function WizardStepper({
               <div key={step.id} className="flex items-center">
                 {/* Step circle */}
                 <div className="flex flex-col items-center">
-                  {isLocked ? (
+                  {isViewOnlyStep ? (
                     <Tooltip>
                       <TooltipTrigger asChild>
                         {stepCircle}
                       </TooltipTrigger>
                       <TooltipContent side="bottom" className="max-w-[220px] text-center">
-                        <p className="text-xs font-medium">Locked at This Stage</p>
+                        <p className="text-xs font-medium">View Only</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                          This step cannot be modified because your enrollment is in "{getStatusDisplayName(lifecycleStatus)}" stage.
+                          Click to review your information. Editing is locked at "{getStatusDisplayName(lifecycleStatus)}" stage.
+                        </p>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : isLocked && !isCompleted ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        {stepCircle}
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="max-w-[220px] text-center">
+                        <p className="text-xs font-medium">Step Not Available</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          This step was not completed before the lifecycle advanced.
                         </p>
                       </TooltipContent>
                     </Tooltip>
@@ -275,17 +292,20 @@ export function WizardStepper({
             const isBlocked = blockedSteps.includes(step.id);
             const isLocked = lockedSteps.includes(step.id);
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
-            // Locked steps are NOT clickable
-            // Completed steps are clickable (will show popup if blocked), plus current and next accessible
-            const isClickable = !isLocked && (isCompleted || isCurrent || isNextAccessible);
+            
+            // UNIFIED: Locked + Completed = view-only clickable
+            const isViewOnlyStep = isLocked && isCompleted;
+            const isClickable = isViewOnlyStep || (!isLocked && (isCompleted || isCurrent || isNextAccessible));
 
               return (
                 <div
                   key={step.id}
                   className={cn(
                     "w-2.5 h-2.5 rounded-full transition-all relative",
-                    // Locked state
-                    isLocked && "bg-slate-400 cursor-not-allowed opacity-75",
+                    // View-only (locked but completed) - clickable
+                    isViewOnlyStep && "bg-slate-400 cursor-pointer hover:scale-125",
+                    // Truly locked (not completed) - not clickable
+                    isLocked && !isCompleted && "bg-slate-300 cursor-not-allowed opacity-75",
                     // Normal states when not locked
                     !isLocked && isCompleted && !isBlocked && "bg-green-500 cursor-pointer hover:scale-125",
                     !isLocked && isCompleted && isBlocked && "bg-green-500 ring-1 ring-amber-400 cursor-pointer",
