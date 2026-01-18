@@ -7,3 +7,4 @@
 export { AvailabilityCalendar } from './AvailabilityCalendar';
 export { TimeSlotSelector } from './TimeSlotSelector';
 export { SelectedSlotsPanel } from './SelectedSlotsPanel';
+export { DeleteSlotConfirmDialog } from './DeleteSlotConfirmDialog';
