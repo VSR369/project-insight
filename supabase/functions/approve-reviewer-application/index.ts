@@ -111,6 +111,26 @@ serve(async (req) => {
       );
     }
 
+    // Assign panel_reviewer role if reviewer has a user_id
+    if (reviewer.user_id) {
+      const { error: roleError } = await supabase
+        .from("user_roles")
+        .upsert({
+          user_id: reviewer.user_id,
+          role: "panel_reviewer",
+        }, { 
+          onConflict: "user_id,role",
+          ignoreDuplicates: true 
+        });
+
+      if (roleError) {
+        console.error("Role assignment error:", roleError);
+        // Don't fail the approval, but log the error
+      } else {
+        console.log(`Assigned panel_reviewer role to user ${reviewer.user_id}`);
+      }
+    }
+
     // Send welcome email via Resend
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     if (resendApiKey && reviewer.email) {

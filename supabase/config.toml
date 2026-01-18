@@ -1,34 +1,37 @@
 project_id = "izwimkvabbvnqcrrubpf"
 
-[functions.send-manager-credentials]
-verify_jwt = false
-
-[functions.verify-manager-login]
-verify_jwt = false
-
-[functions.process-manager-decision]
-verify_jwt = false
-
-[functions.withdraw-approval-request]
-verify_jwt = false
-
-[functions.create-panel-reviewer]
-verify_jwt = false
-
-[functions.send-reviewer-invitation]
+[functions.approve-reviewer-application]
 verify_jwt = false
 
 [functions.cancel-reviewer-invitation]
 verify_jwt = false
 
+[functions.create-panel-reviewer]
+verify_jwt = false
+
 [functions.delete-panel-reviewer]
+verify_jwt = false
+
+[functions.process-manager-decision]
+verify_jwt = false
+
+[functions.register-reviewer-application]
+verify_jwt = false
+
+[functions.reject-reviewer-application]
 verify_jwt = false
 
 [functions.seed-test-reviewer]
 verify_jwt = false
 
-[functions.approve-reviewer-application]
+[functions.send-manager-credentials]
 verify_jwt = false
 
-[functions.reject-reviewer-application]
+[functions.send-reviewer-invitation]
+verify_jwt = false
+
+[functions.verify-manager-login]
+verify_jwt = false
+
+[functions.withdraw-approval-request]
 verify_jwt = false
