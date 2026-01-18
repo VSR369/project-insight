@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentUserId } from '@/lib/auditFields';
+import { logWarning } from '@/lib/errorHandler';
 import { 
   generateBalancedQuestions, 
   logQuestionExposure,
@@ -626,7 +627,7 @@ export function useStartEnrollmentAssessment() {
         toast.success(`Assessment started with ${result.questionsCount} questions! Your configuration is now locked.`);
         
         if (result.generationWarnings && result.generationWarnings.length > 0) {
-          console.warn('Assessment generation warnings:', result.generationWarnings);
+          logWarning('Assessment generation warnings', { operation: 'startEnrollmentAssessment' }, { warnings: result.generationWarnings });
         }
       } else {
         toast.error(result.error || 'Failed to start assessment');
@@ -908,7 +909,7 @@ export function useStartRetakeAssessment() {
         toast.success(`Retake assessment started with ${result.questionsCount} new questions!`);
         
         if (result.generationWarnings && result.generationWarnings.length > 0) {
-          console.warn('Retake assessment generation warnings:', result.generationWarnings);
+          logWarning('Retake assessment generation warnings', { operation: 'startRetakeAssessment' }, { warnings: result.generationWarnings });
         }
       } else {
         toast.error(result.error || 'Failed to start retake assessment');

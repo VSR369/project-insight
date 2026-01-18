@@ -96,9 +96,8 @@ export function MasterDataForm<TData extends FieldValues>({
       await onSubmit(data);
       form.reset();
       onOpenChange(false);
-    } catch (error) {
+    } catch {
       // Error handling is done in the parent component
-      console.error("Form submission error:", error);
     }
   };
 

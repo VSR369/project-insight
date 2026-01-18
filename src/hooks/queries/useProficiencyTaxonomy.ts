@@ -19,6 +19,8 @@ export function useProficiencyAreas(industrySegmentId?: string, expertiseLevelId
       return data;
     },
     enabled: !!industrySegmentId && !!expertiseLevelId,
+    staleTime: 300000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 }
 

@@ -30,6 +30,8 @@ export function useIndustrySegments(includeInactive = false) {
 
       return data as IndustrySegment[];
     },
+    staleTime: 300000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 }
 
