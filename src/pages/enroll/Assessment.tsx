@@ -72,6 +72,36 @@ function AssessmentContent() {
 
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
 
+  // Use lifecycle_rank for robust state detection (works at current AND future stages)
+  const lifecycleRank = activeEnrollment?.lifecycle_rank ?? 0;
+  const enrollmentStatus = activeEnrollment?.lifecycle_status;
+  
+  // Rank-based state checks (110 = assessment_passed, 100 = assessment_in_progress)
+  const hasPassedAssessment = lifecycleRank >= LIFECYCLE_RANKS.assessment_passed; // 110+
+  const isInViewMode = lifecycleRank >= LIFECYCLE_RANKS.assessment_passed; // View mode after passing
+
+  // Fetch the last passed attempt for this enrollment when in view mode
+  // IMPORTANT: This hook must be before any early returns to follow React rules
+  const { data: lastPassedAttempt, isLoading: lastAttemptLoading } = useQuery({
+    queryKey: ['last-passed-attempt', activeEnrollmentId],
+    queryFn: async () => {
+      if (!activeEnrollmentId) return null;
+      const { data, error } = await supabase
+        .from('assessment_attempts')
+        .select('id, score_percentage, is_passed, total_questions, answered_questions, submitted_at')
+        .eq('enrollment_id', activeEnrollmentId)
+        .eq('is_passed', true)
+        .order('submitted_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      
+      if (error) return null;
+      return data;
+    },
+    enabled: isInViewMode && !!activeEnrollmentId,
+    staleTime: 5 * 60 * 1000, // 5 minutes - results don't change
+  });
+
   // Back navigation is handled by WizardLayout's default handler
 
   const handleStartAssessment = async () => {
@@ -135,6 +165,16 @@ function AssessmentContent() {
 
   const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading;
 
+  // Format date helper
+  const formatDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
   if (isLoading) {
     return (
       <WizardLayout currentStep={6} hideContinueButton>
@@ -164,46 +204,8 @@ function AssessmentContent() {
   const hasAssessmentElsewhere = activeAssessmentElsewhere && 
     activeAssessmentElsewhere.enrollmentId !== activeEnrollmentId;
 
-  // Use lifecycle_rank for robust state detection (works at current AND future stages)
-  const lifecycleRank = activeEnrollment?.lifecycle_rank ?? 0;
-  const enrollmentStatus = activeEnrollment?.lifecycle_status;
-  
-  // Rank-based state checks (110 = assessment_passed, 100 = assessment_in_progress)
-  const hasPassedAssessment = lifecycleRank >= LIFECYCLE_RANKS.assessment_passed; // 110+
-  const isInViewMode = lifecycleRank >= LIFECYCLE_RANKS.assessment_passed; // View mode after passing
   const isInAssessment = enrollmentStatus === 'assessment_in_progress';
   const hasCompletedAssessment = enrollmentStatus === 'assessment_completed';
-
-  // Fetch the last passed attempt for this enrollment when in view mode
-  const { data: lastPassedAttempt, isLoading: lastAttemptLoading } = useQuery({
-    queryKey: ['last-passed-attempt', activeEnrollmentId],
-    queryFn: async () => {
-      if (!activeEnrollmentId) return null;
-      const { data, error } = await supabase
-        .from('assessment_attempts')
-        .select('id, score_percentage, is_passed, total_questions, answered_questions, submitted_at')
-        .eq('enrollment_id', activeEnrollmentId)
-        .eq('is_passed', true)
-        .order('submitted_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (error) return null;
-      return data;
-    },
-    enabled: isInViewMode && !!activeEnrollmentId,
-    staleTime: 5 * 60 * 1000, // 5 minutes - results don't change
-  });
-
-  // Format date helper
-  const formatDate = (dateStr?: string) => {
-    if (!dateStr) return '';
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
 
   // Assessment page uses custom action buttons inside the card
   // Use WizardLayout's default back navigation
