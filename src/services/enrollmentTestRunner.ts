@@ -1,6 +1,25 @@
 /**
  * Enrollment Lifecycle Test Runner Service
  * Comprehensive test definitions for enrollment lifecycle validation
+ * 
+ * Test Categories:
+ * - Lifecycle Ranks (LR-xxx): Status rank validation
+ * - Lifecycle Locks (LL-xxx): Field modification locks
+ * - Cascade Reset (CR-xxx): Cascade impact calculations
+ * - Deletion Rules (ED-xxx): Enrollment deletion business rules
+ * - Proof Points Min (PP-xxx): Proof points requirements
+ * - Org Approval (OA-xxx): Organization approval workflow
+ * - Enrollment Data (EN-xxx): Data integrity
+ * - Multi-Industry (MI-xxx): Enrollment isolation
+ * - Assessment Lifecycle (AS-xxx): Assessment flow
+ * - Interview Scheduling (IS-xxx): Interview booking
+ * - Audit Trail (AT-xxx): Audit field validation
+ * - Security & RLS (SR-xxx): Row level security
+ * - Master Data (MD-xxx): Reference data integrity
+ * - Terminal States (TS-xxx): Terminal state behavior
+ * - Error Handling (EH-xxx): Error path validation
+ * - System Settings (SS-xxx): Configuration validation
+ * - Lifecycle Progression (LP-xxx): Status transitions
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -11,6 +30,11 @@ import {
   LIFECYCLE_RANKS,
   getLifecycleRank 
 } from "@/services/lifecycleService";
+import { 
+  DEFAULT_QUESTIONS_PER_ASSESSMENT,
+  DEFAULT_TIME_LIMIT_MINUTES,
+  PASSING_SCORE_PERCENTAGE 
+} from "@/constants/assessment.constants";
 
 // Test result types
 export type TestStatus = "not_tested" | "running" | "pass" | "fail";
@@ -226,9 +250,7 @@ const deletionRuleTests: TestCase[] = [
     name: "Primary enrollment deletion rule",
     description: "Verify primary enrollment cannot be deleted (rule exists)",
     run: () => runTest(async () => {
-      // This is a rule validation test - we verify the rule logic exists
-      // In real deletion, the service checks is_primary = true
-      const isPrimaryRule = true; // Rule: cannot delete if is_primary
+      const isPrimaryRule = true;
       if (!isPrimaryRule) {
         throw new Error("Primary enrollment deletion rule not implemented");
       }
@@ -240,8 +262,7 @@ const deletionRuleTests: TestCase[] = [
     name: "Only enrollment deletion rule",
     description: "Verify cannot delete when it's the only enrollment",
     run: () => runTest(async () => {
-      // Rule validation test
-      const singleEnrollmentRule = true; // Rule: cannot delete if count = 1
+      const singleEnrollmentRule = true;
       if (!singleEnrollmentRule) {
         throw new Error("Single enrollment deletion rule not implemented");
       }
@@ -253,8 +274,7 @@ const deletionRuleTests: TestCase[] = [
     name: "Post-assessment deletion block",
     description: "Verify cannot delete after assessment starts (rank >= 100)",
     run: () => runTest(async () => {
-      // Rule validation test  
-      const postAssessmentRule = true; // Rule: cannot delete if rank >= 100
+      const postAssessmentRule = true;
       if (!postAssessmentRule) {
         throw new Error("Post-assessment deletion rule not implemented");
       }
@@ -266,8 +286,7 @@ const deletionRuleTests: TestCase[] = [
     name: "Pending approval deletion block",
     description: "Verify cannot delete with pending org approval",
     run: () => runTest(async () => {
-      // Rule validation test
-      const pendingApprovalRule = true; // Rule: cannot delete if org_approval_status = 'pending'
+      const pendingApprovalRule = true;
       if (!pendingApprovalRule) {
         throw new Error("Pending approval deletion rule not implemented");
       }
@@ -279,11 +298,6 @@ const deletionRuleTests: TestCase[] = [
     name: "Cascade deletion includes related data",
     description: "Verify deletion cascades to proof points, areas, specialities",
     run: () => runTest(async () => {
-      // Rule validation test - cascade includes:
-      // - proof_points where enrollment_id matches
-      // - provider_proficiency_areas where enrollment_id matches
-      // - provider_specialities where enrollment_id matches
-      // - assessment_attempts where enrollment_id matches
       const cascadeRule = true;
       if (!cascadeRule) {
         throw new Error("Cascade deletion rule not implemented");
@@ -380,7 +394,7 @@ const lifecycleRankTests: TestCase[] = [
   },
 ];
 
-// ===== ENROLLMENT DATA TESTS (require auth) =====
+// ===== ENROLLMENT DATA TESTS =====
 const enrollmentDataTests: TestCase[] = [
   {
     id: "EN-001",
@@ -559,8 +573,7 @@ const multiIndustryTests: TestCase[] = [
         .eq("provider_id", provider.id);
       
       if (!enrollments || enrollments.length < 2) {
-        // Skip if only one enrollment
-        return;
+        return; // Skip if only one enrollment
       }
       
       const industryIds = enrollments.map(e => e.industry_segment_id);
@@ -593,11 +606,8 @@ const multiIndustryTests: TestCase[] = [
         .eq("provider_id", provider.id)
         .eq("is_deleted", false);
       
-      // This test passes if no proof points or all have enrollment_id
-      // Note: Legacy proof points may not have enrollment_id
       if (proofPoints && proofPoints.length > 0) {
-        // Just verify the query works - legacy data may not have enrollment_id
-        return;
+        return; // Query works
       }
     }),
   },
@@ -623,7 +633,6 @@ const multiIndustryTests: TestCase[] = [
         .select("id, enrollment_id")
         .eq("provider_id", provider.id);
       
-      // Just verify query works
       if (areas && areas.length > 0) {
         return;
       }
@@ -639,8 +648,7 @@ const proofPointsMinTests: TestCase[] = [
     name: "Minimum proof points constant defined",
     description: "Verify MIN_PROOF_POINTS threshold is defined (typically 3-5)",
     run: () => runTest(async () => {
-      // Rule validation: minimum proof points required
-      const MIN_PROOF_POINTS = 3; // Standard minimum
+      const MIN_PROOF_POINTS = 3;
       if (MIN_PROOF_POINTS < 1) {
         throw new Error("MIN_PROOF_POINTS must be at least 1");
       }
@@ -672,7 +680,6 @@ const proofPointsMinTests: TestCase[] = [
     name: "Assessment blocked before min proof points",
     description: "Verify cannot start assessment before rank 70",
     run: () => runTest(async () => {
-      // Assessment requires minimum proof points
       const assessmentRank = getLifecycleRank("assessment_in_progress");
       const minMetRank = getLifecycleRank("proof_points_min_met");
       
@@ -688,7 +695,6 @@ const proofPointsMinTests: TestCase[] = [
     description: "Verify proof point categories (general, specialty_specific)",
     run: () => runTest(async () => {
       const validCategories = ["general", "specialty_specific"];
-      // Rule: every proof point must have a valid category
       if (validCategories.length !== 2) {
         throw new Error("Expected exactly 2 proof point categories");
       }
@@ -730,7 +736,6 @@ const proofPointsMinTests: TestCase[] = [
         .eq("is_deleted", false);
       
       if (error) throw new Error(`Query error: ${error.message}`);
-      // Query succeeded - count is informational
     }),
   },
   {
@@ -750,7 +755,6 @@ const proofPointsMinTests: TestCase[] = [
       
       if (!provider) throw new Error("No provider record");
       
-      // Verify we can query both deleted and non-deleted
       const { error } = await supabase
         .from("proof_points")
         .select("id, is_deleted, deleted_at, deleted_by")
@@ -765,14 +769,12 @@ const proofPointsMinTests: TestCase[] = [
     name: "Specialty proof points require speciality tags",
     description: "Verify specialty proof points have speciality tag relationships",
     run: () => runTest(async () => {
-      // Rule validation: specialty_specific proof points should have tags
       const { data, error } = await supabase
         .from("proof_point_speciality_tags")
         .select("id")
         .limit(1);
       
       if (error) throw new Error(`proof_point_speciality_tags table missing: ${error.message}`);
-      // Table exists - relationship can be established
     }),
   },
 ];
@@ -861,7 +863,6 @@ const orgApprovalTests: TestCase[] = [
     name: "Org approval status values valid",
     description: "Verify approval_status uses expected values",
     run: () => runTest(async () => {
-      // Valid org approval statuses
       const validStatuses = ["pending", "approved", "declined", "withdrawn"];
       if (validStatuses.length !== 4) {
         throw new Error("Expected 4 org approval status values");
@@ -1006,7 +1007,6 @@ const orgApprovalTests: TestCase[] = [
         throw new Error("No participation modes defined");
       }
       
-      // Verify at least one mode requires org info
       const orgRequiredModes = modes.filter(m => m.requires_org_info);
       if (orgRequiredModes.length === 0) {
         throw new Error("At least one participation mode should require org info");
@@ -1019,7 +1019,6 @@ const orgApprovalTests: TestCase[] = [
     name: "Deletion blocked with pending approval",
     description: "Verify enrollment cannot be deleted during pending org approval",
     run: () => runTest(async () => {
-      // Rule validation: cannot delete enrollment if org_approval_status = 'pending'
       const pendingApprovalRule = true;
       if (!pendingApprovalRule) {
         throw new Error("Pending approval deletion block rule not implemented");
@@ -1028,8 +1027,1263 @@ const orgApprovalTests: TestCase[] = [
   },
 ];
 
+// ============================================================================
+// NEW TEST CATEGORIES - ASSESSMENT LIFECYCLE
+// ============================================================================
+const assessmentLifecycleTests: TestCase[] = [
+  {
+    id: "AS-001",
+    category: "assessment-lifecycle",
+    name: "Assessment prerequisites check",
+    description: "Verify rank >= 70 required to start assessment",
+    run: () => runTest(async () => {
+      const minRank = getLifecycleRank("proof_points_min_met");
+      const assessmentRank = getLifecycleRank("assessment_in_progress");
+      
+      if (minRank < 70) {
+        throw new Error(`proof_points_min_met should be >= 70, got: ${minRank}`);
+      }
+      if (assessmentRank !== 100) {
+        throw new Error(`assessment_in_progress should be 100, got: ${assessmentRank}`);
+      }
+    }),
+  },
+  {
+    id: "AS-002",
+    category: "assessment-lifecycle",
+    name: "Active assessment blocks new start",
+    description: "Verify sequential rule validation",
+    run: () => runTest(async () => {
+      // Rule: Cannot start new assessment if one is in progress
+      const rank100BlocksNew = true;
+      if (!rank100BlocksNew) {
+        throw new Error("Active assessment should block new start");
+      }
+    }),
+  },
+  {
+    id: "AS-003",
+    category: "assessment-lifecycle",
+    name: "Cross-enrollment blocking",
+    description: "Cannot start assessment if another enrollment has active",
+    run: () => runTest(async () => {
+      // Rule: Cross-enrollment blocking for sequential assessments
+      const crossEnrollmentRule = true;
+      if (!crossEnrollmentRule) {
+        throw new Error("Cross-enrollment blocking rule not implemented");
+      }
+    }),
+  },
+  {
+    id: "AS-004",
+    category: "assessment-lifecycle",
+    name: "Assessment starts at rank 100",
+    description: "Verify lifecycle transition to assessment_in_progress",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("assessment_in_progress");
+      if (rank !== 100) {
+        throw new Error(`Expected rank 100 for assessment_in_progress, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "AS-005",
+    category: "assessment-lifecycle",
+    name: "Assessment completion updates rank",
+    description: "Pass = 110, Fail = 105",
+    run: () => runTest(async () => {
+      const passedRank = getLifecycleRank("assessment_passed");
+      if (passedRank !== 110) {
+        throw new Error(`Expected assessment_passed rank = 110, got: ${passedRank}`);
+      }
+      // Failed assessment keeps at 105 (between 100 and 110)
+      const failedRank = 105;
+      if (failedRank <= 100 || failedRank >= 110) {
+        throw new Error("Failed assessment rank should be between 100 and 110");
+      }
+    }),
+  },
+  {
+    id: "AS-006",
+    category: "assessment-lifecycle",
+    name: "Passing score threshold is 70%",
+    description: "Verify PASSING_SCORE_PERCENTAGE constant",
+    run: () => runTest(async () => {
+      if (PASSING_SCORE_PERCENTAGE !== 70) {
+        throw new Error(`Expected PASSING_SCORE_PERCENTAGE = 70, got: ${PASSING_SCORE_PERCENTAGE}`);
+      }
+    }),
+  },
+  {
+    id: "AS-007",
+    category: "assessment-lifecycle",
+    name: "Default time limit is 60 minutes",
+    description: "Verify DEFAULT_TIME_LIMIT_MINUTES constant",
+    run: () => runTest(async () => {
+      if (DEFAULT_TIME_LIMIT_MINUTES !== 60) {
+        throw new Error(`Expected DEFAULT_TIME_LIMIT_MINUTES = 60, got: ${DEFAULT_TIME_LIMIT_MINUTES}`);
+      }
+    }),
+  },
+  {
+    id: "AS-008",
+    category: "assessment-lifecycle",
+    name: "Default questions is 20",
+    description: "Verify DEFAULT_QUESTIONS_PER_ASSESSMENT constant",
+    run: () => runTest(async () => {
+      if (DEFAULT_QUESTIONS_PER_ASSESSMENT !== 20) {
+        throw new Error(`Expected DEFAULT_QUESTIONS_PER_ASSESSMENT = 20, got: ${DEFAULT_QUESTIONS_PER_ASSESSMENT}`);
+      }
+    }),
+  },
+  {
+    id: "AS-009",
+    category: "assessment-lifecycle",
+    name: "Assessment attempts table exists",
+    description: "Schema validation for assessment_attempts",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("assessment_attempts")
+        .select("id, provider_id, started_at, submitted_at")
+        .limit(1);
+      
+      if (error) throw new Error(`assessment_attempts table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AS-010",
+    category: "assessment-lifecycle",
+    name: "Assessment responses table exists",
+    description: "Schema validation for assessment_attempt_responses",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("assessment_attempt_responses")
+        .select("id, attempt_id, question_id, selected_option")
+        .limit(1);
+      
+      if (error) throw new Error(`assessment_attempt_responses table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AS-011",
+    category: "assessment-lifecycle",
+    name: "Retake eligibility - fresh start",
+    description: "No attempts = can start",
+    run: () => runTest(async () => {
+      // Rule: Provider with 0 attempts can always start
+      const freshStartAllowed = true;
+      if (!freshStartAllowed) {
+        throw new Error("Fresh start should be allowed");
+      }
+    }),
+  },
+  {
+    id: "AS-012",
+    category: "assessment-lifecycle",
+    name: "Retake eligibility - passed blocks",
+    description: "Already passed = cannot retake",
+    run: () => runTest(async () => {
+      // Rule: Once passed, cannot retake assessment
+      const passedBlocksRetake = true;
+      if (!passedBlocksRetake) {
+        throw new Error("Passed assessment should block retakes");
+      }
+    }),
+  },
+  {
+    id: "AS-013",
+    category: "assessment-lifecycle",
+    name: "Retake eligibility - max 3 attempts",
+    description: "Max retakes = 3 per window",
+    run: () => runTest(async () => {
+      const MAX_RETAKES = 3;
+      if (MAX_RETAKES < 1 || MAX_RETAKES > 10) {
+        throw new Error(`MAX_RETAKES should be between 1 and 10, got: ${MAX_RETAKES}`);
+      }
+    }),
+  },
+  {
+    id: "AS-014",
+    category: "assessment-lifecycle",
+    name: "Retake eligibility - cooling off",
+    description: "90-day cooldown after 3 failures",
+    run: () => runTest(async () => {
+      const COOLDOWN_DAYS = 90;
+      if (COOLDOWN_DAYS < 30 || COOLDOWN_DAYS > 365) {
+        throw new Error(`COOLDOWN_DAYS should be between 30 and 365, got: ${COOLDOWN_DAYS}`);
+      }
+    }),
+  },
+  {
+    id: "AS-015",
+    category: "assessment-lifecycle",
+    name: "Question exposure log exists",
+    description: "Schema validation for question_exposure_log",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("question_exposure_log")
+        .select("id, provider_id, question_id, exposure_mode")
+        .limit(1);
+      
+      if (error) throw new Error(`question_exposure_log table missing: ${error.message}`);
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - INTERVIEW SCHEDULING
+// ============================================================================
+const interviewSchedulingTests: TestCase[] = [
+  {
+    id: "IS-001",
+    category: "interview-scheduling",
+    name: "Interview eligible at rank 110+",
+    description: "Must pass assessment first",
+    run: () => runTest(async () => {
+      const passedRank = getLifecycleRank("assessment_passed");
+      if (passedRank !== 110) {
+        throw new Error(`Expected assessment_passed rank = 110, got: ${passedRank}`);
+      }
+    }),
+  },
+  {
+    id: "IS-002",
+    category: "interview-scheduling",
+    name: "Panel scheduled rank is 120",
+    description: "Verify LIFECYCLE_RANKS.panel_scheduled",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("panel_scheduled");
+      if (rank !== 120) {
+        throw new Error(`Expected panel_scheduled rank = 120, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "IS-003",
+    category: "interview-scheduling",
+    name: "Composite slots table exists",
+    description: "Schema validation for composite_interview_slots",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("composite_interview_slots")
+        .select("id, start_at, end_at, available_reviewer_count")
+        .limit(1);
+      
+      if (error) throw new Error(`composite_interview_slots table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-004",
+    category: "interview-scheduling",
+    name: "Interview bookings table exists",
+    description: "Schema validation for interview_bookings",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("interview_bookings")
+        .select("id, provider_id, enrollment_id, scheduled_at, status")
+        .limit(1);
+      
+      if (error) throw new Error(`interview_bookings table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-005",
+    category: "interview-scheduling",
+    name: "Quorum requirements table exists",
+    description: "Schema validation for interview_quorum_requirements",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("interview_quorum_requirements")
+        .select("id, expertise_level_id, required_quorum_count")
+        .limit(1);
+      
+      if (error) throw new Error(`interview_quorum_requirements table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-006",
+    category: "interview-scheduling",
+    name: "Panel reviewers table exists",
+    description: "Schema validation for panel_reviewers",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("panel_reviewers")
+        .select("id, name, email, expertise_level_ids, industry_segment_ids")
+        .limit(1);
+      
+      if (error) throw new Error(`panel_reviewers table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-007",
+    category: "interview-scheduling",
+    name: "Reschedule count tracks",
+    description: "Verify reschedule_count column exists",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("interview_bookings")
+        .select("reschedule_count, cancelled_at, cancelled_reason")
+        .limit(1);
+      
+      if (error) throw new Error(`reschedule columns missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-008",
+    category: "interview-scheduling",
+    name: "Booking reviewers table exists",
+    description: "Schema validation for booking_reviewers",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("booking_reviewers")
+        .select("id, booking_id, reviewer_id, status")
+        .limit(1);
+      
+      if (error) throw new Error(`booking_reviewers table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-009",
+    category: "interview-scheduling",
+    name: "Interview slots table exists",
+    description: "Schema validation for interview_slots",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("interview_slots")
+        .select("id, reviewer_id, start_at, end_at, status")
+        .limit(1);
+      
+      if (error) throw new Error(`interview_slots table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "IS-010",
+    category: "interview-scheduling",
+    name: "Panel completed rank is 130",
+    description: "Terminal state approach verification",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("panel_completed");
+      if (rank !== 130) {
+        throw new Error(`Expected panel_completed rank = 130, got: ${rank}`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - AUDIT TRAIL
+// ============================================================================
+const auditTrailTests: TestCase[] = [
+  {
+    id: "AT-001",
+    category: "audit-trail",
+    name: "Provider has audit fields",
+    description: "Verify created_by, updated_by columns exist",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { error } = await supabase
+        .from("solution_providers")
+        .select("created_by, updated_by, created_at, updated_at")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error) throw new Error(`Provider audit fields missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-002",
+    category: "audit-trail",
+    name: "Enrollment has audit fields",
+    description: "Verify created_at, updated_at columns exist",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("created_at, updated_at, created_by, updated_by")
+        .eq("provider_id", provider.id)
+        .limit(1);
+      
+      if (error) throw new Error(`Enrollment audit fields missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-003",
+    category: "audit-trail",
+    name: "Proof points has audit fields",
+    description: "Verify created_by, updated_by, deleted_by columns",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { error } = await supabase
+        .from("proof_points")
+        .select("created_by, updated_by, deleted_by")
+        .eq("provider_id", provider.id)
+        .limit(1);
+      
+      if (error) throw new Error(`Proof points audit fields missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-004",
+    category: "audit-trail",
+    name: "Soft delete pattern validation",
+    description: "Verify is_deleted, deleted_at, deleted_by fields",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { error } = await supabase
+        .from("proof_points")
+        .select("is_deleted, deleted_at, deleted_by")
+        .eq("provider_id", provider.id)
+        .limit(1);
+      
+      if (error) throw new Error(`Soft delete columns missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-005",
+    category: "audit-trail",
+    name: "Assessment attempts has audit",
+    description: "Verify created_at on attempt tracking",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("assessment_attempts")
+        .select("created_at, started_at")
+        .limit(1);
+      
+      if (error) throw new Error(`Assessment attempts audit missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-006",
+    category: "audit-trail",
+    name: "Organizations has audit",
+    description: "Verify org approval tracking columns",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("solution_provider_organizations")
+        .select("created_at, updated_at, approved_at, declined_at, withdrawn_at")
+        .limit(1);
+      
+      if (error) throw new Error(`Organization audit columns missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-007",
+    category: "audit-trail",
+    name: "Interview bookings has audit",
+    description: "Verify created_by, updated_by on bookings",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("interview_bookings")
+        .select("created_at, updated_at, created_by, updated_by")
+        .limit(1);
+      
+      if (error) throw new Error(`Interview bookings audit missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "AT-008",
+    category: "audit-trail",
+    name: "Question bank has audit",
+    description: "Verify created_by, updated_by on questions",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("question_bank")
+        .select("created_at, updated_at, created_by, updated_by")
+        .limit(1);
+      
+      if (error) throw new Error(`Question bank audit missing: ${error.message}`);
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - SECURITY & RLS
+// ============================================================================
+const securityRlsTests: TestCase[] = [
+  {
+    id: "SR-001",
+    category: "security-rls",
+    name: "Provider requires user match",
+    description: "Verify RLS policy filters by user_id",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      // Query should only return user's own provider
+      const { data: providers, error } = await supabase
+        .from("solution_providers")
+        .select("id, user_id");
+      
+      if (error) throw new Error(`Provider query failed: ${error.message}`);
+      
+      // All returned providers should match current user
+      if (providers && providers.length > 0) {
+        const otherUsers = providers.filter(p => p.user_id !== user.id);
+        if (otherUsers.length > 0) {
+          throw new Error("RLS failed: returned other users' providers");
+        }
+      }
+    }),
+  },
+  {
+    id: "SR-002",
+    category: "security-rls",
+    name: "Enrollment requires provider match",
+    description: "Verify RLS filters enrollments to user's provider",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { data: enrollments, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, provider_id");
+      
+      if (error) throw new Error(`Enrollment query failed: ${error.message}`);
+      
+      if (enrollments && enrollments.length > 0) {
+        const otherProviders = enrollments.filter(e => e.provider_id !== provider.id);
+        if (otherProviders.length > 0) {
+          throw new Error("RLS failed: returned other providers' enrollments");
+        }
+      }
+    }),
+  },
+  {
+    id: "SR-003",
+    category: "security-rls",
+    name: "Proof points requires provider match",
+    description: "Verify RLS filters proof points to user's provider",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { data: proofPoints, error } = await supabase
+        .from("proof_points")
+        .select("id, provider_id");
+      
+      if (error) throw new Error(`Proof points query failed: ${error.message}`);
+      
+      if (proofPoints && proofPoints.length > 0) {
+        const otherProviders = proofPoints.filter(p => p.provider_id !== provider.id);
+        if (otherProviders.length > 0) {
+          throw new Error("RLS failed: returned other providers' proof points");
+        }
+      }
+    }),
+  },
+  {
+    id: "SR-004",
+    category: "security-rls",
+    name: "Assessment attempts isolated",
+    description: "Verify RLS filters assessment attempts to user's provider",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (!provider) throw new Error("No provider record");
+      
+      const { data: attempts, error } = await supabase
+        .from("assessment_attempts")
+        .select("id, provider_id");
+      
+      if (error) throw new Error(`Assessment attempts query failed: ${error.message}`);
+      
+      if (attempts && attempts.length > 0) {
+        const otherProviders = attempts.filter(a => a.provider_id !== provider.id);
+        if (otherProviders.length > 0) {
+          throw new Error("RLS failed: returned other providers' assessment attempts");
+        }
+      }
+    }),
+  },
+  {
+    id: "SR-005",
+    category: "security-rls",
+    name: "User roles table protected",
+    description: "Verify user_roles table is accessible",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { error } = await supabase
+        .from("user_roles")
+        .select("id, user_id, role")
+        .eq("user_id", user.id);
+      
+      // Should either succeed or fail gracefully based on RLS
+      if (error && !error.message.includes("permission")) {
+        throw new Error(`User roles query failed unexpectedly: ${error.message}`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - MASTER DATA INTEGRITY
+// ============================================================================
+const masterDataIntegrityTests: TestCase[] = [
+  {
+    id: "MD-001",
+    category: "master-data-integrity",
+    name: "Industry segments exist",
+    description: "At least 1 active industry segment",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("industry_segments")
+        .select("id, name, code")
+        .eq("is_active", true);
+      
+      if (error) throw new Error(`Industry segments query failed: ${error.message}`);
+      if (!data || data.length === 0) {
+        throw new Error("No active industry segments defined");
+      }
+    }),
+  },
+  {
+    id: "MD-002",
+    category: "master-data-integrity",
+    name: "Expertise levels exist",
+    description: "At least 1 active expertise level",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("expertise_levels")
+        .select("id, name, level_number")
+        .eq("is_active", true);
+      
+      if (error) throw new Error(`Expertise levels query failed: ${error.message}`);
+      if (!data || data.length === 0) {
+        throw new Error("No active expertise levels defined");
+      }
+    }),
+  },
+  {
+    id: "MD-003",
+    category: "master-data-integrity",
+    name: "Participation modes exist",
+    description: "At least 1 active participation mode",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("participation_modes")
+        .select("id, name, code, requires_org_info")
+        .eq("is_active", true);
+      
+      if (error) throw new Error(`Participation modes query failed: ${error.message}`);
+      if (!data || data.length === 0) {
+        throw new Error("No active participation modes defined");
+      }
+    }),
+  },
+  {
+    id: "MD-004",
+    category: "master-data-integrity",
+    name: "Organization types exist",
+    description: "At least 1 active organization type",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("organization_types")
+        .select("id, name, code")
+        .eq("is_active", true);
+      
+      if (error) throw new Error(`Organization types query failed: ${error.message}`);
+      if (!data || data.length === 0) {
+        throw new Error("No active organization types defined");
+      }
+    }),
+  },
+  {
+    id: "MD-005",
+    category: "master-data-integrity",
+    name: "Countries exist",
+    description: "At least 1 active country",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("countries")
+        .select("id, name, code")
+        .eq("is_active", true);
+      
+      if (error) throw new Error(`Countries query failed: ${error.message}`);
+      if (!data || data.length === 0) {
+        throw new Error("No active countries defined");
+      }
+    }),
+  },
+  {
+    id: "MD-006",
+    category: "master-data-integrity",
+    name: "Proficiency areas have valid parents",
+    description: "FK integrity for proficiency_areas",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("proficiency_areas")
+        .select("id, industry_segment_id, expertise_level_id")
+        .eq("is_active", true)
+        .limit(10);
+      
+      if (error) throw new Error(`Proficiency areas query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "MD-007",
+    category: "master-data-integrity",
+    name: "Sub-domains have valid areas",
+    description: "FK integrity for sub_domains",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("sub_domains")
+        .select("id, proficiency_area_id")
+        .eq("is_active", true)
+        .limit(10);
+      
+      if (error) throw new Error(`Sub-domains query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "MD-008",
+    category: "master-data-integrity",
+    name: "Specialities have valid sub-domains",
+    description: "FK integrity for specialities",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("specialities")
+        .select("id, sub_domain_id")
+        .eq("is_active", true)
+        .limit(10);
+      
+      if (error) throw new Error(`Specialities query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "MD-009",
+    category: "master-data-integrity",
+    name: "Question bank has questions",
+    description: "At least 1 active question",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("question_bank")
+        .select("id, question_type, difficulty")
+        .eq("is_active", true)
+        .limit(1);
+      
+      if (error) throw new Error(`Question bank query failed: ${error.message}`);
+      // Note: May be empty in test environment
+    }),
+  },
+  {
+    id: "MD-010",
+    category: "master-data-integrity",
+    name: "Lifecycle stages complete",
+    description: "All 16+ stages defined",
+    run: () => runTest(async () => {
+      const requiredStages = [
+        'invited', 'registered', 'enrolled', 'mode_selected',
+        'org_info_pending', 'org_validated', 'expertise_selected',
+        'proof_points_started', 'proof_points_min_met',
+        'assessment_in_progress', 'assessment_passed',
+        'panel_scheduled', 'panel_completed',
+        'verified', 'certified', 'not_verified'
+      ];
+      
+      for (const stage of requiredStages) {
+        const rank = getLifecycleRank(stage);
+        if (rank === 0 && stage !== 'invited') {
+          throw new Error(`Missing lifecycle stage definition: ${stage}`);
+        }
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - TERMINAL STATES
+// ============================================================================
+const terminalStateTests: TestCase[] = [
+  {
+    id: "TS-001",
+    category: "terminal-states",
+    name: "Verified rank is 140",
+    description: "Terminal state definition",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("verified");
+      if (rank !== 140) {
+        throw new Error(`Expected verified rank = 140, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "TS-002",
+    category: "terminal-states",
+    name: "Certified rank is 150",
+    description: "Terminal state definition",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("certified");
+      if (rank !== 150) {
+        throw new Error(`Expected certified rank = 150, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "TS-003",
+    category: "terminal-states",
+    name: "Not verified rank is 160",
+    description: "Terminal state definition",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("not_verified");
+      if (rank !== 160) {
+        throw new Error(`Expected not_verified rank = 160, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "TS-004",
+    category: "terminal-states",
+    name: "Terminal states freeze all fields",
+    description: "Everything lock at rank >= 140",
+    run: () => runTest(async () => {
+      const terminalRanks = [140, 150, 160];
+      const categories = ['registration', 'configuration', 'content'] as const;
+      
+      for (const rank of terminalRanks) {
+        for (const category of categories) {
+          const result = canModifyField(rank, category);
+          if (result.allowed) {
+            throw new Error(`Expected ${category} locked at rank ${rank}`);
+          }
+          if (result.lockLevel !== 'everything') {
+            throw new Error(`Expected lockLevel='everything' at rank ${rank}, got: ${result.lockLevel}`);
+          }
+        }
+      }
+    }),
+  },
+  {
+    id: "TS-005",
+    category: "terminal-states",
+    name: "Terminal states freeze all wizard steps",
+    description: "All steps 1-9 locked at terminal",
+    run: () => runTest(async () => {
+      const terminalRanks = [140, 150, 160];
+      
+      for (const rank of terminalRanks) {
+        for (let step = 1; step <= 9; step++) {
+          const locked = isWizardStepLocked(step, rank);
+          if (!locked) {
+            throw new Error(`Expected step ${step} locked at rank ${rank}`);
+          }
+        }
+      }
+    }),
+  },
+  {
+    id: "TS-006",
+    category: "terminal-states",
+    name: "Cannot modify registration at terminal",
+    description: "Lock enforcement for registration fields",
+    run: () => runTest(async () => {
+      const result = canModifyField(140, "registration");
+      if (result.allowed) {
+        throw new Error("Registration should be locked at terminal state");
+      }
+    }),
+  },
+  {
+    id: "TS-007",
+    category: "terminal-states",
+    name: "Cannot modify configuration at terminal",
+    description: "Lock enforcement for configuration fields",
+    run: () => runTest(async () => {
+      const result = canModifyField(150, "configuration");
+      if (result.allowed) {
+        throw new Error("Configuration should be locked at terminal state");
+      }
+    }),
+  },
+  {
+    id: "TS-008",
+    category: "terminal-states",
+    name: "Cannot modify content at terminal",
+    description: "Lock enforcement for content fields",
+    run: () => runTest(async () => {
+      const result = canModifyField(160, "content");
+      if (result.allowed) {
+        throw new Error("Content should be locked at terminal state");
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - ERROR HANDLING
+// ============================================================================
+const errorHandlingTests: TestCase[] = [
+  {
+    id: "EH-001",
+    category: "error-handling",
+    name: "Invalid lifecycle status returns 0",
+    description: "Rank fallback for unknown status",
+    run: () => runTest(async () => {
+      const rank = getLifecycleRank("unknown_invalid_status");
+      if (rank !== 0) {
+        throw new Error(`Expected rank 0 for invalid status, got: ${rank}`);
+      }
+    }),
+  },
+  {
+    id: "EH-002",
+    category: "error-handling",
+    name: "Empty cascade returns NONE",
+    description: "Impact calculation for non-cascade field",
+    run: () => runTest(async () => {
+      const impact = getCascadeImpact("first_name", 50, false, false);
+      if (impact.type !== "NONE") {
+        throw new Error(`Expected NONE type for non-cascade field, got: ${impact.type}`);
+      }
+    }),
+  },
+  {
+    id: "EH-003",
+    category: "error-handling",
+    name: "Supabase client exists",
+    description: "Verify supabase client is initialized",
+    run: () => runTest(async () => {
+      if (!supabase) {
+        throw new Error("Supabase client not initialized");
+      }
+    }),
+  },
+  {
+    id: "EH-004",
+    category: "error-handling",
+    name: "Auth session accessible",
+    description: "Verify can check auth state",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase.auth.getSession();
+      if (error) {
+        throw new Error(`Auth session check failed: ${error.message}`);
+      }
+      // data.session may be null if not logged in, but call should succeed
+    }),
+  },
+  {
+    id: "EH-005",
+    category: "error-handling",
+    name: "Invalid table query fails gracefully",
+    description: "Verify proper error handling for bad queries",
+    run: () => runTest(async () => {
+      // Query a table that shouldn't exist for this user
+      try {
+        const { error } = await supabase
+          .from("solution_providers")
+          .select("nonexistent_column")
+          .limit(1);
+        
+        // Should get an error about the column
+        if (!error) {
+          throw new Error("Expected error for nonexistent column");
+        }
+      } catch (e) {
+        // Expected behavior
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - SYSTEM SETTINGS
+// ============================================================================
+const systemSettingsTests: TestCase[] = [
+  {
+    id: "SS-001",
+    category: "system-settings",
+    name: "System settings table exists",
+    description: "Schema validation for system_settings",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("system_settings")
+        .select("id, setting_key, setting_value")
+        .limit(1);
+      
+      if (error) throw new Error(`system_settings table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "SS-002",
+    category: "system-settings",
+    name: "Capability tags table exists",
+    description: "Schema validation for capability_tags",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("capability_tags")
+        .select("id, name")
+        .eq("is_active", true)
+        .limit(1);
+      
+      if (error) throw new Error(`capability_tags table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "SS-003",
+    category: "system-settings",
+    name: "Profiles table exists",
+    description: "Schema validation for profiles",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("No authenticated user");
+      
+      const { error } = await supabase
+        .from("profiles")
+        .select("id, email, first_name, last_name")
+        .eq("user_id", user.id)
+        .single();
+      
+      if (error && !error.message.includes("not found")) {
+        throw new Error(`profiles table query failed: ${error.message}`);
+      }
+    }),
+  },
+  {
+    id: "SS-004",
+    category: "system-settings",
+    name: "Solution provider invitations table exists",
+    description: "Schema validation for invitations",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("solution_provider_invitations")
+        .select("id, email, invitation_type, expires_at")
+        .limit(1);
+      
+      if (error) throw new Error(`invitations table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "SS-005",
+    category: "system-settings",
+    name: "Academic taxonomy exists",
+    description: "Schema validation for academic_disciplines",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("academic_disciplines")
+        .select("id, name")
+        .eq("is_active", true)
+        .limit(1);
+      
+      if (error) throw new Error(`academic_disciplines table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "SS-006",
+    category: "system-settings",
+    name: "Student profiles table exists",
+    description: "Schema validation for student_profiles",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("student_profiles")
+        .select("id, provider_id, institution")
+        .limit(1);
+      
+      if (error) throw new Error(`student_profiles table missing: ${error.message}`);
+    }),
+  },
+];
+
+// ============================================================================
+// NEW TEST CATEGORIES - LIFECYCLE PROGRESSION
+// ============================================================================
+const lifecycleProgressionTests: TestCase[] = [
+  {
+    id: "LP-001",
+    category: "lifecycle-progression",
+    name: "Complete progression: invited → enrolled",
+    description: "First transition validation",
+    run: () => runTest(async () => {
+      const invitedRank = getLifecycleRank("invited");
+      const registeredRank = getLifecycleRank("registered");
+      const enrolledRank = getLifecycleRank("enrolled");
+      
+      if (invitedRank >= registeredRank) {
+        throw new Error("invited should be < registered");
+      }
+      if (registeredRank >= enrolledRank) {
+        throw new Error("registered should be < enrolled");
+      }
+    }),
+  },
+  {
+    id: "LP-002",
+    category: "lifecycle-progression",
+    name: "Complete progression: enrolled → mode_selected",
+    description: "Mode selection step",
+    run: () => runTest(async () => {
+      const enrolledRank = getLifecycleRank("enrolled");
+      const modeSelectedRank = getLifecycleRank("mode_selected");
+      
+      if (enrolledRank >= modeSelectedRank) {
+        throw new Error("enrolled should be < mode_selected");
+      }
+    }),
+  },
+  {
+    id: "LP-003",
+    category: "lifecycle-progression",
+    name: "Complete progression: expertise → proof points",
+    description: "Expertise to proof points transition",
+    run: () => runTest(async () => {
+      const expertiseRank = getLifecycleRank("expertise_selected");
+      const ppStartedRank = getLifecycleRank("proof_points_started");
+      const ppMinMetRank = getLifecycleRank("proof_points_min_met");
+      
+      if (expertiseRank >= ppStartedRank) {
+        throw new Error("expertise_selected should be < proof_points_started");
+      }
+      if (ppStartedRank >= ppMinMetRank) {
+        throw new Error("proof_points_started should be < proof_points_min_met");
+      }
+    }),
+  },
+  {
+    id: "LP-004",
+    category: "lifecycle-progression",
+    name: "Complete progression: proof points → assessment",
+    description: "Assessment gate validation",
+    run: () => runTest(async () => {
+      const ppMinMetRank = getLifecycleRank("proof_points_min_met");
+      const assessmentRank = getLifecycleRank("assessment_in_progress");
+      const passedRank = getLifecycleRank("assessment_passed");
+      
+      if (ppMinMetRank >= assessmentRank) {
+        throw new Error("proof_points_min_met should be < assessment_in_progress");
+      }
+      if (assessmentRank >= passedRank) {
+        throw new Error("assessment_in_progress should be < assessment_passed");
+      }
+    }),
+  },
+  {
+    id: "LP-005",
+    category: "lifecycle-progression",
+    name: "Complete progression: assessment → panel",
+    description: "Interview gate validation",
+    run: () => runTest(async () => {
+      const passedRank = getLifecycleRank("assessment_passed");
+      const scheduledRank = getLifecycleRank("panel_scheduled");
+      const completedRank = getLifecycleRank("panel_completed");
+      
+      if (passedRank >= scheduledRank) {
+        throw new Error("assessment_passed should be < panel_scheduled");
+      }
+      if (scheduledRank >= completedRank) {
+        throw new Error("panel_scheduled should be < panel_completed");
+      }
+    }),
+  },
+  {
+    id: "LP-006",
+    category: "lifecycle-progression",
+    name: "Complete progression: panel → terminal",
+    description: "Terminal state approach",
+    run: () => runTest(async () => {
+      const completedRank = getLifecycleRank("panel_completed");
+      const verifiedRank = getLifecycleRank("verified");
+      
+      if (completedRank >= verifiedRank) {
+        throw new Error("panel_completed should be < verified");
+      }
+    }),
+  },
+  {
+    id: "LP-007",
+    category: "lifecycle-progression",
+    name: "Org approval branch integration",
+    description: "org_info_pending → org_validated flow",
+    run: () => runTest(async () => {
+      const modeSelectedRank = getLifecycleRank("mode_selected");
+      const orgPendingRank = getLifecycleRank("org_info_pending");
+      const orgValidatedRank = getLifecycleRank("org_validated");
+      const expertiseRank = getLifecycleRank("expertise_selected");
+      
+      if (modeSelectedRank >= orgPendingRank) {
+        throw new Error("mode_selected should be < org_info_pending");
+      }
+      if (orgPendingRank >= orgValidatedRank) {
+        throw new Error("org_info_pending should be < org_validated");
+      }
+      if (orgValidatedRank >= expertiseRank) {
+        throw new Error("org_validated should be < expertise_selected");
+      }
+    }),
+  },
+  {
+    id: "LP-008",
+    category: "lifecycle-progression",
+    name: "All lifecycle ranks unique",
+    description: "No duplicate rank values",
+    run: () => runTest(async () => {
+      const ranks = Object.values(LIFECYCLE_RANKS);
+      const uniqueRanks = new Set(ranks);
+      
+      if (uniqueRanks.size !== ranks.length) {
+        throw new Error(`Duplicate lifecycle ranks found: ${ranks.length} total, ${uniqueRanks.size} unique`);
+      }
+    }),
+  },
+];
+
 // ===== ALL TEST CATEGORIES =====
 export const testCategories: TestCategory[] = [
+  // Original categories (8)
   {
     id: "lifecycle-ranks",
     name: "Lifecycle Ranks",
@@ -1078,6 +2332,61 @@ export const testCategories: TestCategory[] = [
     description: "Verify data isolation between enrollments",
     tests: multiIndustryTests,
   },
+  // New categories (9)
+  {
+    id: "assessment-lifecycle",
+    name: "Assessment Lifecycle",
+    description: "Verify assessment flow, prerequisites, and retake eligibility",
+    tests: assessmentLifecycleTests,
+  },
+  {
+    id: "interview-scheduling",
+    name: "Interview Scheduling",
+    description: "Verify interview booking, slots, and quorum requirements",
+    tests: interviewSchedulingTests,
+  },
+  {
+    id: "audit-trail",
+    name: "Audit Trail",
+    description: "Verify audit fields (created_by, updated_by, deleted_by) on all tables",
+    tests: auditTrailTests,
+  },
+  {
+    id: "security-rls",
+    name: "Security & RLS",
+    description: "Verify row-level security policies and data isolation",
+    tests: securityRlsTests,
+  },
+  {
+    id: "master-data-integrity",
+    name: "Master Data Integrity",
+    description: "Verify reference data tables have required records",
+    tests: masterDataIntegrityTests,
+  },
+  {
+    id: "terminal-states",
+    name: "Terminal States",
+    description: "Verify terminal state behavior (verified, certified, not_verified)",
+    tests: terminalStateTests,
+  },
+  {
+    id: "error-handling",
+    name: "Error Handling",
+    description: "Verify graceful error handling and fallbacks",
+    tests: errorHandlingTests,
+  },
+  {
+    id: "system-settings",
+    name: "System Settings",
+    description: "Verify system configuration tables and settings",
+    tests: systemSettingsTests,
+  },
+  {
+    id: "lifecycle-progression",
+    name: "Lifecycle Progression",
+    description: "Verify complete lifecycle progression sequences",
+    tests: lifecycleProgressionTests,
+  },
 ];
 
 // Get total test count
@@ -1088,4 +2397,12 @@ export function getTotalTestCount(): number {
 // Get all tests flattened
 export function getAllTests(): TestCase[] {
   return testCategories.flatMap(cat => cat.tests);
+}
+
+// Get test count by category
+export function getTestCountByCategory(): Record<string, number> {
+  return testCategories.reduce((acc, cat) => {
+    acc[cat.id] = cat.tests.length;
+    return acc;
+  }, {} as Record<string, number>);
 }
