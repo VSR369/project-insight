@@ -12,12 +12,15 @@ import {
   AvailabilityCalendar,
   TimeSlotSelector,
   SelectedSlotsPanel,
+  type BookingInfo,
 } from "@/components/reviewer/availability";
 import {
   useCurrentReviewer,
   useReviewerSlots,
   useCreateReviewerSlots,
   useDeleteReviewerSlot,
+  useBookingForSlot,
+  useCancelBookedSlot,
 } from "@/hooks/queries/useReviewerAvailability";
 import {
   draftToTimeSlot,
@@ -36,6 +39,12 @@ export default function ReviewerAvailability() {
   const [currentMonth, setCurrentMonth] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [draftSlots, setDraftSlots] = useState<DraftSlot[]>([]);
+  
+  // Track which booked slot is being inspected for booking info
+  const [selectedBookedSlotId, setSelectedBookedSlotId] = useState<string | null>(null);
+  
+  // Cache for booking info to avoid repeated queries
+  const [bookingInfoCache, setBookingInfoCache] = useState<Record<string, BookingInfo>>({});
 
   // Calculate month range for fetching slots
   const monthStart = useMemo(() => {
@@ -62,6 +71,10 @@ export default function ReviewerAvailability() {
   // Mutations
   const createSlotsMutation = useCreateReviewerSlots();
   const deleteSlotMutation = useDeleteReviewerSlot();
+  const cancelBookedSlotMutation = useCancelBookedSlot();
+  
+  // Query for booking info when a booked slot is selected
+  const { data: fetchedBookingInfo } = useBookingForSlot(selectedBookedSlotId);
 
   // Convert existing slots to TimeSlot format for overlap checking
   const existingTimeslots: TimeSlot[] = useMemo(() => {
@@ -113,10 +126,48 @@ export default function ReviewerAvailability() {
     toast.info("Draft slot removed");
   }, []);
 
-  // Handle deleting an existing slot
+  // Handle deleting an existing open slot
   const handleDeleteExisting = useCallback((slotId: string) => {
     deleteSlotMutation.mutate(slotId);
   }, [deleteSlotMutation]);
+
+  // Handle cancelling a booked slot
+  const handleCancelBooked = useCallback((slotId: string) => {
+    if (!reviewer?.id) return;
+    cancelBookedSlotMutation.mutate(
+      { slotId, reviewerId: reviewer.id },
+      {
+        onSuccess: () => {
+          // Remove from cache
+          setBookingInfoCache(prev => {
+            const newCache = { ...prev };
+            delete newCache[slotId];
+            return newCache;
+          });
+        }
+      }
+    );
+  }, [reviewer?.id, cancelBookedSlotMutation]);
+
+  // Get booking info for a booked slot (with caching)
+  const getBookingInfo = useCallback((slotId: string): BookingInfo | null => {
+    // Check cache first
+    if (bookingInfoCache[slotId]) {
+      return bookingInfoCache[slotId];
+    }
+    
+    // If we're currently fetching this slot's info, use it
+    if (selectedBookedSlotId === slotId && fetchedBookingInfo) {
+      setBookingInfoCache(prev => ({ ...prev, [slotId]: fetchedBookingInfo }));
+      return fetchedBookingInfo;
+    }
+    
+    // Trigger fetch for this slot
+    setSelectedBookedSlotId(slotId);
+    
+    // Return null for now, will be available on next render
+    return null;
+  }, [bookingInfoCache, selectedBookedSlotId, fetchedBookingInfo]);
 
   // Handle clearing all draft slots
   const handleClearAllDrafts = useCallback(() => {
@@ -252,10 +303,13 @@ export default function ReviewerAvailability() {
               existingSlots={existingSlots}
               onRemoveDraft={handleRemoveDraft}
               onDeleteExisting={handleDeleteExisting}
+              onCancelBooked={handleCancelBooked}
               onClearAllDrafts={handleClearAllDrafts}
               onConfirmSelection={handleConfirmSelection}
               isSubmitting={createSlotsMutation.isPending}
               isDeletingSlot={deleteSlotMutation.isPending}
+              isCancellingBooked={cancelBookedSlotMutation.isPending}
+              getBookingInfo={getBookingInfo}
             />
           </div>
         </div>
