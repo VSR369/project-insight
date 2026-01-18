@@ -10,6 +10,7 @@
 
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentUserId } from '@/lib/auditFields';
+import { logWarning } from '@/lib/errorHandler';
 import type { Database } from '@/integrations/supabase/types';
 
 type LifecycleStatus = Database['public']['Enums']['lifecycle_status'];
@@ -81,7 +82,7 @@ export async function fetchProviderEnrollments(
   providerId: string
 ): Promise<EnrollmentWithDetails[]> {
   const { data, error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
@@ -103,7 +104,7 @@ export async function fetchEnrollment(
   enrollmentId: string
 ): Promise<EnrollmentWithDetails | null> {
   const { data, error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
@@ -127,7 +128,7 @@ export async function fetchActiveEnrollment(
 ): Promise<EnrollmentWithDetails | null> {
   // First try to get primary enrollment
   const { data: primary, error: primaryError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
@@ -142,7 +143,7 @@ export async function fetchActiveEnrollment(
 
   // Fall back to most recently created enrollment
   const { data: recent, error: recentError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
@@ -168,7 +169,7 @@ export async function createEnrollment(
 
   // Check if this is the first enrollment for the provider
   const { count, error: countError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select('id', { count: 'exact', head: true })
     .eq('provider_id', input.providerId);
 
@@ -180,7 +181,7 @@ export async function createEnrollment(
   // If setting as primary, unset existing primary first
   if (isPrimary && !isFirst) {
     const { error: unsetError } = await supabase
-      .from('provider_industry_enrollments' as any)
+      .from('provider_industry_enrollments')
       .update({ is_primary: false, updated_by: userId })
       .eq('provider_id', input.providerId)
       .eq('is_primary', true);
@@ -198,7 +199,7 @@ export async function createEnrollment(
   };
 
   const { data, error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .insert(enrollmentData)
     .select(`
       *,
@@ -222,7 +223,7 @@ export async function updateEnrollmentExpertise(
   if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update({
       expertise_level_id: expertiseLevelId,
       lifecycle_status: 'expertise_selected' as LifecycleStatus,
@@ -246,7 +247,7 @@ export async function updateEnrollmentLifecycle(
   if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update({
       lifecycle_status: lifecycleStatus,
       lifecycle_rank: lifecycleRank,
@@ -269,7 +270,7 @@ export async function setPrimaryEnrollment(
 
   // Unset any existing primary
   const { error: unsetError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update({ is_primary: false, updated_by: userId })
     .eq('provider_id', providerId)
     .eq('is_primary', true);
@@ -278,7 +279,7 @@ export async function setPrimaryEnrollment(
 
   // Set new primary
   const { error: setError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update({ is_primary: true, updated_by: userId })
     .eq('id', enrollmentId);
 
@@ -335,7 +336,7 @@ export async function getEnrollmentByIndustry(
   industrySegmentId: string
 ): Promise<EnrollmentWithDetails | null> {
   const { data, error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
@@ -367,7 +368,7 @@ export async function getEnrollmentByIndustry(
 export async function deleteEnrollment(enrollmentId: string): Promise<void> {
   // Fetch enrollment details
   const { data: enrollment, error: fetchError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select('is_primary, lifecycle_rank, provider_id, org_approval_status, industry_segment_id')
     .eq('id', enrollmentId)
     .single();
@@ -375,18 +376,16 @@ export async function deleteEnrollment(enrollmentId: string): Promise<void> {
   if (fetchError) throw fetchError;
   if (!enrollment) throw new Error('Enrollment not found');
 
-  const enrollmentData = enrollment as any;
-
   // Rule 1: Cannot delete primary
-  if (enrollmentData.is_primary) {
+  if (enrollment.is_primary) {
     throw new Error('Cannot delete primary industry enrollment. Set another industry as primary first.');
   }
 
   // Rule 2: Cannot delete only enrollment
   const { count, error: countError } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .select('id', { count: 'exact', head: true })
-    .eq('provider_id', enrollmentData.provider_id);
+    .eq('provider_id', enrollment.provider_id);
 
   if (countError) throw countError;
   if ((count ?? 0) <= 1) {
@@ -394,12 +393,12 @@ export async function deleteEnrollment(enrollmentId: string): Promise<void> {
   }
 
   // Rule 3: Cannot delete after assessment started
-  if (enrollmentData.lifecycle_rank >= 100) {
+  if (enrollment.lifecycle_rank >= 100) {
     throw new Error('Cannot delete enrollment after assessment has started. Contact support for assistance.');
   }
 
   // Rule 4: Cannot delete if org approval pending
-  if (enrollmentData.org_approval_status === 'pending') {
+  if (enrollment.org_approval_status === 'pending') {
     throw new Error('Cannot delete enrollment while manager approval is pending. Cancel the approval request first.');
   }
 
@@ -409,32 +408,56 @@ export async function deleteEnrollment(enrollmentId: string): Promise<void> {
     .from('proof_points')
     .delete()
     .eq('enrollment_id', enrollmentId);
-  if (ppError && ppError.code !== 'PGRST116') console.warn('Failed to delete proof points:', ppError);
+  if (ppError && ppError.code !== 'PGRST116') {
+    logWarning('Failed to delete proof points during enrollment cascade', { 
+      operation: 'deleteEnrollment.cascadeProofPoints', 
+      enrollmentId, 
+      additionalData: { error: ppError } 
+    });
+  }
 
   // Delete proficiency areas for this enrollment
   const { error: paError } = await supabase
     .from('provider_proficiency_areas')
     .delete()
     .eq('enrollment_id', enrollmentId);
-  if (paError && paError.code !== 'PGRST116') console.warn('Failed to delete proficiency areas:', paError);
+  if (paError && paError.code !== 'PGRST116') {
+    logWarning('Failed to delete proficiency areas during enrollment cascade', { 
+      operation: 'deleteEnrollment.cascadeProficiencyAreas', 
+      enrollmentId, 
+      additionalData: { error: paError } 
+    });
+  }
 
   // Delete specialities for this enrollment
   const { error: psError } = await supabase
     .from('provider_specialities')
     .delete()
     .eq('enrollment_id', enrollmentId);
-  if (psError && psError.code !== 'PGRST116') console.warn('Failed to delete specialities:', psError);
+  if (psError && psError.code !== 'PGRST116') {
+    logWarning('Failed to delete specialities during enrollment cascade', { 
+      operation: 'deleteEnrollment.cascadeSpecialities', 
+      enrollmentId, 
+      additionalData: { error: psError } 
+    });
+  }
 
   // Delete assessment attempts for this enrollment
   const { error: aaError } = await supabase
     .from('assessment_attempts')
     .delete()
     .eq('enrollment_id', enrollmentId);
-  if (aaError && aaError.code !== 'PGRST116') console.warn('Failed to delete assessment attempts:', aaError);
+  if (aaError && aaError.code !== 'PGRST116') {
+    logWarning('Failed to delete assessment attempts during enrollment cascade', { 
+      operation: 'deleteEnrollment.cascadeAssessmentAttempts', 
+      enrollmentId, 
+      additionalData: { error: aaError } 
+    });
+  }
 
   // Finally delete the enrollment
   const { error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .delete()
     .eq('id', enrollmentId);
 
@@ -452,7 +475,7 @@ export async function updateEnrollmentMode(
   if (!userId) throw new Error('Not authenticated');
 
   const { error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update({
       participation_mode_id: participationModeId,
       lifecycle_status: 'mode_selected' as LifecycleStatus,
@@ -483,7 +506,7 @@ export async function updateEnrollmentOrganization(
   const userId = await getCurrentUserId();
   if (!userId) throw new Error('Not authenticated');
 
-  const updateData: Record<string, any> = {
+  const updateData: Record<string, unknown> = {
     organization,
     updated_by: userId,
   };
@@ -501,7 +524,7 @@ export async function updateEnrollmentOrganization(
   }
 
   const { error } = await supabase
-    .from('provider_industry_enrollments' as any)
+    .from('provider_industry_enrollments')
     .update(updateData)
     .eq('id', enrollmentId);
 
