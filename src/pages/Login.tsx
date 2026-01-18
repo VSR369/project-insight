@@ -91,6 +91,9 @@ export default function Login() {
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
         const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer');
         
+      // Clear stale session storage on fresh login
+        sessionStorage.removeItem('activeEnrollmentId');
+        
         toast.success('Welcome back!');
         if (isPlatformAdmin) {
           navigate('/admin', { replace: true });

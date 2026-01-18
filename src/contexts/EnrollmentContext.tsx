@@ -94,11 +94,16 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
     }
   }, [enrollments, setActiveEnrollment]);
 
-  // Restore from sessionStorage on mount
+  // Restore from sessionStorage on mount (with cleanup of stale entries)
   useEffect(() => {
     const stored = sessionStorage.getItem('activeEnrollmentId');
-    if (stored && enrollments.some(e => e.id === stored)) {
-      setSelectedEnrollmentId(stored);
+    if (stored && enrollments.length > 0) {
+      if (enrollments.some(e => e.id === stored)) {
+        setSelectedEnrollmentId(stored);
+      } else {
+        // Stored enrollment no longer exists, clear it
+        sessionStorage.removeItem('activeEnrollmentId');
+      }
     }
   }, [enrollments]);
 

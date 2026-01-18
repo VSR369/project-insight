@@ -234,7 +234,8 @@ export default function Dashboard() {
   const totalProofPoints = proofPoints.length;
 
   // Check if user is a first-time user (no provider record yet)
-  const isFirstTimeUser = !provider && user;
+  // Only consider first-time if loading is complete AND no provider exists
+  const isFirstTimeUser = !isLoading && !enrollmentsLoading && !provider && !!user;
 
   return (
     <AppLayout>
