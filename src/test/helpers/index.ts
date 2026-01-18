@@ -5,3 +5,4 @@
  */
 
 export * from './testAuth';
+export * from './reviewerTestAuth';
