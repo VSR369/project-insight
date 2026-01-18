@@ -12,8 +12,19 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
+// Portal type for routing
+type PortalType = 'admin' | 'provider' | 'reviewer';
+
 // Development test accounts - only visible in dev mode
-const DEV_ACCOUNTS = [
+const DEV_ACCOUNTS: Array<{
+  role: string;
+  email: string;
+  password: string;
+  icon: typeof Shield;
+  description: string;
+  color: string;
+  portal: PortalType;
+}> = [
   {
     role: 'Platform Admin',
     email: 'admin@test.local',
@@ -21,6 +32,7 @@ const DEV_ACCOUNTS = [
     icon: Shield,
     description: 'Full system access',
     color: 'text-destructive',
+    portal: 'admin',
   },
   {
     role: 'Solution Provider',
@@ -29,6 +41,7 @@ const DEV_ACCOUNTS = [
     icon: User,
     description: 'Provider dashboard access',
     color: 'text-primary',
+    portal: 'provider',
   },
   {
     role: 'Panel Reviewer',
@@ -37,8 +50,16 @@ const DEV_ACCOUNTS = [
     icon: ClipboardCheck,
     description: 'Interview panel access',
     color: 'text-green-600',
+    portal: 'reviewer',
   },
 ];
+
+// Portal home routes
+const PORTAL_ROUTES: Record<PortalType, string> = {
+  admin: '/admin',
+  provider: '/dashboard',
+  reviewer: '/reviewer/dashboard',
+};
 
 const ROLE_DESTINATIONS = [
   {
@@ -68,15 +89,16 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDevAccounts, setShowDevAccounts] = useState(true);
+  const [desiredPortal, setDesiredPortal] = useState<PortalType | null>(null);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
-
-  // Redirect if already logged in
+  // Redirect if already logged in - honor active portal, not "from"
   if (user) {
-    navigate(from, { replace: true });
+    const activePortal = sessionStorage.getItem('activePortal') as PortalType | null;
+    const targetPath = activePortal ? PORTAL_ROUTES[activePortal] : '/dashboard';
+    navigate(targetPath, { replace: true });
     return null;
   }
 
@@ -133,25 +155,42 @@ export default function Login() {
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
         
-        toast.success('Welcome back!');
+        // Determine target portal with priority:
+        // 1. User's explicit choice from quick login or form
+        // 2. Fallback based on roles (admin > provider with record > reviewer)
+        let targetPortal: PortalType = 'provider'; // default
         
-        // Smart redirect priority:
-        // 1. Admin users go to admin dashboard
-        // 2. Users with provider records go to provider dashboard (even if they have reviewer role)
-        // 3. Pure reviewers (no provider record) go to reviewer dashboard
-        // 4. Default fallback
-        if (isPlatformAdmin) {
-          navigate('/admin', { replace: true });
-        } else if (isSolutionProvider && hasProviderRecord) {
-          navigate('/dashboard', { replace: true });
-        } else if (isPanelReviewer) {
-          navigate('/reviewer/dashboard', { replace: true });
+        if (desiredPortal) {
+          // Validate user has access to desired portal
+          const canAccessDesired = 
+            (desiredPortal === 'admin' && isPlatformAdmin) ||
+            (desiredPortal === 'provider' && isSolutionProvider && hasProviderRecord) ||
+            (desiredPortal === 'reviewer' && isPanelReviewer);
+          
+          if (canAccessDesired) {
+            targetPortal = desiredPortal;
+          } else {
+            toast.warning(`You don't have ${desiredPortal} access. Redirecting to available portal.`);
+            // Fall through to role-based selection
+            if (isPlatformAdmin) targetPortal = 'admin';
+            else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
+            else if (isPanelReviewer) targetPortal = 'reviewer';
+          }
         } else {
-          navigate(from, { replace: true });
+          // No explicit choice - use role priority
+          if (isPlatformAdmin) targetPortal = 'admin';
+          else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
+          else if (isPanelReviewer) targetPortal = 'reviewer';
         }
+        
+        // Persist portal choice for future sessions/refreshes
+        sessionStorage.setItem('activePortal', targetPortal);
+        
+        toast.success('Welcome back!');
+        navigate(PORTAL_ROUTES[targetPortal], { replace: true });
       } else {
         toast.success('Welcome back!');
-        navigate(from, { replace: true });
+        navigate('/dashboard', { replace: true });
       }
     } catch (err: unknown) {
       toast.error('An unexpected error occurred');
@@ -329,6 +368,8 @@ export default function Login() {
                       onClick={() => {
                         form.setValue('email', account.email);
                         form.setValue('password', account.password);
+                        // Set desired portal based on the quick login button clicked
+                        setDesiredPortal(account.portal);
                         toast.info(`Credentials filled for ${account.role}`);
                       }}
                       className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
