@@ -16,6 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   QUICK_TIME_PRESETS,
   DURATION_OPTIONS,
   HOUR_OPTIONS,
@@ -179,21 +185,28 @@ export function TimeSlotSelector({
         </div>
       </div>
 
-      {/* Add Button */}
-      <Button
-        onClick={handleAddSlot}
-        disabled={isAddDisabled}
-        className="w-full"
-      >
-        <Plus className="h-4 w-4 mr-2" />
-        Add Time Slot
-      </Button>
-
-      {isAddDisabled && (
-        <p className="text-xs text-muted-foreground text-center">
-          Select a date on the calendar to add slots
-        </p>
-      )}
+      {/* Add Button with Tooltip */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="w-full">
+              <Button
+                onClick={handleAddSlot}
+                disabled={isAddDisabled}
+                className="w-full"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Time Slot
+              </Button>
+            </div>
+          </TooltipTrigger>
+          {isAddDisabled && (
+            <TooltipContent>
+              <p>Select a date on the calendar first</p>
+            </TooltipContent>
+          )}
+        </Tooltip>
+      </TooltipProvider>
     </div>
   );
 }

@@ -110,6 +110,7 @@ export default function ReviewerAvailability() {
   // Handle removing a draft slot
   const handleRemoveDraft = useCallback((key: string) => {
     setDraftSlots((prev) => prev.filter((s) => s.key !== key));
+    toast.info("Draft slot removed");
   }, []);
 
   // Handle deleting an existing slot
@@ -254,6 +255,7 @@ export default function ReviewerAvailability() {
               onClearAllDrafts={handleClearAllDrafts}
               onConfirmSelection={handleConfirmSelection}
               isSubmitting={createSlotsMutation.isPending}
+              isDeletingSlot={deleteSlotMutation.isPending}
             />
           </div>
         </div>
