@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import type { Database } from '@/integrations/supabase/types';
 import { canModifyField } from '@/services/lifecycleService';
 import { withCreatedBy, withUpdatedBy, getCurrentUserId } from '@/lib/auditFields';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 
 type ProofPoint = Database['public']['Tables']['proof_points']['Row'];
 type ProofPointInsert = Database['public']['Tables']['proof_points']['Insert'];
@@ -253,7 +254,7 @@ async function updateEnrollmentLifecycleForProofPoints(
 
   const { count, error: countError } = await countQuery;
   if (countError) {
-    console.error('Error counting proof points:', countError);
+    logWarning('Error counting proof points', { operation: 'updateEnrollmentLifecycleForProofPoints', enrollmentId }, { error: countError });
     return;
   }
 
@@ -268,7 +269,7 @@ async function updateEnrollmentLifecycleForProofPoints(
     .single();
 
   if (enrollmentError || !enrollment) {
-    console.error('Error fetching enrollment:', enrollmentError);
+    logWarning('Error fetching enrollment', { operation: 'updateEnrollmentLifecycleForProofPoints', enrollmentId }, { error: enrollmentError });
     return;
   }
 
@@ -306,9 +307,7 @@ async function updateEnrollmentLifecycleForProofPoints(
       .eq('id', enrollmentId);
 
     if (updateError) {
-      console.error('Error updating enrollment lifecycle:', updateError);
-    } else {
-      console.log(`Enrollment ${enrollmentId} lifecycle updated to ${targetStatus} (rank ${targetRank})`);
+      logWarning('Error updating enrollment lifecycle', { operation: 'updateEnrollmentLifecycleForProofPoints', enrollmentId }, { targetStatus, error: updateError });
     }
   }
 }
@@ -393,8 +392,7 @@ export function useCreateProofPoint() {
       toast.success('Proof Point saved successfully');
     },
     onError: (error) => {
-      console.error('Error creating proof point:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to save proof point. Please try again.');
+      handleMutationError(error, { operation: 'createProofPoint' }, true);
     },
   });
 }
@@ -457,8 +455,7 @@ export function useUpdateProofPoint() {
       toast.success('Proof Point updated successfully');
     },
     onError: (error) => {
-      console.error('Error updating proof point:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update proof point. Please try again.');
+      handleMutationError(error, { operation: 'updateProofPoint' }, true);
     },
   });
 }
@@ -513,8 +510,7 @@ export function useDeleteProofPoint() {
       toast.success('Proof Point deleted');
     },
     onError: (error) => {
-      console.error('Error deleting proof point:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete proof point. Please try again.');
+      handleMutationError(error, { operation: 'deleteProofPoint' }, true);
     },
   });
 }
@@ -557,8 +553,7 @@ export function useAddProofPointLink() {
       queryClient.invalidateQueries({ queryKey: ['proof-point', result.proofPointId] });
     },
     onError: (error) => {
-      console.error('Error adding link:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to add link');
+      handleMutationError(error, { operation: 'addProofPointLink' }, true);
     },
   });
 }
@@ -621,8 +616,7 @@ export function useUploadProofPointFile() {
       toast.success('File uploaded successfully');
     },
     onError: (error) => {
-      console.error('Error uploading file:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to upload file');
+      handleMutationError(error, { operation: 'uploadProofPointFile' }, true);
     },
   });
 }
@@ -654,7 +648,7 @@ export function useDeleteProofPointFile() {
         .from('proof-point-files')
         .remove([storagePath]);
 
-      if (storageError) console.error('Storage delete error:', storageError);
+      if (storageError) logWarning('Storage delete error', { operation: 'deleteProofPointFile' }, { storagePath, error: storageError });
 
       // Delete record
       const { error } = await supabase
@@ -671,8 +665,7 @@ export function useDeleteProofPointFile() {
       toast.success('File deleted');
     },
     onError: (error) => {
-      console.error('Error deleting file:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to delete file');
+      handleMutationError(error, { operation: 'deleteProofPointFile' }, true);
     },
   });
 }

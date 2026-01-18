@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 interface SendCredentialsParams {
   providerId: string;
@@ -31,8 +32,7 @@ export function useSendManagerCredentials() {
       toast.success('Approval request sent to your manager');
     },
     onError: (error: Error) => {
-      console.error('Error sending manager credentials:', error);
-      toast.error(error.message || 'Failed to send approval request');
+      handleMutationError(error, { operation: 'sendManagerCredentials' }, true);
     },
   });
 }
@@ -56,8 +56,7 @@ export function useResendManagerCredentials() {
       toast.success('Approval request resent to your manager');
     },
     onError: (error: Error) => {
-      console.error('Error resending manager credentials:', error);
-      toast.error(error.message || 'Failed to resend approval request');
+      handleMutationError(error, { operation: 'resendManagerCredentials' }, true);
     },
   });
 }
@@ -89,8 +88,7 @@ export function useWithdrawApprovalRequest() {
       toast.success('Approval request withdrawn. You can now update your organization details.');
     },
     onError: (error: Error) => {
-      console.error('Error withdrawing approval request:', error);
-      toast.error(error.message || 'Failed to withdraw approval request');
+      handleMutationError(error, { operation: 'withdrawApprovalRequest' }, true);
     },
   });
 }

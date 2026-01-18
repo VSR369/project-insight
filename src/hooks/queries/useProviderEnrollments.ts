@@ -21,6 +21,7 @@ import {
   type EnrollmentWithDetails,
   type CreateEnrollmentInput,
 } from '@/services/enrollmentService';
+import { handleMutationError } from '@/lib/errorHandler';
 import type { Database } from '@/integrations/supabase/types';
 
 type LifecycleStatus = Database['public']['Enums']['lifecycle_status'];
@@ -87,8 +88,7 @@ export function useCreateEnrollment() {
       toast.success(`Enrolled in ${data.industry_segment?.name || 'new industry'} successfully`);
     },
     onError: (error) => {
-      console.error('Error creating enrollment:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to create enrollment');
+      handleMutationError(error, { operation: 'createEnrollment' }, true);
     },
   });
 }
@@ -108,8 +108,7 @@ export function useUpdateEnrollmentExpertise() {
       queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
     },
     onError: (error) => {
-      console.error('Error updating expertise:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update expertise level');
+      handleMutationError(error, { operation: 'updateEnrollmentExpertise' }, true);
     },
   });
 }
@@ -136,8 +135,7 @@ export function useUpdateEnrollmentLifecycle() {
       queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
     },
     onError: (error) => {
-      console.error('Error updating lifecycle:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update lifecycle status');
+      handleMutationError(error, { operation: 'updateEnrollmentLifecycle' }, true);
     },
   });
 }
@@ -157,8 +155,7 @@ export function useSetPrimaryEnrollment() {
       toast.success('Primary industry updated');
     },
     onError: (error) => {
-      console.error('Error setting primary:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to set primary industry');
+      handleMutationError(error, { operation: 'setPrimaryEnrollment' }, true);
     },
   });
 }
@@ -189,8 +186,7 @@ export function useDeleteEnrollment() {
       toast.success('Industry enrollment removed');
     },
     onError: (error) => {
-      console.error('Error deleting enrollment:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to remove enrollment');
+      handleMutationError(error, { operation: 'deleteEnrollment' }, true);
     },
   });
 }
