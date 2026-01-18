@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, LoginFormData } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -29,6 +29,14 @@ const DEV_ACCOUNTS = [
     icon: User,
     description: 'Provider dashboard access',
     color: 'text-primary',
+  },
+  {
+    role: 'Panel Reviewer',
+    email: 'reviewer@test.local',
+    password: 'Reviewer123!',
+    icon: ClipboardCheck,
+    description: 'Interview panel access',
+    color: 'text-green-600',
   },
 ];
 
@@ -81,9 +89,16 @@ export default function Login() {
           .eq('user_id', session.session.user.id);
         
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
+        const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer');
         
         toast.success('Welcome back!');
-        navigate(isPlatformAdmin ? '/admin' : from, { replace: true });
+        if (isPlatformAdmin) {
+          navigate('/admin', { replace: true });
+        } else if (isPanelReviewer) {
+          navigate('/reviewer/dashboard', { replace: true });
+        } else {
+          navigate(from, { replace: true });
+        }
       } else {
         toast.success('Welcome back!');
         navigate(from, { replace: true });
@@ -225,7 +240,7 @@ export default function Login() {
           </CardHeader>
           {showDevAccounts && (
             <CardContent className="pt-2">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 {DEV_ACCOUNTS.map((account) => {
                   const Icon = account.icon;
                   return (
