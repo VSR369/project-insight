@@ -102,7 +102,7 @@ export function RoleSwitcher() {
     );
   }
 
-  const handleSwitch = (portal: PortalOption) => {
+  const handleSwitch = async (portal: PortalOption) => {
     if (portal.id === currentPortal.id) return;
     
     // Persist portal choice so refresh/login honors it
@@ -112,12 +112,23 @@ export function RoleSwitcher() {
     // Each portal context may have different enrollment data
     sessionStorage.removeItem('activeEnrollmentId');
     
-    // CRITICAL: When switching TO provider portal, invalidate provider-related queries
-    // to ensure fresh data is fetched for the current user
+    // CRITICAL: When switching TO provider portal, REMOVE queries first then refetch
+    // invalidateQueries doesn't guarantee immediate refetch - we need fresh data NOW
     if (portal.id === 'provider') {
-      queryClient.invalidateQueries({ queryKey: ['current-provider'] });
-      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
-      queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
+      // Remove cached data entirely to force fresh fetch
+      queryClient.removeQueries({ queryKey: ['current-provider'] });
+      queryClient.removeQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.removeQueries({ queryKey: ['active-enrollment'] });
+      queryClient.removeQueries({ queryKey: ['proof-points'] });
+      queryClient.removeQueries({ queryKey: ['proof-points-count'] });
+      queryClient.removeQueries({ queryKey: ['enrollment-assessment-status'] });
+      queryClient.removeQueries({ queryKey: ['enrollment-interview-booking'] });
+      
+      // Force immediate refetch of critical data before navigation
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ['current-provider'] }),
+        queryClient.refetchQueries({ queryKey: ['provider-enrollments'] }),
+      ]);
     }
     
     navigate(portal.path);
