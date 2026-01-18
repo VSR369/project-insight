@@ -365,12 +365,15 @@ export default function Login() {
                     <button
                       key={account.role}
                       type="button"
+                      disabled={isLoading}
                       onClick={() => {
+                        // Set desired portal first
+                        setDesiredPortal(account.portal);
+                        // Fill credentials
                         form.setValue('email', account.email);
                         form.setValue('password', account.password);
-                        // Set desired portal based on the quick login button clicked
-                        setDesiredPortal(account.portal);
-                        toast.info(`Credentials filled for ${account.role}`);
+                        // Auto-submit the form for instant login
+                        form.handleSubmit(onSubmit)();
                       }}
                       className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
                     >
