@@ -144,6 +144,42 @@ export type Database = {
           },
         ]
       }
+      admin_access_codes: {
+        Row: {
+          code_hash: string
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          expires_at: string | null
+          id: string
+          is_used: boolean | null
+          used_at: string | null
+          used_by: string | null
+        }
+        Insert: {
+          code_hash: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Update: {
+          code_hash?: string
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          is_used?: boolean | null
+          used_at?: string | null
+          used_by?: string | null
+        }
+        Relationships: []
+      }
       assessment_attempt_responses: {
         Row: {
           answered_at: string | null
@@ -846,12 +882,17 @@ export type Database = {
       }
       panel_reviewers: {
         Row: {
+          approval_notes: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           created_at: string | null
           created_by: string | null
           email: string
+          enrollment_source: string | null
           expertise_level_ids: string[]
           id: string
           industry_segment_ids: string[]
@@ -872,15 +913,21 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
+          why_join_statement: string | null
           years_experience: number | null
         }
         Insert: {
+          approval_notes?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           created_at?: string | null
           created_by?: string | null
           email: string
+          enrollment_source?: string | null
           expertise_level_ids?: string[]
           id?: string
           industry_segment_ids?: string[]
@@ -901,15 +948,21 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          why_join_statement?: string | null
           years_experience?: number | null
         }
         Update: {
+          approval_notes?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           created_at?: string | null
           created_by?: string | null
           email?: string
+          enrollment_source?: string | null
           expertise_level_ids?: string[]
           id?: string
           industry_segment_ids?: string[]
@@ -930,6 +983,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
+          why_join_statement?: string | null
           years_experience?: number | null
         }
         Relationships: []

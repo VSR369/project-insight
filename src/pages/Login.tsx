@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, LoginFormData } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,30 @@ const DEV_ACCOUNTS = [
     icon: ClipboardCheck,
     description: 'Interview panel access',
     color: 'text-green-600',
+  },
+];
+
+const ROLE_DESTINATIONS = [
+  {
+    role: 'Platform Admin',
+    icon: Shield,
+    destination: 'Admin Dashboard',
+    description: 'Manage users, master data, and system settings',
+    color: 'text-destructive',
+  },
+  {
+    role: 'Panel Reviewer',
+    icon: ClipboardCheck,
+    destination: 'Reviewer Dashboard',
+    description: 'Manage availability, conduct interviews',
+    color: 'text-green-600',
+  },
+  {
+    role: 'Solution Provider',
+    icon: Briefcase,
+    destination: 'Provider Dashboard',
+    description: 'Track enrollments, submit proof points',
+    color: 'text-primary',
   },
 ];
 
@@ -91,7 +115,7 @@ export default function Login() {
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
         const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer');
         
-      // Clear stale session storage on fresh login
+        // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
         
         toast.success('Welcome back!');
@@ -118,14 +142,14 @@ export default function Login() {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-foreground">CogniBlend</h1>
-          <p className="text-muted-foreground mt-2">Solution Provider Platform</p>
+          <p className="text-muted-foreground mt-2">Co-Innovation Platform</p>
         </div>
 
         <Card className="border-border/50 shadow-lg">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-semibold text-center">Welcome Back</CardTitle>
+            <CardTitle className="text-2xl font-semibold text-center">Sign In to CogniBlend</CardTitle>
             <CardDescription className="text-center">
-              Sign in to your account to continue
+              Access your portal based on your role
             </CardDescription>
           </CardHeader>
 
@@ -207,15 +231,44 @@ export default function Login() {
                   Sign In
                 </Button>
 
-              <p className="text-sm text-center text-muted-foreground">
+                <p className="text-sm text-center text-muted-foreground">
                   Don't have an account?{' '}
                   <Link to="/register" className="text-primary hover:underline font-medium">
-                    Create account
+                    Sign up as Provider, Reviewer, or Admin
                   </Link>
                 </p>
               </CardFooter>
             </form>
           </Form>
+        </Card>
+
+        {/* Role Guidance Section */}
+        <Card className="border-border/50 mt-4">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Where will I go after login?
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="space-y-3">
+              {ROLE_DESTINATIONS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <div key={item.role} className="flex items-start gap-3">
+                    <Icon className={`h-4 w-4 mt-0.5 ${item.color}`} />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {item.role} → {item.destination}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {item.description}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
         </Card>
 
         {/* Quick Login Section - Test Accounts */}
