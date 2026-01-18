@@ -126,7 +126,7 @@ export default function InterviewScheduling() {
   // Loading state
   if (isLoading) {
     return (
-      <WizardLayout currentStep={6}>
+      <WizardLayout currentStep={7}>
         <div className="flex items-center justify-center h-64">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -137,7 +137,7 @@ export default function InterviewScheduling() {
   // Gate: Not eligible (assessment not passed)
   if (!isEligible) {
     return (
-      <WizardLayout currentStep={6}>
+      <WizardLayout currentStep={7}>
         <div className="max-w-2xl mx-auto">
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
@@ -160,7 +160,7 @@ export default function InterviewScheduling() {
   // Show existing booking (not rescheduling mode)
   if (existingBooking && !isRescheduling) {
     return (
-      <WizardLayout currentStep={6}>
+      <WizardLayout currentStep={7}>
         <div className="max-w-2xl mx-auto space-y-6">
           {/* Header */}
           <div className="text-center space-y-2">
@@ -206,7 +206,7 @@ export default function InterviewScheduling() {
 
   // Main scheduling UI
   return (
-    <WizardLayout currentStep={6}>
+    <WizardLayout currentStep={7}>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

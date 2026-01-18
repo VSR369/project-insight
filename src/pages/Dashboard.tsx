@@ -102,9 +102,15 @@ export default function Dashboard() {
         return 'Continue assessment';
       case 'assessment_passed':
         return 'Schedule panel interview';
+      case 'panel_scheduled':
+        return 'Prepare for panel interview';
+      case 'panel_completed':
+        return 'View certification status';
       case 'verified':
       case 'certified':
         return null; // Complete
+      case 'not_verified':
+        return 'Review certification status';
       default:
         return 'Continue setup';
     }

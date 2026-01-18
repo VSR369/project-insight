@@ -1,53 +1,54 @@
 /**
  * Panel Discussion Page
  * 
- * Placeholder page for Step 8 of enrollment - Panel Interview stage
+ * Step 8 of enrollment - Panel Interview stage
  * Shown when lifecycle_status = 'panel_scheduled'
  */
 
 import { useNavigate } from 'react-router-dom';
+import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, ArrowLeft, CheckCircle2, Info } from 'lucide-react';
+import { Calendar, Clock, Users, CheckCircle2, Info, Loader2, Video } from 'lucide-react';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useExistingBooking } from '@/hooks/queries/useInterviewScheduling';
 import { format } from 'date-fns';
-import { Loader2 } from 'lucide-react';
 
 export default function PanelDiscussion() {
   const navigate = useNavigate();
-  const { activeEnrollment } = useEnrollmentContext();
+  const { activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
   
   const { data: booking, isLoading } = useExistingBooking(
-    activeEnrollment?.id,
+    activeEnrollmentId,
     activeEnrollment?.provider_id
   );
 
+  const handleContinue = () => {
+    navigate('/enroll/certification');
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <WizardLayout currentStep={8} hideContinueButton>
+        <div className="flex items-center justify-center h-64">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </WizardLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto py-12 px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-foreground">Panel Interview</h1>
+    <WizardLayout
+      currentStep={8}
+      onContinue={handleContinue}
+      continueLabel="View Certification"
+    >
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Panel Interview</h1>
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               Step 8 of 9
             </Badge>
@@ -58,7 +59,7 @@ export default function PanelDiscussion() {
         </div>
 
         {/* Interview Status Card */}
-        <Card className="mb-6">
+        <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-primary" />
@@ -96,6 +97,14 @@ export default function PanelDiscussion() {
                       </p>
                     </div>
                   </div>
+                </div>
+
+                {/* Join Interview Button (placeholder) */}
+                <div className="pt-4 border-t">
+                  <Button disabled className="w-full sm:w-auto gap-2">
+                    <Video className="h-4 w-4" />
+                    Join Interview (Available on scheduled date)
+                  </Button>
                 </div>
               </div>
             ) : (
@@ -145,6 +154,6 @@ export default function PanelDiscussion() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </WizardLayout>
   );
 }
