@@ -11,11 +11,12 @@
 import { supabase } from '@/integrations/supabase/client';
 import { getCurrentUserId } from '@/lib/auditFields';
 import { handleMutationError } from '@/lib/errorHandler';
-
-// Assessment configuration
-const DEFAULT_TIME_LIMIT_MINUTES = 60;
-const DEFAULT_QUESTIONS_PER_ASSESSMENT = 20;
-const PASSING_SCORE_PERCENTAGE = 70;
+import {
+  DEFAULT_TIME_LIMIT_MINUTES,
+  DEFAULT_QUESTIONS_PER_ASSESSMENT,
+  PASSING_SCORE_PERCENTAGE,
+  ASSESSMENT_LIFECYCLE,
+} from '@/constants/assessment.constants';
 
 export interface StartAssessmentInput {
   providerId: string;
