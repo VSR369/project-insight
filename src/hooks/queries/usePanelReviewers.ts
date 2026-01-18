@@ -274,7 +274,7 @@ export function usePanelReviewerStats() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("invitation_status, is_active");
+        .select("invitation_status, is_active, enrollment_source");
 
       if (error) throw new Error(error.message);
 
@@ -286,6 +286,62 @@ export function usePanelReviewerStats() {
         pending: data.filter(r => r.invitation_status === "PENDING").length,
         sent: data.filter(r => r.invitation_status === "SENT").length,
         accepted: data.filter(r => r.invitation_status === "ACCEPTED").length,
+        expired: data.filter(r => r.invitation_status === "EXPIRED").length,
+        cancelled: data.filter(r => r.invitation_status === "CANCELLED").length,
+        declined: data.filter(r => r.invitation_status === "DECLINED").length,
+      };
+
+      return stats;
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Fetch invited reviewers (enrollment_source = 'invitation') with optional status filter
+ */
+export function useInvitedReviewers(statusFilter?: string) {
+  return useQuery({
+    queryKey: ["panel-reviewers", "invited", statusFilter],
+    queryFn: async () => {
+      let query = supabase
+        .from("panel_reviewers")
+        .select("*")
+        .eq("enrollment_source", "invitation")
+        .order("created_at", { ascending: false });
+
+      if (statusFilter) {
+        query = query.eq("invitation_status", statusFilter);
+      }
+
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data as PanelReviewer[];
+    },
+    staleTime: 30000,
+  });
+}
+
+/**
+ * Get invitation statistics for the Invitations tab
+ */
+export function useInvitationStats() {
+  return useQuery({
+    queryKey: ["panel-reviewers", "invitation-stats"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("panel_reviewers")
+        .select("invitation_status")
+        .eq("enrollment_source", "invitation");
+
+      if (error) throw new Error(error.message);
+
+      const stats = {
+        totalInvited: data.length,
+        draft: data.filter(r => r.invitation_status === "DRAFT").length,
+        sent: data.filter(r => r.invitation_status === "SENT").length,
+        accepted: data.filter(r => r.invitation_status === "ACCEPTED").length,
+        declined: data.filter(r => r.invitation_status === "DECLINED").length,
         expired: data.filter(r => r.invitation_status === "EXPIRED").length,
         cancelled: data.filter(r => r.invitation_status === "CANCELLED").length,
       };

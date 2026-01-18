@@ -3,9 +3,14 @@ import { AdminLayout } from "@/components/admin";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePendingReviewers, useReviewerApprovalHistory } from "@/hooks/queries/usePanelReviewers";
+import { 
+  usePendingReviewers, 
+  useReviewerApprovalHistory,
+  useInvitationStats 
+} from "@/hooks/queries/usePanelReviewers";
 import { PendingReviewerCard } from "./PendingReviewerCard";
 import { ApprovalHistoryTable } from "./ApprovalHistoryTable";
+import { InvitationStatusTab } from "./InvitationStatusTab";
 
 export function ReviewerApprovalsPage() {
   const [activeTab, setActiveTab] = useState("pending");
@@ -13,18 +18,20 @@ export function ReviewerApprovalsPage() {
   const { data: pendingReviewers, isLoading: pendingLoading } = usePendingReviewers();
   const { data: approvedReviewers, isLoading: approvedLoading } = useReviewerApprovalHistory("approved");
   const { data: rejectedReviewers, isLoading: rejectedLoading } = useReviewerApprovalHistory("rejected");
+  const { data: invitationStats, isLoading: invitationStatsLoading } = useInvitationStats();
 
   const pendingCount = pendingReviewers?.length || 0;
   const approvedCount = approvedReviewers?.length || 0;
   const rejectedCount = rejectedReviewers?.length || 0;
+  const invitedCount = invitationStats?.totalInvited || 0;
 
   return (
     <AdminLayout
-      title="Reviewer Approvals"
-      description="Review and approve/reject self-signup reviewer applications"
+      title="Reviewer Management"
+      description="Manage reviewer applications, invitations, and approvals"
       breadcrumbs={[
         { label: "Admin", href: "/admin" },
-        { label: "Reviewer Approvals" },
+        { label: "Reviewer Management" },
       ]}
     >
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
@@ -34,6 +41,14 @@ export function ReviewerApprovalsPage() {
             {pendingCount > 0 && (
               <Badge variant="destructive" className="ml-1 h-5 min-w-5 px-1">
                 {pendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger value="invitations" className="gap-2">
+            Invitations
+            {!invitationStatsLoading && invitedCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 px-1">
+                {invitedCount}
               </Badge>
             )}
           </TabsTrigger>
@@ -75,6 +90,10 @@ export function ReviewerApprovalsPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="invitations">
+          <InvitationStatusTab />
         </TabsContent>
 
         <TabsContent value="approved">
