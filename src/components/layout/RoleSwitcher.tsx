@@ -73,8 +73,8 @@ export function RoleSwitcher() {
     return false;
   });
 
-  // Don't show if only one portal available or still loading
-  if (isLoading || availablePortals.length <= 1) {
+  // Don't show if no portals available or still loading
+  if (isLoading || availablePortals.length === 0) {
     return null;
   }
 
