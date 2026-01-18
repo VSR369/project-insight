@@ -107,20 +107,43 @@ export default function Login() {
       // Fetch user roles to determine redirect destination
       const { data: session } = await supabase.auth.getSession();
       if (session?.session?.user) {
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('role')
-          .eq('user_id', session.session.user.id);
+        const userId = session.session.user.id;
+        
+        // Fetch roles and provider record in parallel
+        const [rolesResult, providerResult] = await Promise.all([
+          supabase
+            .from('user_roles')
+            .select('role')
+            .eq('user_id', userId),
+          supabase
+            .from('solution_providers')
+            .select('id')
+            .eq('user_id', userId)
+            .maybeSingle()
+        ]);
+        
+        const roles = rolesResult.data;
+        const providerRecord = providerResult.data;
         
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
         const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer');
+        const isSolutionProvider = roles?.some(r => r.role === 'solution_provider');
+        const hasProviderRecord = !!providerRecord;
         
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
         
         toast.success('Welcome back!');
+        
+        // Smart redirect priority:
+        // 1. Admin users go to admin dashboard
+        // 2. Users with provider records go to provider dashboard (even if they have reviewer role)
+        // 3. Pure reviewers (no provider record) go to reviewer dashboard
+        // 4. Default fallback
         if (isPlatformAdmin) {
           navigate('/admin', { replace: true });
+        } else if (isSolutionProvider && hasProviderRecord) {
+          navigate('/dashboard', { replace: true });
         } else if (isPanelReviewer) {
           navigate('/reviewer/dashboard', { replace: true });
         } else {
