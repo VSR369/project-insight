@@ -42,6 +42,9 @@ interface EnrollmentContextType {
   
   /** Refresh enrollments data */
   refreshEnrollments: () => void;
+  
+  /** PHASE D: Whether context is fully loaded and consistent (safe to render wizard) */
+  contextReady: boolean;
 }
 
 const EnrollmentContext = createContext<EnrollmentContextType | undefined>(undefined);
@@ -213,6 +216,20 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
   // Get lifecycle info from active enrollment, fallback to provider
   const activeLifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
   const activeLifecycleStatus = activeEnrollment?.lifecycle_status ?? provider?.lifecycle_status ?? null;
+  
+  // PHASE D: Context ready flag - true when all data is loaded and consistent
+  // This ensures wizard doesn't render with stale/incomplete data during portal switches
+  const contextReady = useMemo(() => {
+    // Must have provider loaded
+    if (providerLoading || !provider) return false;
+    // Must have enrollments loaded (even if empty)
+    if (enrollmentsLoading) return false;
+    // If we have enrollments, we need a valid active selection
+    if (enrollments.length > 0 && !activeEnrollment) return false;
+    // If we have an active enrollment, it must exist in our enrollments list
+    if (activeEnrollment && !enrollments.some(e => e.id === activeEnrollment.id)) return false;
+    return true;
+  }, [providerLoading, provider, enrollmentsLoading, enrollments, activeEnrollment]);
 
   const value: EnrollmentContextType = {
     enrollments,
@@ -226,6 +243,7 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
     activeLifecycleRank,
     activeLifecycleStatus,
     refreshEnrollments,
+    contextReady,
   };
 
   return (

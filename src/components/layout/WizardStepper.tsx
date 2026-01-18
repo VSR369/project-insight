@@ -128,14 +128,14 @@ export function WizardStepper({
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
             const isAccessible = accessibleSteps.includes(step.id);
             
-            // UNIFIED NAVIGATION: Locked steps ARE clickable if completed (view mode)
-            // This allows users to review their data even after lifecycle locks it
-            // - Locked + Completed = clickable (view-only mode)
+            // PHASE A FIX: Completed steps are ALWAYS clickable, regardless of lock state
+            // This ensures users can always review their data even after lifecycle advances
+            // - Completed (any lock state) = clickable
+            // - Current step = clickable
+            // - Next accessible step = clickable
             // - Locked + Not Completed = NOT clickable (truly blocked)
-            // - Not Locked + Completed = clickable (edit mode)
-            // - Current step and next accessible = clickable
             const isViewOnlyStep = isLocked && isCompleted;
-            const isClickable = isViewOnlyStep || (!isLocked && (isCompleted || isCurrent || isNextAccessible));
+            const isClickable = isCompleted || isCurrent || isNextAccessible;
             
             // Completed but not accessible (blocked by earlier incomplete step)
             // Only apply to FUTURE steps - past completed steps should always be navigable
@@ -293,9 +293,9 @@ export function WizardStepper({
             const isLocked = lockedSteps.includes(step.id);
             const isNextAccessible = step.id === nextAccessibleStep && !isCompleted && !isCurrent;
             
-            // UNIFIED: Locked + Completed = view-only clickable
+            // PHASE A FIX: Completed steps are ALWAYS clickable (mobile too)
             const isViewOnlyStep = isLocked && isCompleted;
-            const isClickable = isViewOnlyStep || (!isLocked && (isCompleted || isCurrent || isNextAccessible));
+            const isClickable = isCompleted || isCurrent || isNextAccessible;
 
               return (
                 <div

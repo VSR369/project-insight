@@ -163,7 +163,8 @@ export function WizardLayout({
   // Get lifecycle rank for step completion checks
   const lifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
 
-  // Calculate completed steps based on ACTUAL DATA, not just onboarding_status
+  // Calculate completed steps based on ACTUAL DATA with lifecycle fallback (Phase B)
+  // This ensures steps show as completed even if completion queries are stale
   const completedSteps = useMemo(() => {
     const completed: number[] = [];
     if (!provider) return completed;
@@ -194,18 +195,25 @@ export function WizardLayout({
       completed.push(4);
     }
 
-    // Step 5: Proof Points - at least one exists
-    if (proofPointsCount > 0) {
+    // PHASE B: Lifecycle-based fallback for steps 5-7
+    // If lifecycle has advanced beyond these steps, they MUST be complete
+    const lifecycleStatus = activeEnrollment?.lifecycle_status ?? '';
+    
+    // Step 5: Proof Points - data check OR lifecycle fallback
+    // proof_points_min_met (rank 50) or beyond means step 5 is complete
+    if (proofPointsCount > 0 || lifecycleRank >= (LIFECYCLE_RANKS.proof_points_min_met ?? 50)) {
       completed.push(5);
     }
 
-    // Step 6: Assessment - passed
-    if (assessmentResult?.is_passed) {
+    // Step 6: Assessment - data check OR lifecycle fallback
+    // assessment_passed (rank 105) or beyond means step 6 is complete
+    if (assessmentResult?.is_passed || lifecycleRank >= (LIFECYCLE_RANKS.assessment_passed ?? 105)) {
       completed.push(6);
     }
 
-    // Step 7: Interview Slot - booked
-    if (interviewBooking?.id) {
+    // Step 7: Interview Slot - data check OR lifecycle fallback
+    // panel_scheduled (rank 110) or beyond means step 7 is complete
+    if (interviewBooking?.id || lifecycleRank >= (LIFECYCLE_RANKS.panel_scheduled ?? 110)) {
       completed.push(7);
     }
 
@@ -323,6 +331,20 @@ export function WizardLayout({
   }, [isOrgRequired, activeEnrollment?.organization, orgApprovalStatus]);
 
   const handleStepClick = (stepId: number) => {
+    // PHASE C: Add diagnostic logging for step navigation debugging
+    console.log('[WizardStepper] Step click:', {
+      targetStep: stepId,
+      currentStep,
+      enrollmentId: activeEnrollmentId,
+      lifecycleStatus: activeEnrollment?.lifecycle_status,
+      lifecycleRank,
+      completedSteps,
+      lockedSteps,
+      proofPointsCount,
+      assessmentPassed: assessmentResult?.is_passed,
+      interviewBooked: !!interviewBooking?.id,
+    });
+    
     // Block navigation to step 2 (Mode) ONLY if pending approval exists
     // This is the only true navigation block - prevents changing mode while approval is pending
     if (stepId === 2 && isModeStepBlocked) {
