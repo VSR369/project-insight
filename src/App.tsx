@@ -36,6 +36,8 @@ import {
   OrganizationPending,
   OrganizationDeclined,
   InterviewScheduling,
+  PanelDiscussion,
+  Certification,
 } from "@/pages/enroll";
 
 // Manager Portal (public pages)
@@ -237,6 +239,26 @@ const App = () => (
                 <AuthGuard>
                   <EnrollmentRequiredGuard>
                     <InterviewScheduling />
+                  </EnrollmentRequiredGuard>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/panel-discussion"
+              element={
+                <AuthGuard>
+                  <EnrollmentRequiredGuard>
+                    <PanelDiscussion />
+                  </EnrollmentRequiredGuard>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/certification"
+              element={
+                <AuthGuard>
+                  <EnrollmentRequiredGuard>
+                    <Certification />
                   </EnrollmentRequiredGuard>
                 </AuthGuard>
               }

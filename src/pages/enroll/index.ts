@@ -12,3 +12,5 @@ export { default as AddProofPoint } from './AddProofPoint';
 export { default as OrganizationPending } from './OrganizationPending';
 export { default as OrganizationDeclined } from './OrganizationDeclined';
 export { default as InterviewScheduling } from './InterviewScheduling';
+export { default as PanelDiscussion } from './PanelDiscussion';
+export { default as Certification } from './Certification';
