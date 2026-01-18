@@ -1,7 +1,7 @@
 # Project Knowledge Addendum: Retrofit Patterns & Standards
 
-**Version:** 1.0 | **Date:** January 2026  
-**Based on:** Service Layer Retrofit & Code Quality Improvements
+**Version:** 2.0 | **Date:** January 2026  
+**Based on:** Service Layer Retrofit, Code Quality Improvements & Gap Analysis
 
 ---
 
@@ -66,37 +66,29 @@ import { LIFECYCLE_RANKS, LOCK_THRESHOLDS } from '@/constants';
 
 ---
 
-## 2. REACT QUERY gcTime CONFIGURATION
+## 2. REACT QUERY CACHE CONFIGURATION
 
-### Reference Data Caching
-For master data and lookup tables that rarely change, use extended cache times:
+### gcTime vs staleTime
 
-```typescript
-// Standard gcTime for reference data hooks
-export function useCountries() {
-  return useQuery({
-    queryKey: ["countries"],
-    queryFn: async () => { /* ... */ },
-    gcTime: 30 * 60 * 1000,  // 30 minutes - data rarely changes
-  });
-}
-```
+| Setting | Purpose | Default | When to Customize |
+|---------|---------|---------|-------------------|
+| `staleTime` | How long data is "fresh" before refetch on mount | 0 | User-facing data that updates semi-frequently |
+| `gcTime` | How long inactive cache is kept before garbage collection | 5 min | Reference/master data |
 
-### gcTime Guidelines
+### Cache Configuration Guidelines
 
-| Data Type | gcTime | Rationale |
-|-----------|--------|-----------|
-| Countries, Industries | 30 min | Static reference data |
-| Expertise Levels | 30 min | Rarely modified |
-| Organization Types | 30 min | Admin-controlled |
-| Participation Modes | 30 min | Fixed set |
-| Capability Tags | 30 min | Infrequent changes |
-| Academic Taxonomy | 30 min | Hierarchical, stable |
-| Proficiency Taxonomy | 30 min | Hierarchical, stable |
-| User-specific data | 5 min (default) | More dynamic |
-| Real-time data | 0 or default | Always fresh |
+| Data Type | staleTime | gcTime | Rationale |
+|-----------|-----------|--------|-----------|
+| Countries, Industries | 5 min | 30 min | Static reference data |
+| Expertise Levels | 5 min | 30 min | Rarely modified |
+| Organization Types | 5 min | 30 min | Admin-controlled |
+| Participation Modes | 5 min | 30 min | Fixed set |
+| Capability Tags | 5 min | 30 min | Infrequent changes |
+| Academic/Proficiency Taxonomy | 5 min | 30 min | Hierarchical, stable |
+| User-specific data | 30 sec | 5 min | More dynamic |
+| Real-time data | 0 | default | Always fresh |
 
-### Pattern for All Master Data Hooks
+### Pattern for Reference Data Hooks
 ```typescript
 import { useQuery } from "@tanstack/react-query";
 
@@ -113,7 +105,8 @@ export function useMasterDataEntity() {
       if (error) throw new Error(error.message);
       return data;
     },
-    gcTime: 30 * 60 * 1000,  // 30 minutes for reference data
+    staleTime: 5 * 60 * 1000,   // 5 minutes - consider fresh
+    gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache
   });
 }
 ```
@@ -167,9 +160,11 @@ export type * from './bigService/types';
 ### Required Imports
 ```typescript
 import { 
-  handleMutationError, 
+  handleMutationError,
+  handleQueryError,
   logWarning, 
-  logInfo 
+  logInfo,
+  logAuditEvent
 } from "@/lib/errorHandler";
 ```
 
@@ -189,6 +184,15 @@ export function useCreateEntity() {
 }
 ```
 
+### Query Error Handling
+```typescript
+// For read operations - less intrusive than mutation errors
+handleQueryError(error, {
+  operation: 'fetch_entities',
+  component: 'EntityList',
+}, false);  // showToast = false for silent handling
+```
+
 ### Non-Fatal Warning Logging
 ```typescript
 // Instead of console.warn
@@ -205,6 +209,16 @@ logInfo("Assessment submitted successfully", {
   operation: 'submit_assessment',
   component: 'AssessmentPage',
 });
+```
+
+### Audit Event Logging (CRITICAL OPERATIONS)
+```typescript
+// For security-sensitive or compliance-critical operations
+logAuditEvent('user_role_changed', {
+  targetUserId: userId,
+  previousRole: 'viewer',
+  newRole: 'admin',
+}, currentUserId);
 ```
 
 ### Anti-Patterns (DO NOT USE)
@@ -325,7 +339,323 @@ export function useCreateEntity() {
 
 ---
 
-## 7. CHECKLIST: Code Quality Retrofit
+## 7. AUDIT FIELDS UTILITY PATTERN
+
+### Location
+`src/lib/auditFields.ts`
+
+### Available Functions
+
+```typescript
+// Get current authenticated user ID
+export async function getCurrentUserId(): Promise<string | null>
+
+// Add created_by field for INSERT operations
+export async function withCreatedBy<T extends object>(data: T): Promise<T & { created_by: string | null }>
+
+// Add updated_by field for UPDATE operations  
+export async function withUpdatedBy<T extends object>(data: T): Promise<T & { updated_by: string | null }>
+```
+
+### Usage in Mutation Hooks
+
+**CREATE operations:**
+```typescript
+mutationFn: async (data: EntityInsert) => {
+  const dataWithAudit = await withCreatedBy(data);
+  const { data: result, error } = await supabase
+    .from("table_name")
+    .insert(dataWithAudit)
+    .select()
+    .single();
+  // ...
+}
+```
+
+**UPDATE operations:**
+```typescript
+mutationFn: async ({ id, ...updates }: EntityUpdate & { id: string }) => {
+  const updatesWithAudit = await withUpdatedBy(updates);
+  const { data: result, error } = await supabase
+    .from("table_name")
+    .update(updatesWithAudit)
+    .eq("id", id)
+    .select()
+    .single();
+  // ...
+}
+```
+
+**SOFT DELETE operations (with audit):**
+```typescript
+mutationFn: async (id: string) => {
+  const userId = await getCurrentUserId();
+  const { error } = await supabase
+    .from("table_name")
+    .update({
+      is_deleted: true,
+      deleted_at: new Date().toISOString(),
+      deleted_by: userId,
+    })
+    .eq("id", id);
+  // ...
+}
+```
+
+### Anti-Pattern (DO NOT USE)
+```typescript
+// ❌ WRONG - Inline user fetching
+mutationFn: async (data) => {
+  const { data: { user } } = await supabase.auth.getUser();
+  const { error } = await supabase
+    .from("table_name")
+    .insert({ ...data, created_by: user?.id });
+}
+```
+
+---
+
+## 8. ERROR BOUNDARY PATTERNS
+
+### Location
+`src/components/ErrorBoundary.tsx`
+
+### Available Variants
+
+| Variant | Use Case | Features |
+|---------|----------|----------|
+| `ErrorBoundary` | Full-page errors | Correlation ID, retry, copy error, home link |
+| `ErrorBoundaryWithRetry` | Functional wrapper | Render props pattern, retry callback |
+| `FeatureErrorBoundary` | Non-critical features | Compact inline error, minimal UI |
+
+### Full-Page Error Boundary
+```tsx
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+function App() {
+  return (
+    <ErrorBoundary componentName="App">
+      <Router>
+        {/* ... */}
+      </Router>
+    </ErrorBoundary>
+  );
+}
+```
+
+### Feature Error Boundary (Compact)
+```tsx
+import { FeatureErrorBoundary } from "@/components/ErrorBoundary";
+
+function Dashboard() {
+  return (
+    <div>
+      <FeatureErrorBoundary featureName="Analytics Chart">
+        <AnalyticsChart />
+      </FeatureErrorBoundary>
+      
+      <FeatureErrorBoundary featureName="Recent Activity">
+        <RecentActivity />
+      </FeatureErrorBoundary>
+    </div>
+  );
+}
+```
+
+### Error Boundary with Retry
+```tsx
+import { ErrorBoundaryWithRetry } from "@/components/ErrorBoundary";
+
+function DataLoader() {
+  return (
+    <ErrorBoundaryWithRetry maxRetries={3}>
+      {({ retry, retryCount }) => (
+        <DataComponent onRetry={retry} attempts={retryCount} />
+      )}
+    </ErrorBoundaryWithRetry>
+  );
+}
+```
+
+### Key Features
+- **Correlation ID**: Unique ID per error for debugging
+- **Copy to Clipboard**: Full error report for support
+- **Structured Logging**: All errors logged via `handleMutationError`
+
+---
+
+## 9. LIFECYCLE LOCK CHECKING PATTERN
+
+### When to Check Locks
+**ALWAYS check before mutations that modify:**
+- Registration data (name, email)
+- Configuration data (industry, expertise, mode)
+- Content data (proof points, specialities)
+
+### Lock Checking Functions
+
+```typescript
+import { 
+  canModifyField,
+  getCascadeImpact,
+  isWizardStepLocked,
+  getStatusDisplayName 
+} from "@/services/lifecycleService";
+```
+
+### Field Modification Check
+```typescript
+// Before any content mutation
+const check = canModifyField(enrollment.lifecycle_rank, 'content');
+if (!check.allowed) {
+  toast.error(check.reason);
+  return;
+}
+```
+
+### Field Categories
+
+| Category | Threshold Rank | Example Fields |
+|----------|----------------|----------------|
+| `registration` | 80+ | first_name, last_name, email |
+| `configuration` | 40+ | industry_segment, expertise_level, participation_mode |
+| `content` | 60+ | proof_points, specialities, proficiency_areas |
+
+### Cascade Impact Check
+```typescript
+// Before industry/expertise changes
+const impact = await getCascadeImpact(enrollmentId);
+if (impact.total > 0) {
+  // Show CascadeWarningDialog with impact counts
+  setShowCascadeWarning(true);
+  setCascadeImpact(impact);
+}
+```
+
+### Wizard Step Lock Check
+```typescript
+// For navigation guards
+const isLocked = isWizardStepLocked(
+  lifecycle_rank, 
+  'expertise_selection'
+);
+if (isLocked) {
+  navigate('/dashboard');
+}
+```
+
+---
+
+## 10. ENROLLMENT-SCOPED DATA PATTERN
+
+### Context
+Multi-industry/multi-enrollment architecture requires scoping queries and mutations to specific enrollments.
+
+### Query Scoping
+```typescript
+// Include enrollmentId and/or industrySegmentId in query key
+export function useProofPoints(providerId: string, industrySegmentId?: string) {
+  return useQuery({
+    queryKey: ['proof-points', providerId, industrySegmentId],
+    queryFn: async () => {
+      let query = supabase
+        .from('proof_points')
+        .select('*')
+        .eq('provider_id', providerId)
+        .eq('is_deleted', false);
+      
+      if (industrySegmentId) {
+        query = query.eq('industry_segment_id', industrySegmentId);
+      }
+      
+      return query;
+    },
+  });
+}
+```
+
+### Auto-Lifecycle Updates After Mutations
+```typescript
+// After creating a proof point that affects lifecycle
+onSuccess: async () => {
+  // Invalidate proof points
+  queryClient.invalidateQueries({ 
+    queryKey: ['proof-points', providerId] 
+  });
+  
+  // Invalidate enrollment (lifecycle may have changed)
+  queryClient.invalidateQueries({ 
+    queryKey: ['provider-enrollments', providerId] 
+  });
+  
+  // Invalidate assessment eligibility
+  queryClient.invalidateQueries({ 
+    queryKey: ['can-start-enrollment-assessment'] 
+  });
+}
+```
+
+### EnrollmentContext Usage
+```typescript
+import { useEnrollment } from "@/contexts/EnrollmentContext";
+
+function ProofPointsList() {
+  const { currentEnrollment } = useEnrollment();
+  
+  const { data: proofPoints } = useProofPoints(
+    currentEnrollment.provider_id,
+    currentEnrollment.industry_segment_id
+  );
+  // ...
+}
+```
+
+---
+
+## 11. QUERY INVALIDATION STRATEGY
+
+### When to Invalidate
+After mutations that affect:
+1. **The entity itself**: Always invalidate
+2. **Parent/child relationships**: Invalidate related entities
+3. **Lifecycle status**: Invalidate enrollment queries
+4. **Aggregations/counts**: Invalidate computed queries
+
+### Standard Invalidation Patterns
+
+**Proof Point Changes:**
+```typescript
+queryClient.invalidateQueries({ queryKey: ['proof-points', providerId] });
+queryClient.invalidateQueries({ queryKey: ['provider-enrollments', providerId] });
+queryClient.invalidateQueries({ queryKey: ['enrollment', enrollmentId] });
+queryClient.invalidateQueries({ queryKey: ['can-start-enrollment-assessment'] });
+```
+
+**Expertise/Speciality Changes:**
+```typescript
+queryClient.invalidateQueries({ queryKey: ['provider-specialities', providerId] });
+queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas', providerId] });
+queryClient.invalidateQueries({ queryKey: ['provider-enrollments', providerId] });
+```
+
+**Assessment Completion:**
+```typescript
+queryClient.invalidateQueries({ queryKey: ['assessment-attempts', providerId] });
+queryClient.invalidateQueries({ queryKey: ['enrollment', enrollmentId] });
+queryClient.invalidateQueries({ queryKey: ['provider', providerId] });
+```
+
+### Invalidation vs Refetch
+
+| Method | When to Use |
+|--------|-------------|
+| `invalidateQueries` | Mark stale, refetch on next access |
+| `refetchQueries` | Immediately refetch (use sparingly) |
+| `setQueryData` | Optimistic updates (advanced) |
+
+---
+
+## 12. CHECKLIST: Code Quality Retrofit
 
 When retrofitting existing code, verify:
 
@@ -338,10 +668,13 @@ When retrofitting existing code, verify:
 - [ ] All `console.error` replaced with `handleMutationError`
 - [ ] All `console.warn` replaced with `logWarning`
 - [ ] All mutation `onError` callbacks use structured logging
+- [ ] Query errors use `handleQueryError()` where appropriate
+- [ ] Critical operations use `logAuditEvent()`
 - [ ] Context object includes `operation` field
 
 ### React Query
 - [ ] Reference data hooks have `gcTime: 30 * 60 * 1000`
+- [ ] Semi-static data has appropriate `staleTime`
 - [ ] Query keys follow `["entity", filters]` pattern
 - [ ] Mutations invalidate related queries
 
@@ -354,6 +687,26 @@ When retrofitting existing code, verify:
 - [ ] Proper file naming (`use[Entity].ts`)
 - [ ] Type exports for entity types
 - [ ] Audit fields via `withCreatedBy`/`withUpdatedBy`
+
+### Lifecycle Governance
+- [ ] `canModifyField()` called before content/config mutations
+- [ ] Cascade impact checked before industry/expertise changes
+- [ ] Wizard step locks respected in navigation
+
+### Error Boundaries
+- [ ] Top-level `ErrorBoundary` wraps app
+- [ ] Non-critical features wrapped in `FeatureErrorBoundary`
+- [ ] Error reports include correlation IDs
+
+### Enrollment Scoping
+- [ ] Queries include `enrollmentId`/`industrySegmentId` where applicable
+- [ ] Mutations invalidate enrollment-related queries
+- [ ] Lifecycle auto-updates after proof point changes
+
+### Soft Delete with Audit
+- [ ] Soft delete includes `is_deleted`, `deleted_at`, `deleted_by`
+- [ ] Queries filter `is_deleted = false` by default
+- [ ] Restore functionality uses `withUpdatedBy()`
 
 ---
 
