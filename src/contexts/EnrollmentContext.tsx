@@ -65,24 +65,85 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
 
   // Track the currently selected enrollment ID
   const [selectedEnrollmentId, setSelectedEnrollmentId] = useState<string | null>(null);
+  
+  // Track if initial selection has been done to avoid race conditions
+  const [hasInitialSelection, setHasInitialSelection] = useState(false);
 
-  // Determine the active enrollment
-  const activeEnrollment = useMemo(() => {
-    if (selectedEnrollmentId) {
-      return enrollments.find(e => e.id === selectedEnrollmentId) || null;
-    }
-    return defaultActiveEnrollment || null;
-  }, [selectedEnrollmentId, enrollments, defaultActiveEnrollment]);
-
-  // Auto-select when default becomes available
+  // Consolidated effect for enrollment selection with clear priority
+  // This replaces two separate useEffect hooks that were racing
   useEffect(() => {
-    if (!selectedEnrollmentId && defaultActiveEnrollment?.id) {
-      setSelectedEnrollmentId(defaultActiveEnrollment.id);
+    // Wait for enrollments to load
+    if (enrollments.length === 0) {
+      setHasInitialSelection(false);
+      return;
     }
-  }, [defaultActiveEnrollment?.id, selectedEnrollmentId]);
+    
+    // Skip if we already have a valid selection
+    if (hasInitialSelection && selectedEnrollmentId && enrollments.some(e => e.id === selectedEnrollmentId)) {
+      return;
+    }
+
+    // Priority 1: Restore from sessionStorage
+    const stored = sessionStorage.getItem('activeEnrollmentId');
+    if (stored && enrollments.some(e => e.id === stored)) {
+      setSelectedEnrollmentId(stored);
+      setHasInitialSelection(true);
+      return;
+    }
+    
+    // Clear stale sessionStorage entry
+    if (stored) {
+      sessionStorage.removeItem('activeEnrollmentId');
+    }
+
+    // Priority 2: Use default active enrollment (primary or most recent)
+    if (defaultActiveEnrollment?.id && enrollments.some(e => e.id === defaultActiveEnrollment.id)) {
+      setSelectedEnrollmentId(defaultActiveEnrollment.id);
+      sessionStorage.setItem('activeEnrollmentId', defaultActiveEnrollment.id);
+      setHasInitialSelection(true);
+      return;
+    }
+
+    // Priority 3: Use primary enrollment
+    const primary = enrollments.find(e => e.is_primary);
+    if (primary) {
+      setSelectedEnrollmentId(primary.id);
+      sessionStorage.setItem('activeEnrollmentId', primary.id);
+      setHasInitialSelection(true);
+      return;
+    }
+
+    // Priority 4: Fall back to first enrollment
+    if (enrollments[0]?.id) {
+      setSelectedEnrollmentId(enrollments[0].id);
+      sessionStorage.setItem('activeEnrollmentId', enrollments[0].id);
+      setHasInitialSelection(true);
+    }
+  }, [enrollments, defaultActiveEnrollment?.id, hasInitialSelection, selectedEnrollmentId]);
+
+  // Derive active enrollment with defensive fallbacks
+  const activeEnrollment = useMemo(() => {
+    if (enrollments.length === 0) return null;
+
+    // Try to find the selected enrollment
+    if (selectedEnrollmentId) {
+      const found = enrollments.find(e => e.id === selectedEnrollmentId);
+      if (found) return found;
+    }
+
+    // Try to find the default active
+    if (defaultActiveEnrollment?.id) {
+      const found = enrollments.find(e => e.id === defaultActiveEnrollment.id);
+      if (found) return found;
+    }
+
+    // Fall back to primary or first
+    return enrollments.find(e => e.is_primary) || enrollments[0] || null;
+  }, [selectedEnrollmentId, enrollments, defaultActiveEnrollment?.id]);
 
   const setActiveEnrollment = useCallback((enrollmentId: string) => {
     setSelectedEnrollmentId(enrollmentId);
+    setHasInitialSelection(true);
     // Persist to sessionStorage for page refreshes
     sessionStorage.setItem('activeEnrollmentId', enrollmentId);
   }, []);
@@ -93,19 +154,6 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
       setActiveEnrollment(enrollment.id);
     }
   }, [enrollments, setActiveEnrollment]);
-
-  // Restore from sessionStorage on mount (with cleanup of stale entries)
-  useEffect(() => {
-    const stored = sessionStorage.getItem('activeEnrollmentId');
-    if (stored && enrollments.length > 0) {
-      if (enrollments.some(e => e.id === stored)) {
-        setSelectedEnrollmentId(stored);
-      } else {
-        // Stored enrollment no longer exists, clear it
-        sessionStorage.removeItem('activeEnrollmentId');
-      }
-    }
-  }, [enrollments]);
 
   const refreshEnrollments = useCallback(() => {
     refetchEnrollments();
