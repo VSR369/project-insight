@@ -452,7 +452,7 @@ const enrollmentDataTests: TestCase[] = [
       
       if (error) throw new Error(`Query error: ${error.message}`);
       if (!enrollments || enrollments.length === 0) {
-        throw new Error("Provider has no industry enrollments");
+        throw new Error("SKIP: No industry enrollments - complete industry selection first");
       }
     }),
   },
@@ -479,7 +479,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("provider_id", provider.id);
       
       if (!enrollments || enrollments.length === 0) {
-        throw new Error("No enrollments to check");
+        throw new Error("SKIP: No enrollments - complete industry selection first");
       }
       
       const primaryCount = enrollments.filter(e => e.is_primary).length;
@@ -511,7 +511,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("provider_id", provider.id);
       
       if (!enrollments || enrollments.length === 0) {
-        throw new Error("No enrollments to check");
+        throw new Error("SKIP: No enrollments - complete industry selection first");
       }
       
       for (const enrollment of enrollments) {
@@ -545,7 +545,7 @@ const enrollmentDataTests: TestCase[] = [
         .eq("provider_id", provider.id);
       
       if (!enrollments || enrollments.length === 0) {
-        throw new Error("No enrollments to check");
+        throw new Error("SKIP: No enrollments - complete industry selection first");
       }
       
       for (const enrollment of enrollments) {
