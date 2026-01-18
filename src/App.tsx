@@ -74,6 +74,7 @@ import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 // Reviewer Pages
 import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
 import InvitationResponsePage from "@/pages/reviewer/InvitationResponsePage";
+import ReviewerAvailability from "@/pages/reviewer/ReviewerAvailability";
 
 const queryClient = new QueryClient();
 
@@ -452,6 +453,14 @@ const App = () => (
               element={
                 <ReviewerGuard>
                   <ReviewerDashboard />
+                </ReviewerGuard>
+              }
+            />
+            <Route
+              path="/reviewer/availability"
+              element={
+                <ReviewerGuard>
+                  <ReviewerAvailability />
                 </ReviewerGuard>
               }
             />
