@@ -108,6 +108,10 @@ export function RoleSwitcher() {
     // Persist portal choice so refresh/login honors it
     sessionStorage.setItem('activePortal', portal.id);
     
+    // CRITICAL: Clear stale enrollment state when switching portals
+    // Each portal context may have different enrollment data
+    sessionStorage.removeItem('activeEnrollmentId');
+    
     // CRITICAL: When switching TO provider portal, invalidate provider-related queries
     // to ensure fresh data is fetched for the current user
     if (portal.id === 'provider') {

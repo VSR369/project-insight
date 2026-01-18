@@ -74,13 +74,21 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
 
   // Reset selection when provider ID changes (different user logged in or portal switch)
   useEffect(() => {
-    if (provider?.id && previousProviderId.current && provider.id !== previousProviderId.current) {
-      // Provider changed - reset all selection state
-      setSelectedEnrollmentId(null);
-      setHasInitialSelection(false);
-      sessionStorage.removeItem('activeEnrollmentId');
+    const currentProviderId = provider?.id ?? null;
+    const previousId = previousProviderId.current;
+    
+    // If provider changed (including switching between different providers)
+    if (currentProviderId !== previousId) {
+      // Only reset if we had a previous selection (avoid resetting on initial load)
+      if (previousId !== null) {
+        // Provider changed - reset all selection state
+        setSelectedEnrollmentId(null);
+        setHasInitialSelection(false);
+        sessionStorage.removeItem('activeEnrollmentId');
+      }
     }
-    previousProviderId.current = provider?.id ?? null;
+    
+    previousProviderId.current = currentProviderId;
   }, [provider?.id]);
 
   // Consolidated effect for enrollment selection with clear priority

@@ -32,9 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // This ensures fresh data fetch for new user (login) or clean state (logout)
         if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
           queryClient.clear();
-          // Also clear enrollment session storage on sign out
+          // Clear enrollment session storage on BOTH login and logout
+          // This prevents stale enrollment IDs from previous user sessions
+          sessionStorage.removeItem('activeEnrollmentId');
+          // Only clear portal preference on sign out (preserve it on sign in)
           if (event === 'SIGNED_OUT') {
-            sessionStorage.removeItem('activeEnrollmentId');
+            sessionStorage.removeItem('activePortal');
           }
         }
       }
