@@ -8,6 +8,7 @@ import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { calculateCurrentStep, getStepUrl } from '@/components/auth/OnboardingGuard';
 import { getStatusDisplayName } from '@/services/lifecycleService';
+import { getNextStepForStatus, getStepRoute, STEP_ROUTES } from '@/services/wizardNavigationService';
 import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
 import { AddIndustryDialog } from '@/components/enrollment';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -195,25 +196,36 @@ export default function Dashboard() {
     setActiveEnrollment(enrollmentId);
   };
 
-  // Navigate to enrollment step
+
+  // Navigate to enrollment step - uses centralized navigation service
   const handleContinueEnrollment = (enrollmentId: string) => {
     const enrollment = enrollments.find(e => e.id === enrollmentId);
-    if (enrollment) {
-      setActiveEnrollment(enrollmentId);
-      // Navigate based on enrollment lifecycle status
-      const status = enrollment.lifecycle_status;
-      if (status === 'enrolled' || status === 'registered') {
-        navigate('/enroll/participation-mode');
-      } else if (status === 'mode_selected' || status === 'org_info_pending' || status === 'org_validated') {
-        navigate('/enroll/expertise');
-      } else if (status === 'expertise_selected' || status === 'proof_points_started') {
-        navigate('/enroll/proof-points');
-      } else if (status === 'proof_points_min_met' || status === 'assessment_pending') {
-        navigate('/enroll/assessment');
-      } else {
-        navigate('/enroll/proof-points');
-      }
-    }
+    if (!enrollment) return;
+    
+    setActiveEnrollment(enrollmentId);
+    
+    // Determine if org step is required based on participation mode
+    const selectedMode = participationModes.find(m => m.id === enrollment.participation_mode_id);
+    const requiresOrgInfo = selectedMode?.requires_org_info ?? false;
+    
+    // Get visible steps (hide org step if not required)
+    const visibleSteps = requiresOrgInfo ? [1, 2, 3, 4, 5, 6, 7, 8, 9] : [1, 2, 4, 5, 6, 7, 8, 9];
+    
+    // Use navigation service to determine correct next step
+    const nextStepId = getNextStepForStatus(
+      enrollment.lifecycle_status,
+      visibleSteps,
+      requiresOrgInfo
+    );
+    
+    const route = getStepRoute(nextStepId);
+    navigate(route || '/enroll/registration');
+  };
+
+  // Navigate to first step for reviewing enrollment (always starts at step 1)
+  const handleReviewEnrollment = (enrollmentId: string) => {
+    setActiveEnrollment(enrollmentId);
+    navigate('/enroll/registration');
   };
 
   // NOTE: Removed auto-redirect - Dashboard is now the primary entry point
@@ -504,8 +516,7 @@ export default function Dashboard() {
                               size="sm"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                handleEnrollmentSwitch(enrollment.id);
-                                navigate('/enroll/registration');
+                                handleReviewEnrollment(enrollment.id);
                               }}
                               className="text-muted-foreground"
                             >

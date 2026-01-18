@@ -105,14 +105,8 @@ function ExpertiseContent() {
     setExpandedSubDomains([]);
   }, [selectedLevel]);
 
-  const handleBack = () => {
-    const selectedMode = participationModes?.find(m => m.id === provider?.participation_mode_id);
-    if (selectedMode?.requires_org_info) {
-      navigate('/enroll/organization');
-    } else {
-      navigate('/enroll/participation-mode');
-    }
-  };
+  // Back navigation is handled by WizardLayout's default handler
+  // WizardLayout uses visibleSteps to determine correct previous step
 
   // Save proficiency areas to DB for this enrollment
   const saveProficiencyAreas = useCallback(async (newAreas: string[], previousAreas: string[]) => {
@@ -307,7 +301,7 @@ function ExpertiseContent() {
 
   if (levelsLoading || enrollmentLoading) {
     return (
-      <WizardLayout currentStep={4} hideBackButton hideContinueButton>
+      <WizardLayout currentStep={4} hideContinueButton>
         <div className="flex items-center justify-center min-h-[50vh]">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
@@ -317,7 +311,7 @@ function ExpertiseContent() {
 
   if (levelsError) {
     return (
-      <WizardLayout currentStep={4} onBack={handleBack} hideContinueButton>
+      <WizardLayout currentStep={4} hideContinueButton>
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Failed to load expertise levels</AlertTitle>
@@ -332,7 +326,7 @@ function ExpertiseContent() {
   // Show message if no enrollment is active
   if (!activeEnrollment) {
     return (
-      <WizardLayout currentStep={4} onBack={handleBack} hideContinueButton>
+      <WizardLayout currentStep={4} hideContinueButton>
         <Alert>
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>No Industry Selected</AlertTitle>
@@ -346,10 +340,11 @@ function ExpertiseContent() {
 
   const isSaving = updateExpertise.isPending || updateProficiencyAreas.isPending;
 
+  // Expertise page has custom Continue button inside the card UI
+  // Use WizardLayout's default back navigation
   return (
     <WizardLayout
       currentStep={4}
-      onBack={handleBack}
       hideContinueButton
     >
       <div className="space-y-6">

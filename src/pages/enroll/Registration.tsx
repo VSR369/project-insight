@@ -198,12 +198,12 @@ function RegistrationContent() {
   }
 
   // Render normal registration form (global profile, no industry selection)
+  // Step 1: Back goes to Dashboard (via default handler), Continue validates and navigates
   return (
     <WizardLayout
       currentStep={1}
       onContinue={handleContinue}
       isSubmitting={updateProfile.isPending}
-      hideBackButton
     >
       <div className="space-y-6">
         {/* Header */}
