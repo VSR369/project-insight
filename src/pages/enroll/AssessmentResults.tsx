@@ -26,6 +26,7 @@ import { Loader2 } from 'lucide-react';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useRetakeEligibility, useStartRetakeAssessment } from '@/hooks/queries/useEnrollmentAssessment';
+import { WizardLayout } from '@/components/layout';
 
 interface AssessmentResult {
   id: string;
@@ -267,9 +268,18 @@ export default function AssessmentResults() {
   const scorePercentage = Math.round(result.score_percentage || 0);
   const correctAnswers = questions.filter(q => q.is_correct).length;
 
+  const handleBack = () => navigate('/enroll/assessment');
+  const handleContinue = () => isPassed ? navigate('/enroll/interview-slot') : undefined;
+
   return (
-    <div className="min-h-screen bg-background py-8">
-      <div className="container max-w-4xl mx-auto px-4">
+    <WizardLayout
+      currentStep={6}
+      onBack={handleBack}
+      onContinue={isPassed ? handleContinue : undefined}
+      hideContinueButton={!isPassed}
+      continueLabel={isPassed ? "Schedule Interview" : undefined}
+    >
+      <div className="space-y-6">
         {/* Result Banner */}
         <Card className={cn(
           'mb-8 border-2',
@@ -542,6 +552,6 @@ export default function AssessmentResults() {
           </CollapsibleContent>
         </Collapsible>
       </div>
-    </div>
+    </WizardLayout>
   );
 }

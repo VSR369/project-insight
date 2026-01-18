@@ -482,7 +482,7 @@ export default function Dashboard() {
                           </Button>
                         )}
 
-                        {/* View/Continue Button */}
+                        {/* View/Continue/Review Buttons */}
                         {isTerminal ? (
                           <Button
                             variant="ghost"
@@ -496,6 +496,33 @@ export default function Dashboard() {
                             View
                             <ChevronRight className="ml-1 h-4 w-4" />
                           </Button>
+                        ) : enrollment.lifecycle_rank >= 100 ? (
+                          /* Post-assessment: show Review and Continue buttons */
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleEnrollmentSwitch(enrollment.id);
+                                navigate('/enroll/registration');
+                              }}
+                              className="text-muted-foreground"
+                            >
+                              Review
+                            </Button>
+                            <Button
+                              variant={isActive ? 'default' : 'outline'}
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleContinueEnrollment(enrollment.id);
+                              }}
+                            >
+                              Continue
+                              <ChevronRight className="ml-1 h-4 w-4" />
+                            </Button>
+                          </>
                         ) : (
                           <Button
                             variant={isActive ? 'default' : 'outline'}
