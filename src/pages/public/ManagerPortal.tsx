@@ -54,8 +54,7 @@ export default function ManagerPortal() {
       toast.success('Login successful');
       navigate('/manager-portal/review');
 
-    } catch (err: any) {
-      console.error('Login error:', err);
+    } catch (err: unknown) {
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);
