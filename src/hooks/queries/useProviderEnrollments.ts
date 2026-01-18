@@ -36,6 +36,7 @@ export function useProviderEnrollments(providerId?: string) {
     enabled: !!providerId,
     staleTime: 30000,
     refetchOnMount: 'always', // Always refetch on mount to avoid stale data on refresh
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 }
 
