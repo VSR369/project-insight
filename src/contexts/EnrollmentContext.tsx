@@ -5,7 +5,7 @@
  * Used throughout the app to scope operations to a specific industry.
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProviderEnrollments, useActiveEnrollment, type EnrollmentWithDetails } from '@/hooks/queries/useProviderEnrollments';
 
@@ -68,6 +68,20 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
   
   // Track if initial selection has been done to avoid race conditions
   const [hasInitialSelection, setHasInitialSelection] = useState(false);
+  
+  // Track provider ID to detect user changes (login/logout/switch)
+  const previousProviderId = useRef<string | null>(null);
+
+  // Reset selection when provider ID changes (different user logged in or portal switch)
+  useEffect(() => {
+    if (provider?.id && previousProviderId.current && provider.id !== previousProviderId.current) {
+      // Provider changed - reset all selection state
+      setSelectedEnrollmentId(null);
+      setHasInitialSelection(false);
+      sessionStorage.removeItem('activeEnrollmentId');
+    }
+    previousProviderId.current = provider?.id ?? null;
+  }, [provider?.id]);
 
   // Consolidated effect for enrollment selection with clear priority
   // This replaces two separate useEffect hooks that were racing

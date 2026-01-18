@@ -76,7 +76,8 @@ import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
 import InvitationResponsePage from "@/pages/reviewer/InvitationResponsePage";
 import ReviewerAvailability from "@/pages/reviewer/ReviewerAvailability";
 
-const queryClient = new QueryClient();
+// Export queryClient for shared access (auth state changes, portal switching)
+export const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>

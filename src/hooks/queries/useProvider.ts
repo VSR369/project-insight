@@ -23,6 +23,7 @@ export function useCurrentProvider() {
     queryKey: ['current-provider'],
     queryFn: fetchCurrentProvider,
     staleTime: 30000, // 30 seconds
+    refetchOnWindowFocus: true, // Refetch when user returns to tab
   });
 }
 

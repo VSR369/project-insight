@@ -1,4 +1,5 @@
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Shield, User, ClipboardCheck, ChevronDown, Check } from 'lucide-react';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { Button } from '@/components/ui/button';
@@ -66,6 +67,7 @@ const PORTALS: PortalOption[] = [
 export function RoleSwitcher() {
   const navigate = useNavigate();
   const location = useLocation();
+  const queryClient = useQueryClient();
   const { isAdmin, isProvider, isReviewer, isLoading } = useUserRoles();
 
   // Determine which portals the user has access to
@@ -102,6 +104,15 @@ export function RoleSwitcher() {
 
   const handleSwitch = (portal: PortalOption) => {
     if (portal.id === currentPortal.id) return;
+    
+    // CRITICAL: When switching TO provider portal, invalidate provider-related queries
+    // to ensure fresh data is fetched for the current user
+    if (portal.id === 'provider') {
+      queryClient.invalidateQueries({ queryKey: ['current-provider'] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
+    }
+    
     navigate(portal.path);
     toast.info(`Switched to ${portal.label}`);
   };

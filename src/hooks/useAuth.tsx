@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { queryClient } from '@/App';
 
 interface AuthContextType {
   user: User | null;
@@ -26,6 +27,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
+
+        // CRITICAL: Clear all cached data when auth state changes
+        // This ensures fresh data fetch for new user (login) or clean state (logout)
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          queryClient.clear();
+          // Also clear enrollment session storage on sign out
+          if (event === 'SIGNED_OUT') {
+            sessionStorage.removeItem('activeEnrollmentId');
+          }
+        }
       }
     );
 
@@ -59,6 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Clear React Query cache before signing out
+    queryClient.clear();
+    // Clear enrollment session storage
+    sessionStorage.removeItem('activeEnrollmentId');
+    // Sign out from Supabase
     await supabase.auth.signOut();
   };
 
