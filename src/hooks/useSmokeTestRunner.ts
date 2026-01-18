@@ -122,8 +122,8 @@ export function useSmokeTestRunner() {
         addLog("Cleaning up test data...");
         await moduleConfig.cleanup();
         addLog("Cleanup complete");
-      } catch (error: any) {
-        addLog(`Error during tests: ${error.message}`);
+      } catch (error: unknown) {
+        addLog(`Error during tests: ${error instanceof Error ? error.message : 'Unknown error'}`);
       }
 
       setState((prev) => ({
@@ -212,9 +212,9 @@ export function useSmokeTestRunner() {
         // Cleanup after each module
         addLog("Cleaning up...");
         await moduleConfig.cleanup();
-      } catch (error: any) {
-        addLog(`Error in ${moduleConfig.name}: ${error.message}`);
-      }
+        } catch (error: unknown) {
+          addLog(`Error in ${moduleConfig.name}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
     }
 
     const passedCount = allResults.filter((r) => r.status === "pass").length;

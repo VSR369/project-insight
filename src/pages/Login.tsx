@@ -88,7 +88,7 @@ export default function Login() {
         toast.success('Welcome back!');
         navigate(from, { replace: true });
       }
-    } catch (err) {
+    } catch (err: unknown) {
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);

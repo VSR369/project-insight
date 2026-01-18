@@ -30,6 +30,11 @@ export interface ModuleTestSuite {
 const TEST_PREFIX = "__SMOKE_TEST__";
 const getTestName = () => `${TEST_PREFIX}${Date.now()}`;
 
+// Helper to extract error message safely
+const getErrorMessage = (err: unknown): string => {
+  return err instanceof Error ? err.message : 'Unknown error';
+};
+
 // ==================== COUNTRIES TEST RUNNER ====================
 let countriesTestRecordId: string | null = null;
 
@@ -43,8 +48,8 @@ async function countriesRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -63,8 +68,8 @@ async function countriesCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     countriesTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -78,8 +83,8 @@ async function countriesUpdate(): Promise<TestResult> {
       .eq("id", countriesTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -93,8 +98,8 @@ async function countriesDeactivate(): Promise<TestResult> {
       .eq("id", countriesTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -108,8 +113,8 @@ async function countriesRestore(): Promise<TestResult> {
       .eq("id", countriesTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -124,8 +129,8 @@ async function countriesDelete(): Promise<TestResult> {
     if (error) throw error;
     countriesTestRecordId = null; // Clear since deleted
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -151,8 +156,8 @@ async function industryRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -169,8 +174,8 @@ async function industryCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     industryTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -184,8 +189,8 @@ async function industryUpdate(): Promise<TestResult> {
       .eq("id", industryTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -199,8 +204,8 @@ async function industryDeactivate(): Promise<TestResult> {
       .eq("id", industryTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -214,8 +219,8 @@ async function industryRestore(): Promise<TestResult> {
       .eq("id", industryTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -230,8 +235,8 @@ async function industryDelete(): Promise<TestResult> {
     if (error) throw error;
     industryTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -256,8 +261,8 @@ async function orgTypeRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -274,8 +279,8 @@ async function orgTypeCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     orgTypeTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -289,8 +294,8 @@ async function orgTypeUpdate(): Promise<TestResult> {
       .eq("id", orgTypeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -304,8 +309,8 @@ async function orgTypeDeactivate(): Promise<TestResult> {
       .eq("id", orgTypeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -319,8 +324,8 @@ async function orgTypeRestore(): Promise<TestResult> {
       .eq("id", orgTypeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -335,8 +340,8 @@ async function orgTypeDelete(): Promise<TestResult> {
     if (error) throw error;
     orgTypeTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -361,8 +366,8 @@ async function modeRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -379,8 +384,8 @@ async function modeCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     modeTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -394,8 +399,8 @@ async function modeUpdate(): Promise<TestResult> {
       .eq("id", modeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -409,8 +414,8 @@ async function modeDeactivate(): Promise<TestResult> {
       .eq("id", modeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -424,8 +429,8 @@ async function modeRestore(): Promise<TestResult> {
       .eq("id", modeTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -440,8 +445,8 @@ async function modeDelete(): Promise<TestResult> {
     if (error) throw error;
     modeTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -470,8 +475,8 @@ async function expertiseRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -525,8 +530,8 @@ async function expertiseCreate(): Promise<TestResult> {
       if (updateError) throw updateError;
       return { status: "pass", duration: Date.now() - start };
     }
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -540,8 +545,8 @@ async function expertiseUpdate(): Promise<TestResult> {
       .eq("id", expertiseTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -555,8 +560,8 @@ async function expertiseDeactivate(): Promise<TestResult> {
       .eq("id", expertiseTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -570,8 +575,8 @@ async function expertiseRestore(): Promise<TestResult> {
       .eq("id", expertiseTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -608,8 +613,8 @@ async function academicDisciplinesRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -626,8 +631,8 @@ async function academicDisciplinesCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     disciplineTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -641,8 +646,8 @@ async function academicStreamsRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -660,8 +665,8 @@ async function academicStreamsCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     streamTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -675,8 +680,8 @@ async function academicSubjectsRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -694,8 +699,8 @@ async function academicSubjectsCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     subjectTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -733,8 +738,8 @@ async function proficiencyAreasRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -771,8 +776,8 @@ async function proficiencyAreasCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     profAreaTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -786,8 +791,8 @@ async function subDomainsRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -805,8 +810,8 @@ async function subDomainsCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     subDomainTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -820,8 +825,8 @@ async function specialitiesRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -839,8 +844,8 @@ async function specialitiesCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     specialityTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -876,8 +881,8 @@ async function questionsRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -912,8 +917,8 @@ async function questionsCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     questionTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -927,8 +932,8 @@ async function questionsUpdate(): Promise<TestResult> {
       .eq("id", questionTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -942,8 +947,8 @@ async function questionsDeactivate(): Promise<TestResult> {
       .eq("id", questionTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -957,8 +962,8 @@ async function questionsRestore(): Promise<TestResult> {
       .eq("id", questionTestRecordId);
     if (error) throw error;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -973,8 +978,8 @@ async function questionsDelete(): Promise<TestResult> {
     if (error) throw error;
     questionTestRecordId = null;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -999,8 +1004,8 @@ async function invitationsRead(): Promise<TestResult> {
     if (error) throw error;
     if (!Array.isArray(data)) throw new Error("Invalid response format");
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
@@ -1021,8 +1026,8 @@ async function invitationsCreate(): Promise<TestResult> {
     if (!data?.id) throw new Error("No ID returned");
     invitationTestRecordId = data.id;
     return { status: "pass", duration: Date.now() - start };
-  } catch (err: any) {
-    return { status: "fail", duration: Date.now() - start, error: err.message };
+  } catch (err: unknown) {
+    return { status: "fail", duration: Date.now() - start, error: getErrorMessage(err) };
   }
 }
 
