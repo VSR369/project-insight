@@ -91,6 +91,32 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
     previousProviderId.current = currentProviderId;
   }, [provider?.id]);
 
+  // Listen for storage changes from other tabs/portal switches
+  useEffect(() => {
+    const handleStorageChange = (event: StorageEvent) => {
+      if (event.key === 'activeEnrollmentId' && event.newValue === null) {
+        // Enrollment ID was cleared (portal switch or logout)
+        setSelectedEnrollmentId(null);
+        setHasInitialSelection(false);
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Reset if selected enrollment no longer exists in enrollments list (user switched)
+  useEffect(() => {
+    if (enrollments.length > 0 && selectedEnrollmentId) {
+      const stillExists = enrollments.some(e => e.id === selectedEnrollmentId);
+      if (!stillExists) {
+        setSelectedEnrollmentId(null);
+        setHasInitialSelection(false);
+        sessionStorage.removeItem('activeEnrollmentId');
+      }
+    }
+  }, [enrollments, selectedEnrollmentId]);
+
   // Consolidated effect for enrollment selection with clear priority
   // This replaces two separate useEffect hooks that were racing
   useEffect(() => {

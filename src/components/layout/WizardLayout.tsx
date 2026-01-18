@@ -30,7 +30,7 @@ import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
-import { isWizardStepLocked, LOCK_THRESHOLDS } from '@/services/lifecycleService';
+import { isWizardStepLocked, LOCK_THRESHOLDS, LIFECYCLE_RANKS } from '@/services/lifecycleService';
 import { 
   getNextStep, 
   getPreviousStep, 
@@ -38,6 +38,11 @@ import {
   isStepViewOnly,
   STEP_ROUTES as NAV_STEP_ROUTES,
 } from '@/services/wizardNavigationService';
+import { 
+  useProofPointsCount, 
+  useEnrollmentAssessmentStatus, 
+  useEnrollmentInterviewBooking 
+} from '@/hooks/queries/useEnrollmentCompletion';
 
 // Type for organization with approval status (prevents unsafe `as any` casts)
 interface OrganizationWithApprovalStatus {
@@ -108,6 +113,12 @@ export function WizardLayout({
   // Fetch ENROLLMENT-scoped proficiency areas for Step 4 completion check
   // CRITICAL: Use enrollment ID, not provider ID, for multi-industry isolation
   const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
+  
+  // NEW: Fetch actual completion data for steps 5-7
+  const { data: proofPointsCount = 0 } = useProofPointsCount(activeEnrollmentId ?? undefined);
+  const { data: assessmentResult } = useEnrollmentAssessmentStatus(activeEnrollmentId ?? undefined);
+  const { data: interviewBooking } = useEnrollmentInterviewBooking(activeEnrollmentId ?? undefined);
+  
   const [blockingStepTitle, setBlockingStepTitle] = useState('');
   const [blockingStepId, setBlockingStepId] = useState<number | null>(null);
 
@@ -149,7 +160,10 @@ export function WizardLayout({
     };
   }, [activeEnrollment?.organization]);
 
-  // Calculate completed steps based on provider data
+  // Get lifecycle rank for step completion checks
+  const lifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
+
+  // Calculate completed steps based on ACTUAL DATA, not just onboarding_status
   const completedSteps = useMemo(() => {
     const completed: number[] = [];
     if (!provider) return completed;
@@ -174,22 +188,39 @@ export function WizardLayout({
       }
     }
 
-    // IMPORTANT: If org is required but not complete, steps after org (4+) should not be accessible
-    // even if they have data from a previous mode selection
-
     // Step 4: Expertise Level + at least one proficiency area
     // CRITICAL: Use ENROLLMENT-scoped data (not provider-level) for multi-industry isolation
     if (activeEnrollment?.expertise_level_id && enrollmentProficiencyAreas && enrollmentProficiencyAreas.length > 0) {
       completed.push(4);
     }
 
-    // Step 5-9: TODO - based on proof points, assessment, etc.
-    if (provider.onboarding_status === 'completed') {
-      completed.push(5, 6, 7, 8, 9);
+    // Step 5: Proof Points - at least one exists
+    if (proofPointsCount > 0) {
+      completed.push(5);
+    }
+
+    // Step 6: Assessment - passed
+    if (assessmentResult?.is_passed) {
+      completed.push(6);
+    }
+
+    // Step 7: Interview Slot - booked
+    if (interviewBooking?.id) {
+      completed.push(7);
+    }
+
+    // Step 8: Panel Discussion - based on lifecycle rank reaching panel_completed
+    if (lifecycleRank >= (LIFECYCLE_RANKS.panel_completed ?? 130)) {
+      completed.push(8);
+    }
+
+    // Step 9: Certification - based on lifecycle rank reaching certified
+    if (lifecycleRank >= (LIFECYCLE_RANKS.certified ?? 140)) {
+      completed.push(9);
     }
 
     return completed;
-  }, [provider, isOrgRequired, activeEnrollment, enrollmentProficiencyAreas]);
+  }, [provider, isOrgRequired, activeEnrollment, enrollmentProficiencyAreas, proofPointsCount, assessmentResult, interviewBooking, lifecycleRank]);
 
   // Blocked steps - currently only step 2 (Mode) can be blocked
   const blockedSteps = useMemo(() => {
@@ -241,7 +272,7 @@ export function WizardLayout({
   }, [visibleSteps, isStepAccessible]);
 
   // Compute if current step is in view-only mode (locked but completed)
-  const lifecycleRank = activeEnrollment?.lifecycle_rank ?? provider?.lifecycle_rank ?? 0;
+  // Note: lifecycleRank already declared above for completedSteps calculation
   const isViewMode = useMemo(() => {
     if (navigationMode === 'edit') return false;
     if (navigationMode === 'view') return true;

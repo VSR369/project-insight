@@ -52,6 +52,11 @@ export function AppHeader() {
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* User email indicator for clarity */}
+      <span className="text-xs text-muted-foreground hidden lg:inline-block truncate max-w-[200px]">
+        {user?.email}
+      </span>
+
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
 
