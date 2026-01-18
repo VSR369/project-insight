@@ -1,19 +1,18 @@
 /**
  * Certification Page
  * 
- * Placeholder page for Step 9 of enrollment - Final Certification stage
+ * Step 9 of enrollment - Final Certification stage
  * Shown when lifecycle_status = 'panel_completed', 'verified', or 'certified'
  */
 
-import { useNavigate } from 'react-router-dom';
+import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Award, ArrowLeft, CheckCircle2, Download, Star, Trophy } from 'lucide-react';
+import { Award, CheckCircle2, Download, Star, Trophy } from 'lucide-react';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 
 export default function Certification() {
-  const navigate = useNavigate();
   const { activeEnrollment } = useEnrollmentContext();
   
   const lifecycleStatus = activeEnrollment?.lifecycle_status;
@@ -62,22 +61,20 @@ export default function Certification() {
   const config = getStatusConfig();
   const StatusIcon = config.icon;
 
+  // Check if this is a terminal state (no more steps)
+  const isTerminal = ['verified', 'certified', 'not_verified'].includes(lifecycleStatus || '');
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="container max-w-3xl mx-auto py-12 px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <Button 
-            variant="ghost" 
-            onClick={() => navigate('/dashboard')}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Dashboard
-          </Button>
-          
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-3xl font-bold text-foreground">Certification</h1>
+    <WizardLayout
+      currentStep={9}
+      hideContinueButton={isTerminal}
+      continueLabel="Complete"
+    >
+      <div className="max-w-3xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="text-center space-y-2">
+          <div className="flex items-center justify-center gap-3 mb-2">
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Certification</h1>
             <Badge variant="secondary" className="bg-primary/10 text-primary">
               Step 9 of 9
             </Badge>
@@ -88,7 +85,7 @@ export default function Certification() {
         </div>
 
         {/* Status Card */}
-        <Card className="mb-6">
+        <Card>
           <CardContent className="pt-6">
             <div className="text-center py-8">
               <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted mb-4`}>
@@ -111,7 +108,7 @@ export default function Certification() {
 
         {/* Certificate Download (for verified/certified) */}
         {(lifecycleStatus === 'verified' || lifecycleStatus === 'certified') && (
-          <Card className="mb-6">
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Download className="h-5 w-5 text-primary" />
@@ -156,6 +153,6 @@ export default function Certification() {
           </CardContent>
         </Card>
       </div>
-    </div>
+    </WizardLayout>
   );
 }
