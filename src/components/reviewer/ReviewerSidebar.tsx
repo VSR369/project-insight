@@ -4,9 +4,11 @@ import {
   Users, 
   Clock, 
   Settings,
-  LogOut
+  LogOut,
+  ArrowLeft,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
   Sidebar,
@@ -34,6 +36,9 @@ const settingsNavItems = [
 
 export function ReviewerSidebar() {
   const { signOut } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const isOnDashboard = location.pathname === '/reviewer/dashboard';
 
   return (
     <Sidebar className="border-r">
@@ -90,8 +95,18 @@ export function ReviewerSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      {/* Footer with Logout */}
-      <SidebarFooter className="border-t p-4">
+      {/* Footer with Back + Logout */}
+      <SidebarFooter className="border-t p-4 space-y-2">
+        {!isOnDashboard && (
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start gap-3"
+            onClick={() => navigate('/reviewer/dashboard')}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Dashboard
+          </Button>
+        )}
         <Button 
           variant="ghost" 
           className="w-full justify-start gap-3"

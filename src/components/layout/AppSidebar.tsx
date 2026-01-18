@@ -1,4 +1,4 @@
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard,
   User,
@@ -17,10 +17,11 @@ import {
   UserCircle,
   ClipboardCheck,
   BookOpen,
+  ArrowLeft,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { useEnrollmentContext, useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useEnrollmentProficiencyAreas } from '@/hooks/queries/useEnrollmentExpertise';
 import { calculateCurrentStep } from '@/components/auth/OnboardingGuard';
 import {
@@ -37,8 +38,8 @@ import {
   SidebarRail,
   useSidebar,
 } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-
 const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'My Profile', url: '/profile', icon: User },
@@ -72,7 +73,9 @@ export function AppSidebar() {
   const { state } = useSidebar();
   const collapsed = state === 'collapsed';
   const location = useLocation();
+  const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
+  const isOnDashboard = location.pathname === '/dashboard';
   const enrollmentContext = useOptionalEnrollmentContext();
   const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
   const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
@@ -266,9 +269,23 @@ export function AppSidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter className="border-t border-sidebar-border">
+      <SidebarFooter className="border-t border-sidebar-border p-2">
+        {!isOnDashboard && (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => navigate('/dashboard')}
+            className={cn(
+              "w-full justify-start gap-2 text-sidebar-foreground/70 hover:text-sidebar-foreground",
+              collapsed && "justify-center px-0"
+            )}
+          >
+            <ArrowLeft className="h-4 w-4" />
+            {!collapsed && <span>Back to Dashboard</span>}
+          </Button>
+        )}
         <div className={cn(
-          "px-2 py-3 text-xs text-sidebar-foreground/50",
+          "px-2 py-2 text-xs text-sidebar-foreground/50",
           collapsed && "text-center"
         )}>
           {collapsed ? "v1.0" : "Version 1.0.0"}
