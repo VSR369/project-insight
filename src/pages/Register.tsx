@@ -228,8 +228,8 @@ export default function Register() {
   const onAdminSubmit = async (data: AdminRegisterFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Validate access code via edge function
-      // For now, show a placeholder message
+      // TODO(ADMIN-ACCESS): Implement admin access code validation via edge function
+      // Requires integration with admin_access_codes table - see database schema
       toast.error('Admin registration requires a valid access code. Contact your administrator.');
     } catch (err) {
       console.error('Admin registration error:', err);
