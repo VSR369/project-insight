@@ -33,6 +33,7 @@ verify_jwt = false
 [functions.reject-reviewer-application]
 verify_jwt = false
 
+# DEV-ONLY: Test utility for seeding reviewer data in development/staging environments
 [functions.seed-test-reviewer]
 verify_jwt = false
 
