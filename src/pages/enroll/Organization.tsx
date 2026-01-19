@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { WizardLayout } from '@/components/layout';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import { useCurrentProvider, useUpsertOrganization } from '@/hooks/queries/useProvider';
@@ -33,6 +33,10 @@ type OrganizationFormData = z.infer<typeof organizationSchema>;
 
 function OrganizationContent() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [showExpiredMessage, setShowExpiredMessage] = useState(
+    (location.state as any)?.showExpiredMessage || false
+  );
   const { data: orgTypes, isLoading: orgTypesLoading } = useOrganizationTypes();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { activeEnrollment, activeEnrollmentId, isLoading: enrollmentLoading } = useEnrollmentContext();
@@ -214,6 +218,16 @@ function OrganizationContent() {
             <AlertCircle className="h-4 w-4 text-blue-600" />
             <AlertDescription className="text-blue-700">
               Your previous approval request was withdrawn. Please update the details below and submit for approval again.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {showExpiredMessage && !isTerminal && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              Your previous manager approval request has expired after 15 days without a response. 
+              Please resubmit with the same or different manager details.
             </AlertDescription>
           </Alert>
         )}

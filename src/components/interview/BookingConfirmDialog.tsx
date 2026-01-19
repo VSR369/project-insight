@@ -22,6 +22,7 @@ interface BookingConfirmDialogProps {
   expertiseLevelName?: string;
   onConfirm: () => void;
   isConfirming?: boolean;
+  isRescheduling?: boolean;
 }
 
 export function BookingConfirmDialog({
@@ -33,6 +34,7 @@ export function BookingConfirmDialog({
   expertiseLevelName,
   onConfirm,
   isConfirming,
+  isRescheduling,
 }: BookingConfirmDialogProps) {
   if (!slot) return null;
 
@@ -56,9 +58,13 @@ export function BookingConfirmDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm Interview Booking</AlertDialogTitle>
+          <AlertDialogTitle>
+            {isRescheduling ? "Confirm Interview Reschedule" : "Confirm Interview Booking"}
+          </AlertDialogTitle>
           <AlertDialogDescription>
-            Please review the details below before confirming your interview slot.
+            {isRescheduling 
+              ? "Your current booking will be cancelled and a new one will be created. Please review the details below."
+              : "Please review the details below before confirming your interview slot."}
           </AlertDialogDescription>
         </AlertDialogHeader>
 
@@ -92,7 +98,9 @@ export function BookingConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel disabled={isConfirming}>Cancel</AlertDialogCancel>
           <AlertDialogAction onClick={onConfirm} disabled={isConfirming}>
-            {isConfirming ? "Booking..." : "Confirm Booking"}
+            {isConfirming 
+              ? (isRescheduling ? "Rescheduling..." : "Booking...") 
+              : (isRescheduling ? "Confirm Reschedule" : "Confirm Booking")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

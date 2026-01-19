@@ -299,6 +299,7 @@ Visible when: participation_mode.requires_org_info === true
 | `approved` | Manager approved | None (locked) |
 | `declined` | Manager declined | Edit & Resubmit |
 | `withdrawn` | Provider withdrew request | Edit & Resubmit |
+| `expired` | 15 days passed without response | Edit & Resubmit |
 
 #### Business Rules
 
@@ -309,7 +310,10 @@ Visible when: participation_mode.requires_org_info === true
 | BR-ORG-003 | Pending approval blocks mode changes | `BlockedModeChangeDialog.tsx` |
 | BR-ORG-004 | Declined status allows full re-edit | `Organization.tsx` |
 | BR-ORG-005 | Org locked when `lifecycle_rank ≥ 100` | `canModifyField()` |
-| BR-ORG-006 | Manager has 7 days to respond before expiry | `credentials_expire_at` field |
+| BR-ORG-006 | Manager has 15 days to respond before expiry | `credentials_expire_at` field |
+| BR-ORG-007 | Reminder emails sent at day 7 and day 12 | `send-manager-reminder` edge function |
+| BR-ORG-008 | Auto-decline after 15 days expiry | `auto-decline-expired-approvals` edge function |
+| BR-ORG-009 | Expired status allows full re-edit | `Organization.tsx` |
 
 #### Manager Portal
 
@@ -954,11 +958,23 @@ This action cannot be undone.
 | ID | Scenario | Expected Result |
 |----|----------|-----------------|
 | TC-INT-001 | Book first available slot | Booking created |
-| TC-INT-002 | Reschedule once | reschedule_count = 1 |
+| TC-INT-002 | Reschedule once | reschedule_count = 1, uses useRescheduleBooking mutation |
 | TC-INT-003 | Reschedule twice | reschedule_count = 2 |
 | TC-INT-004 | Try 3rd reschedule | ❌ Blocked |
 | TC-INT-005 | Cancel > 24h before | ✅ Cancelled |
 | TC-INT-006 | Cancel < 24h before | ❌ Blocked |
+
+### 11.8 Manager Approval Tests
+
+| ID | Scenario | Expected Result |
+|----|----------|-----------------|
+| TC-MGR-001 | Submit org approval | Email sent to manager |
+| TC-MGR-002 | Manager approves | Status = approved, provider can continue |
+| TC-MGR-003 | Manager declines | Status = declined, provider can edit & resubmit |
+| TC-MGR-004 | Day 7 reminder | Reminder email sent |
+| TC-MGR-005 | Day 12 reminder | Urgent reminder email sent |
+| TC-MGR-006 | Day 15+ expiry | Status = expired, provider notified, can resubmit |
+| TC-MGR-007 | Withdraw pending request | Status = withdrawn, can edit & resubmit |
 
 ---
 
@@ -971,10 +987,11 @@ This action cannot be undone.
 | Registration | `Registration.tsx`, `registration.ts` |
 | Mode | `ParticipationMode.tsx`, `useEnrollmentParticipationMode.ts` |
 | Organization | `Organization.tsx`, `useManagerApproval.ts` |
+| Organization Edge Functions | `send-manager-credentials`, `send-manager-reminder`, `auto-decline-expired-approvals` |
 | Expertise | `ExpertiseSelection.tsx`, `useEnrollmentExpertise.ts` |
 | Proof Points | `ProofPoints.tsx`, `useProofPoints.ts` |
 | Assessment | `assessmentService.ts`, `TakeAssessment.tsx` |
-| Interview | `InterviewScheduling.tsx`, `rescheduleService.ts` |
+| Interview | `InterviewScheduling.tsx`, `rescheduleService.ts`, `useRescheduleBooking` |
 | Cascade | `cascadeResetService.ts` |
 
 ---
