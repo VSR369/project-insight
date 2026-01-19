@@ -193,8 +193,8 @@ export async function createEnrollment(
     provider_id: input.providerId,
     industry_segment_id: input.industrySegmentId,
     is_primary: isPrimary,
-    lifecycle_status: 'enrolled' as LifecycleStatus,
-    lifecycle_rank: 20,
+    lifecycle_status: 'registered' as LifecycleStatus, // Start at 'registered' so user sees Registration step first
+    lifecycle_rank: 15,
     created_by: userId,
   };
 

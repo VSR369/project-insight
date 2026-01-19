@@ -210,6 +210,18 @@ export default function Dashboard() {
     
     setActiveEnrollment(enrollmentId);
     
+    // UI Guard: Check if registration is incomplete (force Step 1)
+    // Registration is considered incomplete if key profile fields are missing
+    const isRegistrationIncomplete = !provider?.first_name || 
+                                     !provider?.last_name || 
+                                     !provider?.country_id;
+    
+    // Also force registration for 'registered' status regardless of profile completeness
+    if (isRegistrationIncomplete || enrollment.lifecycle_status === 'registered') {
+      navigate('/enroll/registration');
+      return;
+    }
+    
     // Determine if org step is required based on participation mode
     const selectedMode = participationModes.find(m => m.id === enrollment.participation_mode_id);
     const requiresOrgInfo = selectedMode?.requires_org_info ?? false;
