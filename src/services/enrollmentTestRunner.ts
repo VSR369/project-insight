@@ -3009,7 +3009,9 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("verify-manager-login", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      // 400/403 errors mean function IS deployed (validation/auth errors)
+      // Only "not found" or "Failed to send" indicate deployment issues
+      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
         throw new Error("verify-manager-login function not deployed");
       }
     }),
@@ -3023,7 +3025,8 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("withdraw-approval-request", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      // 400/403 errors mean function IS deployed (validation/auth errors)
+      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
         throw new Error("withdraw-approval-request function not deployed");
       }
     }),
@@ -3037,7 +3040,8 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("notify-booking-cancelled", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      // 400/403 errors mean function IS deployed (validation/auth errors)
+      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
         throw new Error("notify-booking-cancelled function not deployed");
       }
     }),
@@ -3051,7 +3055,8 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("send-reviewer-invitation", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      // 400/403 errors mean function IS deployed (validation/auth errors)
+      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
         throw new Error("send-reviewer-invitation function not deployed");
       }
     }),
