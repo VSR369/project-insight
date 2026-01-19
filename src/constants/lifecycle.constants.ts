@@ -41,6 +41,15 @@ export const LIFECYCLE_RANKS: Record<string, number> = {
   inactive: 210,
 } as const;
 
+/** Terminal states - no further progression possible */
+export const TERMINAL_STATES = ['verified', 'certified', 'not_verified', 'suspended', 'inactive'] as const;
+
+/** Hidden states - certification content should be hidden */
+export const HIDDEN_STATES = ['suspended', 'inactive'] as const;
+
+/** View-only terminal states - can view but not modify */
+export const VIEW_ONLY_STATES = ['verified', 'certified', 'not_verified'] as const;
+
 /** Field categories for lock checking */
 export type FieldCategory = 'registration' | 'configuration' | 'content';
 

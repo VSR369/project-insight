@@ -35,7 +35,13 @@ import {
   canModifyField, 
   getCascadeImpact, 
   isWizardStepLocked,
+  isTerminalState,
+  isHiddenState,
+  isViewOnlyState,
   LIFECYCLE_RANKS,
+  TERMINAL_STATES,
+  HIDDEN_STATES,
+  VIEW_ONLY_STATES,
   getLifecycleRank 
 } from "@/services/lifecycleService";
 import { 
@@ -3198,6 +3204,201 @@ const reviewerEnrollmentTests: TestCase[] = [
   },
 ];
 
+// ============================================================================
+// PRIMARY ACTION MATRIX TESTS
+// Verify candidate role permissions match the Primary Action Matrix specification
+// ============================================================================
+const primaryActionMatrixTests: TestCase[] = [
+  {
+    id: "PM-001",
+    category: "primary-action-matrix",
+    name: "TERMINAL_STATES includes all terminal statuses",
+    description: "Verify terminal states constant matches matrix (verified, certified, not_verified, suspended, inactive)",
+    run: () => runTest(async () => {
+      const expectedTerminal = ['verified', 'certified', 'not_verified', 'suspended', 'inactive'];
+      for (const status of expectedTerminal) {
+        if (!TERMINAL_STATES.includes(status as any)) {
+          throw new Error(`TERMINAL_STATES missing: ${status}`);
+        }
+      }
+      if (TERMINAL_STATES.length !== expectedTerminal.length) {
+        throw new Error(`TERMINAL_STATES has unexpected items: ${TERMINAL_STATES.join(', ')}`);
+      }
+    }),
+  },
+  {
+    id: "PM-002",
+    category: "primary-action-matrix",
+    name: "HIDDEN_STATES includes suspended and inactive",
+    description: "Verify hidden states constant matches matrix (suspended, inactive)",
+    run: () => runTest(async () => {
+      const expectedHidden = ['suspended', 'inactive'];
+      for (const status of expectedHidden) {
+        if (!HIDDEN_STATES.includes(status as any)) {
+          throw new Error(`HIDDEN_STATES missing: ${status}`);
+        }
+      }
+      if (HIDDEN_STATES.length !== expectedHidden.length) {
+        throw new Error(`HIDDEN_STATES has unexpected items: ${HIDDEN_STATES.join(', ')}`);
+      }
+    }),
+  },
+  {
+    id: "PM-003",
+    category: "primary-action-matrix",
+    name: "VIEW_ONLY_STATES includes view-only terminals",
+    description: "Verify view-only states constant (verified, certified, not_verified)",
+    run: () => runTest(async () => {
+      const expectedViewOnly = ['verified', 'certified', 'not_verified'];
+      for (const status of expectedViewOnly) {
+        if (!VIEW_ONLY_STATES.includes(status as any)) {
+          throw new Error(`VIEW_ONLY_STATES missing: ${status}`);
+        }
+      }
+    }),
+  },
+  {
+    id: "PM-004",
+    category: "primary-action-matrix",
+    name: "isTerminalState helper works correctly",
+    description: "Verify terminal state helper function",
+    run: () => runTest(async () => {
+      // Terminal states should return true
+      if (!isTerminalState('verified')) throw new Error('verified should be terminal');
+      if (!isTerminalState('certified')) throw new Error('certified should be terminal');
+      if (!isTerminalState('suspended')) throw new Error('suspended should be terminal');
+      if (!isTerminalState('inactive')) throw new Error('inactive should be terminal');
+      // Non-terminal should return false
+      if (isTerminalState('enrolled')) throw new Error('enrolled should not be terminal');
+      if (isTerminalState('assessment_passed')) throw new Error('assessment_passed should not be terminal');
+    }),
+  },
+  {
+    id: "PM-005",
+    category: "primary-action-matrix",
+    name: "isHiddenState helper works correctly",
+    description: "Verify hidden state helper function",
+    run: () => runTest(async () => {
+      // Hidden states should return true
+      if (!isHiddenState('suspended')) throw new Error('suspended should be hidden');
+      if (!isHiddenState('inactive')) throw new Error('inactive should be hidden');
+      // Non-hidden should return false
+      if (isHiddenState('verified')) throw new Error('verified should not be hidden');
+      if (isHiddenState('certified')) throw new Error('certified should not be hidden');
+    }),
+  },
+  {
+    id: "PM-006",
+    category: "primary-action-matrix",
+    name: "Suspended rank = 200",
+    description: "Verify suspended lifecycle rank matches matrix",
+    run: () => runTest(async () => {
+      const rank = LIFECYCLE_RANKS.suspended;
+      if (rank !== 200) throw new Error(`Expected suspended rank 200, got: ${rank}`);
+    }),
+  },
+  {
+    id: "PM-007",
+    category: "primary-action-matrix",
+    name: "Inactive rank = 210",
+    description: "Verify inactive lifecycle rank matches matrix",
+    run: () => runTest(async () => {
+      const rank = LIFECYCLE_RANKS.inactive;
+      if (rank !== 210) throw new Error(`Expected inactive rank 210, got: ${rank}`);
+    }),
+  },
+  {
+    id: "PM-008",
+    category: "primary-action-matrix",
+    name: "Steps 1-5 lock at rank 100 (assessment start)",
+    description: "Verify content/config lock at assessment_in_progress",
+    run: () => runTest(async () => {
+      // At rank 100 (assessment_in_progress), steps 1-5 should be locked
+      const testRank = 100;
+      for (const step of [1, 2, 3, 5]) { // Registration, Mode, Org, Proof Points
+        if (!isWizardStepLocked(step, testRank)) {
+          throw new Error(`Step ${step} should be locked at rank 100`);
+        }
+      }
+      // Step 4 (Expertise) should also be locked
+      if (!isWizardStepLocked(4, testRank)) {
+        throw new Error('Step 4 should be locked at rank 100');
+      }
+    }),
+  },
+  {
+    id: "PM-009",
+    category: "primary-action-matrix",
+    name: "Step 6 locks at rank 110 (assessment_passed)",
+    description: "Verify assessment step locks after passing",
+    run: () => runTest(async () => {
+      // Before passing (rank 105), assessment should not be locked
+      if (isWizardStepLocked(6, 105)) {
+        throw new Error('Step 6 should not be locked at rank 105');
+      }
+      // After passing (rank 110+), assessment should be locked
+      if (!isWizardStepLocked(6, 110)) {
+        throw new Error('Step 6 should be locked at rank 110');
+      }
+    }),
+  },
+  {
+    id: "PM-010",
+    category: "primary-action-matrix",
+    name: "Step 7 locks at rank 120 (panel_scheduled)",
+    description: "Verify interview step locks after scheduling",
+    run: () => runTest(async () => {
+      // Before scheduling, interview should not be locked
+      if (isWizardStepLocked(7, 119)) {
+        throw new Error('Step 7 should not be locked at rank 119');
+      }
+      // After scheduling (rank 120+), interview should be locked
+      if (!isWizardStepLocked(7, 120)) {
+        throw new Error('Step 7 should be locked at rank 120');
+      }
+    }),
+  },
+  {
+    id: "PM-011",
+    category: "primary-action-matrix",
+    name: "Step 8 locks at rank 130 (panel_completed)",
+    description: "Verify panel step locks after completion",
+    run: () => runTest(async () => {
+      // Before completion, panel should not be locked
+      if (isWizardStepLocked(8, 129)) {
+        throw new Error('Step 8 should not be locked at rank 129');
+      }
+      // After completion (rank 130+), panel should be locked
+      if (!isWizardStepLocked(8, 130)) {
+        throw new Error('Step 8 should be locked at rank 130');
+      }
+    }),
+  },
+  {
+    id: "PM-012",
+    category: "primary-action-matrix",
+    name: "Everything frozen at rank 140+",
+    description: "Verify all content/config frozen at verified and beyond",
+    run: () => runTest(async () => {
+      // At rank 140 (verified), content should be locked
+      const contentCheck = canModifyField(140, 'content');
+      if (contentCheck.allowed) {
+        throw new Error('Content should be locked at rank 140');
+      }
+      // Registration should be locked
+      const regCheck = canModifyField(140, 'registration');
+      if (regCheck.allowed) {
+        throw new Error('Registration should be locked at rank 140');
+      }
+      // Configuration should be locked
+      const configCheck = canModifyField(140, 'configuration');
+      if (configCheck.allowed) {
+        throw new Error('Configuration should be locked at rank 140');
+      }
+    }),
+  },
+];
+
 // ===== ALL TEST CATEGORIES =====
 export const testCategories: TestCategory[] = [
   // Original categories (8)
@@ -3283,8 +3484,14 @@ export const testCategories: TestCategory[] = [
   {
     id: "terminal-states",
     name: "Terminal States",
-    description: "Verify terminal state behavior (verified, certified, not_verified)",
+    description: "Verify terminal state behavior (verified, certified, not_verified, suspended, inactive)",
     tests: terminalStateTests,
+  },
+  {
+    id: "primary-action-matrix",
+    name: "Primary Action Matrix",
+    description: "Verify candidate role permissions match Primary Action Matrix specification",
+    tests: primaryActionMatrixTests,
   },
   {
     id: "error-handling",

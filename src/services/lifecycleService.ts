@@ -11,6 +11,9 @@ export {
   LIFECYCLE_RANKS,
   FIELD_CATEGORIES,
   STATUS_DISPLAY_NAMES,
+  TERMINAL_STATES,
+  HIDDEN_STATES,
+  VIEW_ONLY_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
 
@@ -18,8 +21,33 @@ import {
   LOCK_THRESHOLDS,
   LIFECYCLE_RANKS,
   STATUS_DISPLAY_NAMES,
+  TERMINAL_STATES,
+  HIDDEN_STATES,
+  VIEW_ONLY_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
+
+/**
+ * Check if a lifecycle status is a terminal state (no further progression)
+ */
+export function isTerminalState(status: string): boolean {
+  return TERMINAL_STATES.includes(status as typeof TERMINAL_STATES[number]);
+}
+
+/**
+ * Check if a lifecycle status is a hidden state (content should be hidden)
+ * Applies to suspended and inactive statuses per Primary Action Matrix
+ */
+export function isHiddenState(status: string): boolean {
+  return HIDDEN_STATES.includes(status as typeof HIDDEN_STATES[number]);
+}
+
+/**
+ * Check if a lifecycle status is a view-only terminal state
+ */
+export function isViewOnlyState(status: string): boolean {
+  return VIEW_ONLY_STATES.includes(status as typeof VIEW_ONLY_STATES[number]);
+}
 
 // Types for cascade impact
 export type CascadeType = 'NONE' | 'HARD_RESET' | 'PARTIAL_RESET';
