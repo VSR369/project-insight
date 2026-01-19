@@ -8,7 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCountries } from '@/hooks/queries/useCountries';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
-import { useIsTerminalState } from '@/hooks/queries/useLifecycleValidation';
+import { useEnrollmentCanModifyField, useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -74,9 +74,11 @@ function RegistrationContent() {
     }
   }, [isAddIndustryMode, navigate]);
 
-  // Lifecycle validation
-  const terminalState = useIsTerminalState();
+  // CRITICAL: Use ENROLLMENT-scoped lifecycle validation
+  const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
+  const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
+  const isLocked = !contentCheck.allowed || isTerminal;
 
   // Registration form
   const form = useForm<RegistrationFormData>({
@@ -216,11 +218,18 @@ function RegistrationContent() {
           </p>
         </div>
 
-        {/* Terminal State Banner */}
+        {/* Lock Banners */}
         {isTerminal && (
           <LockedFieldBanner 
             lockLevel="everything"
             reason="Your profile has been verified. Registration details cannot be modified."
+          />
+        )}
+        
+        {!isTerminal && !contentCheck.allowed && (
+          <LockedFieldBanner 
+            lockLevel="content"
+            reason={contentCheck.reason || undefined}
           />
         )}
 
@@ -248,7 +257,7 @@ function RegistrationContent() {
               value="experienced" 
               onClick={() => setActiveTab('experienced')}
               className="gap-2"
-              disabled={isTerminal}
+              disabled={isLocked}
             >
               <User className="h-4 w-4" />
               Experienced Professional
@@ -257,7 +266,7 @@ function RegistrationContent() {
               value="student" 
               onClick={handleStudentTab}
               className="gap-2"
-              disabled={isTerminal}
+              disabled={isLocked}
             >
               <GraduationCap className="h-4 w-4" />
               Students, Fresh Grads
@@ -287,7 +296,7 @@ function RegistrationContent() {
                           <Input 
                             placeholder="Enter first name" 
                             {...field} 
-                            disabled={isTerminal}
+                            disabled={isLocked}
                           />
                         </FormControl>
                         <FormMessage />
@@ -305,7 +314,7 @@ function RegistrationContent() {
                           <Input 
                             placeholder="Enter last name" 
                             {...field} 
-                            disabled={isTerminal}
+                            disabled={isLocked}
                           />
                         </FormControl>
                         <FormMessage />
@@ -325,7 +334,7 @@ function RegistrationContent() {
                           placeholder="Enter your full address" 
                           className="min-h-[80px]"
                           {...field} 
-                          disabled={isTerminal}
+                          disabled={isLocked}
                         />
                       </FormControl>
                       <FormMessage />
@@ -343,7 +352,7 @@ function RegistrationContent() {
                         <Select 
                           value={field.value} 
                           onValueChange={handleCountryChange}
-                          disabled={isTerminal}
+                          disabled={isLocked}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -379,7 +388,7 @@ function RegistrationContent() {
                                 : "Enter pin/postal code"
                             } 
                             {...field} 
-                            disabled={isTerminal}
+                            disabled={isLocked}
                           />
                         </FormControl>
                         <FormMessage />

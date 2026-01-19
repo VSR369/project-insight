@@ -29,11 +29,11 @@ function ParticipationModeContent() {
   const updateMode = useUpdateEnrollmentParticipationMode();
   const [selectedMode, setSelectedMode] = useState<string>('');
 
-  // CRITICAL: Use ENROLLMENT-scoped lifecycle validation
-  const configurationCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'configuration');
+  // CRITICAL: Use ENROLLMENT-scoped lifecycle validation with 'content' field category
+  const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
   const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
-  const isLocked = !configurationCheck.allowed || isTerminal;
+  const isLocked = !contentCheck.allowed || isTerminal;
 
   // Check if there's a pending approval - redirect back to pending page
   // CRITICAL: Use ENROLLMENT organization, not provider organization
@@ -134,10 +134,10 @@ function ParticipationModeContent() {
           />
         )}
         
-        {!isTerminal && !configurationCheck.allowed && (
+        {!isTerminal && !contentCheck.allowed && (
           <LockedFieldBanner 
-            lockLevel="configuration"
-            reason={configurationCheck.reason || undefined}
+            lockLevel="content"
+            reason={contentCheck.reason || undefined}
           />
         )}
 

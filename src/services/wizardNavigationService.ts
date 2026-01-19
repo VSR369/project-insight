@@ -98,6 +98,7 @@ export function getStepForStatus(lifecycleStatus: string): number {
     'org_info_pending': 3,
     'org_validated': 4,
     'expertise_selected': 5,
+    'profile_building': 5,
     'proof_points_started': 5,
     'proof_points_min_met': 6,
     'assessment_pending': 6,
