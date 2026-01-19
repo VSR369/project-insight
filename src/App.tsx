@@ -77,6 +77,9 @@ import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
 import InvitationResponsePage from "@/pages/reviewer/InvitationResponsePage";
 import ReviewerAvailability from "@/pages/reviewer/ReviewerAvailability";
+import ReviewerInterviews from "@/pages/reviewer/ReviewerInterviews";
+import ReviewerCandidates from "@/pages/reviewer/ReviewerCandidates";
+import ReviewerSettings from "@/pages/reviewer/ReviewerSettings";
 
 // Export queryClient for shared access (auth state changes, portal switching)
 export const queryClient = new QueryClient();
@@ -484,6 +487,38 @@ const App = () => (
               element={
                 <ReviewerGuard>
                   <ReviewerAvailability />
+                </ReviewerGuard>
+              }
+            />
+            <Route
+              path="/reviewer/interviews"
+              element={
+                <ReviewerGuard>
+                  <ReviewerInterviews />
+                </ReviewerGuard>
+              }
+            />
+            <Route
+              path="/reviewer/candidates"
+              element={
+                <ReviewerGuard>
+                  <ReviewerCandidates />
+                </ReviewerGuard>
+              }
+            />
+            <Route
+              path="/reviewer/candidates/:enrollmentId"
+              element={
+                <ReviewerGuard>
+                  <ReviewerCandidates />
+                </ReviewerGuard>
+              }
+            />
+            <Route
+              path="/reviewer/settings"
+              element={
+                <ReviewerGuard>
+                  <ReviewerSettings />
                 </ReviewerGuard>
               }
             />

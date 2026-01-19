@@ -68,6 +68,32 @@ export function usePanelReviewer(id: string | null) {
   });
 }
 
+/**
+ * Fetch a panel reviewer by auth user ID
+ */
+export function useReviewerByUserId(userId: string | undefined) {
+  return useQuery({
+    queryKey: ["panel-reviewers", "by-user", userId],
+    queryFn: async () => {
+      if (!userId) return null;
+
+      const { data, error } = await supabase
+        .from("panel_reviewers")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') return null; // Not found
+        throw new Error(error.message);
+      }
+      return data as PanelReviewer;
+    },
+    enabled: !!userId,
+    staleTime: 60000, // 1 minute
+  });
+}
+
 interface CreateReviewerData {
   name: string;
   email: string;
