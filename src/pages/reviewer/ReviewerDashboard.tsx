@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ReviewerLayout } from '@/components/reviewer';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Clock, Users, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { logInfo } from '@/lib/errorHandler';
 
 // Dashboard components
 import {
@@ -48,6 +50,48 @@ export default function ReviewerDashboard() {
   const { data: upcomingInterviews, isLoading: interviewsLoading } = useReviewerUpcomingInterviews(reviewer?.id, 5);
   const { data: actionRequired, isLoading: actionLoading } = useActionRequiredEnrollments(reviewer?.id, 5);
   const { data: newSubmissions, isLoading: submissionsLoading } = useNewEnrollmentSubmissions(reviewer?.id, 5);
+
+  // Debug logging for dashboard state
+  useEffect(() => {
+    if (reviewer && !reviewerLoading) {
+      logInfo("ReviewerDashboard: render state", {
+        operation: "dashboard_render",
+        component: "ReviewerDashboard",
+        reviewerId: reviewer.id,
+        reviewerName: reviewer.name,
+        reviewerEmail: reviewer.email,
+        industrySegmentIds: reviewer.industry_segment_ids,
+        expertiseLevelIds: reviewer.expertise_level_ids,
+        industryNames,
+        isActive: reviewer.is_active,
+      });
+    }
+  }, [reviewer, reviewerLoading, industryNames]);
+
+  useEffect(() => {
+    if (!statsLoading && !interviewsLoading && !actionLoading && !submissionsLoading) {
+      logInfo("ReviewerDashboard: data loaded", {
+        operation: "dashboard_data_loaded",
+        component: "ReviewerDashboard",
+        reviewerId: reviewer?.id,
+        stats: stats ? {
+          total: stats.totalEnrollments,
+          new: stats.newSubmissions,
+          action: stats.actionRequired,
+          upcoming: stats.upcomingInterviews,
+        } : null,
+        upcomingInterviewsCount: upcomingInterviews?.length || 0,
+        upcomingInterviews: upcomingInterviews?.map((i) => ({
+          bookingId: i.bookingId,
+          industry: i.industryName,
+          provider: i.providerName,
+          startAt: i.startAt,
+        })),
+        actionRequiredCount: actionRequired?.length || 0,
+        newSubmissionsCount: newSubmissions?.length || 0,
+      });
+    }
+  }, [reviewer, stats, statsLoading, upcomingInterviews, interviewsLoading, actionRequired, actionLoading, newSubmissions, submissionsLoading]);
 
   // Handle error states
   if (reviewerError) {

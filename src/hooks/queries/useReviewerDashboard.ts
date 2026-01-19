@@ -11,6 +11,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getCurrentUserId } from "@/lib/auditFields";
+import { logInfo, logWarning } from "@/lib/errorHandler";
 
 // Types for dashboard data
 export interface ReviewerDashboardStats {
@@ -97,6 +98,20 @@ export function useReviewerDashboardStats(reviewerId: string | undefined) {
 
       if (brError) throw new Error(brError.message);
 
+      logInfo("Dashboard stats: raw bookingReviewers fetched", {
+        operation: "fetch_dashboard_stats",
+        component: "useReviewerDashboardStats",
+        reviewerId,
+        totalBookings: bookingReviewers?.length || 0,
+        bookings: bookingReviewers?.map((br) => ({
+          bookingId: (br as any).interview_bookings?.id,
+          enrollmentId: (br as any).interview_bookings?.enrollment_id,
+          status: (br as any).interview_bookings?.status,
+          scheduledAt: (br as any).interview_bookings?.scheduled_at,
+          flagged: (br as any).interview_bookings?.flag_for_clarification,
+        })),
+      });
+
       const now = new Date();
       const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
@@ -134,12 +149,22 @@ export function useReviewerDashboardStats(reviewerId: string | undefined) {
         }
       });
 
-      return {
+      const stats = {
         totalEnrollments: uniqueEnrollments.size,
         newSubmissions,
         actionRequired,
         upcomingInterviews,
       };
+
+      logInfo("Dashboard stats: calculated", {
+        operation: "calculate_dashboard_stats",
+        component: "useReviewerDashboardStats",
+        reviewerId,
+        currentTime: now.toISOString(),
+        stats,
+      });
+
+      return stats;
     },
     enabled: !!reviewerId,
     staleTime: 30000, // 30 seconds
@@ -182,7 +207,29 @@ export function useReviewerUpcomingInterviews(reviewerId: string | undefined, li
 
       if (brError) throw new Error(brError.message);
 
+      logInfo("Upcoming interviews: raw query result", {
+        operation: "fetch_upcoming_interviews",
+        component: "useReviewerUpcomingInterviews",
+        reviewerId,
+        filterTime: now,
+        resultCount: bookingReviewers?.length || 0,
+        bookings: bookingReviewers?.map((br) => ({
+          slotId: br.slot_id,
+          bookingId: (br as any).interview_bookings?.id,
+          enrollmentId: (br as any).interview_bookings?.enrollment_id,
+          status: (br as any).interview_bookings?.status,
+          scheduledAt: (br as any).interview_bookings?.scheduled_at,
+          slotStartAt: (br as any).interview_slots?.start_at,
+          slotEndAt: (br as any).interview_slots?.end_at,
+        })),
+      });
+
       if (!bookingReviewers || bookingReviewers.length === 0) {
+        logWarning("Upcoming interviews: no results found", {
+          operation: "fetch_upcoming_interviews",
+          component: "useReviewerUpcomingInterviews",
+          reviewerId,
+        });
         return [];
       }
 
@@ -221,7 +268,7 @@ export function useReviewerUpcomingInterviews(reviewerId: string | undefined, li
       const providerMap = new Map(providers?.map((p) => [p.id, p]) || []);
 
       // Transform to UpcomingInterview[]
-      return bookingReviewers.map((br) => {
+      const result = bookingReviewers.map((br) => {
         const booking = (br as any).interview_bookings;
         const slot = (br as any).interview_slots;
         const enrollment = enrollmentMap.get(booking.enrollment_id);
@@ -244,6 +291,21 @@ export function useReviewerUpcomingInterviews(reviewerId: string | undefined, li
           slotId: br.slot_id,
         };
       });
+
+      logInfo("Upcoming interviews: transformed", {
+        operation: "transform_upcoming_interviews",
+        component: "useReviewerUpcomingInterviews",
+        reviewerId,
+        interviews: result.map((i) => ({
+          bookingId: i.bookingId,
+          industry: i.industryName,
+          provider: i.providerName,
+          scheduledAt: i.scheduledAt,
+          slotStartAt: i.startAt,
+        })),
+      });
+
+      return result;
     },
     enabled: !!reviewerId,
     staleTime: 30000,
@@ -283,6 +345,19 @@ export function useActionRequiredEnrollments(reviewerId: string | undefined, lim
         return booking.flag_for_clarification || 
                (booking.reviewer_notes && booking.reviewer_notes.trim() !== '');
       }) || [];
+
+      logInfo("Action required: filtered items", {
+        operation: "fetch_action_required",
+        component: "useActionRequiredEnrollments",
+        reviewerId,
+        totalBookings: bookingReviewers?.length || 0,
+        actionItemsCount: actionItems.length,
+        actionItems: actionItems.map((br) => ({
+          bookingId: (br as any).interview_bookings?.id,
+          flagged: (br as any).interview_bookings?.flag_for_clarification,
+          hasNotes: !!(br as any).interview_bookings?.reviewer_notes,
+        })),
+      });
 
       if (actionItems.length === 0) return [];
 
@@ -369,6 +444,14 @@ export function useNewEnrollmentSubmissions(reviewerId: string | undefined, limi
         .limit(limit);
 
       if (brError) throw new Error(brError.message);
+
+      logInfo("New submissions: fetched", {
+        operation: "fetch_new_submissions",
+        component: "useNewEnrollmentSubmissions",
+        reviewerId,
+        filterDate: sevenDaysAgo,
+        resultCount: bookingReviewers?.length || 0,
+      });
 
       if (!bookingReviewers || bookingReviewers.length === 0) return [];
 
