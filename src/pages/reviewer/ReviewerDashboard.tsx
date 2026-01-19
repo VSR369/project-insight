@@ -57,13 +57,15 @@ export default function ReviewerDashboard() {
       logInfo("ReviewerDashboard: render state", {
         operation: "dashboard_render",
         component: "ReviewerDashboard",
-        reviewerId: reviewer.id,
-        reviewerName: reviewer.name,
-        reviewerEmail: reviewer.email,
-        industrySegmentIds: reviewer.industry_segment_ids,
-        expertiseLevelIds: reviewer.expertise_level_ids,
-        industryNames,
-        isActive: reviewer.is_active,
+        additionalData: {
+          reviewerId: reviewer.id,
+          reviewerName: reviewer.name,
+          reviewerEmail: reviewer.email,
+          industrySegmentIds: reviewer.industry_segment_ids,
+          expertiseLevelIds: reviewer.expertise_level_ids,
+          industryNames,
+          isActive: reviewer.is_active,
+        },
       });
     }
   }, [reviewer, reviewerLoading, industryNames]);
@@ -73,22 +75,24 @@ export default function ReviewerDashboard() {
       logInfo("ReviewerDashboard: data loaded", {
         operation: "dashboard_data_loaded",
         component: "ReviewerDashboard",
-        reviewerId: reviewer?.id,
-        stats: stats ? {
-          total: stats.totalEnrollments,
-          new: stats.newSubmissions,
-          action: stats.actionRequired,
-          upcoming: stats.upcomingInterviews,
-        } : null,
-        upcomingInterviewsCount: upcomingInterviews?.length || 0,
-        upcomingInterviews: upcomingInterviews?.map((i) => ({
-          bookingId: i.bookingId,
-          industry: i.industryName,
-          provider: i.providerName,
-          startAt: i.startAt,
-        })),
-        actionRequiredCount: actionRequired?.length || 0,
-        newSubmissionsCount: newSubmissions?.length || 0,
+        additionalData: {
+          reviewerId: reviewer?.id,
+          stats: stats ? {
+            total: stats.totalEnrollments,
+            new: stats.newSubmissions,
+            action: stats.actionRequired,
+            upcoming: stats.upcomingInterviews,
+          } : null,
+          upcomingInterviewsCount: upcomingInterviews?.length || 0,
+          upcomingInterviews: upcomingInterviews?.map((i) => ({
+            bookingId: i.bookingId,
+            industry: i.industryName,
+            provider: i.providerName,
+            startAt: i.startAt,
+          })),
+          actionRequiredCount: actionRequired?.length || 0,
+          newSubmissionsCount: newSubmissions?.length || 0,
+        },
       });
     }
   }, [reviewer, stats, statsLoading, upcomingInterviews, interviewsLoading, actionRequired, actionLoading, newSubmissions, submissionsLoading]);
