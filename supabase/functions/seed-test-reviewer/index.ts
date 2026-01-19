@@ -86,6 +86,20 @@ serve(async (req) => {
       console.log("Role already assigned");
     }
 
+    // Get industry segments and expertise levels for assignment
+    const { data: industrySegments } = await supabaseAdmin
+      .from("industry_segments")
+      .select("id")
+      .eq("is_active", true);
+
+    const { data: expertiseLevels } = await supabaseAdmin
+      .from("expertise_levels")
+      .select("id")
+      .eq("is_active", true);
+
+    const industrySegmentIds = industrySegments?.map((s) => s.id) || [];
+    const expertiseLevelIds = expertiseLevels?.map((l) => l.id) || [];
+
     // Check if panel_reviewers record exists
     const { data: existingPanelReviewer } = await supabaseAdmin
       .from("panel_reviewers")
@@ -94,7 +108,7 @@ serve(async (req) => {
       .single();
 
     if (!existingPanelReviewer) {
-      // Create panel_reviewers record
+      // Create panel_reviewers record with industry/expertise assignments
       const { error: panelError } = await supabaseAdmin
         .from("panel_reviewers")
         .insert({
@@ -102,8 +116,8 @@ serve(async (req) => {
           email: testReviewerEmail,
           name: "Test Reviewer",
           is_active: true,
-          industry_segment_ids: [],
-          expertise_level_ids: [],
+          industry_segment_ids: industrySegmentIds,
+          expertise_level_ids: expertiseLevelIds,
           timezone: "Asia/Calcutta",
           max_interviews_per_day: 4,
           invitation_status: "accepted",
@@ -112,12 +126,25 @@ serve(async (req) => {
 
       if (panelError) {
         console.error("Error creating panel reviewer record:", panelError);
-        // Non-fatal - role assignment is the important part
       } else {
-        console.log("Created panel_reviewers record");
+        console.log("Created panel_reviewers record with", industrySegmentIds.length, "industries and", expertiseLevelIds.length, "levels");
       }
     } else {
-      console.log("Panel reviewer record already exists");
+      // Update existing panel reviewer with industry/expertise assignments
+      const { error: updateError } = await supabaseAdmin
+        .from("panel_reviewers")
+        .update({
+          industry_segment_ids: industrySegmentIds,
+          expertise_level_ids: expertiseLevelIds,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("email", testReviewerEmail);
+
+      if (updateError) {
+        console.error("Error updating panel reviewer:", updateError);
+      } else {
+        console.log("Updated panel_reviewers with", industrySegmentIds.length, "industries and", expertiseLevelIds.length, "levels");
+      }
     }
 
     return new Response(
