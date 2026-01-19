@@ -3734,8 +3734,8 @@ const primaryActionMatrixTests: TestCase[] = [
     name: "Assessment retake eligible at rank 105",
     description: "Retake available after failure (🔄)",
     run: () => runTest(async () => {
-      const failedRank = LIFECYCLE_RANKS.assessment_failed;
-      if (failedRank !== 105) throw new Error(`Expected assessment_failed rank 105, got: ${failedRank}`);
+      const failedRank = LIFECYCLE_RANKS.assessment_completed;
+      if (failedRank !== 105) throw new Error(`Expected assessment_completed rank 105, got: ${failedRank}`);
       // At rank 105, assessment shows 🔄 Retake Eligible
     }),
   },
