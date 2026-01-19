@@ -3,6 +3,7 @@
  * 
  * Step 8 of enrollment - Panel Interview stage
  * Shown when lifecycle_status = 'panel_scheduled'
+ * Displays interview details and personalized preparation guidance
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -10,23 +11,48 @@ import { WizardLayout } from '@/components/layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, Users, CheckCircle2, Info, Loader2, Video } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { 
+  Calendar, 
+  Clock, 
+  CheckCircle2, 
+  Info, 
+  Loader2, 
+  Video,
+  Target,
+  FileText,
+  Star,
+  Sparkles
+} from 'lucide-react';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useExistingBooking } from '@/hooks/queries/useInterviewScheduling';
+import { useProviderHierarchy } from '@/hooks/queries/useProviderHierarchy';
+import { useProofPoints } from '@/hooks/queries/useProofPoints';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { format } from 'date-fns';
 
 export default function PanelDiscussion() {
   const navigate = useNavigate();
   const { activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
+  const { data: provider } = useCurrentProvider();
   
-  const { data: booking, isLoading } = useExistingBooking(
+  const { data: booking, isLoading: bookingLoading } = useExistingBooking(
     activeEnrollmentId,
     activeEnrollment?.provider_id
+  );
+
+  const hierarchy = useProviderHierarchy();
+  
+  const { data: proofPoints, isLoading: proofPointsLoading } = useProofPoints(
+    provider?.id,
+    { industrySegmentId: activeEnrollment?.industry_segment_id }
   );
 
   const handleContinue = () => {
     navigate('/enroll/certification');
   };
+
+  const isLoading = bookingLoading || hierarchy.isLoading;
 
   if (isLoading) {
     return (
@@ -37,6 +63,8 @@ export default function PanelDiscussion() {
       </WizardLayout>
     );
   }
+
+  const proofPointCount = proofPoints?.length || 0;
 
   return (
     <WizardLayout
@@ -108,19 +136,111 @@ export default function PanelDiscussion() {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-6">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">
-                  No interview scheduled yet.
-                </p>
-                <Button 
-                  className="mt-4"
-                  onClick={() => navigate('/enroll/interview-slot')}
-                >
-                  Schedule Interview
-                </Button>
+              <div className="flex items-center gap-2 text-amber-600">
+                <Info className="h-5 w-5" />
+                <span>Interview booking details are being confirmed.</span>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Your Focus Areas Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5 text-primary" />
+              Your Focus Areas
+            </CardTitle>
+            <CardDescription>
+              The panel will focus on your expertise in these areas
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Industry & Expertise Level */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground mb-1">Industry</p>
+                {hierarchy.industrySegment ? (
+                  <p className="font-medium">{hierarchy.industrySegment.name}</p>
+                ) : (
+                  <Skeleton className="h-5 w-32" />
+                )}
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50">
+                <p className="text-sm text-muted-foreground mb-1">Expertise Level</p>
+                {hierarchy.expertiseLevel ? (
+                  <p className="font-medium">{hierarchy.expertiseLevel.name}</p>
+                ) : (
+                  <Skeleton className="h-5 w-28" />
+                )}
+              </div>
+            </div>
+
+            {/* Proficiency Areas */}
+            {hierarchy.proficiencyAreas.length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Proficiency Areas</p>
+                <div className="flex flex-wrap gap-2">
+                  {hierarchy.proficiencyAreas.map((area) => (
+                    <Badge key={area.id} variant="secondary">
+                      {area.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Sub-Domains */}
+            {hierarchy.subDomains.length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Sub-Domains</p>
+                <div className="flex flex-wrap gap-2">
+                  {hierarchy.subDomains.map((domain) => (
+                    <Badge key={domain.id} variant="outline">
+                      {domain.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Specialities */}
+            {hierarchy.specialities.length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">Specialities</p>
+                <div className="flex flex-wrap gap-2">
+                  {hierarchy.specialities.map((speciality) => (
+                    <Badge key={speciality.id} className="bg-primary/10 text-primary border-primary/20">
+                      {speciality.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Your Proof Points Card */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              Your Proof Points
+              {!proofPointsLoading && (
+                <Badge variant="secondary" className="ml-2">
+                  {proofPointCount} submitted
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="bg-muted/50 rounded-lg p-4">
+              <p className="text-muted-foreground">
+                Be ready to discuss each of your proof points in detail. The panel may ask for 
+                specific examples, outcomes, and the impact of your work. Think about metrics, 
+                challenges you overcame, and lessons learned.
+              </p>
+            </div>
           </CardContent>
         </Card>
 
@@ -129,7 +249,7 @@ export default function PanelDiscussion() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Info className="h-5 w-5 text-primary" />
-              Prepare for Your Interview
+              Preparation Tips
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -151,6 +271,28 @@ export default function PanelDiscussion() {
                 <span>Join 5 minutes early to test your audio and video</span>
               </li>
             </ul>
+          </CardContent>
+        </Card>
+
+        {/* All the Best Card */}
+        <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-full bg-primary/10">
+                <Sparkles className="h-6 w-6 text-primary" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  All the Best! 
+                  <Star className="h-5 w-5 text-yellow-500 fill-yellow-500" />
+                </h3>
+                <p className="text-muted-foreground">
+                  You've come a long way! The panel interview is your opportunity to showcase 
+                  your expertise and experience. Be confident, be authentic, and let your 
+                  knowledge shine through. We're rooting for you!
+                </p>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
