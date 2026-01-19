@@ -132,9 +132,12 @@ export function getNextStepForStatus(
   
   // Handle special cases based on lifecycle status
   switch (lifecycleStatus) {
+    case 'invited':
     case 'registered':
+      return 1; // Go to registration first to view/edit signup data
+    
     case 'enrolled':
-      return 2; // Go to participation mode
+      return 2; // Go to participation mode (only after registration confirmed)
     
     case 'mode_selected':
       // If org is required, go to org step, otherwise go to expertise
