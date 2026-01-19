@@ -41,7 +41,7 @@ export function ReviewerProfileHeader({
         Welcome back, {reviewer?.name || 'Reviewer'}!
       </h1>
       <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
-        <span className="text-sm">Panel Reviewer</span>
+        <span className="text-sm">Solution Review Panel Member</span>
         {industryNames.length > 0 && (
           <>
             <span className="text-muted-foreground/50">•</span>
