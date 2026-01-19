@@ -75,10 +75,12 @@ function RegistrationContent() {
   }, [isAddIndustryMode, navigate]);
 
   // CRITICAL: Use ENROLLMENT-scoped lifecycle validation
+  // Only apply lock logic if enrollment exists - no enrollment = new user, always editable
+  const hasEnrollment = !!activeEnrollmentId;
   const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
   const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
-  const isTerminal = terminalState.isTerminal;
-  const isLocked = !contentCheck.allowed || isTerminal;
+  const isTerminal = hasEnrollment && terminalState.isTerminal;
+  const isLocked = hasEnrollment && (!contentCheck.allowed || isTerminal);
 
   // Registration form
   const form = useForm<RegistrationFormData>({
@@ -218,18 +220,18 @@ function RegistrationContent() {
           </p>
         </div>
 
-        {/* Lock Banners */}
-        {isTerminal && (
+        {/* Lock Banners - only show when enrollment exists and is locked */}
+        {isLocked && isTerminal && (
           <LockedFieldBanner 
             lockLevel="everything"
             reason="Your profile has been verified. Registration details cannot be modified."
           />
         )}
         
-        {!isTerminal && !contentCheck.allowed && (
+        {isLocked && !isTerminal && contentCheck.reason && (
           <LockedFieldBanner 
             lockLevel="content"
-            reason={contentCheck.reason || undefined}
+            reason={contentCheck.reason}
           />
         )}
 

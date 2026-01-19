@@ -237,7 +237,9 @@ export function useEnrollmentCanModifyField(
   }
 
   if (!enrollment) {
-    return { allowed: false, reason: 'Enrollment not found', isLoading: false };
+    // No enrollment = user is in early registration stages
+    // Allow modification - lock rules only apply once enrolled
+    return { allowed: true, isLoading: false };
   }
 
   const result = canModifyField(enrollment.lifecycle_rank, fieldCategory);
