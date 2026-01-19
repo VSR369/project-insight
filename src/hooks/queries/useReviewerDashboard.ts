@@ -101,15 +101,17 @@ export function useReviewerDashboardStats(reviewerId: string | undefined) {
       logInfo("Dashboard stats: raw bookingReviewers fetched", {
         operation: "fetch_dashboard_stats",
         component: "useReviewerDashboardStats",
-        reviewerId,
-        totalBookings: bookingReviewers?.length || 0,
-        bookings: bookingReviewers?.map((br) => ({
-          bookingId: (br as any).interview_bookings?.id,
-          enrollmentId: (br as any).interview_bookings?.enrollment_id,
-          status: (br as any).interview_bookings?.status,
-          scheduledAt: (br as any).interview_bookings?.scheduled_at,
-          flagged: (br as any).interview_bookings?.flag_for_clarification,
-        })),
+        additionalData: {
+          reviewerId,
+          totalBookings: bookingReviewers?.length || 0,
+          bookings: bookingReviewers?.map((br) => ({
+            bookingId: (br as any).interview_bookings?.id,
+            enrollmentId: (br as any).interview_bookings?.enrollment_id,
+            status: (br as any).interview_bookings?.status,
+            scheduledAt: (br as any).interview_bookings?.scheduled_at,
+            flagged: (br as any).interview_bookings?.flag_for_clarification,
+          })),
+        },
       });
 
       const now = new Date();
@@ -159,9 +161,11 @@ export function useReviewerDashboardStats(reviewerId: string | undefined) {
       logInfo("Dashboard stats: calculated", {
         operation: "calculate_dashboard_stats",
         component: "useReviewerDashboardStats",
-        reviewerId,
-        currentTime: now.toISOString(),
-        stats,
+        additionalData: {
+          reviewerId,
+          currentTime: now.toISOString(),
+          stats,
+        },
       });
 
       return stats;
@@ -210,25 +214,27 @@ export function useReviewerUpcomingInterviews(reviewerId: string | undefined, li
       logInfo("Upcoming interviews: raw query result", {
         operation: "fetch_upcoming_interviews",
         component: "useReviewerUpcomingInterviews",
-        reviewerId,
-        filterTime: now,
-        resultCount: bookingReviewers?.length || 0,
-        bookings: bookingReviewers?.map((br) => ({
-          slotId: br.slot_id,
-          bookingId: (br as any).interview_bookings?.id,
-          enrollmentId: (br as any).interview_bookings?.enrollment_id,
-          status: (br as any).interview_bookings?.status,
-          scheduledAt: (br as any).interview_bookings?.scheduled_at,
-          slotStartAt: (br as any).interview_slots?.start_at,
-          slotEndAt: (br as any).interview_slots?.end_at,
-        })),
+        additionalData: {
+          reviewerId,
+          filterTime: now,
+          resultCount: bookingReviewers?.length || 0,
+          bookings: bookingReviewers?.map((br) => ({
+            slotId: br.slot_id,
+            bookingId: (br as any).interview_bookings?.id,
+            enrollmentId: (br as any).interview_bookings?.enrollment_id,
+            status: (br as any).interview_bookings?.status,
+            scheduledAt: (br as any).interview_bookings?.scheduled_at,
+            slotStartAt: (br as any).interview_slots?.start_at,
+            slotEndAt: (br as any).interview_slots?.end_at,
+          })),
+        },
       });
 
       if (!bookingReviewers || bookingReviewers.length === 0) {
         logWarning("Upcoming interviews: no results found", {
           operation: "fetch_upcoming_interviews",
           component: "useReviewerUpcomingInterviews",
-          reviewerId,
+          additionalData: { reviewerId },
         });
         return [];
       }
@@ -295,14 +301,16 @@ export function useReviewerUpcomingInterviews(reviewerId: string | undefined, li
       logInfo("Upcoming interviews: transformed", {
         operation: "transform_upcoming_interviews",
         component: "useReviewerUpcomingInterviews",
-        reviewerId,
-        interviews: result.map((i) => ({
-          bookingId: i.bookingId,
-          industry: i.industryName,
-          provider: i.providerName,
-          scheduledAt: i.scheduledAt,
-          slotStartAt: i.startAt,
-        })),
+        additionalData: {
+          reviewerId,
+          interviews: result.map((i) => ({
+            bookingId: i.bookingId,
+            industry: i.industryName,
+            provider: i.providerName,
+            scheduledAt: i.scheduledAt,
+            slotStartAt: i.startAt,
+          })),
+        },
       });
 
       return result;
@@ -349,14 +357,16 @@ export function useActionRequiredEnrollments(reviewerId: string | undefined, lim
       logInfo("Action required: filtered items", {
         operation: "fetch_action_required",
         component: "useActionRequiredEnrollments",
-        reviewerId,
-        totalBookings: bookingReviewers?.length || 0,
-        actionItemsCount: actionItems.length,
-        actionItems: actionItems.map((br) => ({
-          bookingId: (br as any).interview_bookings?.id,
-          flagged: (br as any).interview_bookings?.flag_for_clarification,
-          hasNotes: !!(br as any).interview_bookings?.reviewer_notes,
-        })),
+        additionalData: {
+          reviewerId,
+          totalBookings: bookingReviewers?.length || 0,
+          actionItemsCount: actionItems.length,
+          actionItems: actionItems.map((br) => ({
+            bookingId: (br as any).interview_bookings?.id,
+            flagged: (br as any).interview_bookings?.flag_for_clarification,
+            hasNotes: !!(br as any).interview_bookings?.reviewer_notes,
+          })),
+        },
       });
 
       if (actionItems.length === 0) return [];
@@ -448,9 +458,11 @@ export function useNewEnrollmentSubmissions(reviewerId: string | undefined, limi
       logInfo("New submissions: fetched", {
         operation: "fetch_new_submissions",
         component: "useNewEnrollmentSubmissions",
-        reviewerId,
-        filterDate: sevenDaysAgo,
-        resultCount: bookingReviewers?.length || 0,
+        additionalData: {
+          reviewerId,
+          filterDate: sevenDaysAgo,
+          resultCount: bookingReviewers?.length || 0,
+        },
       });
 
       if (!bookingReviewers || bookingReviewers.length === 0) return [];
