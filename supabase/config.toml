@@ -6,6 +6,9 @@ verify_jwt = false
 [functions.approve-reviewer-application]
 verify_jwt = false
 
+[functions.auto-decline-expired-approvals]
+verify_jwt = false
+
 [functions.cancel-reviewer-invitation]
 verify_jwt = false
 
@@ -34,6 +37,9 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.send-manager-credentials]
+verify_jwt = false
+
+[functions.send-manager-reminder]
 verify_jwt = false
 
 [functions.send-reviewer-invitation]

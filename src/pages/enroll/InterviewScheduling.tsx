@@ -22,6 +22,7 @@ import {
   useQuorumRequirement,
   useBookInterviewSlot,
   useCancelBooking,
+  useRescheduleBooking,
   useCanScheduleInterview,
 } from "@/hooks/queries/useInterviewScheduling";
 import {
@@ -64,6 +65,7 @@ export default function InterviewScheduling() {
 
   const bookSlot = useBookInterviewSlot();
   const cancelBooking = useCancelBooking();
+  const rescheduleBooking = useRescheduleBooking();
   const { canSchedule, isEligible, reason } = useCanScheduleInterview(
     activeEnrollmentId ?? undefined,
     activeLifecycleRank
@@ -96,11 +98,22 @@ export default function InterviewScheduling() {
   const handleConfirmBooking = async () => {
     if (!selectedSlot || !provider?.id || !activeEnrollmentId) return;
 
-    await bookSlot.mutateAsync({
-      providerId: provider.id,
-      enrollmentId: activeEnrollmentId,
-      compositeSlotId: selectedSlot.id,
-    });
+    // Use reschedule mutation if rescheduling existing booking
+    if (isRescheduling && existingBooking) {
+      await rescheduleBooking.mutateAsync({
+        currentBookingId: existingBooking.id,
+        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
+        newCompositeSlotId: selectedSlot.id,
+      });
+    } else {
+      // Normal booking flow
+      await bookSlot.mutateAsync({
+        providerId: provider.id,
+        enrollmentId: activeEnrollmentId,
+        compositeSlotId: selectedSlot.id,
+      });
+    }
 
     setShowConfirmDialog(false);
     setSelectedSlot(null);
@@ -306,16 +319,17 @@ export default function InterviewScheduling() {
       </div>
 
       {/* Booking Confirmation Dialog */}
-      <BookingConfirmDialog
-        open={showConfirmDialog}
-        onOpenChange={setShowConfirmDialog}
-        slot={selectedSlot}
-        quorumRequirement={quorumRequirement ?? null}
-        timezone={timezone}
-        expertiseLevelName={expertiseLevelName}
-        onConfirm={handleConfirmBooking}
-        isConfirming={bookSlot.isPending}
-      />
+        <BookingConfirmDialog
+          open={showConfirmDialog}
+          onOpenChange={setShowConfirmDialog}
+          slot={selectedSlot}
+          quorumRequirement={quorumRequirement ?? null}
+          timezone={timezone}
+          expertiseLevelName={expertiseLevelName}
+          onConfirm={handleConfirmBooking}
+          isConfirming={bookSlot.isPending || rescheduleBooking.isPending}
+          isRescheduling={isRescheduling}
+        />
     </WizardLayout>
   );
 }

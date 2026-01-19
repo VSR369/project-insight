@@ -60,6 +60,14 @@ function OrganizationPendingContent() {
     return null;
   }
 
+  // If expired, show expired message and redirect to organization form
+  if (approvalStatus === 'expired') {
+    navigate('/enroll/organization', { 
+      state: { showExpiredMessage: true } 
+    });
+    return null;
+  }
+
   // If withdrawn, redirect to participation mode selection
   if (approvalStatus === 'withdrawn') {
     navigate('/enroll/participation-mode', { replace: true });
