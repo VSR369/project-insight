@@ -251,9 +251,9 @@ export default function Dashboard() {
   const hasMultipleEnrollments = enrollments.length > 1;
   const totalProofPoints = proofPoints.length;
 
-  // Check if user is a first-time user (no provider record yet)
-  // Only consider first-time if loading is complete AND no provider exists
-  const isFirstTimeUser = !isLoading && !enrollmentsLoading && !provider && !!user;
+  // Check if user is a first-time user (no enrollments yet)
+  // Show welcome CTA if: loading complete AND (no provider OR provider has no enrollments)
+  const isFirstTimeUser = !isLoading && !enrollmentsLoading && !!user && (!provider || enrollments.length === 0);
 
   return (
     <AppLayout>
