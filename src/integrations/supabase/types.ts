@@ -597,10 +597,13 @@ export type Database = {
           created_at: string | null
           created_by: string | null
           enrollment_id: string
+          flag_for_clarification: boolean | null
           id: string
+          interview_outcome: string | null
           notes: string | null
           provider_id: string
           reschedule_count: number | null
+          reviewer_notes: string | null
           scheduled_at: string
           status: string | null
           updated_at: string | null
@@ -613,10 +616,13 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           enrollment_id: string
+          flag_for_clarification?: boolean | null
           id?: string
+          interview_outcome?: string | null
           notes?: string | null
           provider_id: string
           reschedule_count?: number | null
+          reviewer_notes?: string | null
           scheduled_at: string
           status?: string | null
           updated_at?: string | null
@@ -629,10 +635,13 @@ export type Database = {
           created_at?: string | null
           created_by?: string | null
           enrollment_id?: string
+          flag_for_clarification?: boolean | null
           id?: string
+          interview_outcome?: string | null
           notes?: string | null
           provider_id?: string
           reschedule_count?: number | null
+          reviewer_notes?: string | null
           scheduled_at?: string
           status?: string | null
           updated_at?: string | null
