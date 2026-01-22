@@ -11,6 +11,7 @@ import {
   OrganizationDetailsSection,
   ManagerApprovalSection,
   ReviewActionsCard,
+  ExpertiseTabContent,
 } from "@/components/reviewer/candidates";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import { toast } from "sonner";
@@ -114,7 +115,7 @@ export default function CandidateDetailPage() {
         <Tabs defaultValue="provider-details" className="space-y-6">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-muted/50 p-1">
             <TabsTrigger value="provider-details">Provider Details</TabsTrigger>
-            <TabsTrigger value="expertise" disabled>Expertise</TabsTrigger>
+            <TabsTrigger value="expertise">Expertise</TabsTrigger>
             <TabsTrigger value="proof-points" disabled>Proof Points</TabsTrigger>
             <TabsTrigger value="assessment" disabled>Assessment</TabsTrigger>
             <TabsTrigger value="slots" disabled>Slots</TabsTrigger>
@@ -148,10 +149,8 @@ export default function CandidateDetailPage() {
           </TabsContent>
 
           {/* Placeholder for other tabs */}
-          <TabsContent value="expertise">
-            <div className="p-8 text-center text-muted-foreground">
-              Expertise tab content coming soon
-            </div>
+          <TabsContent value="expertise" className="mt-6">
+            {enrollmentId && <ExpertiseTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
           <TabsContent value="proof-points">

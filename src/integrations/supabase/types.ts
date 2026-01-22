@@ -1451,7 +1451,12 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string | null
+          expertise_flag_for_clarification: string | null
           expertise_level_id: string | null
+          expertise_review_status: string | null
+          expertise_reviewed_at: string | null
+          expertise_reviewed_by: string | null
+          expertise_reviewer_notes: string | null
           id: string
           industry_segment_id: string
           is_primary: boolean
@@ -1467,7 +1472,12 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by?: string | null
+          expertise_flag_for_clarification?: string | null
           expertise_level_id?: string | null
+          expertise_review_status?: string | null
+          expertise_reviewed_at?: string | null
+          expertise_reviewed_by?: string | null
+          expertise_reviewer_notes?: string | null
           id?: string
           industry_segment_id: string
           is_primary?: boolean
@@ -1483,7 +1493,12 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string | null
+          expertise_flag_for_clarification?: string | null
           expertise_level_id?: string | null
+          expertise_review_status?: string | null
+          expertise_reviewed_at?: string | null
+          expertise_reviewed_by?: string | null
+          expertise_reviewer_notes?: string | null
           id?: string
           industry_segment_id?: string
           is_primary?: boolean
