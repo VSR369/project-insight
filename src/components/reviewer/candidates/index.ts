@@ -1,3 +1,9 @@
 export { CandidateCard } from "./CandidateCard";
 export { CandidateCardSkeleton } from "./CandidateCardSkeleton";
 export { CandidateFiltersPanel } from "./CandidateFilters";
+export { CandidateProfileHeader } from "./CandidateProfileHeader";
+export { ProviderDetailsSection } from "./ProviderDetailsSection";
+export { AffiliationTypeSection } from "./AffiliationTypeSection";
+export { OrganizationDetailsSection } from "./OrganizationDetailsSection";
+export { ManagerApprovalSection } from "./ManagerApprovalSection";
+export { ReviewActionsCard } from "./ReviewActionsCard";

@@ -81,6 +81,7 @@ import ReviewerAvailability from "@/pages/reviewer/ReviewerAvailability";
 import ReviewerInterviews from "@/pages/reviewer/ReviewerInterviews";
 import ReviewerCandidates from "@/pages/reviewer/ReviewerCandidates";
 import ReviewerSettings from "@/pages/reviewer/ReviewerSettings";
+import CandidateDetailPage from "@/pages/reviewer/CandidateDetailPage";
 
 // Export queryClient for shared access (auth state changes, portal switching)
 export const queryClient = new QueryClient();
@@ -512,7 +513,7 @@ const App = () => (
               path="/reviewer/candidates/:enrollmentId"
               element={
                 <ReviewerGuard>
-                  <ReviewerCandidates />
+                  <CandidateDetailPage />
                 </ReviewerGuard>
               }
             />
