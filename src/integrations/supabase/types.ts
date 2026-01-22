@@ -1384,6 +1384,11 @@ export type Database = {
           industry_segment_id: string | null
           is_deleted: boolean
           provider_id: string
+          review_comments: string | null
+          review_relevance_rating: string | null
+          review_score_rating: number | null
+          reviewed_at: string | null
+          reviewed_by: string | null
           title: string
           type: Database["public"]["Enums"]["proof_point_type"]
           updated_at: string | null
@@ -1401,6 +1406,11 @@ export type Database = {
           industry_segment_id?: string | null
           is_deleted?: boolean
           provider_id: string
+          review_comments?: string | null
+          review_relevance_rating?: string | null
+          review_score_rating?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           title: string
           type: Database["public"]["Enums"]["proof_point_type"]
           updated_at?: string | null
@@ -1418,6 +1428,11 @@ export type Database = {
           industry_segment_id?: string | null
           is_deleted?: boolean
           provider_id?: string
+          review_comments?: string | null
+          review_relevance_rating?: string | null
+          review_score_rating?: number | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
           title?: string
           type?: Database["public"]["Enums"]["proof_point_type"]
           updated_at?: string | null
@@ -1465,6 +1480,11 @@ export type Database = {
           org_approval_status: string | null
           organization: Json | null
           participation_mode_id: string | null
+          proof_points_final_score: number | null
+          proof_points_review_status: string | null
+          proof_points_reviewed_at: string | null
+          proof_points_reviewed_by: string | null
+          proof_points_reviewer_notes: string | null
           provider_id: string
           updated_at: string | null
           updated_by: string | null
@@ -1486,6 +1506,11 @@ export type Database = {
           org_approval_status?: string | null
           organization?: Json | null
           participation_mode_id?: string | null
+          proof_points_final_score?: number | null
+          proof_points_review_status?: string | null
+          proof_points_reviewed_at?: string | null
+          proof_points_reviewed_by?: string | null
+          proof_points_reviewer_notes?: string | null
           provider_id: string
           updated_at?: string | null
           updated_by?: string | null
@@ -1507,6 +1532,11 @@ export type Database = {
           org_approval_status?: string | null
           organization?: Json | null
           participation_mode_id?: string | null
+          proof_points_final_score?: number | null
+          proof_points_review_status?: string | null
+          proof_points_reviewed_at?: string | null
+          proof_points_reviewed_by?: string | null
+          proof_points_reviewer_notes?: string | null
           provider_id?: string
           updated_at?: string | null
           updated_by?: string | null
