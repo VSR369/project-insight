@@ -45,7 +45,7 @@ export interface BookingResult {
   error?: string;
 }
 
-// Fetch composite slots for an enrollment
+// Fetch composite slots for an enrollment with real-time availability
 export function useCompositeSlots(
   enrollmentId?: string,
   expertiseLevelId?: string,
@@ -58,7 +58,8 @@ export function useCompositeSlots(
         return [];
       }
 
-      const { data, error } = await supabase
+      // Get composite slots from the static table
+      const { data: compositeSlots, error: slotsError } = await supabase
         .from("composite_interview_slots")
         .select("*")
         .eq("expertise_level_id", expertiseLevelId)
@@ -67,8 +68,44 @@ export function useCompositeSlots(
         .gt("start_at", new Date().toISOString())
         .order("start_at", { ascending: true });
 
-      if (error) throw new Error(error.message);
-      return data as CompositeSlot[];
+      if (slotsError) throw new Error(slotsError.message);
+      if (!compositeSlots || compositeSlots.length === 0) return [];
+
+      // Get all currently booked slot IDs to filter out unavailable slots
+      const { data: bookedReviewers } = await supabase
+        .from("booking_reviewers")
+        .select(`
+          slot_id,
+          interview_bookings!inner(status)
+        `)
+        .eq("status", "assigned");
+
+      // Filter to only include bookings with active interview status
+      const bookedSlotIds = new Set(
+        (bookedReviewers || [])
+          .filter(br => {
+            const booking = br.interview_bookings as unknown as { status: string };
+            return booking?.status === 'scheduled' || booking?.status === 'confirmed';
+          })
+          .map(br => br.slot_id)
+      );
+
+      // Filter composite slots to only show those with available backing slots
+      const availableSlots = compositeSlots.filter(slot => {
+        const backingSlots = slot.backing_slot_ids as string[] || [];
+        // Count how many backing slots are still available (not booked)
+        const availableCount = backingSlots.filter(slotId => !bookedSlotIds.has(slotId)).length;
+        return availableCount > 0;
+      }).map(slot => {
+        const backingSlots = slot.backing_slot_ids as string[] || [];
+        const availableCount = backingSlots.filter(slotId => !bookedSlotIds.has(slotId)).length;
+        return {
+          ...slot,
+          available_reviewer_count: availableCount,
+        };
+      });
+
+      return availableSlots as CompositeSlot[];
     },
     enabled: !!expertiseLevelId && !!industrySegmentId,
   });
