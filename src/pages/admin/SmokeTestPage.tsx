@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Check, X, CircleDashed, RotateCcw, ExternalLink, ClipboardCheck, Play, Square, Loader2 } from "lucide-react";
+import { Check, X, CircleDashed, RotateCcw, ExternalLink, ClipboardCheck, Play, Square, Loader2, Database } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 import { AdminLayout } from "@/components/admin/AdminLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +24,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useSmokeTestRunner } from "@/hooks/useSmokeTestRunner";
 import { TestStatus, ModuleTestSuite } from "@/services/smokeTestRunner";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function SmokeTestPage() {
   const {
@@ -42,6 +44,30 @@ export default function SmokeTestPage() {
   } = useSmokeTestRunner();
 
   const modules = getModulesWithResults();
+
+  // Seed test data state
+  const [isSeeding, setIsSeeding] = React.useState(false);
+  const [seedResult, setSeedResult] = React.useState<any>(null);
+
+  const handleSeedTestData = async () => {
+    setIsSeeding(true);
+    setSeedResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-provider-test-data");
+      if (error) throw error;
+      setSeedResult(data);
+      if (data?.success) {
+        toast.success(`Test data seeded: ${data.summary.enrollments.count} enrollments, ${data.summary.proofPoints.total} proof points`);
+      } else {
+        toast.error(data?.error || "Seeding failed");
+      }
+    } catch (err: any) {
+      toast.error(`Seed failed: ${err.message}`);
+      setSeedResult({ success: false, error: err.message });
+    } finally {
+      setIsSeeding(false);
+    }
+  };
 
   // Calculate statistics
   const passedTests = results.filter((r) => r.status === "pass").length;
@@ -112,6 +138,73 @@ export default function SmokeTestPage() {
       description="Automated CRUD test suite for master data modules"
       breadcrumbs={[{ label: "Smoke Test" }]}
     >
+      {/* Test Data Seeder Card */}
+      <Card className="mb-6 border-dashed">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Test Data Seeder
+              </CardTitle>
+              <CardDescription>
+                Seed comprehensive test data for provider@test.local (4 enrollments, proof points, assessments, interviews)
+              </CardDescription>
+            </div>
+            <Button 
+              onClick={handleSeedTestData} 
+              disabled={isSeeding}
+              variant="outline"
+            >
+              {isSeeding ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Seeding...
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4 mr-2" />
+                  Seed Test Data
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        {seedResult && (
+          <CardContent>
+            <div className={`rounded-md p-3 ${seedResult.success ? 'bg-green-50 border border-green-200' : 'bg-destructive/10 border border-destructive/20'}`}>
+              {seedResult.success ? (
+                <div className="space-y-2">
+                  <p className="font-medium text-green-800">✓ Test data seeded successfully</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm text-green-700">
+                    <div>Enrollments: <strong>{seedResult.summary.enrollments.count}</strong></div>
+                    <div>Proof Points: <strong>{seedResult.summary.proofPoints.total}</strong></div>
+                    <div>Assessments: <strong>{seedResult.summary.assessments.count}</strong></div>
+                    <div>Bookings: <strong>{seedResult.summary.bookings.count}</strong></div>
+                  </div>
+                  {seedResult.summary.enrollments.industries?.length > 0 && (
+                    <p className="text-xs text-green-600">Industries: {seedResult.summary.enrollments.industries.join(", ")}</p>
+                  )}
+                </div>
+              ) : (
+                <p className="text-destructive">❌ {seedResult.error}</p>
+              )}
+            </div>
+            {seedResult.phases && (
+              <ScrollArea className="h-32 mt-3 rounded-md border bg-muted/30 p-2">
+                <pre className="text-xs font-mono">
+                  {seedResult.phases.map((phase: string, i: number) => (
+                    <div key={i} className={phase.includes("✓") ? "text-green-600" : phase.includes("❌") ? "text-destructive" : "text-muted-foreground"}>
+                      {phase}
+                    </div>
+                  ))}
+                </pre>
+              </ScrollArea>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       {/* Summary Cards */}
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
