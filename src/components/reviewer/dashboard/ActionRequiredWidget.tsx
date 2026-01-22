@@ -82,7 +82,7 @@ export function ActionRequiredWidget({ items, isLoading }: ActionRequiredWidgetP
             </div>
             <Button
               size="sm"
-              onClick={() => navigate(`/reviewer/enrollment/${item.enrollmentId}`)}
+              onClick={() => navigate(`/reviewer/candidates/${item.enrollmentId}`)}
               className="shrink-0 ml-2"
             >
               Review

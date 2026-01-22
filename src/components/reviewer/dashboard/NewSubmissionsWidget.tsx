@@ -95,7 +95,7 @@ export function NewSubmissionsWidget({ items, isLoading }: NewSubmissionsWidgetP
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => navigate(`/reviewer/enrollment/${item.enrollmentId}`)}
+              onClick={() => navigate(`/reviewer/candidates/${item.enrollmentId}`)}
               className="shrink-0 ml-2"
             >
               Review

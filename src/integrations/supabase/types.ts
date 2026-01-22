@@ -2195,6 +2195,14 @@ export type Database = {
         Args: { p_booking_id: string }
         Returns: boolean
       }
+      is_reviewer_for_enrollment: {
+        Args: { p_enrollment_id: string }
+        Returns: boolean
+      }
+      is_reviewer_for_provider: {
+        Args: { p_provider_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:
