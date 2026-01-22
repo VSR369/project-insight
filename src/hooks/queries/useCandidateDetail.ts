@@ -61,6 +61,7 @@ export interface CandidateDetail {
   
   // Review flags & notes
   flagForClarification: boolean;
+  clarificationNotes: string | null;
   reviewerNotes: string | null;
   
   // For header display
@@ -156,7 +157,7 @@ export function useCandidateDetail(enrollmentId?: string) {
         // Interview booking
         supabase
           .from('interview_bookings')
-          .select('id, scheduled_at, status, flag_for_clarification, reviewer_notes')
+          .select('id, scheduled_at, status, flag_for_clarification, notes, reviewer_notes')
           .eq('enrollment_id', enrollmentId)
           .neq('status', 'cancelled')
           .order('scheduled_at', { ascending: false })
@@ -199,6 +200,7 @@ export function useCandidateDetail(enrollmentId?: string) {
         interviewStatus: interviewResult.data?.status || null,
         
         flagForClarification: interviewResult.data?.flag_for_clarification || false,
+        clarificationNotes: interviewResult.data?.notes || null,
         reviewerNotes: interviewResult.data?.reviewer_notes || null,
       };
     },
@@ -212,7 +214,7 @@ export function useCandidateDetail(enrollmentId?: string) {
  */
 interface UpdateReviewDataParams {
   bookingId: string;
-  flagForClarification?: boolean;
+  clarificationNotes?: string;
   reviewerNotes?: string;
 }
 
@@ -220,13 +222,15 @@ export function useUpdateCandidateReviewData(enrollmentId?: string) {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ bookingId, flagForClarification, reviewerNotes }: UpdateReviewDataParams) => {
+    mutationFn: async ({ bookingId, clarificationNotes, reviewerNotes }: UpdateReviewDataParams) => {
       const updates: Record<string, unknown> = {
         updated_at: new Date().toISOString(),
       };
       
-      if (flagForClarification !== undefined) {
-        updates.flag_for_clarification = flagForClarification;
+      if (clarificationNotes !== undefined) {
+        updates.notes = clarificationNotes;
+        // Auto-set flag based on whether clarification notes exist
+        updates.flag_for_clarification = clarificationNotes.trim().length > 0;
       }
       if (reviewerNotes !== undefined) {
         updates.reviewer_notes = reviewerNotes;
