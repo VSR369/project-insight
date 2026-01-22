@@ -107,7 +107,7 @@ export function UpcomingInterviewsList({
                   <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => navigate(`/reviewer/enrollment/${interview.enrollmentId}`)}
+                    onClick={() => navigate(`/reviewer/candidates/${interview.enrollmentId}`)}
                     className="shrink-0 ml-2"
                   >
                     View
