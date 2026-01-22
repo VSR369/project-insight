@@ -26,16 +26,13 @@ export default function CandidateDetailPage() {
     navigate("/reviewer/candidates");
   };
 
-  const handleFlagToggle = (flagged: boolean) => {
+  const handleClarificationUpdate = (notes: string) => {
     if (candidate?.interviewBookingId) {
       updateReviewData(
-        { bookingId: candidate.interviewBookingId, flagForClarification: flagged },
+        { bookingId: candidate.interviewBookingId, clarificationNotes: notes },
         {
-          onSuccess: () => {
-            toast.success(flagged ? "Candidate flagged for clarification" : "Flag removed");
-          },
           onError: (err) => {
-            toast.error(`Failed to update flag: ${err.message}`);
+            toast.error(`Failed to save clarification: ${err.message}`);
           },
         }
       );
@@ -142,9 +139,9 @@ export default function CandidateDetailPage() {
             {/* Section 5: Review Actions */}
             <ReviewActionsCard
               bookingId={candidate.interviewBookingId}
-              flagForClarification={candidate.flagForClarification}
+              clarificationNotes={candidate.clarificationNotes}
               reviewerNotes={candidate.reviewerNotes}
-              onUpdateFlag={handleFlagToggle}
+              onUpdateClarification={handleClarificationUpdate}
               onUpdateNotes={handleNotesUpdate}
               isUpdating={isUpdating}
             />

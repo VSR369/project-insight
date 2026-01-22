@@ -2,35 +2,52 @@ import { useState, useEffect } from "react";
 import { Flag, FileEdit, Info, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 interface ReviewActionsCardProps {
   bookingId: string | null;
-  flagForClarification: boolean;
+  clarificationNotes: string | null;
   reviewerNotes: string | null;
-  onUpdateFlag: (flagged: boolean) => void;
+  onUpdateClarification: (notes: string) => void;
   onUpdateNotes: (notes: string) => void;
   isUpdating?: boolean;
 }
 
-const MAX_NOTES_LENGTH = 1000;
+const MAX_CHARS = 1000;
 
 export function ReviewActionsCard({ 
   bookingId,
-  flagForClarification,
+  clarificationNotes,
   reviewerNotes,
-  onUpdateFlag,
+  onUpdateClarification,
   onUpdateNotes,
   isUpdating = false,
 }: ReviewActionsCardProps) {
+  const [localClarification, setLocalClarification] = useState(clarificationNotes || '');
   const [localNotes, setLocalNotes] = useState(reviewerNotes || '');
   
-  // Sync local state when prop changes (e.g., after refetch)
+  // Sync local state when props change (e.g., after refetch)
+  useEffect(() => {
+    setLocalClarification(clarificationNotes || '');
+  }, [clarificationNotes]);
+
   useEffect(() => {
     setLocalNotes(reviewerNotes || '');
   }, [reviewerNotes]);
+
+  // Debounced save for clarification
+  useEffect(() => {
+    if (!bookingId) return;
+    
+    const timeout = setTimeout(() => {
+      if (localClarification !== (clarificationNotes || '')) {
+        onUpdateClarification(localClarification);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timeout);
+  }, [localClarification, bookingId, clarificationNotes, onUpdateClarification]);
 
   // Debounced save for notes
   useEffect(() => {
@@ -45,9 +62,16 @@ export function ReviewActionsCard({
     return () => clearTimeout(timeout);
   }, [localNotes, bookingId, reviewerNotes, onUpdateNotes]);
 
+  const handleClarificationChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    if (value.length <= MAX_CHARS) {
+      setLocalClarification(value);
+    }
+  };
+
   const handleNotesChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const value = e.target.value;
-    if (value.length <= MAX_NOTES_LENGTH) {
+    if (value.length <= MAX_CHARS) {
       setLocalNotes(value);
     }
   };
@@ -88,22 +112,24 @@ export function ReviewActionsCard({
             <Flag className="h-4 w-4 text-orange-500" />
             Flag for Clarification
           </Label>
-          <div className="flex items-center space-x-3 p-3 rounded-lg border bg-muted/30">
-            <Checkbox
-              id="flag-clarification"
-              checked={flagForClarification}
-              onCheckedChange={(checked) => onUpdateFlag(checked === true)}
+          <div className="relative">
+            <Textarea
+              placeholder="Enter clarification notes here... (leaving text here flags the candidate)"
+              value={localClarification}
+              onChange={handleClarificationChange}
               disabled={isUpdating}
+              className="min-h-[100px] resize-none"
+              maxLength={MAX_CHARS}
             />
-            <Label 
-              htmlFor="flag-clarification" 
-              className={`cursor-pointer ${flagForClarification ? 'text-orange-600 font-medium' : 'text-muted-foreground'}`}
-            >
-              {flagForClarification 
-                ? "Flagged for clarification" 
-                : "Flag this candidate for clarification"}
-            </Label>
+            <div className="absolute bottom-2 right-3 text-xs text-muted-foreground">
+              {localClarification.length}/{MAX_CHARS}
+            </div>
           </div>
+          {localClarification.length > 0 && (
+            <p className="text-sm text-orange-600 font-medium">
+              ⚠️ Candidate is flagged for clarification
+            </p>
+          )}
         </div>
 
         {/* Reviewer Notes */}
@@ -118,11 +144,11 @@ export function ReviewActionsCard({
               value={localNotes}
               onChange={handleNotesChange}
               disabled={isUpdating}
-              className="min-h-[120px] resize-none"
-              maxLength={MAX_NOTES_LENGTH}
+              className="min-h-[100px] resize-none"
+              maxLength={MAX_CHARS}
             />
             <div className="absolute bottom-2 right-3 text-xs text-muted-foreground">
-              {localNotes.length}/{MAX_NOTES_LENGTH}
+              {localNotes.length}/{MAX_CHARS}
             </div>
           </div>
         </div>
