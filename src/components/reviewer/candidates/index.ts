@@ -11,3 +11,7 @@ export { ExpertiseTabContent } from "./ExpertiseTabContent";
 export { ExpertiseLevelHeader } from "./ExpertiseLevelHeader";
 export { ExpertiseProficiencyTree } from "./ExpertiseProficiencyTree";
 export { ExpertiseReviewActions } from "./ExpertiseReviewActions";
+export { ProofPointsTabContent } from "./ProofPointsTabContent";
+export { ProofPointsScoreHeader } from "./ProofPointsScoreHeader";
+export { ProofPointReviewCard } from "./ProofPointReviewCard";
+export { ProofPointsReviewFooter } from "./ProofPointsReviewFooter";
