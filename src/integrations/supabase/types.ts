@@ -652,6 +652,13 @@ export type Database = {
             foreignKeyName: "interview_bookings_composite_slot_id_fkey"
             columns: ["composite_slot_id"]
             isOneToOne: false
+            referencedRelation: "available_composite_slots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_bookings_composite_slot_id_fkey"
+            columns: ["composite_slot_id"]
+            isOneToOne: false
             referencedRelation: "composite_interview_slots"
             referencedColumns: ["id"]
           },
@@ -2122,7 +2129,36 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      available_composite_slots: {
+        Row: {
+          available_reviewer_count: number | null
+          backing_slot_ids: string[] | null
+          created_at: string | null
+          end_at: string | null
+          expertise_level_id: string | null
+          id: string | null
+          industry_segment_id: string | null
+          start_at: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "composite_interview_slots_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "composite_interview_slots_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       book_interview_slot: {

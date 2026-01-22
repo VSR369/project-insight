@@ -492,6 +492,10 @@ Deno.serve(async (req) => {
     // =========================================
     phases.push("Phase 10: Creating composite slots and bookings...");
 
+    // Track which slots are already booked to prevent double-booking
+    const bookedSlotIds = new Set<string>();
+    const bookedReviewerTimes = new Map<string, Set<string>>(); // reviewerId -> Set of start_at times
+
     // Get all open slots with reviewer industry/expertise info
     const { data: openSlots } = await supabase
       .from("interview_slots")
@@ -503,27 +507,47 @@ Deno.serve(async (req) => {
       .gt("start_at", new Date().toISOString());
 
     if (openSlots && openSlots.length > 0) {
-      // Create composite slots for each enrollment
+      // Create composite slots and bookings for each enrollment
       for (const enrollment of createdEnrollments) {
         // Find matching slots (reviewer covers this industry + expertise)
+        // AND slot is not already booked AND reviewer doesn't have another booking at this time
         const matchingSlots = openSlots.filter(slot => {
+          // Skip if slot already booked
+          if (bookedSlotIds.has(slot.id)) {
+            return false;
+          }
+
           const reviewer = slot.panel_reviewers as unknown as { 
             id: string; 
             industry_segment_ids: string[] | null; 
             expertise_level_ids: string[] | null 
           };
+
+          // Skip if reviewer already has a booking at this time
+          const reviewerBookedTimes = bookedReviewerTimes.get(reviewer.id);
+          if (reviewerBookedTimes?.has(slot.start_at)) {
+            return false;
+          }
+
           return reviewer?.industry_segment_ids?.includes(enrollment.industry_segment_id) &&
                  reviewer?.expertise_level_ids?.includes(enrollment.expertise_level_id);
         });
 
         if (matchingSlots.length > 0) {
-          // Use the first matching slot
+          // Use the first available matching slot
           const slotToBook = matchingSlots[0];
           const reviewer = slotToBook.panel_reviewers as unknown as { 
             id: string; 
             industry_segment_ids: string[] | null; 
             expertise_level_ids: string[] | null 
           };
+
+          // Mark slot as booked in our tracking
+          bookedSlotIds.add(slotToBook.id);
+          if (!bookedReviewerTimes.has(reviewer.id)) {
+            bookedReviewerTimes.set(reviewer.id, new Set());
+          }
+          bookedReviewerTimes.get(reviewer.id)!.add(slotToBook.start_at);
 
           // Create composite slot
           const { data: compositeSlot } = await supabase
@@ -573,6 +597,8 @@ Deno.serve(async (req) => {
               result.summary.interviewSlots.open--;
             }
           }
+        } else {
+          phases.push(`⚠ No available slot for ${enrollment.industryName} - all matching reviewers are booked`);
         }
       }
     }
