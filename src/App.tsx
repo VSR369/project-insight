@@ -9,6 +9,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Auth Pages
 import Login from "@/pages/Login";
@@ -92,6 +93,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <EnrollmentProvider>
+            <ErrorBoundary componentName="App">
             <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
@@ -529,6 +531,7 @@ const App = () => (
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          </ErrorBoundary>
           </EnrollmentProvider>
         </AuthProvider>
       </BrowserRouter>
