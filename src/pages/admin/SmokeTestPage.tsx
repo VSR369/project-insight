@@ -27,6 +27,10 @@ import { TestStatus, ModuleTestSuite } from "@/services/smokeTestRunner";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function SmokeTestPage() {
+  // All hooks must be called first, before any conditional logic
+  const [isSeeding, setIsSeeding] = React.useState(false);
+  const [seedResult, setSeedResult] = React.useState<any>(null);
+  
   const {
     isRunning,
     currentModule,
@@ -43,11 +47,8 @@ export default function SmokeTestPage() {
     getModulesWithResults,
   } = useSmokeTestRunner();
 
+  // Derived data (not a hook, but must come after all hooks)
   const modules = getModulesWithResults();
-
-  // Seed test data state
-  const [isSeeding, setIsSeeding] = React.useState(false);
-  const [seedResult, setSeedResult] = React.useState<any>(null);
 
   const handleSeedTestData = async () => {
     setIsSeeding(true);
