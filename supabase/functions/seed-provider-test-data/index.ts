@@ -31,8 +31,8 @@ const GENERAL_PROOF_POINTS = [
 ];
 
 const SPECIALTY_PROOF_POINTS = [
-  { type: "case_study", category: "speciality", titleTemplate: "{speciality} Implementation Case Study", descTemplate: "Domain-specific solution deployment showcasing successful implementation of {speciality} practices with measurable business outcomes." },
-  { type: "portfolio", category: "speciality", titleTemplate: "{speciality} Best Practices Framework", descTemplate: "Proven methodology for {speciality} implementations, developed through multiple successful client engagements." },
+  { type: "case_study", category: "specialty", titleTemplate: "{speciality} Implementation Case Study", descTemplate: "Domain-specific solution deployment showcasing successful implementation of {speciality} practices with measurable business outcomes." },
+  { type: "portfolio", category: "specialty", titleTemplate: "{speciality} Best Practices Framework", descTemplate: "Proven methodology for {speciality} implementations, developed through multiple successful client engagements." },
 ];
 
 Deno.serve(async (req) => {
@@ -317,7 +317,7 @@ Deno.serve(async (req) => {
             title: template.titleTemplate.replace("{speciality}", specialityName),
             description: template.descTemplate.replace("{speciality}", specialityName),
             type: template.type,
-            category: "speciality",
+            category: "specialty",
             is_deleted: false,
           })
           .select()
