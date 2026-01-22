@@ -5,7 +5,7 @@
  * Provides read-only data for the Provider Details tab.
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 export interface CandidateOrganization {
@@ -58,6 +58,10 @@ export interface CandidateDetail {
   interviewBookingId: string | null;
   interviewScheduledAt: string | null;
   interviewStatus: string | null;
+  
+  // Review flags & notes
+  flagForClarification: boolean;
+  reviewerNotes: string | null;
   
   // For header display
   timezone: string | null;
@@ -152,7 +156,7 @@ export function useCandidateDetail(enrollmentId?: string) {
         // Interview booking
         supabase
           .from('interview_bookings')
-          .select('id, scheduled_at, status')
+          .select('id, scheduled_at, status, flag_for_clarification, reviewer_notes')
           .eq('enrollment_id', enrollmentId)
           .neq('status', 'cancelled')
           .order('scheduled_at', { ascending: false })
@@ -193,9 +197,52 @@ export function useCandidateDetail(enrollmentId?: string) {
         interviewBookingId: interviewResult.data?.id || null,
         interviewScheduledAt: interviewResult.data?.scheduled_at || null,
         interviewStatus: interviewResult.data?.status || null,
+        
+        flagForClarification: interviewResult.data?.flag_for_clarification || false,
+        reviewerNotes: interviewResult.data?.reviewer_notes || null,
       };
     },
     enabled: !!enrollmentId,
     staleTime: 30000,
+  });
+}
+
+/**
+ * Mutation hook for updating reviewer notes and flag for clarification
+ */
+interface UpdateReviewDataParams {
+  bookingId: string;
+  flagForClarification?: boolean;
+  reviewerNotes?: string;
+}
+
+export function useUpdateCandidateReviewData(enrollmentId?: string) {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ bookingId, flagForClarification, reviewerNotes }: UpdateReviewDataParams) => {
+      const updates: Record<string, unknown> = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (flagForClarification !== undefined) {
+        updates.flag_for_clarification = flagForClarification;
+      }
+      if (reviewerNotes !== undefined) {
+        updates.reviewer_notes = reviewerNotes;
+      }
+      
+      const { error } = await supabase
+        .from('interview_bookings')
+        .update(updates)
+        .eq('id', bookingId);
+        
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidate-detail', enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['reviewer-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['reviewer-action-required'] });
+    },
   });
 }

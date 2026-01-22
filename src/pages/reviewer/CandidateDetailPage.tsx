@@ -12,7 +12,7 @@ import {
   ManagerApprovalSection,
   ReviewActionsCard,
 } from "@/components/reviewer/candidates";
-import { useCandidateDetail } from "@/hooks/queries/useCandidateDetail";
+import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import { toast } from "sonner";
 
 export default function CandidateDetailPage() {
@@ -20,19 +20,39 @@ export default function CandidateDetailPage() {
   const navigate = useNavigate();
 
   const { data: candidate, isLoading, error } = useCandidateDetail(enrollmentId);
+  const { mutate: updateReviewData, isPending: isUpdating } = useUpdateCandidateReviewData(enrollmentId);
 
   const handleBack = () => {
     navigate("/reviewer/candidates");
   };
 
-  const handleFlagForClarification = () => {
-    // TODO: Implement flag dialog
-    toast.info("Flag for Clarification feature coming soon");
+  const handleFlagToggle = (flagged: boolean) => {
+    if (candidate?.interviewBookingId) {
+      updateReviewData(
+        { bookingId: candidate.interviewBookingId, flagForClarification: flagged },
+        {
+          onSuccess: () => {
+            toast.success(flagged ? "Candidate flagged for clarification" : "Flag removed");
+          },
+          onError: (err) => {
+            toast.error(`Failed to update flag: ${err.message}`);
+          },
+        }
+      );
+    }
   };
 
-  const handleAddNote = () => {
-    // TODO: Implement add note dialog
-    toast.info("Add Reviewer Note feature coming soon");
+  const handleNotesUpdate = (notes: string) => {
+    if (candidate?.interviewBookingId) {
+      updateReviewData(
+        { bookingId: candidate.interviewBookingId, reviewerNotes: notes },
+        {
+          onError: (err) => {
+            toast.error(`Failed to save notes: ${err.message}`);
+          },
+        }
+      );
+    }
   };
 
   if (isLoading) {
@@ -121,9 +141,12 @@ export default function CandidateDetailPage() {
 
             {/* Section 5: Review Actions */}
             <ReviewActionsCard
-              onFlagForClarification={handleFlagForClarification}
-              onAddNote={handleAddNote}
-              isFlagged={false}
+              bookingId={candidate.interviewBookingId}
+              flagForClarification={candidate.flagForClarification}
+              reviewerNotes={candidate.reviewerNotes}
+              onUpdateFlag={handleFlagToggle}
+              onUpdateNotes={handleNotesUpdate}
+              isUpdating={isUpdating}
             />
           </TabsContent>
 
