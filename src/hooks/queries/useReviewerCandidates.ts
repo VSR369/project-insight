@@ -73,13 +73,19 @@ export function useReviewerCandidates(
   return useQuery({
     queryKey: ["reviewer-candidates", reviewerId, filters, limit, offset],
     queryFn: async () => {
-      if (!reviewerId) return { candidates: [], total: 0 };
+      console.log('[useReviewerCandidates] Query starting:', { reviewerId, filters, limit, offset });
+
+      if (!reviewerId) {
+        console.log('[useReviewerCandidates] No reviewer ID, returning empty');
+        return { candidates: [], total: 0 };
+      }
 
       // Step 1: Get all enrollments assigned to this reviewer via booking_reviewers
       const { data: assignments, error: assignmentError } = await supabase
         .from("booking_reviewers")
         .select(`
           booking_id,
+          status,
           interview_bookings!inner (
             id,
             enrollment_id,
@@ -98,18 +104,36 @@ export function useReviewerCandidates(
         throw assignmentError;
       }
 
+      console.log('[useReviewerCandidates] Raw assignments:', assignments?.length, assignments);
+
       if (!assignments?.length) {
+        console.log('[useReviewerCandidates] No assignments found');
         return { candidates: [], total: 0 };
       }
 
-      // Get unique enrollment IDs
+      // Filter out assignments where the interview_booking itself is cancelled
+      const activeAssignments = assignments.filter(a => {
+        const booking = a.interview_bookings as any;
+        const isActive = booking?.status !== 'cancelled';
+        if (!isActive) {
+          console.log('[useReviewerCandidates] Filtered out cancelled booking:', booking?.id);
+        }
+        return isActive;
+      });
+
+      console.log('[useReviewerCandidates] Active assignments after filtering:', activeAssignments.length);
+
+      // Get unique enrollment IDs from active assignments
       const enrollmentIds = [...new Set(
-        assignments
+        activeAssignments
           .map(a => (a.interview_bookings as any)?.enrollment_id)
           .filter(Boolean)
       )];
 
+      console.log('[useReviewerCandidates] Enrollment IDs:', enrollmentIds);
+
       if (!enrollmentIds.length) {
+        console.log('[useReviewerCandidates] No enrollment IDs found');
         return { candidates: [], total: 0 };
       }
 
@@ -139,18 +163,27 @@ export function useReviewerCandidates(
 
       // Apply filters
       if (filters.statuses?.length) {
+        console.log('[useReviewerCandidates] Applying status filter:', filters.statuses);
         query = query.in("lifecycle_status", filters.statuses);
       }
 
       if (filters.expertiseLevelIds?.length) {
+        console.log('[useReviewerCandidates] Applying expertise filter:', filters.expertiseLevelIds);
         query = query.in("expertise_level_id", filters.expertiseLevelIds);
       }
 
       if (filters.categoryIds?.length) {
+        console.log('[useReviewerCandidates] Applying category filter:', filters.categoryIds);
         query = query.in("participation_mode_id", filters.categoryIds);
       }
 
       const { data: enrollments, error: enrollmentError } = await query;
+
+      console.log('[useReviewerCandidates] Enrollments fetched:', enrollments?.length, enrollments?.map(e => ({
+        id: e.id,
+        status: e.lifecycle_status,
+        rank: e.lifecycle_rank
+      })));
 
       if (enrollmentError) {
         handleQueryError(enrollmentError, { operation: "fetch_enrollment_details" });
@@ -158,6 +191,7 @@ export function useReviewerCandidates(
       }
 
       if (!enrollments?.length) {
+        console.log('[useReviewerCandidates] No enrollments match filters');
         return { candidates: [], total: 0 };
       }
 
@@ -321,7 +355,7 @@ export function useReviewerCandidates(
         }
       });
 
-      // Build interview lookup by enrollment
+      // Build interview lookup by enrollment (using activeAssignments)
       const interviewByEnrollment: Record<string, {
         bookingId: string;
         scheduledAt: string | null;
@@ -330,7 +364,7 @@ export function useReviewerCandidates(
         reviewerNotes: string | null;
       }> = {};
 
-      assignments.forEach(a => {
+      activeAssignments.forEach(a => {
         const booking = a.interview_bookings as any;
         if (booking?.enrollment_id) {
           interviewByEnrollment[booking.enrollment_id] = {
@@ -418,6 +452,7 @@ export function useReviewerCandidates(
         };
       });
 
+      console.log('[useReviewerCandidates] Returning candidates:', candidates.length, 'total:', total);
       return { candidates, total };
     },
     enabled: !!reviewerId,
