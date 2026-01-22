@@ -24,8 +24,8 @@ import {
   useReviewerUpcomingInterviews,
   useActionRequiredEnrollments,
   useNewEnrollmentSubmissions,
+  useReviewerAssignedIndustries,
 } from '@/hooks/queries/useReviewerDashboard';
-import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 
 export default function ReviewerDashboard() {
   const navigate = useNavigate();
@@ -37,13 +37,8 @@ export default function ReviewerDashboard() {
     error: reviewerError 
   } = useCurrentReviewer();
 
-  // Fetch industry segments for name lookup
-  const { data: industries } = useIndustrySegments();
-
-  // Resolve reviewer's industry names from IDs
-  const industryNames = reviewer?.industry_segment_ids
-    ?.map((id) => industries?.find((i) => i.id === id)?.name)
-    .filter(Boolean) as string[] || [];
+  // Fetch industries where reviewer has actual assignments (not all configured)
+  const { data: assignedIndustries, isLoading: industriesLoading } = useReviewerAssignedIndustries(reviewer?.id);
 
   // Fetch dashboard data
   const { data: stats, isLoading: statsLoading, error: statsError } = useReviewerDashboardStats(reviewer?.id);
@@ -64,14 +59,12 @@ export default function ReviewerDashboard() {
           reviewerId: reviewer.id,
           reviewerName: reviewer.name,
           reviewerEmail: reviewer.email,
-          industrySegmentIds: reviewer.industry_segment_ids,
-          expertiseLevelIds: reviewer.expertise_level_ids,
-          industryNames,
+          assignedIndustries: assignedIndustries?.map(i => i.name) || [],
           isActive: reviewer.is_active,
         },
       });
     }
-  }, [reviewer, reviewerLoading, industryNames]);
+  }, [reviewer, reviewerLoading, assignedIndustries]);
 
   useEffect(() => {
     if (!statsLoading && !interviewsLoading && !actionLoading && !submissionsLoading) {
@@ -165,8 +158,8 @@ export default function ReviewerDashboard() {
         {/* Welcome Section with Profile Header */}
         <ReviewerProfileHeader
           reviewer={reviewer}
-          industryNames={industryNames}
-          isLoading={reviewerLoading}
+          assignedIndustries={assignedIndustries || []}
+          isLoading={reviewerLoading || industriesLoading}
         />
 
         {/* Dashboard Data Error Alert */}

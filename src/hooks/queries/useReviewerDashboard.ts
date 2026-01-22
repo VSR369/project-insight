@@ -62,6 +62,12 @@ export interface NewEnrollmentSubmission {
   createdAt: string;
 }
 
+export interface AssignedIndustry {
+  id: string;
+  name: string;
+  enrollmentCount: number;
+}
+
 /**
  * Fetch reviewer's dashboard statistics
  */
@@ -516,5 +522,104 @@ export function useNewEnrollmentSubmissions(reviewerId: string | undefined, limi
     },
     enabled: !!reviewerId,
     staleTime: 30000,
+  });
+}
+
+/**
+ * Fetch industries where reviewer has actual assigned enrollments
+ * (Not all configured industries, only those with assignments)
+ */
+export function useReviewerAssignedIndustries(reviewerId: string | undefined) {
+  return useQuery({
+    queryKey: ["reviewer-assigned-industries", reviewerId],
+    queryFn: async (): Promise<AssignedIndustry[]> => {
+      if (!reviewerId) return [];
+
+      // Get all active bookings for this reviewer
+      const { data: bookingReviewers, error: brError } = await supabase
+        .from("booking_reviewers")
+        .select(`
+          status,
+          interview_bookings!inner (
+            id,
+            enrollment_id,
+            status
+          )
+        `)
+        .eq("reviewer_id", reviewerId)
+        .neq("status", "cancelled");
+
+      if (brError) throw new Error(brError.message);
+
+      // Filter out cancelled bookings
+      const activeAssignments = bookingReviewers?.filter((br) => {
+        const booking = (br as any).interview_bookings;
+        return booking?.status !== 'cancelled';
+      }) || [];
+
+      if (activeAssignments.length === 0) return [];
+
+      // Get unique enrollment IDs
+      const enrollmentIds = [...new Set(
+        activeAssignments
+          .map((br) => (br as any).interview_bookings?.enrollment_id)
+          .filter(Boolean)
+      )];
+
+      // Fetch enrollments with industry info
+      const { data: enrollments, error: enrError } = await supabase
+        .from("provider_industry_enrollments")
+        .select(`
+          id,
+          industry_segment_id,
+          industry_segments (id, name)
+        `)
+        .in("id", enrollmentIds);
+
+      if (enrError) throw new Error(enrError.message);
+
+      // Group by industry and count
+      const industryMap = new Map<string, { id: string; name: string; count: number }>();
+
+      enrollments?.forEach((enrollment) => {
+        const industry = (enrollment as any).industry_segments;
+        if (industry?.id) {
+          const existing = industryMap.get(industry.id);
+          if (existing) {
+            existing.count++;
+          } else {
+            industryMap.set(industry.id, {
+              id: industry.id,
+              name: industry.name,
+              count: 1,
+            });
+          }
+        }
+      });
+
+      // Convert to array sorted by name
+      const result = Array.from(industryMap.values())
+        .map((ind) => ({
+          id: ind.id,
+          name: ind.name,
+          enrollmentCount: ind.count,
+        }))
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      logInfo("Assigned industries: fetched", {
+        operation: "fetch_assigned_industries",
+        component: "useReviewerAssignedIndustries",
+        additionalData: {
+          reviewerId,
+          totalAssignments: activeAssignments.length,
+          uniqueIndustries: result.length,
+          industries: result,
+        },
+      });
+
+      return result;
+    },
+    enabled: !!reviewerId,
+    staleTime: 60000, // 1 minute
   });
 }

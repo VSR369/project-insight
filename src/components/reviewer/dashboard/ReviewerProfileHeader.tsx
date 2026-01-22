@@ -1,22 +1,24 @@
 /**
  * Reviewer Profile Header
  * 
- * Shows welcome message with reviewer name, specialties, and timezone.
+ * Shows welcome message with reviewer name, assigned industries (with counts), and timezone.
+ * Only displays industries where the reviewer has actual enrollment assignments.
  */
 
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Tables } from '@/integrations/supabase/types';
+import type { AssignedIndustry } from '@/hooks/queries/useReviewerDashboard';
 
 interface ReviewerProfileHeaderProps {
   reviewer: Tables<'panel_reviewers'> | undefined;
-  industryNames: string[];
+  assignedIndustries: AssignedIndustry[];
   isLoading: boolean;
 }
 
 export function ReviewerProfileHeader({ 
   reviewer, 
-  industryNames, 
+  assignedIndustries, 
   isLoading 
 }: ReviewerProfileHeaderProps) {
   if (isLoading) {
@@ -42,16 +44,22 @@ export function ReviewerProfileHeader({
       </h1>
       <div className="flex flex-wrap items-center gap-2 text-muted-foreground">
         <span className="text-sm">Solution Review Panel Member</span>
-        {industryNames.length > 0 && (
+        {assignedIndustries.length > 0 && (
           <>
             <span className="text-muted-foreground/50">•</span>
             <div className="flex flex-wrap gap-1">
-              {industryNames.map((name) => (
-                <Badge key={name} variant="secondary" className="text-xs">
-                  {name}
+              {assignedIndustries.map((industry) => (
+                <Badge key={industry.id} variant="secondary" className="text-xs">
+                  {industry.name} ({industry.enrollmentCount})
                 </Badge>
               ))}
             </div>
+          </>
+        )}
+        {assignedIndustries.length === 0 && (
+          <>
+            <span className="text-muted-foreground/50">•</span>
+            <span className="text-sm italic">No active assignments</span>
           </>
         )}
         <span className="text-muted-foreground/50">•</span>
