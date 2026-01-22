@@ -678,6 +678,63 @@ export type Database = {
           },
         ]
       }
+      interview_evaluations: {
+        Row: {
+          booking_id: string
+          created_at: string
+          created_by: string | null
+          evaluated_at: string | null
+          id: string
+          notes: string | null
+          outcome: string | null
+          overall_score: number | null
+          reviewer_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          created_by?: string | null
+          evaluated_at?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          overall_score?: number | null
+          reviewer_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          created_by?: string | null
+          evaluated_at?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string | null
+          overall_score?: number | null
+          reviewer_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_evaluations_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "interview_bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_evaluations_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "panel_reviewers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_quorum_requirements: {
         Row: {
           created_at: string | null
@@ -1217,6 +1274,63 @@ export type Database = {
             columns: ["proof_point_id"]
             isOneToOne: false
             referencedRelation: "proof_points"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      proof_point_reviews: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          evidence_strength: string | null
+          id: string
+          notes: string | null
+          proof_point_id: string
+          reviewed_at: string | null
+          reviewer_id: string
+          updated_at: string | null
+          updated_by: string | null
+          verification_status: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          evidence_strength?: string | null
+          id?: string
+          notes?: string | null
+          proof_point_id: string
+          reviewed_at?: string | null
+          reviewer_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          verification_status?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          evidence_strength?: string | null
+          id?: string
+          notes?: string | null
+          proof_point_id?: string
+          reviewed_at?: string | null
+          reviewer_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          verification_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "proof_point_reviews_proof_point_id_fkey"
+            columns: ["proof_point_id"]
+            isOneToOne: false
+            referencedRelation: "proof_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proof_point_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "panel_reviewers"
             referencedColumns: ["id"]
           },
         ]
