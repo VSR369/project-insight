@@ -2191,6 +2191,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_reviewer_assigned_to_booking: {
+        Args: { p_booking_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       app_role:

@@ -46,10 +46,13 @@ export default function ReviewerDashboard() {
     .filter(Boolean) as string[] || [];
 
   // Fetch dashboard data
-  const { data: stats, isLoading: statsLoading } = useReviewerDashboardStats(reviewer?.id);
-  const { data: upcomingInterviews, isLoading: interviewsLoading } = useReviewerUpcomingInterviews(reviewer?.id, 5);
-  const { data: actionRequired, isLoading: actionLoading } = useActionRequiredEnrollments(reviewer?.id, 5);
-  const { data: newSubmissions, isLoading: submissionsLoading } = useNewEnrollmentSubmissions(reviewer?.id, 5);
+  const { data: stats, isLoading: statsLoading, error: statsError } = useReviewerDashboardStats(reviewer?.id);
+  const { data: upcomingInterviews, isLoading: interviewsLoading, error: interviewsError } = useReviewerUpcomingInterviews(reviewer?.id, 5);
+  const { data: actionRequired, isLoading: actionLoading, error: actionError } = useActionRequiredEnrollments(reviewer?.id, 5);
+  const { data: newSubmissions, isLoading: submissionsLoading, error: submissionsError } = useNewEnrollmentSubmissions(reviewer?.id, 5);
+
+  // Aggregate dashboard data errors
+  const dashboardDataError = statsError || interviewsError || actionError || submissionsError;
 
   // Debug logging for dashboard state
   useEffect(() => {
@@ -165,6 +168,21 @@ export default function ReviewerDashboard() {
           industryNames={industryNames}
           isLoading={reviewerLoading}
         />
+
+        {/* Dashboard Data Error Alert */}
+        {dashboardDataError && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Unable to Load Dashboard Data</AlertTitle>
+            <AlertDescription>
+              Some dashboard data could not be loaded: {dashboardDataError.message}
+              <br />
+              <span className="text-xs text-muted-foreground">
+                Please try refreshing the page. If the issue persists, contact support.
+              </span>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Stats Grid - Enrollment-centric KPIs */}
         <DashboardStatsCards stats={stats} isLoading={statsLoading} />
