@@ -7,3 +7,7 @@ export { AffiliationTypeSection } from "./AffiliationTypeSection";
 export { OrganizationDetailsSection } from "./OrganizationDetailsSection";
 export { ManagerApprovalSection } from "./ManagerApprovalSection";
 export { ReviewActionsCard } from "./ReviewActionsCard";
+export { ExpertiseTabContent } from "./ExpertiseTabContent";
+export { ExpertiseLevelHeader } from "./ExpertiseLevelHeader";
+export { ExpertiseProficiencyTree } from "./ExpertiseProficiencyTree";
+export { ExpertiseReviewActions } from "./ExpertiseReviewActions";
