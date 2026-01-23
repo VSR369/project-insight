@@ -51,12 +51,70 @@ export interface AssessmentAttempt {
  * - Must have minimum proof points met (lifecycle_rank >= 70)
  * - Cannot be in or past assessment_in_progress
  * - No active (unsubmitted) assessment attempt
+ * 
+ * @param providerId - The provider ID
+ * @param enrollmentId - Optional enrollment ID for enrollment-scoped checks (preferred)
  */
-export async function canStartAssessment(providerId: string): Promise<{
+export async function canStartAssessment(providerId: string, enrollmentId?: string): Promise<{
   allowed: boolean;
   reason?: string;
 }> {
-  // Get provider's current lifecycle status
+  // Prefer enrollment-scoped check if enrollmentId is provided
+  if (enrollmentId) {
+    const { data: enrollment, error: enrollmentError } = await supabase
+      .from('provider_industry_enrollments')
+      .select('lifecycle_status, lifecycle_rank')
+      .eq('id', enrollmentId)
+      .single();
+
+    if (enrollmentError || !enrollment) {
+      return { allowed: false, reason: 'Enrollment not found' };
+    }
+
+    // Must have minimum proof points (rank 70+)
+    if (enrollment.lifecycle_rank < 70) {
+      return { 
+        allowed: false, 
+        reason: 'Complete your proof points before starting the assessment' 
+      };
+    }
+
+    // Cannot already be in or past assessment
+    if (enrollment.lifecycle_rank >= 100) {
+      return { 
+        allowed: false, 
+        reason: 'Assessment already in progress or completed' 
+      };
+    }
+
+    // Check for active (unsubmitted) assessment attempt for this enrollment
+    const { data: activeAttempt } = await supabase
+      .from('assessment_attempts')
+      .select('id, started_at, time_limit_minutes')
+      .eq('enrollment_id', enrollmentId)
+      .is('submitted_at', null)
+      .order('started_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (activeAttempt) {
+      // Check if attempt has expired
+      const startedAt = new Date(activeAttempt.started_at);
+      const expiresAt = new Date(startedAt.getTime() + activeAttempt.time_limit_minutes * 60 * 1000);
+      
+      if (new Date() < expiresAt) {
+        return { 
+          allowed: false, 
+          reason: 'You have an active assessment in progress' 
+        };
+      }
+      // Expired attempt - can start a new one
+    }
+
+    return { allowed: true };
+  }
+
+  // Fallback to provider-level check for backward compatibility
   const { data: provider, error: providerError } = await supabase
     .from('solution_providers')
     .select('lifecycle_status, lifecycle_rank')
