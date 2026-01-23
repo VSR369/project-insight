@@ -160,6 +160,7 @@ export default function Register() {
         first_name: data.firstName,
         last_name: data.lastName,
         is_student: providerSubTab === 'student',
+        role_type: 'provider', // Explicit role type for trigger
         address: data.address || null,
         pin_code: data.pinCode || null,
         country_id: data.countryId || null,
