@@ -129,5 +129,8 @@ export function useProviderSelectedTaxonomy(enrollmentId?: string) {
     enabled: !!enrollmentId,
     staleTime: 5 * 60 * 1000, // 5 minutes - provider selections don't change often
     gcTime: 30 * 60 * 1000, // 30 minutes
+    refetchOnWindowFocus: false, // Prevents refetch on copy-paste interactions
+    refetchOnMount: false, // Data already cached from first load
+    refetchOnReconnect: false, // Prevent network reconnect refetch
   });
 }
