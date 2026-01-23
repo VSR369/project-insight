@@ -47,6 +47,12 @@ import {
 } from "@/hooks/queries/useQuestionBank";
 import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
 import { useHierarchyData, resolveHierarchy, HierarchyData } from "@/hooks/queries/useHierarchyResolver";
+import { 
+  handleMutationError, 
+  logWarning, 
+  logInfo, 
+  generateCorrelationId 
+} from "@/lib/errorHandler";
 
 interface ParsedQuestion {
   rowNumber: number;
@@ -87,6 +93,23 @@ interface RawQuestionData {
   usage_mode: string;
   capability_tags: string[];
   expected_answer_guidance: string | null;
+}
+
+// Detailed failure tracking for debugging
+interface ImportFailure {
+  rowNumber: number;
+  correlationId: string;
+  phase: 'question_creation' | 'capability_tags';
+  errorMessage: string;
+  errorCode?: string;
+  rowData: {
+    question_text: string;
+    speciality: string;
+    speciality_id: string | null;
+    options_count: number;
+    capability_tags: string[];
+  };
+  timestamp: string;
 }
 
 const VALID_DIFFICULTIES: readonly string[] = DIFFICULTY_OPTIONS.map(d => d.value);
@@ -168,16 +191,16 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["both", "Can be used in either mode"],
 ];
 
-// Validation logic for Excel import
+// Validate a single question object
 const validateQuestion = (
-  data: RawQuestionData, 
+  data: RawQuestionData,
   validTagNames: string[],
   hierarchyData: HierarchyData | undefined
 ): { errors: string[]; specialityId: string | null } => {
   const errors: string[] = [];
   let specialityId: string | null = null;
 
-  // Validate hierarchy fields
+  // Hierarchy validation
   if (!data.industry_segment) {
     errors.push("Industry segment is required");
   }
@@ -194,16 +217,9 @@ const validateQuestion = (
     errors.push("Speciality is required");
   }
 
-  // Resolve hierarchy if all fields present and hierarchy data loaded
-  if (
-    hierarchyData &&
-    data.industry_segment &&
-    data.expertise_level &&
-    data.proficiency_area &&
-    data.sub_domain &&
-    data.speciality
-  ) {
-    const resolution = resolveHierarchy(
+  // Resolve hierarchy if all fields present
+  if (data.industry_segment && data.expertise_level && data.proficiency_area && data.sub_domain && data.speciality && hierarchyData) {
+    const resolved = resolveHierarchy(
       hierarchyData,
       data.industry_segment,
       data.expertise_level,
@@ -211,59 +227,61 @@ const validateQuestion = (
       data.sub_domain,
       data.speciality
     );
-    if (resolution.errors.length > 0) {
-      errors.push(...resolution.errors);
-    } else {
-      specialityId = resolution.specialityId;
+
+    if (resolved.errors.length > 0) {
+      errors.push(...resolved.errors);
+    } else if (resolved.specialityId) {
+      specialityId = resolved.specialityId;
     }
   }
 
-  // Validate question text
+  // Question text validation
   if (!data.question_text) {
     errors.push("Question text is required");
   } else if (data.question_text.length < 10) {
-    errors.push("Question must be at least 10 characters");
+    errors.push("Question text must be at least 10 characters");
   } else if (data.question_text.length > 2000) {
-    errors.push("Question must be 2000 characters or less");
+    errors.push("Question text must be 2000 characters or less");
   }
 
-  // Validate options
+  // Options validation
   if (data.options.length < 2) {
     errors.push("At least 2 options are required");
   } else if (data.options.length > 6) {
     errors.push("Maximum 6 options allowed");
   }
 
-  // Validate correct option
-  if (!data.correct_option || data.correct_option < 1) {
-    errors.push("Valid correct option (1-based) is required");
-  } else if (data.correct_option > data.options.length) {
-    errors.push(`Correct option ${data.correct_option} exceeds number of options (${data.options.length})`);
+  // Correct option validation
+  if (data.correct_option < 1 || data.correct_option > data.options.length) {
+    errors.push(`Correct option must be between 1 and ${data.options.length}`);
   }
 
-  // Validate enums
+  // Difficulty validation
   if (data.difficulty && !VALID_DIFFICULTIES.includes(data.difficulty)) {
-    errors.push(`Invalid difficulty: ${data.difficulty}. Valid: ${VALID_DIFFICULTIES.join(", ")}`);
+    errors.push(`Invalid difficulty. Valid: ${VALID_DIFFICULTIES.join(", ")}`);
   }
 
-  if (data.question_type && !VALID_QUESTION_TYPES.includes(data.question_type)) {
-    errors.push(`Invalid question_type: ${data.question_type}. Valid: ${VALID_QUESTION_TYPES.join(", ")}`);
+  // Question type validation
+  if (!VALID_QUESTION_TYPES.includes(data.question_type)) {
+    errors.push(`Invalid question_type. Valid: ${VALID_QUESTION_TYPES.join(", ")}`);
   }
 
-  if (data.usage_mode && !VALID_USAGE_MODES.includes(data.usage_mode)) {
-    errors.push(`Invalid usage_mode: ${data.usage_mode}. Valid: ${VALID_USAGE_MODES.join(", ")}`);
+  // Usage mode validation
+  if (!VALID_USAGE_MODES.includes(data.usage_mode)) {
+    errors.push(`Invalid usage_mode. Valid: ${VALID_USAGE_MODES.join(", ")}`);
   }
 
-  // Validate capability tags
+  // Capability tags validation (optional but must match if provided)
   if (data.capability_tags.length > 0) {
-    const lowerValidTags = validTagNames.map(t => t.toLowerCase());
-    const invalidTags = data.capability_tags.filter(tag => !lowerValidTags.includes(tag.toLowerCase()));
-    if (invalidTags.length > 0) {
-      errors.push(`Unknown capability tags: ${invalidTags.join(", ")}`);
-    }
+    const normalizedValidTags = validTagNames.map(t => t.toLowerCase());
+    data.capability_tags.forEach(tag => {
+      if (!normalizedValidTags.includes(tag.toLowerCase())) {
+        errors.push(`Unknown capability tag: "${tag}"`);
+      }
+    });
   }
 
-  // Validate expected_answer_guidance length
+  // Expected answer guidance validation
   if (data.expected_answer_guidance && data.expected_answer_guidance.length > 2000) {
     errors.push("Expected answer guidance must be 2000 characters or less");
   }
@@ -275,6 +293,20 @@ const validateQuestion = (
 const isValidFileExtension = (filename: string): boolean => {
   const ext = filename.toLowerCase();
   return ext.endsWith(".xlsx") || ext.endsWith(".xls");
+};
+
+// Extract error code from Supabase/PostgreSQL errors
+const extractErrorCode = (error: unknown): string | undefined => {
+  if (error && typeof error === 'object') {
+    // Supabase error structure
+    if ('code' in error) return String((error as { code: string }).code);
+    // PostgreSQL error via details
+    if ('details' in error && typeof (error as { details: unknown }).details === 'object') {
+      const details = (error as { details: { code?: string } }).details;
+      if (details && 'code' in details) return String(details.code);
+    }
+  }
+  return undefined;
 };
 
 export type ImportMode = "add" | "replace";
@@ -293,6 +325,7 @@ export function QuestionImportDialog({
     failed: number;
     deactivated: number;
     errors: string[];
+    failures: ImportFailure[];
   } | null>(null);
 
   // Import mode: "add" = add new questions, "replace" = deactivate existing and add new
@@ -332,8 +365,11 @@ export function QuestionImportDialog({
         try {
           const count = await getExistingQuestionCount(uniqueSpecialityIds);
           setExistingQuestionCount(count);
-        } catch (error) {
-          console.error("Failed to fetch existing question count:", error);
+        } catch {
+          logWarning("Failed to fetch existing question count", {
+            operation: 'fetch_existing_question_count',
+            component: 'QuestionImportDialog',
+          });
           setExistingQuestionCount(0);
         }
       } else {
@@ -518,21 +554,56 @@ export function QuestionImportDialog({
     const validQuestions = parsedQuestions.filter((q) => q.isValid);
     if (validQuestions.length === 0) return;
 
+    const importStartTime = Date.now();
+    const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
+
+    // Log import start
+    logInfo("Question import started", {
+      operation: 'import_questions_start',
+      component: 'QuestionImportDialog',
+    });
+
     setIsImporting(true);
     setImportProgress(0);
 
-    const results = { success: 0, failed: 0, deactivated: 0, errors: [] as string[] };
+    const results = { 
+      success: 0, 
+      failed: 0, 
+      deactivated: 0, 
+      errors: [] as string[],
+      failures: [] as ImportFailure[]
+    };
 
     // If replace mode, deactivate existing questions for affected specialities first
     if (importMode === "replace") {
-      const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
-      
       if (uniqueSpecialityIds.length > 0) {
         try {
           const deactivateResult = await deactivateMutation.mutateAsync(uniqueSpecialityIds);
           results.deactivated = deactivateResult.count;
         } catch (error) {
-          results.errors.push(`Failed to deactivate existing questions: ${error instanceof Error ? error.message : "Unknown error"}`);
+          const deactivateCorrelationId = generateCorrelationId();
+          handleMutationError(error, {
+            operation: 'deactivate_existing_questions',
+            component: 'QuestionImportDialog',
+          }, false);
+          
+          results.errors.push(`Failed to deactivate existing questions: ${error instanceof Error ? error.message : "Unknown error"} [${deactivateCorrelationId}]`);
+          results.failures.push({
+            rowNumber: 0,
+            correlationId: deactivateCorrelationId,
+            phase: 'question_creation',
+            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            errorCode: extractErrorCode(error),
+            rowData: {
+              question_text: "(Deactivation step)",
+              speciality: `${uniqueSpecialityIds.length} specialities`,
+              speciality_id: null,
+              options_count: 0,
+              capability_tags: [],
+            },
+            timestamp: new Date().toISOString(),
+          });
+          
           setImportResults(results);
           setIsImporting(false);
           return;
@@ -542,6 +613,7 @@ export function QuestionImportDialog({
 
     for (let i = 0; i < validQuestions.length; i++) {
       const q = validQuestions[i];
+      const rowCorrelationId = generateCorrelationId();
 
       try {
         if (!q.speciality_id) {
@@ -552,6 +624,7 @@ export function QuestionImportDialog({
           q.options.map((text, idx) => ({ index: idx + 1, text }))
         );
 
+        // Phase 1: Create Question
         const createdQuestion = await createMutation.mutateAsync({
           question_text: q.question_text,
           options: formattedOptions as unknown as { index: number; text: string }[],
@@ -564,20 +637,45 @@ export function QuestionImportDialog({
           speciality_id: q.speciality_id,
         });
 
-        // Link capability tags if any
+        // Phase 2: Link capability tags if any
         if (createdQuestion?.id && q.capability_tags.length > 0) {
-          // Find matching tag IDs (case-insensitive)
-          const tagIds = q.capability_tags
-            .map(tagName => {
-              const found = capabilityTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-              return found?.id;
-            })
-            .filter((id): id is string => !!id);
+          try {
+            // Find matching tag IDs (case-insensitive)
+            const tagIds = q.capability_tags
+              .map(tagName => {
+                const found = capabilityTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+                return found?.id;
+              })
+              .filter((id): id is string => !!id);
 
-          if (tagIds.length > 0) {
-            await updateCapabilityTagsMutation.mutateAsync({
-              questionId: createdQuestion.id,
-              tagIds,
+            if (tagIds.length > 0) {
+              await updateCapabilityTagsMutation.mutateAsync({
+                questionId: createdQuestion.id,
+                tagIds,
+              });
+            }
+          } catch (tagError) {
+            // Log tag linking failure but still count question as success
+            logWarning("Capability tag linking failed (question created successfully)", {
+              operation: 'link_capability_tags',
+              component: 'QuestionImportDialog',
+            });
+            
+            // Record as a tag-phase failure for visibility
+            results.failures.push({
+              rowNumber: q.rowNumber,
+              correlationId: rowCorrelationId,
+              phase: 'capability_tags',
+              errorMessage: tagError instanceof Error ? tagError.message : "Unknown error",
+              errorCode: extractErrorCode(tagError),
+              rowData: {
+                question_text: q.question_text.slice(0, 100),
+                speciality: q.speciality,
+                speciality_id: q.speciality_id,
+                options_count: q.options.length,
+                capability_tags: q.capability_tags,
+              },
+              timestamp: new Date().toISOString(),
             });
           }
         }
@@ -585,16 +683,91 @@ export function QuestionImportDialog({
         results.success++;
       } catch (error) {
         results.failed++;
+        
+        // Capture detailed failure information
+        const failure: ImportFailure = {
+          rowNumber: q.rowNumber,
+          correlationId: rowCorrelationId,
+          phase: 'question_creation',
+          errorMessage: error instanceof Error ? error.message : "Unknown error",
+          errorCode: extractErrorCode(error),
+          rowData: {
+            question_text: q.question_text.slice(0, 100),
+            speciality: q.speciality,
+            speciality_id: q.speciality_id,
+            options_count: q.options.length,
+            capability_tags: q.capability_tags,
+          },
+          timestamp: new Date().toISOString(),
+        };
+        
+        results.failures.push(failure);
+        
+        // Structured error logging (don't show toast for each row)
+        handleMutationError(error, {
+          operation: 'import_question',
+          component: 'QuestionImportDialog',
+        }, false);
+        
+        // Human-readable error for UI with correlation ID
         results.errors.push(
-          `Row ${q.rowNumber}: ${error instanceof Error ? error.message : "Unknown error"}`
+          `Row ${q.rowNumber}: ${failure.errorMessage} [${rowCorrelationId}]`
         );
       }
 
       setImportProgress(Math.round(((i + 1) / validQuestions.length) * 100));
     }
 
+    // Log import completion
+    const importDuration = Date.now() - importStartTime;
+    logInfo("Question import completed", {
+      operation: 'import_questions_complete',
+      component: 'QuestionImportDialog',
+    });
+
     setImportResults(results);
     setIsImporting(false);
+  };
+
+  // Export failed rows as Excel for debugging
+  const downloadFailedRows = () => {
+    if (!importResults?.failures.length) return;
+    
+    const failureData = [
+      ["Row", "Correlation ID", "Phase", "Error", "Error Code", "Question (Preview)", "Speciality", "Speciality ID", "Options Count", "Capability Tags", "Timestamp"],
+      ...importResults.failures.map(f => [
+        f.rowNumber,
+        f.correlationId,
+        f.phase,
+        f.errorMessage,
+        f.errorCode || '',
+        f.rowData.question_text,
+        f.rowData.speciality,
+        f.rowData.speciality_id || '',
+        f.rowData.options_count,
+        f.rowData.capability_tags.join(', '),
+        f.timestamp,
+      ])
+    ];
+    
+    const ws = XLSX.utils.aoa_to_sheet(failureData);
+    ws["!cols"] = [
+      { wch: 6 },   // Row
+      { wch: 25 },  // Correlation ID
+      { wch: 18 },  // Phase
+      { wch: 50 },  // Error
+      { wch: 12 },  // Error Code
+      { wch: 40 },  // Question
+      { wch: 30 },  // Speciality
+      { wch: 40 },  // Speciality ID
+      { wch: 10 },  // Options Count
+      { wch: 30 },  // Capability Tags
+      { wch: 25 },  // Timestamp
+    ];
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Failed Imports");
+    XLSX.writeFile(wb, `question_import_failures_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
   // Get unique speciality count for display
@@ -909,14 +1082,54 @@ export function QuestionImportDialog({
                 </AlertDescription>
               </Alert>
 
-              {importResults.errors.length > 0 && (
-                <ScrollArea className="h-[150px] border rounded-lg p-3">
-                  <ul className="text-sm text-red-600 space-y-1">
-                    {importResults.errors.map((err, i) => (
-                      <li key={i}>• {err}</li>
-                    ))}
-                  </ul>
-                </ScrollArea>
+              {/* Detailed Failure Table */}
+              {importResults.failures.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium text-red-600">
+                      {importResults.failures.filter(f => f.phase === 'question_creation').length} question creation failures, {importResults.failures.filter(f => f.phase === 'capability_tags').length} tag linking warnings:
+                    </p>
+                    <Button variant="outline" size="sm" onClick={downloadFailedRows}>
+                      <Download className="h-4 w-4 mr-2" />
+                      Export Failed Rows
+                    </Button>
+                  </div>
+                  
+                  <ScrollArea className="h-[200px] border rounded-lg">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-12">Row</TableHead>
+                          <TableHead className="w-24">Phase</TableHead>
+                          <TableHead>Error</TableHead>
+                          <TableHead className="w-20">Code</TableHead>
+                          <TableHead className="w-40">Correlation ID</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importResults.failures.map((f, i) => (
+                          <TableRow key={i} className={f.phase === 'question_creation' ? "bg-red-50 dark:bg-red-950/20" : "bg-yellow-50 dark:bg-yellow-950/20"}>
+                            <TableCell className="font-mono">{f.rowNumber}</TableCell>
+                            <TableCell>
+                              <Badge variant={f.phase === 'question_creation' ? 'destructive' : 'secondary'}>
+                                {f.phase === 'question_creation' ? 'Question' : 'Tags'}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="text-sm max-w-xs truncate" title={f.errorMessage}>
+                              {f.errorMessage}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs">
+                              {f.errorCode || '-'}
+                            </TableCell>
+                            <TableCell className="font-mono text-xs text-muted-foreground">
+                              {f.correlationId}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </ScrollArea>
+                </div>
               )}
             </div>
           )}
