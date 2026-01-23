@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertTriangle, Send, Download } from 'lucide-react';
+import { Loader2, AlertTriangle, Send, Download, PlayCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -21,6 +21,8 @@ import {
   useAssessmentAttemptQuestions,
   useSaveAssessmentAnswer,
   useSubmitEnrollmentAssessment,
+  useCanStartEnrollmentAssessment,
+  useStartEnrollmentAssessment,
 } from '@/hooks/queries/useEnrollmentAssessment';
 import { AssessmentProgressHeader, QuestionSection } from '@/components/assessment';
 import type { Json } from '@/integrations/supabase/types';
@@ -91,7 +93,7 @@ function parseOptions(options: Json): QuestionOption[] {
 
 export default function TakeAssessment() {
   const navigate = useNavigate();
-  const { activeEnrollmentId } = useEnrollmentContext();
+  const { activeEnrollmentId, activeEnrollment } = useEnrollmentContext();
   const { data: provider } = useCurrentProvider();
 
   // Fetch active attempt
@@ -100,9 +102,16 @@ export default function TakeAssessment() {
   // Fetch questions for the attempt
   const { data: rawQuestions, isLoading: isLoadingQuestions } = useAssessmentAttemptQuestions(attempt?.id);
 
+  // Check if user can start an assessment (for "No Active Assessment" screen)
+  const { data: canStart, isLoading: canStartLoading } = useCanStartEnrollmentAssessment(
+    activeEnrollmentId ?? undefined,
+    provider?.id
+  );
+
   // Mutations
   const saveAnswer = useSaveAssessmentAnswer();
   const submitAssessment = useSubmitEnrollmentAssessment();
+  const startAssessment = useStartEnrollmentAssessment();
 
   // Transform raw questions to display format
   const questions = useMemo<QuestionForDisplay[]>(() => {
@@ -316,6 +325,31 @@ export default function TakeAssessment() {
     );
   }
 
+  // Handle start assessment directly from this page
+  const handleStartAssessment = async () => {
+    if (!provider?.id || !activeEnrollmentId || !activeEnrollment) return;
+
+    try {
+      const result = await startAssessment.mutateAsync({
+        enrollmentId: activeEnrollmentId,
+        providerId: provider.id,
+        industrySegmentId: activeEnrollment.industry_segment_id,
+        expertiseLevelId: activeEnrollment.expertise_level_id,
+        questionsCount: 20,
+        timeLimitMinutes: 60,
+      });
+
+      if (result.success) {
+        toast.success('Assessment started!');
+        // Reload to fetch the new attempt
+        window.location.reload();
+      }
+    } catch (error) {
+      console.error('Failed to start assessment:', error);
+      toast.error('Failed to start assessment. Please try again.');
+    }
+  };
+
   // No active attempt
   if (!attempt) {
     return (
@@ -324,12 +358,41 @@ export default function TakeAssessment() {
           <CardContent className="pt-6 text-center space-y-4">
             <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500" />
             <h2 className="text-xl font-semibold">No Active Assessment</h2>
-            <p className="text-muted-foreground">
-              You don't have an active assessment. Please start a new assessment.
-            </p>
-            <Button onClick={() => navigate('/enroll/assessment')}>
-              Go to Assessment
-            </Button>
+            
+            {canStartLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
+            ) : canStart?.allowed ? (
+              <>
+                <p className="text-muted-foreground">
+                  You don't have an active assessment. Start one now?
+                </p>
+                <Button 
+                  onClick={handleStartAssessment}
+                  disabled={startAssessment.isPending}
+                >
+                  {startAssessment.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="mr-2 h-4 w-4" />
+                      Start Assessment
+                    </>
+                  )}
+                </Button>
+              </>
+            ) : (
+              <>
+                <p className="text-muted-foreground">
+                  {canStart?.reason || "You cannot start an assessment at this time."}
+                </p>
+                <Button onClick={() => navigate('/enroll/assessment')}>
+                  Go to Assessment Page
+                </Button>
+              </>
+            )}
           </CardContent>
         </Card>
       </div>
