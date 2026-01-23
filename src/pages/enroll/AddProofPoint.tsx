@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -76,6 +76,11 @@ function AddProofPointContent() {
   const [selectedSpecialityId, setSelectedSpecialityId] = useState<string | null>(null);
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
+
+  // Memoized handler to prevent child re-renders
+  const handleSpecialityChange = useCallback((id: string | null) => {
+    setSelectedSpecialityId(id);
+  }, []);
 
   // Get expertise level and industry names for display
   const expertiseLevel = expertiseLevels?.find(l => l.id === activeEnrollment?.expertise_level_id);
@@ -217,7 +222,7 @@ function AddProofPointContent() {
 
               {/* Speciality Mapping (shown first when Category = Speciality) */}
               {category === 'specialty_specific' && (
-                <Card>
+                <Card key="speciality-mapping-stable">
                   <CardHeader>
                     <CardTitle className="text-lg">Speciality Mapping</CardTitle>
                   </CardHeader>
@@ -225,7 +230,7 @@ function AddProofPointContent() {
                     <SpecialityTreeSelector
                       taxonomy={taxonomy}
                       selectedSpecialityId={selectedSpecialityId}
-                      onChange={setSelectedSpecialityId}
+                      onChange={handleSpecialityChange}
                       disabled={isSubmitting}
                       loading={taxonomyLoading}
                     />

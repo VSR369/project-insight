@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -46,7 +46,13 @@ export function SpecialityTreeSelector({
   const [expandedSubDomains, setExpandedSubDomains] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>('');
 
-  // Sync activeTab when taxonomy changes - fixes the "jumping" bug
+  // Create stable string reference for taxonomy IDs to prevent unnecessary re-renders
+  const taxonomyIds = useMemo(
+    () => taxonomy.map(a => a.id).join(','),
+    [taxonomy]
+  );
+
+  // Only reset activeTab when ACTUAL taxonomy content changes (not on every render)
   useEffect(() => {
     if (taxonomy.length > 0) {
       const validIds = taxonomy.map(a => a.id);
@@ -54,7 +60,28 @@ export function SpecialityTreeSelector({
         setActiveTab(taxonomy[0].id);
       }
     }
-  }, [taxonomy, activeTab]);
+  }, [taxonomyIds]); // Stable string dependency instead of array reference
+
+  // Auto-expand sub-domain containing the selected speciality and set correct tab
+  useEffect(() => {
+    if (selectedSpecialityId && taxonomy.length > 0) {
+      for (const area of taxonomy) {
+        for (const sd of area.subDomains) {
+          if (sd.specialities.some(sp => sp.id === selectedSpecialityId)) {
+            setExpandedSubDomains(prev => {
+              const next = new Set(prev);
+              next.add(sd.id);
+              return next;
+            });
+            if (activeTab !== area.id) {
+              setActiveTab(area.id);
+            }
+            return;
+          }
+        }
+      }
+    }
+  }, [selectedSpecialityId]); // Only run when selection changes
 
   // Find which area contains the selected speciality for badge display
   const selectedAreaId = useMemo(() => {
