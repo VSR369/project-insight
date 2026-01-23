@@ -334,6 +334,11 @@ export function QuestionImportDialog({
     failures: ImportFailure[];
     wasCancelled?: boolean;
   } | null>(null);
+  
+  // Real-time import counters for enhanced progress display
+  const [importedCount, setImportedCount] = React.useState(0);
+  const [successCount, setSuccessCount] = React.useState(0);
+  const [failedCount, setFailedCount] = React.useState(0);
 
   // Import mode: "add" = add new questions, "replace" = deactivate existing and add new
   const [importMode, setImportMode] = React.useState<ImportMode>("replace");
@@ -665,6 +670,9 @@ export function QuestionImportDialog({
     setIsImporting(true);
     setImportProgress(0);
     setCurrentRowInfo("");
+    setImportedCount(0);
+    setSuccessCount(0);
+    setFailedCount(0);
 
     const results = { 
       success: 0, 
@@ -851,14 +859,16 @@ export function QuestionImportDialog({
       const batchPromises = batch.map(q => processQuestion(q));
       const batchResults = await Promise.allSettled(batchPromises);
 
-      // Aggregate batch results
+      // Aggregate batch results with real-time counter updates
       for (const result of batchResults) {
         if (result.status === 'fulfilled') {
           const { success, failure, errorMessage } = result.value;
           if (success) {
             results.success++;
+            setSuccessCount(prev => prev + 1);
           } else {
             results.failed++;
+            setFailedCount(prev => prev + 1);
           }
           if (failure) {
             results.failures.push(failure);
@@ -869,12 +879,14 @@ export function QuestionImportDialog({
         } else {
           // Promise rejected unexpectedly
           results.failed++;
+          setFailedCount(prev => prev + 1);
           results.errors.push(`Unexpected batch error: ${result.reason}`);
         }
       }
 
-      // Update progress after each batch
+      // Update progress after each batch with exact count
       const processedCount = Math.min(endIdx, totalQuestions);
+      setImportedCount(processedCount);
       setImportProgress(Math.round((processedCount / totalQuestions) * 100));
     }
 
@@ -1371,21 +1383,24 @@ export function QuestionImportDialog({
             </div>
           )}
 
-          {/* Import Progress */}
+          {/* Import Progress - Enhanced with real-time counters */}
           {isImporting && (
-            <div className="space-y-3">
-              <Progress value={importProgress} className="h-2" />
+            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+              {/* Main Progress Header */}
               <div className="flex items-center justify-between">
-                <div className="space-y-1">
-                  <p className="text-sm text-muted-foreground">
-                    Importing... {importProgress}% ({Math.round((importProgress / 100) * parsedQuestions.filter(q => q.isValid && !q.isSkipped).length)} of {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length})
-                  </p>
-                  {currentRowInfo && (
-                    <p className="text-xs text-muted-foreground truncate max-w-md" title={currentRowInfo}>
-                      {currentRowInfo}
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="font-medium">
+                      Importing: {importedCount} / {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length} questions
                     </p>
-                  )}
+                    <p className="text-sm text-muted-foreground">
+                      {importProgress}% complete
+                    </p>
+                  </div>
                 </div>
+                
+                {/* Cancel Button */}
                 <Button
                   variant="destructive"
                   size="sm"
@@ -1393,9 +1408,33 @@ export function QuestionImportDialog({
                   className="gap-2"
                 >
                   <StopCircle className="h-4 w-4" />
-                  Cancel Import
+                  Cancel
                 </Button>
               </div>
+
+              {/* Progress Bar - More Prominent */}
+              <Progress value={importProgress} className="h-3" />
+              
+              {/* Live Success/Failure Counters */}
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400 font-medium">{successCount} succeeded</span>
+                </div>
+                {failedCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                    <span className="text-red-600 dark:text-red-400 font-medium">{failedCount} failed</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Current Batch Info */}
+              {currentRowInfo && (
+                <p className="text-xs text-muted-foreground truncate" title={currentRowInfo}>
+                  {currentRowInfo}
+                </p>
+              )}
             </div>
           )}
 
