@@ -14,6 +14,7 @@ import {
   ExpertiseTabContent,
   ProofPointsTabContent,
   SlotsTabContent,
+  AssessmentTabContent,
 } from "@/components/reviewer/candidates";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import { toast } from "sonner";
@@ -119,7 +120,7 @@ export default function CandidateDetailPage() {
             <TabsTrigger value="provider-details">Provider Details</TabsTrigger>
             <TabsTrigger value="expertise">Expertise</TabsTrigger>
             <TabsTrigger value="proof-points">Proof Points</TabsTrigger>
-            <TabsTrigger value="assessment" disabled>Assessment</TabsTrigger>
+            <TabsTrigger value="assessment">Assessment</TabsTrigger>
             <TabsTrigger value="slots">Slots</TabsTrigger>
             <TabsTrigger value="interview-kit" disabled>Interview Kit</TabsTrigger>
             <TabsTrigger value="review-progress" disabled>Review Progress</TabsTrigger>
@@ -163,10 +164,8 @@ export default function CandidateDetailPage() {
             {enrollmentId && <SlotsTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
-          <TabsContent value="assessment">
-            <div className="p-8 text-center text-muted-foreground">
-              Assessment tab content coming soon
-            </div>
+          <TabsContent value="assessment" className="mt-6">
+            {enrollmentId && <AssessmentTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
           <TabsContent value="interview-kit">
