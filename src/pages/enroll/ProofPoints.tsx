@@ -61,7 +61,8 @@ function ProofPointsContent() {
   const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
   const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
-  const isContentLocked = !contentCheck.allowed || isTerminal;
+  // Only lock content if NOT loading AND explicitly not allowed
+  const isContentLocked = !contentCheck.isLoading && (!contentCheck.allowed || isTerminal);
   
   const [viewDialogOpen, setViewDialogOpen] = useState(false);
   const [selectedProofPoint, setSelectedProofPoint] = useState<ProofPointWithCounts | null>(null);
@@ -209,7 +210,7 @@ function ProofPointsContent() {
           />
         )}
         
-        {!isTerminal && !contentCheck.allowed && (
+        {!isTerminal && !contentCheck.isLoading && !contentCheck.allowed && (
           <LockedFieldBanner 
             lockLevel="content"
             reason={contentCheck.reason || undefined}
