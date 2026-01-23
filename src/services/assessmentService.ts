@@ -15,7 +15,6 @@ import {
   DEFAULT_TIME_LIMIT_MINUTES,
   DEFAULT_QUESTIONS_PER_ASSESSMENT,
   PASSING_SCORE_PERCENTAGE,
-  ASSESSMENT_LIFECYCLE,
 } from '@/constants/assessment.constants';
 
 export interface StartAssessmentInput {

@@ -7,8 +7,6 @@ import { withCreatedBy, withUpdatedBy, getCurrentUserId } from '@/lib/auditField
 import { handleMutationError, logWarning } from '@/lib/errorHandler';
 
 type ProofPoint = Database['public']['Tables']['proof_points']['Row'];
-type ProofPointInsert = Database['public']['Tables']['proof_points']['Insert'];
-type ProofPointUpdate = Database['public']['Tables']['proof_points']['Update'];
 type ProofPointType = Database['public']['Enums']['proof_point_type'];
 type ProofPointCategory = Database['public']['Enums']['proof_point_category'];
 type LifecycleStatus = Database['public']['Enums']['lifecycle_status'];
