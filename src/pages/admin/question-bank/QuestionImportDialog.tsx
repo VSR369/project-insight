@@ -481,40 +481,6 @@ export function QuestionImportDialog({
       const sub_domain = String(row[3] || "").trim();
       const speciality = String(row[4] || "").trim();
 
-      // Check for skip conditions BEFORE validation
-      // Skip "Aspiring" level or blank expertise_level intentionally
-      const expertiseLevelLower = expertise_level.toLowerCase();
-      const isAspiringLevel = expertiseLevelLower.includes('aspiring') || 
-                             expertiseLevelLower.includes('level 0') ||
-                             expertiseLevelLower === '';
-      
-      if (isAspiringLevel) {
-        questions.push({
-          rowNumber,
-          industry_segment,
-          expertise_level,
-          proficiency_area,
-          sub_domain,
-          speciality,
-          speciality_id: null,
-          question_text: String(row[5] || "").trim(),
-          options: [],
-          correct_option: 0,
-          difficulty: null,
-          question_type: "",
-          usage_mode: "",
-          capability_tags: [],
-          expected_answer_guidance: null,
-          isValid: false,
-          isSkipped: true,
-          skipReason: expertise_level 
-            ? `Expertise level "${expertise_level}" excluded (Aspiring/Level 0)` 
-            : "Expertise level is blank - skipped by rule",
-          errors: [],
-        });
-        continue;
-      }
-
       // Extract question text (column 5)
       const question_text = String(row[5] || "").trim();
 
@@ -1232,13 +1198,6 @@ export function QuestionImportDialog({
                           <Badge variant="destructive" className="ml-2">{count}</Badge>
                         </div>
                       ))}
-                    </div>
-                  )}
-                  {skippedCount > 0 && (
-                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
-                      <span className="text-amber-600 dark:text-amber-400 text-sm">
-                        • {skippedCount} rows skipped (Aspiring/Level 0 excluded by rule)
-                      </span>
                     </div>
                   )}
                 </div>
