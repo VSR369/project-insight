@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, AlertTriangle, Send } from 'lucide-react';
+import { Loader2, AlertTriangle, Send, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -242,6 +242,40 @@ export default function TakeAssessment() {
     setShowTimeExpiredDialog(true);
   }, []);
 
+  // TODO: Remove before production - temporary debugging feature
+  const handleDownloadQuestions = useCallback(() => {
+    if (!questions || questions.length === 0) {
+      toast.error('No questions to download');
+      return;
+    }
+
+    const exportData = questions.map((q, idx) => ({
+      questionNumber: idx + 1,
+      id: q.id,
+      question_text: q.question_text,
+      options: q.options,
+      difficulty: q.difficulty,
+      proficiency_area: q.proficiency_area_name,
+      sub_domain: q.sub_domain_name,
+      speciality: q.speciality_name,
+    }));
+
+    const blob = new Blob(
+      [JSON.stringify(exportData, null, 2)],
+      { type: 'application/json' }
+    );
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `assessment-questions-${attempt?.id?.slice(0, 8) || 'unknown'}-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    toast.success(`Downloaded ${exportData.length} questions`);
+  }, [questions, attempt?.id]);
+
   // Handle submit
   const handleSubmit = async () => {
     if (!attempt?.id || !activeEnrollmentId) return;
@@ -333,6 +367,21 @@ export default function TakeAssessment() {
         onTimeExpired={handleTimeExpired}
         onBack={handleBack}
       />
+
+      {/* TODO: Remove before production - temporary debugging feature */}
+      <div className="container max-w-5xl mx-auto px-4 pt-4">
+        <div className="flex justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadQuestions}
+            className="gap-2 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+          >
+            <Download className="h-4 w-4" />
+            Download Questions (DEV)
+          </Button>
+        </div>
+      </div>
 
       {/* Questions */}
       <div className="container max-w-5xl mx-auto px-4 py-6">
