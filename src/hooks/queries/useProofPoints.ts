@@ -58,17 +58,26 @@ async function getMinProofPointsRequired(): Promise<number> {
   return DEFAULT_MIN_PROOF_POINTS;
 }
 
-// Helper to check content modification lock
-async function checkContentLock(providerId: string): Promise<{ allowed: boolean; reason?: string }> {
-  const { data: provider, error } = await supabase
-    .from('solution_providers')
+// Helper to check content modification lock (enrollment-scoped)
+async function checkContentLock(enrollmentId?: string): Promise<{ allowed: boolean; reason?: string }> {
+  // If no enrollment, allow (new user or registration phase)
+  if (!enrollmentId) {
+    return { allowed: true };
+  }
+
+  const { data: enrollment, error } = await supabase
+    .from('provider_industry_enrollments')
     .select('lifecycle_rank')
-    .eq('id', providerId)
+    .eq('id', enrollmentId)
     .single();
 
-  if (error) throw error;
+  if (error) {
+    // Log but don't block - enrollment might not exist yet
+    logWarning('Could not fetch enrollment for content lock check', { operation: 'checkContentLock', enrollmentId });
+    return { allowed: true };
+  }
 
-  return canModifyField(provider?.lifecycle_rank || 0, 'content');
+  return canModifyField(enrollment?.lifecycle_rank || 0, 'content');
 }
 
 // Options for useProofPoints hook
@@ -318,8 +327,8 @@ export function useCreateProofPoint() {
 
   return useMutation({
     mutationFn: async (input: CreateProofPointInput) => {
-      // Check content lock
-      const contentCheck = await checkContentLock(input.providerId);
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(input.enrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
@@ -402,11 +411,22 @@ export function useUpdateProofPoint() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (input: UpdateProofPointInput & { providerId: string }) => {
-      const { id, providerId, specialityIds, ...updateData } = input;
+    mutationFn: async (input: UpdateProofPointInput & { providerId: string; enrollmentId?: string }) => {
+      const { id, providerId, enrollmentId, specialityIds, ...updateData } = input;
 
-      // Check content lock
-      const contentCheck = await checkContentLock(providerId);
+      // Get enrollment_id from proof point if not provided
+      let effectiveEnrollmentId = enrollmentId;
+      if (!effectiveEnrollmentId) {
+        const { data: pp } = await supabase
+          .from('proof_points')
+          .select('enrollment_id')
+          .eq('id', id)
+          .single();
+        effectiveEnrollmentId = pp?.enrollment_id ?? undefined;
+      }
+
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(effectiveEnrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
@@ -471,8 +491,8 @@ export function useDeleteProofPoint() {
       enrollmentId?: string;
       industrySegmentId?: string;
     }) => {
-      // Check content lock
-      const contentCheck = await checkContentLock(providerId);
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(enrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
@@ -524,15 +544,28 @@ export function useAddProofPointLink() {
       proofPointId, 
       url, 
       title,
-      providerId 
+      providerId,
+      enrollmentId,
     }: { 
       proofPointId: string; 
       url: string; 
       title?: string;
       providerId: string;
+      enrollmentId?: string;
     }) => {
-      // Check content lock
-      const contentCheck = await checkContentLock(providerId);
+      // Get enrollment_id from proof point if not provided
+      let effectiveEnrollmentId = enrollmentId;
+      if (!effectiveEnrollmentId) {
+        const { data: pp } = await supabase
+          .from('proof_points')
+          .select('enrollment_id')
+          .eq('id', proofPointId)
+          .single();
+        effectiveEnrollmentId = pp?.enrollment_id ?? undefined;
+      }
+
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(effectiveEnrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
@@ -568,14 +601,27 @@ export function useUploadProofPointFile() {
       file, 
       providerId,
       userId,
+      enrollmentId,
     }: { 
       proofPointId: string; 
       file: File; 
       providerId: string;
       userId: string;
+      enrollmentId?: string;
     }) => {
-      // Check content lock
-      const contentCheck = await checkContentLock(providerId);
+      // Get enrollment_id from proof point if not provided
+      let effectiveEnrollmentId = enrollmentId;
+      if (!effectiveEnrollmentId) {
+        const { data: pp } = await supabase
+          .from('proof_points')
+          .select('enrollment_id')
+          .eq('id', proofPointId)
+          .single();
+        effectiveEnrollmentId = pp?.enrollment_id ?? undefined;
+      }
+
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(effectiveEnrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }
@@ -630,15 +676,28 @@ export function useDeleteProofPointFile() {
       fileId, 
       storagePath, 
       proofPointId,
-      providerId 
+      providerId,
+      enrollmentId,
     }: { 
       fileId: string; 
       storagePath: string; 
       proofPointId: string;
       providerId: string;
+      enrollmentId?: string;
     }) => {
-      // Check content lock
-      const contentCheck = await checkContentLock(providerId);
+      // Get enrollment_id from proof point if not provided
+      let effectiveEnrollmentId = enrollmentId;
+      if (!effectiveEnrollmentId) {
+        const { data: pp } = await supabase
+          .from('proof_points')
+          .select('enrollment_id')
+          .eq('id', proofPointId)
+          .single();
+        effectiveEnrollmentId = pp?.enrollment_id ?? undefined;
+      }
+
+      // Check content lock (enrollment-scoped)
+      const contentCheck = await checkContentLock(effectiveEnrollmentId);
       if (!contentCheck.allowed) {
         throw new Error(contentCheck.reason || 'Content modification is locked at this lifecycle stage');
       }

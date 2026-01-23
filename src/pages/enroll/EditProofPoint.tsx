@@ -169,10 +169,11 @@ function EditProofPointContent() {
       // Determine final category
       const finalCategory = forceGeneral ? 'general' : values.category;
 
-      // Update proof point
+      // Update proof point (enrollment-scoped)
       await updateProofPoint.mutateAsync({
         id: proofPointId,
         providerId: provider.id,
+        enrollmentId: activeEnrollmentId || undefined,
         category: finalCategory as ProofPointCategory,
         type: values.type as ProofPointType,
         title: values.title,
