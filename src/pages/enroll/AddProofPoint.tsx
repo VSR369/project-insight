@@ -71,7 +71,8 @@ function AddProofPointContent() {
   const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
   const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
   const isTerminal = terminalState.isTerminal;
-  const isContentLocked = !contentCheck.allowed || isTerminal;
+  // Only lock content if NOT loading AND explicitly not allowed
+  const isContentLocked = !contentCheck.isLoading && (!contentCheck.allowed || isTerminal);
 
   const [selectedSpecialityId, setSelectedSpecialityId] = useState<string | null>(null);
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
@@ -96,13 +97,13 @@ function AddProofPointContent() {
     },
   });
 
-  // Redirect if content is locked
+  // Redirect if content is locked (only after loading completes)
   useEffect(() => {
-    if (!providerLoading && !enrollmentLoading && isContentLocked) {
+    if (!providerLoading && !enrollmentLoading && !contentCheck.isLoading && isContentLocked) {
       toast.error('Content modification is locked at this lifecycle stage.');
       navigate('/enroll/proof-points');
     }
-  }, [providerLoading, enrollmentLoading, isContentLocked, navigate]);
+  }, [providerLoading, enrollmentLoading, contentCheck.isLoading, isContentLocked, navigate]);
 
   const category = form.watch('category');
   const isSubmitting = createProofPoint.isPending || uploadFile.isPending;
