@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
@@ -7,6 +7,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, ChevronDown, Folder, Tag, Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { logInfo, logWarning } from '@/lib/errorHandler';
+
+const COMPONENT_NAME = 'SpecialityTreeSelector';
 
 interface Speciality {
   id: string;
@@ -45,6 +48,11 @@ export function SpecialityTreeSelector({
 }: SpecialityTreeSelectorProps) {
   const [expandedSubDomains, setExpandedSubDomains] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState<string>('');
+  const renderCount = useRef(0);
+  const prevTaxonomyIds = useRef<string>('');
+
+  // Track render count for debugging
+  renderCount.current += 1;
 
   // Create stable string reference for taxonomy IDs to prevent unnecessary re-renders
   const taxonomyIds = useMemo(
@@ -52,12 +60,38 @@ export function SpecialityTreeSelector({
     [taxonomy]
   );
 
+  // Log when taxonomy reference changes
+  useEffect(() => {
+    if (prevTaxonomyIds.current !== taxonomyIds) {
+      logInfo('Taxonomy IDs changed', {
+        operation: 'taxonomy_change',
+        component: COMPONENT_NAME,
+      }, {
+        previousIds: prevTaxonomyIds.current || '(empty)',
+        newIds: taxonomyIds || '(empty)',
+        areaCount: taxonomy.length,
+        renderCount: renderCount.current,
+      });
+      prevTaxonomyIds.current = taxonomyIds;
+    }
+  }, [taxonomyIds, taxonomy.length]);
+
   // Only reset activeTab when ACTUAL taxonomy content changes (not on every render)
   useEffect(() => {
     if (taxonomy.length > 0) {
       const validIds = taxonomy.map(a => a.id);
       if (!activeTab || !validIds.includes(activeTab)) {
-        setActiveTab(taxonomy[0].id);
+        const newTab = taxonomy[0].id;
+        logInfo('Setting initial activeTab', {
+          operation: 'set_active_tab',
+          component: COMPONENT_NAME,
+        }, {
+          previousTab: activeTab || '(none)',
+          newTab,
+          reason: !activeTab ? 'no_active_tab' : 'invalid_tab_id',
+          validIds: validIds.join(','),
+        });
+        setActiveTab(newTab);
       }
     }
   }, [taxonomyIds]); // Stable string dependency instead of array reference
@@ -68,18 +102,43 @@ export function SpecialityTreeSelector({
       for (const area of taxonomy) {
         for (const sd of area.subDomains) {
           if (sd.specialities.some(sp => sp.id === selectedSpecialityId)) {
+            logInfo('Auto-expanding sub-domain for selection', {
+              operation: 'auto_expand',
+              component: COMPONENT_NAME,
+            }, {
+              selectedSpecialityId,
+              subDomainId: sd.id,
+              subDomainName: sd.name,
+              areaId: area.id,
+              areaName: area.name,
+            });
             setExpandedSubDomains(prev => {
               const next = new Set(prev);
               next.add(sd.id);
               return next;
             });
             if (activeTab !== area.id) {
+              logInfo('Switching tab to match selection', {
+                operation: 'switch_tab',
+                component: COMPONENT_NAME,
+              }, {
+                previousTab: activeTab,
+                newTab: area.id,
+              });
               setActiveTab(area.id);
             }
             return;
           }
         }
       }
+      // Selection not found in taxonomy
+      logWarning('Selected speciality not found in taxonomy', {
+        operation: 'selection_not_found',
+        component: COMPONENT_NAME,
+      }, {
+        selectedSpecialityId,
+        taxonomyAreaCount: taxonomy.length,
+      });
     }
   }, [selectedSpecialityId]); // Only run when selection changes
 
@@ -111,18 +170,36 @@ export function SpecialityTreeSelector({
   const toggleSubDomain = (subDomainId: string) => {
     setExpandedSubDomains(prev => {
       const newExpanded = new Set(prev);
+      const isExpanding = !newExpanded.has(subDomainId);
       if (newExpanded.has(subDomainId)) {
         newExpanded.delete(subDomainId);
       } else {
         newExpanded.add(subDomainId);
       }
+      logInfo('Sub-domain toggle', {
+        operation: 'toggle_subdomain',
+        component: COMPONENT_NAME,
+      }, {
+        subDomainId,
+        action: isExpanding ? 'expand' : 'collapse',
+        expandedCount: newExpanded.size,
+      });
       return newExpanded;
     });
   };
 
   const handleSpecialitySelect = (specialityId: string) => {
+    const isDeselect = selectedSpecialityId === specialityId;
+    logInfo('Speciality selection', {
+      operation: 'select_speciality',
+      component: COMPONENT_NAME,
+    }, {
+      specialityId,
+      action: isDeselect ? 'deselect' : 'select',
+      previousSelection: selectedSpecialityId || '(none)',
+    });
     // Toggle selection - if already selected, deselect
-    if (selectedSpecialityId === specialityId) {
+    if (isDeselect) {
       onChange(null);
     } else {
       onChange(specialityId);
@@ -130,6 +207,12 @@ export function SpecialityTreeSelector({
   };
 
   const handleClearSelection = () => {
+    logInfo('Clear selection', {
+      operation: 'clear_selection',
+      component: COMPONENT_NAME,
+    }, {
+      previousSelection: selectedSpecialityId || '(none)',
+    });
     onChange(null);
   };
 
