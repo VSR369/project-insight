@@ -21,6 +21,7 @@ import {
   MANDATORY_CAPABILITY_CATEGORIES,
   MAX_CAPABILITY_PERCENTAGE,
 } from "@/constants/question-generation.constants";
+import { MIN_QUESTIONS_FOR_ASSESSMENT } from "@/constants/assessment.constants";
 
 export interface QuestionWithMetadata {
   id: string;
@@ -232,6 +233,25 @@ export async function generateBalancedQuestions(
       warnings: ['No eligible questions found for this industry/expertise combination'],
       stats: {
         totalEligible: 0,
+        subDomainDistribution: {},
+        difficultyDistribution: {},
+        questionTypeDistribution: {},
+        capabilityDistribution: {},
+      },
+    };
+  }
+
+  // CRITICAL: Fail early if insufficient questions for valid assessment
+  if (eligibleQuestions.length < MIN_QUESTIONS_FOR_ASSESSMENT) {
+    return {
+      success: false,
+      questions: [],
+      warnings: [
+        `Insufficient questions available. Found ${eligibleQuestions.length}, minimum ${MIN_QUESTIONS_FOR_ASSESSMENT} required. ` +
+        `Please contact administrator to add more questions to the question bank.`
+      ],
+      stats: {
+        totalEligible: eligibleQuestions.length,
         subDomainDistribution: {},
         difficultyDistribution: {},
         questionTypeDistribution: {},

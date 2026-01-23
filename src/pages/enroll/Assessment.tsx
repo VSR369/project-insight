@@ -65,6 +65,21 @@ function AssessmentContent() {
   
   const startAssessment = useStartEnrollmentAssessment();
   const startRetake = useStartRetakeAssessment();
+
+  // Query to verify active attempt has valid responses (prevents showing "Continue" for orphan attempts)
+  const { data: attemptResponseCount, isLoading: responseCountLoading } = useQuery({
+    queryKey: ['attempt-response-count', activeAttempt?.id],
+    queryFn: async () => {
+      if (!activeAttempt?.id) return 0;
+      const { count } = await supabase
+        .from('assessment_attempt_responses')
+        .select('id', { count: 'exact', head: true })
+        .eq('attempt_id', activeAttempt.id);
+      return count || 0;
+    },
+    enabled: !!activeAttempt?.id,
+    staleTime: 10000,
+  });
   
   // Lifecycle validation scoped to enrollment
   const { data: terminalState } = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
@@ -163,7 +178,7 @@ function AssessmentContent() {
     }
   };
 
-  const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading;
+  const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading || responseCountLoading;
 
   // Helper to check if an attempt is expired (time limit passed)
   const isAttemptExpired = (attempt: { started_at: string; time_limit_minutes: number }) => {
@@ -211,9 +226,13 @@ function AssessmentContent() {
   const hasAssessmentElsewhere = activeAssessmentElsewhere && 
     activeAssessmentElsewhere.enrollmentId !== activeEnrollmentId;
 
-  // Use ACTUAL attempt existence for "Continue" button (not just lifecycle status)
-  // This fixes stale status where lifecycle says 'in_progress' but no valid attempt exists
-  const hasActiveAttempt = activeAttempt && !isAttemptExpired(activeAttempt);
+  // Use ACTUAL attempt existence + valid responses for "Continue" button
+  // This fixes:
+  // 1. Stale status where lifecycle says 'in_progress' but no valid attempt exists
+  // 2. Orphan attempts that have 0 responses (broken state from failed generation)
+  const hasActiveAttempt = activeAttempt && 
+    !isAttemptExpired(activeAttempt) && 
+    (attemptResponseCount || 0) > 0;
   const isInAssessment = !!hasActiveAttempt;
   const hasCompletedAssessment = enrollmentStatus === 'assessment_completed';
 
