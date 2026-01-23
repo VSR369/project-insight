@@ -10,6 +10,7 @@ import { AdminGuard } from "@/components/auth/AdminGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";
 
 // Auth Pages
 import Login from "@/pages/Login";
@@ -548,8 +549,8 @@ const App = () => (
               }
             />
 
-            {/* Redirect root to dashboard */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Role-based redirect for root route */}
+            <Route path="/" element={<RoleBasedRedirect />} />
 
             {/* 404 */}
             <Route path="*" element={<NotFound />} />
