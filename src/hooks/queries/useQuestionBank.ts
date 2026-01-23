@@ -84,32 +84,53 @@ export function useQuestions(specialityId?: string, includeInactive = false) {
   return useQuery({
     queryKey: ["question_bank", specialityId, { includeInactive }],
     queryFn: async () => {
-      let query = supabase
-        .from("question_bank")
-        .select(`
-          *,
-          question_capability_tags (
-            id,
-            capability_tag_id,
-            capability_tags (
+      // PostgREST applies a default max rows limit (commonly 1000) when no range is provided.
+      // For admin question bank views and post-import verification, we must paginate.
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 50; // safety cap (50k rows)
+
+      const all: Question[] = [];
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let query = supabase
+          .from("question_bank")
+          .select(
+            `
+            *,
+            question_capability_tags (
               id,
-              name
+              capability_tag_id,
+              capability_tags (
+                id,
+                name
+              )
             )
+          `
           )
-        `)
-        .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .range(from, to);
 
-      if (specialityId) {
-        query = query.eq("speciality_id", specialityId);
+        if (specialityId) {
+          query = query.eq("speciality_id", specialityId);
+        }
+
+        if (!includeInactive) {
+          query = query.eq("is_active", true);
+        }
+
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+
+        const pageRows = (data ?? []) as Question[];
+        all.push(...pageRows);
+
+        // Last page reached
+        if (pageRows.length < PAGE_SIZE) break;
       }
 
-      if (!includeInactive) {
-        query = query.eq("is_active", true);
-      }
-
-      const { data, error } = await query;
-      if (error) throw new Error(error.message);
-      return data as Question[];
+      return all;
     },
     enabled: !!specialityId || includeInactive,
   });
