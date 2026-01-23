@@ -110,7 +110,7 @@ export function SpecialityTreeSelector({
       <Alert>
         <Info className="h-4 w-4" />
         <AlertDescription>
-          No expertise areas found. Please ensure your expertise level is set up correctly.
+          No proficiency areas selected. Please select areas in the Expertise Selection step first, then return here to tag your proof points.
         </AlertDescription>
       </Alert>
     );
