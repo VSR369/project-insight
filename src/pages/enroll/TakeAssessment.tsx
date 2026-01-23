@@ -65,25 +65,27 @@ interface ProficiencyAreaGroup {
   subDomains: SubDomainGroup[];
 }
 
-// Helper to parse options from database
+// Helper to parse options from database (uses 1-based indexing)
 function parseOptions(options: Json): QuestionOption[] {
   if (!options) return [];
   
   if (Array.isArray(options)) {
     return options.map((opt, idx) => {
       if (typeof opt === 'object' && opt !== null) {
+        // Use stored index, or default to 1-based indexing
+        const rawIndex = (opt as any).index;
         return {
-          index: (opt as any).index ?? idx,
+          index: rawIndex != null ? rawIndex : idx + 1,
           text: String((opt as any).text ?? ''),
         };
       }
-      return { index: idx, text: String(opt) };
+      return { index: idx + 1, text: String(opt) };
     });
   }
   
   if (typeof options === 'object' && options !== null) {
     return Object.entries(options).map(([key, text], idx) => ({
-      index: idx,
+      index: idx + 1,
       text: String(text ?? ''),
     }));
   }
