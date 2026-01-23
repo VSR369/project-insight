@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle } from "lucide-react";
 
 import {
   Dialog,
@@ -320,18 +320,23 @@ export function QuestionImportDialog({
   const [parseError, setParseError] = React.useState<string | null>(null);
   const [isImporting, setIsImporting] = React.useState(false);
   const [importProgress, setImportProgress] = React.useState(0);
+  const [currentRowInfo, setCurrentRowInfo] = React.useState<string>("");
   const [importResults, setImportResults] = React.useState<{
     success: number;
     failed: number;
     deactivated: number;
     errors: string[];
     failures: ImportFailure[];
+    wasCancelled?: boolean;
   } | null>(null);
 
   // Import mode: "add" = add new questions, "replace" = deactivate existing and add new
   const [importMode, setImportMode] = React.useState<ImportMode>("replace");
   const [existingQuestionCount, setExistingQuestionCount] = React.useState<number>(0);
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
+
+  // AbortController for cancellable imports
+  const abortControllerRef = React.useRef<AbortController | null>(null);
 
   const createMutation = useCreateQuestion();
   const deactivateMutation = useDeactivateQuestionsBySpecialities();
@@ -343,11 +348,17 @@ export function QuestionImportDialog({
   // Reset state when dialog closes
   React.useEffect(() => {
     if (!open) {
+      // Cancel any ongoing import when dialog closes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
       setFile(null);
       setParsedQuestions([]);
       setParseError(null);
       setIsImporting(false);
       setImportProgress(0);
+      setCurrentRowInfo("");
       setImportResults(null);
       setImportMode("replace");
       setExistingQuestionCount(0);
@@ -549,6 +560,17 @@ export function QuestionImportDialog({
     }
   };
 
+  // Cancel the current import
+  const handleCancelImport = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      logInfo("Question import cancelled by user", {
+        operation: 'import_questions_cancelled',
+        component: 'QuestionImportDialog',
+      });
+    }
+  };
+
   const handleImport = async () => {
     setShowConfirmDialog(false);
     const validQuestions = parsedQuestions.filter((q) => q.isValid);
@@ -556,6 +578,10 @@ export function QuestionImportDialog({
 
     const importStartTime = Date.now();
     const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
+
+    // Create new AbortController for this import
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
 
     // Log import start
     logInfo("Question import started", {
@@ -565,13 +591,15 @@ export function QuestionImportDialog({
 
     setIsImporting(true);
     setImportProgress(0);
+    setCurrentRowInfo("");
 
     const results = { 
       success: 0, 
       failed: 0, 
       deactivated: 0, 
       errors: [] as string[],
-      failures: [] as ImportFailure[]
+      failures: [] as ImportFailure[],
+      wasCancelled: false
     };
 
     // If replace mode, deactivate existing questions for affected specialities first
@@ -612,8 +640,21 @@ export function QuestionImportDialog({
     }
 
     for (let i = 0; i < validQuestions.length; i++) {
+      // Check if import was cancelled
+      if (signal.aborted) {
+        results.wasCancelled = true;
+        logInfo("Question import stopped due to cancellation", {
+          operation: 'import_questions_stopped',
+          component: 'QuestionImportDialog',
+        });
+        break;
+      }
+
       const q = validQuestions[i];
       const rowCorrelationId = generateCorrelationId();
+
+      // Update current row info for display
+      setCurrentRowInfo(`Row ${q.rowNumber}: ${q.question_text.slice(0, 50)}...`);
 
       try {
         if (!q.speciality_id) {
@@ -636,6 +677,13 @@ export function QuestionImportDialog({
           is_active: true,
           speciality_id: q.speciality_id,
         });
+
+        // Check cancellation after question creation
+        if (signal.aborted) {
+          results.wasCancelled = true;
+          results.success++; // Count the last successful one
+          break;
+        }
 
         // Phase 2: Link capability tags if any
         if (createdQuestion?.id && q.capability_tags.length > 0) {
@@ -720,11 +768,14 @@ export function QuestionImportDialog({
 
     // Log import completion
     const importDuration = Date.now() - importStartTime;
-    logInfo("Question import completed", {
-      operation: 'import_questions_complete',
+    logInfo(results.wasCancelled ? "Question import cancelled" : "Question import completed", {
+      operation: results.wasCancelled ? 'import_questions_cancelled' : 'import_questions_complete',
       component: 'QuestionImportDialog',
     });
 
+    // Clean up abort controller
+    abortControllerRef.current = null;
+    setCurrentRowInfo("");
     setImportResults(results);
     setIsImporting(false);
   };
@@ -1062,21 +1113,45 @@ export function QuestionImportDialog({
 
           {/* Import Progress */}
           {isImporting && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Progress value={importProgress} className="h-2" />
-              <p className="text-sm text-center text-muted-foreground">
-                Importing... {importProgress}%
-              </p>
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <p className="text-sm text-muted-foreground">
+                    Importing... {importProgress}% ({Math.round((importProgress / 100) * parsedQuestions.filter(q => q.isValid).length)} of {parsedQuestions.filter(q => q.isValid).length})
+                  </p>
+                  {currentRowInfo && (
+                    <p className="text-xs text-muted-foreground truncate max-w-md" title={currentRowInfo}>
+                      {currentRowInfo}
+                    </p>
+                  )}
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleCancelImport}
+                  className="gap-2"
+                >
+                  <StopCircle className="h-4 w-4" />
+                  Cancel Import
+                </Button>
+              </div>
             </div>
           )}
 
           {/* Import Results */}
           {importResults && (
             <div className="space-y-4">
-              <Alert variant={importResults.failed === 0 ? "default" : "destructive"}>
-                <CheckCircle2 className="h-4 w-4" />
+              <Alert variant={importResults.failed === 0 && !importResults.wasCancelled ? "default" : "destructive"}>
+                {importResults.wasCancelled ? (
+                  <StopCircle className="h-4 w-4" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4" />
+                )}
                 <AlertDescription>
-                  Import complete: {importResults.success} questions imported successfully
+                  {importResults.wasCancelled 
+                    ? `Import cancelled: ${importResults.success} questions imported before cancellation`
+                    : `Import complete: ${importResults.success} questions imported successfully`}
                   {importResults.deactivated > 0 && `, ${importResults.deactivated} existing deactivated`}
                   {importResults.failed > 0 && `, ${importResults.failed} failed`}
                 </AlertDescription>
