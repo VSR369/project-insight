@@ -1146,11 +1146,11 @@ export function QuestionImportDialog({
                 <div className="flex items-center gap-3">
                   <Loader2 className="h-5 w-5 animate-spin text-primary" />
                   <div>
-                    <p className="font-medium">
-                      Importing: {importedCount} / {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length} questions
+                    <p className="text-lg font-semibold text-primary">
+                      {importedCount.toLocaleString()} of {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length.toLocaleString()} questions imported
                     </p>
                     <p className="text-sm text-muted-foreground">
-                      {importProgress}% complete
+                      {importProgress}% complete • Processing batch...
                     </p>
                   </div>
                 </div>
