@@ -15,3 +15,9 @@ export { ProofPointsTabContent } from "./ProofPointsTabContent";
 export { ProofPointsScoreHeader } from "./ProofPointsScoreHeader";
 export { ProofPointReviewCard } from "./ProofPointReviewCard";
 export { ProofPointsReviewFooter } from "./ProofPointsReviewFooter";
+// Slots tab components
+export { SlotsTabContent } from "./SlotsTabContent";
+export { TimezoneInfoPanel } from "./TimezoneInfoPanel";
+export { SlotDetailsCard } from "./SlotDetailsCard";
+export { AcceptSlotConfirmDialog } from "./AcceptSlotConfirmDialog";
+export { DeclineSlotDialog } from "./DeclineSlotDialog";

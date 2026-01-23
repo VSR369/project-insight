@@ -329,24 +329,36 @@ export type Database = {
       }
       booking_reviewers: {
         Row: {
+          acceptance_status: string | null
+          accepted_at: string | null
           booking_id: string
           created_at: string | null
+          declined_at: string | null
+          declined_reason: string | null
           id: string
           reviewer_id: string
           slot_id: string
           status: string | null
         }
         Insert: {
+          acceptance_status?: string | null
+          accepted_at?: string | null
           booking_id: string
           created_at?: string | null
+          declined_at?: string | null
+          declined_reason?: string | null
           id?: string
           reviewer_id: string
           slot_id: string
           status?: string | null
         }
         Update: {
+          acceptance_status?: string | null
+          accepted_at?: string | null
           booking_id?: string
           created_at?: string | null
+          declined_at?: string | null
+          declined_reason?: string | null
           id?: string
           reviewer_id?: string
           slot_id?: string
@@ -1572,6 +1584,63 @@ export type Database = {
           },
         ]
       }
+      provider_notifications: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          enrollment_id: string | null
+          id: string
+          is_immutable: boolean | null
+          is_read: boolean | null
+          is_system_generated: boolean | null
+          message: string
+          notification_type: string
+          provider_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          enrollment_id?: string | null
+          id?: string
+          is_immutable?: boolean | null
+          is_read?: boolean | null
+          is_system_generated?: boolean | null
+          message: string
+          notification_type: string
+          provider_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          enrollment_id?: string | null
+          id?: string
+          is_immutable?: boolean | null
+          is_read?: boolean | null
+          is_system_generated?: boolean | null
+          message?: string
+          notification_type?: string
+          provider_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provider_notifications_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       provider_proficiency_areas: {
         Row: {
           created_at: string
@@ -1987,6 +2056,7 @@ export type Database = {
           participation_mode_id: string | null
           pin_code: string | null
           profile_completion_percentage: number | null
+          timezone: string | null
           updated_at: string | null
           updated_by: string | null
           user_id: string
@@ -2011,6 +2081,7 @@ export type Database = {
           participation_mode_id?: string | null
           pin_code?: string | null
           profile_completion_percentage?: number | null
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id: string
@@ -2035,6 +2106,7 @@ export type Database = {
           participation_mode_id?: string | null
           pin_code?: string | null
           profile_completion_percentage?: number | null
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string
