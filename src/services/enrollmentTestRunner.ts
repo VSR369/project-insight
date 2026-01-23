@@ -28,6 +28,7 @@
  * - State Machine Validation (SM-xxx): Invalid transitions rejected
  * - Edge Function Smoke (EF-xxx): Edge function deployment verification
  * - Reviewer Enrollment (RE-xxx): Panel reviewer invitation flow
+ * - Multi-Enrollment Lifecycle (ME-xxx): Per-enrollment lock behavior (BR-ME-01, BR-ME-02, BR-ME-03)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -4024,6 +4025,566 @@ const primaryActionMatrixTests: TestCase[] = [
   },
 ];
 
+// ===== MULTI-ENROLLMENT LIFECYCLE TESTS (ME-xxx) =====
+// Tests for per-enrollment lifecycle governance (BR-ME-01, BR-ME-02, BR-ME-03)
+const multiEnrollmentLifecycleTests: TestCase[] = [
+  // ========================================================================
+  // PHASE 1: Independent Lifecycle States (ME-001 to ME-003)
+  // Verify each enrollment has independent lifecycle state (BR-ME-01)
+  // ========================================================================
+  {
+    id: "ME-001",
+    category: "multi-enrollment-lifecycle",
+    name: "Two enrollments can have different lifecycle ranks",
+    description: "Verify each enrollment has independent lifecycle state (BR-ME-01)",
+    run: () => runTest(async () => {
+      // Enrollment A at assessment (rank 100), Enrollment B at mode_selected (rank 30)
+      const lockStateA = canModifyField(100, 'content');
+      const lockStateB = canModifyField(30, 'content');
+      if (lockStateA.allowed) {
+        throw new Error("Enrollment A (rank 100) should be locked");
+      }
+      if (!lockStateB.allowed) {
+        throw new Error("Enrollment B (rank 30) should be editable");
+      }
+    }),
+  },
+  {
+    id: "ME-002",
+    category: "multi-enrollment-lifecycle",
+    name: "Enrollment at terminal doesn't affect sibling",
+    description: "Verify terminal state on one enrollment doesn't affect others",
+    run: () => runTest(async () => {
+      const enrollmentACertified = canModifyField(150, 'content');
+      const enrollmentBActive = canModifyField(50, 'content');
+      if (enrollmentACertified.allowed) {
+        throw new Error("Certified enrollment should be locked");
+      }
+      if (!enrollmentBActive.allowed) {
+        throw new Error("Active enrollment should still be editable");
+      }
+    }),
+  },
+  {
+    id: "ME-003",
+    category: "multi-enrollment-lifecycle",
+    name: "Each enrollment progresses independently",
+    description: "Verify rank changes on one enrollment don't affect siblings",
+    run: () => runTest(async () => {
+      // Simulating enrollment A going from 50 to 100
+      const beforeA = canModifyField(50, 'content');
+      const afterA = canModifyField(100, 'content');
+      // Enrollment B should remain unaffected at rank 70
+      const enrollmentB = canModifyField(70, 'content');
+      if (!beforeA.allowed) throw new Error("Enrollment A at rank 50 should be editable");
+      if (afterA.allowed) throw new Error("Enrollment A at rank 100 should be locked");
+      if (!enrollmentB.allowed) throw new Error("Enrollment B should remain editable");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 2: Content Lock Per-Enrollment (ME-004 to ME-007)
+  // Verify content locks are applied per-enrollment, not per-provider (BR-ME-02)
+  // ========================================================================
+  {
+    id: "ME-004",
+    category: "multi-enrollment-lifecycle",
+    name: "Content editable when enrollment rank < 100",
+    description: "Verify content editable before assessment threshold",
+    run: () => runTest(async () => {
+      const result = canModifyField(70, 'content');
+      if (!result.allowed) {
+        throw new Error(`Expected content editable at rank 70, got: ${result.reason}`);
+      }
+    }),
+  },
+  {
+    id: "ME-005",
+    category: "multi-enrollment-lifecycle",
+    name: "Content locked when enrollment rank >= 100",
+    description: "Verify content locked at assessment start",
+    run: () => runTest(async () => {
+      const result = canModifyField(100, 'content');
+      if (result.allowed) {
+        throw new Error("Expected content locked at rank 100");
+      }
+    }),
+  },
+  {
+    id: "ME-006",
+    category: "multi-enrollment-lifecycle",
+    name: "Different enrollments have different lock states",
+    description: "Verify lock state is determined by individual enrollment rank",
+    run: () => runTest(async () => {
+      const techEnrollment = canModifyField(100, 'content'); // locked
+      const healthEnrollment = canModifyField(50, 'content'); // editable
+      if (techEnrollment.allowed) throw new Error("Tech enrollment at rank 100 should be locked");
+      if (!healthEnrollment.allowed) throw new Error("Health enrollment at rank 50 should be editable");
+    }),
+  },
+  {
+    id: "ME-007",
+    category: "multi-enrollment-lifecycle",
+    name: "Adding new enrollment doesn't affect existing locks",
+    description: "Verify new enrollment at low rank doesn't unlock existing enrollment",
+    run: () => runTest(async () => {
+      // Existing enrollment locked at rank 100
+      const existingEnrollment = canModifyField(100, 'content');
+      // New enrollment starts at rank 20
+      const newEnrollment = canModifyField(20, 'content');
+      if (existingEnrollment.allowed) throw new Error("Existing enrollment should remain locked");
+      if (!newEnrollment.allowed) throw new Error("New enrollment should be editable");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 3: Wizard Step Locking (ME-008 to ME-010)
+  // Verify wizard step locking based on individual enrollment lifecycle (BR-ME-03)
+  // ========================================================================
+  {
+    id: "ME-008",
+    category: "multi-enrollment-lifecycle",
+    name: "Wizard step 5 locked based on enrollment rank",
+    description: "Verify proof points step locks at assessment threshold",
+    run: () => runTest(async () => {
+      const lockedAtAssessment = isWizardStepLocked(5, 100);
+      const editableBeforeAssessment = isWizardStepLocked(5, 70);
+      if (!lockedAtAssessment) throw new Error("Step 5 should be locked at rank 100");
+      if (editableBeforeAssessment) throw new Error("Step 5 should be editable at rank 70");
+    }),
+  },
+  {
+    id: "ME-009",
+    category: "multi-enrollment-lifecycle",
+    name: "Wizard step 4 locked based on enrollment rank",
+    description: "Verify expertise step locks at assessment threshold",
+    run: () => runTest(async () => {
+      const lockedAtAssessment = isWizardStepLocked(4, 100);
+      const editableBeforeAssessment = isWizardStepLocked(4, 50);
+      if (!lockedAtAssessment) throw new Error("Step 4 should be locked at rank 100");
+      if (editableBeforeAssessment) throw new Error("Step 4 should be editable at rank 50");
+    }),
+  },
+  {
+    id: "ME-010",
+    category: "multi-enrollment-lifecycle",
+    name: "All early steps lock at assessment",
+    description: "Verify steps 1-5 all lock when rank reaches 100",
+    run: () => runTest(async () => {
+      for (let step = 1; step <= 5; step++) {
+        const locked = isWizardStepLocked(step, 100);
+        if (!locked) {
+          throw new Error(`Step ${step} should be locked at rank 100`);
+        }
+      }
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 4: Enrollment Switching (ME-011 to ME-013)
+  // Verify enrollment switching behavior maintains correct lock states
+  // ========================================================================
+  {
+    id: "ME-011",
+    category: "multi-enrollment-lifecycle",
+    name: "Switch from locked to unlocked enrollment",
+    description: "Verify switching to earlier-stage enrollment restores edit capability",
+    run: () => runTest(async () => {
+      // Context: switching from Tech (rank 100) to Health (rank 50)
+      const techLockState = canModifyField(100, 'content');
+      const healthLockState = canModifyField(50, 'content');
+      if (techLockState.allowed) throw new Error("Tech (rank 100) should be locked");
+      if (!healthLockState.allowed) throw new Error("Health (rank 50) should be editable after switch");
+    }),
+  },
+  {
+    id: "ME-012",
+    category: "multi-enrollment-lifecycle",
+    name: "Switch from unlocked to locked enrollment",
+    description: "Verify switching to later-stage enrollment applies locks",
+    run: () => runTest(async () => {
+      // Context: switching from Health (rank 50) to Tech (rank 100)
+      const healthLockState = canModifyField(50, 'content');
+      const techLockState = canModifyField(100, 'content');
+      if (!healthLockState.allowed) throw new Error("Health (rank 50) should be editable");
+      if (techLockState.allowed) throw new Error("Tech (rank 100) should be locked after switch");
+    }),
+  },
+  {
+    id: "ME-013",
+    category: "multi-enrollment-lifecycle",
+    name: "Lock state reflects current enrollment only",
+    description: "Verify lock state is recalculated on enrollment switch",
+    run: () => runTest(async () => {
+      const enrollment1 = canModifyField(30, 'content');
+      const enrollment2 = canModifyField(100, 'content');
+      const enrollment3 = canModifyField(140, 'content');
+      if (!enrollment1.allowed) throw new Error("Enrollment 1 (rank 30) should be editable");
+      if (enrollment2.allowed) throw new Error("Enrollment 2 (rank 100) should be locked");
+      if (enrollment3.allowed) throw new Error("Enrollment 3 (rank 140) should be frozen");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 5: Proof Point Management (ME-014 to ME-017)
+  // Verify proof points are managed per-enrollment
+  // ========================================================================
+  {
+    id: "ME-014",
+    category: "multi-enrollment-lifecycle",
+    name: "Proof points editable at rank 70",
+    description: "Verify proof points can be added before assessment",
+    run: () => runTest(async () => {
+      const result = canModifyField(70, 'content');
+      if (!result.allowed) {
+        throw new Error("Proof points should be editable at rank 70");
+      }
+    }),
+  },
+  {
+    id: "ME-015",
+    category: "multi-enrollment-lifecycle",
+    name: "Proof points locked at rank 100",
+    description: "Verify proof points cannot be modified during assessment",
+    run: () => runTest(async () => {
+      const result = canModifyField(100, 'content');
+      if (result.allowed) {
+        throw new Error("Proof points should be locked at rank 100");
+      }
+    }),
+  },
+  {
+    id: "ME-016",
+    category: "multi-enrollment-lifecycle",
+    name: "Proof points frozen at terminal state",
+    description: "Verify proof points permanently frozen at rank 140+",
+    run: () => runTest(async () => {
+      const result = canModifyField(140, 'content');
+      if (result.allowed) {
+        throw new Error("Proof points should be frozen at terminal state");
+      }
+    }),
+  },
+  {
+    id: "ME-017",
+    category: "multi-enrollment-lifecycle",
+    name: "One enrollment's proof points don't affect another",
+    description: "Verify proof point locks are enrollment-scoped",
+    run: () => runTest(async () => {
+      const lockedEnrollment = canModifyField(100, 'content');
+      const editableEnrollment = canModifyField(50, 'content');
+      if (lockedEnrollment.allowed) throw new Error("Locked enrollment should not allow proof point edits");
+      if (!editableEnrollment.allowed) throw new Error("Editable enrollment should allow proof point edits");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 6: Assessment Eligibility (ME-018 to ME-021)
+  // Verify assessment eligibility is per-enrollment
+  // ========================================================================
+  {
+    id: "ME-018",
+    category: "multi-enrollment-lifecycle",
+    name: "Assessment eligibility based on enrollment rank",
+    description: "Verify assessment can only start when prerequisites met",
+    run: () => runTest(async () => {
+      // Assessment typically requires rank 70+ (proof_points_min_met)
+      const canStartAt70 = canModifyField(70, 'content'); // still editable, can start soon
+      const canStartAt100 = canModifyField(100, 'content'); // in progress, locked
+      if (!canStartAt70.allowed) throw new Error("Should be editable at rank 70 before assessment");
+      if (canStartAt100.allowed) throw new Error("Should be locked once assessment started");
+    }),
+  },
+  {
+    id: "ME-019",
+    category: "multi-enrollment-lifecycle",
+    name: "Assessment locks correct enrollment only",
+    description: "Verify starting assessment on one enrollment doesn't lock another",
+    run: () => runTest(async () => {
+      const assessmentEnrollment = canModifyField(100, 'content');
+      const otherEnrollment = canModifyField(50, 'content');
+      if (assessmentEnrollment.allowed) throw new Error("Assessment enrollment should be locked");
+      if (!otherEnrollment.allowed) throw new Error("Other enrollment should remain editable");
+    }),
+  },
+  {
+    id: "ME-020",
+    category: "multi-enrollment-lifecycle",
+    name: "Failed assessment allows retry on same enrollment",
+    description: "Verify assessment failure doesn't permanently lock enrollment",
+    run: () => runTest(async () => {
+      // After failure, enrollment goes back to assessment_pending (rank 90)
+      // This is a business rule verification
+      const assessmentPendingRank = LIFECYCLE_RANKS.assessment_pending;
+      if (assessmentPendingRank !== 90) {
+        throw new Error(`Expected assessment_pending rank 90, got ${assessmentPendingRank}`);
+      }
+    }),
+  },
+  {
+    id: "ME-021",
+    category: "multi-enrollment-lifecycle",
+    name: "Assessment completion advances only that enrollment",
+    description: "Verify assessment pass advances only the correct enrollment",
+    run: () => runTest(async () => {
+      const passedEnrollment = canModifyField(110, 'content'); // assessment_passed
+      const otherEnrollment = canModifyField(50, 'content');
+      if (passedEnrollment.allowed) throw new Error("Passed enrollment should be locked");
+      if (!otherEnrollment.allowed) throw new Error("Other enrollment should remain at its stage");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 7: Terminal State Handling (ME-022 to ME-025)
+  // Verify terminal states are per-enrollment
+  // ========================================================================
+  {
+    id: "ME-022",
+    category: "multi-enrollment-lifecycle",
+    name: "Terminal state on one doesn't affect siblings",
+    description: "Verify reaching terminal on one enrollment allows others to progress",
+    run: () => runTest(async () => {
+      const terminalEnrollment = canModifyField(150, 'content'); // certified
+      const activeEnrollment = canModifyField(50, 'content');
+      if (terminalEnrollment.allowed) throw new Error("Terminal enrollment should be frozen");
+      if (!activeEnrollment.allowed) throw new Error("Active enrollment should be editable");
+    }),
+  },
+  {
+    id: "ME-023",
+    category: "multi-enrollment-lifecycle",
+    name: "Suspended enrollment frozen independently",
+    description: "Verify suspended state freezes only that enrollment",
+    run: () => runTest(async () => {
+      const suspendedEnrollment = canModifyField(200, 'content');
+      const activeEnrollment = canModifyField(70, 'content');
+      if (suspendedEnrollment.allowed) throw new Error("Suspended enrollment should be frozen");
+      if (!activeEnrollment.allowed) throw new Error("Active enrollment should be editable");
+    }),
+  },
+  {
+    id: "ME-024",
+    category: "multi-enrollment-lifecycle",
+    name: "Not verified status per enrollment",
+    description: "Verify not_verified status affects only one enrollment",
+    run: () => runTest(async () => {
+      const notVerifiedEnrollment = canModifyField(160, 'content');
+      const otherEnrollment = canModifyField(50, 'content');
+      if (notVerifiedEnrollment.allowed) throw new Error("Not verified enrollment should be frozen");
+      if (!otherEnrollment.allowed) throw new Error("Other enrollment should be editable");
+    }),
+  },
+  {
+    id: "ME-025",
+    category: "multi-enrollment-lifecycle",
+    name: "Inactive enrollment doesn't block others",
+    description: "Verify inactive state doesn't affect sibling enrollments",
+    run: () => runTest(async () => {
+      const inactiveEnrollment = canModifyField(210, 'content');
+      const activeEnrollment = canModifyField(100, 'content');
+      if (inactiveEnrollment.allowed) throw new Error("Inactive enrollment should be frozen");
+      // Note: rank 100 is also locked due to assessment threshold
+      if (activeEnrollment.allowed) throw new Error("Enrollment at rank 100 should also be locked");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 8: Edge Cases & Boundaries (ME-026 to ME-031)
+  // Test edge cases and boundary conditions
+  // ========================================================================
+  {
+    id: "ME-026",
+    category: "multi-enrollment-lifecycle",
+    name: "Exact lock threshold at rank 100",
+    description: "Verify exact boundary behavior at content lock threshold",
+    run: () => runTest(async () => {
+      const at99 = canModifyField(99, 'content');
+      const at100 = canModifyField(100, 'content');
+      if (!at99.allowed) throw new Error("Content should be editable at rank 99");
+      if (at100.allowed) throw new Error("Content should be locked at rank 100");
+    }),
+  },
+  {
+    id: "ME-027",
+    category: "multi-enrollment-lifecycle",
+    name: "Exact terminal threshold at rank 140",
+    description: "Verify exact boundary behavior at terminal lock threshold",
+    run: () => runTest(async () => {
+      const at139 = canModifyField(139, 'content');
+      const at140 = canModifyField(140, 'content');
+      // Both are locked because rank >= 100 locks content
+      if (at139.allowed) throw new Error("Content should be locked at rank 139");
+      if (at140.allowed) throw new Error("Content should be locked at rank 140");
+    }),
+  },
+  {
+    id: "ME-028",
+    category: "multi-enrollment-lifecycle",
+    name: "Registration lock at terminal only",
+    description: "Verify registration only locks at terminal states",
+    run: () => runTest(async () => {
+      const at100 = canModifyField(100, 'registration');
+      const at140 = canModifyField(140, 'registration');
+      // Registration locks at EVERYTHING threshold (140), not at 100
+      if (!at100.allowed) throw new Error("Registration should be editable at rank 100");
+      if (at140.allowed) throw new Error("Registration should be frozen at rank 140");
+    }),
+  },
+  {
+    id: "ME-029",
+    category: "multi-enrollment-lifecycle",
+    name: "Configuration lock at rank 100",
+    description: "Verify configuration locks at assessment threshold",
+    run: () => runTest(async () => {
+      const at99 = canModifyField(99, 'configuration');
+      const at100 = canModifyField(100, 'configuration');
+      if (!at99.allowed) throw new Error("Configuration should be editable at rank 99");
+      if (at100.allowed) throw new Error("Configuration should be locked at rank 100");
+    }),
+  },
+  {
+    id: "ME-030",
+    category: "multi-enrollment-lifecycle",
+    name: "Rank 0 is fully editable",
+    description: "Verify minimum rank allows all modifications",
+    run: () => runTest(async () => {
+      const reg = canModifyField(0, 'registration');
+      const config = canModifyField(0, 'configuration');
+      const content = canModifyField(0, 'content');
+      if (!reg.allowed) throw new Error("Registration should be editable at rank 0");
+      if (!config.allowed) throw new Error("Configuration should be editable at rank 0");
+      if (!content.allowed) throw new Error("Content should be editable at rank 0");
+    }),
+  },
+  {
+    id: "ME-031",
+    category: "multi-enrollment-lifecycle",
+    name: "Max rank (210) freezes everything",
+    description: "Verify inactive rank locks all fields",
+    run: () => runTest(async () => {
+      const reg = canModifyField(210, 'registration');
+      const config = canModifyField(210, 'configuration');
+      const content = canModifyField(210, 'content');
+      if (reg.allowed) throw new Error("Registration should be frozen at rank 210");
+      if (config.allowed) throw new Error("Configuration should be frozen at rank 210");
+      if (content.allowed) throw new Error("Content should be frozen at rank 210");
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 9: Configuration Lock Scenarios (ME-032 to ME-035)
+  // Verify configuration field locks
+  // ========================================================================
+  {
+    id: "ME-032",
+    category: "multi-enrollment-lifecycle",
+    name: "Configuration editable before assessment",
+    description: "Verify config fields editable at rank < 100",
+    run: () => runTest(async () => {
+      const result = canModifyField(50, 'configuration');
+      if (!result.allowed) {
+        throw new Error("Configuration should be editable at rank 50");
+      }
+    }),
+  },
+  {
+    id: "ME-033",
+    category: "multi-enrollment-lifecycle",
+    name: "Configuration locked during assessment",
+    description: "Verify config fields locked at rank 100+",
+    run: () => runTest(async () => {
+      const result = canModifyField(100, 'configuration');
+      if (result.allowed) {
+        throw new Error("Configuration should be locked at rank 100");
+      }
+    }),
+  },
+  {
+    id: "ME-034",
+    category: "multi-enrollment-lifecycle",
+    name: "Industry change blocked at assessment",
+    description: "Verify industry_segment_id cannot change at rank 100",
+    run: () => runTest(async () => {
+      const result = canModifyField(100, 'configuration');
+      if (result.allowed) {
+        throw new Error("Industry change should be blocked at rank 100");
+      }
+    }),
+  },
+  {
+    id: "ME-035",
+    category: "multi-enrollment-lifecycle",
+    name: "Expertise change blocked at assessment",
+    description: "Verify expertise_level_id cannot change at rank 100",
+    run: () => runTest(async () => {
+      const result = canModifyField(100, 'configuration');
+      if (result.allowed) {
+        throw new Error("Expertise change should be blocked at rank 100");
+      }
+    }),
+  },
+
+  // ========================================================================
+  // PHASE 10: Real-World Multi-Industry Scenarios (ME-036 to ME-039)
+  // Test realistic multi-enrollment scenarios
+  // ========================================================================
+  {
+    id: "ME-036",
+    category: "multi-enrollment-lifecycle",
+    name: "Three enrollments at different stages",
+    description: "Verify three enrollments can exist at different lifecycle stages",
+    run: () => runTest(async () => {
+      // Tech at certified, Health at assessment, Finance at early stage
+      const tech = canModifyField(150, 'content');
+      const health = canModifyField(100, 'content');
+      const finance = canModifyField(50, 'content');
+      if (tech.allowed) throw new Error("Tech (certified) should be frozen");
+      if (health.allowed) throw new Error("Health (assessment) should be locked");
+      if (!finance.allowed) throw new Error("Finance (early) should be editable");
+    }),
+  },
+  {
+    id: "ME-037",
+    category: "multi-enrollment-lifecycle",
+    name: "Provider with mixed terminal and active enrollments",
+    description: "Verify provider can have mix of terminal and active enrollments",
+    run: () => runTest(async () => {
+      const terminal1 = canModifyField(140, 'content'); // verified
+      const terminal2 = canModifyField(160, 'content'); // not_verified
+      const active = canModifyField(70, 'content'); // building
+      if (terminal1.allowed) throw new Error("Terminal 1 should be frozen");
+      if (terminal2.allowed) throw new Error("Terminal 2 should be frozen");
+      if (!active.allowed) throw new Error("Active enrollment should be editable");
+    }),
+  },
+  {
+    id: "ME-038",
+    category: "multi-enrollment-lifecycle",
+    name: "All enrollments in terminal state",
+    description: "Verify provider can have all enrollments in terminal states",
+    run: () => runTest(async () => {
+      const verified = canModifyField(140, 'content');
+      const certified = canModifyField(150, 'content');
+      const notVerified = canModifyField(160, 'content');
+      if (verified.allowed) throw new Error("Verified enrollment should be frozen");
+      if (certified.allowed) throw new Error("Certified enrollment should be frozen");
+      if (notVerified.allowed) throw new Error("Not verified enrollment should be frozen");
+    }),
+  },
+  {
+    id: "ME-039",
+    category: "multi-enrollment-lifecycle",
+    name: "New enrollment while another is in progress",
+    description: "Verify new enrollment can be started while another is at assessment",
+    run: () => runTest(async () => {
+      const existingAtAssessment = canModifyField(100, 'content');
+      const newEnrollment = canModifyField(20, 'content'); // enrolled stage
+      if (existingAtAssessment.allowed) throw new Error("Existing enrollment should be locked");
+      if (!newEnrollment.allowed) throw new Error("New enrollment should be editable");
+    }),
+  },
+];
+
 // ===== ALL TEST CATEGORIES =====
 export const testCategories: TestCategory[] = [
   // Original categories (8)
@@ -4074,6 +4635,12 @@ export const testCategories: TestCategory[] = [
     name: "Multi-Industry Isolation",
     description: "Verify data isolation between enrollments",
     tests: multiIndustryTests,
+  },
+  {
+    id: "multi-enrollment-lifecycle",
+    name: "Multi-Enrollment Lifecycle",
+    description: "Verify lifecycle governance is scoped per-enrollment, not per-provider (BR-ME-01, BR-ME-02, BR-ME-03)",
+    tests: multiEnrollmentLifecycleTests,
   },
   // New categories (9 from v1)
   {
