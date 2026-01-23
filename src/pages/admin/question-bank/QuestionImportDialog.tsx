@@ -413,6 +413,43 @@ export function QuestionImportDialog({
       throw new Error("Excel file must have a header row and at least one data row");
     }
 
+    // DYNAMIC COLUMN DETECTION: Detect option columns from header row
+    const headerRow = data[0] as (string | number | null | undefined)[];
+    const optionColumnIndexes: number[] = [];
+    
+    // Find all option_X columns (could be option_0 to option_5, or option_1 to option_6)
+    headerRow.forEach((header, idx) => {
+      const headerStr = String(header || '').toLowerCase().trim();
+      if (headerStr.startsWith('option_') || headerStr.startsWith('option ')) {
+        optionColumnIndexes.push(idx);
+      }
+    });
+
+    // Validate option column count (2-6 options required)
+    const optionCount = optionColumnIndexes.length;
+    if (optionCount < 2) {
+      throw new Error(`Excel must have at least 2 option columns (found ${optionCount}). Expected columns like 'option_0', 'option_1', etc.`);
+    }
+    if (optionCount > 6) {
+      throw new Error(`Excel can have maximum 6 option columns (found ${optionCount})`);
+    }
+
+    // Calculate dynamic column positions after options
+    // Fixed columns: 0=industry, 1=expertise, 2=proficiency, 3=sub_domain, 4=speciality, 5=question_text
+    // Then options (variable count), then: correct_option, difficulty, question_type, usage_mode, capability_tags, expected_answer_guidance
+    const firstOptionIndex = optionColumnIndexes.length > 0 ? optionColumnIndexes[0] : 6;
+    const correctOptionIndex = firstOptionIndex + optionCount;
+    const difficultyIndex = correctOptionIndex + 1;
+    const questionTypeIndex = correctOptionIndex + 2;
+    const usageModeIndex = correctOptionIndex + 3;
+    const capabilityTagsIndex = correctOptionIndex + 4;
+    const guidanceIndex = correctOptionIndex + 5;
+
+    logInfo(`Detected ${optionCount} option columns at indexes ${optionColumnIndexes.join(', ')}`, {
+      operation: 'parse_excel_columns',
+      component: 'QuestionImportDialog',
+    });
+
     // Get valid tag names for validation
     const validTagNames = capabilityTags.map(t => t.name);
 
@@ -436,29 +473,28 @@ export function QuestionImportDialog({
       const sub_domain = String(row[3] || "").trim();
       const speciality = String(row[4] || "").trim();
 
-      // Extract question values (columns 5+)
+      // Extract question text (column 5)
       const question_text = String(row[5] || "").trim();
-      const options = [
-        String(row[6] || "").trim(),
-        String(row[7] || "").trim(),
-        String(row[8] || "").trim(),
-        String(row[9] || "").trim(),
-        String(row[10] || "").trim(),
-        String(row[11] || "").trim(),
-      ].filter(Boolean);
-      const correct_option = parseInt(String(row[12] || "1"), 10);
-      const difficulty = row[13] ? String(row[13]).trim().toLowerCase() : null;
-      const question_type = row[14] ? String(row[14]).trim().toLowerCase() : "conceptual";
-      const usage_mode = row[15] ? String(row[15]).trim().toLowerCase() : "both";
+
+      // Extract options dynamically based on detected option columns
+      const options = optionColumnIndexes
+        .map(idx => String(row[idx] || "").trim())
+        .filter(Boolean);
+
+      // Extract remaining fields using dynamic indexes
+      const correct_option = parseInt(String(row[correctOptionIndex] || "1"), 10);
+      const difficulty = row[difficultyIndex] ? String(row[difficultyIndex]).trim().toLowerCase() : null;
+      const question_type = row[questionTypeIndex] ? String(row[questionTypeIndex]).trim().toLowerCase() : "conceptual";
+      const usage_mode = row[usageModeIndex] ? String(row[usageModeIndex]).trim().toLowerCase() : "both";
       
       // Parse capability tags (comma-separated)
-      const capabilityTagsRaw = row[16] ? String(row[16]).trim() : "";
+      const capabilityTagsRaw = row[capabilityTagsIndex] ? String(row[capabilityTagsIndex]).trim() : "";
       const capability_tags = capabilityTagsRaw
         ? capabilityTagsRaw.split(",").map(t => t.trim()).filter(Boolean)
         : [];
 
-      // Parse expected_answer_guidance (column 17)
-      const expected_answer_guidance = row[17] ? String(row[17]).trim() : null;
+      // Parse expected_answer_guidance
+      const expected_answer_guidance = row[guidanceIndex] ? String(row[guidanceIndex]).trim() : null;
 
       // Validate using shared function
       const rawData: RawQuestionData = {
