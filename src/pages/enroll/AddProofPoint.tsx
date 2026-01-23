@@ -13,7 +13,7 @@ import { ArrowLeft, Save, Loader2, GraduationCap, Building2 } from 'lucide-react
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useCreateProofPoint, useUploadProofPointFile } from '@/hooks/queries/useProofPoints';
-import { useProficiencyTaxonomy } from '@/hooks/queries/useProficiencyTaxonomy';
+import { useProviderSelectedTaxonomy } from '@/hooks/queries/useProviderSelectedTaxonomy';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { 
@@ -59,10 +59,9 @@ function AddProofPointContent() {
     isLoading: enrollmentLoading 
   } = useEnrollmentContext();
   
-  // Fetch taxonomy using enrollment's industry and expertise
-  const { data: taxonomy = [], isLoading: taxonomyLoading } = useProficiencyTaxonomy(
-    activeIndustryId || undefined,
-    activeEnrollment?.expertise_level_id || undefined
+  // Fetch taxonomy filtered to provider's SELECTED proficiency areas only
+  const { data: taxonomy = [], isLoading: taxonomyLoading } = useProviderSelectedTaxonomy(
+    activeEnrollmentId || undefined
   );
   
   const createProofPoint = useCreateProofPoint();
