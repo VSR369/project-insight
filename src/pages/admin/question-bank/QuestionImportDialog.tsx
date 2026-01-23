@@ -435,7 +435,7 @@ export function QuestionImportDialog({
         String(row[10] || "").trim(),
         String(row[11] || "").trim(),
       ].filter(Boolean);
-      const correct_option = parseInt(String(row[12] || "0"), 10);
+      const correct_option = parseInt(String(row[12] || "1"), 10);
       const difficulty = row[13] ? String(row[13]).trim().toLowerCase() : null;
       const question_type = row[14] ? String(row[14]).trim().toLowerCase() : "conceptual";
       const usage_mode = row[15] ? String(row[15]).trim().toLowerCase() : "both";
