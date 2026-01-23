@@ -1088,7 +1088,11 @@ export function QuestionImportDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden space-y-4">
+        {/* ══════════════════════════════════════════════════════════════════
+            FIXED STATUS BAR - Always visible above scroll area
+            Shows current state: loading, ready, importing, or complete
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="flex-shrink-0 space-y-3">
           {/* Hierarchy Loading State */}
           {hierarchyLoading && (
             <Alert>
@@ -1098,6 +1102,99 @@ export function QuestionImportDialog({
               </AlertDescription>
             </Alert>
           )}
+
+          {/* Ready to Import Status - FIXED at top, always visible when parsed */}
+          {parsedQuestions.length > 0 && !importResults && !isImporting && validCount > 0 && (
+            <div className="p-3 border-2 rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-300 dark:border-blue-700">
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-blue-700 dark:text-blue-300 font-medium">
+                  ✅ Ready to import <strong>{validCount}</strong> questions
+                </p>
+                <Badge variant="outline" className="bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300">
+                  Click "Import Questions" below
+                </Badge>
+              </div>
+            </div>
+          )}
+
+          {/* Import Progress - FIXED at top during import */}
+          {isImporting && (
+            <div className="space-y-3 p-4 border-2 border-primary rounded-lg bg-primary/5">
+              {/* Main Progress Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div>
+                    <p className="font-medium">
+                      Importing: {importedCount} / {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length} questions
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {importProgress}% complete
+                    </p>
+                  </div>
+                </div>
+                
+                {/* Cancel Button */}
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={handleCancelImport}
+                  className="gap-2"
+                >
+                  <StopCircle className="h-4 w-4" />
+                  Cancel
+                </Button>
+              </div>
+
+              {/* Progress Bar - Prominent */}
+              <Progress value={importProgress} className="h-3" />
+              
+              {/* Live Success/Failure Counters */}
+              <div className="flex items-center gap-4 text-sm">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400 font-medium">{successCount} succeeded</span>
+                </div>
+                {failedCount > 0 && (
+                  <div className="flex items-center gap-1.5">
+                    <AlertCircle className="h-4 w-4 text-red-500" />
+                    <span className="text-red-600 dark:text-red-400 font-medium">{failedCount} failed</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Current Batch Info */}
+              {currentRowInfo && (
+                <p className="text-xs text-muted-foreground truncate" title={currentRowInfo}>
+                  {currentRowInfo}
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Import Results Summary - FIXED at top when complete */}
+          {importResults && (
+            <Alert variant={importResults.failed === 0 && !importResults.wasCancelled ? "default" : "destructive"}>
+              {importResults.wasCancelled ? (
+                <StopCircle className="h-4 w-4" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4" />
+              )}
+              <AlertDescription>
+                {importResults.wasCancelled 
+                  ? `Import cancelled: ${importResults.success} questions imported before cancellation`
+                  : `Import complete: ${importResults.success} questions imported successfully`}
+                {importResults.deleted > 0 && `, ${importResults.deleted} existing deleted`}
+                {importResults.failed > 0 && `, ${importResults.failed} failed`}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+
+        {/* ══════════════════════════════════════════════════════════════════
+            SCROLLABLE CONTENT AREA
+        ══════════════════════════════════════════════════════════════════ */}
+        <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
 
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -1350,137 +1447,53 @@ export function QuestionImportDialog({
             </div>
           )}
 
-          {/* Ready to Import Status - Always visible when parsed */}
-          {parsedQuestions.length > 0 && !importResults && !isImporting && validCount > 0 && (
-            <div className="p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                ✅ Ready to import <strong>{validCount}</strong> questions. Click the button below to begin.
-              </p>
-            </div>
-          )}
-
-          {/* Import Progress - Enhanced with real-time counters */}
-          {isImporting && (
-            <div className="space-y-4 p-4 border-2 border-primary rounded-lg bg-primary/5">
-              {/* Main Progress Header */}
+          {/* Import Results - Detailed Failure List (status alert is now in fixed area above) */}
+          {importResults && importResults.failures.length > 0 && (
+            <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
-                  <div>
-                    <p className="font-medium">
-                      Importing: {importedCount} / {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length} questions
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {importProgress}% complete
-                    </p>
-                  </div>
-                </div>
-                
-                {/* Cancel Button */}
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={handleCancelImport}
-                  className="gap-2"
-                >
-                  <StopCircle className="h-4 w-4" />
-                  Cancel
+                <p className="text-sm font-medium text-red-600">
+                  {importResults.failures.filter(f => f.phase === 'question_creation').length} question creation failures, {importResults.failures.filter(f => f.phase === 'capability_tags').length} tag linking warnings:
+                </p>
+                <Button variant="outline" size="sm" onClick={downloadFailedRows}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export Failed Rows
                 </Button>
               </div>
-
-              {/* Progress Bar - More Prominent */}
-              <Progress value={importProgress} className="h-3" />
               
-              {/* Live Success/Failure Counters */}
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="h-4 w-4 text-green-500" />
-                  <span className="text-green-600 dark:text-green-400 font-medium">{successCount} succeeded</span>
-                </div>
-                {failedCount > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <AlertCircle className="h-4 w-4 text-red-500" />
-                    <span className="text-red-600 dark:text-red-400 font-medium">{failedCount} failed</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Current Batch Info */}
-              {currentRowInfo && (
-                <p className="text-xs text-muted-foreground truncate" title={currentRowInfo}>
-                  {currentRowInfo}
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* Import Results */}
-          {importResults && (
-            <div className="space-y-4">
-              <Alert variant={importResults.failed === 0 && !importResults.wasCancelled ? "default" : "destructive"}>
-                {importResults.wasCancelled ? (
-                  <StopCircle className="h-4 w-4" />
-                ) : (
-                  <CheckCircle2 className="h-4 w-4" />
-                )}
-                <AlertDescription>
-                  {importResults.wasCancelled 
-                    ? `Import cancelled: ${importResults.success} questions imported before cancellation`
-                    : `Import complete: ${importResults.success} questions imported successfully`}
-                  {importResults.deleted > 0 && `, ${importResults.deleted} existing deleted`}
-                  {importResults.failed > 0 && `, ${importResults.failed} failed`}
-                </AlertDescription>
-              </Alert>
-
-              {/* Detailed Failure Table */}
-              {importResults.failures.length > 0 && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium text-red-600">
-                      {importResults.failures.filter(f => f.phase === 'question_creation').length} question creation failures, {importResults.failures.filter(f => f.phase === 'capability_tags').length} tag linking warnings:
-                    </p>
-                    <Button variant="outline" size="sm" onClick={downloadFailedRows}>
-                      <Download className="h-4 w-4 mr-2" />
-                      Export Failed Rows
-                    </Button>
-                  </div>
-                  
-                  <ScrollArea className="h-[200px] border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12">Row</TableHead>
-                          <TableHead className="w-24">Phase</TableHead>
-                          <TableHead>Error</TableHead>
-                          <TableHead className="w-20">Code</TableHead>
-                          <TableHead className="w-40">Correlation ID</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {importResults.failures.map((f, i) => (
-                          <TableRow key={i} className={f.phase === 'question_creation' ? "bg-red-50 dark:bg-red-950/20" : "bg-yellow-50 dark:bg-yellow-950/20"}>
-                            <TableCell className="font-mono">{f.rowNumber}</TableCell>
-                            <TableCell>
-                              <Badge variant={f.phase === 'question_creation' ? 'destructive' : 'secondary'}>
-                                {f.phase === 'question_creation' ? 'Question' : 'Tags'}
-                              </Badge>
-                            </TableCell>
-                            <TableCell className="text-sm max-w-xs truncate" title={f.errorMessage}>
-                              {f.errorMessage}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {f.errorCode || '-'}
-                            </TableCell>
-                            <TableCell className="font-mono text-xs text-muted-foreground">
-                              {f.correlationId}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </ScrollArea>
-                </div>
-              )}
+              <ScrollArea className="h-[200px] border rounded-lg">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-12">Row</TableHead>
+                      <TableHead className="w-24">Phase</TableHead>
+                      <TableHead>Error</TableHead>
+                      <TableHead className="w-20">Code</TableHead>
+                      <TableHead className="w-40">Correlation ID</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {importResults.failures.map((f, i) => (
+                      <TableRow key={i} className={f.phase === 'question_creation' ? "bg-red-50 dark:bg-red-950/20" : "bg-yellow-50 dark:bg-yellow-950/20"}>
+                        <TableCell className="font-mono">{f.rowNumber}</TableCell>
+                        <TableCell>
+                          <Badge variant={f.phase === 'question_creation' ? 'destructive' : 'secondary'}>
+                            {f.phase === 'question_creation' ? 'Question' : 'Tags'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm max-w-xs truncate" title={f.errorMessage}>
+                          {f.errorMessage}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs">
+                          {f.errorCode || '-'}
+                        </TableCell>
+                        <TableCell className="font-mono text-xs text-muted-foreground">
+                          {f.correlationId}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </ScrollArea>
             </div>
           )}
         </div>
