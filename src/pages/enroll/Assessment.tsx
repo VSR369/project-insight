@@ -165,6 +165,13 @@ function AssessmentContent() {
 
   const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading;
 
+  // Helper to check if an attempt is expired (time limit passed)
+  const isAttemptExpired = (attempt: { started_at: string; time_limit_minutes: number }) => {
+    const startedAt = new Date(attempt.started_at);
+    const expiresAt = new Date(startedAt.getTime() + attempt.time_limit_minutes * 60 * 1000);
+    return new Date() >= expiresAt;
+  };
+
   // Format date helper
   const formatDate = (dateStr?: string) => {
     if (!dateStr) return '';
@@ -204,7 +211,10 @@ function AssessmentContent() {
   const hasAssessmentElsewhere = activeAssessmentElsewhere && 
     activeAssessmentElsewhere.enrollmentId !== activeEnrollmentId;
 
-  const isInAssessment = enrollmentStatus === 'assessment_in_progress';
+  // Use ACTUAL attempt existence for "Continue" button (not just lifecycle status)
+  // This fixes stale status where lifecycle says 'in_progress' but no valid attempt exists
+  const hasActiveAttempt = activeAttempt && !isAttemptExpired(activeAttempt);
+  const isInAssessment = !!hasActiveAttempt;
   const hasCompletedAssessment = enrollmentStatus === 'assessment_completed';
 
   // Assessment page uses custom action buttons inside the card
