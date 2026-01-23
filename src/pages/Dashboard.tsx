@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserRoles } from '@/hooks/useUserRoles';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useProofPoints } from '@/hooks/queries/useProofPoints';
 import { useProviderEnrollments, useSetPrimaryEnrollment } from '@/hooks/queries/useProviderEnrollments';
@@ -61,6 +62,7 @@ const LIFECYCLE_PROGRESS_MAP: Record<string, number> = {
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isAdmin, isLoading: rolesLoading } = useUserRoles();
   const { data: provider, isLoading } = useCurrentProvider();
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
   const { activeEnrollment, activeEnrollmentId, setActiveEnrollment } = useEnrollmentContext();
@@ -68,6 +70,15 @@ export default function Dashboard() {
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
   const { data: participationModes = [] } = useParticipationModes();
   const setPrimaryMutation = useSetPrimaryEnrollment();
+
+  // Redirect admins to admin dashboard - they shouldn't be on provider dashboard
+  useEffect(() => {
+    if (!rolesLoading && isAdmin && !provider) {
+      // Admin without provider record - redirect to admin dashboard
+      sessionStorage.setItem('activePortal', 'admin');
+      navigate('/admin', { replace: true });
+    }
+  }, [isAdmin, rolesLoading, provider, navigate]);
 
   // Helper to get participation mode name
   const getModeName = (modeId: string | null | undefined) => {

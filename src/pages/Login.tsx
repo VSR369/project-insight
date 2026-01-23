@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -90,15 +90,80 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDevAccounts, setShowDevAccounts] = useState(true);
   const [desiredPortal, setDesiredPortal] = useState<PortalType | null>(null);
+  const [isCheckingSession, setIsCheckingSession] = useState(true);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
 
-  // Redirect if already logged in - honor active portal, not "from"
-  if (user) {
-    const activePortal = sessionStorage.getItem('activePortal') as PortalType | null;
-    const targetPath = activePortal ? PORTAL_ROUTES[activePortal] : '/dashboard';
-    navigate(targetPath, { replace: true });
-    return null;
+  // Check if already logged in and redirect based on roles (async)
+  useEffect(() => {
+    const checkAndRedirect = async () => {
+      if (!user) {
+        setIsCheckingSession(false);
+        return;
+      }
+
+      // Check sessionStorage first for cached portal
+      const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
+      
+      // Fetch roles and records to validate or determine portal
+      const [rolesResult, providerResult, reviewerResult] = await Promise.all([
+        supabase.from('user_roles').select('role').eq('user_id', user.id),
+        supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
+        supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle()
+      ]);
+
+      const roles = rolesResult.data;
+      const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
+      const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerResult.data;
+      const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
+      const hasProviderRecord = !!providerResult.data;
+
+      // Validate cached portal
+      if (cachedPortal) {
+        const canAccessCached =
+          (cachedPortal === 'admin' && isPlatformAdmin) ||
+          (cachedPortal === 'provider' && hasProviderRecord) ||
+          (cachedPortal === 'reviewer' && isPanelReviewer);
+
+        if (canAccessCached) {
+          if (cachedPortal === 'reviewer' && isPendingReviewer) {
+            navigate('/reviewer/pending-approval', { replace: true });
+            return;
+          }
+          navigate(PORTAL_ROUTES[cachedPortal], { replace: true });
+          return;
+        }
+        sessionStorage.removeItem('activePortal');
+      }
+
+      // Determine by role priority: Admin > Reviewer > Provider
+      let targetPortal: PortalType = 'provider';
+      if (isPlatformAdmin) targetPortal = 'admin';
+      else if (isPanelReviewer) targetPortal = 'reviewer';
+      else if (hasProviderRecord) targetPortal = 'provider';
+
+      sessionStorage.setItem('activePortal', targetPortal);
+
+      if (targetPortal === 'reviewer' && isPendingReviewer) {
+        navigate('/reviewer/pending-approval', { replace: true });
+        return;
+      }
+
+      navigate(PORTAL_ROUTES[targetPortal], { replace: true });
+    };
+
+    checkAndRedirect();
+  }, [user, navigate]);
+
+  // Show loading spinner while checking session
+  if (user || isCheckingSession) {
+    if (user) {
+      return (
+        <div className="flex h-screen w-full items-center justify-center bg-background">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      );
+    }
   }
 
   const form = useForm<LoginFormData>({
