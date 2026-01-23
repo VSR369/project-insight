@@ -357,7 +357,9 @@ export default function TakeAssessment() {
         <Card className="max-w-md">
           <CardContent className="pt-6 text-center space-y-4">
             <AlertTriangle className="h-12 w-12 mx-auto text-yellow-500" />
-            <h2 className="text-xl font-semibold">No Active Assessment</h2>
+            <h2 className="text-xl font-semibold">
+              {canStartLoading ? 'Checking...' : canStart?.allowed ? 'Start Your Assessment' : 'Assessment Not Available'}
+            </h2>
             
             {canStartLoading ? (
               <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
