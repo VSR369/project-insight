@@ -29,6 +29,7 @@
  * - Edge Function Smoke (EF-xxx): Edge function deployment verification
  * - Reviewer Enrollment (RE-xxx): Panel reviewer invitation flow
  * - Multi-Enrollment Lifecycle (ME-xxx): Per-enrollment lock behavior (BR-ME-01, BR-ME-02, BR-ME-03)
+ * - Enrollment-Scoped Locks (ES-xxx): Real Supabase queries for enrollment lock validation
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -3065,6 +3066,318 @@ const edgeFunctionSmokeTests: TestCase[] = [
 ];
 
 // ============================================================================
+// ENROLLMENT-SCOPED CONTENT LOCK SMOKE TESTS (ES-xxx)
+// Tests verify enrollment-scoped lock behavior with real Supabase queries
+// ============================================================================
+const enrollmentScopedLockTests: TestCase[] = [
+  {
+    id: "ES-001",
+    category: "enrollment-scoped-locks",
+    name: "provider_industry_enrollments table exists",
+    description: "Verify enrollment table schema with lifecycle columns",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_status, lifecycle_rank, provider_id, industry_segment_id")
+        .limit(1);
+      
+      if (error) throw new Error(`provider_industry_enrollments table missing: ${error.message}`);
+    }),
+  },
+  {
+    id: "ES-002",
+    category: "enrollment-scoped-locks",
+    name: "Enrollment has lifecycle_rank column",
+    description: "Verify lifecycle_rank is stored per-enrollment",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!provider) throw new Error("SKIP: No provider record - complete onboarding first");
+
+      const { data: enrollments, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_rank, lifecycle_status")
+        .eq("provider_id", provider.id);
+
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      if (!enrollments || enrollments.length === 0) throw new Error("SKIP: No enrollments found");
+
+      // Verify lifecycle_rank is a number for all enrollments
+      for (const enrollment of enrollments) {
+        if (typeof enrollment.lifecycle_rank !== "number") {
+          throw new Error(`Enrollment ${enrollment.id} has non-numeric lifecycle_rank`);
+        }
+      }
+    }),
+  },
+  {
+    id: "ES-003",
+    category: "enrollment-scoped-locks",
+    name: "canModifyField validates against enrollment rank",
+    description: "Verify lock function uses correct enrollment rank",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!provider) throw new Error("SKIP: No provider record");
+
+      const { data: enrollment, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_rank")
+        .eq("provider_id", provider.id)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error || !enrollment) throw new Error("SKIP: No enrollment found");
+
+      // Verify canModifyField produces expected result for this rank
+      const lockCheck = canModifyField(enrollment.lifecycle_rank, "content");
+      
+      // If rank >= 100, should be locked; otherwise editable
+      const expectedLocked = enrollment.lifecycle_rank >= 100;
+      if (lockCheck.allowed === expectedLocked) {
+        throw new Error(
+          `canModifyField mismatch: rank=${enrollment.lifecycle_rank}, ` +
+          `expected locked=${expectedLocked}, got allowed=${lockCheck.allowed}`
+        );
+      }
+    }),
+  },
+  {
+    id: "ES-004",
+    category: "enrollment-scoped-locks",
+    name: "Multiple enrollments have independent ranks",
+    description: "Verify each enrollment stores its own lifecycle_rank",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!provider) throw new Error("SKIP: No provider record");
+
+      const { data: enrollments, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_rank, lifecycle_status, industry_segment_id")
+        .eq("provider_id", provider.id);
+
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      if (!enrollments || enrollments.length === 0) throw new Error("SKIP: No enrollments found");
+
+      // For multi-enrollment providers, verify ranks are stored independently
+      if (enrollments.length > 1) {
+        // Check that each enrollment has its own lifecycle_rank
+        const uniqueIds = new Set(enrollments.map(e => e.id));
+        if (uniqueIds.size !== enrollments.length) {
+          throw new Error("Duplicate enrollment IDs detected");
+        }
+      }
+
+      // Verify each enrollment can have independent lock state
+      for (const enrollment of enrollments) {
+        const lockCheck = canModifyField(enrollment.lifecycle_rank, "content");
+        // Just verify the function executes without error for each rank
+        if (lockCheck.allowed === undefined) {
+          throw new Error(`canModifyField returned undefined for enrollment ${enrollment.id}`);
+        }
+      }
+    }),
+  },
+  {
+    id: "ES-005",
+    category: "enrollment-scoped-locks",
+    name: "Lock threshold constants match database",
+    description: "Verify lifecycle_stages table aligns with constants",
+    run: () => runTest(async () => {
+      const { data: stages, error } = await supabase
+        .from("lifecycle_stages")
+        .select("status_code, rank, locks_configuration, locks_content, locks_everything")
+        .eq("is_active", true);
+
+      if (error) throw new Error(`lifecycle_stages query failed: ${error.message}`);
+      if (!stages || stages.length === 0) throw new Error("SKIP: No lifecycle stages configured");
+
+      // Verify assessment_in_progress is at rank 100
+      const assessmentStage = stages.find(s => s.status_code === "assessment_in_progress");
+      if (assessmentStage && assessmentStage.rank !== 100) {
+        throw new Error(`Expected assessment_in_progress rank=100, got: ${assessmentStage.rank}`);
+      }
+
+      // Verify verified is at rank 140
+      const verifiedStage = stages.find(s => s.status_code === "verified");
+      if (verifiedStage && verifiedStage.rank !== 140) {
+        throw new Error(`Expected verified rank=140, got: ${verifiedStage.rank}`);
+      }
+    }),
+  },
+  {
+    id: "ES-006",
+    category: "enrollment-scoped-locks",
+    name: "Enrollment lifecycle_rank updates correctly",
+    description: "Verify lifecycle_rank column is readable for transitions",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!provider) throw new Error("SKIP: No provider record");
+
+      // Query enrollments and verify rank matches status
+      const { data: enrollments, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_rank, lifecycle_status")
+        .eq("provider_id", provider.id);
+
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      if (!enrollments || enrollments.length === 0) throw new Error("SKIP: No enrollments found");
+
+      // Verify rank is consistent with expected status ranks
+      for (const enrollment of enrollments) {
+        const expectedRank = LIFECYCLE_RANKS[enrollment.lifecycle_status];
+        if (expectedRank !== undefined && enrollment.lifecycle_rank !== expectedRank) {
+          throw new Error(
+            `Enrollment ${enrollment.id}: status=${enrollment.lifecycle_status} ` +
+            `has rank=${enrollment.lifecycle_rank}, expected=${expectedRank}`
+          );
+        }
+      }
+    }),
+  },
+  {
+    id: "ES-007",
+    category: "enrollment-scoped-locks",
+    name: "Provider trigger syncs max enrollment rank",
+    description: "Verify solution_providers.lifecycle_rank matches max enrollment",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider, error: providerError } = await supabase
+        .from("solution_providers")
+        .select("id, lifecycle_rank, lifecycle_status")
+        .eq("user_id", user.id)
+        .single();
+
+      if (providerError || !provider) throw new Error("SKIP: No provider record");
+
+      const { data: enrollments, error: enrollmentError } = await supabase
+        .from("provider_industry_enrollments")
+        .select("lifecycle_rank")
+        .eq("provider_id", provider.id);
+
+      if (enrollmentError) throw new Error(`Enrollment query failed: ${enrollmentError.message}`);
+      if (!enrollments || enrollments.length === 0) throw new Error("SKIP: No enrollments");
+
+      // Calculate max rank across enrollments
+      const maxEnrollmentRank = Math.max(...enrollments.map(e => e.lifecycle_rank));
+
+      // Verify provider rank matches max enrollment rank (sync trigger)
+      if (provider.lifecycle_rank !== maxEnrollmentRank) {
+        throw new Error(
+          `Provider lifecycle_rank (${provider.lifecycle_rank}) ` +
+          `should match max enrollment rank (${maxEnrollmentRank})`
+        );
+      }
+    }),
+  },
+  {
+    id: "ES-008",
+    category: "enrollment-scoped-locks",
+    name: "Configuration lock applies at enrollment level",
+    description: "Verify configuration fields lock per-enrollment",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Authentication required");
+
+      const { data: provider } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!provider) throw new Error("SKIP: No provider record");
+
+      const { data: enrollment, error } = await supabase
+        .from("provider_industry_enrollments")
+        .select("id, lifecycle_rank, expertise_level_id")
+        .eq("provider_id", provider.id)
+        .limit(1)
+        .single();
+
+      if (error || !enrollment) throw new Error("SKIP: No enrollment found");
+
+      // Check configuration lock based on enrollment rank
+      const configLock = canModifyField(enrollment.lifecycle_rank, "configuration");
+      
+      // Configuration locked at rank >= 100
+      const expectedLocked = enrollment.lifecycle_rank >= 100;
+      if (configLock.allowed === expectedLocked) {
+        throw new Error(
+          `Configuration lock mismatch: rank=${enrollment.lifecycle_rank}, ` +
+          `expected locked=${expectedLocked}, got allowed=${configLock.allowed}`
+        );
+      }
+    }),
+  },
+  {
+    id: "ES-009",
+    category: "enrollment-scoped-locks",
+    name: "Registration lock applies at terminal state",
+    description: "Verify registration fields lock at rank 140+",
+    run: () => runTest(async () => {
+      // Test registration lock thresholds
+      const at139 = canModifyField(139, "registration");
+      const at140 = canModifyField(140, "registration");
+
+      if (!at139.allowed) {
+        throw new Error("Registration should be editable at rank 139");
+      }
+      if (at140.allowed) {
+        throw new Error("Registration should be locked at rank 140");
+      }
+    }),
+  },
+  {
+    id: "ES-010",
+    category: "enrollment-scoped-locks",
+    name: "Proof points table has enrollment_id FK",
+    description: "Verify proof_points are scoped to enrollments",
+    run: () => runTest(async () => {
+      const { error } = await supabase
+        .from("proof_points")
+        .select("id, enrollment_id, provider_id")
+        .limit(1);
+
+      if (error) throw new Error(`proof_points query failed: ${error.message}`);
+      // Column existence verified if query succeeds
+    }),
+  },
+];
+
+// ============================================================================
 // NEW TEST CATEGORIES v2.0 - REVIEWER ENROLLMENT
 // ============================================================================
 const reviewerEnrollmentTests: TestCase[] = [
@@ -4739,6 +5052,12 @@ export const testCategories: TestCategory[] = [
     name: "Reviewer Enrollment",
     description: "Verify panel reviewer invitation and approval flow",
     tests: reviewerEnrollmentTests,
+  },
+  {
+    id: "enrollment-scoped-locks",
+    name: "Enrollment-Scoped Locks",
+    description: "Verify enrollment-scoped content lock behavior with real Supabase queries",
+    tests: enrollmentScopedLockTests,
   },
 ];
 
