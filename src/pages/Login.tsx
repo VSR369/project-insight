@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase } from 'lucide-react';
@@ -92,7 +92,6 @@ export default function Login() {
   const [desiredPortal, setDesiredPortal] = useState<PortalType | null>(null);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
 
   // Redirect if already logged in - honor active portal, not "from"
   if (user) {
@@ -131,8 +130,8 @@ export default function Login() {
       if (session?.session?.user) {
         const userId = session.session.user.id;
         
-        // Fetch roles and provider record in parallel
-        const [rolesResult, providerResult] = await Promise.all([
+        // Fetch roles, provider record, and reviewer record in parallel
+        const [rolesResult, providerResult, reviewerResult] = await Promise.all([
           supabase
             .from('user_roles')
             .select('role')
@@ -141,15 +140,22 @@ export default function Login() {
             .from('solution_providers')
             .select('id')
             .eq('user_id', userId)
+            .maybeSingle(),
+          supabase
+            .from('panel_reviewers')
+            .select('id, approval_status, is_active')
+            .eq('user_id', userId)
             .maybeSingle()
         ]);
         
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
+        const reviewerRecord = reviewerResult.data;
         
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
-        const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer');
-        const isSolutionProvider = roles?.some(r => r.role === 'solution_provider');
+        // Reviewer detection: has role OR has panel_reviewers record
+        const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerRecord;
+        const isPendingReviewer = reviewerRecord?.approval_status === 'pending';
         const hasProviderRecord = !!providerRecord;
         
         // Clear stale session storage on fresh login
@@ -157,14 +163,14 @@ export default function Login() {
         
         // Determine target portal with priority:
         // 1. User's explicit choice from quick login or form
-        // 2. Fallback based on roles (admin > provider with record > reviewer)
+        // 2. Fallback based on roles: Admin > Reviewer > Provider
         let targetPortal: PortalType = 'provider'; // default
         
         if (desiredPortal) {
           // Validate user has access to desired portal
           const canAccessDesired = 
             (desiredPortal === 'admin' && isPlatformAdmin) ||
-            (desiredPortal === 'provider' && isSolutionProvider && hasProviderRecord) ||
+            (desiredPortal === 'provider' && hasProviderRecord) ||
             (desiredPortal === 'reviewer' && isPanelReviewer);
           
           if (canAccessDesired) {
@@ -173,19 +179,26 @@ export default function Login() {
             toast.warning(`You don't have ${desiredPortal} access. Redirecting to available portal.`);
             // Fall through to role-based selection
             if (isPlatformAdmin) targetPortal = 'admin';
-            else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
             else if (isPanelReviewer) targetPortal = 'reviewer';
+            else if (hasProviderRecord) targetPortal = 'provider';
           }
         } else {
           // No explicit choice - use role priority
-          // Priority: Admin > Provider (with record) > Reviewer
+          // Priority: Admin > Reviewer > Provider (fixed order)
           if (isPlatformAdmin) targetPortal = 'admin';
-          else if (isSolutionProvider && hasProviderRecord) targetPortal = 'provider';
           else if (isPanelReviewer) targetPortal = 'reviewer';
+          else if (hasProviderRecord) targetPortal = 'provider';
         }
         
         // Persist portal choice for future sessions/refreshes
         sessionStorage.setItem('activePortal', targetPortal);
+        
+        // Handle pending reviewers - redirect to pending approval page
+        if (targetPortal === 'reviewer' && isPendingReviewer) {
+          toast.info('Your reviewer application is pending admin approval.');
+          navigate('/reviewer/pending-approval', { replace: true });
+          return;
+        }
         
         toast.success('Welcome back!');
         navigate(PORTAL_ROUTES[targetPortal], { replace: true });
