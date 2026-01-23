@@ -24,6 +24,9 @@ verify_jwt = false
 [functions.notify-booking-cancelled]
 verify_jwt = false
 
+[functions.notify-enrollment-deleted]
+verify_jwt = false
+
 [functions.process-manager-decision]
 verify_jwt = false
 

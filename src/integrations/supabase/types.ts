@@ -517,6 +517,51 @@ export type Database = {
         }
         Relationships: []
       }
+      enrollment_deletion_audit: {
+        Row: {
+          affected_data: Json | null
+          blockers_overridden: Json | null
+          created_at: string | null
+          deleted_by: string
+          deletion_reason: string | null
+          enrollment_id: string
+          id: string
+          industry_name: string | null
+          industry_segment_id: string
+          provider_id: string
+          stakeholders_notified: Json | null
+          was_force_delete: boolean | null
+        }
+        Insert: {
+          affected_data?: Json | null
+          blockers_overridden?: Json | null
+          created_at?: string | null
+          deleted_by: string
+          deletion_reason?: string | null
+          enrollment_id: string
+          id?: string
+          industry_name?: string | null
+          industry_segment_id: string
+          provider_id: string
+          stakeholders_notified?: Json | null
+          was_force_delete?: boolean | null
+        }
+        Update: {
+          affected_data?: Json | null
+          blockers_overridden?: Json | null
+          created_at?: string | null
+          deleted_by?: string
+          deletion_reason?: string | null
+          enrollment_id?: string
+          id?: string
+          industry_name?: string | null
+          industry_segment_id?: string
+          provider_id?: string
+          stakeholders_notified?: Json | null
+          was_force_delete?: boolean | null
+        }
+        Relationships: []
+      }
       expertise_levels: {
         Row: {
           created_at: string
