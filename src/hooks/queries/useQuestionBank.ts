@@ -233,35 +233,52 @@ export function useHardDeleteQuestion() {
   });
 }
 
-// Deactivate all questions for given speciality IDs (for replace import mode)
-export function useDeactivateQuestionsBySpecialities() {
+// Permanently delete all questions for given speciality IDs (for replace import mode)
+export function useDeleteQuestionsBySpecialities() {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (specialityIds: string[]) => {
       if (specialityIds.length === 0) return { count: 0 };
 
-      const { data, error } = await supabase
+      // Get question IDs first
+      const { data: questionsToDelete, error: fetchError } = await supabase
         .from("question_bank")
-        .update({ 
-          is_active: false,
-          updated_at: new Date().toISOString(),
-        })
-        .in("speciality_id", specialityIds)
-        .eq("is_active", true)
-        .select("id");
-
-      if (error) throw new Error(error.message);
-      return { count: data?.length || 0 };
+        .select("id")
+        .in("speciality_id", specialityIds);
+      
+      if (fetchError) throw new Error(fetchError.message);
+      
+      const questionIds = (questionsToDelete || []).map(q => q.id);
+      
+      if (questionIds.length > 0) {
+        // Delete capability tags first (foreign key constraint)
+        const { error: tagsError } = await supabase
+          .from("question_capability_tags")
+          .delete()
+          .in("question_id", questionIds);
+        
+        if (tagsError) throw new Error(tagsError.message);
+        
+        // Then delete questions permanently
+        const { error: questionsError } = await supabase
+          .from("question_bank")
+          .delete()
+          .in("speciality_id", specialityIds);
+        
+        if (questionsError) throw new Error(questionsError.message);
+      }
+      
+      return { count: questionIds.length };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });
       if (result.count > 0) {
-        toast.success(`Deactivated ${result.count} existing questions`);
+        toast.success(`Permanently deleted ${result.count} existing questions`);
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate existing questions: ${error.message}`);
+      toast.error(`Failed to delete existing questions: ${error.message}`);
     },
   });
 }

@@ -508,7 +508,7 @@ export function QuestionBankPage() {
 
     const headers = [
       "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
-      "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+      "question_text", "option_1", "option_2", "option_3", "option_4", 
       "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", 
       "expected_answer_guidance", "is_active"
     ];
@@ -532,8 +532,6 @@ export function QuestionBankPage() {
         options[1]?.text || "",
         options[2]?.text || "",
         options[3]?.text || "",
-        options[4]?.text || "",
-        options[5]?.text || "",
         q.correct_option,
         q.difficulty ?? "",
         q.question_type ?? "conceptual",
@@ -557,8 +555,6 @@ export function QuestionBankPage() {
       { wch: 25 }, // option_2
       { wch: 25 }, // option_3
       { wch: 25 }, // option_4
-      { wch: 20 }, // option_5
-      { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
       { wch: 15 }, // difficulty
       { wch: 15 }, // question_type
@@ -580,14 +576,14 @@ export function QuestionBankPage() {
     const templateData = [
       [
         "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
-        "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+        "question_text", "option_1", "option_2", "option_3", "option_4", 
         "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
       ],
       [
         "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
         "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
         "What is the primary purpose of data stewardship?",
-        "Data backup", "Data governance", "Data deletion", "Data encryption", "", "",
+        "Data backup", "Data governance", "Data deletion", "Data encryption",
         2, "applied", "conceptual", "both", "Data Management",
         "Data stewardship focuses on governance and quality, not just backup."
       ],
@@ -595,7 +591,7 @@ export function QuestionBankPage() {
         "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
         "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
         "Which stakeholder typically owns business data?",
-        "IT Department", "Business Unit Head", "External Vendor", "Database Admin", "", "",
+        "IT Department", "Business Unit Head", "External Vendor", "Database Admin",
         2, "introductory", "conceptual", "self_assessment", "",
         "Business data ownership should reside with the business unit that creates and uses the data."
       ],
@@ -612,8 +608,8 @@ export function QuestionBankPage() {
       ["sub_domain", "The sub-domain name", "Yes", "Must match a sub-domain under the specified proficiency area"],
       ["speciality", "The speciality name", "Yes", "Must match a speciality under the specified sub-domain"],
       ["question_text", "The full question text", "Yes", "10-2000 characters"],
-      ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
-      ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
+      ["option_1 to option_4", "Answer options for the question (exactly 4 required)", "Yes", "All 4 options must be provided"],
+      ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, or 4"],
       ["difficulty", "Question difficulty level", "No", "introductory, applied, advanced, strategic"],
       ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
       ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
@@ -624,11 +620,10 @@ export function QuestionBankPage() {
       ["1. All hierarchy fields (industry_segment through speciality) must match existing data exactly (case-insensitive)"],
       ["2. Questions will be automatically linked to the specified speciality"],
       ["3. You can import questions for multiple specialities in the same file"],
-      ["4. You must provide at least 2 options and maximum 6 options"],
-      ["5. Leave unused option columns empty (do not delete them)"],
-      ["6. The correct_option number must match an option that exists"],
-      ["7. Enter your questions in the 'Questions' sheet, starting from row 2"],
-      ["8. Do not modify the header row in the Questions sheet"],
+      ["4. All 4 options (option_1 through option_4) must be provided for each question"],
+      ["5. The correct_option must be 1, 2, 3, or 4"],
+      ["6. Enter your questions in the 'Questions' sheet, starting from row 2"],
+      ["7. Do not modify the header row in the Questions sheet"],
       [""],
       ["DIFFICULTY LEVEL GUIDE:"],
       ["Level", "Description"],
@@ -667,8 +662,6 @@ export function QuestionBankPage() {
       { wch: 25 }, // option_2
       { wch: 25 }, // option_3
       { wch: 25 }, // option_4
-      { wch: 20 }, // option_5
-      { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
       { wch: 15 }, // difficulty
       { wch: 15 }, // question_type
