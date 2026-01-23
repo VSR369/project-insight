@@ -355,6 +355,11 @@ export function QuestionImportDialog({
   const { data: hierarchyData, isLoading: hierarchyLoading } = useHierarchyData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Debug: Log isImporting state transitions
+  React.useEffect(() => {
+    console.log('[QuestionImportDialog] isImporting changed to:', isImporting);
+  }, [isImporting]);
+
   // Reset state when dialog closes
   React.useEffect(() => {
     if (!open) {
@@ -639,6 +644,9 @@ export function QuestionImportDialog({
     setImportedCount(0);
     setSuccessCount(0);
     setFailedCount(0);
+
+    // Force browser to render progress bar before heavy processing begins
+    await new Promise(resolve => setTimeout(resolve, 50));
 
     const results = { 
       success: 0, 
@@ -1342,9 +1350,18 @@ export function QuestionImportDialog({
             </div>
           )}
 
+          {/* Ready to Import Status - Always visible when parsed */}
+          {parsedQuestions.length > 0 && !importResults && !isImporting && validCount > 0 && (
+            <div className="p-3 border rounded-lg bg-blue-50 dark:bg-blue-950/20 border-blue-200 dark:border-blue-800">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                ✅ Ready to import <strong>{validCount}</strong> questions. Click the button below to begin.
+              </p>
+            </div>
+          )}
+
           {/* Import Progress - Enhanced with real-time counters */}
           {isImporting && (
-            <div className="space-y-4 p-4 border rounded-lg bg-muted/20">
+            <div className="space-y-4 p-4 border-2 border-primary rounded-lg bg-primary/5">
               {/* Main Progress Header */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -1468,10 +1485,12 @@ export function QuestionImportDialog({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            {importResults ? "Close" : "Cancel"}
-          </Button>
+        <DialogFooter className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">v2026-01-23</span>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              {importResults ? "Close" : "Cancel"}
+            </Button>
           {!importResults && (
             <Button
               onClick={handleImportClick}
@@ -1498,6 +1517,7 @@ export function QuestionImportDialog({
               )}
             </Button>
           )}
+          </div>
         </DialogFooter>
       </DialogContent>
 
