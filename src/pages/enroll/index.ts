@@ -9,6 +9,7 @@ export { default as TakeAssessment } from './TakeAssessment';
 export { default as AssessmentResults } from './AssessmentResults';
 export { default as PostEnrollmentWelcome } from './PostEnrollmentWelcome';
 export { default as AddProofPoint } from './AddProofPoint';
+export { default as EditProofPoint } from './EditProofPoint';
 export { default as OrganizationPending } from './OrganizationPending';
 export { default as OrganizationDeclined } from './OrganizationDeclined';
 export { default as InterviewScheduling } from './InterviewScheduling';
