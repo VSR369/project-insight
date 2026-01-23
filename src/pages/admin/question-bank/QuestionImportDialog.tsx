@@ -639,22 +639,18 @@ export function QuestionImportDialog({
       }
     }
 
-    for (let i = 0; i < validQuestions.length; i++) {
-      // Check if import was cancelled
-      if (signal.aborted) {
-        results.wasCancelled = true;
-        logInfo("Question import stopped due to cancellation", {
-          operation: 'import_questions_stopped',
-          component: 'QuestionImportDialog',
-        });
-        break;
-      }
+    // Batch processing configuration
+    const BATCH_SIZE = 15; // Process 15 questions per batch for optimal performance
+    const totalQuestions = validQuestions.length;
+    const totalBatches = Math.ceil(totalQuestions / BATCH_SIZE);
 
-      const q = validQuestions[i];
+    // Process a single question and return result
+    const processQuestion = async (q: ParsedQuestion): Promise<{
+      success: boolean;
+      failure?: ImportFailure;
+      errorMessage?: string;
+    }> => {
       const rowCorrelationId = generateCorrelationId();
-
-      // Update current row info for display
-      setCurrentRowInfo(`Row ${q.rowNumber}: ${q.question_text.slice(0, 50)}...`);
 
       try {
         if (!q.speciality_id) {
@@ -678,17 +674,9 @@ export function QuestionImportDialog({
           speciality_id: q.speciality_id,
         });
 
-        // Check cancellation after question creation
-        if (signal.aborted) {
-          results.wasCancelled = true;
-          results.success++; // Count the last successful one
-          break;
-        }
-
         // Phase 2: Link capability tags if any
         if (createdQuestion?.id && q.capability_tags.length > 0) {
           try {
-            // Find matching tag IDs (case-insensitive)
             const tagIds = q.capability_tags
               .map(tagName => {
                 const found = capabilityTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
@@ -703,36 +691,35 @@ export function QuestionImportDialog({
               });
             }
           } catch (tagError) {
-            // Log tag linking failure but still count question as success
             logWarning("Capability tag linking failed (question created successfully)", {
               operation: 'link_capability_tags',
               component: 'QuestionImportDialog',
             });
             
-            // Record as a tag-phase failure for visibility
-            results.failures.push({
-              rowNumber: q.rowNumber,
-              correlationId: rowCorrelationId,
-              phase: 'capability_tags',
-              errorMessage: tagError instanceof Error ? tagError.message : "Unknown error",
-              errorCode: extractErrorCode(tagError),
-              rowData: {
-                question_text: q.question_text.slice(0, 100),
-                speciality: q.speciality,
-                speciality_id: q.speciality_id,
-                options_count: q.options.length,
-                capability_tags: q.capability_tags,
-              },
-              timestamp: new Date().toISOString(),
-            });
+            // Record as a tag-phase failure for visibility (but question still succeeded)
+            return {
+              success: true,
+              failure: {
+                rowNumber: q.rowNumber,
+                correlationId: rowCorrelationId,
+                phase: 'capability_tags',
+                errorMessage: tagError instanceof Error ? tagError.message : "Unknown error",
+                errorCode: extractErrorCode(tagError),
+                rowData: {
+                  question_text: q.question_text.slice(0, 100),
+                  speciality: q.speciality,
+                  speciality_id: q.speciality_id,
+                  options_count: q.options.length,
+                  capability_tags: q.capability_tags,
+                },
+                timestamp: new Date().toISOString(),
+              }
+            };
           }
         }
 
-        results.success++;
+        return { success: true };
       } catch (error) {
-        results.failed++;
-        
-        // Capture detailed failure information
         const failure: ImportFailure = {
           rowNumber: q.rowNumber,
           correlationId: rowCorrelationId,
@@ -748,22 +735,68 @@ export function QuestionImportDialog({
           },
           timestamp: new Date().toISOString(),
         };
-        
-        results.failures.push(failure);
-        
-        // Structured error logging (don't show toast for each row)
+
         handleMutationError(error, {
           operation: 'import_question',
           component: 'QuestionImportDialog',
         }, false);
-        
-        // Human-readable error for UI with correlation ID
-        results.errors.push(
-          `Row ${q.rowNumber}: ${failure.errorMessage} [${rowCorrelationId}]`
-        );
+
+        return {
+          success: false,
+          failure,
+          errorMessage: `Row ${q.rowNumber}: ${failure.errorMessage} [${rowCorrelationId}]`
+        };
+      }
+    };
+
+    // Process questions in batches
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      // Check cancellation at batch boundary (more responsive)
+      if (signal.aborted) {
+        results.wasCancelled = true;
+        logInfo("Question import stopped due to cancellation", {
+          operation: 'import_questions_stopped',
+          component: 'QuestionImportDialog',
+        });
+        break;
       }
 
-      setImportProgress(Math.round(((i + 1) / validQuestions.length) * 100));
+      const startIdx = batchIndex * BATCH_SIZE;
+      const endIdx = Math.min(startIdx + BATCH_SIZE, totalQuestions);
+      const batch = validQuestions.slice(startIdx, endIdx);
+
+      // Update UI with batch info
+      setCurrentRowInfo(`Batch ${batchIndex + 1}/${totalBatches}: Processing rows ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}...`);
+
+      // Process batch concurrently with Promise.allSettled for resilience
+      const batchPromises = batch.map(q => processQuestion(q));
+      const batchResults = await Promise.allSettled(batchPromises);
+
+      // Aggregate batch results
+      for (const result of batchResults) {
+        if (result.status === 'fulfilled') {
+          const { success, failure, errorMessage } = result.value;
+          if (success) {
+            results.success++;
+          } else {
+            results.failed++;
+          }
+          if (failure) {
+            results.failures.push(failure);
+          }
+          if (errorMessage) {
+            results.errors.push(errorMessage);
+          }
+        } else {
+          // Promise rejected unexpectedly
+          results.failed++;
+          results.errors.push(`Unexpected batch error: ${result.reason}`);
+        }
+      }
+
+      // Update progress after each batch
+      const processedCount = Math.min(endIdx, totalQuestions);
+      setImportProgress(Math.round((processedCount / totalQuestions) * 100));
     }
 
     // Log import completion
