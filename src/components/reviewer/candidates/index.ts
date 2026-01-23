@@ -21,3 +21,5 @@ export { TimezoneInfoPanel } from "./TimezoneInfoPanel";
 export { SlotDetailsCard } from "./SlotDetailsCard";
 export { AcceptSlotConfirmDialog } from "./AcceptSlotConfirmDialog";
 export { DeclineSlotDialog } from "./DeclineSlotDialog";
+// Assessment tab components
+export { AssessmentTabContent } from "./AssessmentTabContent";
