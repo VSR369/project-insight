@@ -9,7 +9,17 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Save, Loader2, GraduationCap, Building2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { ArrowLeft, Save, Loader2, GraduationCap, Building2, AlertTriangle } from 'lucide-react';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useCreateProofPoint, useUploadProofPointFile } from '@/hooks/queries/useProofPoints';
@@ -81,6 +91,7 @@ function AddProofPointContent() {
   const [selectedSpecialityId, setSelectedSpecialityId] = useState<string | null>(null);
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [showCategoryWarning, setShowCategoryWarning] = useState(false);
 
   // Memoized handler to prevent child re-renders
   const handleSpecialityChange = useCallback((id: string | null) => {
@@ -124,20 +135,35 @@ function AddProofPointContent() {
       return;
     }
 
+    // Warn if specialty_specific but no speciality selected
+    if (values.category === 'specialty_specific' && !selectedSpecialityId) {
+      setShowCategoryWarning(true);
+      return;
+    }
+
+    await saveProofPoint(values);
+  };
+
+  const saveProofPoint = async (values: FormValues, forceGeneral = false) => {
+    if (!provider?.id) return;
+
     try {
       // Filter valid links
       const validLinks = links.filter(l => l.url.trim());
 
+      // Determine final category
+      const finalCategory = forceGeneral ? 'general' : values.category;
+
       // Create proof point with enrollment scope
       const proofPoint = await createProofPoint.mutateAsync({
         providerId: provider.id,
-        enrollmentId: activeEnrollmentId || undefined, // Enrollment-scoped tracking
+        enrollmentId: activeEnrollmentId || undefined,
         industrySegmentId: activeIndustryId || undefined,
-        category: values.category as ProofPointCategory,
+        category: finalCategory as ProofPointCategory,
         type: values.type as ProofPointType,
         title: values.title,
         description: values.description,
-        specialityIds: values.category === 'specialty_specific' && selectedSpecialityId ? [selectedSpecialityId] : [],
+        specialityIds: finalCategory === 'specialty_specific' && selectedSpecialityId ? [selectedSpecialityId] : [],
         links: validLinks,
       });
 
@@ -154,10 +180,25 @@ function AddProofPointContent() {
         }
       }
 
+      // Update persisted category preference
+      if (forceGeneral) {
+        saveCategory('general');
+      }
+
       navigate('/enroll/proof-points');
     } catch {
       // Error handled by mutation
     }
+  };
+
+  const handleSaveAsGeneral = () => {
+    setShowCategoryWarning(false);
+    const values = form.getValues();
+    saveProofPoint(values, true);
+  };
+
+  const handleCancelWarning = () => {
+    setShowCategoryWarning(false);
   };
 
   if (providerLoading || enrollmentLoading) {
@@ -368,6 +409,33 @@ function AddProofPointContent() {
           </Form>
         </div>
       </div>
+      {/* Category Warning Dialog */}
+      <AlertDialog open={showCategoryWarning} onOpenChange={setShowCategoryWarning}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-500" />
+              No Speciality Selected
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You selected the <strong>"Speciality"</strong> category but haven't mapped this proof point to a specific speciality.
+              </p>
+              <p>
+                Would you like to save it as a <strong>"General"</strong> proof point instead, or go back to select a speciality?
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={handleCancelWarning}>
+              Go Back & Select Speciality
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleSaveAsGeneral}>
+              Save as General
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
