@@ -38,7 +38,7 @@ import {
 
 import { 
   useCreateQuestion, 
-  useDeactivateQuestionsBySpecialities,
+  useDeleteQuestionsBySpecialities,
   getExistingQuestionCount,
   formatQuestionOptions, 
   DIFFICULTY_OPTIONS, 
@@ -119,14 +119,14 @@ const VALID_USAGE_MODES: readonly string[] = USAGE_MODE_OPTIONS.map(m => m.value
 const EXCEL_TEMPLATE_DATA = [
   [
     "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",
-    "question_text", "option_1", "option_2", "option_3", "option_4", "option_5", "option_6", 
+    "question_text", "option_1", "option_2", "option_3", "option_4", 
     "correct_option", "difficulty", "question_type", "usage_mode", "capability_tags", "expected_answer_guidance"
   ],
   [
     "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
     "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
     "What is the primary purpose of data stewardship?",
-    "Data backup", "Data governance", "Data deletion", "Data encryption", "", "",
+    "Data backup", "Data governance", "Data deletion", "Data encryption",
     2, "applied", "conceptual", "both", "Data Management",
     "Data stewardship focuses on governance and quality, not just backup."
   ],
@@ -134,7 +134,7 @@ const EXCEL_TEMPLATE_DATA = [
     "Manufacturing (Auto Components)", "Senior Consultant – Domain Specialist & Workstream Lead", 
     "Digital & Technology Blueprint", "Governance Basics", "Data ownership & stewardship setup",
     "Which stakeholder typically owns business data?",
-    "IT Department", "Business Unit Head", "External Vendor", "Database Admin", "", "",
+    "IT Department", "Business Unit Head", "External Vendor", "Database Admin",
     2, "introductory", "conceptual", "self_assessment", "",
     "Business data ownership should reside with the business unit that creates and uses the data."
   ],
@@ -151,8 +151,8 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["sub_domain", "The sub-domain name", "Yes", "Must match a sub-domain under the specified proficiency area"],
   ["speciality", "The speciality name", "Yes", "Must match a speciality under the specified sub-domain"],
   ["question_text", "The full question text", "Yes", "10-2000 characters"],
-  ["option_1 to option_6", "Answer options for the question", "Min 2 required", "Any text (leave unused options empty)"],
-  ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, 4, 5, or 6"],
+  ["option_1 to option_4", "Answer options for the question (exactly 4 required)", "Yes", "All 4 options must be provided"],
+  ["correct_option", "Which option number is the correct answer", "Yes", "1, 2, 3, or 4"],
   ["difficulty", "Question difficulty level", "No", "introductory, applied, advanced, strategic"],
   ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
   ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
@@ -163,11 +163,10 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["1. All hierarchy fields (industry_segment through speciality) must match existing data exactly (case-insensitive)"],
   ["2. Questions will be automatically linked to the specified speciality"],
   ["3. You can import questions for multiple specialities in the same file"],
-  ["4. You must provide at least 2 options and maximum 6 options"],
-  ["5. Leave unused option columns empty (do not delete them)"],
-  ["6. The correct_option number must match an option that exists"],
-  ["7. Enter your questions in the 'Questions' sheet, starting from row 2"],
-  ["8. Do not modify the header row in the Questions sheet"],
+  ["4. All 4 options (option_1 through option_4) must be provided for each question"],
+  ["5. The correct_option must be 1, 2, 3, or 4"],
+  ["6. Enter your questions in the 'Questions' sheet, starting from row 2"],
+  ["7. Do not modify the header row in the Questions sheet"],
   [""],
   ["DIFFICULTY LEVEL GUIDE:"],
   ["Level", "Description"],
@@ -244,16 +243,14 @@ const validateQuestion = (
     errors.push("Question text must be 2000 characters or less");
   }
 
-  // Options validation
-  if (data.options.length < 2) {
-    errors.push("At least 2 options are required");
-  } else if (data.options.length > 6) {
-    errors.push("Maximum 6 options allowed");
+  // Options validation - exactly 4 options required
+  if (data.options.length !== 4) {
+    errors.push(`Exactly 4 options are required (found ${data.options.length})`);
   }
 
-  // Correct option validation
-  if (data.correct_option < 1 || data.correct_option > data.options.length) {
-    errors.push(`Correct option must be between 1 and ${data.options.length}`);
+  // Correct option validation - must be 1, 2, 3, or 4
+  if (data.correct_option < 1 || data.correct_option > 4) {
+    errors.push("Correct option must be 1, 2, 3, or 4");
   }
 
   // Difficulty validation
@@ -324,7 +321,7 @@ export function QuestionImportDialog({
   const [importResults, setImportResults] = React.useState<{
     success: number;
     failed: number;
-    deactivated: number;
+    deleted: number;
     errors: string[];
     failures: ImportFailure[];
     wasCancelled?: boolean;
@@ -339,7 +336,7 @@ export function QuestionImportDialog({
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   const createMutation = useCreateQuestion();
-  const deactivateMutation = useDeactivateQuestionsBySpecialities();
+  const deleteMutation = useDeleteQuestionsBySpecialities();
   const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
   const { data: capabilityTags = [] } = useCapabilityTags();
   const { data: hierarchyData, isLoading: hierarchyLoading } = useHierarchyData();
@@ -417,21 +414,19 @@ export function QuestionImportDialog({
     const headerRow = data[0] as (string | number | null | undefined)[];
     const optionColumnIndexes: number[] = [];
     
-    // Find all option_X columns (could be option_0 to option_5, or option_1 to option_6)
+    // Find option_1 through option_4 columns only (ignore option_5, option_6 for legacy compatibility)
     headerRow.forEach((header, idx) => {
       const headerStr = String(header || '').toLowerCase().trim();
-      if (headerStr.startsWith('option_') || headerStr.startsWith('option ')) {
+      if (headerStr === 'option_1' || headerStr === 'option_2' || 
+          headerStr === 'option_3' || headerStr === 'option_4') {
         optionColumnIndexes.push(idx);
       }
     });
 
-    // Validate option column count (2-6 options required)
+    // Validate exactly 4 option columns required
     const optionCount = optionColumnIndexes.length;
-    if (optionCount < 2) {
-      throw new Error(`Excel must have at least 2 option columns (found ${optionCount}). Expected columns like 'option_0', 'option_1', etc.`);
-    }
-    if (optionCount > 6) {
-      throw new Error(`Excel can have maximum 6 option columns (found ${optionCount})`);
+    if (optionCount !== 4) {
+      throw new Error(`Excel must have exactly 4 option columns (option_1, option_2, option_3, option_4). Found ${optionCount} valid option columns.`);
     }
 
     // Calculate dynamic column positions after options
@@ -632,34 +627,34 @@ export function QuestionImportDialog({
     const results = { 
       success: 0, 
       failed: 0, 
-      deactivated: 0, 
+      deleted: 0, 
       errors: [] as string[],
       failures: [] as ImportFailure[],
       wasCancelled: false
     };
 
-    // If replace mode, deactivate existing questions for affected specialities first
+    // If replace mode, permanently delete existing questions for affected specialities first
     if (importMode === "replace") {
       if (uniqueSpecialityIds.length > 0) {
         try {
-          const deactivateResult = await deactivateMutation.mutateAsync(uniqueSpecialityIds);
-          results.deactivated = deactivateResult.count;
+          const deleteResult = await deleteMutation.mutateAsync(uniqueSpecialityIds);
+          results.deleted = deleteResult.count;
         } catch (error) {
-          const deactivateCorrelationId = generateCorrelationId();
+          const deleteCorrelationId = generateCorrelationId();
           handleMutationError(error, {
-            operation: 'deactivate_existing_questions',
+            operation: 'delete_existing_questions',
             component: 'QuestionImportDialog',
           }, false);
           
-          results.errors.push(`Failed to deactivate existing questions: ${error instanceof Error ? error.message : "Unknown error"} [${deactivateCorrelationId}]`);
+          results.errors.push(`Failed to delete existing questions: ${error instanceof Error ? error.message : "Unknown error"} [${deleteCorrelationId}]`);
           results.failures.push({
             rowNumber: 0,
-            correlationId: deactivateCorrelationId,
+            correlationId: deleteCorrelationId,
             phase: 'question_creation',
             errorMessage: error instanceof Error ? error.message : "Unknown error",
             errorCode: extractErrorCode(error),
             rowData: {
-              question_text: "(Deactivation step)",
+              question_text: "(Deletion step)",
               speciality: `${uniqueSpecialityIds.length} specialities`,
               speciality_id: null,
               options_count: 0,
@@ -910,8 +905,6 @@ export function QuestionImportDialog({
       { wch: 25 }, // option_2
       { wch: 25 }, // option_3
       { wch: 25 }, // option_4
-      { wch: 20 }, // option_5
-      { wch: 20 }, // option_6
       { wch: 15 }, // correct_option
       { wch: 15 }, // difficulty
       { wch: 15 }, // question_type
@@ -1221,7 +1214,7 @@ export function QuestionImportDialog({
                   {importResults.wasCancelled 
                     ? `Import cancelled: ${importResults.success} questions imported before cancellation`
                     : `Import complete: ${importResults.success} questions imported successfully`}
-                  {importResults.deactivated > 0 && `, ${importResults.deactivated} existing deactivated`}
+                  {importResults.deleted > 0 && `, ${importResults.deleted} existing deleted`}
                   {importResults.failed > 0 && `, ${importResults.failed} failed`}
                 </AlertDescription>
               </Alert>
