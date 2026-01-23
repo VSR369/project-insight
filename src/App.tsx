@@ -34,6 +34,7 @@ import {
   AssessmentResults,
   PostEnrollmentWelcome,
   AddProofPoint,
+  EditProofPoint,
   OrganizationPending,
   OrganizationDeclined,
   InterviewScheduling,
@@ -196,6 +197,16 @@ const App = () => (
                 <AuthGuard>
                   <EnrollmentRequiredGuard>
                     <AddProofPoint />
+                  </EnrollmentRequiredGuard>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/enroll/proof-points/edit/:id"
+              element={
+                <AuthGuard>
+                  <EnrollmentRequiredGuard>
+                    <EditProofPoint />
                   </EnrollmentRequiredGuard>
                 </AuthGuard>
               }
