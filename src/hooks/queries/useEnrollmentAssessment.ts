@@ -10,6 +10,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import type { Database } from '@/integrations/supabase/types';
 import { getCurrentUserId } from '@/lib/auditFields';
 import { logWarning } from '@/lib/errorHandler';
 import { 
@@ -17,6 +18,9 @@ import {
   logQuestionExposure,
   type QuestionWithMetadata 
 } from '@/services/questionGenerationService';
+
+// Type alias for lifecycle_status enum
+type LifecycleStatus = Database['public']['Enums']['lifecycle_status'];
 
 // Assessment configuration
 const DEFAULT_TIME_LIMIT_MINUTES = 60;
@@ -587,7 +591,7 @@ export function useStartEnrollmentAssessment() {
       const { error: updateError } = await supabase
         .from('provider_industry_enrollments')
         .update({
-          lifecycle_status: 'assessment_in_progress',
+          lifecycle_status: 'assessment_in_progress' as LifecycleStatus,
           lifecycle_rank: 100,
           updated_by: userId,
           updated_at: new Date().toISOString(),
@@ -771,7 +775,7 @@ export function useStartRetakeAssessment() {
       const { error: resetError } = await supabase
         .from('provider_industry_enrollments')
         .update({
-          lifecycle_status: 'proof_points_min_met',
+          lifecycle_status: 'proof_points_min_met' as LifecycleStatus,
           lifecycle_rank: 70,
           updated_by: userId,
           updated_at: new Date().toISOString(),
@@ -796,7 +800,7 @@ export function useStartRetakeAssessment() {
         await supabase
           .from('provider_industry_enrollments')
           .update({ 
-            lifecycle_status: 'assessment_completed', 
+            lifecycle_status: 'assessment_completed' as LifecycleStatus, 
             lifecycle_rank: 105,
             updated_by: userId,
             updated_at: new Date().toISOString(),
@@ -828,7 +832,7 @@ export function useStartRetakeAssessment() {
         // Rollback
         await supabase
           .from('provider_industry_enrollments')
-          .update({ lifecycle_status: 'assessment_completed', lifecycle_rank: 105 })
+          .update({ lifecycle_status: 'assessment_completed' as LifecycleStatus, lifecycle_rank: 105 })
           .eq('id', enrollmentId);
         return { success: false, error: 'Failed to start retake assessment' };
       }
@@ -850,7 +854,7 @@ export function useStartRetakeAssessment() {
         await supabase.from('assessment_attempts').delete().eq('id', attempt.id);
         await supabase
           .from('provider_industry_enrollments')
-          .update({ lifecycle_status: 'assessment_completed', lifecycle_rank: 105 })
+          .update({ lifecycle_status: 'assessment_completed' as LifecycleStatus, lifecycle_rank: 105 })
           .eq('id', enrollmentId);
         return { success: false, error: 'Failed to prepare retake questions' };
       }
@@ -866,7 +870,7 @@ export function useStartRetakeAssessment() {
       const { error: updateError } = await supabase
         .from('provider_industry_enrollments')
         .update({
-          lifecycle_status: 'assessment_in_progress',
+          lifecycle_status: 'assessment_in_progress' as LifecycleStatus,
           lifecycle_rank: 100,
           updated_by: userId,
           updated_at: new Date().toISOString(),
@@ -878,7 +882,7 @@ export function useStartRetakeAssessment() {
         await supabase.from('assessment_attempts').delete().eq('id', attempt.id);
         await supabase
           .from('provider_industry_enrollments')
-          .update({ lifecycle_status: 'assessment_completed', lifecycle_rank: 105 })
+          .update({ lifecycle_status: 'assessment_completed' as LifecycleStatus, lifecycle_rank: 105 })
           .eq('id', enrollmentId);
         return { success: false, error: 'Failed to update lifecycle for retake' };
       }
@@ -984,7 +988,7 @@ export function useSubmitEnrollmentAssessment() {
       if (attemptError) throw attemptError;
 
       // Update enrollment lifecycle based on pass/fail
-      const newLifecycleStatus = isPassed ? 'assessment_passed' : 'assessment_completed';
+      const newLifecycleStatus = (isPassed ? 'assessment_passed' : 'assessment_completed') as LifecycleStatus;
       const newLifecycleRank = isPassed ? 110 : 105;
 
       const { error: enrollmentError } = await supabase
