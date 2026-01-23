@@ -401,18 +401,35 @@ export function useCanStartEnrollmentAssessment(enrollmentId?: string, providerI
         const expiresAt = new Date(startedAt.getTime() + activeAttempt.time_limit_minutes * 60 * 1000);
         
         if (new Date() < expiresAt) {
-          // Active assessment exists
-          if (activeAttempt.enrollment_id === enrollmentId) {
-            return { 
-              allowed: false, 
-              reason: 'You have an active assessment in progress for this industry' 
-            };
+          // Verify the attempt actually has responses (not an orphan)
+          const { count: responseCount } = await supabase
+            .from('assessment_attempt_responses')
+            .select('id', { count: 'exact', head: true })
+            .eq('attempt_id', activeAttempt.id);
+
+          if ((responseCount || 0) === 0) {
+            // ORPHAN ATTEMPT - auto-cleanup
+            await supabase.from('assessment_attempts').delete().eq('id', activeAttempt.id);
+            logWarning('Cleaned up orphan assessment attempt', { 
+              operation: 'canStartEnrollmentAssessment',
+              enrollmentId,
+              additionalData: { attemptId: activeAttempt.id }
+            });
+            // Continue evaluation as if no attempt exists
           } else {
-            return { 
-              allowed: false, 
-              reason: 'Please complete your assessment for another industry before starting this one',
-              otherEnrollmentId: activeAttempt.enrollment_id || undefined,
-            };
+            // Valid active assessment exists
+            if (activeAttempt.enrollment_id === enrollmentId) {
+              return { 
+                allowed: false, 
+                reason: 'You have an active assessment in progress for this industry' 
+              };
+            } else {
+              return { 
+                allowed: false, 
+                reason: 'Please complete your assessment for another industry before starting this one',
+                otherEnrollmentId: activeAttempt.enrollment_id || undefined,
+              };
+            }
           }
         }
       }
@@ -579,6 +596,29 @@ export function useStartEnrollmentAssessment() {
         // Rollback: delete the attempt
         await supabase.from('assessment_attempts').delete().eq('id', attempt.id);
         return { success: false, error: 'Failed to prepare assessment questions' };
+      }
+
+      // Step 3.5: VERIFY responses were actually created (data integrity check)
+      const { count: verifiedCount } = await supabase
+        .from('assessment_attempt_responses')
+        .select('id', { count: 'exact', head: true })
+        .eq('attempt_id', attempt.id);
+
+      if (!verifiedCount || verifiedCount !== responseRecords.length) {
+        // Mismatch - complete rollback to prevent orphan attempt
+        await supabase.from('assessment_attempt_responses').delete().eq('attempt_id', attempt.id);
+        await supabase.from('assessment_attempts').delete().eq('id', attempt.id);
+        logWarning('Assessment response verification failed', { 
+          operation: 'startEnrollmentAssessment',
+          additionalData: { 
+            expected: responseRecords.length,
+            actual: verifiedCount || 0,
+          }
+        });
+        return { 
+          success: false, 
+          error: `Response verification failed. Expected ${responseRecords.length}, found ${verifiedCount || 0}. Please try again.` 
+        };
       }
 
       // Step 4: Log question exposure to prevent future repetition

@@ -7,6 +7,9 @@
 /** Default time limit in minutes for an assessment */
 export const DEFAULT_TIME_LIMIT_MINUTES = 60;
 
+/** Minimum questions required for a valid assessment */
+export const MIN_QUESTIONS_FOR_ASSESSMENT = 10;
+
 /** Default number of questions per assessment */
 export const DEFAULT_QUESTIONS_PER_ASSESSMENT = 20;
 
