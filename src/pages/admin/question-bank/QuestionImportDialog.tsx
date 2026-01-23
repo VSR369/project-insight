@@ -688,12 +688,18 @@ export function QuestionImportDialog({
             component: 'QuestionImportDialog',
           }, false);
           
-          results.errors.push(`Failed to delete existing questions: ${error instanceof Error ? error.message : "Unknown error"} [${deleteCorrelationId}]`);
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          const isUrlLimit = errorMsg.toLowerCase().includes('bad request') || errorMsg.includes('400');
+          const displayError = isUrlLimit 
+            ? `Pre-import deletion failed: Too many specialities to delete at once (${uniqueSpecialityIds.length}). Try importing a smaller file or use "Add Only" mode.`
+            : `Pre-import deletion failed: ${errorMsg}. Ensure you have Platform Admin access.`;
+          
+          results.errors.push(`${displayError} [${deleteCorrelationId}]`);
           results.failures.push({
             rowNumber: 0,
             correlationId: deleteCorrelationId,
             phase: 'question_creation',
-            errorMessage: error instanceof Error ? error.message : "Unknown error",
+            errorMessage: displayError,
             errorCode: extractErrorCode(error),
             rowData: {
               question_text: "(Deletion step)",

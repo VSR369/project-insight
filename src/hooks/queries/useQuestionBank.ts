@@ -233,6 +233,54 @@ export function useHardDeleteQuestion() {
   });
 }
 
+// Fallback batch deletion function (used when RPC fails or is unavailable)
+async function batchDeleteQuestions(specialityIds: string[]): Promise<{ count: number }> {
+  const SPECIALITY_BATCH_SIZE = 20;
+  const QUESTION_BATCH_SIZE = 50;
+  let totalDeleted = 0;
+
+  for (let i = 0; i < specialityIds.length; i += SPECIALITY_BATCH_SIZE) {
+    const batchIds = specialityIds.slice(i, i + SPECIALITY_BATCH_SIZE);
+
+    // Get question IDs for this batch
+    const { data: questionsToDelete, error: fetchError } = await supabase
+      .from("question_bank")
+      .select("id")
+      .in("speciality_id", batchIds);
+
+    if (fetchError) throw new Error(fetchError.message);
+
+    const questionIds = (questionsToDelete || []).map(q => q.id);
+
+    if (questionIds.length > 0) {
+      // Delete in sub-batches to avoid URL limits
+      for (let j = 0; j < questionIds.length; j += QUESTION_BATCH_SIZE) {
+        const questionBatch = questionIds.slice(j, j + QUESTION_BATCH_SIZE);
+
+        // Delete capability tags first
+        const { error: tagsError } = await supabase
+          .from("question_capability_tags")
+          .delete()
+          .in("question_id", questionBatch);
+
+        if (tagsError) throw new Error(tagsError.message);
+
+        // Delete questions
+        const { error: questionsError } = await supabase
+          .from("question_bank")
+          .delete()
+          .in("id", questionBatch);
+
+        if (questionsError) throw new Error(questionsError.message);
+
+        totalDeleted += questionBatch.length;
+      }
+    }
+  }
+
+  return { count: totalDeleted };
+}
+
 // Permanently delete all questions for given speciality IDs (for replace import mode)
 export function useDeleteQuestionsBySpecialities() {
   const queryClient = useQueryClient();
@@ -241,35 +289,19 @@ export function useDeleteQuestionsBySpecialities() {
     mutationFn: async (specialityIds: string[]) => {
       if (specialityIds.length === 0) return { count: 0 };
 
-      // Get question IDs first
-      const { data: questionsToDelete, error: fetchError } = await supabase
-        .from("question_bank")
-        .select("id")
-        .in("speciality_id", specialityIds);
-      
-      if (fetchError) throw new Error(fetchError.message);
-      
-      const questionIds = (questionsToDelete || []).map(q => q.id);
-      
-      if (questionIds.length > 0) {
-        // Delete capability tags first (foreign key constraint)
-        const { error: tagsError } = await supabase
-          .from("question_capability_tags")
-          .delete()
-          .in("question_id", questionIds);
-        
-        if (tagsError) throw new Error(tagsError.message);
-        
-        // Then delete questions permanently
-        const { error: questionsError } = await supabase
-          .from("question_bank")
-          .delete()
-          .in("speciality_id", specialityIds);
-        
-        if (questionsError) throw new Error(questionsError.message);
+      // Try database function first (most efficient, no URL limits)
+      const { data, error } = await supabase.rpc(
+        'delete_questions_by_specialities',
+        { p_speciality_ids: specialityIds }
+      );
+
+      if (error) {
+        // Log and fallback to batched deletion
+        console.warn('RPC delete_questions_by_specialities failed, using batch fallback:', error.message);
+        return await batchDeleteQuestions(specialityIds);
       }
-      
-      return { count: questionIds.length };
+
+      return { count: data as number };
     },
     onSuccess: (result) => {
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });

@@ -2454,6 +2454,10 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
+      delete_questions_by_specialities: {
+        Args: { p_speciality_ids: string[] }
+        Returns: number
+      }
       execute_expertise_change_reset: {
         Args: { p_provider_id: string; p_user_id: string }
         Returns: undefined
