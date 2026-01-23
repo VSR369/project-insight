@@ -37,7 +37,7 @@ import {
 } from "@/components/ui/table";
 
 import { 
-  useCreateQuestion, 
+  useCreateQuestionBulk, 
   useDeleteQuestionsBySpecialities,
   getExistingQuestionCount,
   formatQuestionOptions, 
@@ -45,6 +45,7 @@ import {
   QUESTION_TYPE_OPTIONS, 
   USAGE_MODE_OPTIONS 
 } from "@/hooks/queries/useQuestionBank";
+import { useQueryClient } from "@tanstack/react-query";
 import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
 import { useHierarchyData, resolveHierarchy, HierarchyData } from "@/hooks/queries/useHierarchyResolver";
 import { 
@@ -348,7 +349,8 @@ export function QuestionImportDialog({
   // AbortController for cancellable imports
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
-  const createMutation = useCreateQuestion();
+  const queryClient = useQueryClient();
+  const createMutation = useCreateQuestionBulk();
   const deleteMutation = useDeleteQuestionsBySpecialities();
   const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
   const { data: capabilityTags = [] } = useCapabilityTags();
@@ -810,7 +812,8 @@ export function QuestionImportDialog({
       }
     };
 
-    // Process questions in batches
+    // Process questions in batches - wrapped in try/finally for guaranteed cleanup
+    try {
     for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
       // Check cancellation at batch boundary (more responsive)
       if (signal.aborted) {
@@ -862,11 +865,22 @@ export function QuestionImportDialog({
       const processedCount = Math.min(endIdx, totalQuestions);
       setImportedCount(processedCount);
       setImportProgress(Math.round((processedCount / totalQuestions) * 100));
-    }
 
-    // Log import completion
+      // Yield to browser event loop between batches to prevent UI freeze
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+  } catch (unexpectedError) {
+    // Catch any unexpected crash during import
+    results.errors.push(`Import crashed unexpectedly: ${unexpectedError instanceof Error ? unexpectedError.message : 'Unknown error'}`);
+    results.wasCancelled = true;
+    handleMutationError(unexpectedError, {
+      operation: 'import_questions_crash',
+      component: 'QuestionImportDialog',
+    }, false);
+  } finally {
+    // ALWAYS execute cleanup and show results
     const importDuration = Date.now() - importStartTime;
-    logInfo(results.wasCancelled ? "Question import cancelled" : "Question import completed", {
+    logInfo(results.wasCancelled ? "Question import cancelled/crashed" : "Question import completed", {
       operation: results.wasCancelled ? 'import_questions_cancelled' : 'import_questions_complete',
       component: 'QuestionImportDialog',
     });
@@ -876,6 +890,10 @@ export function QuestionImportDialog({
     setCurrentRowInfo("");
     setImportResults(results);
     setIsImporting(false);
+
+    // Single cache invalidation at the very end (instead of per-row)
+    queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+  }
   };
 
   // Export failed rows as Excel for debugging (post-import failures)
@@ -1505,7 +1523,7 @@ export function QuestionImportDialog({
 
         {/* Fixed Footer */}
         <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">v2026-01-23.2</span>
+          <span className="text-xs text-muted-foreground">v2026-01-23.3</span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {importResults ? "Close" : "Cancel"}

@@ -140,6 +140,28 @@ export function useCreateQuestion() {
   });
 }
 
+/**
+ * Bulk-optimized question creation for imports.
+ * DOES NOT trigger toast or cache invalidation per-row.
+ * Caller must handle final cache invalidation and user feedback.
+ */
+export function useCreateQuestionBulk() {
+  return useMutation({
+    mutationFn: async (question: QuestionInsert) => {
+      const questionWithAudit = await withCreatedBy(question);
+      const { data, error } = await supabase
+        .from("question_bank")
+        .insert(questionWithAudit)
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data as Question;
+    },
+    // NO onSuccess/onError callbacks - caller handles everything
+  });
+}
+
 export function useUpdateQuestion() {
   const queryClient = useQueryClient();
 
