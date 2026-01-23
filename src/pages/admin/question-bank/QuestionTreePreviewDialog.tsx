@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import {
   Building2,
   GraduationCap,
@@ -21,6 +22,8 @@ import {
   ChevronsUpDown,
   Search,
   X,
+  Loader2,
+  Database,
 } from "lucide-react";
 import { useQuestionsWithHierarchy } from "@/hooks/queries/useHierarchyResolver";
 import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
@@ -459,8 +462,20 @@ export function QuestionTreePreviewDialog({
 
           <div className="flex-1 overflow-y-auto pr-4 min-h-0">
             {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              <div className="flex flex-col items-center justify-center py-12 space-y-4">
+                <div className="relative">
+                  <Database className="h-12 w-12 text-muted-foreground/30" />
+                  <Loader2 className="h-6 w-6 animate-spin text-primary absolute -top-1 -right-1" />
+                </div>
+                <div className="text-center space-y-2">
+                  <p className="font-medium text-muted-foreground">Loading Question Bank...</p>
+                  <p className="text-sm text-muted-foreground/70">
+                    Fetching questions with full hierarchy data
+                  </p>
+                </div>
+                <div className="w-48">
+                  <Progress value={undefined} className="h-2 animate-pulse" />
+                </div>
               </div>
             ) : filteredTree.size === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
