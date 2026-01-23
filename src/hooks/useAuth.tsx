@@ -38,6 +38,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Only clear portal preference on sign out (preserve it on sign in)
           if (event === 'SIGNED_OUT') {
             sessionStorage.removeItem('activePortal');
+            sessionStorage.removeItem('proofPoint.lastCategory');
           }
         }
       }
@@ -78,6 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Clear all portal-related session storage
     sessionStorage.removeItem('activeEnrollmentId');
     sessionStorage.removeItem('activePortal');
+    sessionStorage.removeItem('proofPoint.lastCategory');
     // Sign out from Supabase
     await supabase.auth.signOut();
   };

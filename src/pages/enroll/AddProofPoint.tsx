@@ -20,6 +20,7 @@ import {
   useEnrollmentCanModifyField, 
   useEnrollmentIsTerminal 
 } from '@/hooks/queries/useEnrollmentExpertise';
+import { useProofPointCategoryPreference } from '@/hooks/useProofPointCategoryPreference';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { 
@@ -67,6 +68,9 @@ function AddProofPointContent() {
   const createProofPoint = useCreateProofPoint();
   const uploadFile = useUploadProofPointFile();
 
+  // Category persistence across proof point entries
+  const { lastCategory, saveCategory } = useProofPointCategoryPreference();
+
   // Lifecycle validation scoped to enrollment
   const contentCheck = useEnrollmentCanModifyField(activeEnrollmentId ?? undefined, 'content');
   const terminalState = useEnrollmentIsTerminal(activeEnrollmentId ?? undefined);
@@ -90,7 +94,7 @@ function AddProofPointContent() {
   const form = useForm<FormValues>({
     resolver: zodResolver(proofPointSchema),
     defaultValues: {
-      category: 'general',
+      category: lastCategory, // Use persisted category from session
       type: '',
       title: '',
       description: '',
@@ -215,7 +219,10 @@ function AddProofPointContent() {
                 <CardContent className="p-6">
                   <CategorySelector
                     value={category as 'general' | 'specialty_specific'}
-                    onChange={(v) => form.setValue('category', v)}
+                    onChange={(v) => {
+                      form.setValue('category', v);
+                      saveCategory(v); // Persist selection for next proof point
+                    }}
                     disabled={isSubmitting}
                   />
                 </CardContent>
