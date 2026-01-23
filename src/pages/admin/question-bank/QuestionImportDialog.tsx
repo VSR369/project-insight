@@ -1,6 +1,6 @@
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle } from "lucide-react";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle, SkipForward } from "lucide-react";
 
 import {
   Dialog,
@@ -71,6 +71,8 @@ interface ParsedQuestion {
   capability_tags: string[];
   expected_answer_guidance: string | null;
   isValid: boolean;
+  isSkipped: boolean;
+  skipReason: string | null;
   errors: string[];
 }
 
@@ -243,8 +245,14 @@ const validateQuestion = (
     errors.push("Question text must be 2000 characters or less");
   }
 
-  // Options validation - exactly 4 options required
-  if (data.options.length !== 4) {
+  // Options validation - exactly 4 options required, check for empty slots
+  const emptyOptionIndexes = data.options
+    .map((opt, i) => opt === "" ? (i + 1) : null)
+    .filter((n): n is number => n !== null);
+
+  if (emptyOptionIndexes.length > 0) {
+    errors.push(`Empty option(s): option_${emptyOptionIndexes.join(", option_")}`);
+  } else if (data.options.length !== 4) {
     errors.push(`Exactly 4 options are required (found ${data.options.length})`);
   }
 
@@ -366,7 +374,7 @@ export function QuestionImportDialog({
   // Fetch existing question count when parsed questions change
   React.useEffect(() => {
     const fetchExistingCount = async () => {
-      const validQuestions = parsedQuestions.filter(q => q.isValid && q.speciality_id);
+      const validQuestions = parsedQuestions.filter(q => q.isValid && !q.isSkipped && q.speciality_id);
       const uniqueSpecialityIds = [...new Set(validQuestions.map(q => q.speciality_id).filter((id): id is string => !!id))];
       
       if (uniqueSpecialityIds.length > 0) {
@@ -468,13 +476,45 @@ export function QuestionImportDialog({
       const sub_domain = String(row[3] || "").trim();
       const speciality = String(row[4] || "").trim();
 
+      // Check for skip conditions BEFORE validation
+      // Skip "Aspiring" level or blank expertise_level intentionally
+      const expertiseLevelLower = expertise_level.toLowerCase();
+      const isAspiringLevel = expertiseLevelLower.includes('aspiring') || 
+                             expertiseLevelLower.includes('level 0') ||
+                             expertiseLevelLower === '';
+      
+      if (isAspiringLevel) {
+        questions.push({
+          rowNumber,
+          industry_segment,
+          expertise_level,
+          proficiency_area,
+          sub_domain,
+          speciality,
+          speciality_id: null,
+          question_text: String(row[5] || "").trim(),
+          options: [],
+          correct_option: 0,
+          difficulty: null,
+          question_type: "",
+          usage_mode: "",
+          capability_tags: [],
+          expected_answer_guidance: null,
+          isValid: false,
+          isSkipped: true,
+          skipReason: expertise_level 
+            ? `Expertise level "${expertise_level}" excluded (Aspiring/Level 0)` 
+            : "Expertise level is blank - skipped by rule",
+          errors: [],
+        });
+        continue;
+      }
+
       // Extract question text (column 5)
       const question_text = String(row[5] || "").trim();
 
-      // Extract options dynamically based on detected option columns
-      const options = optionColumnIndexes
-        .map(idx => String(row[idx] || "").trim())
-        .filter(Boolean);
+      // Extract options dynamically - DO NOT filter(Boolean) to catch empty cells as validation errors
+      const options = optionColumnIndexes.map(idx => String(row[idx] || "").trim());
 
       // Extract remaining fields using dynamic indexes
       const correct_option = parseInt(String(row[correctOptionIndex] || "1"), 10);
@@ -527,6 +567,8 @@ export function QuestionImportDialog({
         capability_tags,
         expected_answer_guidance,
         isValid: errors.length === 0,
+        isSkipped: false,
+        skipReason: null,
         errors,
       });
     }
@@ -604,7 +646,7 @@ export function QuestionImportDialog({
 
   const handleImport = async () => {
     setShowConfirmDialog(false);
-    const validQuestions = parsedQuestions.filter((q) => q.isValid);
+    const validQuestions = parsedQuestions.filter((q) => q.isValid && !q.isSkipped);
     if (validQuestions.length === 0) return;
 
     const importStartTime = Date.now();
@@ -844,7 +886,7 @@ export function QuestionImportDialog({
     setIsImporting(false);
   };
 
-  // Export failed rows as Excel for debugging
+  // Export failed rows as Excel for debugging (post-import failures)
   const downloadFailedRows = () => {
     if (!importResults?.failures.length) return;
     
@@ -885,9 +927,70 @@ export function QuestionImportDialog({
     XLSX.writeFile(wb, `question_import_failures_${new Date().toISOString().split('T')[0]}.xlsx`);
   };
 
+  // Export invalid/skipped rows from preview (before import) for debugging
+  const downloadInvalidPreviewRows = () => {
+    const invalidRows = parsedQuestions.filter(q => !q.isValid || q.isSkipped);
+    if (invalidRows.length === 0) return;
+
+    const exportData = [
+      [
+        "Row", "Status", "Reason/Errors", 
+        "Industry Segment", "Expertise Level", "Proficiency Area", "Sub-Domain", "Speciality",
+        "Question Text (Preview)", "Option 1", "Option 2", "Option 3", "Option 4",
+        "Correct Option", "Difficulty", "Question Type", "Usage Mode", "Capability Tags"
+      ],
+      ...invalidRows.map(q => [
+        q.rowNumber,
+        q.isSkipped ? "Skipped" : "Invalid",
+        q.isSkipped ? q.skipReason : q.errors.join(" | "),
+        q.industry_segment,
+        q.expertise_level,
+        q.proficiency_area,
+        q.sub_domain,
+        q.speciality,
+        q.question_text.slice(0, 200),
+        q.options[0] || "(empty)",
+        q.options[1] || "(empty)",
+        q.options[2] || "(empty)",
+        q.options[3] || "(empty)",
+        q.correct_option,
+        q.difficulty || "",
+        q.question_type,
+        q.usage_mode,
+        q.capability_tags.join(", "),
+      ])
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(exportData);
+    ws["!cols"] = [
+      { wch: 6 },   // Row
+      { wch: 10 },  // Status
+      { wch: 60 },  // Reason/Errors
+      { wch: 35 },  // Industry
+      { wch: 50 },  // Expertise
+      { wch: 30 },  // Proficiency
+      { wch: 25 },  // Sub-Domain
+      { wch: 35 },  // Speciality
+      { wch: 50 },  // Question
+      { wch: 25 },  // Opt 1
+      { wch: 25 },  // Opt 2
+      { wch: 25 },  // Opt 3
+      { wch: 25 },  // Opt 4
+      { wch: 12 },  // Correct
+      { wch: 15 },  // Difficulty
+      { wch: 15 },  // Type
+      { wch: 15 },  // Mode
+      { wch: 30 },  // Tags
+    ];
+
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Invalid & Skipped Rows");
+    XLSX.writeFile(wb, `question_import_issues_${new Date().toISOString().split('T')[0]}.xlsx`);
+  };
+
   // Get unique speciality count for display
   const uniqueSpecialityCount = React.useMemo(() => {
-    const validQuestions = parsedQuestions.filter(q => q.isValid && q.speciality_id);
+    const validQuestions = parsedQuestions.filter(q => q.isValid && !q.isSkipped && q.speciality_id);
     return new Set(validQuestions.map(q => q.speciality_id)).size;
   }, [parsedQuestions]);
 
@@ -929,19 +1032,46 @@ export function QuestionImportDialog({
     XLSX.writeFile(workbook, "question_import_template.xlsx");
   };
 
-  const validCount = parsedQuestions.filter((q) => q.isValid).length;
-  const invalidCount = parsedQuestions.filter((q) => !q.isValid).length;
+  const validCount = parsedQuestions.filter((q) => q.isValid && !q.isSkipped).length;
+  const invalidCount = parsedQuestions.filter((q) => !q.isValid && !q.isSkipped).length;
+  const skippedCount = parsedQuestions.filter((q) => q.isSkipped).length;
+
+  // Group errors by type for error summary panel
+  const errorSummary = React.useMemo(() => {
+    const summary: Record<string, number> = {};
+    parsedQuestions
+      .filter(q => !q.isValid && !q.isSkipped)
+      .forEach(q => {
+        q.errors.forEach(err => {
+          // Normalize similar errors for grouping
+          const key = err.replace(/Row \d+/g, '').replace(/option_\d+/g, 'option_N').trim();
+          summary[key] = (summary[key] || 0) + 1;
+        });
+      });
+    return Object.entries(summary)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10); // Top 10 error types
+  }, [parsedQuestions]);
 
   // Group by speciality for summary
   const specialitySummary = React.useMemo(() => {
-    const summary: Record<string, { valid: number; invalid: number; path: string }> = {};
+    const summary: Record<string, { valid: number; invalid: number; skipped: number; path: string }> = {};
     parsedQuestions.forEach((q) => {
+      if (q.isSkipped) {
+        const key = "(Skipped)";
+        if (!summary[key]) {
+          summary[key] = { valid: 0, invalid: 0, skipped: 0, path: q.skipReason || "Skipped by rule" };
+        }
+        summary[key].skipped++;
+        return;
+      }
+      
       const key = q.speciality || "(No speciality)";
       const path = q.speciality_id 
         ? `${q.industry_segment} → ${q.proficiency_area} → ${q.sub_domain} → ${q.speciality}`
         : q.speciality || "(Invalid path)";
       if (!summary[key]) {
-        summary[key] = { valid: 0, invalid: 0, path };
+        summary[key] = { valid: 0, invalid: 0, skipped: 0, path };
       }
       if (q.isValid) {
         summary[key].valid++;
@@ -1031,7 +1161,7 @@ export function QuestionImportDialog({
           {/* Parsed Questions Preview */}
           {parsedQuestions.length > 0 && !importResults && (
             <div className="space-y-4">
-              {/* Summary */}
+              {/* Summary Badges */}
               <div className="flex items-center gap-4 flex-wrap">
                 <Badge variant="default" className="bg-green-500">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
@@ -1043,12 +1173,58 @@ export function QuestionImportDialog({
                     {invalidCount} with errors
                   </Badge>
                 )}
+                {skippedCount > 0 && (
+                  <Badge variant="outline" className="border-amber-500 text-amber-600">
+                    {skippedCount} skipped (by rule)
+                  </Badge>
+                )}
                 {existingQuestionCount > 0 && (
                   <Badge variant="secondary">
                     {existingQuestionCount} existing in DB (affected specialities)
                   </Badge>
                 )}
               </div>
+
+              {/* Error Summary Panel - Top Error Types */}
+              {(invalidCount > 0 || skippedCount > 0) && (
+                <div className="p-3 border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 rounded-lg">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-red-700 dark:text-red-400">
+                      {invalidCount > 0 ? `Error Summary (${invalidCount} invalid` : 'Rows Summary ('}
+                      {skippedCount > 0 && invalidCount > 0 && ', '}
+                      {skippedCount > 0 && `${skippedCount} skipped`}):
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={downloadInvalidPreviewRows}
+                      className="h-7 text-xs"
+                    >
+                      <Download className="h-3 w-3 mr-1" />
+                      Download Issues
+                    </Button>
+                  </div>
+                  {errorSummary.length > 0 && (
+                    <div className="space-y-1 text-sm">
+                      {errorSummary.map(([errorType, count]) => (
+                        <div key={errorType} className="flex items-center justify-between">
+                          <span className="text-red-600 dark:text-red-300 truncate max-w-[85%]" title={errorType}>
+                            • {errorType}
+                          </span>
+                          <Badge variant="destructive" className="ml-2">{count}</Badge>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {skippedCount > 0 && (
+                    <div className="mt-2 pt-2 border-t border-red-200 dark:border-red-800">
+                      <span className="text-amber-600 dark:text-amber-400 text-sm">
+                        • {skippedCount} rows skipped (Aspiring/Level 0 excluded by rule)
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Import Mode Selection */}
               <div className="p-4 border rounded-lg bg-muted/30">
@@ -1095,16 +1271,15 @@ export function QuestionImportDialog({
                   <p className="text-sm font-medium mb-2">Questions by Speciality ({uniqueSpecialityCount} specialities):</p>
                   <ScrollArea className="max-h-[120px]">
                     <div className="space-y-1">
-                      {Object.entries(specialitySummary).map(([key, { valid, invalid, path }]) => (
+                      {Object.entries(specialitySummary).map(([key, { valid, invalid, skipped, path }]) => (
                         <div key={key} className="flex items-center justify-between text-sm">
                           <span className="text-muted-foreground truncate max-w-[70%]" title={path}>
                             {path}
                           </span>
                           <div className="flex items-center gap-2">
-                            <span className="text-green-600">{valid} valid</span>
-                            {invalid > 0 && (
-                              <span className="text-red-600">{invalid} errors</span>
-                            )}
+                            {valid > 0 && <span className="text-green-600">{valid} valid</span>}
+                            {invalid > 0 && <span className="text-red-600">{invalid} errors</span>}
+                            {skipped > 0 && <span className="text-amber-600">{skipped} skipped</span>}
                           </div>
                         </div>
                       ))}
@@ -1128,17 +1303,30 @@ export function QuestionImportDialog({
                   </TableHeader>
                   <TableBody>
                     {parsedQuestions.map((q) => (
-                      <TableRow key={q.rowNumber} className={!q.isValid ? "bg-red-50 dark:bg-red-950/20" : ""}>
+                      <TableRow 
+                        key={q.rowNumber} 
+                        className={
+                          q.isSkipped 
+                            ? "bg-amber-50 dark:bg-amber-950/20" 
+                            : !q.isValid 
+                              ? "bg-red-50 dark:bg-red-950/20" 
+                              : ""
+                        }
+                      >
                         <TableCell className="font-mono">{q.rowNumber}</TableCell>
                         <TableCell>
-                          {q.isValid ? (
+                          {q.isSkipped ? (
+                            <SkipForward className="h-4 w-4 text-amber-500" />
+                          ) : q.isValid ? (
                             <CheckCircle2 className="h-4 w-4 text-green-500" />
                           ) : (
                             <AlertCircle className="h-4 w-4 text-red-500" />
                           )}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
-                          {q.speciality_id ? (
+                          {q.isSkipped ? (
+                            <span className="text-amber-600">{q.expertise_level || "(blank)"}</span>
+                          ) : q.speciality_id ? (
                             <span className="text-green-700 dark:text-green-400">
                               {q.speciality}
                             </span>
@@ -1150,9 +1338,13 @@ export function QuestionImportDialog({
                           {q.question_text.slice(0, 60)}
                           {q.question_text.length > 60 && "..."}
                         </TableCell>
-                        <TableCell>{q.options.length} options</TableCell>
+                        <TableCell>
+                          {q.isSkipped ? "-" : `${q.options.length} options`}
+                        </TableCell>
                         <TableCell className="max-w-xs">
-                          {q.errors.length > 0 && (
+                          {q.isSkipped ? (
+                            <span className="text-xs text-amber-600">{q.skipReason}</span>
+                          ) : q.errors.length > 0 && (
                             <ul className="text-xs text-red-600 space-y-0.5">
                               {q.errors.slice(0, 2).map((err, i) => (
                                 <li key={i}>• {err}</li>
@@ -1180,7 +1372,7 @@ export function QuestionImportDialog({
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">
-                    Importing... {importProgress}% ({Math.round((importProgress / 100) * parsedQuestions.filter(q => q.isValid).length)} of {parsedQuestions.filter(q => q.isValid).length})
+                    Importing... {importProgress}% ({Math.round((importProgress / 100) * parsedQuestions.filter(q => q.isValid && !q.isSkipped).length)} of {parsedQuestions.filter(q => q.isValid && !q.isSkipped).length})
                   </p>
                   {currentRowInfo && (
                     <p className="text-xs text-muted-foreground truncate max-w-md" title={currentRowInfo}>

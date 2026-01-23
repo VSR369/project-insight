@@ -135,7 +135,7 @@ export function resolveHierarchy(
   );
   if (!proficiencyArea) {
     errors.push(
-      `Proficiency area "${proficiencyAreaName}" not found for "${industrySegmentName}" + "${expertiseLevelName}"`
+      `Proficiency area "${proficiencyAreaName}" not found for "${industrySegmentName}" at expertise level "${expertiseLevelName}". Verify this area exists in the taxonomy.`
     );
     return { specialityId: null, errors, resolvedPath };
   }
@@ -149,7 +149,7 @@ export function resolveHierarchy(
   );
   if (!subDomain) {
     errors.push(
-      `Sub-domain "${subDomainName}" not found under "${proficiencyAreaName}"`
+      `Sub-domain "${subDomainName}" not found under proficiency area "${proficiencyAreaName}" for "${expertiseLevelName}". Check sub-domain spelling.`
     );
     return { specialityId: null, errors, resolvedPath };
   }
@@ -163,7 +163,7 @@ export function resolveHierarchy(
   );
   if (!speciality) {
     errors.push(
-      `Speciality "${specialityName}" not found under "${subDomainName}"`
+      `Speciality "${specialityName}" not found under sub-domain "${subDomainName}" for "${expertiseLevelName}". Verify speciality exists for this level.`
     );
     return { specialityId: null, errors, resolvedPath };
   }
