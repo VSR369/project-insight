@@ -73,7 +73,7 @@ function AddProofPointContent() {
   const isTerminal = terminalState.isTerminal;
   const isContentLocked = !contentCheck.allowed || isTerminal;
 
-  const [selectedSpecialityIds, setSelectedSpecialityIds] = useState<string[]>([]);
+  const [selectedSpecialityId, setSelectedSpecialityId] = useState<string | null>(null);
   const [links, setLinks] = useState<Array<{ url: string; title: string; description: string }>>([]);
   const [files, setFiles] = useState<UploadedFile[]>([]);
 
@@ -127,7 +127,7 @@ function AddProofPointContent() {
         type: values.type as ProofPointType,
         title: values.title,
         description: values.description,
-        specialityIds: values.category === 'specialty_specific' ? selectedSpecialityIds : [],
+        specialityIds: values.category === 'specialty_specific' && selectedSpecialityId ? [selectedSpecialityId] : [],
         links: validLinks,
       });
 
@@ -224,8 +224,8 @@ function AddProofPointContent() {
                   <CardContent>
                     <SpecialityTreeSelector
                       taxonomy={taxonomy}
-                      selectedSpecialityIds={selectedSpecialityIds}
-                      onChange={setSelectedSpecialityIds}
+                      selectedSpecialityId={selectedSpecialityId}
+                      onChange={setSelectedSpecialityId}
                       disabled={isSubmitting}
                       loading={taxonomyLoading}
                     />

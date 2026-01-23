@@ -1,10 +1,11 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ChevronRight, ChevronDown, Folder, Tag, Info } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronRight, ChevronDown, Folder, Tag, Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
 interface Speciality {
@@ -29,70 +30,80 @@ interface ProficiencyArea {
 
 interface SpecialityTreeSelectorProps {
   taxonomy: ProficiencyArea[];
-  selectedSpecialityIds: string[];
-  onChange: (ids: string[]) => void;
+  selectedSpecialityId: string | null;
+  onChange: (id: string | null) => void;
   disabled?: boolean;
   loading?: boolean;
 }
 
 export function SpecialityTreeSelector({
   taxonomy,
-  selectedSpecialityIds,
+  selectedSpecialityId,
   onChange,
   disabled,
   loading,
 }: SpecialityTreeSelectorProps) {
   const [expandedSubDomains, setExpandedSubDomains] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<string>(taxonomy[0]?.id || '');
+  const [activeTab, setActiveTab] = useState<string>('');
 
-  // Calculate counts per area
-  const areaCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    taxonomy.forEach((area) => {
-      let count = 0;
-      area.subDomains.forEach((sd) => {
-        sd.specialities.forEach((sp) => {
-          if (selectedSpecialityIds.includes(sp.id)) {
-            count++;
-          }
-        });
-      });
-      counts[area.id] = count;
-    });
-    return counts;
-  }, [taxonomy, selectedSpecialityIds]);
+  // Sync activeTab when taxonomy changes - fixes the "jumping" bug
+  useEffect(() => {
+    if (taxonomy.length > 0) {
+      const validIds = taxonomy.map(a => a.id);
+      if (!activeTab || !validIds.includes(activeTab)) {
+        setActiveTab(taxonomy[0].id);
+      }
+    }
+  }, [taxonomy, activeTab]);
+
+  // Find which area contains the selected speciality for badge display
+  const selectedAreaId = useMemo(() => {
+    if (!selectedSpecialityId) return null;
+    for (const area of taxonomy) {
+      for (const sd of area.subDomains) {
+        if (sd.specialities.some(sp => sp.id === selectedSpecialityId)) {
+          return area.id;
+        }
+      }
+    }
+    return null;
+  }, [taxonomy, selectedSpecialityId]);
+
+  // Get selected speciality name for display
+  const selectedSpecialityName = useMemo(() => {
+    if (!selectedSpecialityId) return null;
+    for (const area of taxonomy) {
+      for (const sd of area.subDomains) {
+        const sp = sd.specialities.find(s => s.id === selectedSpecialityId);
+        if (sp) return sp.name;
+      }
+    }
+    return null;
+  }, [taxonomy, selectedSpecialityId]);
 
   const toggleSubDomain = (subDomainId: string) => {
-    const newExpanded = new Set(expandedSubDomains);
-    if (newExpanded.has(subDomainId)) {
-      newExpanded.delete(subDomainId);
-    } else {
-      newExpanded.add(subDomainId);
-    }
-    setExpandedSubDomains(newExpanded);
+    setExpandedSubDomains(prev => {
+      const newExpanded = new Set(prev);
+      if (newExpanded.has(subDomainId)) {
+        newExpanded.delete(subDomainId);
+      } else {
+        newExpanded.add(subDomainId);
+      }
+      return newExpanded;
+    });
   };
 
-  const toggleSpeciality = (specialityId: string) => {
-    const newIds = selectedSpecialityIds.includes(specialityId)
-      ? selectedSpecialityIds.filter((id) => id !== specialityId)
-      : [...selectedSpecialityIds, specialityId];
-    onChange(newIds);
+  const handleSpecialitySelect = (specialityId: string) => {
+    // Toggle selection - if already selected, deselect
+    if (selectedSpecialityId === specialityId) {
+      onChange(null);
+    } else {
+      onChange(specialityId);
+    }
   };
 
-  const toggleAllInSubDomain = (subDomain: SubDomain) => {
-    const subDomainSpecialityIds = subDomain.specialities.map((s) => s.id);
-    const allSelected = subDomainSpecialityIds.every((id) =>
-      selectedSpecialityIds.includes(id)
-    );
-
-    if (allSelected) {
-      // Deselect all
-      onChange(selectedSpecialityIds.filter((id) => !subDomainSpecialityIds.includes(id)));
-    } else {
-      // Select all
-      const newIds = new Set([...selectedSpecialityIds, ...subDomainSpecialityIds]);
-      onChange(Array.from(newIds));
-    }
+  const handleClearSelection = () => {
+    onChange(null);
   };
 
   if (loading) {
@@ -119,18 +130,29 @@ export function SpecialityTreeSelector({
   return (
     <div className="space-y-4">
       <div>
-        <Label className="text-base font-medium">Select Your Declared Expertise Areas</Label>
+        <Label className="text-base font-medium">Select One Speciality for This Proof Point</Label>
         <p className="text-xs text-muted-foreground mt-1">
-          Optionally tag this proof point with your specialities. Selection is optional.
+          Choose the most relevant speciality. You can create multiple proof points for different specialities.
         </p>
       </div>
 
-      {selectedSpecialityIds.length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-muted-foreground">Selected:</span>
-          <Badge variant="secondary" className="text-xs">
-            {selectedSpecialityIds.length} specialit{selectedSpecialityIds.length !== 1 ? 'ies' : 'y'}
-          </Badge>
+      {selectedSpecialityId && selectedSpecialityName && (
+        <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg border border-primary/20">
+          <Tag className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-medium flex-1">
+            Selected: {selectedSpecialityName}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleClearSelection}
+            disabled={disabled}
+            className="h-6 px-2 text-xs gap-1"
+          >
+            <X className="h-3 w-3" />
+            Clear
+          </Button>
         </div>
       )}
 
@@ -146,9 +168,9 @@ export function SpecialityTreeSelector({
                   className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent px-4 py-3"
                 >
                   <span className="truncate max-w-[120px]">{area.name}</span>
-                  {areaCounts[area.id] > 0 && (
-                    <Badge variant="secondary" className="ml-2 text-xs h-5 min-w-5">
-                      {areaCounts[area.id]}
+                  {selectedAreaId === area.id && (
+                    <Badge variant="default" className="ml-2 text-xs h-5 min-w-5 bg-primary">
+                      1
                     </Badge>
                   )}
                 </TabsTrigger>
@@ -161,80 +183,72 @@ export function SpecialityTreeSelector({
                 value={area.id} 
                 className="m-0 p-4 max-h-[400px] overflow-y-auto"
               >
-                <div className="space-y-2">
-                  {area.subDomains.map((subDomain) => {
-                    const isExpanded = expandedSubDomains.has(subDomain.id);
-                    const subDomainSpecialityIds = subDomain.specialities.map((s) => s.id);
-                    const selectedCount = subDomainSpecialityIds.filter((id) =>
-                      selectedSpecialityIds.includes(id)
-                    ).length;
-                    const allSelected = selectedCount === subDomainSpecialityIds.length && subDomainSpecialityIds.length > 0;
-                    const someSelected = selectedCount > 0 && !allSelected;
+                <RadioGroup
+                  value={selectedSpecialityId || ''}
+                  onValueChange={handleSpecialitySelect}
+                  disabled={disabled}
+                >
+                  <div className="space-y-2">
+                    {area.subDomains.map((subDomain) => {
+                      const isExpanded = expandedSubDomains.has(subDomain.id);
+                      const hasSelectedSpeciality = subDomain.specialities.some(
+                        sp => sp.id === selectedSpecialityId
+                      );
 
-                    return (
-                      <div key={subDomain.id} className="border rounded-lg">
-                        {/* Sub-domain Header */}
-                        <div
-                          className={`flex items-center gap-2 p-3 cursor-pointer hover:bg-muted/50 ${
-                            disabled ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                          onClick={() => !disabled && toggleSubDomain(subDomain.id)}
-                        >
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
-                          <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
-                          <span className="text-sm font-medium flex-1 truncate">
-                            {subDomain.name}
-                          </span>
-                          {selectedCount > 0 && (
-                            <Badge variant="secondary" className="text-xs shrink-0">
-                              {selectedCount}/{subDomainSpecialityIds.length}
-                            </Badge>
-                          )}
-                          <Checkbox
-                            checked={allSelected}
-                            ref={(el) => {
-                              if (el && someSelected) {
-                                (el as HTMLButtonElement).dataset.state = 'indeterminate';
-                              }
-                            }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              if (!disabled) toggleAllInSubDomain(subDomain);
-                            }}
-                            disabled={disabled}
-                            className="shrink-0"
-                          />
-                        </div>
-
-                        {/* Specialities */}
-                        {isExpanded && subDomain.specialities.length > 0 && (
-                          <div className="border-t bg-muted/20 p-3 pl-10 space-y-2">
-                            {subDomain.specialities.map((speciality) => (
-                              <label
-                                key={speciality.id}
-                                className={`flex items-center gap-2 py-1 cursor-pointer ${
-                                  disabled ? 'opacity-50 cursor-not-allowed' : ''
-                                }`}
-                              >
-                                <Checkbox
-                                  checked={selectedSpecialityIds.includes(speciality.id)}
-                                  onCheckedChange={() => !disabled && toggleSpeciality(speciality.id)}
-                                  disabled={disabled}
-                                />
-                                <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
-                                <span className="text-sm">{speciality.name}</span>
-                              </label>
-                            ))}
+                      return (
+                        <div key={subDomain.id} className="border rounded-lg">
+                          {/* Sub-domain Header (expandable only, no checkbox) */}
+                          <div
+                            className={`flex items-center gap-2 p-3 cursor-pointer hover:bg-muted/50 ${
+                              disabled ? 'opacity-50 cursor-not-allowed' : ''
+                            } ${hasSelectedSpeciality ? 'bg-primary/5' : ''}`}
+                            onClick={() => !disabled && toggleSubDomain(subDomain.id)}
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                            )}
+                            <Folder className="h-4 w-4 text-muted-foreground shrink-0" />
+                            <span className="text-sm font-medium flex-1 truncate">
+                              {subDomain.name}
+                            </span>
+                            {hasSelectedSpeciality && (
+                              <Badge variant="secondary" className="text-xs shrink-0">
+                                Selected
+                              </Badge>
+                            )}
+                            <span className="text-xs text-muted-foreground shrink-0">
+                              {subDomain.specialities.length} specialit{subDomain.specialities.length !== 1 ? 'ies' : 'y'}
+                            </span>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+
+                          {/* Specialities with Radio Buttons */}
+                          {isExpanded && subDomain.specialities.length > 0 && (
+                            <div className="border-t bg-muted/20 p-3 pl-10 space-y-2">
+                              {subDomain.specialities.map((speciality) => (
+                                <label
+                                  key={speciality.id}
+                                  className={`flex items-center gap-3 py-2 px-2 cursor-pointer rounded-md transition-colors ${
+                                    disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-muted/50'
+                                  } ${selectedSpecialityId === speciality.id ? 'bg-primary/10 border border-primary/20' : ''}`}
+                                >
+                                  <RadioGroupItem
+                                    value={speciality.id}
+                                    disabled={disabled}
+                                    className="shrink-0"
+                                  />
+                                  <Tag className="h-3 w-3 text-muted-foreground shrink-0" />
+                                  <span className="text-sm">{speciality.name}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </RadioGroup>
               </TabsContent>
             ))}
           </Tabs>
