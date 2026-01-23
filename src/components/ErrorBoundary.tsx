@@ -360,7 +360,8 @@ export function FeatureErrorBoundary({
         setCorrelationId(corrId);
         setHasError(true);
       }}
-      fallback={<></>} // Handled by parent state
+      showRetry={false}
+      showHomeLink={false}
     >
       {children}
     </ErrorBoundary>

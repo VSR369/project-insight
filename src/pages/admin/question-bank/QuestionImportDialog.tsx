@@ -1076,23 +1076,26 @@ export function QuestionImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <FileSpreadsheet className="h-5 w-5" />
-            Import Questions
-          </DialogTitle>
-          <DialogDescription>
-            Upload an Excel file to bulk import questions. The file must include hierarchy columns
-            (industry segment, expertise level, proficiency area, sub-domain, speciality) for each question.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-w-5xl max-h-[90vh] flex flex-col p-0 gap-0">
+        {/* Fixed Header */}
+        <div className="flex-shrink-0 p-6 pb-4 border-b">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5" />
+              Import Questions
+            </DialogTitle>
+            <DialogDescription>
+              Upload an Excel file to bulk import questions. The file must include hierarchy columns
+              (industry segment, expertise level, proficiency area, sub-domain, speciality) for each question.
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
         {/* ══════════════════════════════════════════════════════════════════
             FIXED STATUS BAR - Always visible above scroll area
             Shows current state: loading, ready, importing, or complete
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex-shrink-0 space-y-3">
+        <div className="flex-shrink-0 px-6 py-3 space-y-3 border-b bg-muted/30">
           {/* Hierarchy Loading State */}
           {hierarchyLoading && (
             <Alert>
@@ -1192,9 +1195,10 @@ export function QuestionImportDialog({
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════
-            SCROLLABLE CONTENT AREA
+            SCROLLABLE CONTENT AREA - Using ScrollArea for proper scrolling
         ══════════════════════════════════════════════════════════════════ */}
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-4">
+        <ScrollArea className="flex-1 min-h-0">
+          <div className="p-6 space-y-4">
 
           {/* Template Download */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
@@ -1496,10 +1500,12 @@ export function QuestionImportDialog({
               </ScrollArea>
             </div>
           )}
-        </div>
+          </div>
+        </ScrollArea>
 
-        <DialogFooter className="flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">v2026-01-23</span>
+        {/* Fixed Footer */}
+        <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">v2026-01-23.2</span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {importResults ? "Close" : "Cancel"}
