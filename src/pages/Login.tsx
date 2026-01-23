@@ -94,6 +94,15 @@ export default function Login() {
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
 
+  // IMPORTANT: All hooks must be called before any conditional returns
+  const form = useForm<LoginFormData>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: '',
+      password: '',
+    },
+  });
+
   // Check if already logged in and redirect based on roles (async)
   useEffect(() => {
     const checkAndRedirect = async () => {
@@ -155,24 +164,14 @@ export default function Login() {
     checkAndRedirect();
   }, [user, navigate]);
 
-  // Show loading spinner while checking session
-  if (user || isCheckingSession) {
-    if (user) {
-      return (
-        <div className="flex h-screen w-full items-center justify-center bg-background">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      );
-    }
+  // Show loading spinner while user is logged in (redirecting)
+  if (user) {
+    return (
+      <div className="flex h-screen w-full items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
   }
-
-  const form = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: '',
-      password: '',
-    },
-  });
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
