@@ -167,7 +167,11 @@ export function ProficiencyTaxonomyPage() {
   // Queries
   const { data: expertiseLevels = [] } = useExpertiseLevels(showInactive);
   const { data: industrySegments = [], isLoading: segmentsLoading } = useIndustrySegments(showInactive);
-  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(selectedIndustrySegmentId, selectedExpertiseLevelId, showInactive);
+  const { data: proficiencyAreas = [], isLoading: areasLoading } = useProficiencyAreasAdmin(
+    selectedIndustrySegmentId, 
+    selectedExpertiseLevelId === "ALL" ? undefined : selectedExpertiseLevelId, 
+    showInactive
+  );
   const { data: subDomains = [], isLoading: subDomainsLoading } = useSubDomainsAdmin(selectedProficiencyAreaId, showInactive);
   const { data: specialities = [], isLoading: specialitiesLoading } = useSpecialitiesAdmin(selectedSubDomainId, showInactive);
 
@@ -208,11 +212,21 @@ export function ProficiencyTaxonomyPage() {
   }, [selectedProficiencyAreaId]);
 
   // Get selected items for display
-  const selectedLevel = expertiseLevels.find(l => l.id === selectedExpertiseLevelId);
+  const isAllLevelsSelected = selectedExpertiseLevelId === "ALL";
+  const selectedLevel = isAllLevelsSelected ? null : expertiseLevels.find(l => l.id === selectedExpertiseLevelId);
 
   // ===================== PROFICIENCY AREAS =====================
   const areaColumns: DataTableColumn<ProficiencyArea>[] = [
     { accessorKey: "name", header: "Name" },
+    // Show Expertise Level column when "All Levels" is selected
+    ...(isAllLevelsSelected ? [{
+      accessorKey: "expertise_level_id" as const,
+      header: "Expertise Level",
+      cell: (_value: unknown, row: ProficiencyArea) => {
+        const level = expertiseLevels.find(l => l.id === row.expertise_level_id);
+        return <Badge variant="outline">{level?.name || "Unknown"}</Badge>;
+      },
+    }] : []),
     {
       accessorKey: "description",
       header: "Description",
@@ -274,7 +288,7 @@ export function ProficiencyTaxonomyPage() {
   ];
 
   const handleAreaSubmit = async (data: z.infer<typeof proficiencyAreaSchema>) => {
-    if (areaFormMode === "create" && selectedIndustrySegmentId && selectedExpertiseLevelId) {
+    if (areaFormMode === "create" && selectedIndustrySegmentId && selectedExpertiseLevelId && !isAllLevelsSelected) {
       await createAreaMutation.mutateAsync({
         name: data.name,
         description: data.description,
@@ -510,7 +524,8 @@ export function ProficiencyTaxonomyPage() {
                 variant="default" 
                 size="sm" 
                 onClick={() => setTreePreviewOpen(true)}
-                disabled={!selectedIndustrySegmentId || !selectedExpertiseLevelId}
+                disabled={!selectedIndustrySegmentId || !selectedExpertiseLevelId || isAllLevelsSelected}
+                title={isAllLevelsSelected ? "Select a specific level to preview tree" : ""}
               >
                 <Eye className="h-4 w-4 mr-2" />
                 Preview Tree
@@ -561,10 +576,14 @@ export function ProficiencyTaxonomyPage() {
                     if (value) setActiveTab("proficiency-areas");
                   }}
                 >
-                  <SelectTrigger className="w-[200px] bg-background">
+                  <SelectTrigger className="w-[280px] bg-background">
                     <SelectValue placeholder="Select level..." />
                   </SelectTrigger>
                   <SelectContent className="bg-background z-50">
+                    <SelectItem value="ALL">
+                      All Levels
+                    </SelectItem>
+                    <div className="h-px bg-border my-1" />
                     {expertiseLevels.map((level) => (
                       <SelectItem key={level.id} value={level.id}>
                         {level.name}
@@ -585,11 +604,11 @@ export function ProficiencyTaxonomyPage() {
                   {selectedSegment.name}
                 </Badge>
               )}
-              {selectedLevel && (
+              {selectedExpertiseLevelId && (
                 <>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   <Badge variant="secondary">
-                    {selectedLevel.name}
+                    {isAllLevelsSelected ? "All Levels" : selectedLevel?.name}
                   </Badge>
                 </>
               )}
@@ -659,7 +678,7 @@ export function ProficiencyTaxonomyPage() {
                   searchPlaceholder="Search proficiency areas..."
                   searchKey="name"
                   isLoading={areasLoading}
-                  onAdd={() => {
+                  onAdd={isAllLevelsSelected ? undefined : () => {
                     setEditingArea(null);
                     setAreaFormMode("create");
                     setAreaFormOpen(true);
