@@ -437,12 +437,13 @@ export function useCanStartEnrollmentAssessment(enrollmentId?: string, providerI
         };
       }
 
-      // If in progress, don't allow starting new
+      // If lifecycle says in progress, verify there's actually an active attempt
+      // (handles stale status where attempt expired/cleared but status not updated)
       if (enrollment.lifecycle_status === 'assessment_in_progress') {
-        return { 
-          allowed: false, 
-          reason: 'You have an active assessment in progress' 
-        };
+        // We already checked for active attempts above (lines 389-418)
+        // If we're here, no valid active attempt was found (expired or doesn't exist)
+        // The lifecycle status is stale - allow starting a new assessment
+        // The startAssessment mutation will reset the status properly
       }
 
       return { allowed: true };
