@@ -3,6 +3,12 @@ import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
 import { QuestionCard } from './QuestionCard';
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 interface QuestionOption {
   index: number;
@@ -45,6 +51,9 @@ interface QuestionSectionProps {
   // Controlled open state from parent
   openSections: Record<string, boolean>;
   onToggleSection: (sectionId: string) => void;
+  // Breadcrumb context
+  industrySegmentName?: string;
+  expertiseLevelName?: string;
 }
 
 export function QuestionSection({
@@ -56,6 +65,8 @@ export function QuestionSection({
   registerQuestionRef,
   openSections,
   onToggleSection,
+  industrySegmentName,
+  expertiseLevelName,
 }: QuestionSectionProps) {
   const isOpen = openSections[`area-${proficiencyArea.id}`] ?? true;
 
@@ -73,6 +84,28 @@ export function QuestionSection({
       onOpenChange={() => onToggleSection(`area-${proficiencyArea.id}`)} 
       className="mb-6"
     >
+      {/* Breadcrumb Header */}
+      {(industrySegmentName || expertiseLevelName) && (
+        <Breadcrumb className="mb-2">
+          <BreadcrumbList className="text-xs text-muted-foreground">
+            {industrySegmentName && (
+              <BreadcrumbItem>
+                <span className="text-foreground/70">{industrySegmentName}</span>
+              </BreadcrumbItem>
+            )}
+            {industrySegmentName && expertiseLevelName && <BreadcrumbSeparator />}
+            {expertiseLevelName && (
+              <BreadcrumbItem>
+                <span className="text-foreground/70">{expertiseLevelName}</span>
+              </BreadcrumbItem>
+            )}
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <span className="font-medium text-foreground">{proficiencyArea.name}</span>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+      )}
       {/* Proficiency Area Header */}
       <CollapsibleTrigger asChild>
         <div className="flex items-center justify-between p-4 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-lg cursor-pointer hover:opacity-95 transition-opacity">

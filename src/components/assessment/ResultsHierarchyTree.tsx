@@ -14,6 +14,12 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { QuestionResultCard } from './QuestionResultCard';
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import {
   type AssessmentResultsHierarchy,
   type ProficiencyAreaScoreNode,
   type SubDomainScoreNode,
@@ -24,9 +30,16 @@ import {
 interface ResultsHierarchyTreeProps {
   hierarchy: AssessmentResultsHierarchy;
   showQuestions?: boolean;
+  industrySegmentName?: string;
+  expertiseLevelName?: string;
 }
 
-export function ResultsHierarchyTree({ hierarchy, showQuestions = true }: ResultsHierarchyTreeProps) {
+export function ResultsHierarchyTree({ 
+  hierarchy, 
+  showQuestions = true,
+  industrySegmentName,
+  expertiseLevelName,
+}: ResultsHierarchyTreeProps) {
   const [expandedAreas, setExpandedAreas] = useState<Set<string>>(new Set());
   const [expandedSubDomains, setExpandedSubDomains] = useState<Set<string>>(new Set());
   const [expandedSpecialities, setExpandedSpecialities] = useState<Set<string>>(new Set());
@@ -96,10 +109,30 @@ export function ResultsHierarchyTree({ hierarchy, showQuestions = true }: Result
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Target className="h-5 w-5 text-primary" />
-            Performance Breakdown
-          </CardTitle>
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Target className="h-5 w-5 text-primary" />
+              Performance Breakdown
+            </CardTitle>
+            {/* Breadcrumb showing Industry > Expertise context */}
+            {(industrySegmentName || expertiseLevelName) && (
+              <Breadcrumb className="mt-2">
+                <BreadcrumbList className="text-xs text-muted-foreground">
+                  {industrySegmentName && (
+                    <BreadcrumbItem>
+                      <span>{industrySegmentName}</span>
+                    </BreadcrumbItem>
+                  )}
+                  {industrySegmentName && expertiseLevelName && <BreadcrumbSeparator />}
+                  {expertiseLevelName && (
+                    <BreadcrumbItem>
+                      <span>{expertiseLevelName}</span>
+                    </BreadcrumbItem>
+                  )}
+                </BreadcrumbList>
+              </Breadcrumb>
+            )}
+          </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={expandAll}>
               Expand All
