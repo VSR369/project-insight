@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export interface CapabilityTag {
   id: string;
@@ -11,6 +12,13 @@ export interface CapabilityTag {
   is_active: boolean;
   created_at: string;
   updated_at: string | null;
+}
+
+// Result from bulk upsert RPC
+export interface BulkUpsertTagResult {
+  name: string;
+  id: string;
+  was_created: boolean;
 }
 
 export interface CapabilityTagInsert {
@@ -204,6 +212,71 @@ export function useUpdateQuestionCapabilityTags() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to update capability tags: ${error.message}`);
+    },
+  });
+}
+
+// =====================================================
+// BULK OPERATIONS FOR ENTERPRISE IMPORT
+// =====================================================
+
+/**
+ * Hook to bulk upsert capability tags from Excel import
+ * Creates missing tags and returns all matched tags with creation status
+ */
+export function useBulkUpsertCapabilityTags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (tagNames: string[]): Promise<BulkUpsertTagResult[]> => {
+      if (tagNames.length === 0) return [];
+
+      const { data, error } = await supabase.rpc(
+        'bulk_upsert_capability_tags',
+        { p_tag_names: tagNames }
+      );
+
+      if (error) throw new Error(error.message);
+      return (data || []) as BulkUpsertTagResult[];
+    },
+    onSuccess: (results) => {
+      queryClient.invalidateQueries({ queryKey: ["capability_tags"] });
+      const newCount = results.filter(r => r.was_created).length;
+      if (newCount > 0) {
+        toast.success(`Created ${newCount} new capability tags`);
+      }
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'bulk_upsert_capability_tags' });
+    },
+  });
+}
+
+/**
+ * Hook to bulk insert question-capability tag links
+ * Used after bulk question insert to link all tags in single RPC call
+ */
+export function useBulkInsertQuestionTags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (mappings: { question_id: string; capability_tag_id: string }[]): Promise<number> => {
+      if (mappings.length === 0) return 0;
+
+      const { data, error } = await supabase.rpc(
+        'bulk_insert_question_capability_tags',
+        { p_mappings: mappings }
+      );
+
+      if (error) throw new Error(error.message);
+      return (data as number) || 0;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["question_capability_tags"] });
+      queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'bulk_insert_question_capability_tags' });
     },
   });
 }

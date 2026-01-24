@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError, logWarning } from "@/lib/errorHandler";
 
 // Base question type from database
 type BaseQuestion = Tables<"question_bank">;
@@ -358,18 +359,92 @@ export function useDeleteQuestionsBySpecialities() {
   });
 }
 
-// Get count of existing active questions for given speciality IDs
+// Get count of existing active questions for given speciality IDs (uses RPC to avoid URL limits)
 export async function getExistingQuestionCount(specialityIds: string[]): Promise<number> {
   if (specialityIds.length === 0) return 0;
 
-  const { count, error } = await supabase
-    .from("question_bank")
-    .select("*", { count: "exact", head: true })
-    .in("speciality_id", specialityIds)
-    .eq("is_active", true);
+  // Use RPC to avoid URL limits with 200+ specialities
+  const { data, error } = await supabase.rpc(
+    'get_question_count_by_specialities',
+    { p_speciality_ids: specialityIds }
+  );
 
-  if (error) throw new Error(error.message);
-  return count || 0;
+  if (error) {
+    // Fallback to direct query for smaller sets
+    logWarning('RPC get_question_count_by_specialities failed, using fallback', {
+      operation: 'get_existing_question_count',
+      component: 'useQuestionBank',
+    });
+    
+    const { count, error: fallbackError } = await supabase
+      .from("question_bank")
+      .select("*", { count: "exact", head: true })
+      .in("speciality_id", specialityIds)
+      .eq("is_active", true);
+
+    if (fallbackError) throw new Error(fallbackError.message);
+    return count || 0;
+  }
+
+  return (data as number) || 0;
+}
+
+// =====================================================
+// BULK OPERATIONS FOR ENTERPRISE IMPORT
+// =====================================================
+
+export interface BulkQuestionInput {
+  question_text: string;
+  options: QuestionOption[];
+  correct_option: number;
+  difficulty: string | null;
+  question_type: string;
+  usage_mode: string;
+  expected_answer_guidance: string | null;
+  speciality_id: string;
+  row_number: number; // For error tracking
+}
+
+export interface BulkInsertResult {
+  inserted_id: string;
+  row_index: number;
+}
+
+/**
+ * Hook for bulk inserting questions via RPC
+ * Accepts batches of 100 questions and returns inserted IDs with row indexes
+ */
+export function useBulkInsertQuestions() {
+  return useMutation({
+    mutationFn: async (questions: BulkQuestionInput[]): Promise<BulkInsertResult[]> => {
+      if (questions.length === 0) return [];
+
+      // Transform to format expected by RPC - convert options to plain JSON
+      const payload = questions.map(q => ({
+        question_text: q.question_text,
+        options: q.options.map(opt => ({ index: opt.index, text: opt.text })),
+        correct_option: q.correct_option,
+        difficulty: q.difficulty,
+        question_type: q.question_type,
+        usage_mode: q.usage_mode,
+        expected_answer_guidance: q.expected_answer_guidance,
+        speciality_id: q.speciality_id,
+      }));
+
+      // Cast to any for RPC call - Supabase types don't perfectly match JSONB params
+      const { data, error } = await supabase.rpc(
+        'bulk_insert_questions',
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { p_questions: payload as any }
+      );
+
+      if (error) throw new Error(error.message);
+      return (data || []) as BulkInsertResult[];
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'bulk_insert_questions' });
+    },
+  });
 }
 
 // Helper to parse options from JSON

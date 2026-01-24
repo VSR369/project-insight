@@ -22,7 +22,7 @@ interface VirtualizedPreviewTableProps {
 }
 
 const ROW_HEIGHT = 52; // Fixed row height for virtualization
-const OVERSCAN = 10; // Render extra rows above/below viewport
+const OVERSCAN = 15; // Render extra rows above/below viewport for smoother scrolling
 
 export function VirtualizedPreviewTable({
   questions,
@@ -60,7 +60,7 @@ export function VirtualizedPreviewTable({
       {/* Virtualized Body */}
       <div
         ref={parentRef}
-        className="h-[300px] overflow-auto"
+        className="h-[400px] overflow-auto"
       >
         <div
           style={{
