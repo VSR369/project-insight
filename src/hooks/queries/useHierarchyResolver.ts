@@ -178,44 +178,62 @@ export function resolveHierarchy(
 
 /**
  * Hook to fetch questions with full hierarchy data for export
+ * Uses pagination to bypass PostgREST default row limit
  */
 export function useQuestionsWithHierarchy(specialityId?: string) {
   return useQuery({
     queryKey: ["questions_with_hierarchy", specialityId],
     queryFn: async () => {
-      let query = supabase
-        .from("question_bank")
-        .select(`
-          *,
-          specialities!inner (
-            id,
-            name,
-            sub_domains!inner (
+      const PAGE_SIZE = 1000;
+      const MAX_PAGES = 50; // safety cap (50k rows)
+      const allQuestions: any[] = [];
+
+      for (let page = 0; page < MAX_PAGES; page++) {
+        const from = page * PAGE_SIZE;
+        const to = from + PAGE_SIZE - 1;
+
+        let query = supabase
+          .from("question_bank")
+          .select(`
+            *,
+            specialities!inner (
               id,
               name,
-              proficiency_areas!inner (
+              sub_domains!inner (
                 id,
                 name,
-                industry_segments!inner (id, name),
-                expertise_levels!inner (id, name, level_number)
+                proficiency_areas!inner (
+                  id,
+                  name,
+                  industry_segments!inner (id, name),
+                  expertise_levels!inner (id, name, level_number)
+                )
               )
+            ),
+            question_capability_tags (
+              id,
+              capability_tag_id,
+              capability_tags (id, name)
             )
-          ),
-          question_capability_tags (
-            id,
-            capability_tag_id,
-            capability_tags (id, name)
-          )
-        `)
-        .order("created_at", { ascending: false });
+          `)
+          .order("created_at", { ascending: false })
+          .range(from, to);
 
-      if (specialityId) {
-        query = query.eq("speciality_id", specialityId);
+        if (specialityId) {
+          query = query.eq("speciality_id", specialityId);
+        }
+
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+
+        const pageRows = data ?? [];
+        allQuestions.push(...pageRows);
+
+        // Last page reached when we get fewer rows than requested
+        if (pageRows.length < PAGE_SIZE) break;
       }
 
-      const { data, error } = await query;
-      if (error) throw new Error(error.message);
-      return data;
+      return allQuestions;
     },
     enabled: true,
   });
