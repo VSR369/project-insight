@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { ChevronDown, ChevronRight, CheckCircle2, Circle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -42,6 +42,7 @@ interface QuestionSectionProps {
   onAnswerChange: (questionId: string, optionIndex: number) => void;
   savingQuestions: Set<string>;
   questionNumberMap: Record<string, number>;
+  registerQuestionRef?: (questionId: string, element: HTMLDivElement | null) => void;
 }
 
 export function QuestionSection({
@@ -50,8 +51,14 @@ export function QuestionSection({
   onAnswerChange,
   savingQuestions,
   questionNumberMap,
+  registerQuestionRef,
 }: QuestionSectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Use ref to track if we've set the initial state - prevents re-render resets
+  const hasInitialized = useRef(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    hasInitialized.current = true;
+    return true;
+  });
 
   // Calculate progress for this proficiency area
   const allQuestions = proficiencyArea.subDomains.flatMap(sd =>
@@ -99,6 +106,7 @@ export function QuestionSection({
             onAnswerChange={onAnswerChange}
             savingQuestions={savingQuestions}
             questionNumberMap={questionNumberMap}
+            registerQuestionRef={registerQuestionRef}
           />
         ))}
       </CollapsibleContent>
@@ -112,6 +120,7 @@ interface SubDomainSectionProps {
   onAnswerChange: (questionId: string, optionIndex: number) => void;
   savingQuestions: Set<string>;
   questionNumberMap: Record<string, number>;
+  registerQuestionRef?: (questionId: string, element: HTMLDivElement | null) => void;
 }
 
 function SubDomainSection({
@@ -120,8 +129,14 @@ function SubDomainSection({
   onAnswerChange,
   savingQuestions,
   questionNumberMap,
+  registerQuestionRef,
 }: SubDomainSectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Use ref to track if we've set the initial state - prevents re-render resets
+  const hasInitialized = useRef(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    hasInitialized.current = true;
+    return true;
+  });
 
   const allQuestions = subDomain.specialities.flatMap(sp => sp.questions);
   const answeredCount = allQuestions.filter(q => answers[q.id] != null).length;
@@ -156,6 +171,7 @@ function SubDomainSection({
             onAnswerChange={onAnswerChange}
             savingQuestions={savingQuestions}
             questionNumberMap={questionNumberMap}
+            registerQuestionRef={registerQuestionRef}
           />
         ))}
       </CollapsibleContent>
@@ -169,6 +185,7 @@ interface SpecialitySectionProps {
   onAnswerChange: (questionId: string, optionIndex: number) => void;
   savingQuestions: Set<string>;
   questionNumberMap: Record<string, number>;
+  registerQuestionRef?: (questionId: string, element: HTMLDivElement | null) => void;
 }
 
 function SpecialitySection({
@@ -177,8 +194,14 @@ function SpecialitySection({
   onAnswerChange,
   savingQuestions,
   questionNumberMap,
+  registerQuestionRef,
 }: SpecialitySectionProps) {
-  const [isOpen, setIsOpen] = useState(true);
+  // Use ref to track if we've set the initial state - prevents re-render resets
+  const hasInitialized = useRef(false);
+  const [isOpen, setIsOpen] = useState(() => {
+    hasInitialized.current = true;
+    return true;
+  });
 
   const answeredCount = speciality.questions.filter(q => answers[q.id] != null).length;
   const totalCount = speciality.questions.length;
@@ -214,6 +237,7 @@ function SpecialitySection({
         {speciality.questions.map((question) => (
           <QuestionCard
             key={question.id}
+            ref={(el) => registerQuestionRef?.(question.id, el)}
             questionNumber={questionNumberMap[question.id] || 0}
             questionText={question.question_text}
             options={question.options}
