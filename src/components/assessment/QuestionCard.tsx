@@ -38,7 +38,7 @@ export function QuestionCard({
 }: QuestionCardProps) {
   return (
     <Card className={cn(
-      'border-2 transition-all duration-200',
+      'border-2 transition-all duration-200 scroll-mt-24',
       isAnswered ? 'border-green-200 dark:border-green-800' : 'border-border',
       className
     )}>
@@ -79,35 +79,38 @@ export function QuestionCard({
         {/* Options */}
         <RadioGroup
           value={selectedOption?.toString() ?? ''}
-          onValueChange={(value) => onSelectOption(parseInt(value))}
+          onValueChange={(value) => {
+            const newValue = parseInt(value);
+            // Only fire if value actually changed to prevent double-firing
+            if (newValue !== selectedOption) {
+              onSelectOption(newValue);
+            }
+          }}
           className="space-y-3"
         >
           {options.map((option, idx) => (
-            <div
+            <Label
               key={option.index}
+              htmlFor={`q${questionNumber}-option-${option.index}`}
               className={cn(
                 'flex items-start space-x-3 p-4 rounded-lg border-2 transition-all duration-200 cursor-pointer hover:bg-accent/50',
                 selectedOption === option.index
                   ? 'border-primary bg-primary/5'
                   : 'border-border hover:border-primary/50'
               )}
-              onClick={() => onSelectOption(option.index)}
             >
               <RadioGroupItem
                 value={option.index.toString()}
                 id={`q${questionNumber}-option-${option.index}`}
                 className="mt-0.5"
               />
-              <Label
-                htmlFor={`q${questionNumber}-option-${option.index}`}
-                className="flex-1 cursor-pointer leading-relaxed"
-              >
+              <span className="flex-1 leading-relaxed">
                 <span className="font-semibold text-muted-foreground mr-2">
                   {OPTION_LETTERS[idx]}.
                 </span>
                 {option.text}
-              </Label>
-            </div>
+              </span>
+            </Label>
           ))}
         </RadioGroup>
       </CardContent>
