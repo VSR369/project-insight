@@ -42,11 +42,11 @@ import {
 } from "@/hooks/queries/useCapabilityTags";
 
 import { QuestionForm } from "./QuestionForm";
-import { QuestionImportDialog } from "./QuestionImportDialog";
+import { QuestionImportDialog } from "./QuestionImportDialogOptimized";
 import { QuestionDuplicateDialog } from "./QuestionDuplicateDialog";
 import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
 import { QuestionBulkPreviewDialog } from "./QuestionBulkPreviewDialog";
-import { QuestionTreePreviewDialog } from "./QuestionTreePreviewDialog";
+import { QuestionTreePreviewDialog } from "./QuestionTreePreviewDialogVirtualized";
 
 // ===================== MAIN COMPONENT =====================
 
