@@ -133,7 +133,8 @@ export function useQuestions(specialityId?: string, includeInactive = false) {
 
       return all;
     },
-    enabled: !!specialityId || includeInactive,
+    // Always enabled - pagination handles large datasets; filter by specialityId is optional
+    enabled: true,
   });
 }
 
