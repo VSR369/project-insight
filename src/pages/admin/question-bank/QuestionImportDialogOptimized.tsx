@@ -1,6 +1,7 @@
 import * as React from "react";
 import * as XLSX from "xlsx";
-import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle, SkipForward, Clock } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle, SkipForward, Clock, Tags } from "lucide-react";
 
 import {
   Dialog,
@@ -31,16 +32,22 @@ import { Label } from "@/components/ui/label";
 import { VirtualizedPreviewTable, type ParsedQuestionRow } from "./VirtualizedPreviewTable";
 
 import { 
-  useCreateQuestionBulk, 
   useDeleteQuestionsBySpecialities,
+  useBulkInsertQuestions,
   getExistingQuestionCount,
   formatQuestionOptions, 
   DIFFICULTY_OPTIONS, 
   QUESTION_TYPE_OPTIONS, 
-  USAGE_MODE_OPTIONS 
+  USAGE_MODE_OPTIONS,
+  type BulkQuestionInput,
 } from "@/hooks/queries/useQuestionBank";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCapabilityTags, useUpdateQuestionCapabilityTags } from "@/hooks/queries/useCapabilityTags";
+import { 
+  useCapabilityTags, 
+  useBulkUpsertCapabilityTags,
+  useBulkInsertQuestionTags,
+  type CapabilityTag,
+} from "@/hooks/queries/useCapabilityTags";
 import { 
   useHierarchyLookupMaps, 
   resolveHierarchyFast,
@@ -56,9 +63,13 @@ import {
   MAX_FILE_SIZE_MB,
   MAX_FILE_SIZE_BYTES,
   PARSE_CHUNK_SIZE,
-  IMPORT_BATCH_SIZE,
   BATCH_YIELD_DELAY_MS,
 } from "@/constants/import.constants";
+
+// =====================================================
+// ENTERPRISE IMPORT CONSTANTS
+// =====================================================
+const BULK_INSERT_BATCH_SIZE = 100; // Questions per RPC call
 
 interface ParsedQuestion extends ParsedQuestionRow {
   industry_segment: string;
@@ -97,7 +108,7 @@ interface RawQuestionData {
 interface ImportFailure {
   rowNumber: number;
   correlationId: string;
-  phase: 'question_creation' | 'capability_tags';
+  phase: 'question_creation' | 'capability_tags' | 'bulk_insert';
   errorMessage: string;
   errorCode?: string;
   rowData: {
@@ -108,6 +119,14 @@ interface ImportFailure {
     capability_tags: string[];
   };
   timestamp: string;
+}
+
+// Tag summary for pre-import display
+interface TagSummary {
+  total: number;
+  existing: number;
+  new: number;
+  newTags: string[];
 }
 
 const VALID_DIFFICULTIES: readonly string[] = DIFFICULTY_OPTIONS.map(d => d.value);
@@ -146,16 +165,17 @@ const INSTRUCTIONS_SHEET_DATA = [
   ["difficulty", "Question difficulty level", "No", "introductory, applied, advanced, strategic"],
   ["question_type", "Type of question", "No", "conceptual, scenario, experience, decision, proof (default: conceptual)"],
   ["usage_mode", "Where this question can be used", "No", "self_assessment, interview, both (default: both)"],
-  ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking"],
+  ["capability_tags", "Comma-separated list of capability tag names", "No", "e.g., Problem Solving, Critical Thinking (auto-created if missing)"],
   ["expected_answer_guidance", "Detailed explanation for reviewers/interviewers", "No", "Text up to 2000 characters"],
   [""],
   ["SUPPORTED FILE SIZE: Up to 50MB / ~15,000 questions"],
+  ["NEW: Capability tags are auto-created if they don't exist in the system"],
 ];
 
 // Validate a single question object using O(1) lookup maps
+// NOTE: We no longer reject unknown capability tags - they will be auto-created
 const validateQuestionFast = (
   data: RawQuestionData,
-  validTagNames: string[],
   lookupMaps: HierarchyLookupMaps | null
 ): { errors: string[]; specialityId: string | null } => {
   const errors: string[] = [];
@@ -226,15 +246,7 @@ const validateQuestionFast = (
     errors.push(`Invalid usage_mode. Valid: ${VALID_USAGE_MODES.join(", ")}`);
   }
 
-  // Capability tags validation
-  if (data.capability_tags.length > 0) {
-    const normalizedValidTags = validTagNames.map(t => t.toLowerCase());
-    data.capability_tags.forEach(tag => {
-      if (!normalizedValidTags.includes(tag.toLowerCase())) {
-        errors.push(`Unknown capability tag: "${tag}"`);
-      }
-    });
-  }
+  // NOTE: Capability tags are NOT validated here anymore - they are auto-created
 
   // Expected answer guidance validation
   if (data.expected_answer_guidance && data.expected_answer_guidance.length > 2000) {
@@ -280,6 +292,8 @@ export function QuestionImportDialog({
     success: number;
     failed: number;
     deleted: number;
+    tagsCreated: number;
+    tagsLinked: number;
     errors: string[];
     failures: ImportFailure[];
     wasCancelled?: boolean;
@@ -296,13 +310,17 @@ export function QuestionImportDialog({
   const [existingQuestionCount, setExistingQuestionCount] = React.useState<number>(0);
   const [showConfirmDialog, setShowConfirmDialog] = React.useState(false);
 
+  // Tag summary state
+  const [tagSummary, setTagSummary] = React.useState<TagSummary | null>(null);
+
   // AbortController for cancellable imports
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
   const queryClient = useQueryClient();
-  const createMutation = useCreateQuestionBulk();
   const deleteMutation = useDeleteQuestionsBySpecialities();
-  const updateCapabilityTagsMutation = useUpdateQuestionCapabilityTags();
+  const bulkInsertMutation = useBulkInsertQuestions();
+  const bulkUpsertTagsMutation = useBulkUpsertCapabilityTags();
+  const bulkInsertTagLinksMutation = useBulkInsertQuestionTags();
   const { data: capabilityTags = [] } = useCapabilityTags();
   const { lookupMaps, isLoading: hierarchyLoading } = useHierarchyLookupMaps();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -326,8 +344,33 @@ export function QuestionImportDialog({
       setImportMode("replace");
       setExistingQuestionCount(0);
       setShowConfirmDialog(false);
+      setTagSummary(null);
     }
   }, [open]);
+
+  // Compute tag summary when parsed questions change
+  React.useEffect(() => {
+    if (parsedQuestions.length > 0) {
+      const allTags = new Set<string>();
+      parsedQuestions.forEach(q => {
+        q.capability_tags.forEach(tag => {
+          allTags.add(tag.toLowerCase().trim());
+        });
+      });
+
+      const existingTagNames = capabilityTags.map(t => t.name.toLowerCase());
+      const newTags = [...allTags].filter(tag => !existingTagNames.includes(tag));
+
+      setTagSummary({
+        total: allTags.size,
+        existing: allTags.size - newTags.length,
+        new: newTags.length,
+        newTags,
+      });
+    } else {
+      setTagSummary(null);
+    }
+  }, [parsedQuestions, capabilityTags]);
 
   // Fetch existing question count when parsed questions change
   React.useEffect(() => {
@@ -400,7 +443,6 @@ export function QuestionImportDialog({
     const capabilityTagsIndex = correctOptionIndex + 4;
     const guidanceIndex = correctOptionIndex + 5;
 
-    const validTagNames = capabilityTags.map(t => t.name);
     const dataRows = data.slice(1);
     const totalRows = dataRows.length;
     const questions: ParsedQuestion[] = [];
@@ -453,7 +495,7 @@ export function QuestionImportDialog({
           expected_answer_guidance,
         };
 
-        const { errors, specialityId } = validateQuestionFast(rawData, validTagNames, lookupMaps);
+        const { errors, specialityId } = validateQuestionFast(rawData, lookupMaps);
 
         questions.push({
           rowNumber,
@@ -558,6 +600,9 @@ export function QuestionImportDialog({
     }
   };
 
+  // =====================================================
+  // ENTERPRISE BULK IMPORT FLOW
+  // =====================================================
   const handleImport = async () => {
     setShowConfirmDialog(false);
     const validQuestions = parsedQuestions.filter((q) => q.isValid && !q.isSkipped);
@@ -569,7 +614,7 @@ export function QuestionImportDialog({
     abortControllerRef.current = new AbortController();
     const signal = abortControllerRef.current.signal;
 
-    logInfo(`Question import started: ${validQuestions.length} questions`, {
+    logInfo(`Enterprise import started: ${validQuestions.length} questions`, {
       operation: 'import_questions_start',
       component: 'QuestionImportDialog',
     });
@@ -587,152 +632,147 @@ export function QuestionImportDialog({
       success: 0, 
       failed: 0, 
       deleted: 0, 
+      tagsCreated: 0,
+      tagsLinked: 0,
       errors: [] as string[],
       failures: [] as ImportFailure[],
       wasCancelled: false,
       durationMs: 0,
     };
 
-    // Replace mode: delete existing questions first
-    if (importMode === "replace" && uniqueSpecialityIds.length > 0) {
-      try {
-        const deleteResult = await deleteMutation.mutateAsync(uniqueSpecialityIds);
-        results.deleted = deleteResult.count;
-      } catch (error) {
-        const deleteCorrelationId = generateCorrelationId();
-        handleMutationError(error, {
-          operation: 'delete_existing_questions',
-          component: 'QuestionImportDialog',
-        }, false);
-        
-        const errorMsg = error instanceof Error ? error.message : "Unknown error";
-        const isUrlLimit = errorMsg.toLowerCase().includes('bad request') || errorMsg.includes('400');
-        const displayError = isUrlLimit 
-          ? `Pre-import deletion failed: Too many specialities (${uniqueSpecialityIds.length}). Use "Add Only" mode.`
-          : `Pre-import deletion failed: ${errorMsg}`;
-        
-        results.errors.push(`${displayError} [${deleteCorrelationId}]`);
-        results.durationMs = Date.now() - importStartTime;
-        setImportResults(results);
-        setIsImporting(false);
-        return;
-      }
-    }
-
-    // Process in optimized batches
-    const totalQuestions = validQuestions.length;
-    const totalBatches = Math.ceil(totalQuestions / IMPORT_BATCH_SIZE);
-
-    const processQuestion = async (q: ParsedQuestion): Promise<{
-      success: boolean;
-      failure?: ImportFailure;
-      errorMessage?: string;
-    }> => {
-      const rowCorrelationId = generateCorrelationId();
-
-      try {
-        if (!q.speciality_id) {
-          throw new Error("Speciality ID not resolved");
-        }
-
-        const formattedOptions = formatQuestionOptions(
-          q.options.map((text, idx) => ({ index: idx + 1, text }))
-        );
-
-        const createdQuestion = await createMutation.mutateAsync({
-          question_text: q.question_text,
-          options: formattedOptions as unknown as { index: number; text: string }[],
-          correct_option: q.correct_option,
-          difficulty: q.difficulty as "introductory" | "applied" | "advanced" | "strategic" | null,
-          question_type: q.question_type as "conceptual" | "scenario" | "experience" | "decision" | "proof",
-          usage_mode: q.usage_mode as "self_assessment" | "interview" | "both",
-          expected_answer_guidance: q.expected_answer_guidance,
-          is_active: true,
-          speciality_id: q.speciality_id,
-        });
-
-        // Link capability tags if any
-        if (createdQuestion?.id && q.capability_tags.length > 0) {
-          try {
-            const tagIds = q.capability_tags
-              .map(tagName => {
-                const found = capabilityTags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
-                return found?.id;
-              })
-              .filter((id): id is string => !!id);
-
-            if (tagIds.length > 0) {
-              await updateCapabilityTagsMutation.mutateAsync({
-                questionId: createdQuestion.id,
-                tagIds,
-              });
-            }
-          } catch (tagError) {
-            logWarning("Capability tag linking failed", {
-              operation: 'link_capability_tags',
-              component: 'QuestionImportDialog',
-            });
-          }
-        }
-
-        return { success: true };
-      } catch (error) {
-        const failure: ImportFailure = {
-          rowNumber: q.rowNumber,
-          correlationId: rowCorrelationId,
-          phase: 'question_creation',
-          errorMessage: error instanceof Error ? error.message : "Unknown error",
-          errorCode: extractErrorCode(error),
-          rowData: {
-            question_text: q.question_text.slice(0, 100),
-            speciality: q.speciality,
-            speciality_id: q.speciality_id,
-            options_count: q.options.length,
-            capability_tags: q.capability_tags,
-          },
-          timestamp: new Date().toISOString(),
-        };
-
-        return {
-          success: false,
-          failure,
-          errorMessage: `Row ${q.rowNumber}: ${failure.errorMessage}`
-        };
-      }
-    };
-
     try {
+      // =====================================================
+      // PHASE 1: Auto-create missing capability tags
+      // =====================================================
+      if (tagSummary && tagSummary.newTags.length > 0) {
+        setCurrentRowInfo(`Creating ${tagSummary.newTags.length} new capability tags...`);
+        
+        try {
+          const tagResults = await bulkUpsertTagsMutation.mutateAsync(tagSummary.newTags);
+          results.tagsCreated = tagResults.filter(r => r.was_created).length;
+          
+          // Refresh capability tags cache immediately
+          await queryClient.invalidateQueries({ queryKey: ["capability_tags"] });
+        } catch (error) {
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          results.errors.push(`Failed to create capability tags: ${errorMsg}`);
+          // Continue with import - tags just won't be linked
+        }
+      }
+
+      if (signal.aborted) {
+        results.wasCancelled = true;
+        throw new Error("Import cancelled");
+      }
+
+      // =====================================================
+      // PHASE 2: Delete existing questions (Replace mode)
+      // =====================================================
+      if (importMode === "replace" && uniqueSpecialityIds.length > 0) {
+        setCurrentRowInfo("Deleting existing questions...");
+        
+        try {
+          const deleteResult = await deleteMutation.mutateAsync(uniqueSpecialityIds);
+          results.deleted = deleteResult.count;
+        } catch (error) {
+          const deleteCorrelationId = generateCorrelationId();
+          handleMutationError(error, {
+            operation: 'delete_existing_questions',
+            component: 'QuestionImportDialog',
+          }, false);
+          
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+          const isUrlLimit = errorMsg.toLowerCase().includes('bad request') || errorMsg.includes('400');
+          const displayError = isUrlLimit 
+            ? `Pre-import deletion failed: Too many specialities (${uniqueSpecialityIds.length}). Use "Add Only" mode.`
+            : `Pre-import deletion failed: ${errorMsg}`;
+          
+          results.errors.push(`${displayError} [${deleteCorrelationId}]`);
+          results.durationMs = Date.now() - importStartTime;
+          setImportResults(results);
+          setIsImporting(false);
+          return;
+        }
+      }
+
+      if (signal.aborted) {
+        results.wasCancelled = true;
+        throw new Error("Import cancelled");
+      }
+
+      // =====================================================
+      // PHASE 3: Bulk insert questions in batches
+      // =====================================================
+      const totalQuestions = validQuestions.length;
+      const totalBatches = Math.ceil(totalQuestions / BULK_INSERT_BATCH_SIZE);
+      const insertedQuestions: { id: string; tags: string[]; rowNumber: number }[] = [];
+
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         if (signal.aborted) {
           results.wasCancelled = true;
           break;
         }
 
-        const startIdx = batchIndex * IMPORT_BATCH_SIZE;
-        const endIdx = Math.min(startIdx + IMPORT_BATCH_SIZE, totalQuestions);
+        const startIdx = batchIndex * BULK_INSERT_BATCH_SIZE;
+        const endIdx = Math.min(startIdx + BULK_INSERT_BATCH_SIZE, totalQuestions);
         const batch = validQuestions.slice(startIdx, endIdx);
 
         setCurrentRowInfo(`Batch ${batchIndex + 1}/${totalBatches}: Rows ${batch[0].rowNumber}-${batch[batch.length - 1].rowNumber}`);
 
-        const batchResults = await Promise.allSettled(batch.map(q => processQuestion(q)));
+        try {
+          // Prepare batch for bulk insert
+          const bulkPayload: BulkQuestionInput[] = batch.map(q => ({
+            question_text: q.question_text,
+            options: formatQuestionOptions(q.options.map((text, idx) => ({ index: idx + 1, text }))),
+            correct_option: q.correct_option,
+            difficulty: q.difficulty,
+            question_type: q.question_type,
+            usage_mode: q.usage_mode,
+            expected_answer_guidance: q.expected_answer_guidance,
+            speciality_id: q.speciality_id!,
+            row_number: q.rowNumber,
+          }));
 
-        for (const result of batchResults) {
-          if (result.status === 'fulfilled') {
-            const { success, failure, errorMessage } = result.value;
-            if (success) {
-              results.success++;
-              setSuccessCount(prev => prev + 1);
-            } else {
-              results.failed++;
-              setFailedCount(prev => prev + 1);
-            }
-            if (failure) results.failures.push(failure);
-            if (errorMessage) results.errors.push(errorMessage);
-          } else {
-            results.failed++;
-            setFailedCount(prev => prev + 1);
-            results.errors.push(`Batch error: ${result.reason}`);
-          }
+          const insertResults = await bulkInsertMutation.mutateAsync(bulkPayload);
+
+          // Track inserted questions for tag linking
+          insertResults.forEach((result, idx) => {
+            const originalQuestion = batch[idx];
+            insertedQuestions.push({
+              id: result.inserted_id,
+              tags: originalQuestion.capability_tags,
+              rowNumber: originalQuestion.rowNumber,
+            });
+          });
+
+          results.success += insertResults.length;
+          setSuccessCount(prev => prev + insertResults.length);
+        } catch (error) {
+          // Batch failed - track all questions in batch as failed
+          const batchCorrelationId = generateCorrelationId();
+          const errorMsg = error instanceof Error ? error.message : "Unknown error";
+
+          batch.forEach(q => {
+            results.failures.push({
+              rowNumber: q.rowNumber,
+              correlationId: batchCorrelationId,
+              phase: 'bulk_insert',
+              errorMessage: errorMsg,
+              errorCode: extractErrorCode(error),
+              rowData: {
+                question_text: q.question_text.slice(0, 100),
+                speciality: q.speciality,
+                speciality_id: q.speciality_id,
+                options_count: q.options.length,
+                capability_tags: q.capability_tags,
+              },
+              timestamp: new Date().toISOString(),
+            });
+          });
+
+          results.failed += batch.length;
+          setFailedCount(prev => prev + batch.length);
+          results.errors.push(`Batch ${batchIndex + 1} failed: ${errorMsg}`);
         }
 
         const processedCount = Math.min(endIdx, totalQuestions);
@@ -741,13 +781,66 @@ export function QuestionImportDialog({
 
         await new Promise(resolve => setTimeout(resolve, BATCH_YIELD_DELAY_MS));
       }
+
+      if (signal.aborted) {
+        results.wasCancelled = true;
+        throw new Error("Import cancelled");
+      }
+
+      // =====================================================
+      // PHASE 4: Bulk link capability tags
+      // =====================================================
+      if (insertedQuestions.length > 0) {
+        setCurrentRowInfo("Linking capability tags...");
+        
+        // Fetch refreshed capability tags
+        const { data: refreshedTags } = await supabase
+          .from("capability_tags")
+          .select("id, name")
+          .eq("is_active", true);
+
+        const tagLookup = new Map<string, string>();
+        (refreshedTags || []).forEach((tag: { id: string; name: string }) => {
+          tagLookup.set(tag.name.toLowerCase(), tag.id);
+        });
+
+        // Build tag mappings
+        const tagMappings: { question_id: string; capability_tag_id: string }[] = [];
+        
+        for (const q of insertedQuestions) {
+          for (const tagName of q.tags) {
+            const tagId = tagLookup.get(tagName.toLowerCase());
+            if (tagId) {
+              tagMappings.push({
+                question_id: q.id,
+                capability_tag_id: tagId,
+              });
+            }
+          }
+        }
+
+        if (tagMappings.length > 0) {
+          try {
+            const linkedCount = await bulkInsertTagLinksMutation.mutateAsync(tagMappings);
+            results.tagsLinked = linkedCount;
+          } catch (error) {
+            logWarning("Failed to bulk link capability tags", {
+              operation: 'bulk_link_capability_tags',
+              component: 'QuestionImportDialog',
+            });
+            results.errors.push("Some capability tags may not be linked");
+          }
+        }
+      }
+
     } catch (unexpectedError) {
-      results.errors.push(`Import crashed: ${unexpectedError instanceof Error ? unexpectedError.message : 'Unknown'}`);
-      results.wasCancelled = true;
+      if (!results.wasCancelled) {
+        results.errors.push(`Import crashed: ${unexpectedError instanceof Error ? unexpectedError.message : 'Unknown'}`);
+      }
     } finally {
       results.durationMs = Date.now() - importStartTime;
       
-      logInfo(results.wasCancelled ? "Import cancelled/crashed" : "Import completed", {
+      logInfo(results.wasCancelled ? "Import cancelled" : "Import completed", {
         operation: 'import_questions_complete',
         component: 'QuestionImportDialog',
       });
@@ -758,6 +851,7 @@ export function QuestionImportDialog({
       setIsImporting(false);
 
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });
+      queryClient.invalidateQueries({ queryKey: ["capability_tags"] });
     }
   };
 
@@ -864,7 +958,7 @@ export function QuestionImportDialog({
               <Badge variant="outline" className="ml-2">Enterprise Scale</Badge>
             </DialogTitle>
             <DialogDescription>
-              Upload up to {MAX_FILE_SIZE_MB}MB Excel file (~15,000 questions). Optimized for bulk imports.
+              Upload up to {MAX_FILE_SIZE_MB}MB Excel file (~15,000 questions). Auto-creates missing capability tags.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -954,6 +1048,7 @@ export function QuestionImportDialog({
                     ? `Cancelled: ${importResults.success.toLocaleString()} imported`
                     : `Complete: ${importResults.success.toLocaleString()} imported`}
                   {importResults.deleted > 0 && `, ${importResults.deleted.toLocaleString()} deleted`}
+                  {importResults.tagsCreated > 0 && `, ${importResults.tagsCreated} new tags`}
                   {importResults.failed > 0 && `, ${importResults.failed.toLocaleString()} failed`}
                 </span>
                 {importResults.durationMs && (
@@ -1042,6 +1137,42 @@ export function QuestionImportDialog({
                   </Badge>
                 </div>
 
+                {/* Capability Tags Summary */}
+                {tagSummary && tagSummary.total > 0 && (
+                  <div className={`p-3 border rounded-lg ${
+                    tagSummary.new > 0 
+                      ? "bg-amber-50 dark:bg-amber-950/20 border-amber-300 dark:border-amber-700" 
+                      : "bg-green-50 dark:bg-green-950/20 border-green-300 dark:border-green-700"
+                  }`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Tags className="h-4 w-4" />
+                      <span className="text-sm font-medium">Capability Tags Summary</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div>
+                        <span className="text-muted-foreground">Total unique:</span>{" "}
+                        <strong>{tagSummary.total}</strong>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">Existing:</span>{" "}
+                        <strong className="text-green-600">{tagSummary.existing}</strong>
+                      </div>
+                      <div>
+                        <span className="text-muted-foreground">New to create:</span>{" "}
+                        <strong className={tagSummary.new > 0 ? "text-amber-600" : "text-green-600"}>
+                          {tagSummary.new}
+                        </strong>
+                      </div>
+                    </div>
+                    {tagSummary.newTags.length > 0 && (
+                      <div className="mt-2 text-xs text-muted-foreground">
+                        New tags: {tagSummary.newTags.slice(0, 5).join(", ")}
+                        {tagSummary.newTags.length > 5 && ` +${tagSummary.newTags.length - 5} more`}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Error Summary */}
                 {invalidCount > 0 && (
                   <div className="p-3 border border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30 rounded-lg">
@@ -1127,7 +1258,7 @@ export function QuestionImportDialog({
 
         {/* Fixed Footer */}
         <DialogFooter className="flex-shrink-0 p-6 pt-4 border-t flex items-center justify-between">
-          <span className="text-xs text-muted-foreground">v2026-01-24.1 • Optimized for 11K+</span>
+          <span className="text-xs text-muted-foreground">v2026-01-24.2 • Enterprise Bulk Import</span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               {importResults ? "Close" : "Cancel"}
@@ -1169,6 +1300,9 @@ export function QuestionImportDialog({
                 <ul className="list-disc list-inside space-y-1 text-sm">
                   <li>Delete {existingQuestionCount.toLocaleString()} existing questions</li>
                   <li>Import {validCount.toLocaleString()} new questions</li>
+                  {tagSummary && tagSummary.new > 0 && (
+                    <li>Create {tagSummary.new} new capability tags</li>
+                  )}
                 </ul>
               </div>
             </AlertDialogDescription>

@@ -2446,6 +2446,25 @@ export type Database = {
         }
         Returns: Json
       }
+      bulk_insert_question_capability_tags: {
+        Args: { p_mappings: Json }
+        Returns: number
+      }
+      bulk_insert_questions: {
+        Args: { p_questions: Json }
+        Returns: {
+          inserted_id: string
+          row_index: number
+        }[]
+      }
+      bulk_upsert_capability_tags: {
+        Args: { p_tag_names: string[] }
+        Returns: {
+          id: string
+          name: string
+          was_created: boolean
+        }[]
+      }
       cancel_booked_slot_by_reviewer: {
         Args: { p_reason?: string; p_reviewer_id: string; p_slot_id: string }
         Returns: Json
@@ -2491,6 +2510,10 @@ export type Database = {
           specialities_count: number
           specialty_proof_points_count: number
         }[]
+      }
+      get_question_count_by_specialities: {
+        Args: { p_speciality_ids: string[] }
+        Returns: number
       }
       handle_orphaned_proof_points: {
         Args: { p_provider_id: string; p_removed_area_ids: string[] }
