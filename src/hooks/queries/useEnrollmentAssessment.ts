@@ -776,11 +776,8 @@ export function useSaveAssessmentAnswer() {
 
       return { success: true, answeredCount };
     },
-    onSuccess: (result, variables) => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['assessment-attempt-questions', variables.attemptId] 
-      });
-    },
+    // Note: Intentionally no onSuccess invalidation - answers are tracked in local state
+    // and invalidating causes full re-render which resets collapsible states and scroll position
   });
 }
 
