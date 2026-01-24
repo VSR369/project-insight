@@ -150,9 +150,15 @@ export default function TakeAssessment() {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [showTimeExpiredDialog, setShowTimeExpiredDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Lifted section open state - prevents reset on re-renders
+  const [openSections, setOpenSections] = useState<Record<string, boolean>>({});
 
   // Refs for question cards (for auto-scroll to next question)
   const questionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+  
+  // Track if we've already initialized answers (prevents resetting on every render)
+  const hasInitializedAnswers = useRef(false);
 
   // Register question ref callback
   const registerQuestionRef = useCallback((questionId: string, element: HTMLDivElement | null) => {
@@ -161,6 +167,11 @@ export default function TakeAssessment() {
     } else {
       questionRefs.current.delete(questionId);
     }
+  }, []);
+
+  // Toggle section open/closed
+  const toggleSection = useCallback((sectionId: string) => {
+    setOpenSections(prev => ({ ...prev, [sectionId]: !prev[sectionId] }));
   }, []);
 
   // Scroll to next question
@@ -181,9 +192,10 @@ export default function TakeAssessment() {
     }
   }, [questions]);
 
-  // Initialize answers from loaded questions
+  // Initialize answers from loaded questions - ONLY ONCE
   useEffect(() => {
-    if (questions && questions.length > 0) {
+    if (questions && questions.length > 0 && !hasInitializedAnswers.current) {
+      hasInitializedAnswers.current = true;
       const initialAnswers: Record<string, number | null> = {};
       questions.forEach((q) => {
         initialAnswers[q.id] = q.selected_option;
@@ -191,6 +203,7 @@ export default function TakeAssessment() {
       setAnswers(initialAnswers);
     }
   }, [questions]);
+
 
   // Handle answer selection with autosave + auto-advance
   const handleAnswerChange = useCallback(async (questionId: string, optionIndex: number) => {
@@ -268,6 +281,23 @@ export default function TakeAssessment() {
 
     return Array.from(areaMap.values());
   }, [questions]);
+
+  // Initialize all sections as open on first load (must be after hierarchicalQuestions is defined)
+  useEffect(() => {
+    if (hierarchicalQuestions.length > 0 && Object.keys(openSections).length === 0) {
+      const initial: Record<string, boolean> = {};
+      hierarchicalQuestions.forEach(area => {
+        initial[`area-${area.id}`] = true;
+        area.subDomains.forEach(sd => {
+          initial[`sd-${sd.id}`] = true;
+          sd.specialities.forEach(sp => {
+            initial[`sp-${sp.id}`] = true;
+          });
+        });
+      });
+      setOpenSections(initial);
+    }
+  }, [hierarchicalQuestions, openSections]);
 
   // Create question number map for display
   const questionNumberMap = useMemo(() => {
@@ -550,6 +580,8 @@ export default function TakeAssessment() {
             savingQuestions={savingQuestions}
             questionNumberMap={questionNumberMap}
             registerQuestionRef={registerQuestionRef}
+            openSections={openSections}
+            onToggleSection={toggleSection}
           />
         ))}
 
