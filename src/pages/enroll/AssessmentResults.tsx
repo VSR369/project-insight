@@ -296,6 +296,8 @@ export default function AssessmentResults() {
         <ResultsHierarchyTree 
           hierarchy={hierarchy}
           showQuestions={true}
+          industrySegmentName={enrollment?.industrySegmentName}
+          expertiseLevelName={enrollment?.expertiseLevelName}
         />
       </div>
     </WizardLayout>

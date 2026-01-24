@@ -22,6 +22,7 @@ import {
   MAX_CAPABILITY_PERCENTAGE,
 } from "@/constants/question-generation.constants";
 import { MIN_QUESTIONS_FOR_ASSESSMENT } from "@/constants/assessment.constants";
+import { logInfo } from "@/lib/errorHandler";
 
 export interface QuestionWithMetadata {
   id: string;
@@ -62,24 +63,56 @@ export interface GenerationInput {
 
 /**
  * Fetch all eligible questions for a provider's enrollment
+ * IMPORTANT: Only fetches questions from proficiency areas the provider has SELECTED
  */
 async function fetchEligibleQuestions(
   industrySegmentId: string,
   expertiseLevelId: string,
-  providerId: string
+  providerId: string,
+  enrollmentId: string
 ): Promise<QuestionWithMetadata[]> {
-  // Get proficiency areas for this industry + expertise level
+  // Step 1: Fetch provider's SELECTED proficiency areas for this enrollment
+  const { data: selectedAreas, error: selectedError } = await supabase
+    .from('provider_proficiency_areas')
+    .select('proficiency_area_id')
+    .eq('enrollment_id', enrollmentId);
+
+  if (selectedError) {
+    throw new Error(`Failed to fetch selected proficiency areas: ${selectedError.message}`);
+  }
+
+  if (!selectedAreas || selectedAreas.length === 0) {
+    // Strict mode: No selections = no questions allowed
+    logInfo('No proficiency areas selected for enrollment', {
+      operation: 'fetchEligibleQuestions',
+      additionalData: { enrollmentId, providerId },
+    });
+    return [];
+  }
+
+  const selectedAreaIds = selectedAreas.map(sa => sa.proficiency_area_id);
+
+  // Step 2: Get proficiency areas - ONLY the ones provider selected
   const { data: profAreas, error: paError } = await supabase
     .from('proficiency_areas')
     .select('id, name')
-    .eq('industry_segment_id', industrySegmentId)
-    .eq('expertise_level_id', expertiseLevelId)
+    .in('id', selectedAreaIds)
     .eq('is_active', true);
 
   if (paError) throw new Error(`Failed to fetch proficiency areas: ${paError.message}`);
   if (!profAreas || profAreas.length === 0) {
     return [];
   }
+
+  logInfo('Fetching questions from provider-selected proficiency areas only', {
+    operation: 'fetchEligibleQuestions',
+    additionalData: { 
+      enrollmentId, 
+      selectedAreaCount: selectedAreaIds.length,
+      selectedAreaIds,
+      resolvedAreaNames: profAreas.map(pa => pa.name),
+    },
+  });
 
   const profAreaIds = profAreas.map(pa => pa.id);
   const profAreaNameMap = Object.fromEntries(profAreas.map(pa => [pa.id, pa.name]));
@@ -220,10 +253,12 @@ export async function generateBalancedQuestions(
   const warnings: string[] = [];
   
   // Step 1: Fetch eligible questions (excluding previously attempted)
+  // IMPORTANT: Uses enrollmentId to filter by provider's selected proficiency areas only
   const eligibleQuestions = await fetchEligibleQuestions(
     industrySegmentId,
     expertiseLevelId,
-    providerId
+    providerId,
+    input.enrollmentId
   );
 
   if (eligibleQuestions.length === 0) {

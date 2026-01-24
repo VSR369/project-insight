@@ -582,6 +582,8 @@ export default function TakeAssessment() {
             registerQuestionRef={registerQuestionRef}
             openSections={openSections}
             onToggleSection={toggleSection}
+            industrySegmentName={activeEnrollment?.industry_segment?.name}
+            expertiseLevelName={activeEnrollment?.expertise_level?.name}
           />
         ))}
 
