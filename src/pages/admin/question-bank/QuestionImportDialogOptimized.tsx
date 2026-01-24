@@ -30,6 +30,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 
 import { VirtualizedPreviewTable, type ParsedQuestionRow } from "./VirtualizedPreviewTable";
+import { ImportStatisticsDashboard, type ImportStatistics } from "./ImportStatisticsDashboard";
 
 import { 
   useDeleteQuestionsBySpecialities,
@@ -313,6 +314,9 @@ export function QuestionImportDialog({
   // Tag summary state
   const [tagSummary, setTagSummary] = React.useState<TagSummary | null>(null);
 
+  // Import statistics for dashboard
+  const [importStatistics, setImportStatistics] = React.useState<ImportStatistics | null>(null);
+
   // AbortController for cancellable imports
   const abortControllerRef = React.useRef<AbortController | null>(null);
 
@@ -345,6 +349,7 @@ export function QuestionImportDialog({
       setExistingQuestionCount(0);
       setShowConfirmDialog(false);
       setTagSummary(null);
+      setImportStatistics(null);
     }
   }, [open]);
 
@@ -640,6 +645,9 @@ export function QuestionImportDialog({
       durationMs: 0,
     };
 
+    // Track inserted questions for statistics (declared outside try for finally access)
+    const insertedQuestions: { id: string; tags: string[]; rowNumber: number }[] = [];
+
     try {
       // =====================================================
       // PHASE 1: Auto-create missing capability tags
@@ -705,7 +713,6 @@ export function QuestionImportDialog({
       // =====================================================
       const totalQuestions = validQuestions.length;
       const totalBatches = Math.ceil(totalQuestions / BULK_INSERT_BATCH_SIZE);
-      const insertedQuestions: { id: string; tags: string[]; rowNumber: number }[] = [];
 
       for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
         if (signal.aborted) {
@@ -843,6 +850,59 @@ export function QuestionImportDialog({
       logInfo(results.wasCancelled ? "Import cancelled" : "Import completed", {
         operation: 'import_questions_complete',
         component: 'QuestionImportDialog',
+      });
+
+      // Compute import statistics for dashboard
+      const importedQuestions = insertedQuestions.map(iq => {
+        const matchingQuestion = validQuestions.find(vq => vq.rowNumber === iq.rowNumber);
+        return matchingQuestion;
+      }).filter(Boolean) as typeof validQuestions;
+
+      // Aggregate by difficulty
+      const byDifficulty = Object.entries(
+        importedQuestions.reduce((acc, q) => {
+          const key = q.difficulty || 'applied';
+          acc[key] = (acc[key] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      ).map(([name, count]) => ({ name, count }));
+
+      // Aggregate by question type
+      const byQuestionType = Object.entries(
+        importedQuestions.reduce((acc, q) => {
+          acc[q.question_type] = (acc[q.question_type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      ).map(([name, count]) => ({ name, count }));
+
+      // Aggregate by usage mode
+      const byUsageMode = Object.entries(
+        importedQuestions.reduce((acc, q) => {
+          acc[q.usage_mode] = (acc[q.usage_mode] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      ).map(([name, count]) => ({ name, count }));
+
+      // Aggregate by speciality
+      const bySpeciality = Object.entries(
+        importedQuestions.reduce((acc, q) => {
+          acc[q.speciality] = (acc[q.speciality] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>)
+      ).map(([name, count]) => ({ name, count }));
+
+      setImportStatistics({
+        totalImported: results.success,
+        totalFailed: results.failed,
+        totalDeleted: results.deleted,
+        tagsCreated: results.tagsCreated,
+        tagsLinked: results.tagsLinked,
+        durationMs: results.durationMs,
+        wasCancelled: results.wasCancelled || false,
+        byDifficulty,
+        byQuestionType,
+        byUsageMode,
+        bySpeciality,
       });
 
       abortControllerRef.current = null;
@@ -1237,6 +1297,11 @@ export function QuestionImportDialog({
                   className="h-[350px]"
                 />
               </div>
+            )}
+
+            {/* Import Statistics Dashboard */}
+            {importResults && importStatistics && importStatistics.totalImported > 0 && (
+              <ImportStatisticsDashboard statistics={importStatistics} />
             )}
 
             {/* Import Failures Detail */}
