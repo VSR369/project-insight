@@ -710,10 +710,15 @@ export function useAssessmentAttemptQuestions(attemptId?: string) {
             question_type,
             speciality_id,
             specialities (
+              id,
               name,
+              sub_domain_id,
               sub_domains (
+                id,
                 name,
+                proficiency_area_id,
                 proficiency_areas (
+                  id,
                   name
                 )
               )

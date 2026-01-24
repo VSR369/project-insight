@@ -4,12 +4,13 @@
  * Implements Industry-Specific | Expert-Level | Solution Provider Self-Assessment
  * question selection with the following constraints:
  * 
- * 1. Sub-Domain Balance (primary control)
- * 2. Speciality Representation
- * 3. Difficulty Distribution
- * 4. Question Type Balancing
- * 5. Capability Tag Balancing
- * 6. Non-Repetition Rule (provider history)
+ * 1. Proficiency Area Coverage (STRICT: each selected area must contribute)
+ * 2. Area-First then Sub-Domain Balance
+ * 3. Speciality Representation
+ * 4. Difficulty Distribution
+ * 5. Question Type Balancing
+ * 6. Capability Tag Balancing
+ * 7. Non-Repetition Rule (provider history)
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -22,7 +23,7 @@ import {
   MAX_CAPABILITY_PERCENTAGE,
 } from "@/constants/question-generation.constants";
 import { MIN_QUESTIONS_FOR_ASSESSMENT } from "@/constants/assessment.constants";
-import { logInfo } from "@/lib/errorHandler";
+import { logInfo, logWarning } from "@/lib/errorHandler";
 
 export interface QuestionWithMetadata {
   id: string;
@@ -46,6 +47,7 @@ export interface GenerationResult {
   warnings: string[];
   stats: {
     totalEligible: number;
+    proficiencyAreaDistribution: Record<string, number>;
     subDomainDistribution: Record<string, number>;
     difficultyDistribution: Record<string, number>;
     questionTypeDistribution: Record<string, number>;
@@ -61,6 +63,11 @@ export interface GenerationInput {
   questionsCount?: number;
 }
 
+interface ProficiencyAreaInfo {
+  id: string;
+  name: string;
+}
+
 /**
  * Fetch all eligible questions for a provider's enrollment
  * IMPORTANT: Only fetches questions from proficiency areas the provider has SELECTED
@@ -70,7 +77,7 @@ async function fetchEligibleQuestions(
   expertiseLevelId: string,
   providerId: string,
   enrollmentId: string
-): Promise<QuestionWithMetadata[]> {
+): Promise<{ questions: QuestionWithMetadata[]; selectedAreas: ProficiencyAreaInfo[] }> {
   // Step 1: Fetch provider's SELECTED proficiency areas for this enrollment
   const { data: selectedAreas, error: selectedError } = await supabase
     .from('provider_proficiency_areas')
@@ -87,7 +94,7 @@ async function fetchEligibleQuestions(
       operation: 'fetchEligibleQuestions',
       additionalData: { enrollmentId, providerId },
     });
-    return [];
+    return { questions: [], selectedAreas: [] };
   }
 
   const selectedAreaIds = selectedAreas.map(sa => sa.proficiency_area_id);
@@ -101,7 +108,7 @@ async function fetchEligibleQuestions(
 
   if (paError) throw new Error(`Failed to fetch proficiency areas: ${paError.message}`);
   if (!profAreas || profAreas.length === 0) {
-    return [];
+    return { questions: [], selectedAreas: [] };
   }
 
   logInfo('Fetching questions from provider-selected proficiency areas only', {
@@ -126,7 +133,7 @@ async function fetchEligibleQuestions(
 
   if (sdError) throw new Error(`Failed to fetch sub-domains: ${sdError.message}`);
   if (!subDomains || subDomains.length === 0) {
-    return [];
+    return { questions: [], selectedAreas: profAreas };
   }
 
   const subDomainIds = subDomains.map(sd => sd.id);
@@ -141,7 +148,7 @@ async function fetchEligibleQuestions(
 
   if (spError) throw new Error(`Failed to fetch specialities: ${spError.message}`);
   if (!specialities || specialities.length === 0) {
-    return [];
+    return { questions: [], selectedAreas: profAreas };
   }
 
   const specialityIds = specialities.map(sp => sp.id);
@@ -171,7 +178,7 @@ async function fetchEligibleQuestions(
 
   if (qError) throw new Error(`Failed to fetch questions: ${qError.message}`);
   if (!questions || questions.length === 0) {
-    return [];
+    return { questions: [], selectedAreas: profAreas };
   }
 
   // Get previously attempted question IDs for this provider
@@ -210,7 +217,7 @@ async function fetchEligibleQuestions(
       };
     });
 
-  return eligibleQuestions;
+  return { questions: eligibleQuestions, selectedAreas: profAreas };
 }
 
 /**
@@ -239,6 +246,12 @@ function groupBy<T>(array: T[], keyFn: (item: T) => string): Record<string, T[]>
 
 /**
  * Main question generation function
+ * 
+ * ALGORITHM: Area-First then Sub-Domain Balancing
+ * 1. Split total questions evenly across selected proficiency areas
+ * 2. Within each area, balance across sub-domains
+ * 3. Within each sub-domain, balance across specialities
+ * 4. Apply difficulty, type, and capability balancing as secondary criteria
  */
 export async function generateBalancedQuestions(
   input: GenerationInput
@@ -253,8 +266,7 @@ export async function generateBalancedQuestions(
   const warnings: string[] = [];
   
   // Step 1: Fetch eligible questions (excluding previously attempted)
-  // IMPORTANT: Uses enrollmentId to filter by provider's selected proficiency areas only
-  const eligibleQuestions = await fetchEligibleQuestions(
+  const { questions: eligibleQuestions, selectedAreas } = await fetchEligibleQuestions(
     industrySegmentId,
     expertiseLevelId,
     providerId,
@@ -268,6 +280,7 @@ export async function generateBalancedQuestions(
       warnings: ['No eligible questions found for this industry/expertise combination'],
       stats: {
         totalEligible: 0,
+        proficiencyAreaDistribution: {},
         subDomainDistribution: {},
         difficultyDistribution: {},
         questionTypeDistribution: {},
@@ -287,6 +300,7 @@ export async function generateBalancedQuestions(
       ],
       stats: {
         totalEligible: eligibleQuestions.length,
+        proficiencyAreaDistribution: {},
         subDomainDistribution: {},
         difficultyDistribution: {},
         questionTypeDistribution: {},
@@ -299,22 +313,34 @@ export async function generateBalancedQuestions(
     warnings.push(`Only ${eligibleQuestions.length} eligible questions available (${questionsCount} requested)`);
   }
 
-  // Step 2: Group questions by sub-domain
-  const bySubDomain = groupBy(eligibleQuestions, q => q.sub_domain_id);
-  const subDomainNames = Object.fromEntries(
-    eligibleQuestions.map(q => [q.sub_domain_id, q.sub_domain_name])
-  );
+  // Step 2: Group questions by proficiency area
+  const byProficiencyArea = groupBy(eligibleQuestions, q => q.proficiency_area_id);
+  const areaIdsWithQuestions = Object.keys(byProficiencyArea);
   
-  const subDomainIds = Object.keys(bySubDomain);
-  const numSubDomains = subDomainIds.length;
+  // STRICT VALIDATION: Each selected area must have at least one question
+  const selectedAreaIds = selectedAreas.map(sa => sa.id);
+  const areasWithoutQuestions = selectedAreaIds.filter(id => !byProficiencyArea[id] || byProficiencyArea[id].length === 0);
   
-  if (numSubDomains === 0) {
+  if (areasWithoutQuestions.length > 0) {
+    const missingAreaNames = selectedAreas
+      .filter(sa => areasWithoutQuestions.includes(sa.id))
+      .map(sa => sa.name);
+    
+    logWarning('Selected proficiency areas missing questions', {
+      operation: 'generateBalancedQuestions',
+      additionalData: { missingAreaNames, missingAreaIds: areasWithoutQuestions },
+    });
+    
     return {
       success: false,
       questions: [],
-      warnings: ['No sub-domains available in question pool'],
+      warnings: [
+        `Cannot generate assessment: No questions available for these selected proficiency areas: ${missingAreaNames.join(', ')}. ` +
+        `Please contact administrator to add questions to the question bank for these areas.`
+      ],
       stats: {
         totalEligible: eligibleQuestions.length,
+        proficiencyAreaDistribution: {},
         subDomainDistribution: {},
         difficultyDistribution: {},
         questionTypeDistribution: {},
@@ -323,21 +349,41 @@ export async function generateBalancedQuestions(
     };
   }
 
-  // Step 3: Calculate sub-domain quotas (balance rule)
-  const baseQuota = Math.floor(questionsCount / numSubDomains);
-  const remainder = questionsCount % numSubDomains;
+  // Step 3: Calculate quota per proficiency area (AREA-FIRST distribution)
+  const numAreas = areaIdsWithQuestions.length;
+  const baseAreaQuota = Math.floor(questionsCount / numAreas);
+  const areaRemainder = questionsCount % numAreas;
   
-  const subDomainQuotas: Record<string, number> = {};
-  subDomainIds.forEach((id, index) => {
-    // Distribute remainder to first N sub-domains
-    subDomainQuotas[id] = baseQuota + (index < remainder ? 1 : 0);
+  const shuffledAreaIds = shuffleArray(areaIdsWithQuestions);
+  const areaQuotas: Record<string, number> = {};
+  shuffledAreaIds.forEach((areaId, index) => {
+    // Distribute remainder to first N areas
+    areaQuotas[areaId] = baseAreaQuota + (index < areaRemainder ? 1 : 0);
   });
 
-  // Step 4: Select questions with balanced allocation
+  logInfo('Area-first quota distribution', {
+    operation: 'generateBalancedQuestions',
+    additionalData: { 
+      numAreas,
+      questionsCount,
+      baseAreaQuota,
+      areaRemainder,
+      areaQuotas: Object.fromEntries(
+        Object.entries(areaQuotas).map(([id, quota]) => {
+          const areaName = eligibleQuestions.find(q => q.proficiency_area_id === id)?.proficiency_area_name || id;
+          return [areaName, quota];
+        })
+      ),
+    },
+  });
+
+  // Step 4: Select questions with area-first, then sub-domain, then speciality balancing
   const selectedQuestions: QuestionWithMetadata[] = [];
   const selectedIds = new Set<string>();
 
   // Track distributions
+  const proficiencyAreaCount: Record<string, number> = {};
+  const subDomainCount: Record<string, number> = {};
   const difficultyCount: Record<string, number> = {
     introductory: 0,
     applied: 0,
@@ -348,90 +394,121 @@ export async function generateBalancedQuestions(
   const capabilityCount: Record<string, number> = {};
   const specialityCount: Record<string, number> = {};
 
-  // Phase 1: Ensure sub-domain balance
-  for (const subDomainId of shuffleArray(subDomainIds)) {
-    const quota = subDomainQuotas[subDomainId];
-    let available = shuffleArray(bySubDomain[subDomainId])
-      .filter(q => !selectedIds.has(q.id));
-
-    // Try to balance specialities within sub-domain
-    const bySpeciality = groupBy(available, q => q.speciality_id);
-    const specialityIds = shuffleArray(Object.keys(bySpeciality));
+  // Process each proficiency area
+  for (const areaId of shuffledAreaIds) {
+    const areaQuota = areaQuotas[areaId];
+    const areaQuestions = byProficiencyArea[areaId];
+    const areaName = areaQuestions[0]?.proficiency_area_name || 'Unknown Area';
     
-    let selectedFromSubDomain = 0;
-    let round = 0;
+    // Group by sub-domain within this area
+    const bySubDomain = groupBy(areaQuestions, q => q.sub_domain_id);
+    const subDomainIds = shuffleArray(Object.keys(bySubDomain));
+    const numSubDomains = subDomainIds.length;
     
-    while (selectedFromSubDomain < quota && available.length > 0) {
-      // Round-robin through specialities
-      for (const specId of specialityIds) {
-        if (selectedFromSubDomain >= quota) break;
-        
-        const specQuestions = bySpeciality[specId]?.filter(q => !selectedIds.has(q.id));
-        if (!specQuestions || specQuestions.length === 0) continue;
-
-        // Check speciality limit (max 2 per speciality normally, or adaptive)
-        const currentSpecCount = specialityCount[specId] || 0;
-        const totalSpecialities = specialityIds.length;
-        
-        let maxPerSpeciality = 2;
-        if (totalSpecialities <= 2) {
-          maxPerSpeciality = Math.ceil(questionsCount * 0.4);  // 40% max for very limited
-        } else if (totalSpecialities <= 4) {
-          maxPerSpeciality = Math.ceil(questionsCount * 0.3);  // 30% max
-        }
-
-        if (currentSpecCount >= maxPerSpeciality) continue;
-
-        // Select one question, preferring balanced difficulty and type
-        const question = selectBestQuestion(
-          specQuestions,
-          difficultyCount,
-          questionTypeCount,
-          capabilityCount,
-          questionsCount
-        );
-
-        if (question) {
-          selectedQuestions.push(question);
-          selectedIds.add(question.id);
-          selectedFromSubDomain++;
-
-          // Update counts
-          if (question.difficulty) {
-            difficultyCount[question.difficulty] = (difficultyCount[question.difficulty] || 0) + 1;
-          }
-          questionTypeCount[question.question_type] = (questionTypeCount[question.question_type] || 0) + 1;
-          specialityCount[question.speciality_id] = (specialityCount[question.speciality_id] || 0) + 1;
-          
-          for (const tag of question.capability_tags) {
-            capabilityCount[tag.toLowerCase()] = (capabilityCount[tag.toLowerCase()] || 0) + 1;
-          }
-
-          // Remove from available
-          available = available.filter(q => q.id !== question.id);
-          bySpeciality[specId] = specQuestions.filter(q => q.id !== question.id);
-        }
-      }
-      
-      round++;
-      if (round > 10) break;  // Safety limit
+    if (numSubDomains === 0) {
+      warnings.push(`Proficiency area "${areaName}" has no sub-domains with questions`);
+      continue;
     }
+    
+    // Calculate sub-domain quotas within this area
+    const baseSDQuota = Math.floor(areaQuota / numSubDomains);
+    const sdRemainder = areaQuota % numSubDomains;
+    
+    const subDomainQuotas: Record<string, number> = {};
+    subDomainIds.forEach((sdId, index) => {
+      subDomainQuotas[sdId] = baseSDQuota + (index < sdRemainder ? 1 : 0);
+    });
 
-    if (selectedFromSubDomain < quota) {
-      warnings.push(`Sub-domain "${subDomainNames[subDomainId]}" only provided ${selectedFromSubDomain}/${quota} questions`);
+    // Select from each sub-domain
+    for (const subDomainId of subDomainIds) {
+      const sdQuota = subDomainQuotas[subDomainId];
+      let available = shuffleArray(bySubDomain[subDomainId]).filter(q => !selectedIds.has(q.id));
+      const sdName = available[0]?.sub_domain_name || 'Unknown Sub-Domain';
+      
+      // Group by speciality within sub-domain
+      const bySpeciality = groupBy(available, q => q.speciality_id);
+      const specialityIds = shuffleArray(Object.keys(bySpeciality));
+      
+      let selectedFromSD = 0;
+      let round = 0;
+      
+      while (selectedFromSD < sdQuota && available.length > 0) {
+        // Round-robin through specialities
+        for (const specId of specialityIds) {
+          if (selectedFromSD >= sdQuota) break;
+          
+          const specQuestions = bySpeciality[specId]?.filter(q => !selectedIds.has(q.id));
+          if (!specQuestions || specQuestions.length === 0) continue;
+
+          // Check speciality limit (adaptive based on total specialities)
+          const currentSpecCount = specialityCount[specId] || 0;
+          const totalSpecialities = specialityIds.length;
+          
+          let maxPerSpeciality = 2;
+          if (totalSpecialities <= 2) {
+            maxPerSpeciality = Math.ceil(questionsCount * 0.4);  // 40% max for very limited
+          } else if (totalSpecialities <= 4) {
+            maxPerSpeciality = Math.ceil(questionsCount * 0.3);  // 30% max
+          }
+
+          if (currentSpecCount >= maxPerSpeciality) continue;
+
+          // Select one question, preferring balanced difficulty and type
+          const question = selectBestQuestion(
+            specQuestions,
+            difficultyCount,
+            questionTypeCount,
+            capabilityCount,
+            questionsCount
+          );
+
+          if (question) {
+            selectedQuestions.push(question);
+            selectedIds.add(question.id);
+            selectedFromSD++;
+
+            // Update counts
+            proficiencyAreaCount[areaId] = (proficiencyAreaCount[areaId] || 0) + 1;
+            subDomainCount[subDomainId] = (subDomainCount[subDomainId] || 0) + 1;
+            
+            if (question.difficulty) {
+              difficultyCount[question.difficulty] = (difficultyCount[question.difficulty] || 0) + 1;
+            }
+            questionTypeCount[question.question_type] = (questionTypeCount[question.question_type] || 0) + 1;
+            specialityCount[question.speciality_id] = (specialityCount[question.speciality_id] || 0) + 1;
+            
+            for (const tag of question.capability_tags) {
+              capabilityCount[tag.toLowerCase()] = (capabilityCount[tag.toLowerCase()] || 0) + 1;
+            }
+
+            // Remove from available pools
+            available = available.filter(q => q.id !== question.id);
+            bySpeciality[specId] = specQuestions.filter(q => q.id !== question.id);
+          }
+        }
+        
+        round++;
+        if (round > 10) break;  // Safety limit
+      }
+
+      if (selectedFromSD < sdQuota) {
+        warnings.push(`Sub-domain "${sdName}" in "${areaName}" only provided ${selectedFromSD}/${sdQuota} questions`);
+      }
     }
   }
 
-  // Phase 2: Fill remaining slots if any
+  // Phase 2: Fill remaining slots if any (fallback to any available question)
   const remaining = questionsCount - selectedQuestions.length;
   if (remaining > 0) {
-    const unselected = shuffleArray(eligibleQuestions)
-      .filter(q => !selectedIds.has(q.id));
+    const unselected = shuffleArray(eligibleQuestions).filter(q => !selectedIds.has(q.id));
     
     for (let i = 0; i < remaining && i < unselected.length; i++) {
       const q = unselected[i];
       selectedQuestions.push(q);
       selectedIds.add(q.id);
+      
+      proficiencyAreaCount[q.proficiency_area_id] = (proficiencyAreaCount[q.proficiency_area_id] || 0) + 1;
+      subDomainCount[q.sub_domain_id] = (subDomainCount[q.sub_domain_id] || 0) + 1;
       
       if (q.difficulty) {
         difficultyCount[q.difficulty] = (difficultyCount[q.difficulty] || 0) + 1;
@@ -445,11 +522,27 @@ export async function generateBalancedQuestions(
   }
 
   // Phase 3: Validate and report
+  const finalProfAreaDist = groupBy(selectedQuestions, q => q.proficiency_area_name);
+  const proficiencyAreaDistribution: Record<string, number> = {};
+  for (const [name, qs] of Object.entries(finalProfAreaDist)) {
+    proficiencyAreaDistribution[name] = qs.length;
+  }
+
   const finalSubDomainDist = groupBy(selectedQuestions, q => q.sub_domain_name);
   const subDomainDistribution: Record<string, number> = {};
   for (const [name, qs] of Object.entries(finalSubDomainDist)) {
     subDomainDistribution[name] = qs.length;
   }
+
+  // Log final distribution for debugging
+  logInfo('Question generation completed', {
+    operation: 'generateBalancedQuestions',
+    additionalData: {
+      totalGenerated: selectedQuestions.length,
+      proficiencyAreaDistribution,
+      subDomainDistribution,
+    },
+  });
 
   // Check mandatory capability tags
   for (const requiredTag of MANDATORY_CAPABILITY_CATEGORIES) {
@@ -478,6 +571,7 @@ export async function generateBalancedQuestions(
     warnings,
     stats: {
       totalEligible: eligibleQuestions.length,
+      proficiencyAreaDistribution,
       subDomainDistribution,
       difficultyDistribution: difficultyCount,
       questionTypeDistribution: questionTypeCount,
