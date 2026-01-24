@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, Send, Download, PlayCircle } from 'lucide-react';
 import html2pdf from 'html2pdf.js';
@@ -151,6 +151,36 @@ export default function TakeAssessment() {
   const [showTimeExpiredDialog, setShowTimeExpiredDialog] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Refs for question cards (for auto-scroll to next question)
+  const questionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  // Register question ref callback
+  const registerQuestionRef = useCallback((questionId: string, element: HTMLDivElement | null) => {
+    if (element) {
+      questionRefs.current.set(questionId, element);
+    } else {
+      questionRefs.current.delete(questionId);
+    }
+  }, []);
+
+  // Scroll to next question
+  const scrollToNextQuestion = useCallback((currentQuestionId: string) => {
+    if (!questions || questions.length === 0) return;
+    
+    const currentIndex = questions.findIndex(q => q.id === currentQuestionId);
+    if (currentIndex === -1 || currentIndex >= questions.length - 1) return;
+    
+    const nextQuestion = questions[currentIndex + 1];
+    const nextElement = questionRefs.current.get(nextQuestion.id);
+    
+    if (nextElement) {
+      // Small delay to let the answer state update visually first
+      requestAnimationFrame(() => {
+        nextElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+    }
+  }, [questions]);
+
   // Initialize answers from loaded questions
   useEffect(() => {
     if (questions && questions.length > 0) {
@@ -162,13 +192,16 @@ export default function TakeAssessment() {
     }
   }, [questions]);
 
-  // Handle answer selection with autosave
+  // Handle answer selection with autosave + auto-advance
   const handleAnswerChange = useCallback(async (questionId: string, optionIndex: number) => {
     if (!attempt?.id) return;
 
     // Optimistically update local state
     setAnswers(prev => ({ ...prev, [questionId]: optionIndex }));
     setSavingQuestions(prev => new Set(prev).add(questionId));
+
+    // IMMEDIATELY scroll to next question (don't wait for save)
+    scrollToNextQuestion(questionId);
 
     try {
       await saveAnswer.mutateAsync({
@@ -188,7 +221,7 @@ export default function TakeAssessment() {
         return next;
       });
     }
-  }, [attempt?.id, saveAnswer]);
+  }, [attempt?.id, saveAnswer, scrollToNextQuestion]);
 
   // Group questions hierarchically
   const hierarchicalQuestions = useMemo(() => {
@@ -516,6 +549,7 @@ export default function TakeAssessment() {
             onAnswerChange={handleAnswerChange}
             savingQuestions={savingQuestions}
             questionNumberMap={questionNumberMap}
+            registerQuestionRef={registerQuestionRef}
           />
         ))}
 
