@@ -1614,9 +1614,14 @@ export function QuestionBankPage() {
                   )}
                 </div>
 
-                {/* Filter Summary */}
-                <div className="text-sm text-muted-foreground">
-                  {filteredQuestions.length} of {questions.length} questions
+                {/* Filter Summary with Total Count Badge */}
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="text-sm px-3 py-1">
+                    {questions.length.toLocaleString()} total
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    Showing {filteredQuestions.length.toLocaleString()} filtered
+                  </span>
                 </div>
               </div>
 
@@ -1780,6 +1785,8 @@ export function QuestionBankPage() {
                 addButtonLabel="Add Question"
                 enableRowSelection
                 onSelectedRowsChange={setSelectedQuestions}
+                pageSize={50}
+                pageSizeOptions={[25, 50, 100, 200]}
               />
             </>
           ) : (

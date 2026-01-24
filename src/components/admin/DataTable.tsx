@@ -35,6 +35,13 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export interface DataTableColumn<TData> {
   accessorKey: keyof TData | string;
@@ -65,6 +72,7 @@ interface DataTableProps<TData> {
   onSelectedRowsChange?: (rows: TData[]) => void;
   emptyMessage?: string;
   pageSize?: number;
+  pageSizeOptions?: number[];
   onRowClick?: (row: TData) => void;
 }
 
@@ -81,6 +89,7 @@ export function DataTable<TData extends { id: string }>({
   onSelectedRowsChange,
   emptyMessage = "No results found.",
   pageSize = 10,
+  pageSizeOptions = [10, 25, 50, 100],
   onRowClick,
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
@@ -375,32 +384,63 @@ export function DataTable<TData extends { id: string }>({
           )}
           {!enableRowSelection && (
             <>
-              Showing {table.getState().pagination.pageIndex * pageSize + 1} to{" "}
+              Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
               {Math.min(
-                (table.getState().pagination.pageIndex + 1) * pageSize,
+                (table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize,
                 table.getFilteredRowModel().rows.length
               )}{" "}
               of {table.getFilteredRowModel().rows.length} results
             </>
           )}
         </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
-          >
-            Previous
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
-          >
-            Next
-          </Button>
+        <div className="flex items-center gap-4">
+          {/* Page Size Selector */}
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">Rows per page:</span>
+            <Select
+              value={String(table.getState().pagination.pageSize)}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue placeholder={table.getState().pagination.pageSize} />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {(pageSizeOptions || [10, 25, 50, 100]).map((size) => (
+                  <SelectItem key={size} value={String(size)}>
+                    {size}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Page Indicator */}
+          <span className="text-sm text-muted-foreground whitespace-nowrap">
+            Page {table.getState().pagination.pageIndex + 1} of{" "}
+            {table.getPageCount()}
+          </span>
+
+          {/* Navigation Buttons */}
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
     </div>
