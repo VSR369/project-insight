@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, Send, Download, PlayCircle } from 'lucide-react';
+import html2pdf from 'html2pdf.js';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -38,6 +39,7 @@ interface QuestionForDisplay {
   question_text: string;
   options: QuestionOption[];
   difficulty: string | null;
+  correct_option: number | null;
   speciality_id: string;
   speciality_name: string;
   sub_domain_id: string;
@@ -130,6 +132,7 @@ export default function TakeAssessment() {
         question_text: qb?.question_text || '',
         options: parseOptions(qb?.options),
         difficulty: qb?.difficulty || null,
+        correct_option: qb?.correct_option || null,
         speciality_id: qb?.speciality_id || '',
         speciality_name: spec?.name || 'Unknown Speciality',
         sub_domain_id: subDomain?.id || '',
@@ -254,38 +257,91 @@ export default function TakeAssessment() {
   }, []);
 
   // TODO: Remove before production - temporary debugging feature
-  const handleDownloadQuestions = useCallback(() => {
+  const handleDownloadQuestionsPDF = useCallback(() => {
     if (!questions || questions.length === 0) {
       toast.error('No questions to download');
       return;
     }
 
-    const exportData = questions.map((q, idx) => ({
-      questionNumber: idx + 1,
-      id: q.id,
-      question_text: q.question_text,
-      options: q.options,
-      difficulty: q.difficulty,
-      proficiency_area: q.proficiency_area_name,
-      sub_domain: q.sub_domain_name,
-      speciality: q.speciality_name,
-    }));
+    const industryName = activeEnrollment?.industry_segment?.name || 'N/A';
+    const levelName = activeEnrollment?.expertise_level?.name || 'N/A';
 
-    const blob = new Blob(
-      [JSON.stringify(exportData, null, 2)],
-      { type: 'application/json' }
-    );
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `assessment-questions-${attempt?.id?.slice(0, 8) || 'unknown'}-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    // Generate HTML content for PDF
+    const htmlContent = `
+      <html>
+        <head>
+          <style>
+            body { font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: #333; }
+            .header { text-align: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #333; }
+            .header h2 { margin: 0 0 10px 0; font-size: 18px; }
+            .header p { margin: 5px 0; color: #555; }
+            .question { margin-bottom: 25px; page-break-inside: avoid; border: 1px solid #ddd; border-radius: 4px; padding: 12px; }
+            .question-header { background: #f5f5f5; padding: 8px 10px; margin: -12px -12px 10px -12px; border-radius: 4px 4px 0 0; font-weight: bold; display: flex; justify-content: space-between; }
+            .q-number { color: #333; }
+            .difficulty { font-size: 10px; color: #666; background: #e9e9e9; padding: 2px 8px; border-radius: 3px; }
+            .hierarchy { color: #666; font-size: 10px; margin-bottom: 8px; font-style: italic; }
+            .question-text { margin: 10px 0; font-weight: bold; line-height: 1.4; }
+            .options { margin-left: 15px; margin-top: 10px; }
+            .option { margin: 6px 0; padding: 6px 10px; border-radius: 3px; }
+            .correct { background: #d4edda; border-left: 4px solid #28a745; }
+            .correct::after { content: ' ✓ CORRECT'; color: #28a745; font-weight: bold; font-size: 10px; }
+            .incorrect { color: #555; background: #f8f8f8; }
+            .answer-summary { margin-top: 10px; padding-top: 8px; border-top: 1px dashed #ccc; color: #28a745; font-weight: bold; font-size: 10px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h2>Assessment Questions with Answer Key</h2>
+            <p><strong>Industry:</strong> ${industryName} | <strong>Level:</strong> ${levelName}</p>
+            <p><strong>Total Questions:</strong> ${questions.length} | <strong>Generated:</strong> ${new Date().toLocaleString()}</p>
+          </div>
+          
+          ${questions.map((q, idx) => `
+            <div class="question">
+              <div class="question-header">
+                <span class="q-number">Q${idx + 1}</span>
+                <span class="difficulty">${q.difficulty || 'N/A'}</span>
+              </div>
+              <div class="hierarchy">
+                ${q.proficiency_area_name} → ${q.sub_domain_name} → ${q.speciality_name}
+              </div>
+              <div class="question-text">${q.question_text}</div>
+              <div class="options">
+                ${q.options.map(opt => `
+                  <div class="option ${opt.index === q.correct_option ? 'correct' : 'incorrect'}">
+                    ${opt.index}. ${opt.text}
+                  </div>
+                `).join('')}
+              </div>
+              <div class="answer-summary">Correct Answer: Option ${q.correct_option}</div>
+            </div>
+          `).join('')}
+        </body>
+      </html>
+    `;
 
-    toast.success(`Downloaded ${exportData.length} questions`);
-  }, [questions, attempt?.id]);
+    // Generate PDF
+    const container = document.createElement('div');
+    container.innerHTML = htmlContent;
+    
+    html2pdf()
+      .from(container)
+      .set({
+        margin: [10, 10, 10, 10],
+        filename: `assessment-answers-${attempt?.id?.slice(0, 8) || 'unknown'}-${new Date().toISOString().split('T')[0]}.pdf`,
+        html2canvas: { scale: 2 },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: ['avoid-all', 'css', 'legacy'] },
+      })
+      .save()
+      .then(() => {
+        toast.success(`Downloaded ${questions.length} questions as PDF`);
+      })
+      .catch((err: Error) => {
+        console.error('PDF generation failed:', err);
+        toast.error('Failed to generate PDF');
+      });
+  }, [questions, attempt?.id, activeEnrollment]);
 
   // Handle submit
   const handleSubmit = async () => {
@@ -441,11 +497,11 @@ export default function TakeAssessment() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleDownloadQuestions}
+            onClick={handleDownloadQuestionsPDF}
             className="gap-2 bg-yellow-50 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
           >
             <Download className="h-4 w-4" />
-            Download Questions (DEV)
+            Download Questions PDF (DEV)
           </Button>
         </div>
       </div>
