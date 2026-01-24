@@ -25,7 +25,7 @@ import {
   useCanStartEnrollmentAssessment,
   useStartEnrollmentAssessment,
 } from '@/hooks/queries/useEnrollmentAssessment';
-import { AssessmentProgressHeader, QuestionSection } from '@/components/assessment';
+import { AssessmentProgressHeader, QuestionSection, AssessmentDiagnosticBanner } from '@/components/assessment';
 import type { Json } from '@/integrations/supabase/types';
 
 // Types for hierarchical question grouping
@@ -133,11 +133,12 @@ export default function TakeAssessment() {
         options: parseOptions(qb?.options),
         difficulty: qb?.difficulty || null,
         correct_option: qb?.correct_option || null,
-        speciality_id: qb?.speciality_id || '',
+        // Use nested IDs from the expanded query
+        speciality_id: spec?.id || qb?.speciality_id || '',
         speciality_name: spec?.name || 'Unknown Speciality',
-        sub_domain_id: subDomain?.id || '',
+        sub_domain_id: subDomain?.id || spec?.sub_domain_id || '',
         sub_domain_name: subDomain?.name || 'Unknown Sub-Domain',
-        proficiency_area_id: area?.id || '',
+        proficiency_area_id: area?.id || subDomain?.proficiency_area_id || '',
         proficiency_area_name: area?.name || 'Unknown Area',
         selected_option: response.selected_option,
       };
@@ -571,6 +572,14 @@ export default function TakeAssessment() {
 
       {/* Questions */}
       <div className="container max-w-5xl mx-auto px-4 py-6">
+        {/* Diagnostic Banner */}
+        <AssessmentDiagnosticBanner
+          industrySegmentName={activeEnrollment?.industry_segment?.name}
+          expertiseLevelName={activeEnrollment?.expertise_level?.name}
+          questions={questions}
+          totalQuestions={totalQuestions}
+        />
+
         {hierarchicalQuestions.map((area) => (
           <QuestionSection
             key={area.id}
