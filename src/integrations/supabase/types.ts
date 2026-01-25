@@ -383,6 +383,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "booking_reviewers_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "reviewer_workload_distribution"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "booking_reviewers_slot_id_fkey"
             columns: ["slot_id"]
             isOneToOne: false
@@ -793,6 +800,13 @@ export type Database = {
             referencedRelation: "panel_reviewers"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "interview_evaluations_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "reviewer_workload_distribution"
+            referencedColumns: ["id"]
+          },
         ]
       }
       interview_quorum_requirements: {
@@ -895,6 +909,13 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "panel_reviewers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_slots_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "reviewer_workload_distribution"
             referencedColumns: ["id"]
           },
         ]
@@ -1391,6 +1412,13 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "panel_reviewers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "proof_point_reviews_reviewer_id_fkey"
+            columns: ["reviewer_id"]
+            isOneToOne: false
+            referencedRelation: "reviewer_workload_distribution"
             referencedColumns: ["id"]
           },
         ]
@@ -2438,6 +2466,45 @@ export type Database = {
           },
         ]
       }
+      reviewer_workload_distribution: {
+        Row: {
+          days_since_last: number | null
+          email: string | null
+          expertise_level_ids: string[] | null
+          id: string | null
+          industry_segment_ids: string[] | null
+          interviews_30d: number | null
+          interviews_7d: number | null
+          load_bucket: string | null
+          name: string | null
+          workload_status: string | null
+        }
+        Insert: {
+          days_since_last?: never
+          email?: string | null
+          expertise_level_ids?: string[] | null
+          id?: string | null
+          industry_segment_ids?: string[] | null
+          interviews_30d?: never
+          interviews_7d?: never
+          load_bucket?: never
+          name?: string | null
+          workload_status?: never
+        }
+        Update: {
+          days_since_last?: never
+          email?: string | null
+          expertise_level_ids?: string[] | null
+          id?: string | null
+          industry_segment_ids?: string[] | null
+          interviews_30d?: never
+          interviews_7d?: never
+          load_bucket?: never
+          name?: string | null
+          workload_status?: never
+        }
+        Relationships: []
+      }
     }
     Functions: {
       book_interview_slot: {
@@ -2496,6 +2563,10 @@ export type Database = {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: undefined
       }
+      get_active_reviewer_count: {
+        Args: { p_expertise_level_id: string; p_industry_segment_id: string }
+        Returns: number
+      }
       get_cascade_impact_counts: {
         Args: { p_provider_id: string }
         Returns: {
@@ -2516,6 +2587,14 @@ export type Database = {
       }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
+        Returns: number
+      }
+      get_reviewer_days_idle: {
+        Args: { p_reviewer_id: string }
+        Returns: number
+      }
+      get_reviewer_interview_count: {
+        Args: { p_days_lookback?: number; p_reviewer_id: string }
         Returns: number
       }
       handle_orphaned_proof_points: {
@@ -2544,6 +2623,17 @@ export type Database = {
       is_reviewer_for_provider: {
         Args: { p_provider_id: string }
         Returns: boolean
+      }
+      select_reviewers_weighted: {
+        Args: {
+          p_end_at: string
+          p_expertise_level_id: string
+          p_industry_segment_id: string
+          p_quorum_required: number
+          p_slot_ids: string[]
+          p_start_at: string
+        }
+        Returns: string[]
       }
     }
     Enums: {
