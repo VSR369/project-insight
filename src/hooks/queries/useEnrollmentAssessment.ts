@@ -708,10 +708,11 @@ export function useStartEnrollmentAssessment() {
         return { success: false, error: 'Failed to start assessment' };
       }
 
-      // Step 3: Create assessment response records for each question
+      // Step 3: Create assessment response records for each question with explicit ordering
       const responseRecords = generationResult.questions.map((q, index) => ({
         attempt_id: attempt.id,
         question_id: q.id,
+        question_order: index + 1,  // 1-based ordering for consistent display
         selected_option: null,
         is_correct: null,
         answered_at: null,
@@ -855,7 +856,7 @@ export function useAssessmentAttemptQuestions(attemptId?: string) {
           )
         `)
         .eq('attempt_id', attemptId)
-        .order('created_at', { ascending: true });
+        .order('question_order', { ascending: true, nullsFirst: false });
 
       if (error) throw error;
       return data || [];

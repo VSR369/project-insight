@@ -188,6 +188,7 @@ export type Database = {
           id: string
           is_correct: boolean | null
           question_id: string
+          question_order: number | null
           selected_option: number | null
         }
         Insert: {
@@ -197,6 +198,7 @@ export type Database = {
           id?: string
           is_correct?: boolean | null
           question_id: string
+          question_order?: number | null
           selected_option?: number | null
         }
         Update: {
@@ -206,6 +208,7 @@ export type Database = {
           id?: string
           is_correct?: boolean | null
           question_id?: string
+          question_order?: number | null
           selected_option?: number | null
         }
         Relationships: [
