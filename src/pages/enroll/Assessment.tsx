@@ -12,6 +12,8 @@ import {
   useEnrollmentIsTerminal,
   useRetakeEligibility,
   useStartRetakeAssessment,
+  useExpiredAssessmentAttempt,
+  useDeleteExpiredAttempt,
 } from '@/hooks/queries/useEnrollmentAssessment';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -35,7 +37,8 @@ import {
   RotateCcw,
   CalendarClock,
   Eye,
-  Trophy
+  Trophy,
+  XCircle
 } from 'lucide-react';
 
 function AssessmentContent() {
@@ -65,6 +68,10 @@ function AssessmentContent() {
   
   const startAssessment = useStartEnrollmentAssessment();
   const startRetake = useStartRetakeAssessment();
+  const deleteExpiredAttempt = useDeleteExpiredAttempt();
+  
+  // Check for expired assessment that needs cleanup
+  const { data: expiredAttempt, isLoading: expiredLoading } = useExpiredAssessmentAttempt(activeEnrollmentId ?? undefined);
 
   // Query to verify active attempt has valid responses (prevents showing "Continue" for orphan attempts)
   const { data: attemptResponseCount, isLoading: responseCountLoading } = useQuery({
@@ -178,7 +185,17 @@ function AssessmentContent() {
     }
   };
 
-  const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading || responseCountLoading;
+  const isLoading = providerLoading || canStartLoading || enrollmentLoading || retakeLoading || responseCountLoading || expiredLoading;
+
+  // Handle cleaning up an expired assessment
+  const handleCleanupExpiredAssessment = async () => {
+    if (!expiredAttempt || !activeEnrollmentId) return;
+
+    await deleteExpiredAttempt.mutateAsync({
+      attemptId: expiredAttempt.attemptId,
+      enrollmentId: activeEnrollmentId,
+    });
+  };
 
   // Helper to check if an attempt is expired (time limit passed)
   const isAttemptExpired = (attempt: { started_at: string; time_limit_minutes: number }) => {
@@ -263,7 +280,36 @@ function AssessmentContent() {
           />
         )}
 
-        {/* Sequential Assessment Rule - Active Assessment Elsewhere */}
+        {/* Expired Assessment Alert - Show when there's an expired unsubmitted attempt */}
+        {expiredAttempt && !hasAssessmentElsewhere && (
+          <Alert className="bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800">
+            <XCircle className="h-4 w-4 text-red-600" />
+            <AlertTitle className="text-red-800 dark:text-red-400">Assessment Expired</AlertTitle>
+            <AlertDescription className="text-red-700 dark:text-red-300">
+              <p className="mb-3">
+                The assessment expired, start a new assessment.
+              </p>
+              <p className="text-sm mb-3 opacity-80">
+                Your previous attempt had {expiredAttempt.answeredCount} of {expiredAttempt.totalQuestions} questions answered.
+              </p>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={handleCleanupExpiredAssessment}
+                disabled={deleteExpiredAttempt.isPending}
+                className="gap-2"
+              >
+                {deleteExpiredAttempt.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <PlayCircle className="h-4 w-4" />
+                )}
+                Start New Assessment
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {hasAssessmentElsewhere && (
           <Alert className="bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800">
             <Clock className="h-4 w-4 text-blue-600" />

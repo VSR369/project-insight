@@ -471,7 +471,18 @@ export function useCanStartEnrollmentAssessment(enrollmentId?: string, providerI
 }
 
 /**
+ * Expired attempt info for UI display
+ */
+export interface ExpiredAttemptInfo {
+  attemptId: string;
+  answeredCount: number;
+  totalQuestions: number;
+  expiredAt: Date;
+}
+
+/**
  * Get active assessment attempt for a specific enrollment
+ * Also checks for expired attempts that need cleanup
  */
 export function useActiveEnrollmentAssessmentAttempt(enrollmentId?: string) {
   return useQuery({
@@ -493,6 +504,124 @@ export function useActiveEnrollmentAssessmentAttempt(enrollmentId?: string) {
     },
     enabled: !!enrollmentId,
     staleTime: 5000,
+  });
+}
+
+/**
+ * Check for expired unsubmitted assessments that need cleanup
+ */
+export function useExpiredAssessmentAttempt(enrollmentId?: string) {
+  return useQuery({
+    queryKey: ['expired-assessment-attempt', enrollmentId],
+    queryFn: async (): Promise<ExpiredAttemptInfo | null> => {
+      if (!enrollmentId) return null;
+
+      // Fetch the most recent unsubmitted attempt
+      const { data: attempt, error } = await supabase
+        .from('assessment_attempts')
+        .select('id, started_at, time_limit_minutes, total_questions')
+        .eq('enrollment_id', enrollmentId)
+        .is('submitted_at', null)
+        .order('started_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error || !attempt) return null;
+
+      // Check if expired
+      const startedAt = new Date(attempt.started_at);
+      const expiresAt = new Date(startedAt.getTime() + attempt.time_limit_minutes * 60 * 1000);
+      const now = new Date();
+
+      if (now < expiresAt) {
+        return null; // Not expired yet
+      }
+
+      // Count actual answered questions (non-null selected_option)
+      const { count: answeredCount } = await supabase
+        .from('assessment_attempt_responses')
+        .select('id', { count: 'exact', head: true })
+        .eq('attempt_id', attempt.id)
+        .not('selected_option', 'is', null);
+
+      return {
+        attemptId: attempt.id,
+        answeredCount: answeredCount || 0,
+        totalQuestions: attempt.total_questions,
+        expiredAt: expiresAt,
+      };
+    },
+    enabled: !!enrollmentId,
+    staleTime: 10000,
+  });
+}
+
+/**
+ * Mutation to delete an expired assessment attempt and reset enrollment lifecycle
+ */
+export function useDeleteExpiredAttempt() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ attemptId, enrollmentId }: { attemptId: string; enrollmentId: string }): Promise<{ success: boolean; error?: string }> => {
+      const userId = await getCurrentUserId();
+      if (!userId) {
+        return { success: false, error: 'Not authenticated' };
+      }
+
+      // Delete responses first (child records)
+      const { error: responsesError } = await supabase
+        .from('assessment_attempt_responses')
+        .delete()
+        .eq('attempt_id', attemptId);
+
+      if (responsesError) {
+        return { success: false, error: 'Failed to delete attempt responses' };
+      }
+
+      // Delete the attempt
+      const { error: attemptError } = await supabase
+        .from('assessment_attempts')
+        .delete()
+        .eq('id', attemptId);
+
+      if (attemptError) {
+        return { success: false, error: 'Failed to delete attempt' };
+      }
+
+      // Reset enrollment lifecycle to proof_points_minimum_met (rank 70)
+      const { error: updateError } = await supabase
+        .from('provider_industry_enrollments')
+        .update({
+          lifecycle_status: 'proof_points_minimum_met' as LifecycleStatus,
+          lifecycle_rank: 70,
+          updated_by: userId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', enrollmentId);
+
+      if (updateError) {
+        return { success: false, error: 'Failed to reset enrollment lifecycle' };
+      }
+
+      return { success: true };
+    },
+    onSuccess: (result, variables) => {
+      if (result.success) {
+        queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+        queryClient.invalidateQueries({ queryKey: ['active-enrollment'] });
+        queryClient.invalidateQueries({ queryKey: ['can-start-enrollment-assessment'] });
+        queryClient.invalidateQueries({ queryKey: ['active-enrollment-assessment-attempt'] });
+        queryClient.invalidateQueries({ queryKey: ['expired-assessment-attempt'] });
+        queryClient.invalidateQueries({ queryKey: ['active-assessment-any-enrollment'] });
+        toast.success('Expired assessment cleared. You can start a new assessment.');
+      } else {
+        toast.error(result.error || 'Failed to clear expired assessment');
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to clear expired assessment: ${error.message}`);
+    },
   });
 }
 

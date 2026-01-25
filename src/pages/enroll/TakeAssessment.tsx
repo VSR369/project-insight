@@ -315,10 +315,28 @@ export default function TakeAssessment() {
   const answeredQuestions = Object.values(answers).filter(a => a != null).length;
   const unansweredCount = totalQuestions - answeredQuestions;
 
-  // Handle time expired
-  const handleTimeExpired = useCallback(() => {
-    setShowTimeExpiredDialog(true);
-  }, []);
+  // Handle time expired - auto-submit
+  const handleTimeExpired = useCallback(async () => {
+    if (!attempt?.id || !activeEnrollmentId || isSubmitting) return;
+    
+    // Auto-submit immediately without dialog
+    setIsSubmitting(true);
+    
+    try {
+      await submitAssessment.mutateAsync({
+        attemptId: attempt.id,
+        enrollmentId: activeEnrollmentId,
+      });
+
+      toast.success('Assessment submitted (time expired)');
+      navigate('/enroll/assessment/results', { state: { attemptId: attempt.id } });
+    } catch (error) {
+      console.error('Failed to auto-submit assessment:', error);
+      // Show dialog as fallback if auto-submit fails
+      setShowTimeExpiredDialog(true);
+      setIsSubmitting(false);
+    }
+  }, [attempt?.id, activeEnrollmentId, isSubmitting, submitAssessment, navigate]);
 
   // TODO: Remove before production - temporary debugging feature
   const handleDownloadQuestionsPDF = useCallback(() => {
