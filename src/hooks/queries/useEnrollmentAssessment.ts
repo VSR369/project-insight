@@ -856,7 +856,8 @@ export function useAssessmentAttemptQuestions(attemptId?: string) {
           )
         `)
         .eq('attempt_id', attemptId)
-        .order('question_order', { ascending: true, nullsFirst: false });
+        .order('question_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true });
 
       if (error) throw error;
       return data || [];
