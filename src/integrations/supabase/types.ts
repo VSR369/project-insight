@@ -2549,6 +2549,24 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
+      check_enrollment_time_conflict: {
+        Args: {
+          p_end_at: string
+          p_enrollment_id: string
+          p_exclude_booking_id?: string
+          p_start_at: string
+        }
+        Returns: boolean
+      }
+      check_reviewer_time_conflict: {
+        Args: {
+          p_end_at: string
+          p_exclude_booking_id?: string
+          p_reviewer_id: string
+          p_start_at: string
+        }
+        Returns: boolean
+      }
       delete_questions_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
