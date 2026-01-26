@@ -32,6 +32,7 @@ export interface SlotContextData {
   providerId: string;
   providerName: string;
   providerTimezone: string | null;
+  providerEmail: string | null;
   
   // Enrollment context
   enrollmentId: string;
@@ -108,7 +109,7 @@ export function useSlotContext(enrollmentId?: string) {
         // Provider
         supabase
           .from('solution_providers')
-          .select('id, first_name, last_name, timezone')
+          .select('id, first_name, last_name, timezone, user_id')
           .eq('id', booking.provider_id)
           .single(),
         // Enrollment with industry & expertise
@@ -136,6 +137,17 @@ export function useSlotContext(enrollmentId?: string) {
 
       if (!provider || !enrollment) {
         throw new Error('Missing provider or enrollment data');
+      }
+
+      // Fetch provider email from profiles
+      let providerEmail: string | null = null;
+      if (provider.user_id) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('user_id', provider.user_id)
+          .maybeSingle();
+        providerEmail = profileData?.email || null;
       }
 
       // Fetch quorum requirement (needs enrollment expertise_level_id)
@@ -169,6 +181,7 @@ export function useSlotContext(enrollmentId?: string) {
         providerId: provider.id,
         providerName: `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'Unknown Provider',
         providerTimezone: provider.timezone || null,
+        providerEmail,
         
         enrollmentId: enrollment.id,
         industryName,
@@ -396,6 +409,144 @@ export function useDeclineInterviewSlot() {
       handleMutationError(error, {
         operation: 'decline_interview_slot',
         component: 'useDeclineInterviewSlot',
+      });
+    },
+  });
+}
+
+// ============= Cancel Accepted Booking =============
+
+interface CancelAcceptedBookingParams {
+  bookingId: string;
+  reviewerId: string;
+  providerId: string;
+  enrollmentId: string;
+  providerEmail: string | null;
+  providerName: string;
+  scheduledAt: string;
+  industryName: string | null;
+  expertiseName: string | null;
+  cancelReason: string;
+}
+
+/**
+ * Cancel an already-accepted interview booking
+ * Reverts lifecycle to assessment_passed and notifies provider
+ */
+export function useCancelAcceptedBooking() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      bookingId,
+      reviewerId,
+      providerId,
+      enrollmentId,
+      providerEmail,
+      providerName,
+      scheduledAt,
+      industryName,
+      expertiseName,
+      cancelReason,
+    }: CancelAcceptedBookingParams) => {
+      // 1. Update booking_reviewers acceptance status
+      const { error: reviewerError } = await supabase
+        .from('booking_reviewers')
+        .update({
+          acceptance_status: 'declined',
+          declined_reason: 'reviewer_cancelled',
+          declined_at: new Date().toISOString(),
+        })
+        .eq('booking_id', bookingId)
+        .eq('reviewer_id', reviewerId);
+
+      if (reviewerError) throw new Error(reviewerError.message);
+
+      // 2. Update booking status to cancelled
+      const { error: bookingError } = await supabase
+        .from('interview_bookings')
+        .update({
+          status: 'cancelled',
+          cancelled_reason: cancelReason,
+          cancelled_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId);
+
+      if (bookingError) throw new Error(bookingError.message);
+
+      // 3. Revert lifecycle to allow rebooking
+      const { error: lifecycleError } = await supabase
+        .from('provider_industry_enrollments')
+        .update({
+          lifecycle_status: 'assessment_passed',
+          lifecycle_rank: 110,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', enrollmentId);
+
+      if (lifecycleError) throw new Error(lifecycleError.message);
+
+      // 4. Create in-app notification
+      const { error: notifError } = await supabase
+        .from('provider_notifications')
+        .insert({
+          provider_id: providerId,
+          enrollment_id: enrollmentId,
+          notification_type: 'interview_cancelled_by_reviewer',
+          title: 'Interview Cancelled - Action Required',
+          message: `Your scheduled interview has been cancelled. Reason: ${cancelReason}. Please log in and select a new available time slot.`,
+          is_system_generated: true,
+        });
+
+      if (notifError) {
+        logInfo('Failed to create notification, continuing...', {
+          operation: 'cancel_accepted_booking',
+          component: 'useCancelAcceptedBooking',
+        });
+      }
+
+      // 5. Send email notification via edge function (if email available)
+      if (providerEmail) {
+        try {
+          await supabase.functions.invoke('notify-booking-cancelled', {
+            body: {
+              provider_email: providerEmail,
+              provider_name: providerName,
+              scheduled_at: scheduledAt,
+              industry_name: industryName,
+              expertise_name: expertiseName,
+              booking_id: bookingId,
+            },
+          });
+        } catch (emailError) {
+          logInfo('Email notification failed, booking still cancelled', {
+            operation: 'cancel_accepted_booking',
+            component: 'useCancelAcceptedBooking',
+          });
+        }
+      }
+
+      logInfo('Accepted interview booking cancelled', {
+        operation: 'cancel_accepted_booking',
+        component: 'useCancelAcceptedBooking',
+      });
+
+      return { success: true };
+    },
+    onSuccess: () => {
+      toast.success('Interview cancelled. Provider has been notified to reschedule.');
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['slot-context'] });
+      queryClient.invalidateQueries({ queryKey: ['candidate-detail'] });
+      queryClient.invalidateQueries({ queryKey: ['reviewer-dashboard'] });
+      queryClient.invalidateQueries({ queryKey: ['reviewer-action-required'] });
+      queryClient.invalidateQueries({ queryKey: ['reviewer-upcoming-interviews'] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, {
+        operation: 'cancel_accepted_booking',
+        component: 'useCancelAcceptedBooking',
       });
     },
   });
