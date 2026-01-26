@@ -1,140 +1,155 @@
 
+# Fix: RLS Policies for Reviewer Interview Slot Actions
 
-# Correction: Interview Slot Button States & Cancel Logic
+## Root Cause Analysis
 
-## Summary of Changes Required
+The Accept/Decline interview slot actions appear to succeed (PATCH returns 204 status) but the database is NOT actually updated. This is because:
 
-| State | Current Behavior | Corrected Behavior |
-|-------|-----------------|-------------------|
-| Pending | Accept + Decline buttons | Accept + Decline buttons (no change) |
-| Accepted | Status card + Cancel button | Show "ACCEPTED" button state + Cancel option |
-| Declined | Status card + Cancel button | Show "DECLINED" button state + **NO Cancel option** |
+1. **Missing RLS UPDATE policy on `booking_reviewers`**: Reviewers can only SELECT their own assignments but cannot UPDATE them
+2. **Missing RLS UPDATE policy on `interview_bookings`**: Reviewers can only SELECT bookings they're assigned to but cannot UPDATE them
 
-## Key Corrections
-
-1. **Button text changes after action:**
-   - "Accept Interview Slot" → Shows as "ACCEPTED" (disabled, green badge style)
-   - "Decline" → Shows as "DECLINED" (disabled, red badge style)
-
-2. **Cancel option ONLY for ACCEPTED state:**
-   - Remove the Cancel button from the Declined state section (lines 257-264)
-   - Keep Cancel button only in the Accepted state section
+When PostgREST encounters an UPDATE that matches 0 rows (due to RLS), it still returns 204 (No Content) instead of an error. This is why the mutations appear to succeed but the UI doesn't update.
 
 ---
 
-## Implementation Details
+## Current RLS Policies
 
-### File: `src/components/reviewer/candidates/SlotsTabContent.tsx`
+### `booking_reviewers` Table
+| Policy | Command | Description |
+|--------|---------|-------------|
+| Admins can manage booking reviewers | ALL | Platform admins only |
+| Booking reviewers visible to booking owner | SELECT | Providers who own the booking |
+| Reviewers can view own assignments | SELECT | Reviewers for their own rows |
+| **MISSING** | **UPDATE** | Reviewers cannot update their own assignments |
 
-#### Change 1: Accepted State UI (lines 212-238)
-Keep the existing accepted state card with Cancel button - this is correct.
+### `interview_bookings` Table
+| Policy | Command | Description |
+|--------|---------|-------------|
+| Admins can manage all bookings | ALL | Platform admins only |
+| Providers see own bookings | SELECT | Providers who own bookings |
+| Providers can create/update own bookings | INSERT/UPDATE | Providers only |
+| Reviewers can view assigned bookings | SELECT | Reviewers via function |
+| **MISSING** | **UPDATE** | Reviewers cannot update bookings they're assigned to |
 
-#### Change 2: Declined State UI (lines 240-272)
-**Remove the Cancel button** from this section. The declined state should only show:
-- Declined status badge
-- Reason for decline (if available)
-- NO Cancel button
+---
 
-**Current code (lines 240-272):**
-```typescript
-{isDeclined && !isBookingCancelled && (
-  <Card className="border-red-200 bg-red-50/50">
-    <CardContent className="pt-6">
-      <div className="flex items-center gap-2 mb-4">
-        <XCircle className="h-5 w-5 text-red-600" />
-        <span className="font-medium text-red-800">
-          You have declined this interview
-        </span>
-        <Badge variant="destructive">Declined</Badge>
-      </div>
-      
-      {slotContext.reviewerAssignment?.declinedReason && (
-        <p className="text-sm text-muted-foreground mb-4">
-          Reason: {slotContext.reviewerAssignment.declinedReason.replace(/_/g, ' ')}
-        </p>
-      )}
-      
-      <Button ...>Cancel Interview</Button>  // REMOVE THIS
-      
-      <p className="text-xs text-muted-foreground mt-3">
-        Click Cancel to formally close this booking...  // REMOVE THIS
-      </p>
-    </CardContent>
-  </Card>
-)}
+## Solution: Add RLS Policies via Migration
+
+### New Policies Required
+
+#### 1. `booking_reviewers` - UPDATE Policy for Reviewers
+```sql
+CREATE POLICY "Reviewers can update own acceptance status"
+ON public.booking_reviewers
+FOR UPDATE
+TO authenticated
+USING (
+  reviewer_id IN (
+    SELECT id FROM panel_reviewers 
+    WHERE user_id = auth.uid() AND is_active = true
+  )
+)
+WITH CHECK (
+  reviewer_id IN (
+    SELECT id FROM panel_reviewers 
+    WHERE user_id = auth.uid() AND is_active = true
+  )
+);
 ```
 
-**Corrected code:**
-```typescript
-{isDeclined && !isBookingCancelled && (
-  <Card className="border-red-200 bg-red-50/50">
-    <CardContent className="pt-6">
-      <div className="flex items-center gap-2 mb-4">
-        <XCircle className="h-5 w-5 text-red-600" />
-        <span className="font-medium text-red-800">
-          You have declined this interview
-        </span>
-        <Badge variant="destructive">DECLINED</Badge>
-      </div>
-      
-      {slotContext.reviewerAssignment?.declinedReason && (
-        <p className="text-sm text-muted-foreground">
-          Reason: {slotContext.reviewerAssignment.declinedReason.replace(/_/g, ' ')}
-        </p>
-      )}
-      
-      <p className="text-xs text-muted-foreground mt-3">
-        The provider will be notified to select another available time slot.
-      </p>
-    </CardContent>
-  </Card>
-)}
+#### 2. `interview_bookings` - UPDATE Policy for Assigned Reviewers
+```sql
+CREATE POLICY "Reviewers can update assigned bookings"
+ON public.interview_bookings
+FOR UPDATE
+TO authenticated
+USING (is_reviewer_assigned_to_booking(id))
+WITH CHECK (is_reviewer_assigned_to_booking(id));
 ```
 
 ---
 
-## Files to Modify
+## Implementation Steps
 
-| File | Action | Changes |
-|------|--------|---------|
-| `src/components/reviewer/candidates/SlotsTabContent.tsx` | MODIFY | Remove Cancel button from declined state section (lines 257-269) |
+### Step 1: Create Migration File
+**File:** `supabase/migrations/20260126_add_reviewer_update_policies.sql`
+
+```sql
+-- =====================================================
+-- Add UPDATE policies for reviewers on booking tables
+-- Enables accept/decline interview slot functionality
+-- =====================================================
+
+-- 1. Allow reviewers to update their own booking_reviewers assignment
+CREATE POLICY "Reviewers can update own acceptance status"
+ON public.booking_reviewers
+FOR UPDATE
+TO authenticated
+USING (
+  reviewer_id IN (
+    SELECT id FROM panel_reviewers 
+    WHERE user_id = auth.uid() AND is_active = true
+  )
+)
+WITH CHECK (
+  reviewer_id IN (
+    SELECT id FROM panel_reviewers 
+    WHERE user_id = auth.uid() AND is_active = true
+  )
+);
+
+-- 2. Allow reviewers to update interview bookings they are assigned to
+CREATE POLICY "Reviewers can update assigned bookings"
+ON public.interview_bookings
+FOR UPDATE
+TO authenticated
+USING (is_reviewer_assigned_to_booking(id))
+WITH CHECK (is_reviewer_assigned_to_booking(id));
+
+-- 3. (Optional) Also allow reviewers to update enrollment lifecycle 
+-- when declining with poor_credentials or reviewer_unavailable
+-- This may require a separate policy on provider_industry_enrollments
+```
 
 ---
 
-## Expected UI After Fix
+## Additional Policy Consideration
 
-### When ACCEPTED:
-```
-┌─────────────────────────────────────────────────┐
-│ ✓ You have accepted this interview  [ACCEPTED]  │
-│                                                 │
-│ [Cancel Interview]                              │
-│                                                 │
-│ If you can no longer attend, you must cancel.   │
-│ The provider will be notified to select a new   │
-│ time slot.                                      │
-└─────────────────────────────────────────────────┘
+The `useCancelAcceptedBooking` and `useDeclineInterviewSlot` mutations also update `provider_industry_enrollments` to revert lifecycle status. We need to check if reviewers have UPDATE access to that table:
+
+```sql
+-- Check for existing policies
+SELECT policyname, cmd FROM pg_policies 
+WHERE tablename = 'provider_industry_enrollments';
 ```
 
-### When DECLINED:
-```
-┌─────────────────────────────────────────────────┐
-│ ✗ You have declined this interview  [DECLINED]  │
-│ Reason: reviewer unavailable                    │
-│                                                 │
-│ The provider will be notified to select another │
-│ available time slot.                            │
-└─────────────────────────────────────────────────┘
-```
-*(No Cancel button for declined state)*
+If no UPDATE policy exists for reviewers on `provider_industry_enrollments`, we need to add one that allows reviewers to update enrollments for bookings they're assigned to.
 
 ---
 
-## Logic Clarification
+## Files to Create/Modify
 
-When a reviewer **declines**, the system should automatically:
-- Update booking status
-- Notify the provider to rebook
+| File | Action | Description |
+|------|--------|-------------|
+| `supabase/migrations/YYYYMMDDHHMMSS_add_reviewer_update_policies.sql` | CREATE | New migration with RLS policies |
 
-There's no need for a separate "Cancel" action since declining already triggers the rebooking flow. The Cancel option is only relevant when a reviewer has **accepted** but later cannot attend.
+---
 
+## Expected Outcome After Fix
+
+1. Reviewer clicks "Accept Interview Slot"
+2. PATCH to `booking_reviewers` succeeds AND updates the row
+3. PATCH to `interview_bookings` succeeds AND updates the row
+4. Query cache is invalidated
+5. Refetch returns updated data with `acceptance_status: 'accepted'`
+6. UI updates to show "ACCEPTED" status + Cancel button
+
+---
+
+## Verification Steps
+
+After applying the migration:
+1. Test Accept action - should update UI immediately
+2. Test Decline action - should update UI immediately  
+3. Test Cancel action (for accepted slots) - should update UI
+4. Check database directly to confirm values changed
