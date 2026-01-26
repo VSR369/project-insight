@@ -2624,6 +2624,11 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      refresh_all_composite_slots: { Args: never; Returns: number }
+      refresh_composite_slots_for_time: {
+        Args: { p_end_at: string; p_start_at: string }
+        Returns: undefined
+      }
       select_reviewers_weighted: {
         Args: {
           p_end_at: string
