@@ -12,6 +12,7 @@ import {
   AvailabilityCalendar,
   TimeSlotSelector,
   SelectedSlotsPanel,
+  ReviewerEnrollmentInfo,
   type BookingInfo,
 } from "@/components/reviewer/availability";
 import {
@@ -276,6 +277,12 @@ export default function ReviewerAvailability() {
             <span>Times in {userTimezone}</span>
           </div>
         </div>
+
+        {/* Reviewer Enrollment Info */}
+        <ReviewerEnrollmentInfo
+          industrySegmentIds={reviewer.industry_segment_ids}
+          expertiseLevelIds={reviewer.expertise_level_ids}
+        />
 
         {/* Main Content Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
