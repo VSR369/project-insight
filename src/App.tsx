@@ -73,6 +73,7 @@ import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 import SmokeTestPage from "@/pages/admin/SmokeTestPage";
 import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
 import { ReviewerApprovalsPage } from "@/pages/admin/reviewer-approvals";
+import { ReviewerAvailabilityPage } from "@/pages/admin/reviewer-availability";
 import RegressionTestPage from "@/pages/provider/RegressionTestPage";
 import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
 
@@ -487,6 +488,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <ReviewerApprovalsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/interview/reviewer-availability"
+              element={
+                <AdminGuard>
+                  <ReviewerAvailabilityPage />
                 </AdminGuard>
               }
             />
