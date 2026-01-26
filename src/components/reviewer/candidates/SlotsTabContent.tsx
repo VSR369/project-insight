@@ -19,8 +19,10 @@ import {
   useSlotContext,
   useAcceptInterviewSlot,
   useDeclineInterviewSlot,
+  useCancelAcceptedBooking,
   type DeclineReason,
 } from "@/hooks/queries/useReviewerSlotActions";
+import { CancelAcceptedSlotDialog } from "./CancelAcceptedSlotDialog";
 
 interface SlotsTabContentProps {
   enrollmentId: string;
@@ -29,10 +31,12 @@ interface SlotsTabContentProps {
 export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showDeclineDialog, setShowDeclineDialog] = useState(false);
+  const [showCancelDialog, setShowCancelDialog] = useState(false);
 
   const { data: slotContext, isLoading, error } = useSlotContext(enrollmentId);
   const acceptMutation = useAcceptInterviewSlot();
   const declineMutation = useDeclineInterviewSlot();
+  const cancelMutation = useCancelAcceptedBooking();
 
   // Handle accept
   const handleAccept = () => {
@@ -64,6 +68,29 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
       },
       {
         onSuccess: () => setShowDeclineDialog(false),
+      }
+    );
+  };
+
+  // Handle cancel (for accepted bookings)
+  const handleCancel = (reason: string) => {
+    if (!slotContext?.reviewerAssignment) return;
+
+    cancelMutation.mutate(
+      {
+        bookingId: slotContext.bookingId,
+        reviewerId: slotContext.reviewerAssignment.reviewerId,
+        providerId: slotContext.providerId,
+        enrollmentId: slotContext.enrollmentId,
+        providerEmail: slotContext.providerEmail,
+        providerName: slotContext.providerName,
+        scheduledAt: slotContext.scheduledAt,
+        industryName: slotContext.industryName,
+        expertiseName: slotContext.expertiseLevelName,
+        cancelReason: reason,
+      },
+      {
+        onSuccess: () => setShowCancelDialog(false),
       }
     );
   };
@@ -181,15 +208,33 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
         </Card>
       )}
 
-      {/* Status Messages */}
-      {isAccepted && (
-        <Alert className="bg-green-50 border-green-200 text-green-800">
-          <CheckCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center gap-2">
-            You have accepted this interview slot.
-            <Badge variant="default" className="bg-green-600">Accepted</Badge>
-          </AlertDescription>
-        </Alert>
+      {/* Status Messages - Accepted (with Cancel option) */}
+      {isAccepted && !isBookingCancelled && (
+        <Card className="border-green-200 bg-green-50/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <CheckCircle className="h-5 w-5 text-green-600" />
+              <span className="font-medium text-green-800">
+                You have accepted this interview
+              </span>
+              <Badge variant="default" className="bg-green-600">Confirmed</Badge>
+            </div>
+            
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(true)}
+              className="border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancel Interview
+            </Button>
+            
+            <p className="text-xs text-muted-foreground mt-3">
+              If you can no longer attend, you must cancel. The provider will be 
+              notified to select a new time slot.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {isDeclined && (
@@ -234,6 +279,18 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
         onOpenChange={setShowDeclineDialog}
         onConfirm={handleDecline}
         isLoading={declineMutation.isPending}
+        providerName={slotContext.providerName}
+      />
+
+      {/* Cancel Accepted Slot Dialog */}
+      <CancelAcceptedSlotDialog
+        open={showCancelDialog}
+        onOpenChange={setShowCancelDialog}
+        onConfirm={handleCancel}
+        isLoading={cancelMutation.isPending}
+        scheduledAt={slotContext.scheduledAt}
+        durationMinutes={slotContext.durationMinutes}
+        reviewerTimezone={slotContext.reviewerTimezone}
         providerName={slotContext.providerName}
       />
     </div>
