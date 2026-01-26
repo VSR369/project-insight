@@ -1,277 +1,202 @@
 
-# Comprehensive Fix: Reviewer RLS Policies for Candidate Detail Page
 
-## Problem Analysis
+# Fix: Expertise Tab Data Model Alignment
 
-### Current State
-The candidate detail page tabs are showing empty because **Row Level Security (RLS) policies block reviewers from accessing provider data**. The existing RLS policies only allow:
-- **Providers** to view/manage their own data
-- **Platform Admins** full access
+## Problem Understanding (Corrected)
 
-### Missing Reviewer Access
-The following tables have **NO RLS policies for reviewer access**:
+### What Provider Selects
+| Step | Selection | Storage |
+|------|-----------|---------|
+| 1 | Industry Segment | `provider_industry_enrollments.industry_segment_id` |
+| 2 | Expertise Level | `provider_industry_enrollments.expertise_level_id` |
+| 3 | Proficiency Areas | `provider_proficiency_areas` table |
 
-| Table | SELECT | UPDATE | Impact |
-|-------|--------|--------|--------|
-| `proof_points` | Missing | Missing | Proof Points tab empty |
-| `proof_point_links` | Missing | — | No supporting links visible |
-| `proof_point_files` | Missing | — | No attached files visible |
-| `proof_point_speciality_tags` | Missing | — | No speciality tags visible |
-| `assessment_attempts` | Missing | — | Assessment tab empty |
-| `assessment_attempt_responses` | Missing | — | No question-level results |
-| `provider_proficiency_areas` | Missing | — | Expertise tree empty |
-| `provider_specialities` | Missing | — | Expertise tree incomplete |
+### What Is NOT Selected (Fixed/Derived)
+| Data | Source | Logic |
+|------|--------|-------|
+| Sub-domains | `sub_domains` table | All sub-domains under selected proficiency areas |
+| Specialities | `specialities` table | Filtered by `level_speciality_map` to only show specialities mapped to the expertise level |
 
-### Data Verification
-The enrollment `58155298-1987-4f40-ba6c-2f8aa3257e7d` has:
-- ✅ 4 proof points (2 general, 2 specialty-specific)
-- ✅ Assessment completed (85% pass)
-- ✅ Lifecycle status: `panel_scheduled` (rank 120)
-- ❌ Reviewer cannot see any of this due to RLS blocking
-
-### Existing Helper Functions
-The database already has three SECURITY DEFINER functions available:
-- `is_reviewer_for_provider(p_provider_id UUID)` → checks if current user is assigned reviewer for a provider
-- `is_reviewer_for_enrollment(p_enrollment_id UUID)` → checks if current user is assigned reviewer for an enrollment
-- `is_reviewer_assigned_to_booking(p_booking_id UUID)` → checks if current user is assigned to a booking
-
-These functions resolve the RLS recursion issue and are already used for `solution_providers` and `provider_industry_enrollments`.
+The `provider_specialities` table is NOT used for displaying expertise - it may be used elsewhere (like proof point tagging) but is NOT part of the expertise selection flow.
 
 ---
 
-## Solution: Add Reviewer RLS Policies
+## Root Cause
 
-### Phase 1: Proof Points Access (SELECT + UPDATE)
+The `useCandidateExpertise` hook incorrectly tries to build sub-domains and specialities from `provider_specialities` table:
 
-**1.1 `proof_points` table**
-```sql
--- Allow reviewers to VIEW proof points for assigned enrollments
-CREATE POLICY "Reviewers can view assigned proof points"
-  ON public.proof_points
-  FOR SELECT
-  TO authenticated
-  USING (
-    is_reviewer_for_enrollment(enrollment_id)
-  );
-
--- Allow reviewers to UPDATE review columns only
-CREATE POLICY "Reviewers can update proof point ratings"
-  ON public.proof_points
-  FOR UPDATE
-  TO authenticated
-  USING (is_reviewer_for_enrollment(enrollment_id))
-  WITH CHECK (is_reviewer_for_enrollment(enrollment_id));
+```typescript
+// WRONG - This table is empty!
+const { data: providerSpecialities } = await supabase
+  .from("provider_specialities")
+  .select(`speciality_id, specialities (...)`)
+  .eq("enrollment_id", enrollmentId);
 ```
 
-**1.2 `proof_point_links` table**
-```sql
-CREATE POLICY "Reviewers can view proof point links"
-  ON public.proof_point_links
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM proof_points pp
-      WHERE pp.id = proof_point_links.proof_point_id
-        AND is_reviewer_for_enrollment(pp.enrollment_id)
-    )
-  );
+Result: Empty tree because `provider_specialities` has 0 rows.
+
+---
+
+## Solution: Align with useProviderSelectedTaxonomy Pattern
+
+Rewrite `useCandidateExpertise` to use the same data fetching logic as `useProviderSelectedTaxonomy`:
+
+### Updated Data Flow
+
+```text
+1. Fetch enrollment → get industry_segment_id + expertise_level_id
+2. Fetch industry_segments → get industry name
+3. Fetch expertise_levels → get level details
+4. Fetch provider_proficiency_areas → get selected area IDs
+5. Fetch proficiency_areas → get area names for selected IDs
+6. Fetch sub_domains → ALL under selected proficiency areas
+7. Fetch level_speciality_map → get speciality IDs for this expertise level
+8. Fetch specialities → filter by sub_domain_id AND level_speciality_map
+9. Build tree structure
 ```
 
-**1.3 `proof_point_files` table**
-```sql
-CREATE POLICY "Reviewers can view proof point files"
-  ON public.proof_point_files
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM proof_points pp
-      WHERE pp.id = proof_point_files.proof_point_id
-        AND is_reviewer_for_enrollment(pp.enrollment_id)
-    )
-  );
+### Key Changes
+
+**1. Add Industry Segment to Interface**
+```typescript
+export interface CandidateExpertise {
+  // NEW: Industry segment info
+  industrySegmentId: string | null;
+  industrySegmentName: string | null;
+  industrySegmentCode: string | null;
+  
+  // Existing fields...
+}
 ```
 
-**1.4 `proof_point_speciality_tags` table**
-```sql
-CREATE POLICY "Reviewers can view proof point tags"
-  ON public.proof_point_speciality_tags
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM proof_points pp
-      WHERE pp.id = proof_point_speciality_tags.proof_point_id
-        AND is_reviewer_for_enrollment(pp.enrollment_id)
-    )
-  );
+**2. Fetch Industry Segment in Query**
+```typescript
+const { data: enrollment } = await supabase
+  .from("provider_industry_enrollments")
+  .select(`
+    expertise_level_id,
+    industry_segment_id,
+    industry_segments (id, name, code),
+    expertise_levels (id, name, description, level_number, min_years, max_years)
+  `)
+  .eq("id", enrollmentId)
+  .single();
 ```
 
-### Phase 2: Assessment Access (SELECT only)
+**3. Fix Tree Building Logic**
+```typescript
+// Fetch selected proficiency areas
+const { data: providerAreas } = await supabase
+  .from("provider_proficiency_areas")
+  .select("proficiency_area_id")
+  .eq("enrollment_id", enrollmentId);
 
-**2.1 `assessment_attempts` table**
-```sql
-CREATE POLICY "Reviewers can view assigned assessment attempts"
-  ON public.assessment_attempts
-  FOR SELECT
-  TO authenticated
-  USING (
-    is_reviewer_for_enrollment(enrollment_id)
-  );
-```
+const selectedAreaIds = providerAreas?.map(pa => pa.proficiency_area_id) || [];
 
-**2.2 `assessment_attempt_responses` table**
-```sql
-CREATE POLICY "Reviewers can view assigned assessment responses"
-  ON public.assessment_attempt_responses
-  FOR SELECT
-  TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM assessment_attempts aa
-      WHERE aa.id = assessment_attempt_responses.attempt_id
-        AND is_reviewer_for_enrollment(aa.enrollment_id)
-    )
-  );
-```
+// Fetch area details
+const { data: areas } = await supabase
+  .from("proficiency_areas")
+  .select("id, name, description")
+  .in("id", selectedAreaIds)
+  .eq("is_active", true)
+  .order("display_order");
 
-### Phase 3: Expertise/Proficiency Access (SELECT only)
+// Fetch ALL sub-domains under selected areas
+const { data: subDomains } = await supabase
+  .from("sub_domains")
+  .select("id, name, description, proficiency_area_id")
+  .in("proficiency_area_id", selectedAreaIds)
+  .eq("is_active", true)
+  .order("display_order");
 
-**3.1 `provider_proficiency_areas` table**
-```sql
-CREATE POLICY "Reviewers can view assigned proficiency areas"
-  ON public.provider_proficiency_areas
-  FOR SELECT
-  TO authenticated
-  USING (
-    is_reviewer_for_enrollment(enrollment_id)
-  );
-```
+// Fetch level_speciality_map for filtering
+const { data: levelMappings } = await supabase
+  .from("level_speciality_map")
+  .select("speciality_id")
+  .eq("expertise_level_id", enrollment.expertise_level_id);
 
-**3.2 `provider_specialities` table**
-```sql
-CREATE POLICY "Reviewers can view assigned specialities"
-  ON public.provider_specialities
-  FOR SELECT
-  TO authenticated
-  USING (
-    is_reviewer_for_enrollment(enrollment_id)
-  );
-```
+const mappedSpecialityIds = new Set(levelMappings?.map(m => m.speciality_id) || []);
 
-### Phase 4: Enrollment UPDATE Policy
+// Fetch specialities, filtered by level mapping
+const subDomainIds = subDomains?.map(sd => sd.id) || [];
+const { data: allSpecialities } = await supabase
+  .from("specialities")
+  .select("id, name, description, sub_domain_id")
+  .in("sub_domain_id", subDomainIds)
+  .eq("is_active", true)
+  .order("display_order");
 
-The `provider_industry_enrollments` table needs an UPDATE policy for reviewers to save review status:
+// Filter specialities by level mapping (or show all if no mappings)
+const specialities = mappedSpecialityIds.size > 0
+  ? (allSpecialities || []).filter(sp => mappedSpecialityIds.has(sp.id))
+  : allSpecialities || [];
 
-```sql
-CREATE POLICY "Reviewers can update review fields on assigned enrollments"
-  ON public.provider_industry_enrollments
-  FOR UPDATE
-  TO authenticated
-  USING (is_reviewer_for_enrollment(id))
-  WITH CHECK (is_reviewer_for_enrollment(id));
+// Build tree
+const proficiencyTree = (areas || []).map(area => ({
+  id: area.id,
+  name: area.name,
+  subDomains: (subDomains || [])
+    .filter(sd => sd.proficiency_area_id === area.id)
+    .map(sd => ({
+      id: sd.id,
+      name: sd.name,
+      specialities: specialities.filter(sp => sp.sub_domain_id === sd.id),
+    })),
+}));
 ```
 
 ---
 
-## Technical Details
+## Files to Modify
 
-### Security Architecture
-
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     RLS Policy Check Flow                        │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  1. User Request → Supabase Client                              │
-│  2. auth.uid() → Current User ID                                 │
-│  3. is_reviewer_for_enrollment(enrollment_id) function:          │
-│                                                                  │
-│     ┌──────────────────────────────────────────────────────┐    │
-│     │  panel_reviewers (pr)                                │    │
-│     │    └── pr.user_id = auth.uid()                       │    │
-│     │    └── pr.is_active = true                           │    │
-│     │             ↓                                         │    │
-│     │  booking_reviewers (br)                              │    │
-│     │    └── br.reviewer_id = pr.id                        │    │
-│     │             ↓                                         │    │
-│     │  interview_bookings (ib)                             │    │
-│     │    └── ib.id = br.booking_id                         │    │
-│     │    └── ib.enrollment_id = p_enrollment_id            │    │
-│     └──────────────────────────────────────────────────────┘    │
-│                                                                  │
-│  4. Returns TRUE only if reviewer is assigned to enrollment      │
-│  5. Policy grants access based on function result                │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### Why SECURITY DEFINER Functions?
-
-1. **Prevents RLS recursion**: Direct joins in policy `USING` clauses can cause infinite recursion
-2. **Performance**: Function is optimized and cached
-3. **Consistency**: Same logic across all tables
-4. **Maintainability**: Update access rules in one place
-
-### Policy Permissions Matrix
-
-| Table | Reviewer SELECT | Reviewer UPDATE | Notes |
-|-------|-----------------|-----------------|-------|
-| `proof_points` | ✅ | ✅ (review columns) | Rate and comment |
-| `proof_point_links` | ✅ | ❌ | View only |
-| `proof_point_files` | ✅ | ❌ | View only |
-| `proof_point_speciality_tags` | ✅ | ❌ | View only |
-| `assessment_attempts` | ✅ | ❌ | View only |
-| `assessment_attempt_responses` | ✅ | ❌ | View only |
-| `provider_proficiency_areas` | ✅ | ❌ | View only |
-| `provider_specialities` | ✅ | ❌ | View only |
-| `provider_industry_enrollments` | ✅ (existing) | ✅ (review fields) | Update review status |
+| File | Changes |
+|------|---------|
+| `src/hooks/queries/useCandidateExpertise.ts` | Complete rewrite of data fetching logic to match correct data model |
+| `src/components/reviewer/candidates/ExpertiseLevelHeader.tsx` | Add industry segment display above expertise level |
 
 ---
 
-## Implementation Plan
+## Expected Result
 
-### Step 1: Database Migration
-Create a single migration file with all 10 new RLS policies:
-- 8 SELECT policies (one per table)
-- 2 UPDATE policies (`proof_points` and `provider_industry_enrollments`)
+### Before (Broken)
+```
+Expertise Level: Associate Consultant - Level 1
+Experience: 0-2 years
+0 Proficiency Areas | 0 Sub-domains | 0 Specialities
+```
 
-### Step 2: Verification
-After migration, verify each tab works:
-- **Provider Details**: Already working (existing policies)
-- **Expertise**: Should show proficiency tree
-- **Proof Points**: Should show 4 items with rating controls
-- **Assessment**: Should show 85% pass with hierarchy breakdown
-- **Slots**: Already working (existing policies)
+### After (Fixed)
+```
+Industry: Manufacturing (Auto Components)
+Expertise Level: Associate Consultant - Level 1
+Experience: 0-2 years
 
-### Step 3: Testing Checklist
-- [ ] Reviewer can view proof points for assigned enrollment
-- [ ] Reviewer can rate proof points (relevance + score)
-- [ ] Reviewer can save draft ratings
-- [ ] Reviewer can confirm proof points review
-- [ ] Reviewer can view assessment results
-- [ ] Reviewer can view expertise tree
-- [ ] Reviewer CANNOT view data for unassigned enrollments
-- [ ] Provider data remains private from other providers
+2 Proficiency Areas | 6 Sub-domains | 18 Specialities
+
+Proficiency Areas tree with:
+- Future & Business Blueprint
+  - Strategic Basics (3 specialities)
+  - Business Understanding (3 specialities)
+  - Outcome Framing (3 specialities)
+- Product & Service Innovation
+  - Product Understanding (3 specialities)
+  - Customer Touchpoints (3 specialities)
+  - Value Basics (3 specialities)
+```
 
 ---
 
-## Risk Mitigation
+## Technical Notes
 
-### Data Privacy
-- Reviewers only see data for enrollments they are **explicitly assigned** to
-- Assignment is controlled by the booking process (not self-selected)
-- No cross-tenant data exposure
+### Why `provider_specialities` is Empty
 
-### Performance
-- `is_reviewer_for_enrollment()` is SECURITY DEFINER and STABLE
-- Existing indexes on `booking_reviewers`, `interview_bookings` optimize lookups
-- Function executes once per query, not per row (PostgreSQL optimization)
+The `provider_specialities` table appears to be for a different purpose - likely allowing providers to tag their proof points with specific specialities. It is NOT used for declaring expertise coverage.
 
-### Rollback
-If issues occur, policies can be dropped without data loss:
-```sql
-DROP POLICY IF EXISTS "Reviewers can view assigned proof points" ON proof_points;
--- etc.
-```
+When a provider selects a Proficiency Area, they claim coverage of:
+- ALL sub-domains under that area
+- ALL specialities under those sub-domains (filtered by level_speciality_map)
+
+### Consistency with Provider View
+
+This fix ensures the reviewer sees exactly what the provider claimed during Expertise Selection - using the same data sources and logic as `useProviderSelectedTaxonomy`.
+
