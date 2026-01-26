@@ -245,27 +245,17 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
               <span className="font-medium text-red-800">
                 You have declined this interview
               </span>
-              <Badge variant="destructive">Declined</Badge>
+              <Badge variant="destructive">DECLINED</Badge>
             </div>
             
             {slotContext.reviewerAssignment?.declinedReason && (
-              <p className="text-sm text-muted-foreground mb-4">
+              <p className="text-sm text-muted-foreground">
                 Reason: {slotContext.reviewerAssignment.declinedReason.replace(/_/g, ' ')}
               </p>
             )}
             
-            <Button
-              variant="outline"
-              onClick={() => setShowCancelDialog(true)}
-              className="border-red-200 text-red-600 hover:bg-red-50"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Cancel Interview
-            </Button>
-            
             <p className="text-xs text-muted-foreground mt-3">
-              Click Cancel to formally close this booking. The provider will be 
-              notified to select a new time slot.
+              The provider will be notified to select another available time slot.
             </p>
           </CardContent>
         </Card>
