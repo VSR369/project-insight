@@ -18,6 +18,8 @@ export interface DraftSlot {
   startMinute: number;
   durationMinutes: number;
   key: string; // Unique key for React rendering
+  industrySegmentIds: string[]; // Selected industry segments for this slot
+  expertiseLevelIds: string[]; // Selected expertise levels for this slot
 }
 
 /**

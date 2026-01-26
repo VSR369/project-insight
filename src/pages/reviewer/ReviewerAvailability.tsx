@@ -300,6 +300,8 @@ export default function ReviewerAvailability() {
               selectedDate={selectedDate}
               onAddSlot={handleAddSlot}
               existingDraftKeys={existingDraftKeys}
+              reviewerIndustryIds={reviewer.industry_segment_ids}
+              reviewerExpertiseIds={reviewer.expertise_level_ids}
             />
           </div>
 

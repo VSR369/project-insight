@@ -1,13 +1,15 @@
 /**
  * Time Slot Selector Component
  * 
- * Allows reviewers to select time and duration for new availability slots.
+ * Allows reviewers to select time, duration, and industry/expertise scope
+ * for new availability slots.
  */
 
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Briefcase, GraduationCap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -30,28 +32,83 @@ import {
   formatSlotDate,
   type DraftSlot,
 } from "@/services/availabilityService";
+import { useIndustrySegments, useExpertiseLevels } from "@/hooks/queries/useMasterData";
 
 interface TimeSlotSelectorProps {
   selectedDate: Date | null;
   onAddSlot: (slot: DraftSlot) => void;
   existingDraftKeys: Set<string>;
+  /** Reviewer's assigned industry segment IDs - only these are selectable */
+  reviewerIndustryIds: string[];
+  /** Reviewer's assigned expertise level IDs - only these are selectable */
+  reviewerExpertiseIds: string[];
 }
 
 export function TimeSlotSelector({
   selectedDate,
   onAddSlot,
   existingDraftKeys,
+  reviewerIndustryIds,
+  reviewerExpertiseIds,
 }: TimeSlotSelectorProps) {
   const [hour, setHour] = useState<number>(9);
   const [minute, setMinute] = useState<number>(0);
   const [period, setPeriod] = useState<'AM' | 'PM'>('AM');
   const [duration, setDuration] = useState<number>(60);
+  
+  // Selected industry and expertise IDs for this slot
+  const [selectedIndustryIds, setSelectedIndustryIds] = useState<string[]>([]);
+  const [selectedExpertiseIds, setSelectedExpertiseIds] = useState<string[]>([]);
+
+  // Fetch master data
+  const { data: allIndustries = [] } = useIndustrySegments();
+  const { data: allLevels = [] } = useExpertiseLevels();
+
+  // Filter to only reviewer's assigned industries/levels
+  const availableIndustries = allIndustries.filter(ind => 
+    reviewerIndustryIds.includes(ind.id)
+  );
+  const availableLevels = allLevels
+    .filter(level => reviewerExpertiseIds.includes(level.id))
+    .sort((a, b) => a.level_number - b.level_number);
 
   const get24Hour = (h: number, p: 'AM' | 'PM'): number => {
     if (p === 'AM') {
       return h === 12 ? 0 : h;
     }
     return h === 12 ? 12 : h + 12;
+  };
+
+  const handleIndustryToggle = (industryId: string) => {
+    setSelectedIndustryIds(prev => 
+      prev.includes(industryId)
+        ? prev.filter(id => id !== industryId)
+        : [...prev, industryId]
+    );
+  };
+
+  const handleExpertiseToggle = (levelId: string) => {
+    setSelectedExpertiseIds(prev => 
+      prev.includes(levelId)
+        ? prev.filter(id => id !== levelId)
+        : [...prev, levelId]
+    );
+  };
+
+  const handleSelectAllIndustries = () => {
+    if (selectedIndustryIds.length === availableIndustries.length) {
+      setSelectedIndustryIds([]);
+    } else {
+      setSelectedIndustryIds(availableIndustries.map(ind => ind.id));
+    }
+  };
+
+  const handleSelectAllExpertise = () => {
+    if (selectedExpertiseIds.length === availableLevels.length) {
+      setSelectedExpertiseIds([]);
+    } else {
+      setSelectedExpertiseIds(availableLevels.map(level => level.id));
+    }
   };
 
   const handleAddSlot = () => {
@@ -70,6 +127,8 @@ export function TimeSlotSelector({
       startMinute: minute,
       durationMinutes: duration,
       key,
+      industrySegmentIds: selectedIndustryIds,
+      expertiseLevelIds: selectedExpertiseIds,
     };
 
     onAddSlot(newSlot);
@@ -84,6 +143,8 @@ export function TimeSlotSelector({
   };
 
   const isAddDisabled = !selectedDate;
+  const allIndustriesSelected = selectedIndustryIds.length === availableIndustries.length && availableIndustries.length > 0;
+  const allExpertiseSelected = selectedExpertiseIds.length === availableLevels.length && availableLevels.length > 0;
 
   return (
     <div className="bg-card border rounded-lg p-4 space-y-4">
@@ -184,6 +245,84 @@ export function TimeSlotSelector({
           ))}
         </div>
       </div>
+
+      {/* Industry Segment Selection */}
+      {availableIndustries.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <Briefcase className="h-4 w-4 text-muted-foreground" />
+              Industry Segments
+            </Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={handleSelectAllIndustries}
+            >
+              {allIndustriesSelected ? 'Clear All' : 'Select All'}
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+            {availableIndustries.map((industry) => (
+              <label
+                key={industry.id}
+                className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
+              >
+                <Checkbox
+                  checked={selectedIndustryIds.includes(industry.id)}
+                  onCheckedChange={() => handleIndustryToggle(industry.id)}
+                />
+                <span>{industry.name}</span>
+              </label>
+            ))}
+          </div>
+          {selectedIndustryIds.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No selection = available for all your industries
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Expertise Level Selection */}
+      {availableLevels.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="flex items-center gap-2">
+              <GraduationCap className="h-4 w-4 text-muted-foreground" />
+              Expertise Levels
+            </Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 text-xs"
+              onClick={handleSelectAllExpertise}
+            >
+              {allExpertiseSelected ? 'Clear All' : 'Select All'}
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 gap-2 max-h-32 overflow-y-auto">
+            {availableLevels.map((level) => (
+              <label
+                key={level.id}
+                className="flex items-center gap-2 text-sm cursor-pointer hover:bg-muted/50 rounded px-2 py-1"
+              >
+                <Checkbox
+                  checked={selectedExpertiseIds.includes(level.id)}
+                  onCheckedChange={() => handleExpertiseToggle(level.id)}
+                />
+                <span>L{level.level_number}: {level.name}</span>
+              </label>
+            ))}
+          </div>
+          {selectedExpertiseIds.length === 0 && (
+            <p className="text-xs text-muted-foreground">
+              No selection = available for all your expertise levels
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Add Button with Tooltip */}
       <TooltipProvider>
