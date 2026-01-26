@@ -9,11 +9,52 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 // Portal type for routing
 type PortalType = 'admin' | 'provider' | 'reviewer';
+
+// Tab configuration with icons and descriptions
+const LOGIN_TABS: Array<{
+  id: PortalType;
+  label: string;
+  shortLabel: string;
+  icon: typeof Shield;
+  color: string;
+  borderColor: string;
+  description: string;
+}> = [
+  {
+    id: 'provider',
+    label: 'Solution Provider',
+    shortLabel: 'Provider',
+    icon: Briefcase,
+    color: 'text-primary',
+    borderColor: 'border-primary/30',
+    description: 'Access your provider dashboard, enrollments, and assessments',
+  },
+  {
+    id: 'reviewer',
+    label: 'Panel Reviewer',
+    shortLabel: 'Reviewer',
+    icon: ClipboardCheck,
+    color: 'text-green-600',
+    borderColor: 'border-green-600/30',
+    description: 'Manage availability, review candidates, conduct interviews',
+  },
+  {
+    id: 'admin',
+    label: 'Platform Admin',
+    shortLabel: 'Admin',
+    icon: Shield,
+    color: 'text-destructive',
+    borderColor: 'border-destructive/30',
+    description: 'System administration, master data, user management',
+  },
+];
 
 // Development test accounts - only visible in dev mode
 const DEV_ACCOUNTS: Array<{
@@ -61,35 +102,11 @@ const PORTAL_ROUTES: Record<PortalType, string> = {
   reviewer: '/reviewer/dashboard',
 };
 
-const ROLE_DESTINATIONS = [
-  {
-    role: 'Platform Admin',
-    icon: Shield,
-    destination: 'Admin Dashboard',
-    description: 'Manage users, master data, and system settings',
-    color: 'text-destructive',
-  },
-  {
-    role: 'Panel Reviewer',
-    icon: ClipboardCheck,
-    destination: 'Reviewer Dashboard',
-    description: 'Manage availability, conduct interviews',
-    color: 'text-green-600',
-  },
-  {
-    role: 'Solution Provider',
-    icon: Briefcase,
-    destination: 'Provider Dashboard',
-    description: 'Track enrollments, submit proof points',
-    color: 'text-primary',
-  },
-];
-
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDevAccounts, setShowDevAccounts] = useState(true);
-  const [desiredPortal, setDesiredPortal] = useState<PortalType | null>(null);
+  const [selectedRole, setSelectedRole] = useState<PortalType>('provider');
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
@@ -217,7 +234,6 @@ export default function Login() {
         const reviewerRecord = reviewerResult.data;
         
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
-        // Reviewer detection: has role OR has panel_reviewers record
         const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerRecord;
         const isPendingReviewer = reviewerRecord?.approval_status === 'pending';
         const hasProviderRecord = !!providerRecord;
@@ -225,33 +241,37 @@ export default function Login() {
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
         
-        // Determine target portal with priority:
-        // 1. User's explicit choice from quick login or form
-        // 2. Fallback based on roles: Admin > Reviewer > Provider
-        let targetPortal: PortalType = 'provider'; // default
+        // Validate user has access to selected portal
+        const canAccessSelected = 
+          (selectedRole === 'admin' && isPlatformAdmin) ||
+          (selectedRole === 'provider' && hasProviderRecord) ||
+          (selectedRole === 'reviewer' && isPanelReviewer);
         
-        if (desiredPortal) {
-          // Validate user has access to desired portal
-          const canAccessDesired = 
-            (desiredPortal === 'admin' && isPlatformAdmin) ||
-            (desiredPortal === 'provider' && hasProviderRecord) ||
-            (desiredPortal === 'reviewer' && isPanelReviewer);
+        let targetPortal: PortalType = selectedRole;
+        
+        if (!canAccessSelected) {
+          // Show specific error based on selected role
+          const roleLabel = LOGIN_TABS.find(t => t.id === selectedRole)?.label || selectedRole;
           
-          if (canAccessDesired) {
-            targetPortal = desiredPortal;
-          } else {
-            toast.warning(`You don't have ${desiredPortal} access. Redirecting to available portal.`);
-            // Fall through to role-based selection
-            if (isPlatformAdmin) targetPortal = 'admin';
-            else if (isPanelReviewer) targetPortal = 'reviewer';
-            else if (hasProviderRecord) targetPortal = 'provider';
+          if (selectedRole === 'admin' && !isPlatformAdmin) {
+            toast.error(`You don't have ${roleLabel} access. Contact your administrator.`);
+          } else if (selectedRole === 'reviewer' && !isPanelReviewer) {
+            toast.error(`No reviewer account found. Would you like to register as a reviewer?`);
+          } else if (selectedRole === 'provider' && !hasProviderRecord) {
+            toast.error(`No provider account found. Would you like to register as a provider?`);
           }
-        } else {
-          // No explicit choice - use role priority
-          // Priority: Admin > Reviewer > Provider (fixed order)
+          
+          // Fallback to available portal
           if (isPlatformAdmin) targetPortal = 'admin';
           else if (isPanelReviewer) targetPortal = 'reviewer';
           else if (hasProviderRecord) targetPortal = 'provider';
+          else {
+            toast.error('No valid account found. Please register first.');
+            await supabase.auth.signOut();
+            return;
+          }
+          
+          toast.info(`Redirecting to ${LOGIN_TABS.find(t => t.id === targetPortal)?.label || targetPortal} portal instead.`);
         }
         
         // Persist portal choice for future sessions/refreshes
@@ -277,6 +297,9 @@ export default function Login() {
     }
   };
 
+  // Get current tab config for dynamic styling
+  const currentTab = LOGIN_TABS.find(t => t.id === selectedRole) || LOGIN_TABS[0];
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/30 p-4">
       <div className="w-full max-w-md">
@@ -285,11 +308,45 @@ export default function Login() {
           <p className="text-muted-foreground mt-2">Co-Innovation Platform</p>
         </div>
 
-        <Card className="border-border/50 shadow-lg">
+        {/* Role Selection Tabs */}
+        <Tabs 
+          value={selectedRole} 
+          onValueChange={(v) => setSelectedRole(v as PortalType)}
+          className="mb-4"
+        >
+          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+            {LOGIN_TABS.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className={cn(
+                    "flex flex-col items-center gap-1 py-3 px-2 data-[state=active]:shadow-md transition-all",
+                    tab.id === selectedRole && tab.color
+                  )}
+                >
+                  <Icon className={cn("h-5 w-5", tab.id === selectedRole ? tab.color : "text-muted-foreground")} />
+                  <span className="text-xs font-medium hidden sm:block">{tab.shortLabel}</span>
+                </TabsTrigger>
+              );
+            })}
+          </TabsList>
+        </Tabs>
+
+        <Card className={cn(
+          "shadow-lg transition-colors duration-200",
+          currentTab.borderColor
+        )}>
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-2xl font-semibold text-center">Sign In to CogniBlend</CardTitle>
-            <CardDescription className="text-center">
-              Access your portal based on your role
+            <div className="flex items-center justify-center gap-2">
+              <currentTab.icon className={cn("h-5 w-5", currentTab.color)} />
+              <CardTitle className="text-xl font-semibold">
+                Sign in as {currentTab.label}
+              </CardTitle>
+            </div>
+            <CardDescription className="text-center text-sm">
+              {currentTab.description}
             </CardDescription>
           </CardHeader>
 
@@ -362,53 +419,32 @@ export default function Login() {
               </CardContent>
 
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full" disabled={isLoading}>
+                <Button 
+                  type="submit" 
+                  className={cn(
+                    "w-full",
+                    selectedRole === 'admin' && "bg-destructive hover:bg-destructive/90",
+                    selectedRole === 'reviewer' && "bg-green-600 hover:bg-green-700"
+                  )} 
+                  disabled={isLoading}
+                >
                   {isLoading ? (
                     <Loader2 className="h-4 w-4 animate-spin mr-2" />
                   ) : (
                     <LogIn className="h-4 w-4 mr-2" />
                   )}
-                  Sign In
+                  Sign In as {currentTab.shortLabel}
                 </Button>
 
                 <p className="text-sm text-center text-muted-foreground">
                   Don't have an account?{' '}
                   <Link to="/register" className="text-primary hover:underline font-medium">
-                    Sign up as Provider, Reviewer, or Admin
+                    Sign up
                   </Link>
                 </p>
               </CardFooter>
             </form>
           </Form>
-        </Card>
-
-        {/* Role Guidance Section */}
-        <Card className="border-border/50 mt-4">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Where will I go after login?
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              {ROLE_DESTINATIONS.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <div key={item.role} className="flex items-start gap-3">
-                    <Icon className={`h-4 w-4 mt-0.5 ${item.color}`} />
-                    <div>
-                      <p className="text-sm font-medium">
-                        {item.role} → {item.destination}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {item.description}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
         </Card>
 
         {/* Quick Login Section - Test Accounts */}
@@ -424,7 +460,7 @@ export default function Login() {
                   Quick Login (Test Accounts)
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Click to auto-fill test credentials
+                  Click to auto-fill and sign in
                 </CardDescription>
               </div>
               {showDevAccounts ? (
@@ -445,8 +481,8 @@ export default function Login() {
                       type="button"
                       disabled={isLoading}
                       onClick={() => {
-                        // Set desired portal first
-                        setDesiredPortal(account.portal);
+                        // Set the tab to match the test account role
+                        setSelectedRole(account.portal);
                         // Fill credentials
                         form.setValue('email', account.email);
                         form.setValue('password', account.password);
