@@ -1,6 +1,6 @@
 /**
  * Reviewer Availability Components
- * 
+ *
  * Barrel export for availability management components.
  */
 
