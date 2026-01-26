@@ -873,6 +873,8 @@ export type Database = {
           hold_expires_at: string | null
           id: string
           reviewer_id: string
+          slot_expertise_ids: string[] | null
+          slot_industry_ids: string[] | null
           start_at: string
           status: string | null
           updated_at: string | null
@@ -886,6 +888,8 @@ export type Database = {
           hold_expires_at?: string | null
           id?: string
           reviewer_id: string
+          slot_expertise_ids?: string[] | null
+          slot_industry_ids?: string[] | null
           start_at: string
           status?: string | null
           updated_at?: string | null
@@ -899,6 +903,8 @@ export type Database = {
           hold_expires_at?: string | null
           id?: string
           reviewer_id?: string
+          slot_expertise_ids?: string[] | null
+          slot_industry_ids?: string[] | null
           start_at?: string
           status?: string | null
           updated_at?: string | null

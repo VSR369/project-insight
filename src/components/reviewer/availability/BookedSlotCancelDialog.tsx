@@ -5,6 +5,7 @@
  * already booked by a provider. Explains impact and requests confirmation.
  */
 
+import * as React from "react";
 import { AlertTriangle, Calendar, User, Mail, AlertCircle } from "lucide-react";
 import {
   AlertDialog,
@@ -35,20 +36,17 @@ interface BookedSlotCancelDialogProps {
   booking: BookingInfo | null;
 }
 
-export function BookedSlotCancelDialog({
-  open,
-  onOpenChange,
-  onConfirm,
-  isCancelling,
-  booking,
-}: BookedSlotCancelDialogProps) {
+export const BookedSlotCancelDialog = React.forwardRef<
+  HTMLDivElement,
+  BookedSlotCancelDialogProps
+>(({ open, onOpenChange, onConfirm, isCancelling, booking }, ref) => {
   if (!booking) return null;
 
   const scheduledDate = new Date(booking.scheduledAt);
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md">
+      <AlertDialogContent ref={ref} className="max-w-md">
         <AlertDialogHeader>
           <div className="flex items-center gap-3 mb-2">
             <div className="flex-shrink-0 w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
@@ -121,4 +119,6 @@ export function BookedSlotCancelDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+});
+
+BookedSlotCancelDialog.displayName = "BookedSlotCancelDialog";
