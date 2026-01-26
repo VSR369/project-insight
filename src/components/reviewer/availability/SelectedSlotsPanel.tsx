@@ -4,7 +4,7 @@
  * Displays draft and existing slots with options to remove them.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { X, Trash2, CalendarDays, Clock, Check, ListOrdered, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +19,8 @@ import {
 import { DeleteSlotConfirmDialog } from "./DeleteSlotConfirmDialog";
 import { BookedSlotCancelDialog, type BookingInfo } from "./BookedSlotCancelDialog";
 import type { InterviewSlot } from "@/hooks/queries/useReviewerAvailability";
+import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
+import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 
 interface SelectedSlotsPanelProps {
   draftSlots: DraftSlot[];
@@ -54,6 +56,19 @@ export function SelectedSlotsPanel({
   const [bookedCancelDialogOpen, setBookedCancelDialogOpen] = useState(false);
   const [bookedSlotToCancel, setBookedSlotToCancel] = useState<InterviewSlot | null>(null);
   const [bookingInfoForDialog, setBookingInfoForDialog] = useState<BookingInfo | null>(null);
+
+  // Fetch master data for name resolution
+  const { data: industries = [] } = useIndustrySegments();
+  const { data: expertiseLevels = [] } = useExpertiseLevels();
+
+  // Create lookup maps for ID-to-name resolution
+  const industryMap = useMemo(() => {
+    return new Map(industries.map(ind => [ind.id, ind.name]));
+  }, [industries]);
+
+  const expertiseMap = useMemo(() => {
+    return new Map(expertiseLevels.map(exp => [exp.id, exp.name]));
+  }, [expertiseLevels]);
 
   const openSlots = existingSlots.filter(
     (slot) => slot.status === 'open' && !isSlotInPast(new Date(slot.start_at))
@@ -125,17 +140,44 @@ export function SelectedSlotsPanel({
                         key={slot.key}
                         className="flex items-center justify-between p-2 bg-blue-50 border border-blue-200 rounded-md animate-in fade-in slide-in-from-right-2 duration-200"
                       >
-                        <div className="text-sm">
+                        <div className="text-sm flex-1">
                           <div className="font-medium">{formatSlotDate(slot.date)}</div>
                           <div className="text-muted-foreground">
                             {formatTime(slot.startHour, slot.startMinute)} -{' '}
                             {formatTime(endHour, endMin)}
                           </div>
+                          {/* Industry/Expertise scope indicators */}
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {slot.industrySegmentIds.length > 0 ? (
+                              slot.industrySegmentIds.map(id => (
+                                <Badge key={id} variant="outline" className="text-xs bg-blue-50 border-blue-200 text-blue-700">
+                                  {industryMap.get(id) || id.slice(0, 8)}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                All Industries
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {slot.expertiseLevelIds.length > 0 ? (
+                              slot.expertiseLevelIds.map(id => (
+                                <Badge key={id} variant="outline" className="text-xs bg-green-50 border-green-200 text-green-700">
+                                  {expertiseMap.get(id) || id.slice(0, 8)}
+                                </Badge>
+                              ))
+                            ) : (
+                              <Badge variant="outline" className="text-xs text-muted-foreground">
+                                All Levels
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                          className="h-8 w-8 text-muted-foreground hover:text-destructive self-start"
                           onClick={() => onRemoveDraft(slot.key)}
                           aria-label="Remove slot"
                         >

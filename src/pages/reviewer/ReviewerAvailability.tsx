@@ -186,6 +186,8 @@ export default function ReviewerAvailability() {
       return {
         start_at: timeSlot.startAt.toISOString(),
         end_at: timeSlot.endAt.toISOString(),
+        slot_industry_ids: draft.industrySegmentIds,
+        slot_expertise_ids: draft.expertiseLevelIds,
       };
     });
 
