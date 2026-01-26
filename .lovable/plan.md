@@ -1,53 +1,41 @@
 
 
-# Fix: Interview Slot Cancel Button for Both Accepted and Declined States
+# Correction: Interview Slot Button States & Cancel Logic
 
-## Problem Summary
+## Summary of Changes Required
 
-| State | Current Behavior | Expected Behavior |
+| State | Current Behavior | Corrected Behavior |
 |-------|-----------------|-------------------|
-| Pending | Accept + Decline buttons | Accept + Decline buttons ✓ |
-| Accepted | "Accepted" status + Cancel button | "Accepted" status + Cancel button ✓ |
-| Declined | Only "Declined" alert, NO Cancel | "Declined" status + **Cancel button** ✗ |
+| Pending | Accept + Decline buttons | Accept + Decline buttons (no change) |
+| Accepted | Status card + Cancel button | Show "ACCEPTED" button state + Cancel option |
+| Declined | Status card + Cancel button | Show "DECLINED" button state + **NO Cancel option** |
 
-The Cancel button should be available for BOTH accepted and declined states, as the reviewer needs the ability to cancel the booking regardless of their initial response.
+## Key Corrections
 
-### Additionally: React forwardRef Warning
+1. **Button text changes after action:**
+   - "Accept Interview Slot" → Shows as "ACCEPTED" (disabled, green badge style)
+   - "Decline" → Shows as "DECLINED" (disabled, red badge style)
 
-Console shows: `Warning: Function components cannot be given refs. Attempts to access this ref will fail.`
-
-This is because `CancelAcceptedSlotDialog` is being used by Dialog which may need to pass refs for focus management.
+2. **Cancel option ONLY for ACCEPTED state:**
+   - Remove the Cancel button from the Declined state section (lines 257-264)
+   - Keep Cancel button only in the Accepted state section
 
 ---
 
-## Solution
+## Implementation Details
 
-### File 1: `src/components/reviewer/candidates/SlotsTabContent.tsx`
+### File: `src/components/reviewer/candidates/SlotsTabContent.tsx`
 
-**Changes:**
-1. Rename the Cancel dialog state/handler to be generic (not just for "accepted" bookings)
-2. Add Cancel button to the Declined state section (lines 240-253)
-3. Combine the action logic so both accepted and declined can trigger cancel
+#### Change 1: Accepted State UI (lines 212-238)
+Keep the existing accepted state card with Cancel button - this is correct.
 
-**Current code (line 240-253) - Declined section:**
-```typescript
-{isDeclined && (
-  <Alert variant="destructive" className="bg-destructive/10">
-    <XCircle className="h-4 w-4" />
-    <AlertDescription className="flex items-center gap-2">
-      You have declined this interview slot.
-      <Badge variant="destructive">Declined</Badge>
-      {slotContext.reviewerAssignment?.declinedReason && (
-        <span className="text-xs">
-          (Reason: {slotContext.reviewerAssignment.declinedReason.replace('_', ' ')})
-        </span>
-      )}
-    </AlertDescription>
-  </Alert>
-)}
-```
+#### Change 2: Declined State UI (lines 240-272)
+**Remove the Cancel button** from this section. The declined state should only show:
+- Declined status badge
+- Reason for decline (if available)
+- NO Cancel button
 
-**Updated code:**
+**Current code (lines 240-272):**
 ```typescript
 {isDeclined && !isBookingCancelled && (
   <Card className="border-red-200 bg-red-50/50">
@@ -66,65 +54,41 @@ This is because `CancelAcceptedSlotDialog` is being used by Dialog which may nee
         </p>
       )}
       
-      <Button
-        variant="outline"
-        onClick={() => setShowCancelDialog(true)}
-        className="border-red-200 text-red-600 hover:bg-red-50"
-      >
-        <XCircle className="mr-2 h-4 w-4" />
-        Cancel Interview
-      </Button>
+      <Button ...>Cancel Interview</Button>  // REMOVE THIS
       
       <p className="text-xs text-muted-foreground mt-3">
-        Click Cancel to formally close this booking. The provider will be 
-        notified to select a new time slot.
+        Click Cancel to formally close this booking...  // REMOVE THIS
       </p>
     </CardContent>
   </Card>
 )}
 ```
 
-### File 2: `src/components/reviewer/candidates/CancelAcceptedSlotDialog.tsx`
-
-**Changes:**
-1. Wrap component with `React.forwardRef` to fix the console warning
-
-**Updated component structure:**
+**Corrected code:**
 ```typescript
-import * as React from "react";
-// ... other imports
-
-interface CancelAcceptedSlotDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onConfirm: (reason: string) => void;
-  isLoading: boolean;
-  scheduledAt: string;
-  durationMinutes: number;
-  reviewerTimezone: string;
-  providerName: string;
-}
-
-export const CancelAcceptedSlotDialog = React.forwardRef<
-  HTMLDivElement,
-  CancelAcceptedSlotDialogProps
->(function CancelAcceptedSlotDialog({
-  open,
-  onOpenChange,
-  // ... rest of props
-}, ref) {
-  // ... component body
-  return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      {/* Dialog component forwards ref internally via DialogContent */}
-      <DialogContent className="sm:max-w-md">
-        {/* ... existing content */}
-      </DialogContent>
-    </Dialog>
-  );
-});
-
-CancelAcceptedSlotDialog.displayName = "CancelAcceptedSlotDialog";
+{isDeclined && !isBookingCancelled && (
+  <Card className="border-red-200 bg-red-50/50">
+    <CardContent className="pt-6">
+      <div className="flex items-center gap-2 mb-4">
+        <XCircle className="h-5 w-5 text-red-600" />
+        <span className="font-medium text-red-800">
+          You have declined this interview
+        </span>
+        <Badge variant="destructive">DECLINED</Badge>
+      </div>
+      
+      {slotContext.reviewerAssignment?.declinedReason && (
+        <p className="text-sm text-muted-foreground">
+          Reason: {slotContext.reviewerAssignment.declinedReason.replace(/_/g, ' ')}
+        </p>
+      )}
+      
+      <p className="text-xs text-muted-foreground mt-3">
+        The provider will be notified to select another available time slot.
+      </p>
+    </CardContent>
+  </Card>
+)}
 ```
 
 ---
@@ -133,17 +97,16 @@ CancelAcceptedSlotDialog.displayName = "CancelAcceptedSlotDialog";
 
 | File | Action | Changes |
 |------|--------|---------|
-| `src/components/reviewer/candidates/SlotsTabContent.tsx` | MODIFY | Add Cancel button to declined state section |
-| `src/components/reviewer/candidates/CancelAcceptedSlotDialog.tsx` | MODIFY | Wrap with forwardRef to fix warning |
+| `src/components/reviewer/candidates/SlotsTabContent.tsx` | MODIFY | Remove Cancel button from declined state section (lines 257-269) |
 
 ---
 
-## Expected Result After Fix
+## Expected UI After Fix
 
-### Accepted State:
+### When ACCEPTED:
 ```
 ┌─────────────────────────────────────────────────┐
-│ ✓ You have accepted this interview  [Confirmed] │
+│ ✓ You have accepted this interview  [ACCEPTED]  │
 │                                                 │
 │ [Cancel Interview]                              │
 │                                                 │
@@ -153,36 +116,25 @@ CancelAcceptedSlotDialog.displayName = "CancelAcceptedSlotDialog";
 └─────────────────────────────────────────────────┘
 ```
 
-### Declined State (NEW):
+### When DECLINED:
 ```
 ┌─────────────────────────────────────────────────┐
-│ ✗ You have declined this interview  [Declined]  │
+│ ✗ You have declined this interview  [DECLINED]  │
 │ Reason: reviewer unavailable                    │
 │                                                 │
-│ [Cancel Interview]                              │
-│                                                 │
-│ Click Cancel to formally close this booking.    │
-│ The provider will be notified to select a new   │
-│ time slot.                                      │
+│ The provider will be notified to select another │
+│ available time slot.                            │
 └─────────────────────────────────────────────────┘
 ```
+*(No Cancel button for declined state)*
 
 ---
 
-## Technical Notes
+## Logic Clarification
 
-### Why Cancel Works for Both States
+When a reviewer **declines**, the system should automatically:
+- Update booking status
+- Notify the provider to rebook
 
-The `useCancelAcceptedBooking` mutation performs these actions:
-1. Updates `booking_reviewers.acceptance_status` to 'declined'
-2. Updates `interview_bookings.status` to 'cancelled'
-3. Reverts `provider_industry_enrollments.lifecycle_status` to 'assessment_passed'
-4. Creates in-app notification for provider
-5. Sends email notification via edge function
-
-These actions are appropriate regardless of whether the reviewer initially accepted or declined - the outcome is the same: the booking is cancelled and the provider can rebook.
-
-### forwardRef Fix
-
-The warning occurs because Radix Dialog needs to manage focus and may attempt to attach refs. While the Dialog component handles this internally, wrapping our component with forwardRef prevents the warning and follows React best practices for components that may be used with refs.
+There's no need for a separate "Cancel" action since declining already triggers the rebooking flow. The Cancel option is only relevant when a reviewer has **accepted** but later cannot attend.
 
