@@ -1,183 +1,277 @@
 
-# Fix: Create Missing Database Functions for Interview Time Conflict Checking
+# Comprehensive Fix: Reviewer RLS Policies for Candidate Detail Page
 
-## Problem Identified
+## Problem Analysis
 
-The database functions `check_reviewer_time_conflict` and `check_enrollment_time_conflict` are referenced in the `book_interview_slot` and `select_reviewers_weighted` functions but were **never created** in any migration. This causes the error:
+### Current State
+The candidate detail page tabs are showing empty because **Row Level Security (RLS) policies block reviewers from accessing provider data**. The existing RLS policies only allow:
+- **Providers** to view/manage their own data
+- **Platform Admins** full access
 
+### Missing Reviewer Access
+The following tables have **NO RLS policies for reviewer access**:
+
+| Table | SELECT | UPDATE | Impact |
+|-------|--------|--------|--------|
+| `proof_points` | Missing | Missing | Proof Points tab empty |
+| `proof_point_links` | Missing | — | No supporting links visible |
+| `proof_point_files` | Missing | — | No attached files visible |
+| `proof_point_speciality_tags` | Missing | — | No speciality tags visible |
+| `assessment_attempts` | Missing | — | Assessment tab empty |
+| `assessment_attempt_responses` | Missing | — | No question-level results |
+| `provider_proficiency_areas` | Missing | — | Expertise tree empty |
+| `provider_specialities` | Missing | — | Expertise tree incomplete |
+
+### Data Verification
+The enrollment `58155298-1987-4f40-ba6c-2f8aa3257e7d` has:
+- ✅ 4 proof points (2 general, 2 specialty-specific)
+- ✅ Assessment completed (85% pass)
+- ✅ Lifecycle status: `panel_scheduled` (rank 120)
+- ❌ Reviewer cannot see any of this due to RLS blocking
+
+### Existing Helper Functions
+The database already has three SECURITY DEFINER functions available:
+- `is_reviewer_for_provider(p_provider_id UUID)` → checks if current user is assigned reviewer for a provider
+- `is_reviewer_for_enrollment(p_enrollment_id UUID)` → checks if current user is assigned reviewer for an enrollment
+- `is_reviewer_assigned_to_booking(p_booking_id UUID)` → checks if current user is assigned to a booking
+
+These functions resolve the RLS recursion issue and are already used for `solution_providers` and `provider_industry_enrollments`.
+
+---
+
+## Solution: Add Reviewer RLS Policies
+
+### Phase 1: Proof Points Access (SELECT + UPDATE)
+
+**1.1 `proof_points` table**
+```sql
+-- Allow reviewers to VIEW proof points for assigned enrollments
+CREATE POLICY "Reviewers can view assigned proof points"
+  ON public.proof_points
+  FOR SELECT
+  TO authenticated
+  USING (
+    is_reviewer_for_enrollment(enrollment_id)
+  );
+
+-- Allow reviewers to UPDATE review columns only
+CREATE POLICY "Reviewers can update proof point ratings"
+  ON public.proof_points
+  FOR UPDATE
+  TO authenticated
+  USING (is_reviewer_for_enrollment(enrollment_id))
+  WITH CHECK (is_reviewer_for_enrollment(enrollment_id));
 ```
-function check_enrollment_time_conflict(uuid, timestamp with time zone, timestamp with time zone, unknown) does not exist
+
+**1.2 `proof_point_links` table**
+```sql
+CREATE POLICY "Reviewers can view proof point links"
+  ON public.proof_point_links
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM proof_points pp
+      WHERE pp.id = proof_point_links.proof_point_id
+        AND is_reviewer_for_enrollment(pp.enrollment_id)
+    )
+  );
 ```
 
-## Root Cause Analysis
+**1.3 `proof_point_files` table**
+```sql
+CREATE POLICY "Reviewers can view proof point files"
+  ON public.proof_point_files
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM proof_points pp
+      WHERE pp.id = proof_point_files.proof_point_id
+        AND is_reviewer_for_enrollment(pp.enrollment_id)
+    )
+  );
+```
 
-| Migration | What It Did | Problem |
-|-----------|-------------|---------|
-| `20260122120555_*.sql` | Created `book_interview_slot` referencing `check_enrollment_time_conflict` | Function was never created |
-| `20260125180129_*.sql` | Created `select_reviewers_weighted` referencing `check_reviewer_time_conflict` | Function was never created |
-| `20260122121245_*.sql` | Created `check_reviewer_booking_uniqueness` trigger | Different function (trigger, not helper) |
+**1.4 `proof_point_speciality_tags` table**
+```sql
+CREATE POLICY "Reviewers can view proof point tags"
+  ON public.proof_point_speciality_tags
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM proof_points pp
+      WHERE pp.id = proof_point_speciality_tags.proof_point_id
+        AND is_reviewer_for_enrollment(pp.enrollment_id)
+    )
+  );
+```
 
-## Solution: Create Both Missing Functions
+### Phase 2: Assessment Access (SELECT only)
 
-### Function 1: check_enrollment_time_conflict
+**2.1 `assessment_attempts` table**
+```sql
+CREATE POLICY "Reviewers can view assigned assessment attempts"
+  ON public.assessment_attempts
+  FOR SELECT
+  TO authenticated
+  USING (
+    is_reviewer_for_enrollment(enrollment_id)
+  );
+```
 
-This function checks if a provider's enrollment already has an active interview booking at an overlapping time window.
+**2.2 `assessment_attempt_responses` table**
+```sql
+CREATE POLICY "Reviewers can view assigned assessment responses"
+  ON public.assessment_attempt_responses
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM assessment_attempts aa
+      WHERE aa.id = assessment_attempt_responses.attempt_id
+        AND is_reviewer_for_enrollment(aa.enrollment_id)
+    )
+  );
+```
+
+### Phase 3: Expertise/Proficiency Access (SELECT only)
+
+**3.1 `provider_proficiency_areas` table**
+```sql
+CREATE POLICY "Reviewers can view assigned proficiency areas"
+  ON public.provider_proficiency_areas
+  FOR SELECT
+  TO authenticated
+  USING (
+    is_reviewer_for_enrollment(enrollment_id)
+  );
+```
+
+**3.2 `provider_specialities` table**
+```sql
+CREATE POLICY "Reviewers can view assigned specialities"
+  ON public.provider_specialities
+  FOR SELECT
+  TO authenticated
+  USING (
+    is_reviewer_for_enrollment(enrollment_id)
+  );
+```
+
+### Phase 4: Enrollment UPDATE Policy
+
+The `provider_industry_enrollments` table needs an UPDATE policy for reviewers to save review status:
 
 ```sql
-CREATE OR REPLACE FUNCTION public.check_enrollment_time_conflict(
-  p_enrollment_id UUID,
-  p_start_at TIMESTAMPTZ,
-  p_end_at TIMESTAMPTZ,
-  p_exclude_booking_id UUID DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM interview_bookings ib
-    WHERE ib.enrollment_id = p_enrollment_id
-      AND ib.status IN ('scheduled', 'confirmed')
-      AND ib.id != COALESCE(p_exclude_booking_id, '00000000-0000-0000-0000-000000000000'::uuid)
-      -- Check time overlap
-      AND ib.scheduled_at < p_end_at
-      AND (ib.scheduled_at + INTERVAL '60 minutes') > p_start_at
-  )
-$$;
+CREATE POLICY "Reviewers can update review fields on assigned enrollments"
+  ON public.provider_industry_enrollments
+  FOR UPDATE
+  TO authenticated
+  USING (is_reviewer_for_enrollment(id))
+  WITH CHECK (is_reviewer_for_enrollment(id));
 ```
 
-**Logic:**
-- Checks `interview_bookings` for the given enrollment
-- Only considers active bookings (`scheduled` or `confirmed`)
-- Excludes a specific booking if reschedule is in progress
-- Returns `TRUE` if there's an overlapping booking (conflict exists)
+---
 
-### Function 2: check_reviewer_time_conflict
+## Technical Details
 
-This function checks if a reviewer already has an active interview booking at an overlapping time window.
+### Security Architecture
 
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     RLS Policy Check Flow                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│  1. User Request → Supabase Client                              │
+│  2. auth.uid() → Current User ID                                 │
+│  3. is_reviewer_for_enrollment(enrollment_id) function:          │
+│                                                                  │
+│     ┌──────────────────────────────────────────────────────┐    │
+│     │  panel_reviewers (pr)                                │    │
+│     │    └── pr.user_id = auth.uid()                       │    │
+│     │    └── pr.is_active = true                           │    │
+│     │             ↓                                         │    │
+│     │  booking_reviewers (br)                              │    │
+│     │    └── br.reviewer_id = pr.id                        │    │
+│     │             ↓                                         │    │
+│     │  interview_bookings (ib)                             │    │
+│     │    └── ib.id = br.booking_id                         │    │
+│     │    └── ib.enrollment_id = p_enrollment_id            │    │
+│     └──────────────────────────────────────────────────────┘    │
+│                                                                  │
+│  4. Returns TRUE only if reviewer is assigned to enrollment      │
+│  5. Policy grants access based on function result                │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Why SECURITY DEFINER Functions?
+
+1. **Prevents RLS recursion**: Direct joins in policy `USING` clauses can cause infinite recursion
+2. **Performance**: Function is optimized and cached
+3. **Consistency**: Same logic across all tables
+4. **Maintainability**: Update access rules in one place
+
+### Policy Permissions Matrix
+
+| Table | Reviewer SELECT | Reviewer UPDATE | Notes |
+|-------|-----------------|-----------------|-------|
+| `proof_points` | ✅ | ✅ (review columns) | Rate and comment |
+| `proof_point_links` | ✅ | ❌ | View only |
+| `proof_point_files` | ✅ | ❌ | View only |
+| `proof_point_speciality_tags` | ✅ | ❌ | View only |
+| `assessment_attempts` | ✅ | ❌ | View only |
+| `assessment_attempt_responses` | ✅ | ❌ | View only |
+| `provider_proficiency_areas` | ✅ | ❌ | View only |
+| `provider_specialities` | ✅ | ❌ | View only |
+| `provider_industry_enrollments` | ✅ (existing) | ✅ (review fields) | Update review status |
+
+---
+
+## Implementation Plan
+
+### Step 1: Database Migration
+Create a single migration file with all 10 new RLS policies:
+- 8 SELECT policies (one per table)
+- 2 UPDATE policies (`proof_points` and `provider_industry_enrollments`)
+
+### Step 2: Verification
+After migration, verify each tab works:
+- **Provider Details**: Already working (existing policies)
+- **Expertise**: Should show proficiency tree
+- **Proof Points**: Should show 4 items with rating controls
+- **Assessment**: Should show 85% pass with hierarchy breakdown
+- **Slots**: Already working (existing policies)
+
+### Step 3: Testing Checklist
+- [ ] Reviewer can view proof points for assigned enrollment
+- [ ] Reviewer can rate proof points (relevance + score)
+- [ ] Reviewer can save draft ratings
+- [ ] Reviewer can confirm proof points review
+- [ ] Reviewer can view assessment results
+- [ ] Reviewer can view expertise tree
+- [ ] Reviewer CANNOT view data for unassigned enrollments
+- [ ] Provider data remains private from other providers
+
+---
+
+## Risk Mitigation
+
+### Data Privacy
+- Reviewers only see data for enrollments they are **explicitly assigned** to
+- Assignment is controlled by the booking process (not self-selected)
+- No cross-tenant data exposure
+
+### Performance
+- `is_reviewer_for_enrollment()` is SECURITY DEFINER and STABLE
+- Existing indexes on `booking_reviewers`, `interview_bookings` optimize lookups
+- Function executes once per query, not per row (PostgreSQL optimization)
+
+### Rollback
+If issues occur, policies can be dropped without data loss:
 ```sql
-CREATE OR REPLACE FUNCTION public.check_reviewer_time_conflict(
-  p_reviewer_id UUID,
-  p_start_at TIMESTAMPTZ,
-  p_end_at TIMESTAMPTZ,
-  p_exclude_booking_id UUID DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM booking_reviewers br
-    JOIN interview_slots ist ON ist.id = br.slot_id
-    JOIN interview_bookings ib ON ib.id = br.booking_id
-    WHERE ist.reviewer_id = p_reviewer_id
-      AND br.status = 'assigned'
-      AND ib.status IN ('scheduled', 'confirmed')
-      AND ib.id != COALESCE(p_exclude_booking_id, '00000000-0000-0000-0000-000000000000'::uuid)
-      -- Check time overlap
-      AND ist.start_at < p_end_at
-      AND ist.end_at > p_start_at
-  )
-$$;
+DROP POLICY IF EXISTS "Reviewers can view assigned proof points" ON proof_points;
+-- etc.
 ```
-
-**Logic:**
-- Checks `booking_reviewers` joined with `interview_slots` for the given reviewer
-- Only considers assigned reviewers on active bookings
-- Excludes a specific booking if reschedule is in progress
-- Returns `TRUE` if there's an overlapping booking (conflict exists)
-
-## Implementation
-
-### Database Migration
-
-A single migration file will create both functions:
-
-```sql
--- =====================================================
--- Fix: Create missing time conflict checking functions
--- These are required by book_interview_slot and select_reviewers_weighted
--- =====================================================
-
--- 1. check_enrollment_time_conflict
--- Checks if an enrollment already has an active booking at the given time window
-CREATE OR REPLACE FUNCTION public.check_enrollment_time_conflict(
-  p_enrollment_id UUID,
-  p_start_at TIMESTAMPTZ,
-  p_end_at TIMESTAMPTZ,
-  p_exclude_booking_id UUID DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM interview_bookings ib
-    WHERE ib.enrollment_id = p_enrollment_id
-      AND ib.status IN ('scheduled', 'confirmed')
-      AND ib.id != COALESCE(p_exclude_booking_id, '00000000-0000-0000-0000-000000000000'::uuid)
-      -- Check time overlap: booking overlaps with [p_start_at, p_end_at]
-      AND ib.scheduled_at < p_end_at
-      AND (ib.scheduled_at + INTERVAL '60 minutes') > p_start_at
-  )
-$$;
-
--- 2. check_reviewer_time_conflict
--- Checks if a reviewer already has an assigned booking at the given time window
-CREATE OR REPLACE FUNCTION public.check_reviewer_time_conflict(
-  p_reviewer_id UUID,
-  p_start_at TIMESTAMPTZ,
-  p_end_at TIMESTAMPTZ,
-  p_exclude_booking_id UUID DEFAULT NULL
-)
-RETURNS BOOLEAN
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT EXISTS (
-    SELECT 1
-    FROM booking_reviewers br
-    JOIN interview_slots ist ON ist.id = br.slot_id
-    JOIN interview_bookings ib ON ib.id = br.booking_id
-    WHERE ist.reviewer_id = p_reviewer_id
-      AND br.status = 'assigned'
-      AND ib.status IN ('scheduled', 'confirmed')
-      AND ib.id != COALESCE(p_exclude_booking_id, '00000000-0000-0000-0000-000000000000'::uuid)
-      -- Check time overlap: slot overlaps with [p_start_at, p_end_at]
-      AND ist.start_at < p_end_at
-      AND ist.end_at > p_start_at
-  )
-$$;
-
-COMMENT ON FUNCTION check_enrollment_time_conflict IS 'Returns TRUE if the enrollment has an active booking overlapping the given time window';
-COMMENT ON FUNCTION check_reviewer_time_conflict IS 'Returns TRUE if the reviewer has an assigned booking overlapping the given time window';
-```
-
-## Technical Notes
-
-| Aspect | Detail |
-|--------|--------|
-| Security | Both use `SECURITY DEFINER` with explicit `search_path` to prevent privilege escalation |
-| Performance | `STABLE` marking allows query optimization; indexes already exist on referenced tables |
-| Null handling | Uses `COALESCE` to handle NULL `p_exclude_booking_id` parameter |
-| Time overlap | Uses standard interval overlap logic: `A.start < B.end AND A.end > B.start` |
-
-## Testing Verification
-
-After migration:
-1. Navigate to `/enroll/interview-slot` as a provider who has passed assessment
-2. Attempt to book an interview slot
-3. Booking should succeed without the "function does not exist" error
-4. If provider has an existing booking, attempting to book another should show "You already have an active booking"
