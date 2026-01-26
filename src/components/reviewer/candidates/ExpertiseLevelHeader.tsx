@@ -1,4 +1,4 @@
-import { Award, Clock } from "lucide-react";
+import { Award, Clock, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { CandidateExpertise } from "@/hooks/queries/useCandidateExpertise";
@@ -39,35 +39,52 @@ export function ExpertiseLevelHeader({ expertise }: ExpertiseLevelHeaderProps) {
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Award className="h-5 w-5 text-primary" />
-            Expertise Level
+            Expertise Profile
           </CardTitle>
           <Badge variant={getStatusBadgeVariant(expertise.reviewStatus)}>
             {getStatusLabel(expertise.reviewStatus)}
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {expertise.expertiseLevelName ? (
-          <>
+      <CardContent className="space-y-4">
+        {/* Industry Segment Section */}
+        {expertise.industrySegmentName && (
+          <div className="flex items-center gap-3 pb-3 border-b">
+            <Building2 className="h-5 w-5 text-primary" />
             <div>
-              <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Industry Segment:</span>
+              <span className="ml-2 font-semibold">{expertise.industrySegmentName}</span>
+              {expertise.industrySegmentCode && (
+                <span className="ml-1 text-xs text-muted-foreground">
+                  ({expertise.industrySegmentCode})
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Expertise Level Section */}
+        {expertise.expertiseLevelName ? (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <Award className="h-5 w-5 text-primary" />
+              <div>
                 <span className="text-sm font-medium text-muted-foreground">
                   Level {expertise.levelNumber}:
                 </span>
-                <span className="font-semibold">{expertise.expertiseLevelName}</span>
+                <span className="ml-2 font-semibold">{expertise.expertiseLevelName}</span>
               </div>
-              {expertise.expertiseLevelDescription && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  {expertise.expertiseLevelDescription}
-                </p>
-              )}
             </div>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {expertise.expertiseLevelDescription && (
+              <p className="text-sm text-muted-foreground ml-8">
+                {expertise.expertiseLevelDescription}
+              </p>
+            )}
+            <div className="flex items-center gap-2 text-sm text-muted-foreground ml-8">
               <Clock className="h-4 w-4" />
               <span>Experience: {yearsRange}</span>
             </div>
-          </>
+          </div>
         ) : (
           <p className="text-sm text-muted-foreground">
             No expertise level selected yet.
@@ -75,7 +92,7 @@ export function ExpertiseLevelHeader({ expertise }: ExpertiseLevelHeaderProps) {
         )}
 
         {/* Summary counts */}
-        <div className="flex items-center gap-4 pt-2 border-t text-sm text-muted-foreground">
+        <div className="flex items-center gap-4 pt-3 border-t text-sm text-muted-foreground">
           <span>{expertise.totalAreas} Proficiency Areas</span>
           <span>•</span>
           <span>{expertise.totalSubDomains} Sub-domains</span>
