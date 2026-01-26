@@ -40,6 +40,8 @@ export type InterviewSlot = Tables<"interview_slots">;
 export interface CreateSlotInput {
   start_at: string;
   end_at: string;
+  slot_industry_ids?: string[];
+  slot_expertise_ids?: string[];
 }
 
 // Get current reviewer's profile from panel_reviewers
@@ -127,6 +129,9 @@ export function useCreateReviewerSlots() {
         start_at: slot.start_at,
         end_at: slot.end_at,
         status: 'open' as const,
+        // Only include if explicitly selected (empty = all reviewer's enrollments)
+        slot_industry_ids: slot.slot_industry_ids?.length ? slot.slot_industry_ids : null,
+        slot_expertise_ids: slot.slot_expertise_ids?.length ? slot.slot_expertise_ids : null,
       }));
 
       const { data, error } = await supabase
