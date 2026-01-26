@@ -5,8 +5,9 @@
  * Requires a mandatory cancellation reason which will be sent to the provider.
  */
 
+import * as React from "react";
 import { useState } from "react";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { formatInTimeZone } from "date-fns-tz";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import {
@@ -33,7 +34,10 @@ interface CancelAcceptedSlotDialogProps {
   providerName: string;
 }
 
-export function CancelAcceptedSlotDialog({
+export const CancelAcceptedSlotDialog = React.forwardRef<
+  HTMLDivElement,
+  CancelAcceptedSlotDialogProps
+>(function CancelAcceptedSlotDialog({
   open,
   onOpenChange,
   onConfirm,
@@ -42,7 +46,7 @@ export function CancelAcceptedSlotDialog({
   durationMinutes,
   reviewerTimezone,
   providerName,
-}: CancelAcceptedSlotDialogProps) {
+}, ref) {
   const [reason, setReason] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -173,4 +177,6 @@ export function CancelAcceptedSlotDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+CancelAcceptedSlotDialog.displayName = "CancelAcceptedSlotDialog";

@@ -237,19 +237,38 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
         </Card>
       )}
 
-      {isDeclined && (
-        <Alert variant="destructive" className="bg-destructive/10">
-          <XCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center gap-2">
-            You have declined this interview slot.
-            <Badge variant="destructive">Declined</Badge>
-            {slotContext.reviewerAssignment?.declinedReason && (
-              <span className="text-xs">
-                (Reason: {slotContext.reviewerAssignment.declinedReason.replace('_', ' ')})
+      {isDeclined && !isBookingCancelled && (
+        <Card className="border-red-200 bg-red-50/50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-4">
+              <XCircle className="h-5 w-5 text-red-600" />
+              <span className="font-medium text-red-800">
+                You have declined this interview
               </span>
+              <Badge variant="destructive">Declined</Badge>
+            </div>
+            
+            {slotContext.reviewerAssignment?.declinedReason && (
+              <p className="text-sm text-muted-foreground mb-4">
+                Reason: {slotContext.reviewerAssignment.declinedReason.replace(/_/g, ' ')}
+              </p>
             )}
-          </AlertDescription>
-        </Alert>
+            
+            <Button
+              variant="outline"
+              onClick={() => setShowCancelDialog(true)}
+              className="border-red-200 text-red-600 hover:bg-red-50"
+            >
+              <XCircle className="mr-2 h-4 w-4" />
+              Cancel Interview
+            </Button>
+            
+            <p className="text-xs text-muted-foreground mt-3">
+              Click Cancel to formally close this booking. The provider will be 
+              notified to select a new time slot.
+            </p>
+          </CardContent>
+        </Card>
       )}
 
       {isBookingCancelled && !isDeclined && (
