@@ -124,7 +124,7 @@ export default function CandidateDetailPage() {
             <TabsTrigger value="assessment">Assessment</TabsTrigger>
             <TabsTrigger value="slots">Slots</TabsTrigger>
             <TabsTrigger value="interview-kit">Interview Kit</TabsTrigger>
-            <TabsTrigger value="review-progress" disabled>Review Progress</TabsTrigger>
+            <TabsTrigger value="final-result" disabled>Final Result</TabsTrigger>
           </TabsList>
 
           {/* Provider Details Tab Content */}
@@ -173,9 +173,9 @@ export default function CandidateDetailPage() {
             {enrollmentId && <InterviewKitTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
-          <TabsContent value="review-progress">
+          <TabsContent value="final-result">
             <div className="p-8 text-center text-muted-foreground">
-              Review Progress tab content coming soon
+              Final Result tab content coming soon
             </div>
           </TabsContent>
         </Tabs>
