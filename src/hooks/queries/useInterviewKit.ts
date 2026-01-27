@@ -550,6 +550,76 @@ export function useSubmitInterviewEvaluation() {
 }
 
 // =====================================================
+// Regenerate Interview Kit
+// =====================================================
+
+/**
+ * Delete existing evaluation and responses, then allow fresh generation
+ * Use when corrupted data exists or user wants to reset
+ */
+export function useRegenerateInterviewKit() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (bookingId: string) => {
+      // Get current reviewer
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const { data: reviewer, error: reviewerError } = await supabase
+        .from('panel_reviewers')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle();
+
+      if (reviewerError) throw new Error(reviewerError.message);
+      if (!reviewer) throw new Error('Reviewer profile not found');
+
+      // Find existing evaluation
+      const { data: existingEval } = await supabase
+        .from('interview_evaluations')
+        .select('id')
+        .eq('booking_id', bookingId)
+        .eq('reviewer_id', reviewer.id)
+        .maybeSingle();
+
+      if (!existingEval) {
+        // No existing evaluation to delete
+        return { deleted: false };
+      }
+
+      // Delete responses first (FK constraint)
+      const { error: respDeleteError } = await supabase
+        .from('interview_question_responses')
+        .delete()
+        .eq('evaluation_id', existingEval.id);
+
+      if (respDeleteError) throw new Error(respDeleteError.message);
+
+      // Delete evaluation
+      const { error: evalDeleteError } = await supabase
+        .from('interview_evaluations')
+        .delete()
+        .eq('id', existingEval.id);
+
+      if (evalDeleteError) throw new Error(evalDeleteError.message);
+
+      return { deleted: true, evaluationId: existingEval.id };
+    },
+    onSuccess: (result, bookingId) => {
+      queryClient.invalidateQueries({ queryKey: ['interview-kit', bookingId] });
+      if (result.deleted) {
+        toast.success('Interview kit cleared. Generating fresh questions...');
+      }
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'regenerate_interview_kit' });
+    },
+  });
+}
+
+// =====================================================
 // Utility Hooks
 // =====================================================
 
