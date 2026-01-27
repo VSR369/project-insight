@@ -69,7 +69,7 @@ export function InterviewKitSection({
         <div className="border border-t-0 rounded-b-lg bg-muted/20 p-4">
           {children || (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Questions will be generated here
+              No questions available
             </p>
           )}
         </div>
