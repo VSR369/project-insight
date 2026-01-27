@@ -29,6 +29,7 @@ import {
   UserCheck,
   CalendarClock,
   ClipboardList,
+  Mail,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,6 +56,7 @@ const interviewItems = [
 ];
 
 const otherItems = [
+  { title: 'Invitations', icon: Mail, path: '/admin/invitations' },
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
