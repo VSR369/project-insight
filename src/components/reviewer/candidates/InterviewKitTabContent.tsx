@@ -12,17 +12,22 @@ import { InterviewKitScoringLogic } from "./InterviewKitScoringLogic";
 import { InterviewQuestionSection } from "./InterviewQuestionSection";
 import { InterviewKitReviewNotes } from "./InterviewKitReviewNotes";
 import { InterviewKitFooter } from "./InterviewKitFooter";
+import { DeleteQuestionConfirmDialog } from "./DeleteQuestionConfirmDialog";
+import { ModifyQuestionDialog } from "./ModifyQuestionDialog";
+import { AddCustomQuestionDialog } from "./AddCustomQuestionDialog";
 import {
   useInterviewKitSession,
   useCreateEvaluation,
   useSaveQuestionResponse,
   useSubmitInterview,
+  useDeleteQuestionResponse,
+  useModifyQuestionResponse,
+  useAddCustomQuestion,
+  InterviewQuestionResponse,
 } from "@/hooks/queries/useInterviewKitSession";
 import { useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import {
   InterviewRating,
-  INTERVIEW_RATING_POINTS,
-  getRecommendationLevel,
   RecommendationLevel,
 } from "@/constants/interview-kit-scoring.constants";
 import { toast } from "sonner";
@@ -49,6 +54,13 @@ export function InterviewKitTabContent({
   const [savingQuestionId, setSavingQuestionId] = useState<string | undefined>();
   const evaluationIdRef = useRef<string | null>(null);
 
+  // Dialog states
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [modifyDialogOpen, setModifyDialogOpen] = useState(false);
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState<InterviewQuestionResponse | null>(null);
+  const [addToSection, setAddToSection] = useState<string>("");
+
   // Queries and mutations
   const {
     data: sessionData,
@@ -60,6 +72,9 @@ export function InterviewKitTabContent({
   const createEvaluation = useCreateEvaluation();
   const saveResponse = useSaveQuestionResponse();
   const submitInterview = useSubmitInterview();
+  const deleteQuestion = useDeleteQuestionResponse();
+  const modifyQuestion = useModifyQuestionResponse();
+  const addCustomQuestion = useAddCustomQuestion();
   const { mutate: updateReviewData, isPending: isUpdatingReview } = useUpdateCandidateReviewData(enrollmentId);
 
   // Get or create evaluation
@@ -114,6 +129,82 @@ export function InterviewKitTabContent({
       setSavingQuestionId(undefined);
     }
   }, [sessionData, ensureEvaluation, saveResponse, refetch]);
+
+  // Handle delete question
+  const handleDeleteQuestion = useCallback((questionId: string) => {
+    const question = sessionData?.questions.find(q => q.id === questionId);
+    if (question) {
+      setSelectedQuestion(question);
+      setDeleteDialogOpen(true);
+    }
+  }, [sessionData]);
+
+  const confirmDeleteQuestion = useCallback(async () => {
+    if (!selectedQuestion) return;
+    
+    try {
+      await deleteQuestion.mutateAsync(selectedQuestion.id);
+      setDeleteDialogOpen(false);
+      setSelectedQuestion(null);
+      refetch();
+    } catch (err) {
+      console.error("Failed to delete question:", err);
+    }
+  }, [selectedQuestion, deleteQuestion, refetch]);
+
+  // Handle modify question
+  const handleModifyQuestion = useCallback((question: InterviewQuestionResponse) => {
+    setSelectedQuestion(question);
+    setModifyDialogOpen(true);
+  }, []);
+
+  const confirmModifyQuestion = useCallback(async (updates: { questionText: string; expectedAnswer: string | null }) => {
+    if (!selectedQuestion) return;
+    
+    try {
+      await modifyQuestion.mutateAsync({
+        questionId: selectedQuestion.id,
+        questionText: updates.questionText,
+        expectedAnswer: updates.expectedAnswer,
+      });
+      setModifyDialogOpen(false);
+      setSelectedQuestion(null);
+      refetch();
+    } catch (err) {
+      console.error("Failed to modify question:", err);
+    }
+  }, [selectedQuestion, modifyQuestion, refetch]);
+
+  // Handle add custom question
+  const handleAddQuestion = useCallback((sectionName: string) => {
+    setAddToSection(sectionName);
+    setAddDialogOpen(true);
+  }, []);
+
+  const confirmAddQuestion = useCallback(async (data: { questionText: string; expectedAnswer: string | null; sectionName: string }) => {
+    try {
+      const evaluationId = await ensureEvaluation();
+      
+      // Calculate next display order for this section
+      const sectionQuestions = sessionData?.sectionedQuestions.get(data.sectionName) || [];
+      const maxOrder = sectionQuestions.length > 0 
+        ? Math.max(...sectionQuestions.map(q => q.displayOrder))
+        : -1;
+      
+      await addCustomQuestion.mutateAsync({
+        evaluationId,
+        questionText: data.questionText,
+        expectedAnswer: data.expectedAnswer,
+        sectionName: data.sectionName,
+        displayOrder: maxOrder + 1,
+      });
+      
+      setAddDialogOpen(false);
+      refetch();
+    } catch (err) {
+      console.error("Failed to add question:", err);
+    }
+  }, [ensureEvaluation, sessionData, addCustomQuestion, refetch]);
 
   // Handle submit
   const handleSubmit = useCallback(async () => {
@@ -281,8 +372,12 @@ export function InterviewKitTabContent({
               sectionName={sectionName}
               questions={questions}
               onRatingChange={handleRatingChange}
+              onDeleteQuestion={handleDeleteQuestion}
+              onModifyQuestion={handleModifyQuestion}
+              onAddQuestion={() => handleAddQuestion(sectionName)}
               savingQuestionId={savingQuestionId}
               defaultOpen={index === 0}
+              isSubmitted={isSubmitted}
             />
           ))}
         </CardContent>
@@ -300,6 +395,34 @@ export function InterviewKitTabContent({
         onSubmit={handleSubmit}
         onExportPdf={handleExportPdf}
         isSubmitting={submitInterview.isPending}
+      />
+
+      {/* Dialogs */}
+      <DeleteQuestionConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        questionText={selectedQuestion?.questionText || ""}
+        onConfirm={confirmDeleteQuestion}
+        isDeleting={deleteQuestion.isPending}
+      />
+
+      <ModifyQuestionDialog
+        open={modifyDialogOpen}
+        onOpenChange={setModifyDialogOpen}
+        questionText={selectedQuestion?.questionText || ""}
+        expectedAnswer={selectedQuestion?.expectedAnswer || null}
+        questionSource={selectedQuestion?.questionSource || ""}
+        onSave={confirmModifyQuestion}
+        isSaving={modifyQuestion.isPending}
+      />
+
+      <AddCustomQuestionDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        sectionName={addToSection}
+        availableSections={sessionData.sectionNames}
+        onAdd={confirmAddQuestion}
+        isAdding={addCustomQuestion.isPending}
       />
     </div>
   );

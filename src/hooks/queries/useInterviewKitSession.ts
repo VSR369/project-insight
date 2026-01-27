@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { 
   generateAllInterviewQuestions, 
   GeneratedQuestion,
-  groupQuestionsBySection,
 } from "@/services/interviewKitQuestionService";
 import { 
   InterviewRating, 
@@ -22,10 +21,12 @@ import {
 // Types
 // =====================================================
 
+export type QuestionSource = 'interview_kit' | 'question_bank' | 'proof_point' | 'reviewer_custom';
+
 export interface InterviewQuestionResponse {
   id: string;
   evaluationId: string;
-  questionSource: 'interview_kit' | 'question_bank' | 'proof_point';
+  questionSource: QuestionSource;
   questionId: string | null;
   proofPointId: string | null;
   questionText: string;
@@ -51,6 +52,7 @@ export interface InterviewKitData {
   questions: InterviewQuestionResponse[];
   generatedQuestions: GeneratedQuestion[];
   sectionedQuestions: Map<string, InterviewQuestionResponse[]>;
+  sectionNames: string[];
   stats: {
     totalQuestions: number;
     ratedQuestions: number;
@@ -137,7 +139,7 @@ export function useInterviewKitSession(
           questions = responses.map(r => ({
             id: r.id,
             evaluationId: r.evaluation_id,
-            questionSource: r.question_source as 'interview_kit' | 'question_bank' | 'proof_point',
+            questionSource: r.question_source as QuestionSource,
             questionId: r.question_id,
             proofPointId: r.proof_point_id,
             questionText: r.question_text,
@@ -167,6 +169,13 @@ export function useInterviewKitSession(
         }));
       }
 
+      // Collect section names in order
+      const sectionNamesSet = new Set<string>();
+      for (const q of questions) {
+        sectionNamesSet.add(q.sectionName);
+      }
+      const sectionNames = Array.from(sectionNamesSet);
+
       // Group by section
       const sectionedQuestions = new Map<string, InterviewQuestionResponse[]>();
       for (const q of questions) {
@@ -186,6 +195,7 @@ export function useInterviewKitSession(
         questions,
         generatedQuestions,
         sectionedQuestions,
+        sectionNames,
         stats: {
           totalQuestions: questions.length,
           ratedQuestions: ratings.length,
@@ -332,6 +342,123 @@ export function useSaveQuestionResponse() {
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'save_question_response' });
+    },
+  });
+}
+
+/**
+ * Delete a question response
+ */
+export function useDeleteQuestionResponse() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (questionId: string) => {
+      const { error } = await supabase
+        .from("interview_question_responses")
+        .delete()
+        .eq("id", questionId);
+
+      if (error) throw new Error(error.message);
+      return questionId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview_kit_session"] });
+      toast.success("Question deleted");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'delete_question_response' });
+    },
+  });
+}
+
+/**
+ * Modify a question response (question text and expected answer)
+ */
+export function useModifyQuestionResponse() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      questionId,
+      questionText,
+      expectedAnswer,
+    }: {
+      questionId: string;
+      questionText: string;
+      expectedAnswer: string | null;
+    }) => {
+      const updates = await withUpdatedBy({
+        question_text: questionText,
+        expected_answer: expectedAnswer,
+      });
+
+      const { error } = await supabase
+        .from("interview_question_responses")
+        .update(updates)
+        .eq("id", questionId);
+
+      if (error) throw new Error(error.message);
+      return questionId;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview_kit_session"] });
+      toast.success("Question updated");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'modify_question_response' });
+    },
+  });
+}
+
+/**
+ * Add a custom question to the interview
+ */
+export function useAddCustomQuestion() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      evaluationId,
+      questionText,
+      expectedAnswer,
+      sectionName,
+      displayOrder,
+    }: {
+      evaluationId: string;
+      questionText: string;
+      expectedAnswer: string | null;
+      sectionName: string;
+      displayOrder: number;
+    }) => {
+      const insertData = await withCreatedBy({
+        evaluation_id: evaluationId,
+        question_source: 'reviewer_custom',
+        question_id: null,
+        proof_point_id: null,
+        question_text: questionText,
+        expected_answer: expectedAnswer,
+        rating: null,
+        comments: null,
+        section_name: sectionName,
+        display_order: displayOrder,
+      });
+
+      const { data: newQuestion, error } = await supabase
+        .from("interview_question_responses")
+        .insert(insertData)
+        .select("id")
+        .single();
+
+      if (error) throw new Error(error.message);
+      return newQuestion.id;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview_kit_session"] });
+      toast.success("Custom question added");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'add_custom_question' });
     },
   });
 }

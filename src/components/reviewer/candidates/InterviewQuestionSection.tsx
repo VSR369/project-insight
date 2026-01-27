@@ -1,6 +1,6 @@
 /**
  * Interview Question Section Component
- * Collapsible section for a group of questions
+ * Collapsible section for a group of questions with add button
  */
 
 import { useState } from "react";
@@ -13,7 +13,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 import { InterviewQuestionCard } from "./InterviewQuestionCard";
 import { InterviewQuestionResponse } from "@/hooks/queries/useInterviewKitSession";
 import { 
@@ -26,16 +26,24 @@ interface InterviewQuestionSectionProps {
   sectionName: string;
   questions: InterviewQuestionResponse[];
   onRatingChange: (questionId: string, rating: InterviewRating, comments?: string) => void;
+  onDeleteQuestion?: (questionId: string) => void;
+  onModifyQuestion?: (question: InterviewQuestionResponse) => void;
+  onAddQuestion?: () => void;
   savingQuestionId?: string;
   defaultOpen?: boolean;
+  isSubmitted?: boolean;
 }
 
 export function InterviewQuestionSection({
   sectionName,
   questions,
   onRatingChange,
+  onDeleteQuestion,
+  onModifyQuestion,
+  onAddQuestion,
   savingQuestionId,
   defaultOpen = false,
+  isSubmitted = false,
 }: InterviewQuestionSectionProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
@@ -103,7 +111,7 @@ export function InterviewQuestionSection({
 
         <CollapsibleContent>
           <CardContent className="pt-0 pb-4 px-4 space-y-3">
-            {questions.map((question, index) => (
+            {questions.map((question) => (
               <InterviewQuestionCard
                 key={question.id}
                 questionNumber={question.displayOrder + 1}
@@ -111,6 +119,7 @@ export function InterviewQuestionSection({
                 expectedAnswer={question.expectedAnswer}
                 rating={question.rating}
                 comments={question.comments}
+                questionSource={question.questionSource}
                 metadata={
                   question.proofPointId 
                     ? { proofPointTitle: 'Proof Point' }
@@ -121,9 +130,25 @@ export function InterviewQuestionSection({
                 onRatingChange={(rating, comments) => 
                   onRatingChange(question.id, rating, comments)
                 }
+                onDelete={onDeleteQuestion ? () => onDeleteQuestion(question.id) : undefined}
+                onModify={onModifyQuestion ? () => onModifyQuestion(question) : undefined}
                 isSaving={savingQuestionId === question.id}
+                isSubmitted={isSubmitted}
               />
             ))}
+
+            {/* Add Custom Question Button */}
+            {!isSubmitted && onAddQuestion && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full mt-2 border-dashed"
+                onClick={onAddQuestion}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Custom Question to {sectionName}
+              </Button>
+            )}
           </CardContent>
         </CollapsibleContent>
       </Card>
