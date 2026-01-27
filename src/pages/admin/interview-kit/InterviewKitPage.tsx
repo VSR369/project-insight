@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,10 +12,14 @@ import {
   Users, 
   Sparkles,
   Settings,
-  ChevronRight
+  ChevronRight,
+  Download,
+  FileUp
 } from 'lucide-react';
-import { useInterviewKitCompetencies, useInterviewKitQuestionCounts } from '@/hooks/queries/useInterviewKitQuestions';
+import { useInterviewKitCompetencies, useInterviewKitQuestionCounts, useInterviewKitQuestions } from '@/hooks/queries/useInterviewKitQuestions';
 import { COMPETENCY_CONFIG, type CompetencyCode } from '@/constants';
+import { downloadInterviewKitTemplate, exportInterviewKitQuestions } from './InterviewKitExcelExport';
+import { InterviewKitImportDialog } from './InterviewKitImportDialog';
 
 // Icon mapping for dynamic rendering
 const ICON_MAP = {
@@ -27,8 +32,10 @@ const ICON_MAP = {
 
 export default function InterviewKitPage() {
   // All hooks at top level (per Project Knowledge Section 13)
+  const [importOpen, setImportOpen] = useState(false);
   const { data: competencies = [], isLoading: competenciesLoading } = useInterviewKitCompetencies();
   const { data: questionCounts = {}, isLoading: countsLoading } = useInterviewKitQuestionCounts();
+  const { data: allQuestions = [] } = useInterviewKitQuestions({ includeInactive: true });
 
   const isLoading = competenciesLoading || countsLoading;
 
@@ -42,6 +49,11 @@ export default function InterviewKitPage() {
     };
   };
 
+  // Export handler
+  const handleExport = () => {
+    exportInterviewKitQuestions(allQuestions, competencies);
+  };
+
   return (
     <AdminLayout>
       <div className="space-y-6">
@@ -53,12 +65,26 @@ export default function InterviewKitPage() {
               Universal competencies assessed across all solution providers
             </p>
           </div>
-          <Button asChild>
-            <Link to="/admin/interview/kit/questions">
-              <Settings className="mr-2 h-4 w-4" />
-              Manage All Questions
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={downloadInterviewKitTemplate}>
+              <Download className="mr-2 h-4 w-4" />
+              Template
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => setImportOpen(true)}>
+              <FileUp className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={allQuestions.length === 0}>
+              <Download className="mr-2 h-4 w-4" />
+              Export
+            </Button>
+            <Button asChild>
+              <Link to="/admin/interview/kit/questions">
+                <Settings className="mr-2 h-4 w-4" />
+                Manage All Questions
+              </Link>
+            </Button>
+          </div>
         </div>
 
         {/* Loading state */}
@@ -120,6 +146,12 @@ export default function InterviewKitPage() {
           </div>
         )}
       </div>
+
+      {/* Import Dialog */}
+      <InterviewKitImportDialog
+        open={importOpen}
+        onOpenChange={setImportOpen}
+      />
     </AdminLayout>
   );
 }
