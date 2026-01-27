@@ -4,9 +4,8 @@
  */
 
 import { useState, useCallback, useRef } from "react";
-import { Loader2, AlertCircle, ClipboardList, Plus } from "lucide-react";
+import { Loader2, AlertCircle, ClipboardList } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InterviewKitHeader } from "./InterviewKitHeader";
 import { InterviewKitScoringLogic } from "./InterviewKitScoringLogic";
@@ -307,43 +306,16 @@ export function InterviewKitTabContent({
     );
   }
 
-  // No data state - allow adding custom questions
+  // No data state
   if (!sessionData || sessionData.questions.length === 0) {
     return (
-      <div className="space-y-4">
-        <Alert>
-          <ClipboardList className="h-4 w-4" />
-          <AlertTitle>No Auto-Generated Questions</AlertTitle>
-          <AlertDescription>
-            No interview questions could be auto-generated for this candidate. 
-            This may happen if the candidate hasn't selected specialities yet.
-            You can still add custom interview questions manually.
-          </AlertDescription>
-        </Alert>
-        
-        {/* Allow adding custom section */}
-        <Card className="border-dashed border-2 border-border/50">
-          <CardContent className="p-6 text-center">
-            <Button onClick={() => handleAddQuestion('Custom Interview Questions')}>
-              <Plus className="h-4 w-4 mr-2" />
-              Start Custom Interview
-            </Button>
-            <p className="text-sm text-muted-foreground mt-2">
-              Add your own interview questions to evaluate this candidate
-            </p>
-          </CardContent>
-        </Card>
-
-        {/* Dialog for adding custom question */}
-        <AddCustomQuestionDialog
-          open={addDialogOpen}
-          onOpenChange={setAddDialogOpen}
-          sectionName={addToSection || 'Custom Interview Questions'}
-          availableSections={['Custom Interview Questions']}
-          onAdd={confirmAddQuestion}
-          isAdding={addCustomQuestion.isPending}
-        />
-      </div>
+      <Alert>
+        <ClipboardList className="h-4 w-4" />
+        <AlertTitle>No Questions Available</AlertTitle>
+        <AlertDescription>
+          No interview questions could be generated for this candidate. Please ensure the candidate has selected specialities and the question bank has been populated.
+        </AlertDescription>
+      </Alert>
     );
   }
 

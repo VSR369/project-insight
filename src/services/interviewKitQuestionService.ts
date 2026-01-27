@@ -64,8 +64,8 @@ export async function generateDomainQuestions(
   const specialitiesResult = await supabase
     .from("provider_specialities")
     .select("speciality_id")
-    .eq("enrollment_id", enrollmentId);
-  // Note: provider_specialities has no is_deleted column - records are directly removed
+    .eq("enrollment_id", enrollmentId)
+    .eq("is_deleted", false);
 
   const specialities = specialitiesResult.data as { speciality_id: string }[] | null;
 
@@ -81,9 +81,9 @@ export async function generateDomainQuestions(
     .select("id, question_text, correct_option, options, speciality_id, expected_answer_guidance")
     .in("speciality_id", specialityIds)
     .in("usage_mode", ["interview", "both"])
+    .eq("is_deleted", false)
     .eq("is_active", true)
     .limit(50);
-  // Note: question_bank has no is_deleted column - is_active=true is sufficient
 
   const questions = questionsResult.data as { 
     id: string; 
