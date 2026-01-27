@@ -255,16 +255,8 @@ function deriveStageStatuses(
     }
   }
 
-  // 7. Certification Status
-  let certificationStatus: StageStatus = 'not_started';
-  if (['verified', 'certified', 'not_verified'].includes(lifecycleStatus ?? '')) {
-    certificationStatus = 'completed';
-  } else if (
-    lifecycleRank >= LIFECYCLE_RANKS.panel_completed || 
-    interviewBooking?.interview_submitted_at
-  ) {
-    certificationStatus = 'in_progress';
-  }
+  // 7. Certification Status - Always completed on Final Results view (read-only summary)
+  const certificationStatus: StageStatus = 'completed';
 
   return {
     providerDetails,
