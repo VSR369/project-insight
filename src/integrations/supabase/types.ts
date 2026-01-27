@@ -809,6 +809,118 @@ export type Database = {
           },
         ]
       }
+      interview_kit_competencies: {
+        Row: {
+          code: string
+          color: string | null
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          color?: string | null
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      interview_kit_questions: {
+        Row: {
+          competency_id: string
+          created_at: string
+          created_by: string | null
+          display_order: number | null
+          expected_answer: string | null
+          expertise_level_id: string
+          id: string
+          industry_segment_id: string
+          is_active: boolean
+          question_text: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          competency_id: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number | null
+          expected_answer?: string | null
+          expertise_level_id: string
+          id?: string
+          industry_segment_id: string
+          is_active?: boolean
+          question_text: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          competency_id?: string
+          created_at?: string
+          created_by?: string | null
+          display_order?: number | null
+          expected_answer?: string | null
+          expertise_level_id?: string
+          id?: string
+          industry_segment_id?: string
+          is_active?: boolean
+          question_text?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_kit_questions_competency_id_fkey"
+            columns: ["competency_id"]
+            isOneToOne: false
+            referencedRelation: "interview_kit_competencies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_kit_questions_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_kit_questions_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_quorum_requirements: {
         Row: {
           created_at: string | null
