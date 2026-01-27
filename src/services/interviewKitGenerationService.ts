@@ -96,20 +96,25 @@ export async function generateDomainQuestions(
   context: EnrollmentContext
 ): Promise<GeneratedQuestion[]> {
   // Get provider's selected specialities for this enrollment
-  // Use a helper to bypass TypeScript depth issue with Supabase chains
   const specResult = await fetchProviderSpecialities(context.providerId, context.enrollmentId);
 
-  if (!specResult || specResult.length === 0) {
-    return [];
+  let questionsResult: { id: string; question_text: string; expected_answer_guidance: string | null; speciality_id: string }[];
+
+  if (specResult && specResult.length > 0) {
+    // Use provider's selected specialities
+    const specialityIds = specResult.map(s => s.speciality_id);
+    questionsResult = await fetchDomainQuestionsFromBank(specialityIds);
+  } else {
+    // FALLBACK: Get questions for provider's industry/level via hierarchy
+    console.log('[InterviewKit] No specialities found, using industry/level fallback');
+    questionsResult = await fetchDomainQuestionsByIndustryLevel(
+      context.industrySegmentId,
+      context.expertiseLevelId
+    );
   }
 
-  const specialityIds = specResult.map(s => s.speciality_id);
-
-  // Fetch questions from question_bank for these specialities
-  // Filter: usage_mode IN ('interview', 'both') AND is_active = true
-  const questionsResult = await fetchDomainQuestionsFromBank(specialityIds);
-
   if (!questionsResult || questionsResult.length === 0) {
+    console.warn('[InterviewKit] No domain questions available');
     return [];
   }
 
@@ -117,18 +122,16 @@ export async function generateDomainQuestions(
   const shuffled = shuffleArray(questionsResult);
   const selected = shuffled.slice(0, DOMAIN_QUESTION_MAX);
 
-  return selected.map((q, idx) => {
-    return {
-      question_text: q.question_text,
-      expected_answer: q.expected_answer_guidance,
-      question_source: QUESTION_SOURCE.question_bank,
-      section_name: SECTION_CONFIG.domain.name,
-      section_type: SECTION_TYPE.domain,
-      section_label: undefined, // Hierarchy path fetched separately if needed
-      display_order: SECTION_DISPLAY_ORDER.domain + idx,
-      question_bank_id: q.id,
-    };
-  });
+  return selected.map((q, idx) => ({
+    question_text: q.question_text,
+    expected_answer: q.expected_answer_guidance,
+    question_source: QUESTION_SOURCE.question_bank,
+    section_name: SECTION_CONFIG.domain.name,
+    section_type: SECTION_TYPE.domain,
+    section_label: undefined,
+    display_order: SECTION_DISPLAY_ORDER.domain + idx,
+    question_bank_id: q.id,
+  }));
 }
 
 // Helper function to avoid TypeScript recursion issue
@@ -141,14 +144,69 @@ async function fetchProviderSpecialities(
     .from('provider_specialities')
     .select('speciality_id')
     .eq('provider_id', providerId)
-    .eq('enrollment_id', enrollmentId)
-    .eq('is_deleted', false);
+    .eq('enrollment_id', enrollmentId);
+  // Note: Removed .eq('is_deleted', false) - column doesn't exist in provider_specialities
 
   if (error) {
     console.error('Error fetching provider specialities:', error);
     return [];
   }
   return (data || []) as { speciality_id: string }[];
+}
+
+// Fallback: Get domain questions by industry/level when no specialities selected
+async function fetchDomainQuestionsByIndustryLevel(
+  industrySegmentId: string,
+  expertiseLevelId: string
+): Promise<{ id: string; question_text: string; expected_answer_guidance: string | null; speciality_id: string }[]> {
+  // Get all specialities for this industry/level via the hierarchy
+  // @ts-ignore - Supabase type instantiation too deep
+  const { data: profAreas, error: profError } = await supabase
+    .from('proficiency_areas')
+    .select('id')
+    .eq('industry_segment_id', industrySegmentId)
+    .eq('expertise_level_id', expertiseLevelId)
+    .eq('is_active', true);
+
+  if (profError || !profAreas || profAreas.length === 0) {
+    console.warn('[InterviewKit] No proficiency areas for fallback');
+    return [];
+  }
+
+  const profAreaIds = profAreas.map(p => p.id);
+
+  // Get sub_domains for these proficiency areas
+  // @ts-ignore
+  const { data: subDomains, error: subError } = await supabase
+    .from('sub_domains')
+    .select('id')
+    .in('proficiency_area_id', profAreaIds)
+    .eq('is_active', true);
+
+  if (subError || !subDomains || subDomains.length === 0) {
+    console.warn('[InterviewKit] No sub-domains for fallback');
+    return [];
+  }
+
+  const subDomainIds = subDomains.map(s => s.id);
+
+  // Get specialities for these sub-domains
+  // @ts-ignore
+  const { data: specialities, error: specError } = await supabase
+    .from('specialities')
+    .select('id')
+    .in('sub_domain_id', subDomainIds)
+    .eq('is_active', true);
+
+  if (specError || !specialities || specialities.length === 0) {
+    console.warn('[InterviewKit] No specialities for fallback');
+    return [];
+  }
+
+  const specialityIds = specialities.map(s => s.id);
+
+  // Now fetch questions from question_bank for these specialities
+  return fetchDomainQuestionsFromBank(specialityIds);
 }
 
 // Helper function to fetch domain questions
@@ -311,6 +369,14 @@ export async function buildInterviewKit(
 
   // Proof point generation is synchronous (no DB calls)
   const proofPointQuestions = generateProofPointQuestions(proofPoints);
+
+  // Debug logging to verify correct question counts
+  console.log('[InterviewKit] Generation Results:', {
+    domain: domainQuestions.length,
+    competency: competencyQuestions.length,
+    proofPoint: proofPointQuestions.length,
+    total: domainQuestions.length + competencyQuestions.length + proofPointQuestions.length,
+  });
 
   return {
     domainQuestions,
