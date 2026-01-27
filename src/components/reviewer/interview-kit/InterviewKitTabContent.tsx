@@ -118,9 +118,9 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
     hasTriggeredAutoGenRef.current = false;
   }, [bookingId]);
 
-  // Group questions by section
-  const sectionedQuestions = useMemo(() => {
-    if (!kitData?.responses) return new Map<string, InterviewQuestionResponse[]>();
+  // Group questions by section and sort sections by display order
+  const sortedSections = useMemo(() => {
+    if (!kitData?.responses) return [];
 
     const grouped = new Map<string, InterviewQuestionResponse[]>();
     
@@ -137,13 +137,16 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
       questions.sort((a, b) => a.display_order - b.display_order);
     });
 
-    return grouped;
+    // Sort sections by first question's display_order (ensures Domain→Proof Points→Competencies)
+    return Array.from(grouped.entries()).sort(([, questionsA], [, questionsB]) => {
+      const orderA = questionsA[0]?.display_order ?? 0;
+      const orderB = questionsB[0]?.display_order ?? 0;
+      return orderA - orderB;
+    });
   }, [kitData?.responses]);
 
-  // Get unique sections for count
-  const uniqueSections = useMemo(() => {
-    return new Set(kitData?.responses.map(q => q.section_name) || []);
-  }, [kitData?.responses]);
+  // Get unique sections count from sorted sections
+  const uniqueSectionsCount = sortedSections.length;
 
   // Handler for generating interview kit (manual button click)
   const handleGenerateKit = useCallback(async () => {
@@ -339,7 +342,7 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
       {/* Score Header */}
       <InterviewKitScoreHeader 
         score={kitData.score} 
-        sectionsCount={uniqueSections.size} 
+        sectionsCount={uniqueSectionsCount} 
       />
 
       {/* Scoring Logic Info */}
@@ -350,7 +353,7 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
         <div>
           <h3 className="text-lg font-semibold">Interview Questions</h3>
           <p className="text-sm text-muted-foreground">
-            Auto-generated from Industry Segment → Expertise Level → Proficiencies
+            Auto-generated from Industry Segment → Expertise Level → Proficiency Areas → Sub-domains → Specialities
           </p>
         </div>
         {!isSubmitted && (
@@ -372,7 +375,7 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
 
       {/* Question Sections */}
       <div className="space-y-4">
-        {Array.from(sectionedQuestions.entries()).map(([key, questions]) => {
+        {sortedSections.map(([key, questions]) => {
           const [sectionType, sectionName] = key.split('::');
           return (
             <InterviewKitSection

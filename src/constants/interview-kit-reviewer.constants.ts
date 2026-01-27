@@ -146,3 +146,12 @@ export const SECTION_DISPLAY_ORDER = {
   proof_point: 200,
   competency_base: 300, // Competencies start at 300, incremented by display_order
 } as const;
+
+/** Explicit competency display order for consistent sorting */
+export const COMPETENCY_DISPLAY_ORDER: Record<string, number> = {
+  'Solution Design & Architecture Thinking': 310,
+  'Execution & Governance': 320,
+  'Data/Tech Readiness & Tooling Awareness': 330,
+  'Soft Skills for Solution Provider Success': 340,
+  'Innovation & Co-creation Ability': 350,
+} as const;
