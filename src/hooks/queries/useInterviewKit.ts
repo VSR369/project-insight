@@ -4,6 +4,7 @@
  * Per Project Knowledge Section 6 - Hook Organization Pattern
  */
 
+import { useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { handleMutationError, logWarning } from "@/lib/errorHandler";
@@ -164,8 +165,12 @@ export function useInterviewKitData(bookingId: string | undefined) {
 /**
  * Generate and persist interview kit questions
  */
+// Mutex ref to prevent duplicate generation calls
+let generatingMutex = false;
+
 export function useGenerateInterviewKit() {
   const queryClient = useQueryClient();
+  const generatingRef = useRef(false);
 
   return useMutation({
     mutationFn: async (params: {
@@ -173,95 +178,109 @@ export function useGenerateInterviewKit() {
       context: EnrollmentContext;
       proofPoints: ProofPointForReview[];
     }) => {
-      const { bookingId, context, proofPoints } = params;
-
-      // Get current reviewer
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: reviewer, error: reviewerError } = await supabase
-        .from('panel_reviewers')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .maybeSingle();
-
-      if (reviewerError) throw new Error(reviewerError.message);
-      if (!reviewer) throw new Error('Reviewer profile not found');
-
-      // Check if evaluation already exists
-      const { data: existingEval } = await supabase
-        .from('interview_evaluations')
-        .select('id')
-        .eq('booking_id', bookingId)
-        .eq('reviewer_id', reviewer.id)
-        .maybeSingle();
-
-      if (existingEval) {
-        throw new Error('Interview kit already generated for this booking');
+      // Prevent double execution with mutex
+      if (generatingRef.current || generatingMutex) {
+        console.warn('[InterviewKit] Generation already in progress, skipping');
+        throw new Error('Generation already in progress');
       }
+      generatingRef.current = true;
+      generatingMutex = true;
 
-      // Generate questions
-      const generatedKit = await buildInterviewKit(context, proofPoints);
+      try {
+        const { bookingId, context, proofPoints } = params;
 
-      if (generatedKit.totalCount === 0) {
-        throw new Error('No questions could be generated. Please ensure question bank and competency questions are configured.');
+        // Get current reviewer
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+
+        const { data: reviewer, error: reviewerError } = await supabase
+          .from('panel_reviewers')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .maybeSingle();
+
+        if (reviewerError) throw new Error(reviewerError.message);
+        if (!reviewer) throw new Error('Reviewer profile not found');
+
+        // Check if evaluation already exists (double-check in mutation)
+        const { data: existingEval } = await supabase
+          .from('interview_evaluations')
+          .select('id')
+          .eq('booking_id', bookingId)
+          .eq('reviewer_id', reviewer.id)
+          .maybeSingle();
+
+        if (existingEval) {
+          throw new Error('Interview kit already generated for this booking');
+        }
+
+        // Generate questions
+        const generatedKit = await buildInterviewKit(context, proofPoints);
+
+        if (generatedKit.totalCount === 0) {
+          throw new Error('No questions could be generated. Please ensure question bank and competency questions are configured.');
+        }
+
+        // Create evaluation record
+        const evalData = await withCreatedBy({
+          booking_id: bookingId,
+          reviewer_id: reviewer.id,
+        });
+
+        const { data: newEval, error: createEvalError } = await supabase
+          .from('interview_evaluations')
+          .insert(evalData)
+          .select()
+          .single();
+
+        if (createEvalError) throw new Error(createEvalError.message);
+
+        // Combine all questions
+        const allQuestions: GeneratedQuestion[] = [
+          ...generatedKit.domainQuestions,
+          ...generatedKit.proofPointQuestions,
+          ...generatedKit.competencyQuestions,
+        ];
+
+        // Insert all question responses
+        const responsesToInsert = allQuestions.map(q => ({
+          evaluation_id: newEval.id,
+          question_text: q.question_text,
+          expected_answer: q.expected_answer,
+          question_source: q.question_source,
+          section_name: q.section_name,
+          section_type: q.section_type,
+          section_label: q.section_label || null,
+          display_order: q.display_order,
+          question_bank_id: q.question_bank_id || null,
+          interview_kit_question_id: q.interview_kit_question_id || null,
+          proof_point_id: q.proof_point_id || null,
+          rating: null,
+          score: 0,
+          comments: null,
+        }));
+
+        // Add audit fields to all responses
+        const responsesWithAudit = await Promise.all(
+          responsesToInsert.map(r => withCreatedBy(r))
+        );
+
+        const { error: insertError } = await supabase
+          .from('interview_question_responses')
+          .insert(responsesWithAudit);
+
+        if (insertError) throw new Error(insertError.message);
+
+        return {
+          evaluationId: newEval.id,
+          questionCount: allQuestions.length,
+        };
+      } finally {
+        // Always release the mutex
+        generatingRef.current = false;
+        generatingMutex = false;
       }
-
-      // Create evaluation record
-      const evalData = await withCreatedBy({
-        booking_id: bookingId,
-        reviewer_id: reviewer.id,
-      });
-
-      const { data: newEval, error: createEvalError } = await supabase
-        .from('interview_evaluations')
-        .insert(evalData)
-        .select()
-        .single();
-
-      if (createEvalError) throw new Error(createEvalError.message);
-
-      // Combine all questions
-      const allQuestions: GeneratedQuestion[] = [
-        ...generatedKit.domainQuestions,
-        ...generatedKit.proofPointQuestions,
-        ...generatedKit.competencyQuestions,
-      ];
-
-      // Insert all question responses
-      const responsesToInsert = allQuestions.map(q => ({
-        evaluation_id: newEval.id,
-        question_text: q.question_text,
-        expected_answer: q.expected_answer,
-        question_source: q.question_source,
-        section_name: q.section_name,
-        section_type: q.section_type,
-        section_label: q.section_label || null,
-        display_order: q.display_order,
-        question_bank_id: q.question_bank_id || null,
-        interview_kit_question_id: q.interview_kit_question_id || null,
-        proof_point_id: q.proof_point_id || null,
-        rating: null,
-        score: 0,
-        comments: null,
-      }));
-
-      // Add audit fields to all responses
-      const responsesWithAudit = await Promise.all(
-        responsesToInsert.map(r => withCreatedBy(r))
-      );
-
-      const { error: insertError } = await supabase
-        .from('interview_question_responses')
-        .insert(responsesWithAudit);
-
-      if (insertError) throw new Error(insertError.message);
-
-      return {
-        evaluationId: newEval.id,
-        questionCount: allQuestions.length,
-      };
     },
     onSuccess: (result, params) => {
       queryClient.invalidateQueries({ queryKey: ['interview-kit', params.bookingId] });
