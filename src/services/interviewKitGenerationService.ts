@@ -202,9 +202,9 @@ export async function generateCompetencyQuestions(
       continue;
     }
 
-    // Randomly select 1-2 questions
+    // Minimum 2 questions per competency (if available)
     const shuffled = shuffleArray(questions);
-    const count = Math.min(shuffled.length, Math.random() > 0.5 ? 2 : 1);
+    const count = Math.min(shuffled.length, 2);
     const selected = shuffled.slice(0, count);
 
     for (const q of selected) {
@@ -239,8 +239,8 @@ export function generateProofPointQuestions(
   let globalOrder = 1;
 
   for (const pp of proofPoints) {
-    // Generate 1-2 questions per proof point
-    const questionCount = Math.random() > 0.5 ? 2 : 1;
+    // Minimum 2 questions per proof point
+    const questionCount = 2;
     const shuffledTemplates = shuffleArray([...PROOF_POINT_TEMPLATES]);
     
     for (let i = 0; i < questionCount && i < shuffledTemplates.length; i++) {
