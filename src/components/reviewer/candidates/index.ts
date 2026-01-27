@@ -27,3 +27,9 @@ export { AssessmentTabContent } from "./AssessmentTabContent";
 
 // Interview Kit tab - exported from separate module
 // See src/components/reviewer/interview-kit/index.ts
+
+// Final Result tab components
+export { FinalResultTabContent } from "./FinalResultTabContent";
+export { LifecycleStageCard } from "./LifecycleStageCard";
+export { ScoreSummaryTile } from "./ScoreSummaryTile";
+export { CompositeScoreBanner } from "./CompositeScoreBanner";
