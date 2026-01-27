@@ -174,7 +174,12 @@ export function useInterviewKitSession(
       for (const q of questions) {
         sectionNamesSet.add(q.sectionName);
       }
-      const sectionNames = Array.from(sectionNamesSet);
+      let sectionNames = Array.from(sectionNamesSet);
+      
+      // Ensure at least one section exists for custom questions
+      if (sectionNames.length === 0) {
+        sectionNames = ['Custom Interview Questions'];
+      }
 
       // Group by section
       const sectionedQuestions = new Map<string, InterviewQuestionResponse[]>();
