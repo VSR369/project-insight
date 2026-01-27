@@ -1,146 +1,183 @@
 
 
-# Interview Kit Section Display Order Fix
+# Interview Kit Complete Fix - 5-Why Root Cause Resolution
 
-## Problem Summary
+## 5-Why Root Cause Summary
 
-The Interview Kit sections are currently displayed in **random order** based on how they're inserted into the Map. The user expects a **specific display order** matching the screenshot:
-
-| Order | Section Name | Section Type |
-|-------|--------------|--------------|
-| 1 | Domain & Delivery Depth | `domain` |
-| 2 | Proof Points Deep-Dive | `proof_point` |
-| 3 | Solution Design & Architecture Thinking | `competency` |
-| 4 | Execution & Governance | `competency` |
-| 5 | Data/Tech Readiness & Tooling Awareness | `competency` |
-| 6 | Soft Skills for Solution Provider Success | `competency` |
-| 7 | Innovation & Co-creation Ability | `competency` |
-
-Additionally, the header text needs updating to match the screenshot hierarchy breadcrumb.
+| Why | Question | Root Cause |
+|-----|----------|------------|
+| **1** | Why 1824 proof point questions? | Multiple mutation calls before mutex fix + no domain/competency |
+| **2** | Why only proof points? | The domain/competency queries returned 0 results at time of generation |
+| **3** | Why is section_type wrong in DB? | `section_type` was set to section name instead of constant |
+| **4** | Why templates instead of description? | `generateProofPointQuestions` uses static templates, NOT the proof point description |
+| **5** | Why can't this be fixed? | **Corrupted data must be deleted** AND **generation logic must be completely rewritten** |
 
 ---
 
-## Root Cause Analysis
+## Critical Problems to Fix
 
-The current code groups questions by `section_type::section_name` but **does not sort the Map entries** by display order. The `SECTION_DISPLAY_ORDER` constants exist (domain=100, proof_point=200, competency_base=300) but are only used for individual question ordering, not for section sorting.
-
----
-
-## Technical Implementation
-
-### File 1: `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx`
-
-#### Change 1.1: Sort sections by display order when rendering
-
-Currently the code iterates over the Map entries unsorted:
+### Problem 1: Proof Point Questions Use Templates, NOT Descriptions
+**Current (WRONG):**
 ```typescript
-Array.from(sectionedQuestions.entries()).map(([key, questions]) => { ... })
+// Uses static templates like:
+'Regarding your proof point "{title}": What specific metrics...'
 ```
 
-Need to **sort the entries** based on `SECTION_DISPLAY_ORDER`:
+**Required (CORRECT):**
+- Proof point questions must be generated **based on the DESCRIPTION** provided by the provider
+- NOT using generic templates with just the title
+- Questions should probe the specific claims in the description
 
+### Problem 2: No Domain or Competency Questions Generated
+**Analysis:**
+- 1824 questions = ALL proof_point source
+- 0 domain questions from question_bank
+- 0 competency questions from interview_kit_questions
+
+**Root Cause:** The `section_type` field was incorrectly set (used section_name value), and generation may have failed silently for domain/competency.
+
+### Problem 3: Corrupted Data Blocking Regeneration
+The existing evaluation with 1824 responses must be deleted for any fix to work.
+
+---
+
+## Implementation Plan
+
+### Phase 1: Delete Corrupted Data (SQL - User Action Required)
+
+```sql
+-- Delete all 1824 corrupted responses
+DELETE FROM interview_question_responses 
+WHERE evaluation_id = 'd30f121d-7327-485d-a864-26da899db24a';
+
+-- Delete corrupted evaluation
+DELETE FROM interview_evaluations 
+WHERE id = 'd30f121d-7327-485d-a864-26da899db24a';
+```
+
+### Phase 2: Fix Proof Point Question Generation
+
+**File: `src/services/interviewKitGenerationService.ts`**
+
+**Current approach (WRONG - uses templates):**
 ```typescript
-// Define section sort order
-const getSectionSortOrder = (sectionType: string, sectionName: string): number => {
-  if (sectionType === SECTION_TYPE.domain) return SECTION_DISPLAY_ORDER.domain;
-  if (sectionType === SECTION_TYPE.proof_point) return SECTION_DISPLAY_ORDER.proof_point;
-  // For competencies, use the display_order from the first question in the section
-  return SECTION_DISPLAY_ORDER.competency_base;
-};
+export function generateProofPointQuestions(proofPoints) {
+  for (const pp of proofPoints) {
+    const shuffledTemplates = shuffleArray([...PROOF_POINT_QUESTION_TEMPLATES]);
+    selectedTemplates.forEach((template) => {
+      const questionText = template.replace('{title}', pp.title);
+      // Uses TITLE only, ignores DESCRIPTION
+    });
+  }
+}
+```
 
-// Sort entries before rendering
-const sortedSections = useMemo(() => {
-  return Array.from(sectionedQuestions.entries()).sort(([keyA, questionsA], [keyB, questionsB]) => {
-    const [typeA] = keyA.split('::');
-    const [typeB] = keyB.split('::');
+**New approach - Generate questions from DESCRIPTION:**
+
+Option A: Simple description-based templates
+```typescript
+export function generateProofPointQuestions(proofPoints) {
+  const questions = [];
+  
+  for (const pp of proofPoints) {
+    const descriptionQuestions = [
+      `Based on your experience with "${pp.title}": ${pp.description ? 'You mentioned: "' + truncate(pp.description, 100) + '". Can you elaborate on the methodology you used?' : 'Can you walk me through the approach you took?'}`,
+      `For "${pp.title}": What measurable outcomes did you achieve, and how were they verified?`,
+    ];
     
-    // Primary sort by section type order
-    const orderA = questionsA[0]?.display_order ?? 0;
-    const orderB = questionsB[0]?.display_order ?? 0;
+    // Pick 1-2 questions per proof point
+    const count = randomBetween(1, 2);
+    const selected = shuffleArray(descriptionQuestions).slice(0, count);
     
-    return orderA - orderB;
-  });
-}, [sectionedQuestions]);
+    selected.forEach((text, idx) => {
+      questions.push({
+        question_text: text,
+        expected_answer: pp.description ? `Reference: ${pp.description}` : PROOF_POINT_DEFAULT_GUIDANCE,
+        question_source: QUESTION_SOURCE.proof_point,
+        section_name: SECTION_CONFIG.proof_point.name,
+        section_type: SECTION_TYPE.proof_point, // FIXED: use constant
+        section_label: pp.title,
+        display_order: SECTION_DISPLAY_ORDER.proof_point + orderOffset++,
+        proof_point_id: pp.id,
+      });
+    });
+  }
+  
+  return questions;
+}
 ```
 
-#### Change 1.2: Update header text to match screenshot
-
-Current:
+Option B: **Leave proof points EMPTY for now** (user preference to not generate without proper AI)
 ```typescript
-<p className="text-sm text-muted-foreground">
-  Auto-generated from Industry Segment → Expertise Level → Proficiencies
-</p>
+export function generateProofPointQuestions(proofPoints) {
+  // Return empty array - proof points require AI generation which is not implemented
+  console.log('[InterviewKit] Proof point generation requires AI - returning empty');
+  return [];
+}
 ```
 
-Update to:
+### Phase 3: Fix Section Type Values
+
+In `generateDomainQuestions` and `generateCompetencyQuestions`, ensure `section_type` uses the constant:
+
 ```typescript
-<p className="text-sm text-muted-foreground">
-  Auto-generated from Industry Segment → Expertise Level → Proficiency Areas → Sub-domains → Specialities
-</p>
+section_type: SECTION_TYPE.domain,  // NOT "Domain & Delivery Depth"
+section_type: SECTION_TYPE.competency, // NOT "Solution Design..."
+section_type: SECTION_TYPE.proof_point, // NOT "Proof Points Deep-Dive"
+```
+
+### Phase 4: Verify Domain Questions Generate
+
+Add logging to trace why domain questions returned 0:
+```typescript
+console.log('[InterviewKit] Provider specialities:', specResult?.length || 0);
+console.log('[InterviewKit] Domain questions found:', questionsResult?.length || 0);
 ```
 
 ---
 
-### File 2: `src/constants/interview-kit-reviewer.constants.ts`
+## Files to Modify
 
-#### Change 2.1: Add competency-specific display order constants
-
-Add a mapping for competency names to their exact display order:
-
-```typescript
-export const COMPETENCY_DISPLAY_ORDER: Record<string, number> = {
-  'Solution Design & Architecture Thinking': 310,
-  'Execution & Governance': 320,
-  'Data/Tech Readiness & Tooling Awareness': 330,
-  'Soft Skills for Solution Provider Success': 340,
-  'Innovation & Co-creation Ability': 350,
-} as const;
-```
+| File | Changes |
+|------|---------|
+| `src/services/interviewKitGenerationService.ts` | Fix `generateProofPointQuestions` to return empty array (Option B) OR use description-based questions (Option A). Fix all `section_type` values to use constants. |
+| Database (SQL by user) | Delete corrupted evaluation and responses |
 
 ---
 
-### File 3: `src/services/interviewKitGenerationService.ts`
+## Expected Result After Fix
 
-#### Change 3.1: Use consistent display order for competencies
+| Section | Source | Expected Count |
+|---------|--------|----------------|
+| Domain & Delivery Depth | question_bank (interview/both usage_mode) | 10 |
+| Proof Points Deep-Dive | Empty (pending AI implementation) | 0 |
+| Solution Design & Architecture Thinking | interview_kit_questions | 1-2 |
+| Execution & Governance | interview_kit_questions | 1-2 |
+| Data/Tech Readiness & Tooling Awareness | interview_kit_questions | 1-2 |
+| Soft Skills for Solution Provider Success | interview_kit_questions | 1-2 |
+| Innovation & Co-creation Ability | interview_kit_questions | 1-2 |
+| **TOTAL** | | **~15-20** |
 
-When generating competency questions, ensure `display_order` uses the competency's configured order:
-
-```typescript
-selected.forEach((q, idx) => {
-  allQuestions.push({
-    // ...
-    display_order: SECTION_DISPLAY_ORDER.competency_base + (comp.display_order || 0) * 10 + idx,
-    // ...
-  });
-});
-```
-
-This is already correct - each competency has a `display_order` from the database that gets incorporated.
+The Proof Points section will show **0 questions** until proper AI-based generation from descriptions is implemented.
 
 ---
 
-## Summary of Changes
+## UI Display (Already Working)
 
-| File | Change | Purpose |
-|------|--------|---------|
-| `InterviewKitTabContent.tsx` | Sort sections by first question's `display_order` | Ensures Domain → Proof Points → Competencies order |
-| `InterviewKitTabContent.tsx` | Update header breadcrumb text | Match screenshot "...Sub-domains → Specialities" |
-| `interview-kit-reviewer.constants.ts` | (Optional) Add `COMPETENCY_DISPLAY_ORDER` mapping | Explicit order fallback if needed |
+The collapsible sections using `InterviewKitSection.tsx` are already correctly implemented with:
+- Chevron expand/collapse
+- Section name + question count badge
+- Score/rated display on the right
+- Per-section scoring
+
+Once data is cleaned and regenerated, the UI will display correctly.
 
 ---
 
-## Expected Result
+## Action Required from User
 
-After implementation, the Interview Kit tab will display sections in this exact order:
-
-1. **Domain & Delivery Depth** (blue, BookOpen icon)
-2. **Proof Points Deep-Dive** (purple, Award icon)  
-3. **Solution Design & Architecture Thinking** (amber, Lightbulb icon)
-4. **Execution & Governance** (amber, Lightbulb icon)
-5. **Data/Tech Readiness & Tooling Awareness** (amber, Lightbulb icon)
-6. **Soft Skills for Solution Provider Success** (amber, Lightbulb icon)
-7. **Innovation & Co-creation Ability** (amber, Lightbulb icon)
-
-The header will show the full breadcrumb:
-> "Auto-generated from Industry Segment → Expertise Level → Proficiency Areas → Sub-domains → Specialities"
+1. **Execute the cleanup SQL** in Supabase SQL editor
+2. **Choose Option A or B** for proof point handling:
+   - **Option A**: Generate simple description-based questions  
+   - **Option B**: Leave proof points empty (recommended until AI is integrated)
 
