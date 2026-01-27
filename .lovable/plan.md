@@ -1,269 +1,223 @@
 
+# Interview Kit - Domain & Delivery Depth Missing + Add Custom Question Issue
 
-# Interview Kit Tab Enhancements - Implementation Plan
+## Critical Analysis & Root Cause Investigation
 
-## Summary
+### Executive Summary
 
-This plan addresses the following enhancements to the Interview Kit tab:
-
-1. **Per-Question Actions**: Add Delete, Modify, and Add Custom Question capabilities
-2. **Expected Response Display**: Show expected answer directly under Rating section (if configured)
-3. **Fix Domain & Delivery Depth**: Ensure questions are correctly derived from Question Bank (already implemented but needs verification)
-4. **Impact Analysis**: Ensure no disruption to existing functionality
+After thorough analysis of the codebase, database schema, and service logic, I've identified **TWO critical bugs** causing the "Domain & Delivery Depth" section to be completely missing, plus verified the Add Custom Question functionality status.
 
 ---
 
-## Current State Analysis
+## Root Cause Analysis (5-Why Approach)
 
-### What Exists (Working Correctly)
+### Issue 1: Domain & Delivery Depth Section Missing
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| `question_bank` table | ✓ | Has `usage_mode` ENUM with 'interview', 'both' values |
-| `interview_question_responses` table | ✓ | Stores per-question ratings with FK to `interview_evaluations` |
-| `interviewKitQuestionService.ts` | ✓ | Already queries `question_bank` with `usage_mode IN ('interview', 'both')` |
-| `generateDomainQuestions()` | ✓ | Fetches from `question_bank` based on provider's specialities |
-| `InterviewQuestionCard` | Needs Enhancement | Expected answer is in collapsible, not under Rating |
+**Symptom**: The "Domain & Delivery Depth" section is completely absent from the Interview Kit
 
-### What Needs Enhancement
+**Investigation Path:**
 
-1. **Expected Answer Display**: Currently in a collapsible button, should appear directly below Rating controls
-2. **Per-Question Actions**: No edit/delete/add functionality exists
-3. **Custom Question Support**: Database supports it (`question_source = 'proof_point'` can be extended), but UI doesn't support adding reviewer's own questions
+| Layer | File | Finding |
+|-------|------|---------|
+| UI | `InterviewKitTabContent.tsx` | Renders sections from `sectionedQuestions` Map - OK |
+| Hooks | `useInterviewKitSession.ts` | Calls `generateAllInterviewQuestions()` - OK |
+| Service | `interviewKitQuestionService.ts` | Contains `generateDomainQuestions()` - **BUG FOUND** |
+| Database | `provider_specialities` | No `is_deleted` column exists - **SCHEMA MISMATCH** |
+| Database | `question_bank` | No `is_deleted` column exists - **SCHEMA MISMATCH** |
 
----
-
-## Database Impact Analysis
-
-### Current `interview_question_responses` Schema
+**Root Cause 1: Invalid `is_deleted` Filter on `provider_specialities`**
 
 ```typescript
-{
-  id: string;
-  evaluation_id: string;        // FK to interview_evaluations
-  question_source: string;      // 'interview_kit' | 'question_bank' | 'proof_point'
-  question_id: string | null;   // FK to source table (nullable for custom)
-  proof_point_id: string | null;
-  question_text: string;        // Stored copy for audit trail
-  expected_answer: string | null;
-  rating: string | null;        // 'right' | 'wrong' | 'not_answered'
-  comments: string | null;
-  section_name: string;
-  display_order: number;
-  created_at, updated_at, created_by, updated_by
-}
-```
-
-### Database Changes Required
-
-**Add New Question Source Type**
-
-We need to extend `question_source` to support reviewer-added questions:
-- Add `'reviewer_custom'` as a valid question source value
-
-Since `question_source` is a TEXT field with CHECK constraint, we need a migration:
-
-```sql
--- Modify the CHECK constraint to allow 'reviewer_custom' source
-ALTER TABLE interview_question_responses 
-DROP CONSTRAINT IF EXISTS interview_question_responses_question_source_check;
-
-ALTER TABLE interview_question_responses 
-ADD CONSTRAINT interview_question_responses_question_source_check 
-CHECK (question_source IN ('interview_kit', 'question_bank', 'proof_point', 'reviewer_custom'));
-```
-
----
-
-## Files to Modify
-
-### 1. `src/components/reviewer/candidates/InterviewQuestionCard.tsx`
-
-**Changes:**
-- Move expected answer display from collapsible to directly under Rating controls
-- Add action buttons: Edit Question, Delete Question
-- Add props for `onDelete`, `onModify`
-- Add state for edit mode
-- Show "Reviewer Added" badge for custom questions
-
-### 2. `src/components/reviewer/candidates/InterviewQuestionSection.tsx`
-
-**Changes:**
-- Add "Add Custom Question" button at section footer
-- Pass delete/modify handlers to question cards
-- Handle question reordering after delete
-
-### 3. `src/hooks/queries/useInterviewKitSession.ts`
-
-**Changes:**
-- Add `useDeleteQuestionResponse` mutation
-- Add `useModifyQuestionResponse` mutation  
-- Add `useAddCustomQuestion` mutation
-- Update session data after mutations
-
-### 4. `src/components/reviewer/candidates/InterviewKitTabContent.tsx`
-
-**Changes:**
-- Add handlers for delete/modify/add operations
-- Integrate with new mutations
-- Show confirmation dialogs for destructive actions
-
-### 5. `src/services/interviewKitQuestionService.ts`
-
-**Verification Needed:**
-- Confirm `generateDomainQuestions()` properly fetches from `question_bank`
-- Add `expected_answer_guidance` field to domain questions (currently uses `correct_option` which is less helpful)
-
----
-
-## Implementation Details
-
-### A. Expected Answer Under Rating (Priority 1)
-
-**Current UI Structure:**
-```
-[Question Header]
-[Collapsible: Expected Answer] ← User wants this...
-[Rating Controls]              ← ...moved below here
-[Comments]
-```
-
-**New UI Structure:**
-```
-[Question Header]
-[Action Buttons: Edit | Delete]
-[Rating Controls]
-[Expected Answer Panel]        ← Always visible if configured
-[Comments]
-```
-
-### B. Per-Question Delete (Priority 2)
-
-**Logic:**
-1. Confirmation dialog: "Are you sure you want to delete this question?"
-2. Delete from `interview_question_responses` table
-3. Recalculate section scores
-4. Update display order of remaining questions
-5. Invalidate query cache
-
-**Constraints:**
-- Cannot delete if interview is already submitted (`evaluatedAt` is set)
-- Minimum questions per section? (TBD - likely no minimum)
-
-### C. Per-Question Modify (Priority 3)
-
-**What Can Be Modified:**
-- `question_text` - The question itself
-- `expected_answer` - The expected answer guidance
-
-**What Cannot Be Modified:**
-- `question_source` - Maintain audit trail
-- `question_id` - FK integrity
-- `evaluation_id` - Session integrity
-
-**Logic:**
-1. Open inline edit mode or modal
-2. Validate inputs (question text required, 1000 char limit)
-3. Update record in `interview_question_responses`
-4. Mark as modified (optional: add `is_modified` flag)
-
-### D. Add Custom Question (Priority 4)
-
-**UI Flow:**
-1. Click "Add Question" button in section
-2. Modal opens with:
-   - Question Text (required, max 1000 chars)
-   - Expected Answer (optional, max 500 chars)
-   - Section dropdown (default: current section)
-3. Validate and save to `interview_question_responses`
-4. Question appears at end of section
-
-**Database Insert:**
-```typescript
-{
-  evaluation_id: currentEvaluation.id,
-  question_source: 'reviewer_custom',
-  question_id: null,
-  proof_point_id: null,
-  question_text: inputText,
-  expected_answer: inputExpected || null,
-  rating: null,  // Not rated yet
-  comments: null,
-  section_name: selectedSection,
-  display_order: lastOrderInSection + 1,
-}
-```
-
----
-
-## New Component: AddCustomQuestionDialog
-
-```typescript
-interface AddCustomQuestionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  sectionName: string;
-  availableSections: string[];
-  onAdd: (question: { questionText: string; expectedAnswer: string | null; sectionName: string }) => void;
-  isAdding?: boolean;
-}
-```
-
----
-
-## New Component: ModifyQuestionDialog
-
-```typescript
-interface ModifyQuestionDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  question: InterviewQuestionResponse;
-  onSave: (updates: { questionText: string; expectedAnswer: string | null }) => void;
-  isSaving?: boolean;
-}
-```
-
----
-
-## Verification: Domain & Delivery Depth Questions
-
-**Current Implementation in `generateDomainQuestions()`:**
-
-```typescript
-// Get provider's selected specialities
+// Line 67-68 in interviewKitQuestionService.ts - BROKEN
 const specialitiesResult = await supabase
   .from("provider_specialities")
   .select("speciality_id")
   .eq("enrollment_id", enrollmentId)
-  .eq("is_deleted", false);
-
-// Query question_bank with correct filters
-const questionsResult = await supabase
-  .from("question_bank")
-  .select("id, question_text, correct_option, options, speciality_id")
-  .in("speciality_id", specialityIds)
-  .in("usage_mode", ["interview", "both"])
-  .eq("is_deleted", false)
-  .limit(50);
+  .eq("is_deleted", false);  // ❌ COLUMN DOES NOT EXIST
 ```
 
-**Issue Found:** The expected answer is constructed from `correct_option` which shows "Correct: Option X" - not ideal for interview context.
+**Verified Schema:**
+```text
+provider_specialities columns:
+- id (uuid) 
+- provider_id (uuid)
+- speciality_id (uuid)
+- created_at (timestamp)
+- enrollment_id (uuid)
+⚠️ NO is_deleted column
+```
 
-**Fix:** Use `expected_answer_guidance` field from `question_bank` instead:
+**Result**: Query fails silently → Returns empty array → No domain questions generated
+
+**Root Cause 2: Invalid `is_deleted` Filter on `question_bank`**
 
 ```typescript
+// Line 84 in interviewKitQuestionService.ts - BROKEN
+const questionsResult = await supabase
+  .from("question_bank")
+  .select("...")
+  .in("speciality_id", specialityIds)
+  .in("usage_mode", ["interview", "both"])
+  .eq("is_deleted", false)  // ❌ COLUMN DOES NOT EXIST
+  .eq("is_active", true)
+```
+
+**Verified Schema:**
+```text
+question_bank columns:
+- id, speciality_id, question_text, options, correct_option
+- is_active (boolean) ✓ EXISTS
+- usage_mode (enum) ✓ EXISTS
+- expected_answer_guidance (text) ✓ EXISTS
+⚠️ NO is_deleted column
+```
+
+**Result**: Query fails → Returns no questions → "Domain & Delivery Depth" section empty
+
+---
+
+### Issue 2: Add Custom Question - Verification
+
+**Status: UI Components Exist and Are Correctly Integrated**
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| `AddCustomQuestionDialog.tsx` | ✓ Created | Fully implemented with validation |
+| `InterviewQuestionSection.tsx` | ✓ Integrated | "Add Custom Question" button at line 141-151 |
+| `InterviewKitTabContent.tsx` | ✓ Integrated | Handler and dialog state at lines 178-207 |
+| `useAddCustomQuestion` hook | ✓ Exists | Mutation at lines 417-463 |
+
+**However**: The Add Custom Question button **will not appear** if no questions exist in any section, because:
+1. No sections are generated (due to Bug #1)
+2. Without sections, the section loop doesn't render
+3. Therefore, "Add Custom Question" buttons never appear
+
+---
+
+## Data Availability Analysis
+
+| Data Source | Count | Status |
+|-------------|-------|--------|
+| `question_bank` (interview-eligible) | 10,800 | ✅ Rich data available |
+| `interview_kit_questions` | 400 | ✅ Active competency questions |
+| `provider_specialities` | 0 | ⚠️ No test data in DB |
+| `proof_points` | 3+ | ✅ Some proof points exist |
+
+**Important Note**: Even without provider_specialities data, the service should NOT crash. It should gracefully show "Proof Points Deep-Dive" and "Competency Questions" sections even if "Domain & Delivery Depth" has 0 questions.
+
+---
+
+## Complete Fix Implementation
+
+### Fix 1: Remove Invalid `is_deleted` Filters from Question Service
+
+**File**: `src/services/interviewKitQuestionService.ts`
+
+**Changes Required:**
+
+1. **Line 63-68**: Remove `.eq("is_deleted", false)` from provider_specialities query
+2. **Line 79-86**: Remove `.eq("is_deleted", false)` from question_bank query
+
+**Before:**
+```typescript
+// Line 63-68
+const specialitiesResult = await supabase
+  .from("provider_specialities")
+  .select("speciality_id")
+  .eq("enrollment_id", enrollmentId)
+  .eq("is_deleted", false);  // REMOVE THIS
+
+// Line 79-86
 const questionsResult = await supabase
   .from("question_bank")
   .select("id, question_text, correct_option, options, speciality_id, expected_answer_guidance")
   .in("speciality_id", specialityIds)
   .in("usage_mode", ["interview", "both"])
-  .eq("is_deleted", false)
-  .eq("is_active", true)  // Add this filter
-  .limit(50);
+  .eq("is_deleted", false)  // REMOVE THIS
+  .eq("is_active", true)
+```
 
-// Update expected answer mapping
-expectedAnswer: q.expected_answer_guidance || 
-  (q.options ? `Correct: Option ${(q.correct_option || 0) + 1}` : null),
+**After:**
+```typescript
+// Line 63-67
+const specialitiesResult = await supabase
+  .from("provider_specialities")
+  .select("speciality_id")
+  .eq("enrollment_id", enrollmentId);
+  // Removed: .eq("is_deleted", false) - column doesn't exist
+
+// Line 78-84
+const questionsResult = await supabase
+  .from("question_bank")
+  .select("id, question_text, correct_option, options, speciality_id, expected_answer_guidance")
+  .in("speciality_id", specialityIds)
+  .in("usage_mode", ["interview", "both"])
+  .eq("is_active", true);
+  // Removed: .eq("is_deleted", false) - column doesn't exist, is_active is sufficient
+```
+
+---
+
+### Fix 2: Add "Create First Section" Option When No Questions Generated
+
+When all three question sources return empty arrays, the UI should still allow the reviewer to add questions manually. This requires enhancing the "No Questions Available" state.
+
+**File**: `src/components/reviewer/candidates/InterviewKitTabContent.tsx`
+
+**Enhancement at lines 310-320:**
+
+**Current behavior**: Shows static alert with no actions
+**New behavior**: Shows alert with "Create Custom Interview" button that creates a default section
+
+```typescript
+// If no questions but booking exists, allow reviewer to add custom questions
+if (!sessionData || sessionData.questions.length === 0) {
+  return (
+    <div className="space-y-4">
+      <Alert>
+        <ClipboardList className="h-4 w-4" />
+        <AlertTitle>No Auto-Generated Questions</AlertTitle>
+        <AlertDescription>
+          No interview questions could be auto-generated for this candidate. 
+          This may happen if the candidate hasn't selected specialities yet.
+          You can still add custom interview questions manually.
+        </AlertDescription>
+      </Alert>
+      
+      {/* Allow adding custom section */}
+      <Card className="border-dashed border-2">
+        <CardContent className="p-6 text-center">
+          <Button onClick={() => handleAddQuestion('Custom Interview Questions')}>
+            <Plus className="h-4 w-4 mr-2" />
+            Start Custom Interview
+          </Button>
+          <p className="text-sm text-muted-foreground mt-2">
+            Add your own interview questions to evaluate this candidate
+          </p>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+```
+
+---
+
+### Fix 3: Ensure Default Section Exists for Custom Questions
+
+**File**: `src/hooks/queries/useInterviewKitSession.ts`
+
+When returning session data with no generated questions, ensure at least one default section exists in `sectionNames`:
+
+```typescript
+// After line 177, add fallback section
+const sectionNames = Array.from(sectionNamesSet);
+
+// Ensure at least one section exists for custom questions
+if (sectionNames.length === 0) {
+  sectionNames.push('Custom Interview Questions');
+  sectionedQuestions.set('Custom Interview Questions', []);
+}
 ```
 
 ---
@@ -272,76 +226,60 @@ expectedAnswer: q.expected_answer_guidance ||
 
 ### Tables Affected
 
-| Table | Operation | Impact |
+| Table | Operation | Change |
 |-------|-----------|--------|
-| `interview_question_responses` | INSERT/UPDATE/DELETE | Direct manipulation for CRUD |
-| `interview_evaluations` | READ | FK reference only, no changes |
-| `question_bank` | READ | Only for domain question generation |
-| `interview_kit_questions` | READ | Only for competency question generation |
-| `proof_points` | READ | Only for proof point question generation |
+| `provider_specialities` | SELECT | Remove invalid filter |
+| `question_bank` | SELECT | Remove invalid filter |
+| `interview_question_responses` | No change | Already correct |
 
 ### Existing Functionality Preserved
 
-1. **Auto-save ratings**: No change, debounced save continues to work
-2. **Score calculation**: Updates after delete/add operations
-3. **Submit validation**: Still validates all questions are rated
-4. **PDF export**: Includes all questions including custom ones
-5. **Review notes**: Completely separate, no impact
+| Feature | Impact | Risk Level |
+|---------|--------|------------|
+| Auto-save ratings | None | ✅ Safe |
+| Score calculation | None | ✅ Safe |
+| Submit validation | None | ✅ Safe |
+| PDF export | None | ✅ Safe |
+| Proof Points Deep-Dive | None | ✅ Safe |
+| Competency Questions | None | ✅ Safe |
+| Delete/Modify Question | None | ✅ Safe |
+| Add Custom Question | Enhanced | ✅ Safe |
 
-### Potential Risks & Mitigations
+### Risk Mitigation
 
-| Risk | Mitigation |
-|------|------------|
-| Deleting questions affects score calculation | Recalculate stats after delete |
-| Custom questions not persisted correctly | Use same save logic as auto-generated |
-| Edit race conditions | Optimistic updates with cache invalidation |
-| Submitted interviews modified | Disable all actions if `evaluatedAt` is set |
+1. **Schema Validation**: Confirmed via direct DB queries - columns verified
+2. **Soft Delete Semantics**: `is_active = false` is the correct filter for question_bank (already used)
+3. **provider_specialities**: Has no soft-delete mechanism - direct records only
+
+---
+
+## Files to Modify
+
+| File | Change Type | Lines |
+|------|-------------|-------|
+| `src/services/interviewKitQuestionService.ts` | Bug Fix | 67-68, 84 |
+| `src/components/reviewer/candidates/InterviewKitTabContent.tsx` | Enhancement | 310-320 |
+| `src/hooks/queries/useInterviewKitSession.ts` | Enhancement | 177-178 |
 
 ---
 
 ## Testing Checklist
 
-- [ ] Expected answer displays under Rating (not in collapsible)
-- [ ] Delete button visible for each question
-- [ ] Delete shows confirmation dialog
-- [ ] Delete removes question and recalculates score
-- [ ] Delete disabled after interview submitted
-- [ ] Modify button opens edit mode
-- [ ] Modify saves changes and updates display
-- [ ] Add Custom Question button visible in each section
-- [ ] Custom question appears with "Reviewer Added" badge
-- [ ] Custom question can be rated and commented
-- [ ] Domain questions come from `question_bank` with `usage_mode = interview/both`
-- [ ] Domain questions show `expected_answer_guidance` when available
-- [ ] All sections maintain correct question counts
+After implementing fixes:
+
+- [ ] Domain & Delivery Depth section appears when provider has specialities
+- [ ] Proof Points Deep-Dive section appears when provider has proof points
+- [ ] Competency sections appear based on industry/expertise level match
+- [ ] "Add Custom Question" button visible in each section
+- [ ] Custom questions can be added when no auto-generated questions exist
+- [ ] All existing functionality (rating, delete, modify) continues to work
 - [ ] PDF export includes all question types
 
 ---
 
-## Implementation Order
+## Summary of Changes
 
-1. **Phase 1: Database Migration** - Add 'reviewer_custom' to question_source check constraint
-2. **Phase 2: Expected Answer Display** - Move from collapsible to inline under Rating
-3. **Phase 3: Delete Functionality** - Add delete mutation and UI
-4. **Phase 4: Modify Functionality** - Add modify mutation and dialog
-5. **Phase 5: Add Custom Question** - Add creation mutation and dialog
-6. **Phase 6: Domain Questions Fix** - Use `expected_answer_guidance` field
-7. **Phase 7: Testing** - Verify all acceptance criteria
-
----
-
-## Files Summary
-
-| Action | File |
-|--------|------|
-| CREATE | `src/components/reviewer/candidates/AddCustomQuestionDialog.tsx` |
-| CREATE | `src/components/reviewer/candidates/ModifyQuestionDialog.tsx` |
-| CREATE | `src/components/reviewer/candidates/DeleteQuestionConfirmDialog.tsx` |
-| MODIFY | `src/components/reviewer/candidates/InterviewQuestionCard.tsx` |
-| MODIFY | `src/components/reviewer/candidates/InterviewQuestionSection.tsx` |
-| MODIFY | `src/components/reviewer/candidates/InterviewKitTabContent.tsx` |
-| MODIFY | `src/hooks/queries/useInterviewKitSession.ts` |
-| MODIFY | `src/services/interviewKitQuestionService.ts` |
-| MODIFY | `src/components/reviewer/candidates/index.ts` |
-| MIGRATE | Add 'reviewer_custom' to question_source constraint |
-
+1. **CRITICAL BUG FIX**: Remove `.eq("is_deleted", false)` from `provider_specialities` query (column doesn't exist)
+2. **CRITICAL BUG FIX**: Remove `.eq("is_deleted", false)` from `question_bank` query (column doesn't exist)  
+3. **UX ENHANCEMENT**: Add fallback UI when no questions are generated to allow manual question creation
+4. **UX ENHANCEMENT**: Ensure default section exists for custom questions even with empty data
