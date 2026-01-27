@@ -351,11 +351,78 @@ export function useUpdateQuestionRating() {
         .eq("id", questionId);
 
       if (error) throw new Error(error.message);
+      
+      return { questionId, rating, score, comments };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["interview-kit-evaluation"] });
+    onMutate: async ({ questionId, rating, comments }) => {
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey: ["interview-kit-evaluation"] });
+
+      // Snapshot the previous value
+      const previousData = queryClient.getQueriesData({ queryKey: ["interview-kit-evaluation"] });
+
+      // Optimistically update the cache
+      queryClient.setQueriesData(
+        { queryKey: ["interview-kit-evaluation"] },
+        (old: InterviewKitData | null | undefined) => {
+          if (!old) return old;
+          
+          const score = rating === 'right' ? 5 : 0;
+          const updatedQuestions = old.questions.map(q =>
+            q.id === questionId
+              ? { ...q, rating, score, comments: comments ?? q.comments }
+              : q
+          );
+          
+          // Recalculate stats
+          const activeQuestions = updatedQuestions.filter(q => !q.isDeleted);
+          const ratedQuestions = activeQuestions.filter(q => q.rating !== null);
+          const totalScore = activeQuestions.reduce((sum, q) => sum + q.score, 0);
+          const maxScore = activeQuestions.length * 5;
+
+          // Also update grouped questions
+          const isDomainQuestion = (q: InterviewQuestionResponse) => 
+            q.sectionType === 'domain' || q.sectionName === 'Domain & Delivery Depth';
+          const isProofPointQuestion = (q: InterviewQuestionResponse) =>
+            q.sectionType === 'proof_point' || q.sectionName === 'Proof Points Deep-Dive';
+          const isCompetencyQuestion = (q: InterviewQuestionResponse) =>
+            q.sectionType === 'competency' || (!isDomainQuestion(q) && !isProofPointQuestion(q));
+
+          const domainQuestions = updatedQuestions.filter(q => isDomainQuestion(q) && !q.isDeleted);
+          const proofPointQuestions = updatedQuestions.filter(q => isProofPointQuestion(q) && !q.isDeleted);
+          
+          const competencyQuestions = new Map<string, InterviewQuestionResponse[]>();
+          for (const q of updatedQuestions.filter(q => isCompetencyQuestion(q) && !q.isDeleted)) {
+            const key = q.sectionLabel || q.sectionName;
+            const existing = competencyQuestions.get(key) || [];
+            existing.push(q);
+            competencyQuestions.set(key, existing);
+          }
+          
+          return {
+            ...old,
+            questions: updatedQuestions,
+            domainQuestions,
+            proofPointQuestions,
+            competencyQuestions,
+            totalQuestions: activeQuestions.length,
+            ratedQuestions: ratedQuestions.length,
+            allRated: ratedQuestions.length === activeQuestions.length && activeQuestions.length > 0,
+            totalScore,
+            maxScore,
+          };
+        }
+      );
+
+      return { previousData };
     },
-    onError: (error: Error) => {
+    onError: (error: Error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousData) {
+        context.previousData.forEach(([queryKey, data]) => {
+          queryClient.setQueryData(queryKey, data);
+        });
+      }
       handleMutationError(error, { operation: "update_question_rating" });
     },
   });
