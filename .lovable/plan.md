@@ -1,181 +1,200 @@
 
+# Interview Kit Tab - Competencies & Proof Points Display
 
-# Modified Interview Kit Functionality Removal Plan
+## Overview
 
-## Scope Summary
-
-This plan removes **Interview Kit functionality from the reviewer's perspective** while preserving:
-- ✅ **Admin sidebar** "Interview KIT" menu item
-- ✅ **Admin Interview Kit pages** (question bank management)
-- ✅ **`interview_kit_questions`** table and data (master question bank)
-- ✅ **`interview_kit_competencies`** table and data
-- ✅ Existing tabs structure (keep Expertise, Proof Points, Assessment, Slots tabs)
-- ✅ Other reviewer functionality
-- ✅ Interview scheduling/booking functionality
+This plan implements the Interview Kit tab for reviewers, displaying a collapsible section layout showing **Domain & Delivery Depth**, **Proof Points Deep-Dive**, and **5 Universal Competencies** as shown in the reference screenshot.
 
 ---
 
-## Files to DELETE (Reviewer Functionality Only)
+## UI Structure (Based on Screenshot)
 
-### 1. Reviewer Interview Kit Components (10 files)
-```
-src/components/reviewer/interview-kit/
-├── AddQuestionDialog.tsx        ← DELETE
-├── DeleteQuestionConfirm.tsx    ← DELETE
-├── EditQuestionDialog.tsx       ← DELETE
-├── InterviewKitScoreHeader.tsx  ← DELETE
-├── InterviewKitScoringLogic.tsx ← DELETE
-├── InterviewKitSection.tsx      ← DELETE
-├── InterviewKitSubmitFooter.tsx ← DELETE
-├── InterviewKitTabContent.tsx   ← DELETE
-├── InterviewQuestionCard.tsx    ← DELETE
-└── index.ts                     ← DELETE
+| Section | Display Order | Source | Description |
+|---------|---------------|--------|-------------|
+| Domain & Delivery Depth | 1 | Static header | Placeholder for future domain questions |
+| Proof Points Deep-Dive | 2 | `proof_points` table | Shows count based on provider's submitted proof points |
+| Solution Design & Architecture Thinking | 3 | `interview_kit_competencies` | Universal competency |
+| Execution & Governance | 4 | `interview_kit_competencies` | Universal competency |
+| Data/Tech Readiness & Tooling Awareness | 5 | `interview_kit_competencies` | Universal competency |
+| Soft Skills for Solution Provider Success | 6 | `interview_kit_competencies` | Universal competency |
+| Innovation & Co-creation Ability | 7 | `interview_kit_competencies` | Universal competency |
+
+---
+
+## Technical Architecture
+
+### Data Flow
+
+```text
+CandidateDetailPage
+    └── InterviewKitTabContent (enrollmentId)
+            ├── useInterviewKitCompetencies() → 5 competencies
+            ├── useCandidateProofPoints() → proof points for this enrollment
+            └── Render collapsible sections
 ```
 
-### 2. Interview Kit Generation Service
-```
-src/services/interviewKitGenerationService.ts  ← DELETE
+### Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/reviewer/interview-kit/index.ts` | Barrel export |
+| `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx` | Main tab component |
+| `src/components/reviewer/interview-kit/InterviewKitSection.tsx` | Collapsible section component |
+| `src/components/reviewer/interview-kit/InterviewKitHeader.tsx` | Header with breadcrumb |
+| `src/components/reviewer/interview-kit/InterviewKitFooter.tsx` | Footer with export button |
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/pages/reviewer/CandidateDetailPage.tsx` | Import and use new `InterviewKitTabContent` |
+| `src/components/reviewer/candidates/index.ts` | Add export for Interview Kit components |
+
+---
+
+## Component Specifications
+
+### 1. InterviewKitTabContent.tsx
+
+**Props:**
+```typescript
+interface InterviewKitTabContentProps {
+  enrollmentId: string;
+}
 ```
 
-### 3. Interview Kit Reviewer Hooks
-```
-src/hooks/queries/useInterviewKit.ts           ← DELETE
+**Behavior:**
+- Fetches competencies using `useInterviewKitCompetencies()`
+- Fetches proof points count using `useCandidateProofPoints()`
+- Displays loading spinner while fetching
+- Renders header, 7 collapsible sections, and footer
+
+**Data Sources:**
+- **Domain & Delivery Depth**: Static section (0 questions placeholder - future question_bank integration)
+- **Proof Points Deep-Dive**: Count from `useCandidateProofPoints()` 
+- **Competencies (5)**: From `useInterviewKitCompetencies()` - static display, no questions yet
+
+### 2. InterviewKitSection.tsx
+
+**Props:**
+```typescript
+interface InterviewKitSectionProps {
+  name: string;
+  questionCount: number;
+  score: number;
+  maxScore: number;
+  ratedCount: number;
+  totalCount: number;
+  isExpanded: boolean;
+  onToggle: () => void;
+  children?: React.ReactNode;
+}
 ```
 
-### 4. Interview Kit Reviewer Constants
-```
-src/constants/interview-kit-reviewer.constants.ts ← DELETE
+**UI Elements:**
+- Chevron icon (rotates on expand/collapse)
+- Section name
+- Question count badge (e.g., "5 questions")
+- Score display (e.g., "0/25") - right aligned
+- Percentage (e.g., "0%") - right aligned
+- Rated count (e.g., "0/5 rated") - right aligned
+- Collapsible content area for questions
+
+### 3. InterviewKitHeader.tsx
+
+**UI Elements:**
+- Title: "Interview Questions"
+- Breadcrumb: "Auto-generated from Industry Segment → Expertise Level → Proficiency Areas → Sub-domains → Specialities"
+- Styled as muted text below title
+
+### 4. InterviewKitFooter.tsx
+
+**UI Elements:**
+- Left: Instruction text "Complete all ratings to export the final scorecard"
+- Right: "Export Scorecard PDF" button (disabled state until all rated)
+- Fixed at bottom of section
+
+---
+
+## Section Display Configuration
+
+```typescript
+const INTERVIEW_KIT_SECTIONS = [
+  {
+    id: 'domain',
+    name: 'Domain & Delivery Depth',
+    type: 'domain',
+    displayOrder: 1,
+  },
+  {
+    id: 'proof_points',
+    name: 'Proof Points Deep-Dive',
+    type: 'proof_point',
+    displayOrder: 2,
+  },
+  // Competencies will be merged from database query
+];
 ```
 
 ---
 
-## Files to KEEP (Admin Functionality)
+## Implementation Steps
 
-### Admin Pages (KEEP ALL)
-```
-src/pages/admin/interview-kit/
-├── InterviewKitExcelExport.ts      ← KEEP
-├── InterviewKitImportDialog.tsx    ← KEEP
-├── InterviewKitPage.tsx            ← KEEP
-├── InterviewKitQuestionForm.tsx    ← KEEP
-├── InterviewKitQuestionsPage.tsx   ← KEEP
-└── index.ts                        ← KEEP
-```
+### Step 1: Create InterviewKitSection component
+- Collapsible section with chevron, name, counts, and score
+- Uses Radix Collapsible primitive
+- Supports expanded/collapsed state
 
-### Admin Hooks (KEEP)
-```
-src/hooks/queries/useInterviewKitQuestions.ts  ← KEEP (used by admin pages)
-```
+### Step 2: Create InterviewKitHeader component
+- Static header with title and breadcrumb
 
-### Admin Constants (KEEP)
-```
-src/constants/interview-kit.constants.ts       ← KEEP (used by admin pages)
-```
+### Step 3: Create InterviewKitFooter component  
+- Export button and instruction text
 
-### Admin Sidebar (NO CHANGE)
-```
-src/components/admin/AdminSidebar.tsx          ← NO CHANGE (keep Interview KIT menu item)
-```
+### Step 4: Create InterviewKitTabContent component
+- Fetches data from hooks
+- Computes section configurations
+- Renders header, sections, footer
+- Manages expand/collapse state for each section
 
-### App Routes (NO CHANGE to admin routes)
-```
-src/App.tsx                                    ← KEEP admin routes for /admin/interview/kit
-```
+### Step 5: Create barrel export
+- Export all components from index.ts
+
+### Step 6: Update CandidateDetailPage
+- Import `InterviewKitTabContent`
+- Replace placeholder with actual component
 
 ---
 
-## Files to MODIFY
+## Scoring Display (Read-Only for Now)
 
-### 1. `src/pages/reviewer/CandidateDetailPage.tsx`
-**Remove:**
-- Import: `import { InterviewKitTabContent } from "@/components/reviewer/interview-kit";`
-- Tab content: The `<TabsContent value="interview-kit">` block with `InterviewKitTabContent`
+Since this is Phase 1 (display only), all sections will show:
+- Score: `0/{maxScore}` (e.g., `0/25` for 5 questions × 5 points)
+- Percentage: `0%`
+- Rated: `0/{questionCount} rated`
 
-**Replace with:** Placeholder tab content showing "Interview Kit - Coming Soon"
-
-### 2. `src/constants/index.ts`
-**Remove only:**
-- `export * from './interview-kit-reviewer.constants';`
-
-**KEEP:**
-- `export * from './interview-kit.constants';` (used by admin pages)
+The scoring logic will be implemented in a future phase when questions are generated and reviewers can rate them.
 
 ---
 
-## Database Cleanup (SQL Commands)
+## Question Counts (Static for Now)
 
-Execute these SQL commands to clear corrupted reviewer-side data only:
-
-```sql
--- 1. Delete all interview question responses (reviewer-generated, corrupted)
-DELETE FROM interview_question_responses;
-
--- 2. Delete all interview evaluations (reviewer-generated, corrupted)
-DELETE FROM interview_evaluations;
-
--- 3. KEEP interview_kit_questions table (admin master question bank)
--- 4. KEEP interview_kit_competencies table (admin competency definitions)
--- 5. KEEP all admin interview kit data intact
-```
+| Section | Questions | Max Score |
+|---------|-----------|-----------|
+| Domain & Delivery Depth | 5 | 25 |
+| Proof Points Deep-Dive | {dynamic from proof_points} | {count × 5} |
+| Each Competency | 3 | 15 |
 
 ---
 
-## Summary of Changes
+## Expected Result
 
-| Category | Files Deleted | Files Modified | Files Kept |
-|----------|---------------|----------------|------------|
-| Reviewer Components | 10 | 0 | 0 |
-| Admin Pages | 0 | 0 | 6 |
-| Services | 1 | 0 | 0 |
-| Reviewer Hooks | 1 | 0 | 0 |
-| Admin Hooks | 0 | 0 | 1 |
-| Reviewer Constants | 1 | 0 | 0 |
-| Admin Constants | 0 | 0 | 1 |
-| Tabs | 0 | 1 | 0 |
-| Constants Index | 0 | 1 | 0 |
-| Admin Sidebar | 0 | 0 | 1 |
-| App Routes | 0 | 0 | 1 |
-| **TOTAL** | **13 files** | **2 files** | **10 files** |
+When a reviewer clicks the "Interview Kit" tab, they will see:
 
----
+1. **Header**: "Interview Questions" with breadcrumb
+2. **7 Collapsible Sections**:
+   - Each showing name, question count, score (0/X), percentage (0%), rated count (0/X rated)
+   - Chevron to expand (empty content for now)
+3. **Footer**: "Complete all ratings..." text and Export PDF button (disabled)
 
-## What Will Remain
-
-After deletion:
-
-### Admin Portal
-1. **Interview KIT menu item** → Still visible in Admin sidebar ✅
-2. **Interview KIT pages** → Fully functional (question bank CRUD, import/export) ✅
-3. **`interview_kit_questions` data** → All 100+ questions preserved ✅
-4. **`interview_kit_competencies` data** → All 5 competencies preserved ✅
-
-### Reviewer Portal
-1. **Interview Kit tab** → Shows "Coming Soon" placeholder
-2. **All other tabs** → Unchanged (Provider Details, Expertise, Proof Points, Assessment, Slots)
-
----
-
-## Post-Deletion State
-
-### Admin Sidebar (UNCHANGED)
-- Dashboard
-- Master Data (Countries, Industry Segments, etc.)
-- Taxonomy Management
-- **Interview Setup**
-  - **Interview KIT** ✅ (kept)
-  - Quorum Requirements
-  - Reviewer Availability
-  - Reviewer Approvals
-- Other (Question Bank, Capability Tags, etc.)
-
-### Reviewer Candidate Detail Page
-- Provider Details ✅
-- Expertise ✅
-- Proof Points ✅
-- Assessment ✅
-- Slots ✅
-- Interview Kit → "Coming Soon" placeholder
-- Review Progress → Disabled (as before)
-
-You can then rebuild the Reviewer Interview Kit from scratch with your specifications, using the existing admin question bank as the data source.
-
+This provides the UI framework for future phases where actual questions will be generated and rating functionality will be added.
