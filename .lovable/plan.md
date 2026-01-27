@@ -1,200 +1,328 @@
 
-# Interview Kit Tab - Competencies & Proof Points Display
+# Interview Kit Complete Implementation Plan
 
 ## Overview
 
-This plan implements the Interview Kit tab for reviewers, displaying a collapsible section layout showing **Domain & Delivery Depth**, **Proof Points Deep-Dive**, and **5 Universal Competencies** as shown in the reference screenshot.
+This plan implements the complete Interview Kit functionality for reviewers with:
+1. **Domain & Delivery Depth**: Max 10 questions from question_bank (interview/both usage_mode)
+2. **Competency Questions**: 1-2 questions per competency from interview_kit_questions
+3. **Proof Points Deep-Dive**: 1-2 questions per proof point based on description
+4. **CRUD Operations**: Edit, delete, and add new questions
+5. **Rating System**: Right (5 pts), Wrong (0 pts), Not Answered (0 pts)
+6. **Expected Response Display**: Collapsible guidance per question
 
 ---
 
-## UI Structure (Based on Screenshot)
-
-| Section | Display Order | Source | Description |
-|---------|---------------|--------|-------------|
-| Domain & Delivery Depth | 1 | Static header | Placeholder for future domain questions |
-| Proof Points Deep-Dive | 2 | `proof_points` table | Shows count based on provider's submitted proof points |
-| Solution Design & Architecture Thinking | 3 | `interview_kit_competencies` | Universal competency |
-| Execution & Governance | 4 | `interview_kit_competencies` | Universal competency |
-| Data/Tech Readiness & Tooling Awareness | 5 | `interview_kit_competencies` | Universal competency |
-| Soft Skills for Solution Provider Success | 6 | `interview_kit_competencies` | Universal competency |
-| Innovation & Co-creation Ability | 7 | `interview_kit_competencies` | Universal competency |
-
----
-
-## Technical Architecture
-
-### Data Flow
+## Architecture Overview
 
 ```text
 CandidateDetailPage
-    └── InterviewKitTabContent (enrollmentId)
-            ├── useInterviewKitCompetencies() → 5 competencies
-            ├── useCandidateProofPoints() → proof points for this enrollment
-            └── Render collapsible sections
+  └── InterviewKitTabContent (enrollmentId)
+        ├── useInterviewKitEvaluation() → fetch/create evaluation + questions
+        ├── useCandidateExpertise() → get speciality IDs for domain questions
+        ├── useCandidateProofPoints() → get proof points for questions
+        ├── useInterviewKitCompetencies() → get 5 competencies
+        │
+        ├── InterviewKitHeader
+        ├── InterviewKitSection (Domain & Delivery Depth)
+        │     └── InterviewQuestionCard[] (generated from question_bank)
+        │     └── AddQuestionButton
+        ├── InterviewKitSection (Proof Points Deep-Dive)
+        │     └── ProofPointQuestionGroup[] (1-2 questions per proof point)
+        │     └── AddQuestionButton
+        ├── InterviewKitSection[] (5 Competencies)
+        │     └── InterviewQuestionCard[] (from interview_kit_questions)
+        │     └── AddQuestionButton
+        └── InterviewKitFooter (Export Scorecard)
 ```
-
-### Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/reviewer/interview-kit/index.ts` | Barrel export |
-| `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx` | Main tab component |
-| `src/components/reviewer/interview-kit/InterviewKitSection.tsx` | Collapsible section component |
-| `src/components/reviewer/interview-kit/InterviewKitHeader.tsx` | Header with breadcrumb |
-| `src/components/reviewer/interview-kit/InterviewKitFooter.tsx` | Footer with export button |
-
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/pages/reviewer/CandidateDetailPage.tsx` | Import and use new `InterviewKitTabContent` |
-| `src/components/reviewer/candidates/index.ts` | Add export for Interview Kit components |
 
 ---
 
-## Component Specifications
+## Data Model
 
-### 1. InterviewKitTabContent.tsx
+### interview_evaluations (Existing)
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | UUID | Primary key |
+| booking_id | UUID | Links to interview booking |
+| reviewer_id | UUID | Panel reviewer |
+| overall_score | numeric | Final computed score |
+| outcome | varchar | Pass/Fail |
 
-**Props:**
-```typescript
-interface InterviewKitTabContentProps {
-  enrollmentId: string;
-}
-```
-
-**Behavior:**
-- Fetches competencies using `useInterviewKitCompetencies()`
-- Fetches proof points count using `useCandidateProofPoints()`
-- Displays loading spinner while fetching
-- Renders header, 7 collapsible sections, and footer
-
-**Data Sources:**
-- **Domain & Delivery Depth**: Static section (0 questions placeholder - future question_bank integration)
-- **Proof Points Deep-Dive**: Count from `useCandidateProofPoints()` 
-- **Competencies (5)**: From `useInterviewKitCompetencies()` - static display, no questions yet
-
-### 2. InterviewKitSection.tsx
-
-**Props:**
-```typescript
-interface InterviewKitSectionProps {
-  name: string;
-  questionCount: number;
-  score: number;
-  maxScore: number;
-  ratedCount: number;
-  totalCount: number;
-  isExpanded: boolean;
-  onToggle: () => void;
-  children?: React.ReactNode;
-}
-```
-
-**UI Elements:**
-- Chevron icon (rotates on expand/collapse)
-- Section name
-- Question count badge (e.g., "5 questions")
-- Score display (e.g., "0/25") - right aligned
-- Percentage (e.g., "0%") - right aligned
-- Rated count (e.g., "0/5 rated") - right aligned
-- Collapsible content area for questions
-
-### 3. InterviewKitHeader.tsx
-
-**UI Elements:**
-- Title: "Interview Questions"
-- Breadcrumb: "Auto-generated from Industry Segment → Expertise Level → Proficiency Areas → Sub-domains → Specialities"
-- Styled as muted text below title
-
-### 4. InterviewKitFooter.tsx
-
-**UI Elements:**
-- Left: Instruction text "Complete all ratings to export the final scorecard"
-- Right: "Export Scorecard PDF" button (disabled state until all rated)
-- Fixed at bottom of section
+### interview_question_responses (Existing)
+| Column | Type | Purpose |
+|--------|------|---------|
+| id | UUID | Primary key |
+| evaluation_id | UUID | FK to evaluation |
+| question_source | text | 'question_bank', 'interview_kit', 'proof_point', 'custom' |
+| question_id | UUID | Source question (optional) |
+| proof_point_id | UUID | For proof point questions |
+| question_text | text | Actual question |
+| expected_answer | text | Guidance for reviewer |
+| rating | text | 'right', 'wrong', 'not_answered', null |
+| score | integer | 5, 0, 0 |
+| comments | text | Optional reviewer comments |
+| section_name | text | Display section name |
+| section_type | varchar | 'domain', 'proof_point', 'competency' |
+| section_label | varchar | Proof point title / competency name |
+| display_order | integer | Ordering |
+| is_deleted | boolean | Soft delete |
 
 ---
 
-## Section Display Configuration
+## Files to Create
 
+### 1. New Hooks
+
+**`src/hooks/queries/useInterviewKitEvaluation.ts`**
+- `useInterviewKitEvaluation(bookingId, enrollmentId)` - Fetch or create evaluation + questions
+- `useGenerateInterviewQuestions()` - Generate questions on first load
+- `useUpdateQuestionRating()` - Update rating + score
+- `useUpdateQuestionText()` - Edit question text
+- `useDeleteQuestion()` - Soft delete (is_deleted = true)
+- `useAddCustomQuestion()` - Add new question to any section
+
+### 2. New Components
+
+**`src/components/reviewer/interview-kit/InterviewQuestionCard.tsx`**
+- Question number + text (editable via Edit button)
+- Hierarchy breadcrumb (Proficiency > Sub-domain > Speciality) for domain questions
+- "Strong answer should include..." collapsible expected answer
+- Rating radio buttons: Right (5), Wrong (0), Not Answered (0)
+- Comments textarea (NOT required for wrong/not answered)
+- Edit + Delete buttons
+
+**`src/components/reviewer/interview-kit/AddQuestionDialog.tsx`**
+- Dialog for adding custom questions
+- Fields: Question text, Expected answer (optional), Section selection
+
+**`src/components/reviewer/interview-kit/EditQuestionDialog.tsx`**
+- Dialog for editing existing questions
+- Fields: Question text, Expected answer
+
+**`src/components/reviewer/interview-kit/DeleteQuestionConfirm.tsx`**
+- Confirmation dialog for soft delete
+
+**`src/components/reviewer/interview-kit/ProofPointQuestionGroup.tsx`**
+- Wrapper showing proof point title, category badges, description
+- "View Details" button
+- Child questions (1-2 per proof point)
+- "Add New Question" button per proof point
+
+### 3. Service for Question Generation
+
+**`src/services/interviewKitGenerationService.ts`**
+- `generateDomainQuestions(specialityIds, limit)` - Random 10 from question_bank
+- `generateCompetencyQuestions(competencies, industryId, levelId)` - 1-2 per competency
+- `generateProofPointQuestions(proofPoints)` - 1-2 per proof point based on description
+
+---
+
+## Question Generation Logic
+
+### Domain Questions (Max 10)
 ```typescript
-const INTERVIEW_KIT_SECTIONS = [
-  {
-    id: 'domain',
-    name: 'Domain & Delivery Depth',
-    type: 'domain',
-    displayOrder: 1,
-  },
-  {
-    id: 'proof_points',
-    name: 'Proof Points Deep-Dive',
-    type: 'proof_point',
-    displayOrder: 2,
-  },
-  // Competencies will be merged from database query
+// 1. Get provider's selected speciality IDs from useCandidateExpertise
+// 2. Query question_bank with:
+//    - speciality_id IN (specialityIds)
+//    - usage_mode IN ('interview', 'both')
+//    - is_active = true
+// 3. Randomly select 10 questions balanced across specialities
+// 4. For each question, fetch hierarchy path (Proficiency > Sub-domain > Speciality)
+```
+
+### Competency Questions (1-2 per competency = 5-10 total)
+```typescript
+// 1. For each competency:
+//    - Query interview_kit_questions with:
+//      - competency_id = competency.id
+//      - industry_segment_id = enrollment.industry_segment_id
+//      - expertise_level_id = enrollment.expertise_level_id
+//      - is_active = true
+//    - Randomly select 1-2 questions
+// 2. If no questions match for specific industry/level, fallback to any active
+```
+
+### Proof Point Questions (1-2 per proof point)
+```typescript
+// Templates for generating questions based on description:
+const TEMPLATES = [
+  'In your proof point "{title}", you mentioned {extract}. Can you elaborate on the specific approach you took?',
+  'Regarding "{title}": What measurable outcomes did you achieve?',
+  'For "{title}", what were the key challenges and how did you overcome them?',
+  'Can you walk me through the methodology you used for "{title}"?',
 ];
+
+// 1. For each proof point:
+//    - Extract key phrases from description
+//    - Generate 1-2 questions using templates + description context
+//    - Set expected_answer to summary of description for reviewer reference
 ```
+
+---
+
+## UI Component Specifications
+
+### InterviewQuestionCard (Per Screenshot Reference)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ Q1. How do you define Cost-to-Serve for a district/company?           ✏️ 🗑️│
+│                                                                             │
+│ Proficiency: Shaping Strategic Direction & Enterprise Intent               │
+│ Sub-domain: SCM Strategy & Value Framework                                  │
+│ Speciality: Cost-to-Serve Optimization Strategy                             │
+│                                                                             │
+│ ▸ Strong answer should include...                                           │
+│   [Collapsible: expected_answer_guidance text]                              │
+│                                                                             │
+│ Rating *                                                                    │
+│ ┌──────────────┐ ┌──────────────┐ ┌─────────────────────┐                  │
+│ │  ● Right (5) │ │  ○ Wrong (0) │ │  ○ Not Answered (0) │                  │
+│ └──────────────┘ └──────────────┘ └─────────────────────┘                  │
+│                                                                             │
+│ Comments                                                                    │
+│ ┌─────────────────────────────────────────────────────────────────────────┐│
+│ │ Add your assessment comments here...                                    ││
+│ └─────────────────────────────────────────────────────────────────────────┘│
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### ProofPointQuestionGroup (Per Screenshot Reference)
+
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ ▾ Led cross-functional stakeholder workshops...    [PP 04] [Medium Relevance]│
+│                                                                              │
+│   Context Outcome: Successfully aligned 10+ stakeholders                     │
+│   📍 Enterprise Process Mapping                                              │
+│   1 question generated                                                       │
+│                                                                              │
+│   ┌────────────────────────────────────────────────────────────────────────┐│
+│   │ Q8. In your workshop leadership proof point, what was the hardest     ││
+│   │     stakeholder conflict and how did you resolve it?           ✏️ 🗑️ ││
+│   │                                                                        ││
+│   │ ▸ Strong answer should include...                                      ││
+│   │   [Collapsible: Outcomes, methods, challenges]                         ││
+│   │                                                                        ││
+│   │ Rating * [Right (5)] [Wrong (0)] [Not Answered (0)]                    ││
+│   │ Comments: [textarea]                                                   ││
+│   └────────────────────────────────────────────────────────────────────────┘│
+│                                                                              │
+│   ⊕ Add New Question                                                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx` | Complete rewrite with question generation and section rendering |
+| `src/components/reviewer/interview-kit/InterviewKitSection.tsx` | Add children prop support for question cards |
+| `src/components/reviewer/interview-kit/index.ts` | Export new components |
 
 ---
 
 ## Implementation Steps
 
-### Step 1: Create InterviewKitSection component
-- Collapsible section with chevron, name, counts, and score
-- Uses Radix Collapsible primitive
-- Supports expanded/collapsed state
+### Phase 1: Hook for Evaluation + Questions
+1. Create `useInterviewKitEvaluation.ts` with:
+   - Fetch existing evaluation + responses
+   - Create evaluation if not exists
+   - Generate questions on first load
+   - CRUD mutations for questions
 
-### Step 2: Create InterviewKitHeader component
-- Static header with title and breadcrumb
+### Phase 2: Question Generation Service
+2. Create `interviewKitGenerationService.ts`:
+   - `generateDomainQuestions()` - query question_bank, random selection
+   - `generateCompetencyQuestions()` - query interview_kit_questions
+   - `generateProofPointQuestions()` - template-based from description
 
-### Step 3: Create InterviewKitFooter component  
-- Export button and instruction text
+### Phase 3: UI Components
+3. Create `InterviewQuestionCard.tsx`:
+   - Display question with hierarchy
+   - Collapsible expected answer
+   - Rating radio group (Right/Wrong/Not Answered)
+   - Optional comments textarea
+   - Edit/Delete buttons
 
-### Step 4: Create InterviewKitTabContent component
-- Fetches data from hooks
-- Computes section configurations
-- Renders header, sections, footer
-- Manages expand/collapse state for each section
+4. Create `ProofPointQuestionGroup.tsx`:
+   - Proof point header with badges
+   - Child question cards
+   - Add question button
 
-### Step 5: Create barrel export
-- Export all components from index.ts
+5. Create `AddQuestionDialog.tsx` + `EditQuestionDialog.tsx`:
+   - Form for question text + expected answer
+   - Section type selection for add
 
-### Step 6: Update CandidateDetailPage
-- Import `InterviewKitTabContent`
-- Replace placeholder with actual component
+6. Create `DeleteQuestionConfirm.tsx`:
+   - Confirmation before soft delete
+
+### Phase 4: Integration
+7. Update `InterviewKitTabContent.tsx`:
+   - Fetch all data sources
+   - Generate questions on mount (if none exist)
+   - Render sections with question cards
+   - Handle mutations
+
+8. Update `InterviewKitSection.tsx`:
+   - Accept children for question cards
+   - Add "Add New Question" button per section
 
 ---
 
-## Scoring Display (Read-Only for Now)
+## Scoring Rules
 
-Since this is Phase 1 (display only), all sections will show:
-- Score: `0/{maxScore}` (e.g., `0/25` for 5 questions × 5 points)
-- Percentage: `0%`
-- Rated: `0/{questionCount} rated`
+| Rating | Score | Comments Required |
+|--------|-------|-------------------|
+| Right | 5 | No |
+| Wrong | 0 | No |
+| Not Answered | 0 | No |
 
-The scoring logic will be implemented in a future phase when questions are generated and reviewers can rate them.
-
----
-
-## Question Counts (Static for Now)
-
-| Section | Questions | Max Score |
-|---------|-----------|-----------|
-| Domain & Delivery Depth | 5 | 25 |
-| Proof Points Deep-Dive | {dynamic from proof_points} | {count × 5} |
-| Each Competency | 3 | 15 |
+- Section score = Sum of all question scores in section
+- Max score = questionCount × 5
+- Percentage = (score / maxScore) × 100
 
 ---
 
-## Expected Result
+## Technical Decisions
 
-When a reviewer clicks the "Interview Kit" tab, they will see:
+### Question Generation Timing
+- Questions generated on first tab visit (if evaluation exists)
+- Stored in `interview_question_responses`
+- Subsequent visits load from database
 
-1. **Header**: "Interview Questions" with breadcrumb
-2. **7 Collapsible Sections**:
-   - Each showing name, question count, score (0/X), percentage (0%), rated count (0/X rated)
-   - Chevron to expand (empty content for now)
-3. **Footer**: "Complete all ratings..." text and Export PDF button (disabled)
+### Proof Point Question Templates
+```typescript
+const PROOF_POINT_TEMPLATES = [
+  'Regarding your proof point "{title}": Can you walk me through the specific methodology you used?',
+  'In "{title}", what were the measurable outcomes you achieved?',
+  'For "{title}", describe the biggest challenge you faced and how you overcame it.',
+  'How did you validate the results in "{title}"?',
+];
+```
 
-This provides the UI framework for future phases where actual questions will be generated and rating functionality will be added.
+### Edit/Delete Logic
+- Edit: Update `question_text` and `expected_answer` in `interview_question_responses`
+- Delete: Set `is_deleted = true` (soft delete for audit trail)
+- Add: Insert new row with `question_source = 'custom'`
+
+---
+
+## Expected Output
+
+After implementation:
+
+| Section | Question Source | Count | Features |
+|---------|-----------------|-------|----------|
+| Domain & Delivery Depth | question_bank | 10 | Hierarchy path, expected answer, rating, edit/delete |
+| Proof Points Deep-Dive | Generated from description | 1-2 per proof point | Proof point header, questions grouped, add custom |
+| Solution Design... | interview_kit_questions | 1-2 | Expected answer, rating, edit/delete/add |
+| Execution & Governance | interview_kit_questions | 1-2 | Same |
+| Data/Tech Readiness... | interview_kit_questions | 1-2 | Same |
+| Soft Skills... | interview_kit_questions | 1-2 | Same |
+| Innovation & Co-creation | interview_kit_questions | 1-2 | Same |
+| **TOTAL** | | ~20-25 questions | Full CRUD, scoring, export |
+
