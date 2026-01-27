@@ -138,6 +138,7 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
   const isDeclined = slotContext.reviewerAssignment?.acceptanceStatus === 'declined';
   const isBookingCancelled = slotContext.status === 'cancelled' || 
                              slotContext.status === 'declined_poor_credentials';
+  const isInterviewSubmitted = !!slotContext.interviewSubmittedAt;
 
   return (
     <div className="space-y-6">
@@ -208,31 +209,40 @@ export function SlotsTabContent({ enrollmentId }: SlotsTabContentProps) {
         </Card>
       )}
 
-      {/* Status Messages - Accepted (with Cancel option) */}
+      {/* Status Messages - Accepted (with Cancel option if not submitted) */}
       {isAccepted && !isBookingCancelled && (
         <Card className="border-green-200 bg-green-50/50">
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 mb-4">
               <CheckCircle className="h-5 w-5 text-green-600" />
               <span className="font-medium text-green-800">
-                You have accepted this interview
+                {isInterviewSubmitted 
+                  ? 'Interview completed and submitted'
+                  : 'You have accepted this interview'
+                }
               </span>
-              <Badge variant="default" className="bg-green-600">Confirmed</Badge>
+              <Badge variant="default" className="bg-green-600">
+                {isInterviewSubmitted ? 'Submitted' : 'Confirmed'}
+              </Badge>
             </div>
             
-            <Button
-              variant="outline"
-              onClick={() => setShowCancelDialog(true)}
-              className="border-red-200 text-red-600 hover:bg-red-50"
-            >
-              <XCircle className="mr-2 h-4 w-4" />
-              Cancel Interview
-            </Button>
-            
-            <p className="text-xs text-muted-foreground mt-3">
-              If you can no longer attend, you must cancel. The provider will be 
-              notified to select a new time slot.
-            </p>
+            {!isInterviewSubmitted && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowCancelDialog(true)}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  <XCircle className="mr-2 h-4 w-4" />
+                  Cancel Interview
+                </Button>
+                
+                <p className="text-xs text-muted-foreground mt-3">
+                  If you can no longer attend, you must cancel. The provider will be 
+                  notified to select a new time slot.
+                </p>
+              </>
+            )}
           </CardContent>
         </Card>
       )}
