@@ -259,7 +259,10 @@ function deriveStageStatuses(
   let certificationStatus: StageStatus = 'not_started';
   if (['verified', 'certified', 'not_verified'].includes(lifecycleStatus ?? '')) {
     certificationStatus = 'completed';
-  } else if (lifecycleRank >= LIFECYCLE_RANKS.panel_completed) {
+  } else if (
+    lifecycleRank >= LIFECYCLE_RANKS.panel_completed || 
+    interviewBooking?.interview_submitted_at
+  ) {
     certificationStatus = 'in_progress';
   }
 
@@ -333,6 +336,8 @@ function deriveStageDescriptions(
     certificationStatus = 'Certified';
   } else if (lifecycleStatus === 'not_verified') {
     certificationStatus = 'Not Verified';
+  } else if (interviewBooking?.interview_submitted_at) {
+    certificationStatus = 'Awaiting final decision';
   }
 
   return {
