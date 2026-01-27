@@ -1,178 +1,241 @@
 
-# Fix: Radio Button Rating Delay in Interview Kit
+# Final Result Tab Implementation Plan
 
-## Problem
+## Overview
 
-When clicking a radio button to rate a question, there's a ~2-9 second delay before the UI updates. The user expects instantaneous feedback.
-
-## Root Cause Analysis
-
-The `useUpdateQuestionRating()` mutation calls `queryClient.invalidateQueries()` on success, which triggers a **full refetch** of the `useInterviewKitEvaluation` query. This query performs:
-
-1. `supabase.auth.getUser()` - Auth check
-2. Query `panel_reviewers` - Reviewer lookup
-3. Query `interview_evaluations` - Evaluation record
-4. Query `interview_question_responses` - All questions (can be 20+ questions)
-5. Map and process all data
-
-This refetch takes 1-2+ seconds, causing the perceived delay.
-
-## Solution: Optimistic Updates
-
-Replace `invalidateQueries` with **optimistic cache updates** using `setQueryData`. The UI updates immediately, and the database update happens in the background.
+Implement a comprehensive **Final Result** tab in the Candidate Detail page that provides reviewers with a consolidated view of a Solution Provider's evaluation progress and final certification outcome.
 
 ---
 
-## Technical Changes
+## Data Architecture
 
-### File: `src/hooks/queries/useInterviewKitEvaluation.ts`
+Based on the existing database schema, the tab will aggregate data from:
 
-#### Change 1: Add optimistic update in `useUpdateQuestionRating()`
+| Source Table | Data Retrieved |
+|--------------|----------------|
+| `provider_industry_enrollments` | lifecycle_status, lifecycle_rank, participation_mode, organization, proof_points_review_status, proof_points_final_score |
+| `participation_modes` | requires_org_info (to determine org stage applicability) |
+| `proof_points` | Count of proof points submitted |
+| `assessment_attempts` | Latest attempt score, is_passed, score_percentage |
+| `interview_bookings` | status, interview_score_out_of_10, interview_submitted_at |
+| `lifecycle_stages` | Reference for stage definitions (for display names) |
 
-Replace the current mutation pattern:
+**Note**: No `interview_config` table exists - score weightages will be defined as constants in code (aligned with the spec: Proof Points 30%, Assessment 50%, Interview 20%).
 
+---
+
+## Components to Create
+
+### 1. New Hook: `useFinalResultData.ts`
+
+**Location**: `src/hooks/queries/useFinalResultData.ts`
+
+**Purpose**: Single aggregated query to fetch all data needed for Final Result tab
+
+**Data Returned**:
 ```typescript
-// BEFORE (lines 335-361)
-export function useUpdateQuestionRating() {
-  const queryClient = useQueryClient();
+interface FinalResultData {
+  // Provider context
+  providerName: string;
+  enrollmentId: string;
+  
+  // Lifecycle Stage Statuses
+  stages: {
+    providerDetails: StageStatus;
+    organizationInfo: StageStatus;
+    expertiseLevel: StageStatus;
+    proofPoints: StageStatus;
+    knowledgeAssessment: StageStatus;
+    interviewSlot: StageStatus;
+    certificationStatus: StageStatus;
+  };
+  
+  // Score Summary
+  scores: {
+    proofPointsScore: number | null;    // 0-10 scale
+    proofPointsMax: number;             // 10
+    assessmentScore: number | null;     // actual score
+    assessmentMax: number | null;       // total questions
+    assessmentPercentage: number | null;
+    interviewScore: number | null;      // 0-10 scale
+    interviewMax: number;               // 10
+  };
+  
+  // Composite Score (client-calculated)
+  compositeScore: number | null;        // 0-100%
+  isCompositeComplete: boolean;
+  
+  // Certification Outcome (derived)
+  certificationOutcome: CertificationOutcome | null;
+  
+  // Flags
+  requiresOrgInfo: boolean;
+  isInterviewSubmitted: boolean;
+}
 
-  return useMutation({
-    mutationFn: async ({ questionId, rating, comments }: UpdateRatingParams) => {
-      const score = rating === 'right' ? 5 : 0;
-      const updates = await withUpdatedBy({
-        rating,
-        score,
-        ...(comments !== undefined && { comments }),
-      });
-      const { error } = await supabase
-        .from("interview_question_responses")
-        .update(updates)
-        .eq("id", questionId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["interview-kit-evaluation"] });
-    },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: "update_question_rating" });
-    },
-  });
+type StageStatus = 'completed' | 'in_progress' | 'not_started';
+type CertificationOutcome = 'not_certified' | 'one_star' | 'two_star' | 'three_star';
+```
+
+### 2. New Component: `FinalResultTabContent.tsx`
+
+**Location**: `src/components/reviewer/candidates/FinalResultTabContent.tsx`
+
+**Structure**:
+- Header: "Final Result" with subtitle about composite evaluation
+- Score Summary Row (4 tiles)
+- Composite Score Banner (prominent display)
+- Review Checklist (lifecycle stages grid)
+
+### 3. New Component: `ScoreSummaryTile.tsx`
+
+**Location**: `src/components/reviewer/candidates/ScoreSummaryTile.tsx`
+
+**Props**:
+```typescript
+interface ScoreSummaryTileProps {
+  title: string;
+  score: number | null;
+  maxScore: number;
+  percentage?: number | null;
+  isPending: boolean;
 }
 ```
 
-**With:**
+### 4. New Component: `CompositeScoreBanner.tsx`
+
+**Location**: `src/components/reviewer/candidates/CompositeScoreBanner.tsx`
+
+**Features**:
+- Large percentage display (e.g., "65.2%")
+- Certification outcome badge with stars
+- Color-coded background based on outcome
+
+### 5. New Component: `LifecycleStageCard.tsx`
+
+**Location**: `src/components/reviewer/candidates/LifecycleStageCard.tsx`
+
+**Props**:
+```typescript
+interface LifecycleStageCardProps {
+  icon: React.ReactNode;
+  title: string;
+  status: 'completed' | 'in_progress' | 'not_started';
+  description: string;
+  notApplicable?: boolean;
+}
+```
+
+**Visual States**:
+| Status | Background | Icon | Text Style |
+|--------|------------|------|------------|
+| Completed | Light Green (`bg-green-50`) | CheckCircle (green) | Normal contrast |
+| In Progress | Light Orange (`bg-amber-50`) | Clock (amber) | Normal contrast |
+| Not Started | Gray (`bg-muted`) | Circle (gray) | Muted text |
+
+---
+
+## Stage Status Logic
+
+Based on the spec requirements and existing database fields:
+
+### 1. Provider Details
+- **Always**: `completed` (informational only, no reviewer action needed)
+
+### 2. Organization Information
+- If `!requiresOrgInfo`: `completed` with "(Not Applicable)" label
+- Else: `completed` (populated during onboarding)
+
+### 3. Expertise Level
+- If `lifecycle_rank >= 50` (expertise_selected): `completed`
+- Else: `in_progress`
+
+### 4. Proof Points
+- If `proof_points_review_status === 'completed'`: `completed`
+- If `proof_points_review_status === 'in_progress'` OR proof points count > 0: `in_progress`
+- Else: `not_started`
+
+### 5. Knowledge Assessment
+- If latest attempt has `submitted_at` and `is_passed !== null`: `completed`
+- If latest attempt exists but `submitted_at` is null: `in_progress`
+- Else: `not_started`
+
+### 6. Interview Slot
+- If `interview_bookings.status` = 'confirmed' OR `interview_submitted_at` exists: `completed`
+- If `status` = 'scheduled': `in_progress` with "Scheduled" label
+- If `status` = 'cancelled': `not_started` with "Cancelled" label
+- Else: `not_started`
+
+### 7. Certification Status
+- If `lifecycle_status` in ['verified', 'certified']: `completed`
+- If `lifecycle_status` = 'not_verified': `completed` (with "Not Verified" outcome)
+- If `lifecycle_rank >= 130` (panel_completed): `in_progress`
+- Else: `not_started`
+
+---
+
+## Composite Score Calculation
+
+Calculated **client-side** (read-only display):
 
 ```typescript
-// AFTER - Optimistic Update Pattern
-export function useUpdateQuestionRating() {
-  const queryClient = useQueryClient();
+// Constants (as per spec)
+const SCORE_WEIGHTS = {
+  proofPoints: 0.30,    // 30%
+  assessment: 0.50,     // 50%
+  interview: 0.20,      // 20%
+} as const;
 
-  return useMutation({
-    mutationFn: async ({ questionId, rating, comments }: UpdateRatingParams) => {
-      const score = rating === 'right' ? 5 : 0;
-      const updates = await withUpdatedBy({
-        rating,
-        score,
-        ...(comments !== undefined && { comments }),
-      });
-      const { error } = await supabase
-        .from("interview_question_responses")
-        .update(updates)
-        .eq("id", questionId);
-      if (error) throw new Error(error.message);
-      
-      // Return the updated data for optimistic update
-      return { questionId, rating, score, comments };
-    },
-    onMutate: async ({ questionId, rating, comments }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: ["interview-kit-evaluation"] });
+// Normalization
+const proofPointsPercent = (proofPointsScore / 10) * 100;    // 0-10 → 0-100
+const assessmentPercent = assessmentPercentage;               // Already 0-100
+const interviewPercent = (interviewScore / 10) * 100;         // 0-10 → 0-100
 
-      // Snapshot the previous value
-      const previousData = queryClient.getQueriesData({ queryKey: ["interview-kit-evaluation"] });
+// Composite Formula
+const compositeScore = 
+  (proofPointsPercent * SCORE_WEIGHTS.proofPoints) +
+  (assessmentPercent * SCORE_WEIGHTS.assessment) +
+  (interviewPercent * SCORE_WEIGHTS.interview);
 
-      // Optimistically update the cache
-      queryClient.setQueriesData(
-        { queryKey: ["interview-kit-evaluation"] },
-        (old: InterviewKitData | null | undefined) => {
-          if (!old) return old;
-          
-          const score = rating === 'right' ? 5 : 0;
-          const updatedQuestions = old.questions.map(q =>
-            q.id === questionId
-              ? { ...q, rating, score, comments: comments ?? q.comments }
-              : q
-          );
-          
-          // Recalculate stats
-          const activeQuestions = updatedQuestions.filter(q => !q.isDeleted);
-          const ratedQuestions = activeQuestions.filter(q => q.rating !== null);
-          const totalScore = activeQuestions.reduce((sum, q) => sum + q.score, 0);
-          const maxScore = activeQuestions.length * 5;
+// Rounded to 1 decimal
+const displayScore = Math.round(compositeScore * 10) / 10;
+```
 
-          // Also update grouped questions
-          const domainQuestions = updatedQuestions.filter(q => 
-            q.sectionType === 'domain' || q.sectionName === 'Domain & Delivery Depth'
-          );
-          const proofPointQuestions = updatedQuestions.filter(q =>
-            q.sectionType === 'proof_point' || q.sectionName === 'Proof Points Deep-Dive'
-          );
-          
-          return {
-            ...old,
-            questions: updatedQuestions,
-            domainQuestions: domainQuestions.filter(q => !q.isDeleted),
-            proofPointQuestions: proofPointQuestions.filter(q => !q.isDeleted),
-            totalQuestions: activeQuestions.length,
-            ratedQuestions: ratedQuestions.length,
-            allRated: ratedQuestions.length === activeQuestions.length && activeQuestions.length > 0,
-            totalScore,
-            maxScore,
-          };
-        }
-      );
+**Incomplete Handling**: If any score is `null`, show "—" with "Incomplete" label.
 
-      return { previousData };
-    },
-    onError: (error: Error, _variables, context) => {
-      // Rollback on error
-      if (context?.previousData) {
-        context.previousData.forEach(([queryKey, data]) => {
-          queryClient.setQueryData(queryKey, data);
-        });
-      }
-      handleMutationError(error, { operation: "update_question_rating" });
-    },
-    onSettled: () => {
-      // Background refetch to ensure consistency (non-blocking)
-      // Removed to prevent UI flicker - database is source of truth
-      // queryClient.invalidateQueries({ queryKey: ["interview-kit-evaluation"] });
-    },
-  });
+---
+
+## Certification Outcome Rules
+
+```typescript
+function getCertificationOutcome(compositeScore: number): CertificationOutcome {
+  if (compositeScore < 51.0) return 'not_certified';
+  if (compositeScore < 66.0) return 'one_star';
+  if (compositeScore < 86.0) return 'two_star';
+  return 'three_star';
 }
+
+// Display mapping
+const OUTCOME_DISPLAY = {
+  not_certified: { label: 'Not Certified', stars: 0, color: 'red' },
+  one_star: { label: 'Certified', stars: 1, color: 'amber' },
+  two_star: { label: 'Certified', stars: 2, color: 'blue' },
+  three_star: { label: 'Certified', stars: 3, color: 'green' },
+};
 ```
 
 ---
 
-## How It Works
+## Files to Create
 
-| Step | Before (Slow) | After (Fast) |
-|------|---------------|--------------|
-| 1. Click radio | Start mutation | Start mutation |
-| 2. UI Update | Wait for DB | **Immediate** (cache update) |
-| 3. DB Update | Execute | Execute (background) |
-| 4. Refetch | Full query refetch | No refetch needed |
-| 5. Total Time | ~2-9 seconds | ~50ms |
-
----
-
-## Key Implementation Points
-
-1. **`onMutate`**: Runs **before** the mutation, updates the cache immediately
-2. **`previousData`**: Saved for rollback if the mutation fails
-3. **`onError`**: Restores the previous cache state if DB update fails
-4. **`onSettled`**: Could optionally refetch, but not needed here (cache is accurate)
-5. **Score recalculation**: Done in-memory during optimistic update
+| File | Purpose |
+|------|---------|
+| `src/hooks/queries/useFinalResultData.ts` | Data fetching hook |
+| `src/components/reviewer/candidates/FinalResultTabContent.tsx` | Main tab content |
+| `src/components/reviewer/candidates/ScoreSummaryTile.tsx` | Individual score tile |
+| `src/components/reviewer/candidates/CompositeScoreBanner.tsx` | Composite score display |
+| `src/components/reviewer/candidates/LifecycleStageCard.tsx` | Individual stage card |
+| `src/constants/certification.constants.ts` | Score weights and outcome thresholds |
 
 ---
 
@@ -180,16 +243,81 @@ export function useUpdateQuestionRating() {
 
 | File | Change |
 |------|--------|
-| `src/hooks/queries/useInterviewKitEvaluation.ts` | Replace `invalidateQueries` with optimistic update pattern in `useUpdateQuestionRating()` |
+| `src/pages/reviewer/CandidateDetailPage.tsx` | Enable Final Result tab, import component |
+| `src/components/reviewer/candidates/index.ts` | Export new components |
 
 ---
 
-## Testing Verification
+## UI Layout (Matching Reference Image)
 
-1. Open Interview Kit tab
-2. Click any rating radio button (Right/Wrong/Not Answered)
-3. **Expected**: Immediate visual feedback (<100ms)
-4. **Previous**: 2-9 second delay
-5. Verify: Dashboard stats update instantly
-6. Verify: Score counter updates instantly
-7. Verify: If database error occurs, rating reverts to previous state
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ Final Result                                                     │
+│ Composite assessment with certification determination             │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                   │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐      ┌──────────────┐ │
+│  │ Proof    │  │Assessment│  │ Interview│      │   65.2%      │ │
+│  │ Points   │  │  Score   │  │  Score   │      │ Composite    │ │
+│  │ 7.25/10  │  │  30/50   │  │ 6.2/10   │      │   Score      │ │
+│  │  72.5%   │  │   60%    │  │   62%    │      │              │ │
+│  └──────────┘  └──────────┘  └──────────┘      │ ⭐⭐ Certified│ │
+│                                                 └──────────────┘ │
+├─────────────────────────────────────────────────────────────────┤
+│ Review Checklist                                                 │
+│ Track progress across all provider evaluation stages             │
+├─────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ ✓ Provider      │  │ ✓ Organization  │  │ ✓ Expertise     │  │
+│  │   Details       │  │   Info          │  │   Level         │  │
+│  │   Completed     │  │   Completed     │  │   Completed     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+│                                                                   │
+│  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐  │
+│  │ ✓ Proof Points  │  │ ✓ Knowledge     │  │ ⏳ Interview    │  │
+│  │   4 of 5 rated  │  │   Assessment    │  │   Slot          │  │
+│  │   In Progress   │  │   30/50 points  │  │   Scheduled     │  │
+│  └─────────────────┘  └─────────────────┘  └─────────────────┘  │
+│                                                                   │
+│  ┌─────────────────┐                                             │
+│  │ ✓ Certification │                                             │
+│  │   Status        │                                             │
+│  │   ⭐⭐ Two Star │                                             │
+│  └─────────────────┘                                             │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Technical Specifications
+
+### Performance
+- Single aggregated query via `useFinalResultData`
+- Reuses existing cached data where possible
+- Target load time: < 2 seconds
+
+### Security
+- Read-only display (no mutations)
+- Uses existing RLS policies (reviewer must be assigned to the booking)
+
+### Accessibility
+- WCAG AA color contrast compliance
+- Icons + text labels (no color-only indicators)
+- Keyboard navigation supported via Card focus
+
+### Error Handling
+- Provider data load failure: Shows error Alert with "Back to Dashboard" option
+- Composite incomplete: Info toast on tab load (non-blocking)
+
+---
+
+## Implementation Order
+
+1. Create `src/constants/certification.constants.ts`
+2. Create `src/hooks/queries/useFinalResultData.ts`
+3. Create `src/components/reviewer/candidates/LifecycleStageCard.tsx`
+4. Create `src/components/reviewer/candidates/ScoreSummaryTile.tsx`
+5. Create `src/components/reviewer/candidates/CompositeScoreBanner.tsx`
+6. Create `src/components/reviewer/candidates/FinalResultTabContent.tsx`
+7. Update `src/components/reviewer/candidates/index.ts`
+8. Update `src/pages/reviewer/CandidateDetailPage.tsx` (enable tab, integrate)
