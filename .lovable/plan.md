@@ -1,317 +1,240 @@
 
 
-# Alignment of Tech Specifications with Current System
+# Interview Kit: Implementation Status & Final Technical Specifications
 
-## Executive Summary
+## Summary
 
-After thorough analysis of the codebase, I found that **most specifications are already implemented** in the current system. The main gaps are:
-1. **Radio button UX issue** - Shows "not allowed" cursor initially due to CSS styling
-2. **Submit Interview functionality** - Not yet implemented (missing validation and rollup to `interview_bookings`)
-3. **Comments character limit** - Not enforced (spec: 500 chars)
-
-The system already uses the correct database tables and relationships. No new tables are needed.
+This document provides a complete comparison between the original tech specifications and the current Lovable.dev implementation, identifying what is implemented, what is not implemented, and what is relevant/required for future work.
 
 ---
 
-## Current System vs Specifications Mapping
+## SECTION 1: FULLY IMPLEMENTED (No Changes Needed)
 
-| Spec Section | Current Implementation | Status |
-|--------------|------------------------|--------|
-| **B1. Review Notes** | `ExpertiseReviewActions.tsx` - Uses `expertise_flag_for_clarification` and `expertise_reviewer_notes` on `provider_industry_enrollments` | Already implemented |
-| **B1. Interview Questions** | `InterviewQuestionCard.tsx` - Rating + Comments with autosave | Missing validation constraints |
-| **C. Scoring Logic** | `useInterviewKitEvaluation.ts` - Right=5, Wrong/NA=0 | Already implemented |
-| **D. Data Pull** | Uses correct tables: `solution_providers`, `provider_industry_enrollments`, `question_bank`, `interview_kit_questions` | Already implemented |
-| **E. Database** | Uses `interview_evaluations` + `interview_question_responses` (not `interview_sessions`) | Correct - different naming but same concept |
+| Spec Requirement | Implementation Status | Location |
+|------------------|----------------------|----------|
+| **Provider Context Header** | ✅ Implemented at Candidate Detail page level | `CandidateProfileHeader.tsx` |
+| **Interview Kit Header** | ✅ Implemented | `InterviewKitHeader.tsx` |
+| **Domain Question Generation (R6.2)** | ✅ Up to 10 questions from `question_bank` filtered by `speciality_id` + `usage_mode` | `interviewKitGenerationService.ts` |
+| **Competency Question Generation** | ✅ From `interview_kit_questions` filtered by `industry_segment_id` + `expertise_level_id` | `interviewKitGenerationService.ts` |
+| **Proof Point Question Generation** | ✅ Template-based, 2 per proof point | `generateProofPointQuestions()` |
+| **Mandatory Rating Per Question (R6.3)** | ✅ Right=5, Wrong=0, Not Answered=0 | `InterviewQuestionCard.tsx`, `useUpdateQuestionRating()` |
+| **Optional Comments (R6.4)** | ✅ Max 500 chars with character counter | `InterviewQuestionCard.tsx` |
+| **Submission Validation (R6.5)** | ✅ `allRated` check before submit | `InterviewKitTabContent.tsx`, `InterviewKitFooter.tsx` |
+| **Score Calculation (C1, C2)** | ✅ `scorePercentage = (totalScore/maxScore)*100`, `scoreOutOf10` to 1 decimal | `InterviewKitFooter.tsx` |
+| **Score Rollup to interview_bookings** | ✅ All rollup columns populated | `useSubmitInterview()` |
+| **CRUD Operations** | ✅ Read, Create, Update, Soft Delete | All hooks in `useInterviewKitEvaluation.ts` |
+| **Add Custom Question** | ✅ Per section | `AddQuestionDialog.tsx`, `useAddCustomQuestion()` |
+| **Edit Question** | ✅ Text + Expected Answer | `EditQuestionDialog.tsx`, `useUpdateQuestionText()` |
+| **Delete Question** | ✅ Soft delete (is_deleted=true) | `DeleteQuestionConfirm.tsx`, `useDeleteQuestion()` |
+| **Radio Button UX Fix** | ✅ Removed `disabled={isUpdating}` | `InterviewQuestionCard.tsx` line 143-147 |
+| **Comments Character Limit** | ✅ 500 chars with counter | `InterviewQuestionCard.tsx` |
+| **Submit Interview Button** | ✅ With validation | `InterviewKitFooter.tsx` |
+| **Toast Messages** | ✅ Aligned with spec | All mutation hooks |
+| **Auto-generate on first load** | ✅ useEffect triggers when no questions exist | `InterviewKitTabContent.tsx` |
+| **Regenerate Questions Button** | ✅ Available when no questions | `InterviewKitTabContent.tsx` |
+| **Collapsible Sections** | ✅ Per section with stats | `InterviewKitSection.tsx` |
+| **RLS Policies** | ✅ Reviewers can manage own evaluations | Database |
+| **Audit Fields** | ✅ `created_by`, `updated_by`, `withCreatedBy()`, `withUpdatedBy()` | All mutations |
 
 ---
 
-## Issues to Fix
+## SECTION 2: NOT IMPLEMENTED
 
-### Issue 1: Radio Button "Not Allowed" Cursor (HIGH PRIORITY)
+### 2A. Items NOT Required (Irrelevant to Lovable.dev)
 
-**Root Cause**: The `RadioGroupItem` in `radio-group.tsx` uses `disabled:cursor-not-allowed` styling. The parent `RadioGroup` receives `disabled={isUpdating}` which briefly activates during mutation state changes, causing a flash of disabled cursor.
+| Original Spec | Reason Not Applicable |
+|---------------|----------------------|
+| `interview_sessions` table | System uses `interview_evaluations` (same purpose, different name) |
+| `interview_session_responses` table | System uses `interview_question_responses` (same purpose) |
+| REST API endpoints (F1-F4) | SPA uses React Query + Supabase directly, not REST APIs |
+| `question_type` ENUM on question_bank | System uses existing `usage_mode` column ('self_assessment', 'interview', 'both') |
+| Review Notes inside Interview Kit tab | Notes are on **Expertise Tab** and **Slots Tab** separately (correct architecture) |
+| "2 notes" count display | Not part of Interview Kit (handled in Expertise/Slots tabs) |
+| `flag_for_clarification` + `reviewer_notes` for Interview Kit | These are **Expertise tab** fields (`expertise_flag_for_clarification`, `expertise_reviewer_notes`) |
+| Author name on notes | Already available via reviewer context in Expertise/Slots tabs |
+| Timestamp display on notes | Would require schema change; current design uses audit fields |
 
-**Current Code (Line 143-148 in InterviewQuestionCard.tsx)**:
-```tsx
-<RadioGroup
-  value={ratingValue}
-  onValueChange={handleRatingChange}
-  className="flex flex-wrap gap-4"
-  disabled={isUpdating}  // This causes the issue
->
+### 2B. Items Partially Implemented (May Need Enhancement)
+
+| Original Spec | Current State | Gap | Priority |
+|---------------|---------------|-----|----------|
+| **Keyboard navigation** | RadioGroup is keyboard navigable by default | May need ARIA labels on action buttons | LOW |
+| **Error focus on first unrated question** | Submit disabled until all rated | No scroll-to-error on submit attempt | LOW |
+| **Export PDF** | Button exists with toast "coming soon" | Export functionality not implemented | MEDIUM |
+
+### 2C. Items NOT Implemented But NOT NEEDED
+
+| Original Spec | Reason Not Needed |
+|---------------|-------------------|
+| Minimum validation on note text | Review notes are on Expertise/Slots tabs, not Interview Kit |
+| Note delete via trash icon | Notes are text fields cleared via empty string (already works) |
+| Interview Slot status rendering | Handled in Slots tab, not Interview Kit |
+
+---
+
+## SECTION 3: FINAL TECHNICAL SPECIFICATIONS (Cleaned)
+
+### 3.1 Database Schema (CURRENT - No Changes Needed)
+
+```text
+┌─────────────────────────────────────────────────────────────────────┐
+│ interview_evaluations (One per reviewer per booking)                 │
+├─────────────────────────────────────────────────────────────────────┤
+│ id                    UUID PK                                        │
+│ booking_id            UUID FK → interview_bookings.id                │
+│ reviewer_id           UUID FK → panel_reviewers.id                   │
+│ overall_score         NUMERIC (10-point scale)                       │
+│ outcome               VARCHAR ('pass' | 'fail')                      │
+│ notes                 TEXT                                           │
+│ evaluated_at          TIMESTAMPTZ                                    │
+│ created_at, updated_at, created_by, updated_by                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ interview_question_responses (One per question per evaluation)       │
+├─────────────────────────────────────────────────────────────────────┤
+│ id                    UUID PK                                        │
+│ evaluation_id         UUID FK → interview_evaluations.id             │
+│ question_source       TEXT ('question_bank'|'interview_kit'|         │
+│                              'proof_point'|'custom')                 │
+│ question_bank_id      UUID FK (nullable)                             │
+│ interview_kit_question_id UUID FK (nullable)                         │
+│ proof_point_id        UUID FK (nullable)                             │
+│ question_text         TEXT                                           │
+│ expected_answer       TEXT                                           │
+│ rating                TEXT ('right'|'wrong'|'not_answered'|NULL)     │
+│ score                 INTEGER (0 or 5)                               │
+│ comments              TEXT (max 500 chars)                           │
+│ section_name          TEXT                                           │
+│ section_type          VARCHAR ('domain'|'proof_point'|'competency')  │
+│ section_label         VARCHAR                                        │
+│ display_order         INTEGER                                        │
+│ is_deleted            BOOLEAN                                        │
+│ created_at, updated_at, created_by, updated_by                       │
+└─────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ interview_bookings (Score Rollup Storage)                            │
+├─────────────────────────────────────────────────────────────────────┤
+│ interview_total_questions      INTEGER                               │
+│ interview_correct_count        INTEGER                               │
+│ interview_score_percentage     NUMERIC                               │
+│ interview_score_out_of_10      NUMERIC (1 decimal)                   │
+│ interview_submitted_at         TIMESTAMPTZ                           │
+│ interview_submitted_by         UUID                                  │
+│ interview_outcome              VARCHAR                               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Solution**: Remove the `disabled` prop from `RadioGroup` and instead handle it at the button/indicator level, or use a local loading indicator instead of disabling the entire group.
+### 3.2 Question Generation Logic (CURRENT)
 
-### Issue 2: Submit Interview Not Implemented (MEDIUM PRIORITY)
+| Section | Source | Filter | Count |
+|---------|--------|--------|-------|
+| Domain & Delivery Depth | `question_bank` | `speciality_id IN (provider's specialities)` + `usage_mode IN ('interview', 'both')` + `is_active = true` | Max 10 random |
+| Proof Points Deep-Dive | Template generation | From proof point titles | 2 per proof point |
+| Competency Sections (5) | `interview_kit_questions` | `industry_segment_id` + `expertise_level_id` (exact), fallback to industry-only | 2 per competency |
 
-**Current State**: `useUpdateEvaluation()` exists but:
-- No "Submit Interview" button in the UI
-- No validation check for "all questions rated"
-- No rollup to `interview_bookings` table (which has `interview_score_percentage`, `interview_score_out_of_10`, etc.)
+### 3.3 Scoring Logic (CURRENT)
 
-**Required Implementation**:
-1. Add submit validation: "Please rate all questions before submitting"
-2. Calculate scores:
-   - `interview_percent = (earned_marks / max_marks) * 100`
-   - `interview_score_10 = (earned_marks / max_marks) * 10` (1 decimal)
-3. Update `interview_bookings` with rollup values
-4. Show success toast: "Interview submitted successfully"
+```typescript
+// Per-question
+const score = rating === 'right' ? 5 : 0;
 
-### Issue 3: Comments Character Limit (LOW PRIORITY)
+// Overall
+const totalQuestions = activeQuestions.length;
+const correctCount = questions.filter(q => q.rating === 'right').length;
+const totalScore = questions.reduce((sum, q) => sum + q.score, 0);
+const maxScore = totalQuestions * 5;
+const scorePercentage = (totalScore / maxScore) * 100;
+const scoreOutOf10 = (totalScore / maxScore) * 10;  // 1 decimal
 
-**Current**: No `maxLength` prop on comments textarea
-**Spec**: Max 500 characters
+// Outcome
+const outcome = scorePercentage >= 60 ? 'pass' : 'fail';
+```
 
----
+### 3.4 Validation Rules (CURRENT)
 
-## Files to Modify
+| Field | Validation | Enforcement |
+|-------|------------|-------------|
+| Rating | Required (enum: 'right', 'wrong', 'not_answered') | UI disables submit until all rated |
+| Comments | Optional, max 500 chars | `maxLength={500}` + character counter |
+| Submit | All questions must have rating | `allRated === true` check |
 
-| File | Changes |
+### 3.5 Toast Messages (CURRENT)
+
+| Action | Message |
+|--------|---------|
+| Generate questions | "Generated {count} interview questions" |
+| Update question | "Question updated" |
+| Delete question | "Question removed" |
+| Submit interview | "Interview submitted successfully" |
+| Submit validation fail | "Please rate all questions before submitting" |
+
+### 3.6 Components & Hooks (CURRENT)
+
+| Component | Purpose |
+|-----------|---------|
+| `InterviewKitTabContent` | Main container with state management |
+| `InterviewKitHeader` | Section title |
+| `InterviewKitFooter` | Score display + Submit button |
+| `InterviewKitSection` | Collapsible section wrapper |
+| `InterviewQuestionCard` | Individual question with rating + comments |
+| `ProofPointQuestionGroup` | Group proof point questions |
+| `AddQuestionDialog` | Custom question form |
+| `EditQuestionDialog` | Edit question text |
+| `DeleteQuestionConfirm` | Delete confirmation |
+
+| Hook | Purpose |
 |------|---------|
-| `src/components/reviewer/interview-kit/InterviewQuestionCard.tsx` | 1. Remove `disabled={isUpdating}` from RadioGroup<br>2. Add `maxLength={500}` to Comments textarea<br>3. Add character counter for comments |
-| `src/components/reviewer/interview-kit/InterviewKitFooter.tsx` | Add Submit Interview button with validation |
-| `src/hooks/queries/useInterviewKitEvaluation.ts` | Add `useSubmitInterview()` mutation that:<br>- Validates all questions rated<br>- Calculates score<br>- Updates `interview_bookings` with rollup |
+| `useInterviewKitEvaluation` | Fetch/create evaluation + questions |
+| `useGenerateInterviewQuestions` | Generate from 3 sources |
+| `useUpdateQuestionRating` | Rating + comments update |
+| `useUpdateQuestionText` | Edit question |
+| `useDeleteQuestion` | Soft delete |
+| `useAddCustomQuestion` | Add custom |
+| `useSubmitInterview` | Submit + rollup |
 
 ---
 
-## Database Schema Alignment
+## SECTION 4: OPTIONAL FUTURE ENHANCEMENTS
 
-The spec mentions `interview_sessions` but the current system uses equivalent tables:
+These are not required but could improve UX:
 
-| Spec Table | Current Table | Notes |
-|------------|---------------|-------|
-| `interview_sessions` | `interview_evaluations` | Same purpose, different name |
-| `interview_session_responses` | `interview_question_responses` | Same purpose, different name |
-| `flag_for_clarification` | `expertise_flag_for_clarification` on `provider_industry_enrollments` | Expertise tab canonical field |
-| `reviewer_notes` | `expertise_reviewer_notes` on `provider_industry_enrollments` | Expertise tab canonical field |
-
-**Score rollup columns exist on `interview_bookings`**:
-- `interview_score_percentage`
-- `interview_score_out_of_10`
-- `interview_total_questions`
-- `interview_correct_count`
-- `interview_submitted_at`
-- `interview_submitted_by`
+| Enhancement | Priority | Effort |
+|-------------|----------|--------|
+| **PDF Export** | MEDIUM | Create PDF with html2pdf.js (already installed) |
+| **Scroll to first unrated question** on submit attempt | LOW | Add ref tracking + scrollIntoView |
+| **ARIA labels** on Edit/Delete buttons | LOW | Add aria-label props |
+| **Keyboard shortcut** for ratings (1=Right, 2=Wrong, 3=NA) | LOW | Add keydown handlers |
 
 ---
 
-## Implementation Details
+## SECTION 5: CONCLUSION
 
-### 1. Fix Radio Button Cursor Issue
+### What Was Already Correct in Original Spec
 
-```tsx
-// InterviewQuestionCard.tsx - Line 143-148
-// BEFORE:
-<RadioGroup
-  disabled={isUpdating}  // Remove this
->
+1. Scoring logic (Right=5, Wrong/NA=0)
+2. Mandatory rating validation
+3. Question generation from taxonomy
+4. Score rollup to interview_bookings
+5. Soft delete pattern
 
-// AFTER:
-<RadioGroup
-  value={ratingValue}
-  onValueChange={handleRatingChange}
-  className="flex flex-wrap gap-4"
->
-  {/* Individual items handle their own visual state */}
-```
+### What Was Incorrect/Irrelevant in Original Spec
 
-### 2. Add Comments Character Limit
+1. Review Notes placement (belongs in Expertise/Slots tabs, not Interview Kit)
+2. `interview_sessions` table name (system uses `interview_evaluations`)
+3. REST API contracts (system uses Supabase + React Query)
+4. `question_type` ENUM (system uses existing `usage_mode` column)
 
-```tsx
-// InterviewQuestionCard.tsx - Line 198-209
-const MAX_COMMENTS_CHARS = 500;
+### Current System is Complete
 
-<div className="space-y-2">
-  <Label className="text-sm font-medium flex justify-between">
-    <span>Comments</span>
-    <span className="text-xs text-muted-foreground">
-      {comments.length}/{MAX_COMMENTS_CHARS}
-    </span>
-  </Label>
-  <Textarea
-    placeholder="Add your assessment comments here... (optional)"
-    value={comments}
-    onChange={(e) => {
-      if (e.target.value.length <= MAX_COMMENTS_CHARS) {
-        setComments(e.target.value);
-        setHasLocalChanges(true);
-      }
-    }}
-    maxLength={MAX_COMMENTS_CHARS}
-    className="min-h-[80px] resize-none"
-  />
-</div>
-```
+The Interview Kit implementation is **functionally complete** with:
+- All CRUD operations
+- Proper scoring and rollup
+- Validation before submit
+- Character limits
+- Radio button UX fix
+- Audit field population
 
-### 3. Add Submit Interview Mutation
-
-```tsx
-// useInterviewKitEvaluation.ts - New hook
-interface SubmitInterviewParams {
-  bookingId: string;
-  evaluationId: string;
-  totalQuestions: number;
-  correctCount: number;
-  scorePercentage: number;
-  scoreOutOf10: number;
-}
-
-export function useSubmitInterview() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (params: SubmitInterviewParams) => {
-      const userId = await getCurrentUserId();
-
-      // Update interview_bookings with rollup
-      const { error } = await supabase
-        .from("interview_bookings")
-        .update({
-          interview_total_questions: params.totalQuestions,
-          interview_correct_count: params.correctCount,
-          interview_score_percentage: params.scorePercentage,
-          interview_score_out_of_10: params.scoreOutOf10,
-          interview_submitted_at: new Date().toISOString(),
-          interview_submitted_by: userId,
-          updated_at: new Date().toISOString(),
-          updated_by: userId,
-        })
-        .eq("id", params.bookingId);
-
-      if (error) throw new Error(error.message);
-
-      // Update evaluation with overall score
-      const evalUpdates = await withUpdatedBy({
-        overall_score: params.scoreOutOf10,
-        outcome: params.scorePercentage >= 60 ? 'pass' : 'fail',
-        evaluated_at: new Date().toISOString(),
-      });
-
-      await supabase
-        .from("interview_evaluations")
-        .update(evalUpdates)
-        .eq("id", params.evaluationId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["interview-kit-evaluation"] });
-      queryClient.invalidateQueries({ queryKey: ["candidate-detail"] });
-      toast.success("Interview submitted successfully");
-    },
-    onError: (error: Error) => {
-      handleMutationError(error, { operation: "submit_interview" });
-    },
-  });
-}
-```
-
-### 4. Update Footer with Submit Button
-
-```tsx
-// InterviewKitFooter.tsx
-export function InterviewKitFooter({ 
-  allRated, 
-  totalScore,
-  maxScore,
-  totalQuestions,
-  correctCount,
-  bookingId,
-  evaluationId,
-  onExport 
-}: InterviewKitFooterProps) {
-  const submitInterview = useSubmitInterview();
-  
-  const scorePercentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0;
-  const scoreOutOf10 = maxScore > 0 ? (totalScore / maxScore) * 10 : 0;
-
-  const handleSubmit = () => {
-    if (!allRated) {
-      toast.error("Please rate all questions before submitting");
-      return;
-    }
-    
-    submitInterview.mutate({
-      bookingId,
-      evaluationId,
-      totalQuestions,
-      correctCount,
-      scorePercentage,
-      scoreOutOf10: Math.round(scoreOutOf10 * 10) / 10, // 1 decimal
-    });
-  };
-
-  return (
-    <div className="flex items-center justify-between pt-4 border-t">
-      <div className="text-sm text-muted-foreground">
-        {allRated 
-          ? `Score: ${scoreOutOf10.toFixed(1)}/10 (${scorePercentage.toFixed(0)}%)`
-          : "Complete all ratings to submit"}
-      </div>
-      <div className="flex gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={!allRated}
-          onClick={onExport}
-        >
-          <FileDown className="h-4 w-4 mr-2" />
-          Export PDF
-        </Button>
-        <Button
-          size="sm"
-          disabled={!allRated || submitInterview.isPending}
-          onClick={handleSubmit}
-        >
-          {submitInterview.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-          Submit Interview
-        </Button>
-      </div>
-    </div>
-  );
-}
-```
-
----
-
-## Specifications Marked as "Not Applicable"
-
-| Spec Item | Reason |
-|-----------|--------|
-| `interview_sessions` table | System uses `interview_evaluations` - same purpose |
-| "Delete note: set field to NULL" | Already implemented with empty string check |
-| API endpoints (`GET /providers/{provider_id}/interview-kit`) | This is a SPA using Supabase directly, not REST APIs |
-| F1-F4 API contracts | Not applicable - using React Query + Supabase |
-
----
-
-## Toast Messages Alignment
-
-| Action | Current | Spec | Status |
-|--------|---------|------|--------|
-| Question rating saved | Silent (no toast) | "Saved." | Optional - autosave is silent by design |
-| Delete note | "Question removed" | "Note removed." | Adjust message |
-| Submit success | "Evaluation submitted" | "Interview submitted successfully." | Update message |
-| Validation failure | Not implemented | "Please rate all questions before submitting." | Add validation |
-
----
-
-## Summary of Changes
-
-### High Priority
-1. Fix radio button cursor issue (remove `disabled` from RadioGroup)
-
-### Medium Priority  
-2. Add Submit Interview button with validation
-3. Add `useSubmitInterview()` mutation
-4. Update `interview_bookings` with score rollup
-
-### Low Priority
-5. Add comments character limit (500 chars)
-6. Align toast messages with spec
-
-### No Changes Needed
-- Review Notes (already using canonical fields)
-- Scoring logic (already correct: Right=5, Wrong/NA=0)
-- Data pull logic (already using correct tables)
-- Database relations (already correct)
+**No additional database changes or major refactoring required.**
 
