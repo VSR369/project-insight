@@ -27,7 +27,7 @@ export type QuestionRating = 'right' | 'wrong' | 'not_answered' | null;
 export interface InterviewQuestionResponse {
   id: string;
   evaluationId: string;
-  questionSource: 'question_bank' | 'interview_kit' | 'proof_point' | 'custom';
+  questionSource: 'question_bank' | 'interview_kit' | 'proof_point' | 'reviewer_custom';
   questionBankId: string | null;
   interviewKitQuestionId: string | null;
   proofPointId: string | null;
@@ -470,7 +470,7 @@ export function useAddCustomQuestion() {
 
       const insertData = await withCreatedBy({
         evaluation_id: evaluationId,
-        question_source: 'custom' as const,
+        question_source: 'reviewer_custom' as const,
         question_text: questionText,
         expected_answer: expectedAnswer || null,
         section_name: sectionName,
