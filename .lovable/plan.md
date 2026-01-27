@@ -1,148 +1,158 @@
 
-# Interview KIT Page Navigation Enhancement
 
-## Current Status
+# Fix: Interview KIT Form Data Loss on Tab Switch
 
-The Interview KIT Question Bank is **fully implemented** with complete CRUD operations:
+## Problem Summary
 
-| Component | Status | Location |
-|-----------|--------|----------|
-| Database Tables | ✅ Done | `interview_kit_competencies`, `interview_kit_questions` |
-| CRUD Hooks | ✅ Done | `src/hooks/queries/useInterviewKitQuestions.ts` |
-| Question Form | ✅ Done | `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx` |
-| Questions Page | ✅ Done | `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx` |
-| Import/Export | ✅ Done | `InterviewKitImportDialog.tsx`, `InterviewKitExcelExport.ts` |
-| Routing | ✅ Done | `/admin/interview/kit/questions` in `App.tsx` |
-| **Main Page Navigation** | ❌ Missing | `src/pages/admin/interview-kit/InterviewKitPage.tsx` |
+When users open the "Add Question" dialog, enter data, tab away to another browser tab, and return, the dialog closes and all entered data is lost. They must re-enter everything.
 
 ---
 
-## What's Missing
+## Root Cause Analysis
 
-The main Interview KIT page (`/admin/interview/kit`) shows static competency cards but **doesn't link to the questions page**. Users cannot navigate from the overview to manage questions for each competency.
+| Issue | Description | Impact |
+|-------|-------------|--------|
+| React Query Default Behavior | `refetchOnWindowFocus: true` triggers data refresh when tab regains focus | Causes component re-renders while dialog is open |
+| Form Reset on Re-render | `useEffect` in form resets fields when `open` changes or dependencies update | User-entered data cleared on focus return |
+| Missing Stability Guards | Unlike proof-points forms, no `refetchOnWindowFocus: false` configured | Queries refetch aggressively |
 
 ---
 
-## Implementation Plan
+## Solution
 
-### File to Update
-`src/pages/admin/interview-kit/InterviewKitPage.tsx`
+### Fix 1: Add Stability Options to Query Hooks
 
-### Changes Required
+**File:** `src/hooks/queries/useInterviewKitQuestions.ts`
 
-1. **Add "Manage All Questions" Button**
-   - Add button in header that navigates to `/admin/interview/kit/questions`
-   - Consistent with other admin pages
+Add `refetchOnWindowFocus: false` to prevent data refetching when the user returns to the tab. This follows the pattern established in `useProviderSelectedTaxonomy.ts` per project memory `memory/features/proof-point-ui-stability-logic`.
 
-2. **Make Competency Cards Clickable**
-   - Wrap each card with `Link` from react-router-dom
-   - Navigate to `/admin/interview/kit/questions?competency={code}`
-   - Add hover effect to indicate clickability
-
-3. **Show Question Counts per Competency**
-   - Use the existing `useInterviewKitQuestionCounts()` hook
-   - Display badge on each card showing the count
-   - Map competency codes from database to display cards
-
-4. **Update Competency Data Source**
-   - Instead of hardcoded `universalCompetencies` array
-   - Fetch from database using `useInterviewKitCompetencies()` 
-   - Fallback to static data if loading/error
-   - Use `COMPETENCY_CONFIG` constants for icons/colors
-
-### Code Changes Summary
-
-```tsx
-// Before: Static cards, no links
-const universalCompetencies = [/* hardcoded array */];
-
-export default function InterviewKitPage() {
-  return (
-    <Card>
-      {/* Static display only */}
-    </Card>
-  );
+```typescript
+// useInterviewKitCompetencies
+export function useInterviewKitCompetencies(includeInactive = false) {
+  return useQuery({
+    queryKey: ["interview_kit_competencies", { includeInactive }],
+    queryFn: async () => { ... },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,  // ADD: Prevent refetch on tab return
+    refetchOnMount: false,        // ADD: Data already cached
+  });
 }
 
-// After: Dynamic data, clickable cards with counts
-import { Link } from "react-router-dom";
-import { useInterviewKitCompetencies, useInterviewKitQuestionCounts } from "@/hooks/queries/useInterviewKitQuestions";
-import { COMPETENCY_CONFIG } from "@/constants";
-
-export default function InterviewKitPage() {
-  const { data: competencies = [] } = useInterviewKitCompetencies();
-  const { data: questionCounts = {} } = useInterviewKitQuestionCounts();
-
-  return (
-    <>
-      {/* Header with "Manage All Questions" button */}
-      <Button asChild>
-        <Link to="/admin/interview/kit/questions">
-          Manage All Questions
-        </Link>
-      </Button>
-
-      {/* Clickable competency cards */}
-      {competencies.map((comp) => (
-        <Link 
-          key={comp.id} 
-          to={`/admin/interview/kit/questions?competency=${comp.code}`}
-        >
-          <Card className="hover:shadow-md transition-shadow cursor-pointer">
-            <CardHeader>
-              <Icon className={config.color} />
-              <CardTitle>{comp.name}</CardTitle>
-              <Badge>{questionCounts[comp.code] || 0} questions</Badge>
-            </CardHeader>
-            <CardContent>
-              <p>{comp.description}</p>
-            </CardContent>
-          </Card>
-        </Link>
-      ))}
-    </>
-  );
+// useInterviewKitQuestions
+export function useInterviewKitQuestions(filters: InterviewKitQuestionsFilter = {}) {
+  return useQuery({
+    queryKey: ["interview_kit_questions", filters],
+    queryFn: async () => { ... },
+    refetchOnWindowFocus: false,  // ADD: Prevent refetch during form entry
+  });
 }
 ```
 
-### UI Enhancements
+### Fix 2: Stabilize Form Reset Logic
 
-| Element | Before | After |
-|---------|--------|-------|
-| Header | Title only | Title + "Manage All Questions" button |
-| Cards | Static display | Clickable with hover effect |
-| Count | None | Badge showing question count |
-| Data Source | Hardcoded array | Database via hooks |
-| Icons/Colors | Hardcoded | From `COMPETENCY_CONFIG` constants |
+**File:** `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`
 
----
+The current `useEffect` resets the form on every `open` change. Add a ref to track if form was already initialized to prevent unnecessary resets.
 
-## Standards Compliance
+**Current Code (lines 108-133):**
+```typescript
+useEffect(() => {
+  if (open) {
+    if (question) {
+      form.reset({ ... });
+    } else {
+      form.reset({ ... });
+    }
+  }
+}, [open, question, defaultCompetencyId, form]);
+```
 
-| Standard | Implementation |
-|----------|----------------|
-| Hooks at top level | ✅ All hooks before conditional returns |
-| Error states | ✅ Loading skeleton, empty state handled |
-| Navigation | ✅ react-router-dom Link component |
-| Constants | ✅ Uses COMPETENCY_CONFIG from constants |
-| Cache | ✅ Uses existing cached hooks |
+**Fixed Code:**
+```typescript
+import { useEffect, useRef } from "react";
+
+// Add ref to track initialization
+const hasInitializedRef = useRef(false);
+
+useEffect(() => {
+  // Only reset on INITIAL open, not on every render
+  if (open && !hasInitializedRef.current) {
+    hasInitializedRef.current = true;
+    if (question) {
+      form.reset({ ... });
+    } else {
+      form.reset({ ... });
+    }
+  }
+  
+  // Reset the flag when dialog closes
+  if (!open) {
+    hasInitializedRef.current = false;
+  }
+}, [open, question, defaultCompetencyId, form]);
+```
+
+### Fix 3: Add Form Stability Key
+
+**File:** `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx`
+
+Add a stable key to the form component to prevent unnecessary remounts.
+
+```typescript
+// Add state to track form session
+const [formSessionId, setFormSessionId] = useState(0);
+
+// Update when intentionally opening form
+const openAddForm = () => {
+  setEditingQuestion(null);
+  setFormSessionId((id) => id + 1);
+  setFormOpen(true);
+};
+
+// In JSX
+<InterviewKitQuestionForm
+  key={`form-${formSessionId}-${editingQuestion?.id || 'new'}`}
+  open={formOpen}
+  onOpenChange={(open) => {
+    setFormOpen(open);
+    if (!open) setEditingQuestion(null);
+  }}
+  question={editingQuestion}
+  defaultCompetencyId={competencyId}
+/>
+```
 
 ---
 
 ## Files Changed
 
-| File | Action |
-|------|--------|
-| `src/pages/admin/interview-kit/InterviewKitPage.tsx` | UPDATE - Add navigation, hooks, clickable cards |
+| File | Changes |
+|------|---------|
+| `src/hooks/queries/useInterviewKitQuestions.ts` | Add `refetchOnWindowFocus: false` and `refetchOnMount: false` to both query hooks |
+| `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx` | Add `hasInitializedRef` to prevent form reset on re-renders |
+| `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx` | Add stable key pattern for form component |
+
+---
+
+## Pattern Reference
+
+This fix follows the established pattern from:
+- **Memory:** `memory/features/proof-point-ui-stability-logic`
+- **Memory:** `memory/features/assessment-ui-stability-governance`
+- **File:** `src/hooks/queries/useProviderSelectedTaxonomy.ts` (lines 130-134)
 
 ---
 
 ## Testing Checklist
 
 After implementation:
-- [ ] "Manage All Questions" button navigates to questions page
-- [ ] Each competency card is clickable
-- [ ] Clicking a card pre-filters questions by that competency
-- [ ] Question counts display correctly on each card
-- [ ] Loading state shows skeleton while fetching
-- [ ] Cards have hover effect indicating clickability
+- [ ] Open "Add Question" dialog
+- [ ] Fill in all fields with test data
+- [ ] Tab away to another browser tab
+- [ ] Wait 5+ seconds
+- [ ] Tab back to the app
+- [ ] Verify dialog is still open
+- [ ] Verify all entered data is preserved
+- [ ] Submit the form successfully
+
