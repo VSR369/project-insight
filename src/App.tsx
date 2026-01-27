@@ -1,7 +1,7 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
@@ -88,8 +88,10 @@ import ReviewerSettings from "@/pages/reviewer/ReviewerSettings";
 import CandidateDetailPage from "@/pages/reviewer/CandidateDetailPage";
 import ReviewerPendingApproval from "@/pages/reviewer/ReviewerPendingApproval";
 
+import { queryClient } from "@/lib/queryClient";
+
 // Export queryClient for shared access (auth state changes, portal switching)
-export const queryClient = new QueryClient();
+export { queryClient };
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
