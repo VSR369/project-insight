@@ -1,6 +1,9 @@
 /**
  * Interview KIT Question Form Dialog
  * Per Project Knowledge Section 9.3 - Form Handling Standard
+ * 
+ * IMPORTANT: This dialog uses "close only with buttons" pattern to prevent
+ * accidental closure during Alt+Tab or outside clicks.
  */
 
 import { useEffect, useRef } from "react";
@@ -34,7 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import {
@@ -78,6 +81,31 @@ export function InterviewKitQuestionForm({
   defaultCompetencyId,
 }: InterviewKitQuestionFormProps) {
   const isEditing = !!question;
+
+  // "Close only with buttons" guard - prevents Radix from closing dialog unexpectedly
+  const allowCloseRef = useRef(false);
+
+  // Guarded onOpenChange - only allows close when explicitly authorized
+  const handleOpenChange = (newOpen: boolean) => {
+    if (newOpen) {
+      // Opening is always allowed
+      allowCloseRef.current = false; // Reset for next close attempt
+      onOpenChange(true);
+    } else {
+      // Closing is only allowed if explicitly authorized by a button
+      if (allowCloseRef.current) {
+        allowCloseRef.current = false; // Reset after use
+        onOpenChange(false);
+      }
+      // If not authorized, ignore the close request (Alt+Tab, outside click, etc.)
+    }
+  };
+
+  // Helper to close dialog with authorization
+  const closeDialog = () => {
+    allowCloseRef.current = true;
+    onOpenChange(false);
+  };
 
   // Data hooks
   const { data: industrySegments = [], isLoading: loadingSegments } = useIndustrySegments();
@@ -160,20 +188,23 @@ export function InterviewKitQuestionForm({
           is_active: data.is_active,
         });
       }
-      onOpenChange(false);
+      closeDialog(); // Close with authorization after success
     } catch {
       // Error handled by mutation hook
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent 
         className="max-w-2xl max-h-[90vh] overflow-y-auto"
+        hideCloseButton // We render our own X button to control close authorization
         onInteractOutside={(e) => e.preventDefault()}
         onPointerDownOutside={(e) => e.preventDefault()}
+        onFocusOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <DialogHeader>
+        <DialogHeader className="relative pr-8">
           <DialogTitle>
             {isEditing ? "Edit Question" : "Add Question"}
           </DialogTitle>
@@ -182,6 +213,15 @@ export function InterviewKitQuestionForm({
               ? "Update the interview question details below."
               : "Create a new interview question for the KIT."}
           </DialogDescription>
+          {/* Custom X close button with authorization */}
+          <button
+            type="button"
+            onClick={closeDialog}
+            className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            aria-label="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </DialogHeader>
 
         {isLoading ? (
@@ -362,7 +402,7 @@ export function InterviewKitQuestionForm({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={() => onOpenChange(false)}
+                  onClick={closeDialog}
                   disabled={isSaving}
                 >
                   Cancel
