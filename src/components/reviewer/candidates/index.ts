@@ -24,3 +24,5 @@ export { DeclineSlotDialog } from "./DeclineSlotDialog";
 export { CancelAcceptedSlotDialog } from "./CancelAcceptedSlotDialog";
 // Assessment tab components
 export { AssessmentTabContent } from "./AssessmentTabContent";
+// Interview Kit tab components
+export { InterviewKitTabContent } from "./InterviewKitTabContent";
