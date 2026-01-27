@@ -2,7 +2,7 @@ import { ReactNode } from 'react';
 import { Navigate } from 'react-router-dom';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useAuth } from '@/hooks/useAuth';
-import { AuthGuard } from './AuthGuard';
+import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
