@@ -51,6 +51,9 @@ export interface SlotContextData {
   // All reviewers for this booking (for quorum display)
   totalReviewers: number;
   acceptedReviewers: number;
+  
+  // Interview submission status
+  interviewSubmittedAt: string | null;
 }
 
 export type DeclineReason = 'poor_credentials' | 'reviewer_unavailable';
@@ -89,7 +92,8 @@ export function useSlotContext(enrollmentId?: string) {
           status,
           composite_slot_id,
           provider_id,
-          enrollment_id
+          enrollment_id,
+          interview_submitted_at
         `)
         .eq('enrollment_id', enrollmentId)
         .not('status', 'in', '("cancelled")') 
@@ -202,6 +206,8 @@ export function useSlotContext(enrollmentId?: string) {
         
         totalReviewers: bookingReviewers.length,
         acceptedReviewers: bookingReviewers.filter(br => br.acceptance_status === 'accepted').length,
+        
+        interviewSubmittedAt: booking.interview_submitted_at || null,
       };
     },
     enabled: !!enrollmentId,
