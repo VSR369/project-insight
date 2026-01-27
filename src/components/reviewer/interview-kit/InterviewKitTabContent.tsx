@@ -18,6 +18,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { InterviewKitHeader } from "./InterviewKitHeader";
 import { InterviewKitFooter } from "./InterviewKitFooter";
+import { InterviewKitSummaryDashboard } from "./InterviewKitSummaryDashboard";
 import { InterviewKitSection } from "./InterviewKitSection";
 import { InterviewQuestionCard } from "./InterviewQuestionCard";
 import { ProofPointQuestionGroup } from "./ProofPointQuestionGroup";
@@ -257,6 +258,26 @@ export function InterviewKitTabContent({ enrollmentId }: InterviewKitTabContentP
     return { rated, total: allProofPointQuestions.length, score, maxScore };
   }, [allProofPointQuestions]);
 
+  // Rating distribution for dashboard
+  const ratingDistribution = useMemo(() => {
+    const activeQuestions = evaluationData?.questions.filter(q => !q.isDeleted) || [];
+    const rightCount = activeQuestions.filter(q => q.rating === 'right').length;
+    const wrongCount = activeQuestions.filter(q => q.rating === 'wrong').length;
+    const notAnsweredCount = activeQuestions.filter(q => q.rating === 'not_answered').length;
+    const ratedCount = activeQuestions.filter(q => q.rating !== null).length;
+    
+    return { rightCount, wrongCount, notAnsweredCount, ratedCount };
+  }, [evaluationData?.questions]);
+
+  // Sections count (domain + proof points + each competency)
+  const sectionsCount = useMemo(() => {
+    let count = 0;
+    if (domainQuestions.length > 0) count += 1;
+    if (allProofPointQuestions.length > 0) count += 1;
+    count += (competencies?.length || 0);
+    return count;
+  }, [domainQuestions.length, allProofPointQuestions.length, competencies?.length]);
+
   // ─────────────────────────────────────────────────────────────────────────
   // Render
   // ─────────────────────────────────────────────────────────────────────────
@@ -292,6 +313,18 @@ export function InterviewKitTabContent({ enrollmentId }: InterviewKitTabContentP
 
   return (
     <div className="space-y-6">
+      {/* Summary Dashboard */}
+      <InterviewKitSummaryDashboard
+        totalQuestions={evaluationData.totalQuestions}
+        ratedQuestions={ratingDistribution.ratedCount}
+        totalScore={evaluationData.totalScore}
+        maxScore={evaluationData.maxScore}
+        sectionsCount={sectionsCount}
+        rightCount={ratingDistribution.rightCount}
+        wrongCount={ratingDistribution.wrongCount}
+        notAnsweredCount={ratingDistribution.notAnsweredCount}
+      />
+
       <InterviewKitHeader />
 
       {/* Generate/Regenerate Button */}
