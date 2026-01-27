@@ -28,6 +28,7 @@ import {
   Calendar,
   UserCheck,
   CalendarClock,
+  ClipboardList,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -47,6 +48,7 @@ const taxonomyItems = [
 ];
 
 const interviewItems = [
+  { title: 'Interview KIT', icon: ClipboardList, path: '/admin/interview/kit' },
   { title: 'Quorum Requirements', icon: Calendar, path: '/admin/interview/quorum-requirements' },
   { title: 'Reviewer Availability', icon: CalendarClock, path: '/admin/interview/reviewer-availability' },
   { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
