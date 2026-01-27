@@ -104,6 +104,8 @@ export function useInterviewKitCompetencies(includeInactive = false) {
     },
     staleTime: 5 * 60 * 1000,   // 5 minutes - reference data
     gcTime: 30 * 60 * 1000,     // 30 minutes cache
+    refetchOnWindowFocus: false, // Prevents refetch on tab return (form stability)
+    refetchOnMount: false,       // Data already cached
   });
 }
 
@@ -170,6 +172,7 @@ export function useInterviewKitQuestions(filters: InterviewKitQuestionsFilter = 
       return allQuestions;
     },
     enabled: true,
+    refetchOnWindowFocus: false, // Prevents refetch on tab return (form stability)
   });
 }
 

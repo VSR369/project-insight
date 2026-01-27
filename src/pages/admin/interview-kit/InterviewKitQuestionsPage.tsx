@@ -79,6 +79,7 @@ export function InterviewKitQuestionsPage() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const [formOpen, setFormOpen] = useState(false);
+  const [formSessionId, setFormSessionId] = useState(0); // Stable key for form component
   const [importOpen, setImportOpen] = useState(false);
   const [editingQuestion, setEditingQuestion] = useState<InterviewKitQuestionWithRelations | null>(null);
   const [viewingQuestion, setViewingQuestion] = useState<InterviewKitQuestionWithRelations | null>(null);
@@ -206,7 +207,11 @@ export function InterviewKitQuestionsPage() {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-            <Button size="sm" onClick={() => { setEditingQuestion(null); setFormOpen(true); }}>
+            <Button size="sm" onClick={() => { 
+              setEditingQuestion(null); 
+              setFormSessionId((id) => id + 1); // Increment to create fresh form
+              setFormOpen(true); 
+            }}>
               <Plus className="mr-2 h-4 w-4" />
               Add Question
             </Button>
@@ -449,8 +454,9 @@ export function InterviewKitQuestionsPage() {
         )}
       </div>
 
-      {/* Question Form Dialog */}
+      {/* Question Form Dialog - stable key prevents remounts on parent re-renders */}
       <InterviewKitQuestionForm
+        key={`form-${formSessionId}-${editingQuestion?.id || 'new'}`}
         open={formOpen}
         onOpenChange={(open) => {
           setFormOpen(open);

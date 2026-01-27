@@ -3,7 +3,7 @@
  * Per Project Knowledge Section 9.3 - Form Handling Standard
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -105,9 +105,14 @@ export function InterviewKitQuestionForm({
     },
   });
 
-  // Reset form when dialog opens/closes or question changes
+  // Ref to track if form was already initialized (prevents reset on tab focus)
+  const hasInitializedRef = useRef(false);
+
+  // Reset form only on INITIAL open, not on every re-render
+  // This prevents data loss when user tabs away and returns
   useEffect(() => {
-    if (open) {
+    if (open && !hasInitializedRef.current) {
+      hasInitializedRef.current = true;
       if (question) {
         form.reset({
           industry_segment_id: question.industry_segment_id,
@@ -129,6 +134,11 @@ export function InterviewKitQuestionForm({
           is_active: true,
         });
       }
+    }
+    
+    // Reset the initialization flag when dialog closes
+    if (!open) {
+      hasInitializedRef.current = false;
     }
   }, [open, question, defaultCompetencyId, form]);
 
