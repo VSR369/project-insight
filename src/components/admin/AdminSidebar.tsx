@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -9,8 +10,16 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarFooter,
 } from '@/components/ui/sidebar';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   LayoutDashboard,
   Globe,
@@ -30,6 +39,7 @@ import {
   CalendarClock,
   ClipboardList,
   Mail,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,7 +66,6 @@ const interviewItems = [
 ];
 
 const otherItems = [
-  { title: 'Invitations', icon: Mail, path: '/admin/invitations' },
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
@@ -68,7 +77,13 @@ export function AdminSidebar() {
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
 
+  // Auto-expand invitations submenu if on an invitations route
+  const [invitationsOpen, setInvitationsOpen] = useState(
+    location.pathname.startsWith('/admin/invitations')
+  );
+
   const isActive = (path: string) => location.pathname === path;
+  const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
   return (
     <Sidebar className="border-r">
@@ -162,6 +177,44 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Other</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
+              {/* Invitations Collapsible Submenu */}
+              <Collapsible
+                open={invitationsOpen}
+                onOpenChange={setInvitationsOpen}
+                className="group/collapsible"
+              >
+                <SidebarMenuItem>
+                  <CollapsibleTrigger asChild>
+                    <SidebarMenuButton isActive={isInvitationsActive}>
+                      <Mail className="h-4 w-4" />
+                      <span className="flex-1">Invitations</span>
+                      <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                    </SidebarMenuButton>
+                  </CollapsibleTrigger>
+                  <CollapsibleContent>
+                    <SidebarMenuSub>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          onClick={() => navigate('/admin/invitations')}
+                          isActive={isActive('/admin/invitations')}
+                        >
+                          Solution Provider
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                      <SidebarMenuSubItem>
+                        <SidebarMenuSubButton
+                          onClick={() => navigate('/admin/invitations/panel-reviewers')}
+                          isActive={isActive('/admin/invitations/panel-reviewers')}
+                        >
+                          Panel Reviewer
+                        </SidebarMenuSubButton>
+                      </SidebarMenuSubItem>
+                    </SidebarMenuSub>
+                  </CollapsibleContent>
+                </SidebarMenuItem>
+              </Collapsible>
+
+              {/* Other menu items */}
               {otherItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton

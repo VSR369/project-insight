@@ -68,7 +68,7 @@ import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
 import { QuestionBankPage } from "@/pages/admin/question-bank";
 import { CapabilityTagsPage } from "@/pages/admin/capability-tags";
 import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
-import { InvitationsPage } from "@/pages/admin/invitations";
+import { InvitationsPage, PanelReviewerInvitationsPage } from "@/pages/admin/invitations";
 import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
 import SmokeTestPage from "@/pages/admin/SmokeTestPage";
 import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
@@ -459,6 +459,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <InvitationsPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/invitations/panel-reviewers"
+              element={
+                <AdminGuard>
+                  <PanelReviewerInvitationsPage />
                 </AdminGuard>
               }
             />
