@@ -78,13 +78,21 @@ export async function generateDomainQuestions(
   // @ts-ignore - Supabase type instantiation too deep
   const questionsResult = await supabase
     .from("question_bank")
-    .select("id, question_text, correct_option, options, speciality_id")
+    .select("id, question_text, correct_option, options, speciality_id, expected_answer_guidance")
     .in("speciality_id", specialityIds)
     .in("usage_mode", ["interview", "both"])
     .eq("is_deleted", false)
+    .eq("is_active", true)
     .limit(50);
 
-  const questions = questionsResult.data as { id: string; question_text: string; correct_option: number | null; options: string[] | null; speciality_id: string }[] | null;
+  const questions = questionsResult.data as { 
+    id: string; 
+    question_text: string; 
+    correct_option: number | null; 
+    options: string[] | null; 
+    speciality_id: string;
+    expected_answer_guidance: string | null;
+  }[] | null;
 
   if (!questions || questions.length === 0) {
     return [];
@@ -100,7 +108,9 @@ export async function generateDomainQuestions(
     questionId: q.id,
     proofPointId: null,
     questionText: q.question_text,
-    expectedAnswer: q.options ? `Correct: Option ${(q.correct_option || 0) + 1}` : null,
+    // Use expected_answer_guidance if available, otherwise fall back to option reference
+    expectedAnswer: q.expected_answer_guidance || 
+      (q.options && q.correct_option !== null ? `Correct: Option ${q.correct_option + 1} - ${q.options[q.correct_option]}` : null),
     sectionName: 'Domain & Delivery Depth',
     displayOrder: index,
   }));

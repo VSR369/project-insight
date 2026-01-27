@@ -1,9 +1,9 @@
 /**
  * Interview Question Card Component
- * Individual question with rating controls and comments
+ * Individual question with rating controls, expected answer, and action buttons
  */
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -11,18 +11,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { 
-  Collapsible, 
-  CollapsibleContent, 
-  CollapsibleTrigger 
-} from "@/components/ui/collapsible";
-import { 
   CheckCircle2, 
   XCircle, 
   HelpCircle, 
-  ChevronDown, 
-  ChevronUp,
   Lightbulb,
   Loader2,
+  Pencil,
+  Trash2,
+  UserPlus,
 } from "lucide-react";
 import {
   InterviewRating,
@@ -37,14 +33,18 @@ interface InterviewQuestionCardProps {
   expectedAnswer: string | null;
   rating: InterviewRating | null;
   comments: string | null;
+  questionSource: string;
   metadata?: {
     specialityName?: string;
     proofPointTitle?: string;
     competencyName?: string;
   };
   onRatingChange: (rating: InterviewRating, comments?: string) => void;
+  onDelete?: () => void;
+  onModify?: () => void;
   isSaving?: boolean;
   hasError?: boolean;
+  isSubmitted?: boolean;
 }
 
 export function InterviewQuestionCard({
@@ -53,14 +53,17 @@ export function InterviewQuestionCard({
   expectedAnswer,
   rating,
   comments,
+  questionSource,
   metadata,
   onRatingChange,
+  onDelete,
+  onModify,
   isSaving,
   hasError,
+  isSubmitted,
 }: InterviewQuestionCardProps) {
   const [localRating, setLocalRating] = useState<InterviewRating | null>(rating);
   const [localComments, setLocalComments] = useState(comments || "");
-  const [showExpectedAnswer, setShowExpectedAnswer] = useState(false);
   const [showCommentError, setShowCommentError] = useState(false);
 
   // Sync with props
@@ -104,10 +107,12 @@ export function InterviewQuestionCard({
     not_answered: <HelpCircle className="h-4 w-4" />,
   };
 
+  const isCustomQuestion = questionSource === 'reviewer_custom';
+
   return (
     <Card className={`border ${hasError ? 'border-destructive' : 'border-border/50'}`}>
       <CardContent className="p-4 space-y-4">
-        {/* Question Header */}
+        {/* Question Header with Actions */}
         <div className="flex items-start gap-3">
           <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-medium text-primary">
             {questionNumber}
@@ -116,54 +121,62 @@ export function InterviewQuestionCard({
             <p className="text-sm leading-relaxed">{questionText}</p>
             
             {/* Metadata badges */}
-            {metadata && (
-              <div className="flex flex-wrap gap-1">
-                {metadata.specialityName && (
-                  <Badge variant="outline" className="text-xs">
-                    {metadata.specialityName}
-                  </Badge>
-                )}
-                {metadata.proofPointTitle && (
-                  <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/20">
-                    Proof: {metadata.proofPointTitle}
-                  </Badge>
-                )}
-                {metadata.competencyName && (
-                  <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950/20">
-                    {metadata.competencyName}
-                  </Badge>
-                )}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-1">
+              {isCustomQuestion && (
+                <Badge variant="outline" className="text-xs bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-400 border-amber-200">
+                  <UserPlus className="h-3 w-3 mr-1" />
+                  Reviewer Added
+                </Badge>
+              )}
+              {metadata?.specialityName && (
+                <Badge variant="outline" className="text-xs">
+                  {metadata.specialityName}
+                </Badge>
+              )}
+              {metadata?.proofPointTitle && (
+                <Badge variant="outline" className="text-xs bg-purple-50 dark:bg-purple-950/20">
+                  Proof: {metadata.proofPointTitle}
+                </Badge>
+              )}
+              {metadata?.competencyName && (
+                <Badge variant="outline" className="text-xs bg-blue-50 dark:bg-blue-950/20">
+                  {metadata.competencyName}
+                </Badge>
+              )}
+            </div>
           </div>
 
-          {/* Saving indicator */}
-          {isSaving && (
-            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-          )}
-        </div>
-
-        {/* Expected Answer (Collapsible) */}
-        {expectedAnswer && (
-          <Collapsible open={showExpectedAnswer} onOpenChange={setShowExpectedAnswer}>
-            <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1">
-                <Lightbulb className="h-3 w-3" />
-                Expected Answer
-                {showExpectedAnswer ? (
-                  <ChevronUp className="h-3 w-3" />
-                ) : (
-                  <ChevronDown className="h-3 w-3" />
-                )}
+          {/* Action buttons and saving indicator */}
+          <div className="flex items-center gap-1">
+            {isSaving && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+            
+            {!isSubmitted && onModify && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={onModify}
+                title="Modify question"
+              >
+                <Pencil className="h-4 w-4 text-muted-foreground hover:text-foreground" />
               </Button>
-            </CollapsibleTrigger>
-            <CollapsibleContent className="mt-2">
-              <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground">
-                {expectedAnswer}
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-        )}
+            )}
+            
+            {!isSubmitted && onDelete && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8"
+                onClick={onDelete}
+                title="Delete question"
+              >
+                <Trash2 className="h-4 w-4 text-muted-foreground hover:text-destructive" />
+              </Button>
+            )}
+          </div>
+        </div>
 
         {/* Rating Controls */}
         <div className="space-y-2">
@@ -172,6 +185,7 @@ export function InterviewQuestionCard({
             value={localRating || ""}
             onValueChange={handleRatingSelect}
             className="flex flex-wrap gap-2"
+            disabled={isSubmitted}
           >
             {(Object.keys(INTERVIEW_RATING_LABELS) as InterviewRating[]).map((ratingKey) => {
               const colors = INTERVIEW_RATING_COLORS[ratingKey];
@@ -192,6 +206,7 @@ export function InterviewQuestionCard({
                         ? `${colors.bg} ${colors.text} ${colors.border} border-2` 
                         : 'border-border hover:bg-muted/50'
                       }
+                      ${isSubmitted ? 'cursor-not-allowed opacity-60' : ''}
                     `}
                   >
                     {ratingIcons[ratingKey]}
@@ -205,6 +220,19 @@ export function InterviewQuestionCard({
             })}
           </RadioGroup>
         </div>
+
+        {/* Expected Answer - Always visible if configured */}
+        {expectedAnswer && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Lightbulb className="h-3 w-3" />
+              Expected Answer
+            </div>
+            <div className="p-3 bg-muted/50 rounded-md text-sm text-muted-foreground border-l-2 border-primary/30">
+              {expectedAnswer}
+            </div>
+          </div>
+        )}
 
         {/* Comments */}
         <div className="space-y-2">
@@ -225,6 +253,7 @@ export function InterviewQuestionCard({
             onChange={(e) => setLocalComments(e.target.value)}
             className={`min-h-[60px] text-sm ${showCommentError ? 'border-destructive' : ''}`}
             maxLength={500}
+            disabled={isSubmitted}
           />
           {showCommentError && (
             <p className="text-xs text-destructive">
