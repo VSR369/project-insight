@@ -1,146 +1,104 @@
 
+# Fix: Interview KIT Dialog Closing on Alt+Tab (5-Why Analysis)
 
-# Fix: Interview KIT Form Data Loss on Tab Switch
+## 5-Why Root Cause Analysis
 
-## Problem Summary
+### Why #1: Why does the dialog disappear when pressing Alt+Tab?
+The Radix UI Dialog component's overlay triggers a close event when the window loses focus (blur event) or when focus moves outside the dialog.
 
-When users open the "Add Question" dialog, enter data, tab away to another browser tab, and return, the dialog closes and all entered data is lost. They must re-enter everything.
+### Why #2: Why does focus loss trigger the dialog to close?
+The Radix UI Dialog has default behaviors where:
+- Clicking outside the dialog (overlay) closes it
+- When the browser window loses focus, Radix interprets this as "focus moved outside"
+
+### Why #3: Why wasn't this prevented by our previous fix?
+The previous fix only addressed:
+1. `refetchOnWindowFocus: false` - prevents data refresh, not dialog closing
+2. `hasInitializedRef` - prevents form reset, but dialog is already closed by then
+
+**The dialog closure happens BEFORE any form logic runs** because it's a Radix UI primitive behavior.
+
+### Why #4: Why doesn't Radix UI provide an option to prevent this?
+It actually does! Radix Dialog has props:
+- `onPointerDownOutside` - event when clicking outside
+- `onInteractOutside` - event when any interaction happens outside (including focus loss)
+- `onFocusOutside` - event when focus moves outside
+
+Calling `event.preventDefault()` on these events prevents the dialog from closing.
+
+### Why #5: Why wasn't this implemented initially?
+The form was created following the standard pattern which uses the default Dialog behavior. The requirement to keep the dialog open during tab switches is a specific UX need that requires explicit configuration.
 
 ---
 
-## Root Cause Analysis
+## Root Cause Summary
 
-| Issue | Description | Impact |
-|-------|-------------|--------|
-| React Query Default Behavior | `refetchOnWindowFocus: true` triggers data refresh when tab regains focus | Causes component re-renders while dialog is open |
-| Form Reset on Re-render | `useEffect` in form resets fields when `open` changes or dependencies update | User-entered data cleared on focus return |
-| Missing Stability Guards | Unlike proof-points forms, no `refetchOnWindowFocus: false` configured | Queries refetch aggressively |
+| Factor | Impact |
+|--------|--------|
+| `onInteractOutside` default behavior | Dialog closes when focus leaves the component (Alt+Tab) |
+| `onPointerDownOutside` default behavior | Dialog closes when clicking outside (on overlay) |
+| Standard Dialog component | Doesn't expose these props, uses defaults |
 
 ---
 
-## Solution
+## Solution: Prevent Dialog Close on Focus Loss
 
-### Fix 1: Add Stability Options to Query Hooks
+### Approach
+Per user requirement: **"Only close with buttons"** - the dialog should only close when the user explicitly clicks Cancel or the X button, NOT when:
+1. Clicking outside the dialog
+2. Switching apps with Alt+Tab
+3. Window loses focus for any reason
 
-**File:** `src/hooks/queries/useInterviewKitQuestions.ts`
+### Changes Required
 
-Add `refetchOnWindowFocus: false` to prevent data refetching when the user returns to the tab. This follows the pattern established in `useProviderSelectedTaxonomy.ts` per project memory `memory/features/proof-point-ui-stability-logic`.
+**File 1: `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`**
 
-```typescript
-// useInterviewKitCompetencies
-export function useInterviewKitCompetencies(includeInactive = false) {
-  return useQuery({
-    queryKey: ["interview_kit_competencies", { includeInactive }],
-    queryFn: async () => { ... },
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,  // ADD: Prevent refetch on tab return
-    refetchOnMount: false,        // ADD: Data already cached
-  });
-}
+Add `onInteractOutside` and `onPointerDownOutside` handlers to `DialogContent` that call `event.preventDefault()` to block the default close behavior.
 
-// useInterviewKitQuestions
-export function useInterviewKitQuestions(filters: InterviewKitQuestionsFilter = {}) {
-  return useQuery({
-    queryKey: ["interview_kit_questions", filters],
-    queryFn: async () => { ... },
-    refetchOnWindowFocus: false,  // ADD: Prevent refetch during form entry
-  });
-}
+```tsx
+// Current code
+<DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+
+// Fixed code - prevent closing on outside interaction
+<DialogContent 
+  className="max-w-2xl max-h-[90vh] overflow-y-auto"
+  onInteractOutside={(e) => e.preventDefault()}
+  onPointerDownOutside={(e) => e.preventDefault()}
+>
 ```
 
-### Fix 2: Stabilize Form Reset Logic
-
-**File:** `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`
-
-The current `useEffect` resets the form on every `open` change. Add a ref to track if form was already initialized to prevent unnecessary resets.
-
-**Current Code (lines 108-133):**
-```typescript
-useEffect(() => {
-  if (open) {
-    if (question) {
-      form.reset({ ... });
-    } else {
-      form.reset({ ... });
-    }
-  }
-}, [open, question, defaultCompetencyId, form]);
-```
-
-**Fixed Code:**
-```typescript
-import { useEffect, useRef } from "react";
-
-// Add ref to track initialization
-const hasInitializedRef = useRef(false);
-
-useEffect(() => {
-  // Only reset on INITIAL open, not on every render
-  if (open && !hasInitializedRef.current) {
-    hasInitializedRef.current = true;
-    if (question) {
-      form.reset({ ... });
-    } else {
-      form.reset({ ... });
-    }
-  }
-  
-  // Reset the flag when dialog closes
-  if (!open) {
-    hasInitializedRef.current = false;
-  }
-}, [open, question, defaultCompetencyId, form]);
-```
-
-### Fix 3: Add Form Stability Key
-
-**File:** `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx`
-
-Add a stable key to the form component to prevent unnecessary remounts.
-
-```typescript
-// Add state to track form session
-const [formSessionId, setFormSessionId] = useState(0);
-
-// Update when intentionally opening form
-const openAddForm = () => {
-  setEditingQuestion(null);
-  setFormSessionId((id) => id + 1);
-  setFormOpen(true);
-};
-
-// In JSX
-<InterviewKitQuestionForm
-  key={`form-${formSessionId}-${editingQuestion?.id || 'new'}`}
-  open={formOpen}
-  onOpenChange={(open) => {
-    setFormOpen(open);
-    if (!open) setEditingQuestion(null);
-  }}
-  question={editingQuestion}
-  defaultCompetencyId={competencyId}
-/>
-```
+This is a minimal, targeted fix that:
+1. Keeps the dialog open when Alt+Tab is pressed
+2. Keeps the dialog open when clicking outside
+3. Allows the Cancel button and X to still work normally
+4. Does NOT affect other dialogs in the system
 
 ---
 
 ## Files Changed
 
-| File | Changes |
-|------|---------|
-| `src/hooks/queries/useInterviewKitQuestions.ts` | Add `refetchOnWindowFocus: false` and `refetchOnMount: false` to both query hooks |
-| `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx` | Add `hasInitializedRef` to prevent form reset on re-renders |
-| `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx` | Add stable key pattern for form component |
+| File | Change |
+|------|--------|
+| `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx` | Add `onInteractOutside` and `onPointerDownOutside` handlers to prevent auto-close |
 
 ---
 
-## Pattern Reference
+## Technical Details
 
-This fix follows the established pattern from:
-- **Memory:** `memory/features/proof-point-ui-stability-logic`
-- **Memory:** `memory/features/assessment-ui-stability-governance`
-- **File:** `src/hooks/queries/useProviderSelectedTaxonomy.ts` (lines 130-134)
+The Radix UI Dialog component emits these events before closing:
+- `onPointerDownOutside`: Fired when user clicks on overlay
+- `onInteractOutside`: Fired when any interaction occurs outside (focus, click, touch)
+- `onFocusOutside`: Fired when focus moves outside
+
+By calling `preventDefault()` on these events, we stop the dialog from responding to them.
+
+```tsx
+// From Radix Dialog documentation
+// These handlers receive DismissableLayerEvents
+onInteractOutside={(event: Event) => {
+  event.preventDefault(); // Prevents dialog from closing
+}}
+```
 
 ---
 
@@ -148,11 +106,41 @@ This fix follows the established pattern from:
 
 After implementation:
 - [ ] Open "Add Question" dialog
-- [ ] Fill in all fields with test data
-- [ ] Tab away to another browser tab
-- [ ] Wait 5+ seconds
-- [ ] Tab back to the app
-- [ ] Verify dialog is still open
-- [ ] Verify all entered data is preserved
-- [ ] Submit the form successfully
+- [ ] Fill in some form fields
+- [ ] Press Alt+Tab to switch to another window
+- [ ] Return to the browser
+- [ ] **Dialog should still be open**
+- [ ] **Form data should be preserved**
+- [ ] Click outside the dialog (on dark overlay)
+- [ ] **Dialog should NOT close**
+- [ ] Click Cancel button - dialog should close
+- [ ] Click X button - dialog should close
+- [ ] Submit the form - dialog should close after success
 
+---
+
+## Why This Solution Works
+
+| Issue | Solution |
+|-------|----------|
+| Alt+Tab closes dialog | `onInteractOutside` with `preventDefault()` blocks this |
+| Click outside closes dialog | `onPointerDownOutside` with `preventDefault()` blocks this |
+| Cancel/X buttons still work | These use `onOpenChange` which is unaffected |
+| Form data lost | With dialog staying open, form data is preserved |
+
+---
+
+## Pattern for Other Dialogs
+
+If other dialogs need this behavior, apply the same pattern:
+
+```tsx
+<DialogContent
+  onInteractOutside={(e) => e.preventDefault()}
+  onPointerDownOutside={(e) => e.preventDefault()}
+>
+  {/* ... */}
+</DialogContent>
+```
+
+This is a targeted solution following the principle of minimal changes to fix the specific issue.
