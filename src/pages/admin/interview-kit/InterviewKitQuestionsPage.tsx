@@ -90,12 +90,10 @@ export function InterviewKitQuestionsPage() {
   const { data: expertiseLevels = [] } = useExpertiseLevels();
   const { data: competencies = [], isLoading: loadingCompetencies } = useInterviewKitCompetencies();
 
-  // Get competency ID from code if filter is a code
+  // Get competency ID from filter (now using ID directly)
   const competencyId = useMemo(() => {
-    if (!competencyFilter) return undefined;
-    const byCode = competencies.find((c) => c.code === competencyFilter);
-    if (byCode) return byCode.id;
-    // Check if it's already an ID
+    if (!competencyFilter || competencyFilter === "all") return undefined;
+    // Check if it's a valid ID in the list
     const byId = competencies.find((c) => c.id === competencyFilter);
     return byId?.id;
   }, [competencyFilter, competencies]);
@@ -219,12 +217,12 @@ export function InterviewKitQuestionsPage() {
         <div className="flex flex-wrap items-center gap-4 p-4 bg-muted/50 rounded-lg">
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Industry:</Label>
-            <Select value={industryFilter} onValueChange={(v) => updateFilter("industry", v)}>
+            <Select value={industryFilter || "all"} onValueChange={(v) => updateFilter("industry", v === "all" ? "" : v)}>
               <SelectTrigger className="w-[180px] bg-background">
                 <SelectValue placeholder="All industries" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All industries</SelectItem>
+                <SelectItem value="all">All industries</SelectItem>
                 {industrySegments.map((seg) => (
                   <SelectItem key={seg.id} value={seg.id}>
                     {seg.name}
@@ -236,12 +234,12 @@ export function InterviewKitQuestionsPage() {
 
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Level:</Label>
-            <Select value={levelFilter} onValueChange={(v) => updateFilter("level", v)}>
+            <Select value={levelFilter || "all"} onValueChange={(v) => updateFilter("level", v === "all" ? "" : v)}>
               <SelectTrigger className="w-[150px] bg-background">
                 <SelectValue placeholder="All levels" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All levels</SelectItem>
+                <SelectItem value="all">All levels</SelectItem>
                 {expertiseLevels.map((lvl) => (
                   <SelectItem key={lvl.id} value={lvl.id}>
                     {lvl.name}
@@ -253,14 +251,14 @@ export function InterviewKitQuestionsPage() {
 
           <div className="flex items-center gap-2">
             <Label className="text-sm whitespace-nowrap">Competency:</Label>
-            <Select value={competencyFilter} onValueChange={(v) => updateFilter("competency", v)}>
+            <Select value={competencyFilter || "all"} onValueChange={(v) => updateFilter("competency", v === "all" ? "" : v)}>
               <SelectTrigger className="w-[250px] bg-background">
                 <SelectValue placeholder="All competencies" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All competencies</SelectItem>
+                <SelectItem value="all">All competencies</SelectItem>
                 {competencies.map((comp) => (
-                  <SelectItem key={comp.id} value={comp.code}>
+                  <SelectItem key={comp.id} value={comp.id}>
                     {comp.name}
                   </SelectItem>
                 ))}
