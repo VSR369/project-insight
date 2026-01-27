@@ -1,255 +1,232 @@
 
-# Comprehensive Reviewer Portal Review & Retrofit Plan
 
-## Executive Summary
+# Move "Invite Panel Members" to Invitations Sidebar Menu
 
-After thorough analysis of the entire Reviewer Portal codebase, I have identified several compliance gaps, unused code, and areas for improvement. The portal is fundamentally well-structured but requires targeted cleanup to meet project knowledge standards.
+## Objective
 
----
-
-## Review Scope Covered
-
-| Area | Components Reviewed | Status |
-|------|---------------------|--------|
-| Dashboard | `ReviewerDashboard.tsx`, `DashboardStatsCards`, `ActionRequiredWidget`, `NewSubmissionsWidget`, `UpcomingInterviewsList`, `ReviewerProfileHeader` | ✅ Functional |
-| My Interviews | `ReviewerInterviews.tsx` | ✅ Functional |
-| Candidate Queue | `ReviewerCandidates.tsx`, `CandidateFilters`, `CandidateCard` | ⚠️ Needs cleanup |
-| Availability | `ReviewerAvailability.tsx`, `AvailabilityCalendar`, `TimeSlotSelector`, `SelectedSlotsPanel` | ✅ Functional |
-| Candidate Detail - Provider Details | `CandidateProfileHeader`, `ProviderDetailsSection`, `AffiliationTypeSection`, `OrganizationDetailsSection`, `ManagerApprovalSection`, `ReviewActionsCard` | ✅ Functional |
-| Candidate Detail - Expertise | `ExpertiseTabContent`, `ExpertiseLevelHeader`, `ExpertiseProficiencyTree`, `ExpertiseReviewActions` | ✅ Functional |
-| Candidate Detail - Proof Points | `ProofPointsTabContent`, `ProofPointsScoreHeader`, `ProofPointReviewCard`, `ProofPointsReviewFooter` | ✅ Functional |
-| Candidate Detail - Assessment | `AssessmentTabContent`, `ResultsSummaryHeader`, `ResultsHierarchyTree` | ✅ Functional |
-| Candidate Detail - Slots | `SlotsTabContent`, `TimezoneInfoPanel`, `SlotDetailsCard`, `AcceptSlotConfirmDialog`, `DeclineSlotDialog`, `CancelAcceptedSlotDialog` | ✅ Functional |
-| Candidate Detail - Interview Kit | `InterviewKitTabContent`, `InterviewKitSection`, `InterviewQuestionCard`, `InterviewKitSummaryDashboard`, `AddQuestionDialog`, `EditQuestionDialog`, `DeleteQuestionConfirm` | ✅ Functional |
-| Candidate Detail - Final Result | `FinalResultTabContent`, `LifecycleStageCard`, `ScoreSummaryTile`, `CompositeScoreBanner` | ✅ Functional (just implemented) |
-| Settings | `ReviewerSettings.tsx` | ✅ Functional |
+Extract the "Invite Panel Members" functionality from the Quorum Requirements page and make it accessible as a separate page under the Invitations menu in the Admin sidebar.
 
 ---
 
-## Compliance Gaps Identified
+## Current Architecture
 
-### Critical Issues (Must Fix)
-
-#### 1. Console Logging Violations (Project Knowledge Section 4 & 5)
-**File:** `src/hooks/queries/useReviewerCandidates.ts`
-- Contains **14 `console.log` statements** that must be replaced with structured logging
-- Violates standard: "All `console.log` replaced with `logInfo`"
-
-**Current:**
-```typescript
-console.log('[useReviewerCandidates] Query starting:', { reviewerId, filters, limit, offset });
-```
-
-**Should be:**
-```typescript
-logInfo("Query starting", {
-  operation: "fetch_reviewer_candidates",
-  component: "useReviewerCandidates",
-  additionalData: { reviewerId, filtersApplied: !!filters.searchQuery }
-});
-```
-
-#### 2. Broken Route Reference (Dead Link)
-**File:** `src/pages/reviewer/ReviewerDashboard.tsx` (Line 227)
-- References `/reviewer/enrollments` which **does not exist** in App.tsx
-- Should be `/reviewer/candidates`
-
-**Current:**
-```typescript
-onClick={() => navigate('/reviewer/enrollments')}
-```
-
-**Should be:**
-```typescript
-onClick={() => navigate('/reviewer/candidates')}
-```
-
-#### 3. Unsafe Type Casting in useReviewerCandidates.ts
-**Lines 246-250:** Uses `as any` type casting for `proof_point_reviews` table
-- Comment says "not yet in generated types" but table IS in types (line 1602 of types.ts)
-- Should use proper type imports
-
-**Current:**
-```typescript
-const { data } = await supabase
-  .from("proof_point_reviews" as any)
-```
-
-**Should be:**
-```typescript
-const { data } = await supabase
-  .from("proof_point_reviews")
+```text
+/admin/interview/quorum-requirements (InterviewRequirementsPage.tsx)
+├── Tab: Configure Interview Requirements (Quorum Matrix)
+└── Tab: Invite Panel Members (InvitePanelMembersTab.tsx)
 ```
 
 ---
 
-### Medium Issues (Should Fix)
+## Target Architecture
 
-#### 4. Console.error in Hooks (Non-Compliance)
-**Files affected:**
-- `src/hooks/queries/useProvider.ts` (lines 124, 197, 282)
-- `src/hooks/queries/useReviewerAvailability.ts` (lines 337, 341)
-- `src/hooks/queries/useEnrollmentExpertise.ts` (lines 119, 204)
-
-**Standard:** Replace with `handleMutationError()` or `logWarning()`
-
-#### 5. Console.warn in useQuestionBank.ts (Line 345)
-**Current:**
-```typescript
-console.warn('RPC delete_questions_by_specialities failed, using batch fallback:', error.message);
+```text
+Admin Sidebar
+├── Invitations (Collapsible Submenu)
+│   ├── Solution Provider    → /admin/invitations
+│   └── Panel Reviewer       → /admin/invitations/panel-reviewers (NEW)
+└── Interview Setup
+    └── Quorum Requirements  → /admin/interview/quorum-requirements (Tabs removed)
 ```
-
-**Should be:**
-```typescript
-logWarning('RPC delete_questions_by_specialities failed, using batch fallback', {
-  operation: 'bulk_delete_questions',
-  additionalData: { error: error.message }
-});
-```
-
----
-
-### Minor Issues (Nice to Have)
-
-#### 6. Calendar View Placeholder in ReviewerInterviews.tsx
-- Calendar tab shows "Coming soon" placeholder (lines 160-175)
-- Could be removed or implemented
-
-#### 7. Unused Type in SlotsTabContent.tsx
-- `Clock` icon imported but duplicated purpose with `Calendar`
-
----
-
-## Functional Verification Results
-
-### Dashboard Tab
-✅ Stats cards loading correctly
-✅ Action Required widget filtering properly
-✅ Upcoming Interviews list with correct sorting
-✅ New Submissions widget working
-✅ Quick Actions navigation (except broken enrollments link)
-
-### My Interviews Tab
-✅ List view functional with status filtering
-✅ Navigation to candidate detail working
-✅ Status badges rendering correctly
-⚠️ Calendar view is placeholder
-
-### Candidate Queue Tab
-✅ Search and filtering working
-✅ Sort options functional
-✅ Candidate cards displaying correct data
-✅ Navigation to detail page working
-✅ Pagination implemented
-
-### Availability Tab
-✅ Calendar rendering correctly
-✅ Slot creation with industry/expertise selection
-✅ Conflict detection working
-✅ Delete and cancel functionality
-✅ Timezone display correct
-
-### Candidate Detail - All Tabs
-| Tab | Status | Notes |
-|-----|--------|-------|
-| Provider Details | ✅ | All sections render correctly, conditional org info works |
-| Expertise | ✅ | Taxonomy tree displays, review actions functional |
-| Proof Points | ✅ | Rating system working, score calculation correct |
-| Assessment | ✅ | Pass/fail banner, hierarchy tree, submission details |
-| Slots | ✅ | Accept/decline/cancel flows working |
-| Interview Kit | ✅ | Auto-generation, CRUD, rating system, summary dashboard |
-| Final Result | ✅ | Just implemented - composite score, lifecycle stages, certification outcome |
-
----
-
-## Retrofit Implementation Plan
-
-### Phase 1: Critical Fixes (Priority 1)
-
-| Task | File | Effort |
-|------|------|--------|
-| Replace 14 console.log with logInfo | `useReviewerCandidates.ts` | 15 min |
-| Fix broken /reviewer/enrollments route | `ReviewerDashboard.tsx` | 2 min |
-| Remove unsafe `as any` type casting | `useReviewerCandidates.ts` | 5 min |
-
-### Phase 2: Console Cleanup (Priority 2)
-
-| Task | File | Effort |
-|------|------|--------|
-| Replace console.error with handleMutationError | `useProvider.ts` | 10 min |
-| Replace console.error with handleMutationError | `useEnrollmentExpertise.ts` | 5 min |
-| Replace console.error calls | `useReviewerAvailability.ts` | 5 min |
-| Replace console.warn with logWarning | `useQuestionBank.ts` | 2 min |
-
-### Phase 3: Optional Improvements (Priority 3)
-
-| Task | File | Effort |
-|------|------|--------|
-| Remove or implement Calendar view | `ReviewerInterviews.tsx` | 5 min to remove |
-| Add gcTime/staleTime to hooks without it | Various | 10 min |
 
 ---
 
 ## Files to Modify
 
-### Critical Changes
-1. `src/hooks/queries/useReviewerCandidates.ts` - Remove console.log, fix type casting
-2. `src/pages/reviewer/ReviewerDashboard.tsx` - Fix route reference
-
-### Standard Compliance Changes
-3. `src/hooks/queries/useProvider.ts` - Replace console.error
-4. `src/hooks/queries/useEnrollmentExpertise.ts` - Replace console.error
-5. `src/hooks/queries/useReviewerAvailability.ts` - Replace console.error
-6. `src/hooks/queries/useQuestionBank.ts` - Replace console.warn
+| File | Action | Description |
+|------|--------|-------------|
+| `src/components/admin/AdminSidebar.tsx` | Modify | Convert "Invitations" to collapsible submenu with 2 sub-items |
+| `src/pages/admin/interview-requirements/InterviewRequirementsPage.tsx` | Modify | Remove tabs, keep only Quorum Matrix content |
+| `src/pages/admin/invitations/PanelReviewerInvitationsPage.tsx` | **Create** | New page wrapping `InvitePanelMembersTab` |
+| `src/pages/admin/invitations/index.ts` | Modify | Export the new page |
+| `src/App.tsx` | Modify | Add new route for `/admin/invitations/panel-reviewers` |
 
 ---
 
-## No Changes Required (Verified Compliant)
+## Implementation Details
 
-The following files were reviewed and are compliant:
-- All component files in `src/components/reviewer/**`
-- All page files in `src/pages/reviewer/**`
-- `src/hooks/queries/useFinalResultData.ts` (just created)
-- `src/constants/certification.constants.ts` (just created)
-- `src/hooks/queries/useReviewerDashboard.ts` (uses logInfo correctly)
-- `src/hooks/queries/useCandidateDetail.ts`
-- `src/hooks/queries/useInterviewKitEvaluation.ts` (uses handleMutationError)
+### 1. Create New Page: PanelReviewerInvitationsPage.tsx
+
+Create a dedicated page for Panel Reviewer invitations that reuses the existing `InvitePanelMembersTab` component:
+
+```typescript
+// src/pages/admin/invitations/PanelReviewerInvitationsPage.tsx
+import { AdminLayout } from "@/components/admin/AdminLayout";
+import { InvitePanelMembersTab } from "@/pages/admin/interview-requirements";
+
+export function PanelReviewerInvitationsPage() {
+  const breadcrumbs = [
+    { label: "Admin", href: "/admin" },
+    { label: "Invitations" },
+    { label: "Panel Reviewers" },
+  ];
+
+  return (
+    <AdminLayout
+      title="Panel Reviewer Invitations"
+      description="Invite and manage review panel members"
+      breadcrumbs={breadcrumbs}
+    >
+      <InvitePanelMembersTab />
+    </AdminLayout>
+  );
+}
+```
+
+### 2. Modify AdminSidebar.tsx
+
+Convert the single "Invitations" menu item into a collapsible submenu:
+
+**Required Imports:**
+- Add `ChevronRight` from lucide-react
+- Add `Collapsible`, `CollapsibleContent`, `CollapsibleTrigger` from "@/components/ui/collapsible"
+- Add `SidebarMenuSub`, `SidebarMenuSubItem`, `SidebarMenuSubButton` from sidebar components
+
+**Changes:**
+- Remove "Invitations" from `otherItems` array
+- Add state for managing collapsible: `const [invitationsOpen, setInvitationsOpen] = useState(...)`
+- Add collapsible submenu in the "Other" group before the remaining items:
+
+```typescript
+<Collapsible
+  open={invitationsOpen}
+  onOpenChange={setInvitationsOpen}
+  className="group/collapsible"
+>
+  <SidebarMenuItem>
+    <CollapsibleTrigger asChild>
+      <SidebarMenuButton
+        isActive={location.pathname.startsWith('/admin/invitations')}
+      >
+        <Mail className="h-4 w-4" />
+        <span className="flex-1">Invitations</span>
+        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+      </SidebarMenuButton>
+    </CollapsibleTrigger>
+    <CollapsibleContent>
+      <SidebarMenuSub>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton
+            onClick={() => navigate('/admin/invitations')}
+            isActive={location.pathname === '/admin/invitations'}
+          >
+            Solution Provider
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+        <SidebarMenuSubItem>
+          <SidebarMenuSubButton
+            onClick={() => navigate('/admin/invitations/panel-reviewers')}
+            isActive={location.pathname === '/admin/invitations/panel-reviewers'}
+          >
+            Panel Reviewer
+          </SidebarMenuSubButton>
+        </SidebarMenuSubItem>
+      </SidebarMenuSub>
+    </CollapsibleContent>
+  </SidebarMenuItem>
+</Collapsible>
+```
+
+### 3. Simplify InterviewRequirementsPage.tsx
+
+Remove the tabs and keep only the Quorum Matrix content:
+
+**Remove:**
+- `Tabs`, `TabsList`, `TabsTrigger`, `TabsContent` imports and usage
+- `UserPlus` icon import
+- `InvitePanelMembersTab` import and usage
+- Tab wrapper around content
+
+**Update:**
+- Description text to focus only on quorum configuration
+- Page content to render matrix directly without tabs
+
+### 4. Update App.tsx Routes
+
+Add new route:
+
+```typescript
+<Route
+  path="/admin/invitations/panel-reviewers"
+  element={
+    <AdminGuard>
+      <PanelReviewerInvitationsPage />
+    </AdminGuard>
+  }
+/>
+```
+
+### 5. Update invitations/index.ts
+
+Add export for the new page:
+
+```typescript
+export { PanelReviewerInvitationsPage } from './PanelReviewerInvitationsPage';
+```
 
 ---
 
-## Technical Summary
+## Visual Result
 
-### Patterns Verified as Correct
-✅ React Query hooks follow standard structure
-✅ Audit fields (withCreatedBy/withUpdatedBy) used in mutations
-✅ Error boundaries in place
-✅ Proper TypeScript types throughout
-✅ Consistent component structure (loading/error/empty states)
-✅ Toast notifications follow standard patterns
-✅ RLS policies properly used for reviewer access
+**Before (Quorum Requirements Page):**
+```text
+┌─────────────────────────────────────────────────────┐
+│ Platform Admin                                       │
+│ Manage interview panel quorum requirements...        │
+├─────────────────────────────────────────────────────┤
+│ [Configure Interview Requirements] [Invite Panel...] │ ← Two tabs
+├─────────────────────────────────────────────────────┤
+│ (Matrix or Invite form based on tab)                 │
+└─────────────────────────────────────────────────────┘
+```
 
-### Architecture Observations
-- Hook organization follows project standards
-- Components properly separated by concern
-- State management appropriate (React Query for server state, useState for UI)
-- No prop drilling issues
-- Accessibility basics in place (labels, ARIA)
+**After (Quorum Requirements Page):**
+```text
+┌─────────────────────────────────────────────────────┐
+│ Quorum Requirements                                  │
+│ Configure the required number of interviewers...     │
+├─────────────────────────────────────────────────────┤
+│ (Matrix content only - no tabs)                      │
+└─────────────────────────────────────────────────────┘
+```
+
+**After (Panel Reviewer Invitations Page - NEW):**
+```text
+┌─────────────────────────────────────────────────────┐
+│ Panel Reviewer Invitations                           │
+│ Invite and manage review panel members               │
+├─────────────────────────────────────────────────────┤
+│ (Invite form + Existing Panel Members table)         │
+└─────────────────────────────────────────────────────┘
+```
 
 ---
 
-## Estimated Total Effort
+## Sidebar Visual Change
 
-| Priority | Tasks | Time |
-|----------|-------|------|
-| Critical | 3 | 22 min |
-| Medium | 4 | 22 min |
-| Optional | 2 | 15 min |
-| **Total** | **9** | **~1 hour** |
+**Before:**
+```text
+Other
+├── Invitations (single link)
+├── Question Bank
+└── ...
+```
+
+**After:**
+```text
+Other
+├── Invitations ▶ (click to expand)
+│   ├── Solution Provider
+│   └── Panel Reviewer
+├── Question Bank
+└── ...
+```
 
 ---
 
-## Recommendation
+## No Breaking Changes
 
-Proceed with Phase 1 (Critical Fixes) immediately, followed by Phase 2 (Console Cleanup) in the same session. Phase 3 is optional and can be deferred.
+- Existing `/admin/invitations` route continues to work for Solution Provider invitations
+- The `InvitePanelMembersTab` component is reused without modification
+- All Panel Reviewer invitation functionality preserved
 
-All tabs are functional and the Final Result tab implementation is complete and working correctly with dynamic data.
