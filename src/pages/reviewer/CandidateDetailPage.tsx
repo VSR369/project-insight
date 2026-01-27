@@ -15,6 +15,7 @@ import {
   ProofPointsTabContent,
   SlotsTabContent,
   AssessmentTabContent,
+  InterviewKitTabContent,
 } from "@/components/reviewer/candidates";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import { toast } from "sonner";
@@ -122,7 +123,7 @@ export default function CandidateDetailPage() {
             <TabsTrigger value="proof-points">Proof Points</TabsTrigger>
             <TabsTrigger value="assessment">Assessment</TabsTrigger>
             <TabsTrigger value="slots">Slots</TabsTrigger>
-            <TabsTrigger value="interview-kit" disabled>Interview Kit</TabsTrigger>
+            <TabsTrigger value="interview-kit">Interview Kit</TabsTrigger>
             <TabsTrigger value="review-progress" disabled>Review Progress</TabsTrigger>
           </TabsList>
 
@@ -168,10 +169,18 @@ export default function CandidateDetailPage() {
             {enrollmentId && <AssessmentTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
-          <TabsContent value="interview-kit">
-            <div className="p-8 text-center text-muted-foreground">
-              Interview Kit tab content coming soon
-            </div>
+          <TabsContent value="interview-kit" className="mt-6">
+            {enrollmentId && candidate && (
+              <InterviewKitTabContent
+                enrollmentId={enrollmentId}
+                bookingId={candidate.interviewBookingId}
+                industrySegmentId={candidate.industrySegmentId}
+                expertiseLevelId={candidate.expertiseLevelId}
+                flagForClarification={candidate.flagForClarification}
+                clarificationNotes={candidate.clarificationNotes}
+                reviewerNotes={candidate.reviewerNotes}
+              />
+            )}
           </TabsContent>
 
           <TabsContent value="review-progress">
