@@ -9,4 +9,3 @@ export * from './assessment.constants';
 export * from './question-generation.constants';
 export * from './import.constants';
 export * from './interview-kit.constants';
-export * from './interview-kit-scoring.constants';
