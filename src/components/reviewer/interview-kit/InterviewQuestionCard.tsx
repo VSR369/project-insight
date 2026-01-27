@@ -38,10 +38,10 @@ export function InterviewQuestionCard({
   onDelete,
   isUpdating = false,
 }: InterviewQuestionCardProps) {
+  const MAX_COMMENTS_CHARS = 500;
   const [showExpectedAnswer, setShowExpectedAnswer] = useState(false);
   const [comments, setComments] = useState(question.comments || "");
   const [hasLocalChanges, setHasLocalChanges] = useState(false);
-
   const handleRatingChange = (value: string) => {
     const rating = value as QuestionRating;
     onRatingChange(question.id, rating, hasLocalChanges ? comments : undefined);
@@ -144,7 +144,6 @@ export function InterviewQuestionCard({
           value={ratingValue}
           onValueChange={handleRatingChange}
           className="flex flex-wrap gap-4"
-          disabled={isUpdating}
         >
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="right" id={`${question.id}-right`} />
@@ -192,20 +191,27 @@ export function InterviewQuestionCard({
 
       {/* Comments (optional) */}
       <div className="space-y-2">
-        <Label htmlFor={`${question.id}-comments`} className="text-sm font-medium">
-          Comments
-        </Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor={`${question.id}-comments`} className="text-sm font-medium">
+            Comments
+          </Label>
+          <span className="text-xs text-muted-foreground">
+            {comments.length}/{MAX_COMMENTS_CHARS}
+          </span>
+        </div>
         <Textarea
           id={`${question.id}-comments`}
           placeholder="Add your assessment comments here... (optional)"
           value={comments}
           onChange={(e) => {
-            setComments(e.target.value);
-            setHasLocalChanges(true);
+            if (e.target.value.length <= MAX_COMMENTS_CHARS) {
+              setComments(e.target.value);
+              setHasLocalChanges(true);
+            }
           }}
           onBlur={handleCommentsBlur}
+          maxLength={MAX_COMMENTS_CHARS}
           className="min-h-[80px] resize-none"
-          disabled={isUpdating}
         />
       </div>
     </div>

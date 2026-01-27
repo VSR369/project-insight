@@ -452,9 +452,15 @@ export function InterviewKitTabContent({ enrollmentId }: InterviewKitTabContentP
         </div>
       )}
 
-      <InterviewKitFooter 
-        allRated={evaluationData.allRated} 
-        onExport={handleExport} 
+      <InterviewKitFooter
+        allRated={evaluationData.allRated}
+        totalScore={evaluationData.totalScore}
+        maxScore={evaluationData.maxScore}
+        totalQuestions={evaluationData.totalQuestions}
+        correctCount={evaluationData.questions.filter(q => q.rating === 'right' && !q.isDeleted).length}
+        bookingId={bookingId!}
+        evaluationId={evaluationData.evaluation.id}
+        onExport={handleExport}
       />
 
       {/* Dialogs */}

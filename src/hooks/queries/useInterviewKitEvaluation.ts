@@ -539,3 +539,65 @@ export function useUpdateEvaluation() {
     },
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Submit Interview (with score rollup to interview_bookings)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface SubmitInterviewParams {
+  bookingId: string;
+  evaluationId: string;
+  totalQuestions: number;
+  correctCount: number;
+  scorePercentage: number;
+  scoreOutOf10: number;
+}
+
+export function useSubmitInterview() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: SubmitInterviewParams) => {
+      const userId = await getCurrentUserId();
+
+      // Update interview_bookings with score rollup
+      const { error: bookingError } = await supabase
+        .from("interview_bookings")
+        .update({
+          interview_total_questions: params.totalQuestions,
+          interview_correct_count: params.correctCount,
+          interview_score_percentage: params.scorePercentage,
+          interview_score_out_of_10: params.scoreOutOf10,
+          interview_submitted_at: new Date().toISOString(),
+          interview_submitted_by: userId,
+          updated_at: new Date().toISOString(),
+          updated_by: userId,
+        })
+        .eq("id", params.bookingId);
+
+      if (bookingError) throw new Error(bookingError.message);
+
+      // Update evaluation with overall score and outcome
+      const evalUpdates = await withUpdatedBy({
+        overall_score: params.scoreOutOf10,
+        outcome: params.scorePercentage >= 60 ? 'pass' : 'fail',
+        evaluated_at: new Date().toISOString(),
+      });
+
+      const { error: evalError } = await supabase
+        .from("interview_evaluations")
+        .update(evalUpdates)
+        .eq("id", params.evaluationId);
+
+      if (evalError) throw new Error(evalError.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview-kit-evaluation"] });
+      queryClient.invalidateQueries({ queryKey: ["candidate-detail"] });
+      toast.success("Interview submitted successfully");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: "submit_interview" });
+    },
+  });
+}
