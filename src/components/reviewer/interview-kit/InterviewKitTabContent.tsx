@@ -3,8 +3,8 @@
  * Main container for the Interview Kit tab in Candidate Detail page
  */
 
-import { useState, useMemo, useCallback } from "react";
-import { Loader2, AlertCircle, FileQuestion } from "lucide-react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { Loader2, AlertCircle, FileQuestion, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -26,6 +26,7 @@ import {
   useEditInterviewQuestion,
   useDeleteInterviewQuestion,
   useSubmitInterviewEvaluation,
+  useRegenerateInterviewKit,
   type InterviewQuestionResponse,
 } from "@/hooks/queries/useInterviewKit";
 import { useCandidateProofPoints } from "@/hooks/queries/useCandidateProofPoints";
@@ -62,11 +63,60 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
 
   // Mutations
   const generateKit = useGenerateInterviewKit();
+  const regenerateKit = useRegenerateInterviewKit();
   const updateResponse = useUpdateInterviewResponse();
   const addQuestion = useAddCustomQuestion();
   const editQuestion = useEditInterviewQuestion();
   const deleteQuestion = useDeleteInterviewQuestion();
   const submitEvaluation = useSubmitInterviewEvaluation();
+
+  // Ref to track if we've already triggered auto-generation (prevent double-trigger)
+  const hasTriggeredAutoGenRef = useRef(false);
+
+  // Auto-generate interview kit when tab opens (if not already generated)
+  useEffect(() => {
+    // Skip if already generated or no data available
+    if (!kitData || kitData.isGenerated) {
+      return;
+    }
+
+    // Skip if required data not available
+    if (!bookingId || !candidate || !proofPointsData) {
+      return;
+    }
+
+    // Skip if generation in progress or already triggered
+    if (generateKit.isPending || hasTriggeredAutoGenRef.current) {
+      return;
+    }
+
+    // Mark as triggered to prevent double-calls
+    hasTriggeredAutoGenRef.current = true;
+
+    console.log('[InterviewKit] Auto-generating on tab open...');
+    generateKit.mutate({
+      bookingId,
+      context: {
+        enrollmentId,
+        industrySegmentId: candidate.industrySegmentId,
+        expertiseLevelId: candidate.expertiseLevelId,
+        providerId: candidate.providerId,
+      },
+      proofPoints: proofPointsData.proofPoints || [],
+    });
+  }, [
+    kitData?.isGenerated, 
+    bookingId, 
+    candidate, 
+    proofPointsData, 
+    generateKit.isPending, 
+    enrollmentId,
+  ]);
+
+  // Reset the trigger ref when booking changes
+  useEffect(() => {
+    hasTriggeredAutoGenRef.current = false;
+  }, [bookingId]);
 
   // Group questions by section
   const sectionedQuestions = useMemo(() => {
@@ -95,12 +145,15 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
     return new Set(kitData?.responses.map(q => q.section_name) || []);
   }, [kitData?.responses]);
 
-  // Handler for generating interview kit
+  // Handler for generating interview kit (manual button click)
   const handleGenerateKit = useCallback(async () => {
     if (!bookingId || !candidate) {
       toast.error("Missing booking or candidate information");
       return;
     }
+
+    // Mark as triggered to prevent double-calls
+    hasTriggeredAutoGenRef.current = true;
 
     generateKit.mutate({
       bookingId,
@@ -113,6 +166,23 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
       proofPoints: proofPointsData?.proofPoints || [],
     });
   }, [bookingId, candidate, enrollmentId, proofPointsData, generateKit]);
+
+  // Handler for regenerating interview kit (clears and recreates)
+  const handleRegenerateKit = useCallback(async () => {
+    if (!bookingId || !candidate) {
+      toast.error("Missing booking or candidate information");
+      return;
+    }
+
+    // First delete existing, then regenerate
+    regenerateKit.mutate(bookingId, {
+      onSuccess: () => {
+        // Reset the trigger ref to allow fresh generation
+        hasTriggeredAutoGenRef.current = false;
+        // The useEffect will auto-trigger generation when query refreshes
+      },
+    });
+  }, [bookingId, candidate, regenerateKit]);
 
   // Handler for rating change
   const handleRatingChange = useCallback((responseId: string, rating: InterviewRating) => {
@@ -227,8 +297,19 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
     );
   }
 
-  // Not generated state - show generate button
+  // Not generated state - show auto-generating spinner or manual button
   if (!kitData?.isGenerated) {
+    // If generation is in progress (either auto or manual)
+    if (generateKit.isPending) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[300px] gap-4">
+          <Loader2 className="h-10 w-10 animate-spin text-primary" />
+          <p className="text-muted-foreground">Generating interview kit...</p>
+        </div>
+      );
+    }
+
+    // If data is still loading but generation hasn't started
     return (
       <Card className="border-dashed">
         <CardHeader className="text-center">
@@ -245,7 +326,6 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
             disabled={generateKit.isPending}
             size="lg"
           >
-            {generateKit.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
             Generate Interview Kit
           </Button>
         </CardContent>
@@ -273,6 +353,21 @@ export function InterviewKitTabContent({ enrollmentId, bookingId }: InterviewKit
             Auto-generated from Industry Segment → Expertise Level → Proficiencies
           </p>
         </div>
+        {!isSubmitted && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRegenerateKit}
+            disabled={regenerateKit.isPending || generateKit.isPending}
+          >
+            {(regenerateKit.isPending || generateKit.isPending) ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4 mr-2" />
+            )}
+            Regenerate
+          </Button>
+        )}
       </div>
 
       {/* Question Sections */}
