@@ -176,12 +176,22 @@ export function useInterviewKitEvaluation(bookingId: string | null) {
         isDeleted: r.is_deleted || false,
       }));
 
-      // Group questions by section
-      const domainQuestions = questions.filter(q => q.sectionType === 'domain');
-      const proofPointQuestions = questions.filter(q => q.sectionType === 'proof_point');
+      // Group questions by section - handle both old (full name) and new (enum) formats
+      const isDomainQuestion = (q: InterviewQuestionResponse) => 
+        q.sectionType === 'domain' || q.sectionName === 'Domain & Delivery Depth';
+
+      const isProofPointQuestion = (q: InterviewQuestionResponse) =>
+        q.sectionType === 'proof_point' || q.sectionName === 'Proof Points Deep-Dive';
+
+      const isCompetencyQuestion = (q: InterviewQuestionResponse) =>
+        q.sectionType === 'competency' || 
+        (!isDomainQuestion(q) && !isProofPointQuestion(q));
+
+      const domainQuestions = questions.filter(isDomainQuestion);
+      const proofPointQuestions = questions.filter(isProofPointQuestion);
       const competencyQuestions = new Map<string, InterviewQuestionResponse[]>();
       
-      for (const q of questions.filter(q => q.sectionType === 'competency')) {
+      for (const q of questions.filter(isCompetencyQuestion)) {
         const key = q.sectionLabel || q.sectionName;
         const existing = competencyQuestions.get(key) || [];
         existing.push(q);
