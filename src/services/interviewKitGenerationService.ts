@@ -307,46 +307,25 @@ export async function generateCompetencyQuestions(
 
 /**
  * Generate follow-up questions from proof points
- * Creates 1-2 template-based questions per proof point
+ * 
+ * DISABLED: Proof point questions require AI-based generation from the 
+ * provider's description to create meaningful, contextual questions.
+ * Currently returns empty array until AI generation is implemented.
+ * 
+ * Future implementation should:
+ * - Parse the proof point description
+ * - Generate questions that probe specific claims in the description
+ * - Link questions to the proof_point_id for traceability
  */
 export function generateProofPointQuestions(
   proofPoints: ProofPointForReview[]
 ): GeneratedQuestion[] {
-  if (!proofPoints || proofPoints.length === 0) {
-    return [];
-  }
-
-  const allQuestions: GeneratedQuestion[] = [];
-  let orderOffset = 0;
-
-  for (const pp of proofPoints) {
-    // Shuffle templates and select 1-2
-    const shuffledTemplates = shuffleArray([...PROOF_POINT_QUESTION_TEMPLATES]);
-    const count = randomBetween(
-      PROOF_POINT_QUESTIONS_PER_ITEM.min,
-      PROOF_POINT_QUESTIONS_PER_ITEM.max
-    );
-    const selectedTemplates = shuffledTemplates.slice(0, count);
-
-    selectedTemplates.forEach((template, idx) => {
-      // Replace placeholder with proof point title
-      const questionText = template.replace('{title}', truncate(pp.title, 50));
-
-      allQuestions.push({
-        question_text: questionText,
-        expected_answer: PROOF_POINT_DEFAULT_GUIDANCE,
-        question_source: QUESTION_SOURCE.proof_point,
-        section_name: SECTION_CONFIG.proof_point.name,
-        section_type: SECTION_TYPE.proof_point,
-        section_label: pp.title,
-        display_order: SECTION_DISPLAY_ORDER.proof_point + orderOffset,
-        proof_point_id: pp.id,
-      });
-      orderOffset++;
-    });
-  }
-
-  return allQuestions;
+  // Return empty array - proof points require AI generation based on description
+  // which is not yet implemented. This prevents the generation of generic
+  // template-based questions that don't reference the actual content.
+  console.log('[InterviewKit] Proof point question generation disabled - requires AI integration');
+  console.log('[InterviewKit] Proof points available:', proofPoints?.length || 0);
+  return [];
 }
 
 // =====================================================
