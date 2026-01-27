@@ -10,7 +10,6 @@ import {
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip,
@@ -18,10 +17,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { Info, RotateCcw, Save, Users, Globe, UserPlus } from "lucide-react";
+import { Info, RotateCcw, Save, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { QuorumMatrixCell } from "./QuorumMatrixCell";
-import { InvitePanelMembersTab } from "./InvitePanelMembersTab";
 import {
   Table,
   TableBody,
@@ -185,181 +183,162 @@ export default function InterviewRequirementsPage() {
 
   const breadcrumbs = [
     { label: "Admin", href: "/admin" },
-    { label: "Interview Requirements" },
+    { label: "Interview Setup" },
+    { label: "Quorum Requirements" },
   ];
 
   return (
     <AdminLayout
-      title="Platform Admin"
-      description="Manage interview panel quorum requirements and panel member invitations"
+      title="Quorum Requirements"
+      description="Configure the required number of interviewers per expertise level and industry segment"
       breadcrumbs={breadcrumbs}
     >
       <div className="space-y-6">
-        {/* Tabs */}
-        <Tabs defaultValue="requirements" className="w-full">
-          <TabsList>
-            <TabsTrigger value="requirements" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Configure Interview Requirements
-            </TabsTrigger>
-            <TabsTrigger value="reviewers" className="flex items-center gap-2">
-              <UserPlus className="h-4 w-4" />
-              Invite Panel Members
-            </TabsTrigger>
-          </TabsList>
+        {/* Info Banner */}
+        <Alert className="bg-blue-50 border-blue-200">
+          <Info className="h-4 w-4 text-blue-600" />
+          <AlertDescription className="text-blue-800">
+            <strong>How booking works:</strong> Providers only see composite slots that already
+            have full panel quorum available. Configure the required number of interviewers per
+            expertise level and industry segment below.
+          </AlertDescription>
+        </Alert>
 
-          <TabsContent value="requirements" className="space-y-6 mt-6">
-            {/* Info Banner */}
-            <Alert className="bg-blue-50 border-blue-200">
-              <Info className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800">
-                <strong>How booking works:</strong> Providers only see composite slots that already
-                have full panel quorum available. Configure the required number of interviewers per
-                expertise level and industry segment below.
-              </AlertDescription>
-            </Alert>
+        {/* Matrix Table */}
+        {isLoading ? (
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-full" />
+            <Skeleton className="h-64 w-full" />
+          </div>
+        ) : matrix.length === 0 ? (
+          <div className="text-center py-12 text-muted-foreground border rounded-lg">
+            No active expertise levels found. Please configure expertise levels first.
+          </div>
+        ) : (
+          <div className="border rounded-lg overflow-hidden">
+            <div className="overflow-x-auto">
+              <TooltipProvider>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-muted/50">
+                      <TableHead className="sticky left-0 bg-muted/50 z-10 min-w-[140px]">
+                        Expertise Level
+                      </TableHead>
+                      {columns.map((col, index) => (
+                        <TableHead
+                          key={col.id ?? "global"}
+                          className={`text-center min-w-[100px] ${
+                            index === 0 ? "bg-primary/5" : ""
+                          }`}
+                        >
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex flex-col items-center gap-1">
+                                {index === 0 && (
+                                  <Globe className="h-3 w-3 text-primary" />
+                                )}
+                                <span className="truncate max-w-[90px] text-xs font-medium">
+                                  {col.code === "GLOBAL" ? "Global" : col.code}
+                                </span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>{col.name}</p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TableHead>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {matrix.map((row) => {
+                      const level = row[0];
+                      const rowChanges = row.filter(
+                        (c) => c.currentValue !== c.originalValue
+                      ).length;
 
-            {/* Matrix Table */}
-            {isLoading ? (
-              <div className="space-y-4">
-                <Skeleton className="h-8 w-full" />
-                <Skeleton className="h-64 w-full" />
-              </div>
-            ) : matrix.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground border rounded-lg">
-                No active expertise levels found. Please configure expertise levels first.
-              </div>
-            ) : (
-              <div className="border rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <TooltipProvider>
-                    <Table>
-                      <TableHeader>
-                        <TableRow className="bg-muted/50">
-                          <TableHead className="sticky left-0 bg-muted/50 z-10 min-w-[140px]">
-                            Expertise Level
-                          </TableHead>
-                          {columns.map((col, index) => (
-                            <TableHead
-                              key={col.id ?? "global"}
-                              className={`text-center min-w-[100px] ${
-                                index === 0 ? "bg-primary/5" : ""
+                      return (
+                        <TableRow key={level.levelId}>
+                          <TableCell className="sticky left-0 bg-background z-10 border-r">
+                            <div className="flex items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  LEVEL_BADGE_COLORS[level.levelNumber] ||
+                                  "bg-gray-100 text-gray-800 border-gray-200"
+                                }
+                              >
+                                L{level.levelNumber}
+                              </Badge>
+                              <span className="font-medium text-sm truncate max-w-[100px]">
+                                {level.levelName}
+                              </span>
+                              {rowChanges > 0 && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {rowChanges}
+                                </Badge>
+                              )}
+                            </div>
+                          </TableCell>
+                          {row.map((cell, colIndex) => (
+                            <TableCell
+                              key={`${cell.levelId}-${cell.industryId ?? "global"}`}
+                              className={`text-center p-1 ${
+                                colIndex === 0 ? "bg-primary/5" : ""
                               }`}
                             >
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex flex-col items-center gap-1">
-                                    {index === 0 && (
-                                      <Globe className="h-3 w-3 text-primary" />
-                                    )}
-                                    <span className="truncate max-w-[90px] text-xs font-medium">
-                                      {col.code === "GLOBAL" ? "Global" : col.code}
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <p>{col.name}</p>
-                                </TooltipContent>
-                              </Tooltip>
-                            </TableHead>
+                              <QuorumMatrixCell
+                                value={cell.currentValue}
+                                originalValue={cell.originalValue}
+                                minValue={MIN_QUORUM}
+                                maxValue={MAX_QUORUM}
+                                onIncrement={() =>
+                                  handleCellChange(cell.levelId, cell.industryId, 1)
+                                }
+                                onDecrement={() =>
+                                  handleCellChange(cell.levelId, cell.industryId, -1)
+                                }
+                                disabled={saveMutation.isPending}
+                              />
+                            </TableCell>
                           ))}
                         </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {matrix.map((row, rowIndex) => {
-                          const level = row[0];
-                          const rowChanges = row.filter(
-                            (c) => c.currentValue !== c.originalValue
-                          ).length;
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TooltipProvider>
+            </div>
+          </div>
+        )}
 
-                          return (
-                            <TableRow key={level.levelId}>
-                              <TableCell className="sticky left-0 bg-background z-10 border-r">
-                                <div className="flex items-center gap-2">
-                                  <Badge
-                                    variant="outline"
-                                    className={
-                                      LEVEL_BADGE_COLORS[level.levelNumber] ||
-                                      "bg-gray-100 text-gray-800 border-gray-200"
-                                    }
-                                  >
-                                    L{level.levelNumber}
-                                  </Badge>
-                                  <span className="font-medium text-sm truncate max-w-[100px]">
-                                    {level.levelName}
-                                  </span>
-                                  {rowChanges > 0 && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {rowChanges}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </TableCell>
-                              {row.map((cell, colIndex) => (
-                                <TableCell
-                                  key={`${cell.levelId}-${cell.industryId ?? "global"}`}
-                                  className={`text-center p-1 ${
-                                    colIndex === 0 ? "bg-primary/5" : ""
-                                  }`}
-                                >
-                                  <QuorumMatrixCell
-                                    value={cell.currentValue}
-                                    originalValue={cell.originalValue}
-                                    minValue={MIN_QUORUM}
-                                    maxValue={MAX_QUORUM}
-                                    onIncrement={() =>
-                                      handleCellChange(cell.levelId, cell.industryId, 1)
-                                    }
-                                    onDecrement={() =>
-                                      handleCellChange(cell.levelId, cell.industryId, -1)
-                                    }
-                                    disabled={saveMutation.isPending}
-                                  />
-                                </TableCell>
-                              ))}
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TooltipProvider>
-                </div>
-              </div>
-            )}
-
-            {/* Action Buttons */}
-            {!isLoading && matrix.length > 0 && (
-              <div className="flex items-center justify-between pt-4 border-t">
-                <div className="flex items-center gap-4">
-                  <Button
-                    variant="ghost"
-                    onClick={handleReset}
-                    className="text-muted-foreground"
-                  >
-                    <RotateCcw className="mr-2 h-4 w-4" />
-                    Reset to Defaults
-                  </Button>
-                  {hasChanges && (
-                    <Badge variant="outline" className="text-primary border-primary">
-                      {changesCount} unsaved change{changesCount > 1 ? "s" : ""}
-                    </Badge>
-                  )}
-                </div>
-                <Button
-                  onClick={handleSave}
-                  disabled={!hasChanges || saveMutation.isPending}
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {saveMutation.isPending ? "Saving..." : "Save Configuration"}
-                </Button>
-              </div>
-            )}
-          </TabsContent>
-
-          <TabsContent value="reviewers" className="mt-6">
-            <InvitePanelMembersTab />
-          </TabsContent>
-        </Tabs>
+        {/* Action Buttons */}
+        {!isLoading && matrix.length > 0 && (
+          <div className="flex items-center justify-between pt-4 border-t">
+            <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                onClick={handleReset}
+                className="text-muted-foreground"
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reset to Defaults
+              </Button>
+              {hasChanges && (
+                <Badge variant="outline" className="text-primary border-primary">
+                  {changesCount} unsaved change{changesCount > 1 ? "s" : ""}
+                </Badge>
+              )}
+            </div>
+            <Button
+              onClick={handleSave}
+              disabled={!hasChanges || saveMutation.isPending}
+            >
+              <Save className="mr-2 h-4 w-4" />
+              {saveMutation.isPending ? "Saving..." : "Save Configuration"}
+            </Button>
+          </div>
+        )}
       </div>
     </AdminLayout>
   );
