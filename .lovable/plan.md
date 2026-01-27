@@ -1,149 +1,117 @@
 
-## Goal
-Ensure the “Add Question” dialog **never closes** when the user Alt+Tabs away and returns (or clicks outside). The dialog must **only** close via explicit buttons (Cancel, Save/Create, and the “X” close button).
+Goal
+- The “Add Question” dialog must not disappear on Alt+Tab.
+- Additionally (per your answer), if anything causes the page/dialog to remount (token refresh, transient guard loading, etc.), the dialog should automatically reopen and restore the in-progress draft (foolproof, first-time-right).
 
----
+What I found in the code (important)
+1) The dialog already blocks outside dismiss and Escape via:
+- onInteractOutside / onPointerDownOutside / onFocusOutside / onEscapeKeyDown → preventDefault()
+- plus a “close only with buttons” guard in handleOpenChange()
 
-## What we know from current code
-- We already added:
-  - `onInteractOutside={(e) => e.preventDefault()}`
-  - `onPointerDownOutside={(e) => e.preventDefault()}`
-- Yet the dialog **still closes** after Alt+Tab.
-- The dialog is **controlled** by the parent page (`formOpen` state). So if Radix calls `onOpenChange(false)`, the page sets `formOpen=false` and the dialog disappears.
+2) Despite that, you still see the dialog disappear. That strongly indicates the dialog is not being “dismissed” by Radix events anymore, but instead the parent page state is being reset because the page subtree temporarily unmounts/remounts (common causes: auth token refresh → guard rerender, role query refresh edge cases, or any transient full-screen loader in AdminGuard/AuthGuard). When that happens, the local React state `formOpen` resets to its initial value (false), so the dialog disappears.
 
-This means: even if we attempt to prevent dismissal, **Radix is still triggering `onOpenChange(false)`** in an Alt+Tab scenario (likely via focus/escape-related dismissal events that we are not currently intercepting).
+3) There is also a correctness bug in InterviewKitQuestionForm:
+- closeDialog() currently calls `onOpenChange(false)` directly (parent setter) and bypasses the guard handler `handleOpenChange()`.
+- This doesn’t explain Alt+Tab closure by itself, but it is still wrong and will undermine the “close only with buttons” design over time (and makes debugging harder).
 
----
+5-Why (updated root cause)
+Why #1: Why does the dialog disappear after Alt+Tab?
+- Because `open={formOpen}` becomes false, so the controlled dialog closes.
 
-## 5-Why Analysis (updated with evidence)
-### Why #1: Why does the dialog disappear when Alt+Tabbing away and returning?
-Because `formOpen` becomes `false`, so the controlled `<Dialog open={formOpen} …>` closes and unmounts the form UI.
+Why #2: Why does `formOpen` become false?
+- Because the component that owns `formOpen` (InterviewKitQuestionsPage) is likely being remounted (local state resets), or something calls its `setFormOpen(false)` during a guard transition.
 
-### Why #2: Why does `formOpen` become `false`?
-Because Radix fires `onOpenChange(false)` in response to an internal “dismiss” event when focus/interaction changes during Alt+Tab.
+Why #3: Why would the page remount on Alt+Tab?
+- Supabase commonly refreshes tokens and triggers auth-related state updates when the tab regains focus (your network logs show refresh token calls). Even if you remain authenticated, some parts of the app can briefly render loading/redirect gates (AdminGuard/AuthGuard) or refetch role data, causing the subtree to unmount and mount again.
 
-### Why #3: Why didn’t our existing `onInteractOutside` and `onPointerDownOutside` prevent it?
-Because Alt+Tab can cause dismissal through events that are **not covered** by those handlers (commonly `onFocusOutside`, and sometimes `onEscapeKeyDown` / auto-focus close behaviors).
+Why #4: Why do we lose the dialog state on remount?
+- Because `formOpen` and the form draft currently live only in component memory (useState / useForm). Remount = everything resets.
 
-### Why #4: Why does Radix treat Alt+Tab as a dismiss trigger?
-Radix Dialog uses a “dismissable layer” pattern. Focus leaving the document/window can be interpreted as leaving the dialog’s focus scope, which can trigger dismissal unless explicitly blocked.
+Why #5: Why wasn’t this prevented by earlier “preventDefault” handlers?
+- Because those handlers only prevent Radix “dismiss” events. They cannot protect you from React component remounts or parent state resets.
 
-### Why #5: Why is the bug persistent even after adding preventDefault handlers?
-Because even if we block some dismissal paths, **any remaining dismissal path** that calls `onOpenChange(false)` will still close the dialog in controlled mode. We must:
-1) block *all relevant* dismiss events, and  
-2) **defensively ignore** unintended close requests unless the user explicitly pressed a close button.
+Foolproof solution (defense-in-depth)
+Layer A — Fix the local dialog correctness bug (so the “close only with buttons” logic is internally consistent)
+- Change closeDialog() to close via the guarded handler, not by calling the parent setter directly.
+  - Instead of: allowCloseRef.current = true; onOpenChange(false)
+  - Do: allowCloseRef.current = true; handleOpenChange(false)
+- Ensure allowCloseRef is reset correctly after a successful authorized close.
 
----
+Layer B — Persist dialog open-state + draft to sessionStorage and auto-restore on remount (this is the “never lose work” guarantee)
+- In InterviewKitQuestionsPage (parent owner of formOpen):
+  - When opening the dialog (Add or Edit), write a small “dialog session” record to sessionStorage, e.g.:
+    - isOpen: true
+    - mode: "new" | "edit"
+    - editingQuestionId (if edit)
+    - defaultCompetencyId / current filters context (optional)
+    - timestamp (for cleanup)
+  - When closing the dialog intentionally (Cancel/X/Submit success), clear that sessionStorage record.
 
-## Solution Design (defense-in-depth)
-We will implement a two-layer fix:
+- In InterviewKitQuestionForm (child form):
+  - Persist draft form values to sessionStorage as the user types (debounced ~300ms) using react-hook-form’s watch().
+  - On mount/open:
+    - If a draft exists and dialog session says “isOpen: true”, restore the form values and keep dialog open.
+    - If editing an existing question:
+      - Prefer the saved draft if present (user may have started editing), otherwise load from the question record.
+  - On successful submit:
+    - Clear draft + dialog session.
 
-### Layer A — Block all relevant Radix dismiss events
-In `InterviewKitQuestionForm.tsx`, add the missing Radix handlers:
-- `onFocusOutside={(e) => e.preventDefault()}`
-- `onEscapeKeyDown={(e) => e.preventDefault()}` (optional but recommended since “only close with buttons”)
+Layer C — Add targeted, structured debug instrumentation to confirm the exact closure mechanism (then remove)
+- Add temporary structured logs (using your existing error/log standards in src/lib/errorHandler.ts) to record:
+  - InterviewKitQuestionsPage mount/unmount events (useEffect cleanup)
+  - Any time setFormOpen(false) is called, with a “reason” tag:
+    - user_cancel
+    - user_x
+    - submit_success
+    - parent_unmount_restore
+    - unknown_close_request
+  - Any time InterviewKitQuestionForm handleOpenChange receives newOpen=false (and whether it was ignored/accepted)
+- This will tell us definitively whether Alt+Tab is:
+  - causing a subtree remount, OR
+  - still triggering an unexpected close request.
 
-Keep:
-- `onInteractOutside`
-- `onPointerDownOutside`
+Files to change (implementation)
+1) src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx
+- Fix closeDialog to route through the guarded handler (not direct parent setter).
+- Add sessionStorage draft save/restore:
+  - Key example: interviewKitQuestionDraft:{competencyId}:{mode}:{questionIdOrNew}
+  - Debounced watch save.
+  - Restore on open.
+- Add temporary structured logs for open/close events (remove after confirmation).
 
-This covers more dismissal pathways than the current implementation.
+2) src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx
+- Add sessionStorage “dialog session” persistence:
+  - When opening: set session.isOpen=true
+  - When closing intentionally: clear session
+- On component mount:
+  - If session.isOpen=true, automatically set formOpen(true) and restore editingQuestion based on session.
+- Add temporary structured logs for mount/unmount + formOpen changes.
 
-### Layer B — “Only close with buttons” enforcement (hard guarantee)
-Even with Layer A, some environments can still trigger `onOpenChange(false)` due to focus quirks. So we’ll add a guard that **ignores close requests** unless we explicitly allow them.
+3) (Optional, if needed after logs) src/hooks/useUserRoles.ts
+- Make role query more stable on focus to reduce guard churn:
+  - refetchOnWindowFocus: false
+  - (and/or) keepPreviousData-like behavior (TanStack v5 patterns) to avoid transient “rolesLoading” gates.
+- This isn’t required if Layer B is implemented (Layer B will survive remounts), but it reduces the chances of remounts.
 
-Implementation approach:
-1) Add a local `allowCloseRef` in `InterviewKitQuestionForm`.
-2) Wrap the dialog’s `onOpenChange`:
-   - If `open === true`: always allow (opening is fine)
-   - If `open === false`: only allow when `allowCloseRef.current === true`
-3) When the user clicks:
-   - Cancel
-   - Submit success (Create/Save)
-   - X button
-   we set `allowCloseRef.current = true` then call `onOpenChange(false)`.
+Acceptance tests (must pass)
+1) Open Add Question dialog, type into multiple fields.
+2) Alt+Tab away for 5–30 seconds, then return.
+   - Dialog is still open OR (if remount happened) it automatically reopens within 0–1s.
+   - Draft text is preserved.
+3) Click outside overlay → dialog stays open.
+4) Press Escape → dialog stays open.
+5) Click Cancel → dialog closes and draft is cleared.
+6) Reopen Add Question → starts fresh (no old draft).
+7) Start typing, then hard refresh the page (optional test) → dialog auto-reopens with draft (since you requested auto-restore).
 
-#### Important detail: the current “X” is rendered inside `src/components/ui/dialog.tsx` automatically.
-That built-in Close button will trigger `onOpenChange(false)` without giving us a chance to set `allowCloseRef`.
+Why this will be “foolproof”
+- Even if Radix emits an unexpected dismiss, Layer A prevents unauthorized close.
+- Even if the entire page remounts due to auth/role refresh, Layer B restores both “open” state and the exact in-progress draft.
+- Layer C gives us hard evidence of the closure mechanism so we can eliminate any remaining edge cases rather than guessing.
 
-So we must do one of the following:
-- Option 1 (preferred): Update the shared `DialogContent` wrapper to support `hideCloseButton?: boolean`, and in this form pass `hideCloseButton` and render our own X button inside the form header.
-- Option 2 (more localized): Stop using the shared `DialogContent` wrapper here and directly use Radix primitives so we can fully control the close button.
+Non-blocking improvement noticed (separate from Alt+Tab)
+- There’s a console warning: “Function components cannot be given refs… Check render method of InterviewKitQuestionForm at FormField”.
+- After the Alt+Tab fix, we should also eliminate this warning by ensuring the specific FormControl child components used with FormField are forwardRef-compatible (likely a specific SelectTrigger/FormControl usage path). This doesn’t cause the dialog closure, but it’s worth cleaning up for stability.
 
-Given maintainability, Option 1 is preferred (backward compatible, minimal disruption).
-
----
-
-## Exact Implementation Steps (code changes)
-### 1) Update shared Dialog wrapper to support hiding the default close button
-**File:** `src/components/ui/dialog.tsx`
-
-- Extend `DialogContent` props to include:
-  - `hideCloseButton?: boolean`
-- Default: `false` (so no other dialogs change).
-- Only render `<DialogPrimitive.Close …>` if `hideCloseButton !== true`.
-
-This is safe and backward compatible.
-
-### 2) Harden InterviewKitQuestionForm against dismiss + enforce “close only by buttons”
-**File:** `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`
-
-- Add:
-  - `const allowCloseRef = useRef(false);`
-- Wrap `onOpenChange`:
-  - Allow open always
-  - Allow close only if `allowCloseRef.current` is true
-- Add to `<DialogContent …>`:
-  - `onFocusOutside={(e) => e.preventDefault()}`
-  - `onEscapeKeyDown={(e) => e.preventDefault()}`
-  - keep existing outside handlers
-  - pass `hideCloseButton`
-- Add a custom X close button in the dialog header area:
-  - On click:
-    - `allowCloseRef.current = true;`
-    - `onOpenChange(false);`
-
-- Update Cancel button:
-  - Before closing:
-    - `allowCloseRef.current = true;`
-    - `onOpenChange(false);`
-
-- Update submit success close:
-  - Before closing:
-    - `allowCloseRef.current = true;`
-    - `onOpenChange(false);`
-
-### 3) (Optional) Add minimal diagnostic logging during verification (dev only)
-If needed for verification, we can temporarily add a structured `logInfo` entry in the guarded `onOpenChange` to confirm whether close requests are coming from Radix during Alt+Tab. (Must be removed once confirmed, per “no console.log” standards.)
-
----
-
-## Testing Checklist (must pass)
-1) Open “Add Question”
-2) Type into Question Text and Expected Answer
-3) Alt+Tab to another application/window
-4) Return to browser
-   - Dialog remains open
-   - Data remains in the fields
-5) Click outside overlay
-   - Dialog remains open
-6) Press Escape
-   - Dialog remains open
-7) Click Cancel
-   - Dialog closes
-8) Click X
-   - Dialog closes
-9) Submit (Create/Save)
-   - Dialog closes after success
-
----
-
-## Risk / Impact
-- Low risk: Changes to `DialogContent` are backward compatible (`hideCloseButton` defaults to false).
-- Stronger guarantee: Even if Radix triggers a close event unexpectedly, the guard prevents state from changing unless the close is user-authorized.
-
----
-
-## Files that will change
-- `src/components/ui/dialog.tsx`
-- `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`
+Next step
+- After you approve this plan, I’ll implement Layers A–C. Then we’ll reproduce Alt+Tab once and use the new structured logs to confirm whether the issue was dismiss-driven or remount-driven (and we’ll remove the temporary logs once confirmed).
