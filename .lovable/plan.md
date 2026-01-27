@@ -1,114 +1,113 @@
 
 
-# Fix: Interview Kit Question Generation Rules
+# Fix: Competency Question Fallback Logic
 
-## Problem Summary
+## Problem
 
-The current implementation has **one code-level issue**:
+The current fallback logic (Lines 187-199) in `interviewKitGenerationService.ts` can mix questions from different industry segments:
 
-| Issue | Current Logic | Required Logic |
-|-------|---------------|----------------|
-| Random 1-2 selection | `Math.random() > 0.5 ? 2 : 1` | Always select 2 questions (minimum) |
+```typescript
+// Current fallback - DANGEROUS: ignores industry_segment_id
+const { data: fallbackQuestions } = await supabase
+  .from("interview_kit_questions")
+  .select("id, question_text, expected_answer, competency_id")
+  .eq("competency_id", competency.id)
+  .eq("is_active", true)  // Missing industry filter!
+  .limit(5);
+```
 
-**Note**: The industry/expertise filtering is already correct - the enrollment has Manufacturing + Associate Consultant level, and the database has 20 questions per competency for this exact combination. The problem is solely the randomization causing inconsistent counts.
+This means a provider enrolled in **Technology** could receive competency questions designed for **Manufacturing**.
 
 ---
 
-## Root Cause Analysis
+## Solution
 
-### Code Location: `src/services/interviewKitGenerationService.ts`
+Update the fallback query to **always filter by industry segment** while relaxing only the expertise level:
 
-**Line 207** (Competency Questions):
 ```typescript
-const count = Math.min(shuffled.length, Math.random() > 0.5 ? 2 : 1);
-```
-This randomly selects 1 or 2 with 50% probability.
-
-**Line 243** (Proof Point Questions):
-```typescript
-const questionCount = Math.random() > 0.5 ? 2 : 1;
-```
-Same random 1-2 selection for proof points.
-
----
-
-## Solution: Enforce Minimum 2 Questions Per Section
-
-### Changes to `src/services/interviewKitGenerationService.ts`
-
-#### Change 1: Competency Questions (Line 207)
-**Before:**
-```typescript
-const count = Math.min(shuffled.length, Math.random() > 0.5 ? 2 : 1);
-```
-
-**After:**
-```typescript
-// Minimum 2 questions per competency (if available)
-const count = Math.min(shuffled.length, 2);
-```
-
-#### Change 2: Proof Point Questions (Line 243)
-**Before:**
-```typescript
-const questionCount = Math.random() > 0.5 ? 2 : 1;
-```
-
-**After:**
-```typescript
-// Minimum 2 questions per proof point
-const questionCount = 2;
+// Updated fallback - maintains industry filter, relaxes expertise level
+const { data: fallbackQuestions } = await supabase
+  .from("interview_kit_questions")
+  .select("id, question_text, expected_answer, competency_id")
+  .eq("competency_id", competency.id)
+  .eq("industry_segment_id", industrySegmentId)  // Keep industry filter
+  .eq("is_active", true)
+  .limit(5);
 ```
 
 ---
 
-## Data Verification (Already Correct)
-
-The current candidate's enrollment:
-- **Industry Segment**: Manufacturing (Auto Components)
-- **Expertise Level**: Associate Consultant – Emerging Problem Solver
-
-Database contains questions for this exact combination:
-| Competency | Question Count |
-|------------|----------------|
-| Solution Design & Architecture Thinking | 20 |
-| Execution & Governance | 20 |
-| Data / Tech Readiness & Tooling Awareness | 20 |
-| Soft Skills for Solution Provider Success | 20 |
-| Innovation & Co-creation Ability | 20 |
-
-**Conclusion**: No data gaps exist. The industry and expertise level filters are working correctly. Only the random selection logic needs fixing.
-
----
-
-## Files to Modify
+## File to Modify
 
 | File | Lines | Change |
 |------|-------|--------|
-| `src/services/interviewKitGenerationService.ts` | 207 | Change random 1-2 to fixed 2 for competency questions |
-| `src/services/interviewKitGenerationService.ts` | 243 | Change random 1-2 to fixed 2 for proof point questions |
+| `src/services/interviewKitGenerationService.ts` | 187-199 | Add `.eq("industry_segment_id", industrySegmentId)` to fallback query |
 
 ---
 
-## Expected Outcome After Fix
+## Code Change
 
-| Section | Before (Random) | After (Fixed) |
-|---------|-----------------|---------------|
-| Domain & Delivery Depth | 10 | 10 (unchanged) |
-| Proof Points Deep-Dive | 1-2 per PP | **2 per PP** |
-| Solution Design & Architecture Thinking | 1-2 | **2** |
-| Execution & Governance | 1-2 | **2** |
-| Data/Tech Readiness & Tooling Awareness | 1-2 | **2** |
-| Soft Skills for Solution Provider Success | 1-2 | **2** |
-| Innovation & Co-creation Ability | 1-2 | **2** |
+**Before (Lines 187-199):**
+```typescript
+// If no exact match, fallback to any questions for this competency
+if (!questions || questions.length === 0) {
+  const { data: fallbackQuestions, error: fallbackError } = await supabase
+    .from("interview_kit_questions")
+    .select("id, question_text, expected_answer, competency_id")
+    .eq("competency_id", competency.id)
+    .eq("is_active", true)
+    .limit(5);
 
-**Total Questions**: Will now be consistent (10 domain + 10 competency + 2×N proof points) instead of varying randomly.
+  if (!fallbackError && fallbackQuestions) {
+    questions = fallbackQuestions;
+  }
+}
+```
+
+**After:**
+```typescript
+// If no exact match, fallback to same industry but any expertise level
+if (!questions || questions.length === 0) {
+  const { data: fallbackQuestions, error: fallbackError } = await supabase
+    .from("interview_kit_questions")
+    .select("id, question_text, expected_answer, competency_id")
+    .eq("competency_id", competency.id)
+    .eq("industry_segment_id", industrySegmentId)  // Always match industry
+    .eq("is_active", true)
+    .limit(5);
+
+  if (!fallbackError && fallbackQuestions) {
+    questions = fallbackQuestions;
+  }
+}
+```
 
 ---
 
-## Implementation Steps
+## Filtering Hierarchy (After Fix)
 
-1. Update line 207 in `interviewKitGenerationService.ts` to always select 2 competency questions
-2. Update line 243 to always generate 2 proof point questions
-3. Clear existing evaluation data and regenerate to verify
+| Priority | Filter Applied | Result |
+|----------|----------------|--------|
+| 1st try | Industry + Expertise + Competency | Exact match (ideal) |
+| Fallback | Industry + Competency (any expertise) | Same industry, different experience level |
+| No match | Skip competency section | No questions shown for that competency |
+
+---
+
+## Expected Behavior After Fix
+
+| Scenario | Before (Broken) | After (Fixed) |
+|----------|-----------------|---------------|
+| Technology enrollment, no Technology questions | Shows Manufacturing questions | Shows no questions (correct) |
+| Manufacturing L2, no L2 questions available | Shows any level questions from any industry | Shows Manufacturing questions from any level |
+| Exact match exists | Works correctly | Works correctly |
+
+---
+
+## Verification After Implementation
+
+After the code change:
+1. Clear existing data: `DELETE FROM interview_question_responses; DELETE FROM interview_evaluations;`
+2. Test with an enrollment that has no exact industry+expertise match
+3. Verify questions shown are always from the same industry segment
 
