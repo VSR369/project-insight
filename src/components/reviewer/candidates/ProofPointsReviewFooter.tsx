@@ -23,6 +23,7 @@ interface ProofPointsReviewFooterProps {
   onConfirm: () => void;
   isSaving: boolean;
   isConfirming: boolean;
+  isInterviewSubmitted?: boolean;
 }
 
 export function ProofPointsReviewFooter({
@@ -35,17 +36,23 @@ export function ProofPointsReviewFooter({
   onConfirm,
   isSaving,
   isConfirming,
+  isInterviewSubmitted = false,
 }: ProofPointsReviewFooterProps) {
   const isCompleted = reviewStatus === 'completed';
+  const isLocked = isCompleted || isInterviewSubmitted;
   const unratedCount = totalCount - ratedCount;
 
-  if (isCompleted) {
+  if (isLocked) {
+    const message = isInterviewSubmitted && !isCompleted
+      ? 'Interview has been submitted. Proof Points review can no longer be modified.'
+      : `Proof Points review has been completed with a final score of ${finalScore.toFixed(2)}/10.`;
+    
     return (
       <div className="sticky bottom-0 bg-background border-t p-4 mt-6">
         <Alert className="bg-green-50 border-green-200">
           <CheckCircle className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-800">
-            Proof Points review has been completed with a final score of {finalScore.toFixed(2)}/10.
+            {message}
           </AlertDescription>
         </Alert>
       </div>

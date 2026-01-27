@@ -274,6 +274,7 @@ export function ProofPointsTabContent({ enrollmentId }: ProofPointsTabContentPro
           onConfirm={handleConfirm}
           isSaving={saveDraft.isPending}
           isConfirming={confirmReview.isPending}
+          isInterviewSubmitted={data.isInterviewSubmitted}
         />
       )}
     </div>
