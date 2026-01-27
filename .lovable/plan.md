@@ -1,240 +1,206 @@
 
+# Implementation Plan: Interview Kit Summary Dashboard
 
-# Interview Kit: Implementation Status & Final Technical Specifications
+## Overview
 
-## Summary
-
-This document provides a complete comparison between the original tech specifications and the current Lovable.dev implementation, identifying what is implemented, what is not implemented, and what is relevant/required for future work.
-
----
-
-## SECTION 1: FULLY IMPLEMENTED (No Changes Needed)
-
-| Spec Requirement | Implementation Status | Location |
-|------------------|----------------------|----------|
-| **Provider Context Header** | ✅ Implemented at Candidate Detail page level | `CandidateProfileHeader.tsx` |
-| **Interview Kit Header** | ✅ Implemented | `InterviewKitHeader.tsx` |
-| **Domain Question Generation (R6.2)** | ✅ Up to 10 questions from `question_bank` filtered by `speciality_id` + `usage_mode` | `interviewKitGenerationService.ts` |
-| **Competency Question Generation** | ✅ From `interview_kit_questions` filtered by `industry_segment_id` + `expertise_level_id` | `interviewKitGenerationService.ts` |
-| **Proof Point Question Generation** | ✅ Template-based, 2 per proof point | `generateProofPointQuestions()` |
-| **Mandatory Rating Per Question (R6.3)** | ✅ Right=5, Wrong=0, Not Answered=0 | `InterviewQuestionCard.tsx`, `useUpdateQuestionRating()` |
-| **Optional Comments (R6.4)** | ✅ Max 500 chars with character counter | `InterviewQuestionCard.tsx` |
-| **Submission Validation (R6.5)** | ✅ `allRated` check before submit | `InterviewKitTabContent.tsx`, `InterviewKitFooter.tsx` |
-| **Score Calculation (C1, C2)** | ✅ `scorePercentage = (totalScore/maxScore)*100`, `scoreOutOf10` to 1 decimal | `InterviewKitFooter.tsx` |
-| **Score Rollup to interview_bookings** | ✅ All rollup columns populated | `useSubmitInterview()` |
-| **CRUD Operations** | ✅ Read, Create, Update, Soft Delete | All hooks in `useInterviewKitEvaluation.ts` |
-| **Add Custom Question** | ✅ Per section | `AddQuestionDialog.tsx`, `useAddCustomQuestion()` |
-| **Edit Question** | ✅ Text + Expected Answer | `EditQuestionDialog.tsx`, `useUpdateQuestionText()` |
-| **Delete Question** | ✅ Soft delete (is_deleted=true) | `DeleteQuestionConfirm.tsx`, `useDeleteQuestion()` |
-| **Radio Button UX Fix** | ✅ Removed `disabled={isUpdating}` | `InterviewQuestionCard.tsx` line 143-147 |
-| **Comments Character Limit** | ✅ 500 chars with counter | `InterviewQuestionCard.tsx` |
-| **Submit Interview Button** | ✅ With validation | `InterviewKitFooter.tsx` |
-| **Toast Messages** | ✅ Aligned with spec | All mutation hooks |
-| **Auto-generate on first load** | ✅ useEffect triggers when no questions exist | `InterviewKitTabContent.tsx` |
-| **Regenerate Questions Button** | ✅ Available when no questions | `InterviewKitTabContent.tsx` |
-| **Collapsible Sections** | ✅ Per section with stats | `InterviewKitSection.tsx` |
-| **RLS Policies** | ✅ Reviewers can manage own evaluations | Database |
-| **Audit Fields** | ✅ `created_by`, `updated_by`, `withCreatedBy()`, `withUpdatedBy()` | All mutations |
+Based on the screenshot, I need to implement a comprehensive **Interview Kit Summary Dashboard** that displays real-time statistics, rating distribution, scoring logic reference, and recommendation status above the existing interview questions.
 
 ---
 
-## SECTION 2: NOT IMPLEMENTED
+## UI Components to Create
 
-### 2A. Items NOT Required (Irrelevant to Lovable.dev)
+### 1. New Component: `InterviewKitSummaryDashboard.tsx`
 
-| Original Spec | Reason Not Applicable |
-|---------------|----------------------|
-| `interview_sessions` table | System uses `interview_evaluations` (same purpose, different name) |
-| `interview_session_responses` table | System uses `interview_question_responses` (same purpose) |
-| REST API endpoints (F1-F4) | SPA uses React Query + Supabase directly, not REST APIs |
-| `question_type` ENUM on question_bank | System uses existing `usage_mode` column ('self_assessment', 'interview', 'both') |
-| Review Notes inside Interview Kit tab | Notes are on **Expertise Tab** and **Slots Tab** separately (correct architecture) |
-| "2 notes" count display | Not part of Interview Kit (handled in Expertise/Slots tabs) |
-| `flag_for_clarification` + `reviewer_notes` for Interview Kit | These are **Expertise tab** fields (`expertise_flag_for_clarification`, `expertise_reviewer_notes`) |
-| Author name on notes | Already available via reviewer context in Expertise/Slots tabs |
-| Timestamp display on notes | Would require schema change; current design uses audit fields |
+This will be the main new component containing all the dashboard elements shown in the screenshot.
 
-### 2B. Items Partially Implemented (May Need Enhancement)
+**Location**: `src/components/reviewer/interview-kit/InterviewKitSummaryDashboard.tsx`
 
-| Original Spec | Current State | Gap | Priority |
-|---------------|---------------|-----|----------|
-| **Keyboard navigation** | RadioGroup is keyboard navigable by default | May need ARIA labels on action buttons | LOW |
-| **Error focus on first unrated question** | Submit disabled until all rated | No scroll-to-error on submit attempt | LOW |
-| **Export PDF** | Button exists with toast "coming soon" | Export functionality not implemented | MEDIUM |
-
-### 2C. Items NOT Implemented But NOT NEEDED
-
-| Original Spec | Reason Not Needed |
-|---------------|-------------------|
-| Minimum validation on note text | Review notes are on Expertise/Slots tabs, not Interview Kit |
-| Note delete via trash icon | Notes are text fields cleared via empty string (already works) |
-| Interview Slot status rendering | Handled in Slots tab, not Interview Kit |
-
----
-
-## SECTION 3: FINAL TECHNICAL SPECIFICATIONS (Cleaned)
-
-### 3.1 Database Schema (CURRENT - No Changes Needed)
-
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│ interview_evaluations (One per reviewer per booking)                 │
-├─────────────────────────────────────────────────────────────────────┤
-│ id                    UUID PK                                        │
-│ booking_id            UUID FK → interview_bookings.id                │
-│ reviewer_id           UUID FK → panel_reviewers.id                   │
-│ overall_score         NUMERIC (10-point scale)                       │
-│ outcome               VARCHAR ('pass' | 'fail')                      │
-│ notes                 TEXT                                           │
-│ evaluated_at          TIMESTAMPTZ                                    │
-│ created_at, updated_at, created_by, updated_by                       │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│ interview_question_responses (One per question per evaluation)       │
-├─────────────────────────────────────────────────────────────────────┤
-│ id                    UUID PK                                        │
-│ evaluation_id         UUID FK → interview_evaluations.id             │
-│ question_source       TEXT ('question_bank'|'interview_kit'|         │
-│                              'proof_point'|'custom')                 │
-│ question_bank_id      UUID FK (nullable)                             │
-│ interview_kit_question_id UUID FK (nullable)                         │
-│ proof_point_id        UUID FK (nullable)                             │
-│ question_text         TEXT                                           │
-│ expected_answer       TEXT                                           │
-│ rating                TEXT ('right'|'wrong'|'not_answered'|NULL)     │
-│ score                 INTEGER (0 or 5)                               │
-│ comments              TEXT (max 500 chars)                           │
-│ section_name          TEXT                                           │
-│ section_type          VARCHAR ('domain'|'proof_point'|'competency')  │
-│ section_label         VARCHAR                                        │
-│ display_order         INTEGER                                        │
-│ is_deleted            BOOLEAN                                        │
-│ created_at, updated_at, created_by, updated_by                       │
-└─────────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────┐
-│ interview_bookings (Score Rollup Storage)                            │
-├─────────────────────────────────────────────────────────────────────┤
-│ interview_total_questions      INTEGER                               │
-│ interview_correct_count        INTEGER                               │
-│ interview_score_percentage     NUMERIC                               │
-│ interview_score_out_of_10      NUMERIC (1 decimal)                   │
-│ interview_submitted_at         TIMESTAMPTZ                           │
-│ interview_submitted_by         UUID                                  │
-│ interview_outcome              VARCHAR                               │
-└─────────────────────────────────────────────────────────────────────┘
+**Props**:
+```typescript
+interface InterviewKitSummaryDashboardProps {
+  totalQuestions: number;       // Total question count
+  ratedQuestions: number;       // Questions that have been rated
+  totalScore: number;           // Earned score
+  maxScore: number;             // Maximum possible score
+  sectionsCount: number;        // Number of sections
+  rightCount: number;           // Questions rated "Right"
+  wrongCount: number;           // Questions rated "Wrong"
+  notAnsweredCount: number;     // Questions rated "Not Answered"
+}
 ```
 
-### 3.2 Question Generation Logic (CURRENT)
+---
 
-| Section | Source | Filter | Count |
-|---------|--------|--------|-------|
-| Domain & Delivery Depth | `question_bank` | `speciality_id IN (provider's specialities)` + `usage_mode IN ('interview', 'both')` + `is_active = true` | Max 10 random |
-| Proof Points Deep-Dive | Template generation | From proof point titles | 2 per proof point |
-| Competency Sections (5) | `interview_kit_questions` | `industry_segment_id` + `expertise_level_id` (exact), fallback to industry-only | 2 per competency |
+## Dashboard Layout (Matching Screenshot)
 
-### 3.3 Scoring Logic (CURRENT)
+### Section A: Stats Cards Row
+A horizontal row of 4 stat cards with light blue background:
+
+| Card | Label | Value | Style |
+|------|-------|-------|-------|
+| Progress | "Progress" | `{rated}/{total}` | Blue text |
+| Total Score | "Total Score" | `{earned}/{max}` with percentage below | Blue text |
+| Sections | "Sections" | `{count}` | Blue text |
+| Recommendation | "Recommendation" | Auto-derived text | Red/Yellow/Green based on threshold |
+
+### Section B: Rating Distribution (Overall Interview)
+Three horizontal segments showing distribution:
+
+| Rating | Calculation | Display |
+|--------|-------------|---------|
+| Right | `(rightCount / totalQuestions) * 100` | `X.X%` with `(X / Y)` count |
+| Wrong | `(wrongCount / totalQuestions) * 100` | `X.X%` with `(X / Y)` count |
+| Not Answered | `(notAnsweredCount / totalQuestions) * 100` | `X.X%` with `(X / Y)` count |
+
+### Section C: Scoring Logic (Reference Card)
+Informational card showing the scoring rules:
+
+**Rating Values**:
+- Right = 5 points (green badge)
+- Wrong = 0 points (red badge)
+- Not Answered = 0 points (amber badge)
+
+**Panel Recommendation (Auto-derived)**:
+- ✅ ≥ 80% = Strong Recommend
+- ✅ 60-79% = Recommend with Conditions
+- ⚠️ 50-64% = Borderline / Re-interview
+- ❌ < 50% = Not Recommended
+
+**Note**: "Comments are mandatory when rating a question as 'Wrong' or 'Not Answered'"
+
+---
+
+## Recommendation Logic
 
 ```typescript
-// Per-question
-const score = rating === 'right' ? 5 : 0;
-
-// Overall
-const totalQuestions = activeQuestions.length;
-const correctCount = questions.filter(q => q.rating === 'right').length;
-const totalScore = questions.reduce((sum, q) => sum + q.score, 0);
-const maxScore = totalQuestions * 5;
-const scorePercentage = (totalScore / maxScore) * 100;
-const scoreOutOf10 = (totalScore / maxScore) * 10;  // 1 decimal
-
-// Outcome
-const outcome = scorePercentage >= 60 ? 'pass' : 'fail';
+function getRecommendation(scorePercentage: number): {
+  label: string;
+  variant: 'success' | 'warning' | 'danger' | 'info';
+} {
+  if (scorePercentage >= 80) {
+    return { label: 'Strong Recommend', variant: 'success' };
+  } else if (scorePercentage >= 60) {
+    return { label: 'Recommend with Conditions', variant: 'info' };
+  } else if (scorePercentage >= 50) {
+    return { label: 'Borderline / Re-interview', variant: 'warning' };
+  } else {
+    return { label: 'Not Recommended', variant: 'danger' };
+  }
+}
 ```
 
-### 3.4 Validation Rules (CURRENT)
+---
 
-| Field | Validation | Enforcement |
-|-------|------------|-------------|
-| Rating | Required (enum: 'right', 'wrong', 'not_answered') | UI disables submit until all rated |
-| Comments | Optional, max 500 chars | `maxLength={500}` + character counter |
-| Submit | All questions must have rating | `allRated === true` check |
+## Files to Modify
 
-### 3.5 Toast Messages (CURRENT)
+### 1. Create: `src/components/reviewer/interview-kit/InterviewKitSummaryDashboard.tsx`
 
-| Action | Message |
-|--------|---------|
-| Generate questions | "Generated {count} interview questions" |
-| Update question | "Question updated" |
-| Delete question | "Question removed" |
-| Submit interview | "Interview submitted successfully" |
-| Submit validation fail | "Please rate all questions before submitting" |
+New component with all dashboard elements.
 
-### 3.6 Components & Hooks (CURRENT)
+### 2. Modify: `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx`
 
-| Component | Purpose |
-|-----------|---------|
-| `InterviewKitTabContent` | Main container with state management |
-| `InterviewKitHeader` | Section title |
-| `InterviewKitFooter` | Score display + Submit button |
-| `InterviewKitSection` | Collapsible section wrapper |
-| `InterviewQuestionCard` | Individual question with rating + comments |
-| `ProofPointQuestionGroup` | Group proof point questions |
-| `AddQuestionDialog` | Custom question form |
-| `EditQuestionDialog` | Edit question text |
-| `DeleteQuestionConfirm` | Delete confirmation |
+**Changes**:
+- Add computed values for rating distribution (rightCount, wrongCount, notAnsweredCount)
+- Add sections count calculation (domain + proof points + competencies)
+- Import and render `InterviewKitSummaryDashboard` before the question sections
+- Pass all required props
 
-| Hook | Purpose |
-|------|---------|
-| `useInterviewKitEvaluation` | Fetch/create evaluation + questions |
-| `useGenerateInterviewQuestions` | Generate from 3 sources |
-| `useUpdateQuestionRating` | Rating + comments update |
-| `useUpdateQuestionText` | Edit question |
-| `useDeleteQuestion` | Soft delete |
-| `useAddCustomQuestion` | Add custom |
-| `useSubmitInterview` | Submit + rollup |
+### 3. Modify: `src/components/reviewer/interview-kit/InterviewKitHeader.tsx`
+
+**Changes**:
+- Simplify to just show the "Interview Questions" subtitle
+- Move the auto-generation description to be more compact
+- The main header stats are now in the Summary Dashboard
+
+### 4. Modify: `src/components/reviewer/interview-kit/index.ts`
+
+Export the new component.
 
 ---
 
-## SECTION 4: OPTIONAL FUTURE ENHANCEMENTS
+## Computed Values to Add
 
-These are not required but could improve UX:
+In `InterviewKitTabContent.tsx`, add these computed values:
 
-| Enhancement | Priority | Effort |
-|-------------|----------|--------|
-| **PDF Export** | MEDIUM | Create PDF with html2pdf.js (already installed) |
-| **Scroll to first unrated question** on submit attempt | LOW | Add ref tracking + scrollIntoView |
-| **ARIA labels** on Edit/Delete buttons | LOW | Add aria-label props |
-| **Keyboard shortcut** for ratings (1=Right, 2=Wrong, 3=NA) | LOW | Add keydown handlers |
+```typescript
+// Rating distribution counts
+const ratingDistribution = useMemo(() => {
+  const activeQuestions = evaluationData?.questions.filter(q => !q.isDeleted) || [];
+  const rightCount = activeQuestions.filter(q => q.rating === 'right').length;
+  const wrongCount = activeQuestions.filter(q => q.rating === 'wrong').length;
+  const notAnsweredCount = activeQuestions.filter(q => q.rating === 'not_answered').length;
+  const unratedCount = activeQuestions.filter(q => q.rating === null).length;
+  
+  return { rightCount, wrongCount, notAnsweredCount, unratedCount };
+}, [evaluationData?.questions]);
+
+// Sections count (domain + proof points + each competency)
+const sectionsCount = useMemo(() => {
+  let count = 0;
+  if (domainQuestions.length > 0) count += 1;  // Domain section
+  if (allProofPointQuestions.length > 0) count += 1;  // Proof Points section
+  count += (competencies?.length || 0);  // Competency sections
+  return count;
+}, [domainQuestions.length, allProofPointQuestions.length, competencies?.length]);
+```
 
 ---
 
-## SECTION 5: CONCLUSION
+## UI Styling Notes
 
-### What Was Already Correct in Original Spec
+From the screenshot:
 
-1. Scoring logic (Right=5, Wrong/NA=0)
-2. Mandatory rating validation
-3. Question generation from taxonomy
-4. Score rollup to interview_bookings
-5. Soft delete pattern
+1. **Stats Cards**: Light blue background (`bg-blue-50`), rounded corners, border
+2. **Progress/Score values**: Blue text (`text-blue-600`)
+3. **Recommendation "Not Recommended"**: Red background (`bg-red-100`), red text (`text-red-600`), border
+4. **Rating Distribution**: Clean horizontal layout with radio-like indicators
+5. **Scoring Logic**: Light gray/white card background with clear hierarchy
 
-### What Was Incorrect/Irrelevant in Original Spec
+---
 
-1. Review Notes placement (belongs in Expertise/Slots tabs, not Interview Kit)
-2. `interview_sessions` table name (system uses `interview_evaluations`)
-3. REST API contracts (system uses Supabase + React Query)
-4. `question_type` ENUM (system uses existing `usage_mode` column)
+## Complete Component Structure
 
-### Current System is Complete
+```text
+InterviewKitTabContent
+├── InterviewKitSummaryDashboard (NEW)
+│   ├── Stats Cards Row
+│   │   ├── Progress Card
+│   │   ├── Total Score Card
+│   │   ├── Sections Card
+│   │   └── Recommendation Card
+│   ├── Rating Distribution Section
+│   │   ├── Right indicator
+│   │   ├── Wrong indicator
+│   │   └── Not Answered indicator
+│   └── Scoring Logic Section
+│       ├── Rating Values
+│       ├── Panel Recommendation Thresholds
+│       └── Note about mandatory comments
+├── InterviewKitHeader (simplified)
+├── Question Sections (existing)
+│   ├── Domain & Delivery Depth
+│   ├── Proof Points Deep-Dive
+│   └── Competency Sections (5)
+└── InterviewKitFooter (existing)
+```
 
-The Interview Kit implementation is **functionally complete** with:
-- All CRUD operations
-- Proper scoring and rollup
-- Validation before submit
-- Character limits
-- Radio button UX fix
-- Audit field population
+---
 
-**No additional database changes or major refactoring required.**
+## Technical Notes
 
+1. **No database changes needed** - All values are computed from existing `interview_question_responses` data
+2. **Real-time updates** - Stats update automatically when ratings change via React Query invalidation
+3. **Section count logic** - Counts only sections that have at least 1 question
+4. **Percentage calculations** - Handle division by zero when no questions exist
+5. **Recommendation is computed** - Not stored in database, calculated on render
+
+---
+
+## Summary of Changes
+
+| Action | File | Description |
+|--------|------|-------------|
+| CREATE | `InterviewKitSummaryDashboard.tsx` | New dashboard component with stats, distribution, and scoring logic |
+| MODIFY | `InterviewKitTabContent.tsx` | Add computed values and render dashboard |
+| MODIFY | `InterviewKitHeader.tsx` | Simplify to subtitle only |
+| MODIFY | `index.ts` | Export new component |
