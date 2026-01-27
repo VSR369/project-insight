@@ -1,123 +1,116 @@
 
-# Interview Kit Questions Not Displaying - Fix Plan
 
-## Root Cause Identified
+# Interview Kit Data Fix - Database Cleanup Required
 
-**Data Mismatch**: The database contains 1,824 question records, but they are stored with incorrect `section_type` values:
+## Problem Summary
 
-| What Database Has | What Code Expects |
-|-------------------|-------------------|
-| `"Proof Points Deep-Dive"` | `"proof_point"` |
-| (full display names) | (short enum values) |
-
-The filtering logic in `useInterviewKitEvaluation.ts` lines 180-184 expects:
-- `'domain'` for Domain & Delivery Depth questions
-- `'proof_point'` for Proof Points Deep-Dive questions  
-- `'competency'` for Competency questions
-
-But the existing data has the full section names stored in `section_type`, causing all filters to return empty arrays.
+The database still contains 1,824 corrupted question records from a previous implementation. The filtering code has been updated to be backward-compatible, but the underlying data has incorrect `section_type` values which prevents proper display.
 
 ---
 
-## Solution: Two-Part Fix
+## Current Data Analysis
 
-### Part 1: Database Data Cleanup (SQL)
+| Column | What Database Has | What Code Expects |
+|--------|-------------------|-------------------|
+| `section_type` | `"Proof Points Deep-Dive"` | `"proof_point"` |
+| `section_type` | (no domain questions) | `"domain"` |
+| `section_type` | (no competency questions) | `"competency"` |
+| `question_source` | All `"proof_point"` | Mix of `"question_bank"`, `"interview_kit"`, `"proof_point"`, `"custom"` |
 
-Clean up the corrupted data and regenerate fresh questions:
+The existing 1,824 records are **only Proof Point questions** (which now display correctly due to the backward-compatible filter). However, **Domain** and **Competency** questions were never generated because the old implementation didn't include them.
+
+---
+
+## Solution: Database Cleanup + Regenerate
+
+### Step 1: Run SQL Commands in Supabase
+
+Open the [Supabase SQL Editor](https://supabase.com/dashboard/project/izwimkvabbvnqcrrubpf/sql/new) and execute:
 
 ```sql
--- Delete all corrupted interview question responses 
-DELETE FROM interview_question_responses;
-
--- Reset interview evaluations so questions regenerate fresh
-DELETE FROM interview_evaluations;
-```
-
-This clears the corrupted data and allows the system to regenerate questions with correct `section_type` values.
-
-### Part 2: Code Enhancement - Make Filtering More Robust
-
-Update the filtering logic in `useInterviewKitEvaluation.ts` to handle both old and new data formats (defensive coding):
-
-**File**: `src/hooks/queries/useInterviewKitEvaluation.ts`
-
-**Changes at lines 179-189**:
-
-```typescript
-// Group questions by section - handle both old (full name) and new (enum) formats
-const isDomainQuestion = (q: InterviewQuestionResponse) => 
-  q.sectionType === 'domain' || q.sectionName === 'Domain & Delivery Depth';
-
-const isProofPointQuestion = (q: InterviewQuestionResponse) =>
-  q.sectionType === 'proof_point' || q.sectionName === 'Proof Points Deep-Dive';
-
-const isCompetencyQuestion = (q: InterviewQuestionResponse) =>
-  q.sectionType === 'competency' || 
-  (!isDomainQuestion(q) && !isProofPointQuestion(q));
-
-const domainQuestions = questions.filter(isDomainQuestion);
-const proofPointQuestions = questions.filter(isProofPointQuestion);
-const competencyQuestions = new Map<string, InterviewQuestionResponse[]>();
-
-for (const q of questions.filter(isCompetencyQuestion)) {
-  const key = q.sectionLabel || q.sectionName;
-  const existing = competencyQuestions.get(key) || [];
-  existing.push(q);
-  competencyQuestions.set(key, existing);
-}
-```
-
----
-
-## Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/hooks/queries/useInterviewKitEvaluation.ts` | Update filtering logic (lines 179-189) to be backward-compatible |
-
----
-
-## Database Commands to Execute
-
-Run in Supabase SQL Editor:
-
-```sql
--- Clear corrupted question responses
+-- Clear all existing question responses (corrupted data)
 DELETE FROM interview_question_responses;
 
 -- Clear evaluations to trigger fresh generation
 DELETE FROM interview_evaluations;
 ```
 
----
+### Step 2: Refresh the Interview Kit Tab
 
-## Implementation Steps
-
-1. **Modify filtering logic** in `useInterviewKitEvaluation.ts`:
-   - Add helper functions to detect question types by either `section_type` OR `section_name`
-   - This makes the code backward-compatible with any existing data
-
-2. **User action**: Run the SQL cleanup commands in Supabase
-   - This clears the 1,824 corrupted records
-   - Next time the Interview Kit tab is opened, questions will regenerate correctly
-
-3. **Verify**: After cleanup, new questions will be generated with correct `section_type` values like `'domain'`, `'proof_point'`, `'competency'`
+After running the SQL commands:
+1. Refresh the candidate detail page in your browser
+2. Navigate to the Interview Kit tab
+3. Questions will auto-regenerate with correct values:
+   - **Domain & Delivery Depth**: Max 10 from `question_bank` (filtered by `usage_mode IN ('interview', 'both')`)
+   - **Proof Points Deep-Dive**: 1-2 per proof point
+   - **Competencies**: 1-2 per competency from `interview_kit_questions`
 
 ---
 
-## Why This Happened
+## Code Status
 
-The old implementation (which was deleted) stored `section_type` as the full display name instead of a short enum. The new implementation correctly uses enum values, but the existing data in the database was never cleaned up.
+The code changes are **already complete and correct**:
+
+| File | Status | What It Does |
+|------|--------|--------------|
+| `useInterviewKitEvaluation.ts` | ✅ Updated | Backward-compatible filtering for both enum and display name formats |
+| `interviewKitGenerationService.ts` | ✅ Complete | Generates questions from all 3 sources with correct `section_type` enums |
+| `InterviewKitTabContent.tsx` | ✅ Complete | Auto-generates on first visit if no questions exist |
 
 ---
 
-## Expected Outcome
+## Question Generation Logic (Already Implemented)
 
-After this fix:
-- ✅ Existing corrupted data will be cleared
-- ✅ New questions will generate with correct `section_type` values
-- ✅ Questions will display properly in all sections:
-  - Domain & Delivery Depth: Max 10 from question_bank
-  - Proof Points Deep-Dive: 1-2 per proof point
-  - Competencies: 1-2 per competency
-- ✅ Filtering will work with both old and new data formats (defensive coding)
+### 1. Domain & Delivery Depth (Max 10)
+```text
+Source: question_bank table
+Filter: 
+  - speciality_id IN (provider's selected specialities)
+  - usage_mode IN ('interview', 'both')
+  - is_active = true
+Selection: Random 10 with hierarchy path
+section_type: 'domain'
+```
+
+### 2. Proof Points Deep-Dive (1-2 per proof point)
+```text
+Source: Generated from proof point descriptions
+Templates: 6 question patterns based on methodology, outcomes, challenges
+section_type: 'proof_point'
+```
+
+### 3. Competency Questions (1-2 per competency = 5-10 total)
+```text
+Source: interview_kit_questions table
+Filter:
+  - competency_id matches
+  - industry_segment_id matches OR fallback to any
+  - expertise_level_id matches OR fallback to any
+  - is_active = true
+Selection: Random 1-2 per competency
+section_type: 'competency'
+```
+
+---
+
+## Expected Result After Fix
+
+Once the database is cleaned and questions regenerate:
+
+| Section | Count | Source Table | section_type |
+|---------|-------|--------------|--------------|
+| Domain & Delivery Depth | 10 | `question_bank` | `domain` |
+| Proof Points Deep-Dive | ~8-16 | Generated | `proof_point` |
+| Solution Design & Architecture Thinking | 1-2 | `interview_kit_questions` | `competency` |
+| Execution & Governance | 1-2 | `interview_kit_questions` | `competency` |
+| Data/Tech Readiness & Tooling Awareness | 1-2 | `interview_kit_questions` | `competency` |
+| Soft Skills for Solution Provider Success | 1-2 | `interview_kit_questions` | `competency` |
+| Innovation & Co-creation Ability | 1-2 | `interview_kit_questions` | `competency` |
+| **TOTAL** | ~20-30 | | |
+
+---
+
+## Action Required
+
+**Please run the SQL cleanup commands above** to clear the corrupted data. The system will automatically regenerate questions with proper enum values when you next visit the Interview Kit tab.
+
