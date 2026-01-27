@@ -666,8 +666,15 @@ export type Database = {
           enrollment_id: string
           flag_for_clarification: boolean | null
           id: string
+          interview_correct_count: number | null
           interview_outcome: string | null
+          interview_score_out_of_10: number | null
+          interview_score_percentage: number | null
+          interview_submitted_at: string | null
+          interview_submitted_by: string | null
+          interview_total_questions: number | null
           notes: string | null
+          panel_recommendation: string | null
           provider_id: string
           reschedule_count: number | null
           reviewer_notes: string | null
@@ -685,8 +692,15 @@ export type Database = {
           enrollment_id: string
           flag_for_clarification?: boolean | null
           id?: string
+          interview_correct_count?: number | null
           interview_outcome?: string | null
+          interview_score_out_of_10?: number | null
+          interview_score_percentage?: number | null
+          interview_submitted_at?: string | null
+          interview_submitted_by?: string | null
+          interview_total_questions?: number | null
           notes?: string | null
+          panel_recommendation?: string | null
           provider_id: string
           reschedule_count?: number | null
           reviewer_notes?: string | null
@@ -704,8 +718,15 @@ export type Database = {
           enrollment_id?: string
           flag_for_clarification?: boolean | null
           id?: string
+          interview_correct_count?: number | null
           interview_outcome?: string | null
+          interview_score_out_of_10?: number | null
+          interview_score_percentage?: number | null
+          interview_submitted_at?: string | null
+          interview_submitted_by?: string | null
+          interview_total_questions?: number | null
           notes?: string | null
+          panel_recommendation?: string | null
           provider_id?: string
           reschedule_count?: number | null
           reviewer_notes?: string | null
@@ -917,6 +938,107 @@ export type Database = {
             columns: ["industry_segment_id"]
             isOneToOne: false
             referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      interview_question_responses: {
+        Row: {
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          display_order: number
+          evaluation_id: string
+          expected_answer: string | null
+          id: string
+          interview_kit_question_id: string | null
+          is_deleted: boolean | null
+          proof_point_id: string | null
+          question_bank_id: string | null
+          question_id: string | null
+          question_source: string
+          question_text: string
+          rating: string | null
+          score: number | null
+          section_label: string | null
+          section_name: string
+          section_type: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          evaluation_id: string
+          expected_answer?: string | null
+          id?: string
+          interview_kit_question_id?: string | null
+          is_deleted?: boolean | null
+          proof_point_id?: string | null
+          question_bank_id?: string | null
+          question_id?: string | null
+          question_source: string
+          question_text: string
+          rating?: string | null
+          score?: number | null
+          section_label?: string | null
+          section_name: string
+          section_type?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          evaluation_id?: string
+          expected_answer?: string | null
+          id?: string
+          interview_kit_question_id?: string | null
+          is_deleted?: boolean | null
+          proof_point_id?: string | null
+          question_bank_id?: string | null
+          question_id?: string | null
+          question_source?: string
+          question_text?: string
+          rating?: string | null
+          score?: number | null
+          section_label?: string | null
+          section_name?: string
+          section_type?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_question_responses_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_responses_interview_kit_question_id_fkey"
+            columns: ["interview_kit_question_id"]
+            isOneToOne: false
+            referencedRelation: "interview_kit_questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_responses_proof_point_id_fkey"
+            columns: ["proof_point_id"]
+            isOneToOne: false
+            referencedRelation: "proof_points"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_responses_question_bank_id_fkey"
+            columns: ["question_bank_id"]
+            isOneToOne: false
+            referencedRelation: "question_bank"
             referencedColumns: ["id"]
           },
         ]
