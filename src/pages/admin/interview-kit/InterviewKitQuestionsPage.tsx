@@ -1,9 +1,12 @@
 /**
  * Interview KIT Questions Page
  * Main question bank page with filters, table, and actions
+ * 
+ * This page persists dialog state to sessionStorage to survive component
+ * remounts caused by auth token refresh or guard state changes (Alt+Tab fix).
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { AdminLayout } from "@/components/admin";
 import { Button } from "@/components/ui/button";
@@ -63,6 +66,13 @@ import { COMPETENCY_CONFIG, type CompetencyCode } from "@/constants";
 import { InterviewKitQuestionForm } from "./InterviewKitQuestionForm";
 import { InterviewKitImportDialog } from "./InterviewKitImportDialog";
 import { downloadInterviewKitTemplate, exportInterviewKitQuestions } from "./InterviewKitExcelExport";
+import {
+  getDialogSession,
+  saveDialogSession,
+  clearDialogSession,
+  clearAllDialogData,
+} from "@/hooks/useDialogPersistence";
+import { logInfo } from "@/lib/errorHandler";
 
 const PAGE_SIZES = [10, 25, 50, 100];
 
@@ -90,6 +100,11 @@ export function InterviewKitQuestionsPage() {
   const { data: industrySegments = [] } = useIndustrySegments();
   const { data: expertiseLevels = [] } = useExpertiseLevels();
   const { data: competencies = [], isLoading: loadingCompetencies } = useInterviewKitCompetencies();
+  
+  // Questions data hook
+  const { data: allQuestions = [], isLoading: loadingQuestions } = useInterviewKitQuestions({
+    includeInactive,
+  });
 
   // Get competency ID from filter (now using ID directly)
   const competencyId = useMemo(() => {
@@ -99,12 +114,15 @@ export function InterviewKitQuestionsPage() {
     return byId?.id;
   }, [competencyFilter, competencies]);
 
-  const { data: questions = [], isLoading: loadingQuestions } = useInterviewKitQuestions({
-    industrySegmentId: industryFilter || undefined,
-    expertiseLevelId: levelFilter || undefined,
-    competencyId: competencyId,
-    includeInactive,
-  });
+  // Filtered questions (filter client-side for better restore behavior)
+  const questions = useMemo(() => {
+    return allQuestions.filter((q) => {
+      if (industryFilter && q.industry_segment_id !== industryFilter) return false;
+      if (levelFilter && q.expertise_level_id !== levelFilter) return false;
+      if (competencyId && q.competency_id !== competencyId) return false;
+      return true;
+    });
+  }, [allQuestions, industryFilter, levelFilter, competencyId]);
 
   // Mutations
   const deleteMutation = useDeleteInterviewKitQuestion();
@@ -114,6 +132,65 @@ export function InterviewKitQuestionsPage() {
   // Pagination
   const totalPages = Math.ceil(questions.length / pageSize);
   const paginatedQuestions = questions.slice(page * pageSize, (page + 1) * pageSize);
+
+  // ============================================
+  // Dialog session persistence (Alt+Tab fix)
+  // ============================================
+  
+  // Restore dialog state on mount if there's a saved session
+  useEffect(() => {
+    const savedSession = getDialogSession();
+    if (savedSession && savedSession.isOpen) {
+      logInfo("Restoring dialog session on mount", {
+        operation: "restore_dialog_session",
+        component: "InterviewKitQuestionsPage",
+      });
+      
+      // Restore editing question if in edit mode
+      if (savedSession.mode === "edit" && savedSession.editingQuestionId) {
+        // Find the question in our data
+        const questionToEdit = allQuestions.find(q => q.id === savedSession.editingQuestionId);
+        if (questionToEdit) {
+          setEditingQuestion(questionToEdit);
+        }
+      } else {
+        setEditingQuestion(null);
+      }
+      
+      setFormOpen(true);
+      setFormSessionId((id) => id + 1);
+    }
+    
+    // Log mount for debugging
+    logInfo("InterviewKitQuestionsPage mounted", {
+      operation: "page_mount",
+      component: "InterviewKitQuestionsPage",
+    });
+    
+    return () => {
+      logInfo("InterviewKitQuestionsPage unmounting", {
+        operation: "page_unmount",
+        component: "InterviewKitQuestionsPage",
+      });
+    };
+  }, []); // Only on initial mount
+  
+  // Re-check for editing question when questions data loads
+  useEffect(() => {
+    const savedSession = getDialogSession();
+    if (
+      savedSession?.isOpen &&
+      savedSession.mode === "edit" &&
+      savedSession.editingQuestionId &&
+      !editingQuestion &&
+      allQuestions.length > 0
+    ) {
+      const questionToEdit = allQuestions.find(q => q.id === savedSession.editingQuestionId);
+      if (questionToEdit) {
+        setEditingQuestion(questionToEdit);
+      }
+    }
+  }, [allQuestions, editingQuestion]);
 
   // Filter handlers
   const updateFilter = (key: string, value: string) => {
@@ -127,11 +204,45 @@ export function InterviewKitQuestionsPage() {
     setPage(0);
   };
 
-  // Action handlers
-  const handleEdit = (question: InterviewKitQuestionWithRelations) => {
-    setEditingQuestion(question);
+  // Open dialog for adding new question
+  const handleOpenAddDialog = useCallback(() => {
+    setEditingQuestion(null);
+    setFormSessionId((id) => id + 1);
     setFormOpen(true);
-  };
+    
+    // Save dialog session
+    saveDialogSession({
+      isOpen: true,
+      mode: "new",
+      editingQuestionId: null,
+      defaultCompetencyId: competencyId || null,
+    });
+  }, [competencyId]);
+
+  // Open dialog for editing
+  const handleEdit = useCallback((question: InterviewKitQuestionWithRelations) => {
+    setEditingQuestion(question);
+    setFormSessionId((id) => id + 1);
+    setFormOpen(true);
+    
+    // Save dialog session
+    saveDialogSession({
+      isOpen: true,
+      mode: "edit",
+      editingQuestionId: question.id,
+      defaultCompetencyId: null,
+    });
+  }, []);
+
+  // Handle dialog close (called by child form)
+  const handleFormOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      // Dialog is closing - clear session
+      clearDialogSession();
+      setEditingQuestion(null);
+    }
+    setFormOpen(open);
+  }, []);
 
   const handleView = (question: InterviewKitQuestionWithRelations) => {
     setViewingQuestion(question);
@@ -207,11 +318,7 @@ export function InterviewKitQuestionsPage() {
               <Download className="mr-2 h-4 w-4" />
               Export
             </Button>
-            <Button size="sm" onClick={() => { 
-              setEditingQuestion(null); 
-              setFormSessionId((id) => id + 1); // Increment to create fresh form
-              setFormOpen(true); 
-            }}>
+            <Button size="sm" onClick={handleOpenAddDialog}>
               <Plus className="mr-2 h-4 w-4" />
               Add Question
             </Button>
@@ -458,10 +565,7 @@ export function InterviewKitQuestionsPage() {
       <InterviewKitQuestionForm
         key={`form-${formSessionId}-${editingQuestion?.id || 'new'}`}
         open={formOpen}
-        onOpenChange={(open) => {
-          setFormOpen(open);
-          if (!open) setEditingQuestion(null);
-        }}
+        onOpenChange={handleFormOpenChange}
         question={editingQuestion}
         defaultCompetencyId={competencyId}
       />

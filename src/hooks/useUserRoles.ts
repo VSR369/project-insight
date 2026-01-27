@@ -34,7 +34,10 @@ export function useUserRoles(): UserRolesResult {
       return data?.map(r => r.role) || [];
     },
     enabled: !!user?.id,
-    staleTime: 60000, // 1 minute - roles don't change often
+    staleTime: 5 * 60 * 1000, // 5 minutes - roles rarely change
+    gcTime: 30 * 60 * 1000, // 30 minutes cache
+    refetchOnWindowFocus: false, // Prevent remounts on Alt+Tab
+    refetchOnReconnect: false,
   });
 
   const hasRole = (role: AppRole): boolean => {

@@ -4,9 +4,12 @@
  * 
  * IMPORTANT: This dialog uses "close only with buttons" pattern to prevent
  * accidental closure during Alt+Tab or outside clicks.
+ * 
+ * Additionally, it persists form draft to sessionStorage to survive component
+ * remounts caused by auth token refresh or guard state changes.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -46,6 +49,13 @@ import {
   useUpdateInterviewKitQuestion,
   InterviewKitQuestionWithRelations,
 } from "@/hooks/queries/useInterviewKitQuestions";
+import {
+  useDraftPersistence,
+  getQuestionDraft,
+  clearDialogSession,
+  clearQuestionDraft,
+} from "@/hooks/useDialogPersistence";
+import { logInfo } from "@/lib/errorHandler";
 
 // Form validation schema
 const questionFormSchema = z.object({
@@ -81,12 +91,14 @@ export function InterviewKitQuestionForm({
   defaultCompetencyId,
 }: InterviewKitQuestionFormProps) {
   const isEditing = !!question;
+  const mode = isEditing ? "edit" : "new";
+  const questionId = question?.id || null;
 
   // "Close only with buttons" guard - prevents Radix from closing dialog unexpectedly
   const allowCloseRef = useRef(false);
 
   // Guarded onOpenChange - only allows close when explicitly authorized
-  const handleOpenChange = (newOpen: boolean) => {
+  const handleOpenChange = useCallback((newOpen: boolean) => {
     if (newOpen) {
       // Opening is always allowed
       allowCloseRef.current = false; // Reset for next close attempt
@@ -94,18 +106,27 @@ export function InterviewKitQuestionForm({
     } else {
       // Closing is only allowed if explicitly authorized by a button
       if (allowCloseRef.current) {
+        logInfo("Dialog close authorized", {
+          operation: "dialog_close",
+          component: "InterviewKitQuestionForm",
+        });
         allowCloseRef.current = false; // Reset after use
         onOpenChange(false);
+      } else {
+        // Ignore unauthorized close request (Alt+Tab, outside click, etc.)
+        logInfo("Dialog close blocked (unauthorized)", {
+          operation: "dialog_close_blocked",
+          component: "InterviewKitQuestionForm",
+        });
       }
-      // If not authorized, ignore the close request (Alt+Tab, outside click, etc.)
     }
-  };
+  }, [onOpenChange]);
 
-  // Helper to close dialog with authorization
-  const closeDialog = () => {
+  // Helper to close dialog with authorization - routes through guarded handler
+  const closeDialog = useCallback(() => {
     allowCloseRef.current = true;
-    onOpenChange(false);
-  };
+    handleOpenChange(false);
+  }, [handleOpenChange]);
 
   // Data hooks
   const { data: industrySegments = [], isLoading: loadingSegments } = useIndustrySegments();
@@ -133,6 +154,28 @@ export function InterviewKitQuestionForm({
     },
   });
 
+  // Draft persistence
+  const { saveDraft, clearDraft } = useDraftPersistence(mode, questionId, open);
+
+  // Watch form values and save draft
+  useEffect(() => {
+    if (!open) return;
+
+    const subscription = form.watch((values) => {
+      saveDraft({
+        industry_segment_id: values.industry_segment_id || "",
+        expertise_level_id: values.expertise_level_id || "",
+        competency_id: values.competency_id || "",
+        question_text: values.question_text || "",
+        expected_answer: values.expected_answer || "",
+        display_order: values.display_order || 0,
+        is_active: values.is_active ?? true,
+      });
+    });
+
+    return () => subscription.unsubscribe();
+  }, [open, form, saveDraft]);
+
   // Ref to track if form was already initialized (prevents reset on tab focus)
   const hasInitializedRef = useRef(false);
 
@@ -141,7 +184,27 @@ export function InterviewKitQuestionForm({
   useEffect(() => {
     if (open && !hasInitializedRef.current) {
       hasInitializedRef.current = true;
-      if (question) {
+      
+      // Try to restore from draft first
+      const savedDraft = getQuestionDraft(mode, questionId);
+      
+      if (savedDraft) {
+        // Restore from saved draft (user was in the middle of editing)
+        logInfo("Restoring form from draft", {
+          operation: "restore_draft",
+          component: "InterviewKitQuestionForm",
+        });
+        form.reset({
+          industry_segment_id: savedDraft.industry_segment_id,
+          expertise_level_id: savedDraft.expertise_level_id,
+          competency_id: savedDraft.competency_id,
+          question_text: savedDraft.question_text,
+          expected_answer: savedDraft.expected_answer,
+          display_order: savedDraft.display_order,
+          is_active: savedDraft.is_active,
+        });
+      } else if (question) {
+        // Editing existing question, load from record
         form.reset({
           industry_segment_id: question.industry_segment_id,
           expertise_level_id: question.expertise_level_id,
@@ -152,6 +215,7 @@ export function InterviewKitQuestionForm({
           is_active: question.is_active,
         });
       } else {
+        // New question, start fresh
         form.reset({
           industry_segment_id: "",
           expertise_level_id: "",
@@ -168,7 +232,7 @@ export function InterviewKitQuestionForm({
     if (!open) {
       hasInitializedRef.current = false;
     }
-  }, [open, question, defaultCompetencyId, form]);
+  }, [open, question, defaultCompetencyId, form, mode, questionId]);
 
   const onSubmit = async (data: QuestionFormData) => {
     try {
@@ -188,11 +252,28 @@ export function InterviewKitQuestionForm({
           is_active: data.is_active,
         });
       }
+      // Clear draft and session on successful submit
+      clearDraft();
+      clearDialogSession();
       closeDialog(); // Close with authorization after success
     } catch {
       // Error handled by mutation hook
     }
   };
+
+  // Handle cancel - clear draft and close
+  const handleCancel = useCallback(() => {
+    clearDraft();
+    clearDialogSession();
+    closeDialog();
+  }, [clearDraft, closeDialog]);
+
+  // Handle X button - clear draft and close
+  const handleXClose = useCallback(() => {
+    clearDraft();
+    clearDialogSession();
+    closeDialog();
+  }, [clearDraft, closeDialog]);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -216,7 +297,7 @@ export function InterviewKitQuestionForm({
           {/* Custom X close button with authorization */}
           <button
             type="button"
-            onClick={closeDialog}
+            onClick={handleXClose}
             className="absolute right-0 top-0 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             aria-label="Close"
           >
@@ -402,7 +483,7 @@ export function InterviewKitQuestionForm({
                 <Button
                   type="button"
                   variant="outline"
-                  onClick={closeDialog}
+                  onClick={handleCancel}
                   disabled={isSaving}
                 >
                   Cancel
