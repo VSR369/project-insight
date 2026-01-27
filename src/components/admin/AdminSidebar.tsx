@@ -197,7 +197,9 @@ export function AdminSidebar() {
                         <SidebarMenuSubButton
                           onClick={() => navigate('/admin/invitations')}
                           isActive={isActive('/admin/invitations')}
+                          className="cursor-pointer"
                         >
+                          <ChevronRight className="h-3 w-3 mr-1" />
                           Solution Provider
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
@@ -205,7 +207,9 @@ export function AdminSidebar() {
                         <SidebarMenuSubButton
                           onClick={() => navigate('/admin/invitations/panel-reviewers')}
                           isActive={isActive('/admin/invitations/panel-reviewers')}
+                          className="cursor-pointer"
                         >
+                          <ChevronRight className="h-3 w-3 mr-1" />
                           Panel Reviewer
                         </SidebarMenuSubButton>
                       </SidebarMenuSubItem>
