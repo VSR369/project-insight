@@ -1,68 +1,71 @@
 
-
-# Interview KIT Question Bank Implementation Plan
-
-## Overview
-
-Create a new Interview KIT Question Bank system that stores interview questions for the 5 universal competencies, scoped by Industry Segment and Expertise Level. This is separate from the existing self-assessment Question Bank (which is tied to Specialities in the Proficiency Taxonomy).
+# Interview KIT Question Bank - Implementation Plan
+**Aligned with Project Knowledge Standards v3.1**
 
 ---
 
-## Database Design
+## Overview
 
-### New Table: `interview_kit_competencies`
-Stores the 5 universal competency categories as master data.
+Implement a complete Interview KIT Question Bank system for managing interview questions categorized by:
+- Industry Segment
+- Expertise Level  
+- Universal Competency (5 categories)
+
+This system is **separate** from the existing self-assessment Question Bank (which uses Specialities in the Proficiency Taxonomy).
+
+---
+
+## Phase 1: Database Setup
+
+### 1.1 Create Tables & Seed Data
+
+**Migration File:** `supabase/migrations/YYYYMMDD_create_interview_kit_tables.sql`
+
+**Table: `interview_kit_competencies`** (Master Data)
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default gen_random_uuid() |
+| name | VARCHAR(255) | NOT NULL, UNIQUE |
+| code | VARCHAR(50) | NOT NULL, UNIQUE |
+| description | TEXT | nullable |
+| icon | VARCHAR(50) | nullable |
+| color | VARCHAR(50) | nullable |
+| display_order | INTEGER | default 0 |
+| is_active | BOOLEAN | NOT NULL, default true |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | nullable |
+| created_by | UUID | FK auth.users |
+| updated_by | UUID | FK auth.users |
+
+**Seed Data:**
+| code | name | icon | color |
+|------|------|------|-------|
+| solution_design | Solution Design & Architecture Thinking | Lightbulb | amber |
+| execution_governance | Execution & Governance | Target | blue |
+| data_tech_readiness | Data / Tech Readiness & Tooling Awareness | Database | green |
+| soft_skills | Soft Skills for Solution Provider Success | Users | purple |
+| innovation_cocreation | Innovation & Co-creation Ability | Sparkles | pink |
+
+**Table: `interview_kit_questions`**
+| Column | Type | Constraints |
+|--------|------|-------------|
+| id | UUID | PK, default gen_random_uuid() |
+| industry_segment_id | UUID | NOT NULL, FK industry_segments |
+| expertise_level_id | UUID | NOT NULL, FK expertise_levels |
+| competency_id | UUID | NOT NULL, FK interview_kit_competencies |
+| question_text | TEXT | NOT NULL |
+| expected_answer | TEXT | nullable |
+| display_order | INTEGER | default 0 |
+| is_active | BOOLEAN | NOT NULL, default true |
+| created_at | TIMESTAMPTZ | NOT NULL, default now() |
+| updated_at | TIMESTAMPTZ | nullable |
+| created_by | UUID | FK auth.users |
+| updated_by | UUID | FK auth.users |
+
+### 1.2 Indexes (Per Project Knowledge Section 6.4)
 
 ```sql
-CREATE TABLE public.interview_kit_competencies (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name VARCHAR(255) NOT NULL UNIQUE,
-  code VARCHAR(50) NOT NULL UNIQUE,
-  description TEXT,
-  icon VARCHAR(50),
-  color VARCHAR(50),
-  display_order INTEGER DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ,
-  created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id)
-);
-```
-
-**Initial Data:**
-| code | name |
-|------|------|
-| solution_design | Solution Design & Architecture Thinking |
-| execution_governance | Execution & Governance |
-| data_tech_readiness | Data / Tech Readiness & Tooling Awareness |
-| soft_skills | Soft Skills for Solution Provider Success |
-| innovation_cocreation | Innovation & Co-creation Ability |
-
-### New Table: `interview_kit_questions`
-Stores interview questions linked to Industry, Expertise Level, and Competency.
-
-```sql
-CREATE TABLE public.interview_kit_questions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  industry_segment_id UUID NOT NULL REFERENCES industry_segments(id),
-  expertise_level_id UUID NOT NULL REFERENCES expertise_levels(id),
-  competency_id UUID NOT NULL REFERENCES interview_kit_competencies(id),
-  question_text TEXT NOT NULL,
-  expected_answer TEXT,
-  display_order INTEGER DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT true,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-  updated_at TIMESTAMPTZ,
-  created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id),
-  
-  -- Unique constraint to prevent duplicates
-  CONSTRAINT interview_kit_questions_unique 
-    UNIQUE (industry_segment_id, expertise_level_id, competency_id, question_text)
-);
-
--- Indexes for common query patterns
+-- Required indexes for common query patterns
 CREATE INDEX idx_interview_kit_questions_industry 
   ON interview_kit_questions(industry_segment_id, is_active);
 CREATE INDEX idx_interview_kit_questions_level 
@@ -73,149 +76,272 @@ CREATE INDEX idx_interview_kit_questions_combo
   ON interview_kit_questions(industry_segment_id, expertise_level_id, competency_id, is_active);
 ```
 
-### RLS Policies
+### 1.3 RLS Policies (Per Project Knowledge Section 7)
 
 ```sql
 -- Enable RLS
-ALTER TABLE public.interview_kit_competencies ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.interview_kit_questions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interview_kit_competencies ENABLE ROW LEVEL SECURITY;
+ALTER TABLE interview_kit_questions ENABLE ROW LEVEL SECURITY;
 
--- Competencies: Public read, Admin manage
-CREATE POLICY "Public read interview_kit_competencies" 
-  ON interview_kit_competencies FOR SELECT 
+-- Competencies: Public read active, Admin full manage
+CREATE POLICY "Public read active competencies"
+  ON interview_kit_competencies FOR SELECT
   USING (is_active = true OR has_role(auth.uid(), 'platform_admin'));
 
-CREATE POLICY "Admin manage interview_kit_competencies" 
-  ON interview_kit_competencies FOR ALL 
+CREATE POLICY "Admin manage competencies"
+  ON interview_kit_competencies FOR ALL
   USING (has_role(auth.uid(), 'platform_admin'));
 
--- Questions: Admin only (reviewers may get SELECT later)
-CREATE POLICY "Admin manage interview_kit_questions" 
-  ON interview_kit_questions FOR ALL 
+-- Questions: Admin manage, Active reviewers read active
+CREATE POLICY "Admin manage questions"
+  ON interview_kit_questions FOR ALL
   USING (has_role(auth.uid(), 'platform_admin'));
 
-CREATE POLICY "Active reviewers read interview_kit_questions" 
-  ON interview_kit_questions FOR SELECT 
+CREATE POLICY "Reviewers read active questions"
+  ON interview_kit_questions FOR SELECT
   USING (
     is_active = true AND 
-    EXISTS (
-      SELECT 1 FROM panel_reviewers 
-      WHERE user_id = auth.uid() AND is_active = true
-    )
+    EXISTS (SELECT 1 FROM panel_reviewers WHERE user_id = auth.uid() AND is_active = true)
   );
 ```
 
 ---
 
-## File Structure
+## Phase 2: Constants File
 
+**File:** `src/constants/interview-kit.constants.ts`
+
+Following Project Knowledge Section 1 - Constants Extraction Pattern:
+
+```typescript
+// Competency display configuration
+export const COMPETENCY_CONFIG = {
+  solution_design: {
+    label: 'Solution Design & Architecture Thinking',
+    icon: 'Lightbulb',
+    color: 'text-amber-500',
+    bgColor: 'bg-amber-50 dark:bg-amber-950/20',
+    borderColor: 'border-amber-200 dark:border-amber-800',
+  },
+  // ... other competencies
+} as const;
+
+// Import batch sizes (per memory/features/enterprise-import-system-v2)
+export const INTERVIEW_KIT_IMPORT_BATCH_SIZE = 100;
+export const INTERVIEW_KIT_DELETE_BATCH_SIZE = 50;
 ```
-src/
-├── hooks/queries/
-│   └── useInterviewKitQuestions.ts      # CRUD hooks
-├── pages/admin/interview-kit/
-│   ├── InterviewKitPage.tsx             # Update: Add navigation to questions
-│   ├── InterviewKitQuestionsPage.tsx    # NEW: Question bank by competency
-│   ├── InterviewKitQuestionForm.tsx     # NEW: Create/Edit question dialog
-│   ├── InterviewKitImportDialog.tsx     # NEW: Excel import
-│   ├── InterviewKitExcelExport.ts       # NEW: Template + data export
-│   └── index.ts                         # Update exports
+
+Update `src/constants/index.ts` to re-export.
+
+---
+
+## Phase 3: Hooks Implementation
+
+**File:** `src/hooks/queries/useInterviewKitQuestions.ts`
+
+Following Project Knowledge Section 6 - Hook Organization Pattern:
+
+### 3.1 Types (Per Project Knowledge Section 6 Template)
+
+```typescript
+import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
+
+export type InterviewKitCompetency = Tables<"interview_kit_competencies">;
+export type InterviewKitQuestion = Tables<"interview_kit_questions">;
+export type InterviewKitQuestionInsert = TablesInsert<"interview_kit_questions">;
+export type InterviewKitQuestionUpdate = TablesUpdate<"interview_kit_questions">;
+```
+
+### 3.2 Query Hooks
+
+```typescript
+// Competencies query with cache configuration (Per Section 2)
+export function useInterviewKitCompetencies(includeInactive = false) {
+  return useQuery({
+    queryKey: ["interview_kit_competencies", { includeInactive }],
+    queryFn: async () => { /* ... */ },
+    staleTime: 5 * 60 * 1000,   // 5 minutes - reference data
+    gcTime: 30 * 60 * 1000,     // 30 minutes cache
+  });
+}
+
+// Questions query with filters and pagination
+export function useInterviewKitQuestions(filters: {
+  industrySegmentId?: string;
+  expertiseLevelId?: string;
+  competencyId?: string;
+  includeInactive?: boolean;
+}) {
+  return useQuery({
+    queryKey: ["interview_kit_questions", filters],
+    queryFn: async () => {
+      // Manual pagination pattern (per memory/features/question-bank-pagination-logic)
+      const PAGE_SIZE = 1000;
+      // ... paginate through results
+    },
+  });
+}
+```
+
+### 3.3 Mutation Hooks (Per Project Knowledge Section 6-7)
+
+Each mutation follows the standard template with:
+- `withCreatedBy()` / `withUpdatedBy()` from `@/lib/auditFields`
+- `handleMutationError()` from `@/lib/errorHandler`
+- Query invalidation on success
+- Toast notifications via `sonner`
+
+```typescript
+export function useCreateInterviewKitQuestion() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (question: InterviewKitQuestionInsert) => {
+      const questionWithAudit = await withCreatedBy(question);
+      const { data, error } = await supabase
+        .from("interview_kit_questions")
+        .insert(questionWithAudit)
+        .select()
+        .single();
+      
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["interview_kit_questions"] });
+      toast.success("Question created successfully");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'create_interview_kit_question' });
+    },
+  });
+}
+
+// Similar patterns for:
+// - useUpdateInterviewKitQuestion()
+// - useDeleteInterviewKitQuestion() (soft delete - is_active = false)
+// - useRestoreInterviewKitQuestion()
+// - useHardDeleteInterviewKitQuestion()
+// - useBulkDeleteInterviewKitQuestions() (for import replace mode)
 ```
 
 ---
 
-## Component Details
+## Phase 4: UI Components
 
-### 1. Updated InterviewKitPage.tsx
+### 4.1 Question Form Dialog
 
-Enhance the competency cards to be clickable, navigating to the questions page for that competency.
+**File:** `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx`
 
-**Changes:**
-- Make each competency card a Link to `/admin/interview/kit/questions?competency={code}`
-- Add badge showing question count per competency
-- Add "Manage All Questions" button at the top
-
-### 2. New InterviewKitQuestionsPage.tsx
-
-Main question bank page with:
-
-**Header Section:**
-- Title: "Interview KIT Questions"
-- Breadcrumb: Admin > Interview KIT > Questions
-- Import/Export buttons
-
-**Filters Section:**
-- Industry Segment dropdown (required)
-- Expertise Level dropdown (required)
-- Competency dropdown (required - pre-selected if from card click)
-- Active/Inactive toggle
-
-**Data Table Columns:**
-| Column | Description |
-|--------|-------------|
-| Question | Truncated text (max 80 chars) |
-| Expected Answer | Truncated text (max 60 chars) |
-| Industry | Badge with segment name |
-| Level | Badge with expertise level |
-| Competency | Badge with color coding |
-| Status | Active/Inactive badge |
-| Actions | View, Edit, Deactivate, Delete |
-
-**Actions:**
-- Add Question button
-- Bulk actions (Deactivate, Delete selected)
-
-### 3. New InterviewKitQuestionForm.tsx
-
-Dialog form for creating/editing questions.
+Following Project Knowledge Section 9.3 - Form Handling Standard:
+- React Hook Form + Zod validation
+- Validate on blur + submit
+- Inline errors under fields
+- Loading state during API calls
 
 **Form Fields:**
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| Industry Segment | Select | Yes | From industry_segments |
-| Expertise Level | Select | Yes | From expertise_levels |
-| Competency | Select | Yes | From interview_kit_competencies |
-| Question Text | Textarea | Yes | Max 2000 chars |
-| Expected Answer | Textarea | No | Max 3000 chars |
-| Display Order | Number | No | Default 0 |
-| Active | Switch | No | Default true |
+| Field | Type | Validation |
+|-------|------|------------|
+| Industry Segment | Select | Required |
+| Expertise Level | Select | Required |
+| Competency | Select | Required, from interview_kit_competencies |
+| Question Text | Textarea | Required, 10-2000 chars |
+| Expected Answer | Textarea | Optional, max 3000 chars |
+| Display Order | Number | Optional, default 0 |
+| Active | Switch | Optional, default true |
 
-### 4. New InterviewKitImportDialog.tsx
+### 4.2 Questions Page
 
-Excel import dialog following existing patterns.
+**File:** `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx`
 
-**Import Modes:**
-- **Add Only**: Insert new questions, skip duplicates
-- **Replace**: Delete existing questions for the selected competencies, then insert
+**Header Section:**
+- Title with breadcrumb
+- Import / Export buttons
+- "Add Question" button
+
+**Filters Section:**
+- Industry Segment dropdown (required for filtering)
+- Expertise Level dropdown (required)
+- Competency dropdown (required)
+- Active/Inactive toggle
+
+**Data Table (Per Project Knowledge patterns):**
+| Column | Cell Renderer |
+|--------|---------------|
+| Question | Truncated text, max 80 chars |
+| Expected Answer | Truncated text, max 60 chars |
+| Industry | Badge |
+| Level | Badge |
+| Competency | Badge with color coding |
+| Status | StatusBadge component |
+| Actions | View, Edit, Restore/Deactivate, Delete |
+
+**Pagination (Per memory/features/question-bank-ui-pagination):**
+- Page size selector (10, 25, 50, 100)
+- Page X of Y indicator
+- Total count badge in header
+
+### 4.3 Import Dialog
+
+**File:** `src/pages/admin/interview-kit/InterviewKitImportDialog.tsx`
+
+Following patterns from existing `QuestionImportDialogOptimized.tsx`:
+
+**Features:**
+- File upload with size validation (50MB max)
+- Chunked Excel parsing with progress
+- Validation preview table (virtualized for large datasets)
+- Import modes: Add Only / Replace
+- Progress tracking during import
+- Error export ("Download Issues" button)
 
 **Excel Template Columns:**
 | Column | Required | Notes |
 |--------|----------|-------|
-| industry_segment | Yes | Must match existing segment name |
-| expertise_level | Yes | Must match existing level name |
-| competency | Yes | Code or name of competency |
-| question_text | Yes | The interview question |
-| expected_answer | No | Expected/ideal answer guidance |
+| industry_segment | Yes | Must match existing |
+| expertise_level | Yes | Must match existing |
+| competency | Yes | Code or name |
+| question_text | Yes | 10-2000 chars |
+| expected_answer | No | Max 3000 chars |
 
-**Validation:**
-- Check industry_segment exists
-- Check expertise_level exists
-- Check competency exists (match by code or name)
-- Question text not empty
+### 4.4 Export Utilities
 
-### 5. New InterviewKitExcelExport.ts
+**File:** `src/pages/admin/interview-kit/InterviewKitExcelExport.ts`
 
-**Functions:**
-- `downloadInterviewKitTemplate()`: Empty template with headers + sample rows
-- `exportInterviewKitQuestions(filters?)`: Export current data with optional filtering
+```typescript
+// Download empty template
+export function downloadInterviewKitTemplate(): void;
+
+// Export current data with optional filters
+export function exportInterviewKitQuestions(
+  questions: InterviewKitQuestion[],
+  competencies: InterviewKitCompetency[],
+  industrySegments: IndustrySegment[],
+  expertiseLevels: ExpertiseLevel[]
+): void;
+```
 
 ---
 
-## Routing Updates
+## Phase 5: Update Existing Components
 
-**New Routes in App.tsx:**
+### 5.1 Enhance InterviewKitPage.tsx
 
-```typescript
+Make competency cards clickable navigation:
+```tsx
+<Link to={`/admin/interview/kit/questions?competency=${competency.code}`}>
+  <Card>
+    {/* existing card content */}
+    <Badge>{questionCount} questions</Badge>
+  </Card>
+</Link>
+```
+
+Add "Manage All Questions" button at top.
+
+### 5.2 Add Route in App.tsx
+
+```tsx
 <Route
   path="/admin/interview/kit/questions"
   element={
@@ -226,91 +352,82 @@ Excel import dialog following existing patterns.
 />
 ```
 
----
-
-## Hooks Implementation
-
-### useInterviewKitQuestions.ts
+### 5.3 Update index.ts exports
 
 ```typescript
-// Types
-export type InterviewKitCompetency = Tables<"interview_kit_competencies">;
-export type InterviewKitQuestion = Tables<"interview_kit_questions">;
-
-// Query hooks
-export function useInterviewKitCompetencies(includeInactive?: boolean);
-export function useInterviewKitQuestions(filters: {
-  industrySegmentId?: string;
-  expertiseLevelId?: string;
-  competencyId?: string;
-  includeInactive?: boolean;
-});
-
-// Mutation hooks
-export function useCreateInterviewKitQuestion();
-export function useUpdateInterviewKitQuestion();
-export function useDeleteInterviewKitQuestion();  // Soft delete
-export function useRestoreInterviewKitQuestion();
-export function useHardDeleteInterviewKitQuestion();
-
-// Bulk operations for import
-export function useBulkDeleteInterviewKitQuestions();
+export { default as InterviewKitPage } from './InterviewKitPage';
+export { InterviewKitQuestionsPage } from './InterviewKitQuestionsPage';
+export { InterviewKitQuestionForm } from './InterviewKitQuestionForm';
+export { InterviewKitImportDialog } from './InterviewKitImportDialog';
 ```
 
 ---
 
-## Technical Considerations
+## File Creation Summary
 
-### Existing Patterns to Follow
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/migrations/YYYYMMDD_create_interview_kit_tables.sql` | CREATE | Tables, indexes, RLS, seed data |
+| `src/constants/interview-kit.constants.ts` | CREATE | Competency config, batch sizes |
+| `src/constants/index.ts` | UPDATE | Add re-export |
+| `src/hooks/queries/useInterviewKitQuestions.ts` | CREATE | All CRUD hooks |
+| `src/pages/admin/interview-kit/InterviewKitQuestionForm.tsx` | CREATE | Create/Edit dialog |
+| `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx` | CREATE | Questions table page |
+| `src/pages/admin/interview-kit/InterviewKitImportDialog.tsx` | CREATE | Excel import |
+| `src/pages/admin/interview-kit/InterviewKitExcelExport.ts` | CREATE | Export utilities |
+| `src/pages/admin/interview-kit/InterviewKitPage.tsx` | UPDATE | Add navigation, counts |
+| `src/pages/admin/interview-kit/index.ts` | UPDATE | Add exports |
+| `src/App.tsx` | UPDATE | Add route |
 
-1. **Audit Fields**: Use `withCreatedBy()` / `withUpdatedBy()` from `@/lib/auditFields.ts`
-2. **Error Handling**: Use `handleMutationError()` from `@/lib/errorHandler.ts`
-3. **Toast Notifications**: Use `sonner` toast pattern
-4. **Cache Invalidation**: Use React Query's `invalidateQueries()`
-5. **Pagination**: Follow the manual pagination pattern for large datasets (1000 per page)
-6. **Import Batching**: Use chunked processing with yield delays for large imports
+---
 
-### UI Patterns
+## Standards Compliance Checklist
 
-1. **AdminLayout**: Wrap all pages in `AdminLayout` component
-2. **DataTable**: Use existing `DataTable` component with consistent column config
-3. **Dialogs**: Use shadcn Dialog components with proper header/footer
-4. **Forms**: Use React Hook Form + Zod validation
-5. **Select Dropdowns**: Ensure proper background color (not transparent)
+### Database Layer (Per Project Knowledge Section 6)
+- [x] snake_case table/column names
+- [x] UUID primary keys with gen_random_uuid()
+- [x] Audit fields: created_at, updated_at, created_by, updated_by
+- [x] is_active for soft delete
+- [x] display_order for sorting
+- [x] Indexes on FKs and common query patterns
+- [x] RLS enabled with appropriate policies
+
+### Hook Layer (Per Section 6-7)
+- [x] Type exports from Supabase types
+- [x] withCreatedBy/withUpdatedBy for audit
+- [x] handleMutationError for error handling
+- [x] Query key pattern: ["entity", filters]
+- [x] Cache configuration: staleTime/gcTime for reference data
+- [x] Toast notifications via sonner
+
+### Frontend Layer (Per Section 9)
+- [x] AdminLayout wrapper
+- [x] React Hook Form + Zod validation
+- [x] Loading/empty/error/success states
+- [x] DataTable with consistent patterns
+- [x] StatusBadge for active/inactive
+
+### Error Handling (Per Section 4)
+- [x] handleMutationError() for all mutations
+- [x] logWarning() instead of console.warn
+- [x] Context object with operation field
+
+### Security (Per Section 11)
+- [x] RLS policies enforce platform_admin for mutations
+- [x] Reviewers get read-only access to active questions
+- [x] No public access to interview questions
 
 ---
 
 ## Implementation Order
 
-| Step | Task | Files |
-|------|------|-------|
-| 1 | Create database migration | Migration SQL |
-| 2 | Seed competencies data | Migration SQL |
-| 3 | Create hooks file | `useInterviewKitQuestions.ts` |
-| 4 | Create question form | `InterviewKitQuestionForm.tsx` |
-| 5 | Create questions page | `InterviewKitQuestionsPage.tsx` |
-| 6 | Create export utilities | `InterviewKitExcelExport.ts` |
-| 7 | Create import dialog | `InterviewKitImportDialog.tsx` |
-| 8 | Update main KIT page | `InterviewKitPage.tsx` |
-| 9 | Add route | `App.tsx` |
-| 10 | Update exports | `index.ts` |
-
----
-
-## Security Notes
-
-- All mutations require `platform_admin` role (enforced via RLS)
-- Reviewers get read-only access to active questions (for interview preparation)
-- No public access to interview questions
-
----
-
-## Summary
-
-This implementation creates a complete Interview KIT Question Bank system with:
-- 5 universal competencies as master data
-- Questions scoped by Industry + Expertise Level + Competency
-- Full CRUD operations with audit trails
-- Excel import/export with validation
-- Consistent UI following existing admin patterns
-
+1. **Database Migration** - Create tables, indexes, RLS, seed competencies
+2. **Constants File** - Competency configuration
+3. **Hooks File** - All CRUD operations
+4. **Question Form** - Create/Edit dialog
+5. **Questions Page** - Main table view
+6. **Export Utilities** - Template + data export
+7. **Import Dialog** - Excel import with validation
+8. **Update Main Page** - Navigation and counts
+9. **Add Route** - Wire up in App.tsx
+10. **Update Exports** - index.ts barrel file
