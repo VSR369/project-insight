@@ -65,6 +65,9 @@ export interface CandidateProofPointsData {
   finalScore: number | null;
   reviewerNotes: string | null;
   
+  // Interview submission status
+  isInterviewSubmitted: boolean;
+  
   // Proof points
   proofPoints: ProofPointForReview[];
   
@@ -111,6 +114,16 @@ export function useCandidateProofPoints(enrollmentId: string) {
 
       if (enrollmentError) throw new Error(enrollmentError.message);
       if (!enrollment) throw new Error('Enrollment not found');
+
+      // Check if interview has been submitted for this enrollment
+      const { data: bookingData } = await supabase
+        .from('interview_bookings')
+        .select('interview_submitted_at')
+        .eq('enrollment_id', enrollmentId)
+        .not('status', 'eq', 'cancelled')
+        .maybeSingle();
+
+      const isInterviewSubmitted = !!bookingData?.interview_submitted_at;
 
       // Fetch proof points for this enrollment
       const { data: proofPoints, error: ppError } = await supabase
@@ -264,6 +277,7 @@ export function useCandidateProofPoints(enrollmentId: string) {
         reviewedAt: enrollmentAny.proof_points_reviewed_at || null,
         finalScore: enrollmentAny.proof_points_final_score || null,
         reviewerNotes: enrollmentAny.proof_points_reviewer_notes || null,
+        isInterviewSubmitted,
         proofPoints: formattedProofPoints,
         totalCount: formattedProofPoints.length,
         ratedCount,
