@@ -2,6 +2,7 @@ export { InterviewKitTabContent } from "./InterviewKitTabContent";
 export { InterviewKitSection } from "./InterviewKitSection";
 export { InterviewKitHeader } from "./InterviewKitHeader";
 export { InterviewKitFooter } from "./InterviewKitFooter";
+export { InterviewKitSummaryDashboard } from "./InterviewKitSummaryDashboard";
 export { InterviewQuestionCard } from "./InterviewQuestionCard";
 export { ProofPointQuestionGroup } from "./ProofPointQuestionGroup";
 export { AddQuestionDialog } from "./AddQuestionDialog";
