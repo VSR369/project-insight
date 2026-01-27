@@ -1,47 +1,25 @@
 
-# Interview Kit Bug Fix - Implementation Plan
+# Interview Kit Bug Fix - Complete Resolution Plan
 
-## Confirmed Understanding
+## 5-Why Analysis Summary
 
-### Your Rules (Exactly Implemented)
+| Why | Question | Answer |
+|-----|----------|--------|
+| **1** | Why 1824 questions? | Generation was called 450+ times before mutex was added |
+| **2** | Why wrong section_type? | The DATA is corrupted (duplicate calls), code is actually correct |
+| **3** | Why 0 domain/competency? | Fallback query exists but corrupted eval blocks regeneration |
+| **4** | Why blocked? | Existing corrupted evaluation triggers duplicate guard |
+| **5** | Why not cleaned? | SQL provided but never executed; no UI mechanism to regenerate |
 
-| Rule | Implementation | Expected Result |
-|------|----------------|-----------------|
-| **1. Domain & Delivery Depth** | Max 10 random questions from `question_bank` filtered by provider's specialities, industry, expertise | **Max 10 questions** |
-| **2. Competencies** | 1-2 random questions per competency from `interview_kit_questions` (5 competencies configured) | **5-10 questions** |
-| **3. Proof Points** | 1-2 template-based questions per proof point using description | **4-8 questions** (4 proof points) |
-| **4. Edit/Delete** | Already implemented in `EditQuestionDialog`, `DeleteQuestionConfirm` | ✅ Working |
-| **5. Add New Question** | Already implemented in `AddQuestionDialog` with `question_source: 'reviewer_custom'` | ✅ Working |
-| **6. Comments NOT mandatory** | No validation on comments field for Wrong/Not Answered | ✅ Already correct |
-| **7. Expected Response** | Displayed from `expected_answer_guidance` (domain) or templates (proof points) | ✅ Already correct |
+## Root Cause
 
-### Expected Total: **19-28 questions** (NOT 1824)
+The corrupted evaluation record (`d30f121d-7327-485d-a864-26da899db24a`) with 1824 proof point questions is blocking new generation. The code fixes are already in place but cannot take effect until the corrupted data is removed.
 
----
+## Implementation Plan
 
-## Root Cause Analysis
+### Phase 1: Database Cleanup
 
-### Bug #1: Domain Questions Fail Silently
-**File:** `src/services/interviewKitGenerationService.ts` line 145
-```typescript
-// CURRENT (BROKEN)
-.eq('is_deleted', false)  // ❌ Column doesn't exist in provider_specialities
-```
-**Result:** Query throws error, returns empty array → 0 domain questions
-
-### Bug #2: Wrong `section_type` Stored
-**Evidence:** Database shows `section_type: "Proof Points Deep-Dive"` (display name) instead of `"proof_point"` (enum value)
-**Result:** UI grouping breaks, wrong section counts
-
-### Bug #3: Massive Question Duplication
-**Evidence:** 1824 identical copies of single proof point question
-**Cause:** Generation mutation called 1824 times (likely React StrictMode, rapid clicks, or retry loop)
-
----
-
-## Fix Implementation
-
-### Step 1: Clean Corrupted Data (SQL)
+Execute SQL to remove corrupted data:
 
 ```sql
 -- Delete 1824 corrupted responses
@@ -53,164 +31,137 @@ DELETE FROM interview_evaluations
 WHERE id = 'd30f121d-7327-485d-a864-26da899db24a';
 ```
 
-### Step 2: Fix Generation Service
+### Phase 2: Add Auto-Generation on Tab Open
 
-**File:** `src/services/interviewKitGenerationService.ts`
+Per user preference, the Interview Kit should auto-generate when the tab opens (if not already generated).
 
-#### Fix 2.1: Remove Invalid Column Filter (Line 145)
-```typescript
-// BEFORE (broken)
-.eq('is_deleted', false);
+**File: `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx`**
 
-// AFTER (fixed) - Column doesn't exist, remove filter
-// No is_deleted column in provider_specialities table
-```
-
-#### Fix 2.2: Add Fallback for Empty Specialities
-When provider has no selected specialities, query question_bank via proficiency area hierarchy:
+Add a `useEffect` to trigger generation automatically when:
+1. Tab is loaded (`kitData` is available)
+2. Kit is NOT already generated (`!kitData.isGenerated`)
+3. All required data is available (`bookingId`, `candidate`, `proofPointsData`)
+4. Generation is not already in progress (`!generateKit.isPending`)
 
 ```typescript
-// NEW: Fallback function
-async function fetchDomainQuestionsByIndustryLevel(
-  industrySegmentId: string,
-  expertiseLevelId: string
-): Promise<QuestionBankRow[]> {
-  // Query question_bank joined through specialities → sub_domains → proficiency_areas
-  // Filter by industry_segment_id and expertise_level_id
-  // Return up to 50 questions to select 10 from
-}
-
-// UPDATED: generateDomainQuestions()
-export async function generateDomainQuestions(context: EnrollmentContext): Promise<GeneratedQuestion[]> {
-  const specResult = await fetchProviderSpecialities(context.providerId, context.enrollmentId);
-  
-  let questionsPool;
-  if (specResult && specResult.length > 0) {
-    // Use provider's selected specialities
-    questionsPool = await fetchDomainQuestionsFromBank(specResult.map(s => s.speciality_id));
-  } else {
-    // FALLBACK: Use all questions for this industry/level
-    console.log('[InterviewKit] No specialities found, using industry/level fallback');
-    questionsPool = await fetchDomainQuestionsByIndustryLevel(
-      context.industrySegmentId, 
-      context.expertiseLevelId
-    );
+// Add this useEffect after the existing hooks
+useEffect(() => {
+  // Auto-generate when tab opens if not already generated
+  if (
+    kitData &&
+    !kitData.isGenerated &&
+    bookingId &&
+    candidate &&
+    proofPointsData &&
+    !generateKit.isPending &&
+    !generateKit.isSuccess
+  ) {
+    console.log('[InterviewKit] Auto-generating on tab open...');
+    generateKit.mutate({
+      bookingId,
+      context: {
+        enrollmentId,
+        industrySegmentId: candidate.industrySegmentId,
+        expertiseLevelId: candidate.expertiseLevelId,
+        providerId: candidate.providerId,
+      },
+      proofPoints: proofPointsData.proofPoints || [],
+    });
   }
-  
-  // Shuffle and select max 10
-  const shuffled = shuffleArray(questionsPool);
-  return shuffled.slice(0, DOMAIN_QUESTION_MAX).map(/* ... */);
-}
+}, [kitData?.isGenerated, bookingId, candidate, proofPointsData, generateKit.isPending]);
 ```
 
-#### Fix 2.3: Add Debug Logging
-```typescript
-// In buildInterviewKit()
-console.log('[InterviewKit] Generation Results:', {
-  domain: domainQuestions.length,      // Expected: up to 10
-  competency: competencyQuestions.length, // Expected: 5-10
-  proofPoint: proofPointQuestions.length, // Expected: 4-8
-  total: totalCount,                    // Expected: ~19-28
-});
-```
+### Phase 3: Add Regenerate Button (Optional Safety)
 
-### Step 3: Strengthen Duplicate Prevention
+Add a "Regenerate" button that appears when the kit exists but may have issues. This deletes the existing evaluation and responses, then regenerates.
 
-**File:** `src/hooks/queries/useInterviewKit.ts`
+**File: `src/hooks/queries/useInterviewKit.ts`**
 
-#### Fix 3.1: Add Mutex for Generation
-```typescript
-// In useGenerateInterviewKit
-export function useGenerateInterviewKit() {
-  const queryClient = useQueryClient();
-  const generatingRef = useRef(false);  // Add mutex
+Add a new mutation `useRegenerateInterviewKit` that:
+1. Deletes existing responses for the evaluation
+2. Deletes the evaluation record
+3. Triggers fresh generation
 
-  return useMutation({
-    mutationFn: async (params) => {
-      // Prevent double execution
-      if (generatingRef.current) {
-        throw new Error('Generation already in progress');
-      }
-      generatingRef.current = true;
-      
-      try {
-        // ... existing logic
-      } finally {
-        generatingRef.current = false;
-      }
-    },
-  });
-}
-```
+### Phase 4: Verify Generation Logic
 
-#### Fix 3.2: Improve UI Button Protection
-```typescript
-// In InterviewKitTabContent.tsx
-// Already has disabled={generateKit.isPending} but ensure stable reference
-const handleGenerateKit = useCallback(async () => {
-  if (generateKit.isPending) return;  // Extra guard
-  // ... rest
-}, [generateKit.isPending, /* deps */]);
-```
+The generation service code at `src/services/interviewKitGenerationService.ts` is already correct:
 
----
-
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/services/interviewKitGenerationService.ts` | Remove `is_deleted` filter, add fallback query, add debug logging |
-| `src/hooks/queries/useInterviewKit.ts` | Add generation mutex to prevent duplicates |
-| Database | Execute cleanup SQL to delete corrupted data |
-
----
-
-## Expected Results After Fix
-
-### Question Generation
-
-| Section | Source | Count |
-|---------|--------|-------|
-| Domain & Delivery Depth | `question_bank` | **10** (max) |
-| Solution Design & Architecture | `interview_kit_questions` | **1-2** |
-| Execution & Governance | `interview_kit_questions` | **1-2** |
-| Data/Tech Readiness | `interview_kit_questions` | **1-2** |
-| Soft Skills | `interview_kit_questions` | **1-2** |
-| Innovation & Co-creation | `interview_kit_questions` | **1-2** |
-| Proof Points Deep-Dive | Template-based from 4 proof points | **4-8** |
+| Section | Source | Expected Count |
+|---------|--------|----------------|
+| Domain & Delivery Depth | `question_bank` via hierarchy fallback | **Max 10** |
+| 5 Competencies | `interview_kit_questions` (100 questions exist) | **5-10** (1-2 each) |
+| 4 Proof Points | Template-based from descriptions | **4-8** (1-2 each) |
 | **TOTAL** | | **~19-28** |
 
-### Score Display
+## Technical Implementation Details
 
-For 25 questions: Max score = 25 × 5 = **125 points**
-- Score header shows: `0/125` (not `0/9120`)
-- Progress shows: `0/25 rated` (not `0/1824`)
+### File Changes
 
----
+| File | Change |
+|------|--------|
+| `src/components/reviewer/interview-kit/InterviewKitTabContent.tsx` | Add `useEffect` for auto-generation on tab open |
+| `src/hooks/queries/useInterviewKit.ts` | Add `useRegenerateInterviewKit` mutation (optional) |
+| Database | Execute cleanup SQL |
 
-## Validation Checklist
+### Auto-Generation Flow
+
+```text
+User opens Interview Kit tab
+         ↓
+useInterviewKitData fetches existing evaluation
+         ↓
+If kitData.isGenerated = false
+         ↓
+useEffect triggers generateKit.mutate()
+         ↓
+buildInterviewKit() generates:
+  - 10 domain questions (from question_bank)
+  - 5-10 competency questions (from interview_kit_questions)  
+  - 4-8 proof point questions (from templates)
+         ↓
+Questions saved to interview_question_responses
+         ↓
+Query invalidated, UI refreshes with ~25 questions
+```
+
+### Section Type Grouping Fix
+
+The UI groups questions by `section_type::section_name`. With correct data:
+- `domain::Domain & Delivery Depth` (1 section)
+- `competency::Solution Design & Architecture Thinking` (5 sections)
+- `proof_point::Proof Points Deep-Dive` (1 section)
+
+Total: **7 sections** displayed
+
+## Verification Checklist
 
 After implementation:
 
-1. [ ] Delete corrupted evaluation from database (SQL)
-2. [ ] Navigate to Interview Kit tab
-3. [ ] Click "Generate Interview Kit" ONCE
-4. [ ] Console shows: domain ~10, competency ~5-10, proofPoint ~4-8
-5. [ ] UI shows 7 sections (1 domain + 5 competencies + 1 proof points)
-6. [ ] Total questions: **~20-28** (not 1824)
-7. [ ] Score header shows correct max (e.g., 0/125)
-8. [ ] Each section shows correct question count
-9. [ ] Edit/Delete/Add buttons work for all question types
-10. [ ] Comments field has NO validation requirement
+1. Execute cleanup SQL in Supabase SQL editor
+2. Navigate to Interview Kit tab
+3. Kit auto-generates on tab open (no button click needed)
+4. Console shows: domain ~10, competency ~7, proofPoint ~6
+5. UI shows 7 sections (1 domain + 5 competencies + 1 proof points)
+6. Total questions: ~20-25
+7. Score header shows correct max (e.g., 0/115)
+8. Edit/Delete/Add buttons work for all sections
+9. Comments field has NO validation requirement
+10. Expected answer guidance shows for each question
 
----
+## Expected Final Result
 
-## Technical Summary
+For this specific enrollment with:
+- 4 proof points
+- 5 competencies configured
+- 2700 domain questions available
 
-| Issue | Root Cause | Fix |
-|-------|------------|-----|
-| 0 domain questions | `is_deleted` column doesn't exist | Remove filter, add fallback |
-| 0 competency questions | Domain failure blocked generation | Fix domain query |
-| 1824 proof point copies | No mutex, called 1824 times | Add `generatingRef` mutex |
-| Wrong section grouping | `section_type` stored as display name | Already correct in code, data corruption |
-| Score 9120 | 1824 questions × 5 pts each | Fix question count |
+**Expected generation:**
+- Domain & Delivery Depth: **10 questions**
+- Solution Design & Architecture Thinking: **1-2 questions**
+- Execution & Governance: **1-2 questions**
+- Data/Tech Readiness & Tooling Awareness: **1-2 questions**
+- Soft Skills for Solution Provider Success: **1-2 questions**
+- Innovation & Co-creation Ability: **1-2 questions**
+- Proof Points Deep-Dive: **4-8 questions**
+
+**Total: ~20-25 questions** (not 1824)
