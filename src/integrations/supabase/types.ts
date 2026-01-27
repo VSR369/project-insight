@@ -921,6 +921,75 @@ export type Database = {
           },
         ]
       }
+      interview_question_responses: {
+        Row: {
+          comments: string | null
+          created_at: string
+          created_by: string | null
+          display_order: number
+          evaluation_id: string
+          expected_answer: string | null
+          id: string
+          proof_point_id: string | null
+          question_id: string | null
+          question_source: string
+          question_text: string
+          rating: string | null
+          section_name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          evaluation_id: string
+          expected_answer?: string | null
+          id?: string
+          proof_point_id?: string | null
+          question_id?: string | null
+          question_source: string
+          question_text: string
+          rating?: string | null
+          section_name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          comments?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_order?: number
+          evaluation_id?: string
+          expected_answer?: string | null
+          id?: string
+          proof_point_id?: string | null
+          question_id?: string | null
+          question_source?: string
+          question_text?: string
+          rating?: string | null
+          section_name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interview_question_responses_evaluation_id_fkey"
+            columns: ["evaluation_id"]
+            isOneToOne: false
+            referencedRelation: "interview_evaluations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interview_question_responses_proof_point_id_fkey"
+            columns: ["proof_point_id"]
+            isOneToOne: false
+            referencedRelation: "proof_points"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       interview_quorum_requirements: {
         Row: {
           created_at: string | null

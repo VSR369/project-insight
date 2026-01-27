@@ -2,6 +2,7 @@ export { CandidateCard } from "./CandidateCard";
 export { CandidateCardSkeleton } from "./CandidateCardSkeleton";
 export { CandidateFiltersPanel } from "./CandidateFilters";
 export { CandidateProfileHeader } from "./CandidateProfileHeader";
+export { InterviewKitTabContent } from "./InterviewKitTabContent";
 export { ProviderDetailsSection } from "./ProviderDetailsSection";
 export { AffiliationTypeSection } from "./AffiliationTypeSection";
 export { OrganizationDetailsSection } from "./OrganizationDetailsSection";
