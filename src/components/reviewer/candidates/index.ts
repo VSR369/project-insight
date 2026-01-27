@@ -24,3 +24,6 @@ export { DeclineSlotDialog } from "./DeclineSlotDialog";
 export { CancelAcceptedSlotDialog } from "./CancelAcceptedSlotDialog";
 // Assessment tab components
 export { AssessmentTabContent } from "./AssessmentTabContent";
+
+// Interview Kit tab - exported from separate module
+// See src/components/reviewer/interview-kit/index.ts
