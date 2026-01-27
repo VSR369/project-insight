@@ -15,6 +15,7 @@ import {
   ProofPointsTabContent,
   SlotsTabContent,
   AssessmentTabContent,
+  FinalResultTabContent,
 } from "@/components/reviewer/candidates";
 import { InterviewKitTabContent } from "@/components/reviewer/interview-kit";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
@@ -124,7 +125,7 @@ export default function CandidateDetailPage() {
             <TabsTrigger value="assessment">Assessment</TabsTrigger>
             <TabsTrigger value="slots">Slots</TabsTrigger>
             <TabsTrigger value="interview-kit">Interview Kit</TabsTrigger>
-            <TabsTrigger value="final-result" disabled>Final Result</TabsTrigger>
+            <TabsTrigger value="final-result">Final Result</TabsTrigger>
           </TabsList>
 
           {/* Provider Details Tab Content */}
@@ -173,10 +174,8 @@ export default function CandidateDetailPage() {
             {enrollmentId && <InterviewKitTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
-          <TabsContent value="final-result">
-            <div className="p-8 text-center text-muted-foreground">
-              Final Result tab content coming soon
-            </div>
+          <TabsContent value="final-result" className="mt-6">
+            {enrollmentId && <FinalResultTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
         </Tabs>
       </div>
