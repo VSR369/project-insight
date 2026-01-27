@@ -9,8 +9,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy, getCurrentUserId } from '@/lib/auditFields';
+import { handleMutationError } from '@/lib/errorHandler';
 import { canModifyField } from '@/services/lifecycleService';
-import { 
+import {
   executeExpertiseLevelChangeResetV2,
   getCascadeImpactCountsV2 
 } from '@/services/cascadeResetService';
@@ -116,8 +117,7 @@ export function useUpdateEnrollmentExpertise() {
       }
     },
     onError: (error) => {
-      console.error('Error updating enrollment expertise:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update expertise level');
+      handleMutationError(error, { operation: 'update_enrollment_expertise', component: 'useUpdateEnrollmentExpertise' });
     },
   });
 }
@@ -201,8 +201,7 @@ export function useUpdateEnrollmentProficiencyAreas() {
       queryClient.invalidateQueries({ queryKey: ['provider-proficiency-areas'] });
     },
     onError: (error) => {
-      console.error('Error updating proficiency areas:', error);
-      toast.error('Failed to save proficiency area selection');
+      handleMutationError(error, { operation: 'update_proficiency_areas', component: 'useUpdateEnrollmentProficiencyAreas' });
     },
   });
 }

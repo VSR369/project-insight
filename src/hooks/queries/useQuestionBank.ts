@@ -342,7 +342,11 @@ export function useDeleteQuestionsBySpecialities() {
 
       if (error) {
         // Log and fallback to batched deletion
-        console.warn('RPC delete_questions_by_specialities failed, using batch fallback:', error.message);
+        logWarning('RPC delete_questions_by_specialities failed, using batch fallback', {
+          operation: 'bulk_delete_questions',
+          component: 'useDeleteQuestionsBySpecialities',
+          additionalData: { errorMessage: error.message }
+        });
         return await batchDeleteQuestions(specialityIds);
       }
 

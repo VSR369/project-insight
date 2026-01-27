@@ -334,11 +334,18 @@ export function useCancelBookedSlot() {
           );
 
           if (notifyError) {
-            console.error("Failed to send cancellation email:", notifyError);
+            logInfo("Failed to send cancellation email (non-critical)", {
+              operation: "notify_booking_cancelled",
+              component: "useCancelBookedSlot",
+              additionalData: { error: notifyError.message }
+            });
             // Don't throw - booking is already cancelled, email is best-effort
           }
         } catch (emailError) {
-          console.error("Error calling notification function:", emailError);
+          logInfo("Error calling notification function (non-critical)", {
+            operation: "notify_booking_cancelled",
+            component: "useCancelBookedSlot",
+          });
         }
       }
 
