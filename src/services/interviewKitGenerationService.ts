@@ -184,12 +184,13 @@ export async function generateCompetencyQuestions(
       continue;
     }
 
-    // If no exact match, fallback to any questions for this competency
+    // If no exact match, fallback to same industry but any expertise level
     if (!questions || questions.length === 0) {
       const { data: fallbackQuestions, error: fallbackError } = await supabase
         .from("interview_kit_questions")
         .select("id, question_text, expected_answer, competency_id")
         .eq("competency_id", competency.id)
+        .eq("industry_segment_id", industrySegmentId)  // Always match industry
         .eq("is_active", true)
         .limit(5);
 
