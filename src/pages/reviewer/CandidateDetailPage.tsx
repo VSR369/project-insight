@@ -16,6 +16,7 @@ import {
   SlotsTabContent,
   AssessmentTabContent,
 } from "@/components/reviewer/candidates";
+import { InterviewKitTabContent } from "@/components/reviewer/interview-kit";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
 import { toast } from "sonner";
 
@@ -169,13 +170,7 @@ export default function CandidateDetailPage() {
           </TabsContent>
 
           <TabsContent value="interview-kit" className="mt-6">
-            <div className="flex flex-col items-center justify-center p-12 text-center border rounded-lg bg-muted/30">
-              <div className="text-4xl mb-4">🚧</div>
-              <h3 className="text-lg font-semibold mb-2">Interview Kit - Coming Soon</h3>
-              <p className="text-muted-foreground max-w-md">
-                The Interview Kit feature is being rebuilt. Check back soon for the enhanced interview assessment experience.
-              </p>
-            </div>
+            {enrollmentId && <InterviewKitTabContent enrollmentId={enrollmentId} />}
           </TabsContent>
 
           <TabsContent value="review-progress">
