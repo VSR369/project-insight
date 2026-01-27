@@ -4,7 +4,7 @@
  * Per Project Knowledge Section 6 - Hook Organization Pattern
  */
 
-import { useRef } from "react";
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { handleMutationError, logWarning } from "@/lib/errorHandler";
@@ -165,12 +165,11 @@ export function useInterviewKitData(bookingId: string | undefined) {
 /**
  * Generate and persist interview kit questions
  */
-// Mutex ref to prevent duplicate generation calls
+// Module-level mutex to prevent duplicate generation calls
 let generatingMutex = false;
 
 export function useGenerateInterviewKit() {
   const queryClient = useQueryClient();
-  const generatingRef = useRef(false);
 
   return useMutation({
     mutationFn: async (params: {
@@ -178,12 +177,11 @@ export function useGenerateInterviewKit() {
       context: EnrollmentContext;
       proofPoints: ProofPointForReview[];
     }) => {
-      // Prevent double execution with mutex
-      if (generatingRef.current || generatingMutex) {
+      // Prevent double execution with module-level mutex
+      if (generatingMutex) {
         console.warn('[InterviewKit] Generation already in progress, skipping');
         throw new Error('Generation already in progress');
       }
-      generatingRef.current = true;
       generatingMutex = true;
 
       try {
@@ -278,7 +276,6 @@ export function useGenerateInterviewKit() {
         };
       } finally {
         // Always release the mutex
-        generatingRef.current = false;
         generatingMutex = false;
       }
     },
