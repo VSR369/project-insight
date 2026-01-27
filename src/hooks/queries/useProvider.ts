@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { 
+import { handleMutationError } from '@/lib/errorHandler';
+import {
   fetchCurrentProvider, 
   updateProviderMode, 
   upsertOrganization, 
@@ -121,8 +122,7 @@ export function useUpdateProviderBasicProfile() {
       }
     },
     onError: (error) => {
-      console.error('Error updating profile:', error);
-      toast.error(error instanceof Error ? error.message : 'Unable to save. Please retry.');
+      handleMutationError(error, { operation: 'update_provider_profile', component: 'useUpdateProviderBasicProfile' });
     },
   });
 }
@@ -194,8 +194,7 @@ export function useUpsertOrganization() {
       toast.success('Organization details saved');
     },
     onError: (error) => {
-      console.error('Error saving organization:', error);
-      toast.error('Failed to save organization details');
+      handleMutationError(error, { operation: 'save_organization', component: 'useUpsertOrganization' });
     },
   });
 }
@@ -279,8 +278,7 @@ export function useUpdateProviderExpertise() {
       }
     },
     onError: (error) => {
-      console.error('Error updating expertise:', error);
-      toast.error(error instanceof Error ? error.message : 'Failed to update expertise level');
+      handleMutationError(error, { operation: 'update_expertise', component: 'useUpdateProviderExpertise' });
     },
   });
 }

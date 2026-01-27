@@ -224,7 +224,7 @@ export default function ReviewerDashboard() {
                 <Button
                   variant="outline"
                   className="w-full justify-start"
-                  onClick={() => navigate('/reviewer/enrollments')}
+                  onClick={() => navigate('/reviewer/candidates')}
                 >
                   <Users className="mr-2 h-4 w-4" />
                   View All Enrollments

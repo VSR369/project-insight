@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { handleQueryError } from "@/lib/errorHandler";
+import { handleQueryError, logInfo } from "@/lib/errorHandler";
 import type { Enums } from "@/integrations/supabase/types";
 
 type LifecycleStatus = Enums<"lifecycle_status">;
@@ -73,10 +73,17 @@ export function useReviewerCandidates(
   return useQuery({
     queryKey: ["reviewer-candidates", reviewerId, filters, limit, offset],
     queryFn: async () => {
-      console.log('[useReviewerCandidates] Query starting:', { reviewerId, filters, limit, offset });
+      logInfo("Query starting", {
+        operation: "fetch_reviewer_candidates",
+        component: "useReviewerCandidates",
+        additionalData: { reviewerId, hasFilters: !!filters.searchQuery || !!filters.statuses?.length, limit, offset }
+      });
 
       if (!reviewerId) {
-        console.log('[useReviewerCandidates] No reviewer ID, returning empty');
+        logInfo("No reviewer ID provided", {
+          operation: "fetch_reviewer_candidates",
+          component: "useReviewerCandidates",
+        });
         return { candidates: [], total: 0 };
       }
 
@@ -104,24 +111,27 @@ export function useReviewerCandidates(
         throw assignmentError;
       }
 
-      console.log('[useReviewerCandidates] Raw assignments:', assignments?.length, assignments);
+      logInfo("Fetched assignments", {
+        operation: "fetch_reviewer_candidates",
+        component: "useReviewerCandidates",
+        additionalData: { assignmentsCount: assignments?.length || 0 }
+      });
 
       if (!assignments?.length) {
-        console.log('[useReviewerCandidates] No assignments found');
         return { candidates: [], total: 0 };
       }
 
       // Filter out assignments where the interview_booking itself is cancelled
       const activeAssignments = assignments.filter(a => {
         const booking = a.interview_bookings as any;
-        const isActive = booking?.status !== 'cancelled';
-        if (!isActive) {
-          console.log('[useReviewerCandidates] Filtered out cancelled booking:', booking?.id);
-        }
-        return isActive;
+        return booking?.status !== 'cancelled';
       });
 
-      console.log('[useReviewerCandidates] Active assignments after filtering:', activeAssignments.length);
+      logInfo("Active assignments after filtering", {
+        operation: "fetch_reviewer_candidates",
+        component: "useReviewerCandidates",
+        additionalData: { activeCount: activeAssignments.length }
+      });
 
       // Get unique enrollment IDs from active assignments
       const enrollmentIds = [...new Set(
@@ -130,10 +140,7 @@ export function useReviewerCandidates(
           .filter(Boolean)
       )];
 
-      console.log('[useReviewerCandidates] Enrollment IDs:', enrollmentIds);
-
       if (!enrollmentIds.length) {
-        console.log('[useReviewerCandidates] No enrollment IDs found');
         return { candidates: [], total: 0 };
       }
 
@@ -163,27 +170,24 @@ export function useReviewerCandidates(
 
       // Apply filters
       if (filters.statuses?.length) {
-        console.log('[useReviewerCandidates] Applying status filter:', filters.statuses);
         query = query.in("lifecycle_status", filters.statuses);
       }
 
       if (filters.expertiseLevelIds?.length) {
-        console.log('[useReviewerCandidates] Applying expertise filter:', filters.expertiseLevelIds);
         query = query.in("expertise_level_id", filters.expertiseLevelIds);
       }
 
       if (filters.categoryIds?.length) {
-        console.log('[useReviewerCandidates] Applying category filter:', filters.categoryIds);
         query = query.in("participation_mode_id", filters.categoryIds);
       }
 
       const { data: enrollments, error: enrollmentError } = await query;
 
-      console.log('[useReviewerCandidates] Enrollments fetched:', enrollments?.length, enrollments?.map(e => ({
-        id: e.id,
-        status: e.lifecycle_status,
-        rank: e.lifecycle_rank
-      })));
+      logInfo("Enrollments fetched", {
+        operation: "fetch_reviewer_candidates",
+        component: "useReviewerCandidates",
+        additionalData: { enrollmentsCount: enrollments?.length || 0 }
+      });
 
       if (enrollmentError) {
         handleQueryError(enrollmentError, { operation: "fetch_enrollment_details" });
@@ -191,7 +195,6 @@ export function useReviewerCandidates(
       }
 
       if (!enrollments?.length) {
-        console.log('[useReviewerCandidates] No enrollments match filters');
         return { candidates: [], total: 0 };
       }
 
@@ -230,10 +233,10 @@ export function useReviewerCandidates(
         proofPointCounts[pp.enrollment_id!] = (proofPointCounts[pp.enrollment_id!] || 0) + 1;
       });
 
-      // Get proof point reviews for verification status (new table - use manual types)
+      // Get proof point reviews for verification status
       const proofPointIds = proofPointsData?.map(pp => pp.id) || [];
       
-      // Type for the new proof_point_reviews table (not yet in generated types)
+      // Type for the proof_point_reviews table
       interface ProofPointReview {
         proof_point_id: string;
         verification_status: string;
@@ -243,7 +246,7 @@ export function useReviewerCandidates(
       let reviewsData: ProofPointReview[] = [];
       if (proofPointIds.length > 0) {
         const { data } = await supabase
-          .from("proof_point_reviews" as any)
+          .from("proof_point_reviews")
           .select("proof_point_id, verification_status, evidence_strength")
           .in("proof_point_id", proofPointIds)
           .eq("reviewer_id", reviewerId);
@@ -305,7 +308,7 @@ export function useReviewerCandidates(
         };
       });
 
-      // Get interview evaluations (new table - use manual types)
+      // Get interview evaluations
       interface InterviewEvaluation {
         booking_id: string;
         overall_score: number | null;
@@ -319,7 +322,7 @@ export function useReviewerCandidates(
       let evaluationsData: InterviewEvaluation[] = [];
       if (bookingIds.length > 0) {
         const { data } = await supabase
-          .from("interview_evaluations" as any)
+          .from("interview_evaluations")
           .select("booking_id, overall_score, outcome")
           .in("booking_id", bookingIds)
           .eq("reviewer_id", reviewerId);
@@ -452,7 +455,12 @@ export function useReviewerCandidates(
         };
       });
 
-      console.log('[useReviewerCandidates] Returning candidates:', candidates.length, 'total:', total);
+      logInfo("Returning candidates", {
+        operation: "fetch_reviewer_candidates",
+        component: "useReviewerCandidates",
+        additionalData: { candidatesCount: candidates.length, total }
+      });
+
       return { candidates, total };
     },
     enabled: !!reviewerId,
