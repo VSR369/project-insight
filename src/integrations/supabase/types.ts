@@ -2058,6 +2058,858 @@ export type Database = {
           },
         ]
       }
+      pulse_comments: {
+        Row: {
+          comment_text: string
+          content_id: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          id: string
+          is_deleted: boolean
+          parent_comment_id: string | null
+          provider_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          comment_text: string
+          content_id: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          parent_comment_id?: string | null
+          provider_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          comment_text?: string
+          content_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          id?: string
+          is_deleted?: boolean
+          parent_comment_id?: string | null
+          provider_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_comments_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_comments_parent_comment_id_fkey"
+            columns: ["parent_comment_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_comments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_comments_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_connections: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_connections_follower_id_fkey"
+            columns: ["follower_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_connections_following_id_fkey"
+            columns: ["following_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_content: {
+        Row: {
+          ai_enhanced: boolean
+          body_text: string | null
+          caption: string | null
+          comment_count: number
+          content_status: Database["public"]["Enums"]["pulse_content_status"]
+          content_type: Database["public"]["Enums"]["pulse_content_type"]
+          cover_image_url: string | null
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          enrollment_id: string | null
+          fire_count: number
+          gold_count: number
+          headline: string | null
+          id: string
+          industry_segment_id: string | null
+          is_deleted: boolean
+          is_published: boolean | null
+          key_insight: string | null
+          media_urls: Json
+          original_caption: string | null
+          provider_id: string
+          save_count: number
+          scheduled_publish_at: string | null
+          secondary_industry_ids: string[]
+          title: string | null
+          updated_at: string | null
+          updated_by: string | null
+          visibility_boost_expires_at: string | null
+          visibility_boost_multiplier: number
+        }
+        Insert: {
+          ai_enhanced?: boolean
+          body_text?: string | null
+          caption?: string | null
+          comment_count?: number
+          content_status?: Database["public"]["Enums"]["pulse_content_status"]
+          content_type: Database["public"]["Enums"]["pulse_content_type"]
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          enrollment_id?: string | null
+          fire_count?: number
+          gold_count?: number
+          headline?: string | null
+          id?: string
+          industry_segment_id?: string | null
+          is_deleted?: boolean
+          is_published?: boolean | null
+          key_insight?: string | null
+          media_urls?: Json
+          original_caption?: string | null
+          provider_id: string
+          save_count?: number
+          scheduled_publish_at?: string | null
+          secondary_industry_ids?: string[]
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          visibility_boost_expires_at?: string | null
+          visibility_boost_multiplier?: number
+        }
+        Update: {
+          ai_enhanced?: boolean
+          body_text?: string | null
+          caption?: string | null
+          comment_count?: number
+          content_status?: Database["public"]["Enums"]["pulse_content_status"]
+          content_type?: Database["public"]["Enums"]["pulse_content_type"]
+          cover_image_url?: string | null
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          enrollment_id?: string | null
+          fire_count?: number
+          gold_count?: number
+          headline?: string | null
+          id?: string
+          industry_segment_id?: string | null
+          is_deleted?: boolean
+          is_published?: boolean | null
+          key_insight?: string | null
+          media_urls?: Json
+          original_caption?: string | null
+          provider_id?: string
+          save_count?: number
+          scheduled_publish_at?: string | null
+          secondary_industry_ids?: string[]
+          title?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          visibility_boost_expires_at?: string | null
+          visibility_boost_multiplier?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_content_enrollment_id_fkey"
+            columns: ["enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_content_impressions: {
+        Row: {
+          content_id: string
+          created_at: string
+          id: string
+          impression_type: string
+          viewer_id: string | null
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          id?: string
+          impression_type?: string
+          viewer_id?: string | null
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          id?: string
+          impression_type?: string
+          viewer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_content_impressions_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_impressions_viewer_id_fkey"
+            columns: ["viewer_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_content_reports: {
+        Row: {
+          action_taken: string | null
+          content_id: string
+          created_at: string
+          description: string | null
+          id: string
+          report_type: Database["public"]["Enums"]["pulse_report_type"]
+          reporter_id: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["pulse_report_status"]
+        }
+        Insert: {
+          action_taken?: string | null
+          content_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type: Database["public"]["Enums"]["pulse_report_type"]
+          reporter_id: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["pulse_report_status"]
+        }
+        Update: {
+          action_taken?: string | null
+          content_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          report_type?: Database["public"]["Enums"]["pulse_report_type"]
+          reporter_id?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: Database["public"]["Enums"]["pulse_report_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_content_reports_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_reports_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_content_tags: {
+        Row: {
+          content_id: string
+          created_at: string
+          id: string
+          tag_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          id?: string
+          tag_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          id?: string
+          tag_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_content_tags_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_content_tags_tag_id_fkey"
+            columns: ["tag_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_tags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_daily_standups: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          id: string
+          provider_id: string
+          standup_date: string
+          updates_viewed: number
+          visibility_boost_earned: boolean
+          window_start: string | null
+          xp_awarded: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          provider_id: string
+          standup_date: string
+          updates_viewed?: number
+          visibility_boost_earned?: boolean
+          window_start?: string | null
+          xp_awarded?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          provider_id?: string
+          standup_date?: string
+          updates_viewed?: number
+          visibility_boost_earned?: boolean
+          window_start?: string | null
+          xp_awarded?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_daily_standups_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_engagements: {
+        Row: {
+          content_id: string
+          created_at: string
+          deleted_at: string | null
+          engagement_type: Database["public"]["Enums"]["pulse_engagement_type"]
+          id: string
+          is_deleted: boolean
+          provider_id: string
+        }
+        Insert: {
+          content_id: string
+          created_at?: string
+          deleted_at?: string | null
+          engagement_type: Database["public"]["Enums"]["pulse_engagement_type"]
+          id?: string
+          is_deleted?: boolean
+          provider_id: string
+        }
+        Update: {
+          content_id?: string
+          created_at?: string
+          deleted_at?: string | null
+          engagement_type?: Database["public"]["Enums"]["pulse_engagement_type"]
+          id?: string
+          is_deleted?: boolean
+          provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_engagements_content_id_fkey"
+            columns: ["content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_loot_boxes: {
+        Row: {
+          available_at: string
+          claim_date: string
+          created_at: string
+          expires_at: string
+          id: string
+          opened_at: string | null
+          provider_id: string
+          rewards: Json
+          streak_at_claim: number
+          streak_multiplier: number
+        }
+        Insert: {
+          available_at: string
+          claim_date: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          opened_at?: string | null
+          provider_id: string
+          rewards?: Json
+          streak_at_claim?: number
+          streak_multiplier?: number
+        }
+        Update: {
+          available_at?: string
+          claim_date?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          opened_at?: string | null
+          provider_id?: string
+          rewards?: Json
+          streak_at_claim?: number
+          streak_multiplier?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_loot_boxes_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_notifications: {
+        Row: {
+          body: string | null
+          created_at: string
+          data: Json
+          id: string
+          is_read: boolean
+          notification_type: Database["public"]["Enums"]["pulse_notification_type"]
+          provider_id: string
+          read_at: string | null
+          related_content_id: string | null
+          related_provider_id: string | null
+          title: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          is_read?: boolean
+          notification_type: Database["public"]["Enums"]["pulse_notification_type"]
+          provider_id: string
+          read_at?: string | null
+          related_content_id?: string | null
+          related_provider_id?: string | null
+          title: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string
+          data?: Json
+          id?: string
+          is_read?: boolean
+          notification_type?: Database["public"]["Enums"]["pulse_notification_type"]
+          provider_id?: string
+          read_at?: string | null
+          related_content_id?: string | null
+          related_provider_id?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_notifications_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_related_content_id_fkey"
+            columns: ["related_content_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_content"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_notifications_related_provider_id_fkey"
+            columns: ["related_provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_provider_stats: {
+        Row: {
+          created_at: string
+          current_level: number
+          current_streak: number
+          follower_count: number
+          following_count: number
+          gold_token_balance: number
+          id: string
+          last_activity_date: string | null
+          longest_streak: number
+          provider_id: string
+          timezone: string
+          total_articles: number
+          total_comments_received: number
+          total_contributions: number
+          total_fire_received: number
+          total_galleries: number
+          total_gold_received: number
+          total_podcasts: number
+          total_posts: number
+          total_reels: number
+          total_saves_received: number
+          total_sparks: number
+          total_xp: number
+          updated_at: string | null
+          visibility_boost_tokens: number
+        }
+        Insert: {
+          created_at?: string
+          current_level?: number
+          current_streak?: number
+          follower_count?: number
+          following_count?: number
+          gold_token_balance?: number
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          provider_id: string
+          timezone?: string
+          total_articles?: number
+          total_comments_received?: number
+          total_contributions?: number
+          total_fire_received?: number
+          total_galleries?: number
+          total_gold_received?: number
+          total_podcasts?: number
+          total_posts?: number
+          total_reels?: number
+          total_saves_received?: number
+          total_sparks?: number
+          total_xp?: number
+          updated_at?: string | null
+          visibility_boost_tokens?: number
+        }
+        Update: {
+          created_at?: string
+          current_level?: number
+          current_streak?: number
+          follower_count?: number
+          following_count?: number
+          gold_token_balance?: number
+          id?: string
+          last_activity_date?: string | null
+          longest_streak?: number
+          provider_id?: string
+          timezone?: string
+          total_articles?: number
+          total_comments_received?: number
+          total_contributions?: number
+          total_fire_received?: number
+          total_galleries?: number
+          total_gold_received?: number
+          total_podcasts?: number
+          total_posts?: number
+          total_reels?: number
+          total_saves_received?: number
+          total_sparks?: number
+          total_xp?: number
+          updated_at?: string | null
+          visibility_boost_tokens?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_provider_stats_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: true
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_skills: {
+        Row: {
+          created_at: string
+          current_level: number
+          current_xp: number
+          expertise_level_id: string | null
+          id: string
+          industry_segment_id: string
+          is_verified: boolean
+          provider_id: string
+          skill_name: string
+          updated_at: string | null
+          verification_enrollment_id: string | null
+          verification_source:
+            | Database["public"]["Enums"]["pulse_verification_source"]
+            | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          current_level?: number
+          current_xp?: number
+          expertise_level_id?: string | null
+          id?: string
+          industry_segment_id: string
+          is_verified?: boolean
+          provider_id: string
+          skill_name: string
+          updated_at?: string | null
+          verification_enrollment_id?: string | null
+          verification_source?:
+            | Database["public"]["Enums"]["pulse_verification_source"]
+            | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          current_level?: number
+          current_xp?: number
+          expertise_level_id?: string | null
+          id?: string
+          industry_segment_id?: string
+          is_verified?: boolean
+          provider_id?: string
+          skill_name?: string
+          updated_at?: string | null
+          verification_enrollment_id?: string | null
+          verification_source?:
+            | Database["public"]["Enums"]["pulse_verification_source"]
+            | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_skills_expertise_level_id_fkey"
+            columns: ["expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_skills_verification_enrollment_id_fkey"
+            columns: ["verification_enrollment_id"]
+            isOneToOne: false
+            referencedRelation: "provider_industry_enrollments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_tags: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+          is_active: boolean
+          is_featured: boolean
+          name: string
+          updated_at: string | null
+          usage_count: number
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          name: string
+          updated_at?: string | null
+          usage_count?: number
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          is_active?: boolean
+          is_featured?: boolean
+          name?: string
+          updated_at?: string | null
+          usage_count?: number
+        }
+        Relationships: []
+      }
+      pulse_xp_audit_log: {
+        Row: {
+          action_type: string
+          created_at: string
+          created_by: string | null
+          id: string
+          new_total: number
+          notes: string | null
+          previous_total: number
+          provider_id: string
+          reference_id: string | null
+          reference_type: string | null
+          xp_change: number
+        }
+        Insert: {
+          action_type: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_total: number
+          notes?: string | null
+          previous_total: number
+          provider_id: string
+          reference_id?: string | null
+          reference_type?: string | null
+          xp_change: number
+        }
+        Update: {
+          action_type?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          new_total?: number
+          notes?: string | null
+          previous_total?: number
+          provider_id?: string
+          reference_id?: string | null
+          reference_type?: string | null
+          xp_change?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_xp_audit_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_xp_snapshots: {
+        Row: {
+          created_at: string
+          current_level_at_date: number
+          follower_count_at_date: number
+          id: string
+          provider_id: string
+          snapshot_date: string
+          snapshot_type: string
+          total_xp_at_date: number
+        }
+        Insert: {
+          created_at?: string
+          current_level_at_date?: number
+          follower_count_at_date?: number
+          id?: string
+          provider_id: string
+          snapshot_date: string
+          snapshot_type?: string
+          total_xp_at_date?: number
+        }
+        Update: {
+          created_at?: string
+          current_level_at_date?: number
+          follower_count_at_date?: number
+          id?: string
+          provider_id?: string
+          snapshot_date?: string
+          snapshot_type?: string
+          total_xp_at_date?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_xp_snapshots_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       question_bank: {
         Row: {
           correct_option: number
@@ -2868,6 +3720,10 @@ export type Database = {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
+        Returns: boolean
+      }
+      is_pulse_provider_owner: {
+        Args: { p_provider_id: string }
         Returns: boolean
       }
       is_reviewer_assigned_to_booking: {
