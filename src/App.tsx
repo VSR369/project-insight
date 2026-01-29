@@ -588,6 +588,48 @@ const App = () => (
               }
             />
 
+            {/* Pulse Routes (mobile-first social network) */}
+            <Route
+              path="/pulse/feed"
+              element={
+                <AuthGuard>
+                  <PulseFeedPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/pulse/sparks"
+              element={
+                <AuthGuard>
+                  <PulseSparksPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/pulse/create"
+              element={
+                <AuthGuard>
+                  <PulseCreatePage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/pulse/ranks"
+              element={
+                <AuthGuard>
+                  <PulseRanksPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/pulse/profile"
+              element={
+                <AuthGuard>
+                  <PulseProfilePage />
+                </AuthGuard>
+              }
+            />
+
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
 
