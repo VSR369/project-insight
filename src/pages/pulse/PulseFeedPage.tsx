@@ -1,13 +1,13 @@
 import { useNavigate } from 'react-router-dom';
-import { RefreshCw, AlertCircle, Rss } from 'lucide-react';
+import { RefreshCw, AlertCircle, Rss, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PulseLayout } from '@/components/pulse/layout';
 import { ContentCard } from '@/components/pulse/content';
+import { DailyStandupBanner, PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { usePulseFeed } from '@/hooks/queries/usePulseContent';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-
 export default function PulseFeedPage() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
@@ -95,21 +95,42 @@ export default function PulseFeedPage() {
 
   const transformedContent = transformContent(feedContent);
 
+  // Provider name from available fields
+  const providerName = `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there';
+
   return (
     <PulseLayout>
       <div className="max-w-lg mx-auto">
+        {/* Personalized Header */}
+        <PersonalizedFeedHeader
+          providerId={provider.id}
+          providerName={providerName}
+        />
+
+        {/* Daily Standup Banner */}
+        <div className="p-4 border-b">
+          <DailyStandupBanner providerId={provider.id} />
+        </div>
+
+        {/* Feed Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full h-10 text-muted-foreground"
-            onClick={() => refetch()}
-            disabled={isRefetching}
-            aria-label={isRefetching ? 'Refreshing feed' : 'Refresh feed'}
-          >
-            <RefreshCw className={`h-4 w-4 mr-2 ${isRefetching ? 'animate-spin' : ''}`} aria-hidden="true" />
-            {isRefetching ? 'Refreshing...' : 'Refresh Feed'}
-          </Button>
+          <div className="flex items-center justify-between px-4 py-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
+              <span className="font-medium text-sm">YOUR FEED</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-muted-foreground"
+              onClick={() => refetch()}
+              disabled={isRefetching}
+              aria-label={isRefetching ? 'Refreshing feed' : 'Refresh feed'}
+            >
+              <RefreshCw className={`h-4 w-4 mr-1 ${isRefetching ? 'animate-spin' : ''}`} aria-hidden="true" />
+              {isRefetching ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (
