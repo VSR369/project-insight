@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { Send, ChevronDown, ChevronUp, MoreHorizontal } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -20,16 +20,32 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [expandedReplies, setExpandedReplies] = useState<Set<string>>(new Set());
+  
+  const replyInputRef = useRef<HTMLTextAreaElement>(null);
+  const commentInputRef = useRef<HTMLTextAreaElement>(null);
 
   const { data: comments, isLoading } = useContentComments(contentId);
   const addComment = useAddComment();
   const deleteComment = useDeleteComment();
 
+  // Focus reply input when opening reply
+  useEffect(() => {
+    if (replyingTo && replyInputRef.current) {
+      replyInputRef.current.focus();
+    }
+  }, [replyingTo]);
+
   const handleSubmitComment = () => {
     if (!newComment.trim()) return;
     addComment.mutate(
       { content_id: contentId, provider_id: currentUserProviderId, comment_text: newComment.trim() },
-      { onSuccess: () => setNewComment('') }
+      { 
+        onSuccess: () => {
+          setNewComment('');
+          // Focus back to comment input after submission
+          commentInputRef.current?.focus();
+        } 
+      }
     );
   };
 
@@ -71,7 +87,11 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
     const isOwnComment = comment.provider_id === currentUserProviderId;
 
     return (
-      <div key={comment.id} className={cn("group", depth > 0 && "ml-8 mt-3")}>
+      <article 
+        key={comment.id} 
+        className={cn("group", depth > 0 && "ml-8 mt-3")}
+        aria-label={`Comment by ${providerName}`}
+      >
         <div className="flex gap-3">
           <Avatar className="h-8 w-8 shrink-0">
             <AvatarFallback className="text-xs bg-primary/10 text-primary">
@@ -83,7 +103,9 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
             <div className="flex items-center gap-2">
               <span className="font-medium text-sm">{providerName}</span>
               <span className="text-xs text-muted-foreground">
-                {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                <time dateTime={comment.created_at}>
+                  {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                </time>
               </span>
               
               {isOwnComment && (
@@ -92,9 +114,10 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-6 w-6 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      aria-label="Comment options"
                     >
-                      <MoreHorizontal className="h-3 w-3" />
+                      <MoreHorizontal className="h-3 w-3" aria-hidden="true" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
@@ -118,8 +141,10 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground"
+                  className="h-8 px-3 text-xs text-muted-foreground min-h-[44px]"
                   onClick={() => setReplyingTo(replyingTo === comment.id ? null : comment.id)}
+                  aria-label={`Reply to ${providerName}`}
+                  aria-expanded={replyingTo === comment.id}
                 >
                   Reply
                 </Button>
@@ -129,17 +154,19 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 px-2 text-xs text-muted-foreground gap-1"
+                  className="h-8 px-3 text-xs text-muted-foreground gap-1 min-h-[44px]"
                   onClick={() => toggleReplies(comment.id)}
+                  aria-expanded={isExpanded}
+                  aria-label={isExpanded ? 'Hide replies' : `Show ${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}`}
                 >
                   {isExpanded ? (
                     <>
-                      <ChevronUp className="h-3 w-3" />
+                      <ChevronUp className="h-3 w-3" aria-hidden="true" />
                       Hide replies
                     </>
                   ) : (
                     <>
-                      <ChevronDown className="h-3 w-3" />
+                      <ChevronDown className="h-3 w-3" aria-hidden="true" />
                       {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
                     </>
                   )}
@@ -149,40 +176,43 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
 
             {/* Reply Input */}
             {replyingTo === comment.id && (
-              <div className="flex gap-2 mt-2">
+              <div className="flex gap-2 mt-2" role="form" aria-label={`Reply to ${providerName}`}>
                 <Textarea
+                  ref={replyInputRef}
                   placeholder="Write a reply..."
                   value={replyText}
                   onChange={(e) => setReplyText(e.target.value)}
                   className="min-h-[60px] text-sm resize-none"
                   maxLength={1500}
+                  aria-label="Write a reply"
                 />
                 <Button
                   size="icon"
-                  className="shrink-0"
+                  className="shrink-0 min-w-[44px] min-h-[44px]"
                   onClick={() => handleSubmitReply(comment.id)}
                   disabled={!replyText.trim() || addComment.isPending}
+                  aria-label="Submit reply"
                 >
-                  <Send className="h-4 w-4" />
+                  <Send className="h-4 w-4" aria-hidden="true" />
                 </Button>
               </div>
             )}
 
             {/* Nested Replies */}
             {isExpanded && hasReplies && (
-              <div className="mt-2">
+              <div className="mt-2" role="list" aria-label="Replies">
                 {replies.map(reply => renderComment(reply, depth + 1))}
               </div>
             )}
           </div>
         </div>
-      </div>
+      </article>
     );
   };
 
   if (isLoading) {
     return (
-      <div className="space-y-4 p-4">
+      <div className="space-y-4 p-4" aria-label="Loading comments">
         {[1, 2, 3].map(i => (
           <div key={i} className="flex gap-3">
             <Skeleton className="h-8 w-8 rounded-full" />
@@ -197,33 +227,36 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
   }
 
   return (
-    <div className="border-t border-border">
+    <section className="border-t border-border" aria-label="Comments">
       {/* Comment Input */}
       <div className="p-4 border-b border-border">
-        <div className="flex gap-2">
+        <div className="flex gap-2" role="form" aria-label="Add a comment">
           <Textarea
+            ref={commentInputRef}
             placeholder="Add a comment..."
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             className="min-h-[60px] text-sm resize-none"
             maxLength={1500}
+            aria-label="Write a comment"
           />
           <Button
             size="icon"
-            className="shrink-0"
+            className="shrink-0 min-w-[44px] min-h-[44px]"
             onClick={handleSubmitComment}
             disabled={!newComment.trim() || addComment.isPending}
+            aria-label="Submit comment"
           >
-            <Send className="h-4 w-4" />
+            <Send className="h-4 w-4" aria-hidden="true" />
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground mt-1 text-right">
+        <p className="text-xs text-muted-foreground mt-1 text-right" aria-live="polite">
           {newComment.length}/1500
         </p>
       </div>
 
       {/* Comments List */}
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-4" role="list" aria-label="Comments list">
         {(comments ?? []).length === 0 ? (
           <p className="text-center text-muted-foreground text-sm py-8">
             No comments yet. Be the first to share your thoughts!
@@ -232,6 +265,6 @@ export function CommentSection({ contentId, currentUserProviderId, maxDepth = 3 
           (comments ?? []).map(comment => renderComment(comment))
         )}
       </div>
-    </div>
+    </section>
   );
 }
