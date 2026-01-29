@@ -12,6 +12,7 @@ import { getStatusDisplayName } from '@/services/lifecycleService';
 import { getNextStepForStatus, getStepRoute, STEP_ROUTES } from '@/services/wizardNavigationService';
 import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
 import { AddIndustryDialog, EnrollmentDeleteDialog } from '@/components/enrollment';
+import { PulseDashboardWidget } from '@/components/pulse/dashboard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -578,80 +579,88 @@ export default function Dashboard() {
           </Card>
         )}
 
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Industries
-              </CardTitle>
-              <Factory className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{enrollments.length}</div>
-              <p className="text-xs text-muted-foreground">
-                {enrollments.filter(e => TERMINAL_STATUSES.includes(e.lifecycle_status) && e.lifecycle_status !== 'not_verified').length} verified
-              </p>
-            </CardContent>
-          </Card>
+        {/* Stats Grid with Pulse Widget */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Main Stats - 3 columns on lg */}
+          <div className="lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Industries
+                </CardTitle>
+                <Factory className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{enrollments.length}</div>
+                <p className="text-xs text-muted-foreground">
+                  {enrollments.filter(e => TERMINAL_STATUSES.includes(e.lifecycle_status) && e.lifecycle_status !== 'not_verified').length} verified
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Profile Status
-              </CardTitle>
-              <User className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center gap-2">
-                <Badge variant={getStatusBadgeVariant(provider?.lifecycle_status || 'registered')} className="gap-1">
-                  {getStatusIcon(provider?.lifecycle_status || '')}
-                  {getStatusDisplayName(provider?.lifecycle_status || 'New')}
-                </Badge>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                {isProviderTerminal 
-                  ? 'Profile complete' 
-                  : provider?.onboarding_status === 'completed' 
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Profile Status
+                </CardTitle>
+                <User className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center gap-2">
+                  <Badge variant={getStatusBadgeVariant(provider?.lifecycle_status || 'registered')} className="gap-1">
+                    {getStatusIcon(provider?.lifecycle_status || '')}
+                    {getStatusDisplayName(provider?.lifecycle_status || 'New')}
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {isProviderTerminal 
                     ? 'Profile complete' 
-                    : 'Complete your profile'}
-              </p>
-            </CardContent>
-          </Card>
+                    : provider?.onboarding_status === 'completed' 
+                      ? 'Profile complete' 
+                      : 'Complete your profile'}
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Total Proof Points
-              </CardTitle>
-              <FileText className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProofPoints}</div>
-              <p className="text-xs text-muted-foreground">
-                Across all industries
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Total Proof Points
+                </CardTitle>
+                <FileText className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{totalProofPoints}</div>
+                <p className="text-xs text-muted-foreground">
+                  Across all industries
+                </p>
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
-                Active Enrollment
-              </CardTitle>
-              <Target className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-lg font-bold truncate">
-                {activeEnrollment?.industry_segment?.name || 'None'}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {activeEnrollment 
-                  ? getStatusDisplayName(activeEnrollment.lifecycle_status)
-                  : 'Select an industry'}
-              </p>
-            </CardContent>
-          </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">
+                  Active Enrollment
+                </CardTitle>
+                <Target className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-lg font-bold truncate">
+                  {activeEnrollment?.industry_segment?.name || 'None'}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {activeEnrollment 
+                    ? getStatusDisplayName(activeEnrollment.lifecycle_status)
+                    : 'Select an industry'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Pulse Widget - 1 column on lg */}
+          <div className="lg:col-span-1">
+            <PulseDashboardWidget />
+          </div>
         </div>
 
         {/* Empty State - No Enrollments (for existing providers) */}
