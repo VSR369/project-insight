@@ -1,0 +1,186 @@
+import { Flame, MessageCircle, Coins, Bookmark, Share2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import { useToggleEngagement, useUserEngagements } from '@/hooks/queries/usePulseEngagements';
+import { toast } from 'sonner';
+
+interface EngagementBarProps {
+  contentId: string;
+  providerId: string;
+  currentUserProviderId: string;
+  fireCount: number;
+  commentCount: number;
+  goldCount: number;
+  saveCount: number;
+  onCommentClick?: () => void;
+  showCounts?: boolean;
+}
+
+export function EngagementBar({
+  contentId,
+  providerId,
+  currentUserProviderId,
+  fireCount,
+  commentCount,
+  goldCount,
+  saveCount,
+  onCommentClick,
+  showCounts = true,
+}: EngagementBarProps) {
+  const { data: userEngagements } = useUserEngagements(contentId, currentUserProviderId);
+  const toggleEngagement = useToggleEngagement();
+
+  const hasFired = userEngagements?.fire ?? false;
+  const hasGolded = userEngagements?.gold ?? false;
+  const hasSaved = userEngagements?.save ?? false;
+  const hasBookmarked = userEngagements?.bookmark ?? false;
+
+  const isOwnContent = providerId === currentUserProviderId;
+
+  const formatCount = (count: number): string => {
+    if (count >= 1000000) return `${(count / 1000000).toFixed(1)}M`;
+    if (count >= 1000) return `${(count / 1000).toFixed(1)}K`;
+    return count.toString();
+  };
+
+  const handleFire = () => {
+    if (isOwnContent) {
+      toast.error("You can't engage with your own content");
+      return;
+    }
+    toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'fire' });
+  };
+
+  const handleGold = () => {
+    if (isOwnContent) {
+      toast.error("You can't engage with your own content");
+      return;
+    }
+    if (!hasGolded) {
+      toast.info('Gold awards cost 1 gold token');
+    }
+    toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'gold' });
+  };
+
+  const handleSave = () => {
+    if (isOwnContent) {
+      toast.error("You can't engage with your own content");
+      return;
+    }
+    toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'save' });
+  };
+
+  const handleBookmark = () => {
+    toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'bookmark' });
+    toast.success(hasBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks');
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.share({
+        title: 'Check this out on Pulse',
+        url: `${window.location.origin}/pulse/content/${contentId}`,
+      });
+    } catch {
+      // Fallback to copy link
+      await navigator.clipboard.writeText(`${window.location.origin}/pulse/content/${contentId}`);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
+  return (
+    <div className="flex items-center justify-between w-full">
+      <div className="flex items-center gap-1">
+        {/* Fire Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-9 px-2 gap-1.5",
+            hasFired && "text-orange-500 hover:text-orange-600"
+          )}
+          onClick={handleFire}
+          disabled={toggleEngagement.isPending || isOwnContent}
+        >
+          <Flame className={cn("h-5 w-5", hasFired && "fill-current")} />
+          {showCounts && fireCount > 0 && (
+            <span className="text-xs font-medium">{formatCount(fireCount)}</span>
+          )}
+        </Button>
+
+        {/* Comment Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-9 px-2 gap-1.5"
+          onClick={onCommentClick}
+        >
+          <MessageCircle className="h-5 w-5" />
+          {showCounts && commentCount > 0 && (
+            <span className="text-xs font-medium">{formatCount(commentCount)}</span>
+          )}
+        </Button>
+
+        {/* Gold Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-9 px-2 gap-1.5",
+            hasGolded && "text-yellow-500 hover:text-yellow-600"
+          )}
+          onClick={handleGold}
+          disabled={toggleEngagement.isPending || isOwnContent}
+        >
+          <Coins className={cn("h-5 w-5", hasGolded && "fill-current")} />
+          {showCounts && goldCount > 0 && (
+            <span className="text-xs font-medium">{formatCount(goldCount)}</span>
+          )}
+        </Button>
+
+        {/* Save Button */}
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn(
+            "h-9 px-2 gap-1.5",
+            hasSaved && "text-primary"
+          )}
+          onClick={handleSave}
+          disabled={toggleEngagement.isPending || isOwnContent}
+        >
+          <Bookmark className={cn("h-5 w-5", hasSaved && "fill-current")} />
+          {showCounts && saveCount > 0 && (
+            <span className="text-xs font-medium">{formatCount(saveCount)}</span>
+          )}
+        </Button>
+      </div>
+
+      <div className="flex items-center gap-1">
+        {/* Private Bookmark */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "h-9 w-9",
+            hasBookmarked && "text-primary"
+          )}
+          onClick={handleBookmark}
+          disabled={toggleEngagement.isPending}
+        >
+          <Bookmark className={cn("h-4 w-4", hasBookmarked && "fill-current")} />
+        </Button>
+
+        {/* Share */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          onClick={handleShare}
+        >
+          <Share2 className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
+}

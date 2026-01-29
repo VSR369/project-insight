@@ -88,6 +88,9 @@ import ReviewerSettings from "@/pages/reviewer/ReviewerSettings";
 import CandidateDetailPage from "@/pages/reviewer/CandidateDetailPage";
 import ReviewerPendingApproval from "@/pages/reviewer/ReviewerPendingApproval";
 
+// Pulse Pages
+import { PulseFeedPage, PulseSparksPage, PulseCreatePage, PulseRanksPage, PulseProfilePage } from "@/pages/pulse";
+
 import { queryClient } from "@/lib/queryClient";
 
 // Export queryClient for shared access (auth state changes, portal switching)
