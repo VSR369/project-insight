@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Grid3X3, Bookmark, Trophy, Edit, PlusCircle, Compass } from 'lucide-react';
+import { Settings, Grid3X3, Bookmark, Trophy, Edit, PlusCircle, Compass, Gift, Flame } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,8 +8,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PulseLayout } from '@/components/pulse/layout';
+import { VerifiedSkillsCard, LootBoxModal } from '@/components/pulse/gamification';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { useProviderStats } from '@/hooks/queries/usePulseStats';
+import { useProviderStats, useTodayLootBox } from '@/hooks/queries/usePulseStats';
 import { useMyPulseContent } from '@/hooks/queries/usePulseContent';
 import { useFollowers, useFollowing } from '@/hooks/queries/usePulseSocial';
 import { useBookmarkedContent } from '@/hooks/queries/usePulseEngagements';
@@ -17,13 +18,17 @@ import { useBookmarkedContent } from '@/hooks/queries/usePulseEngagements';
 export default function PulseProfilePage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('posts');
+  const [lootBoxOpen, setLootBoxOpen] = useState(false);
   
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { data: stats, isLoading: statsLoading } = useProviderStats(provider?.id);
+  const { data: lootBox } = useTodayLootBox(provider?.id);
   const { data: content, isLoading: contentLoading } = useMyPulseContent(provider?.id);
   const { data: followers } = useFollowers(provider?.id);
   const { data: following } = useFollowing(provider?.id);
   const { data: bookmarks } = useBookmarkedContent(provider?.id);
+
+  const hasLootBox = !!lootBox && !lootBox.opened_at;
 
   const isLoading = providerLoading || statsLoading;
   const providerName = provider ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'Anonymous' : 'Anonymous';
@@ -117,6 +122,7 @@ export default function PulseProfilePage() {
           </Button>
         </div>
 
+        {/* Loot Box & Stats Card */}
         <Card className="m-4">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -124,13 +130,50 @@ export default function PulseProfilePage() {
                 <p className="text-sm text-muted-foreground">Gold Tokens</p>
                 <p className="text-2xl font-bold">🥇 {stats?.gold_token_balance || 0}</p>
               </div>
-              <div className="text-right">
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-sm text-muted-foreground">Streak</p>
+                  <p className="text-lg font-semibold flex items-center gap-1">
+                    <Flame className="h-4 w-4 text-orange-500" aria-hidden="true" />
+                    {stats?.current_streak || 0}
+                  </p>
+                </div>
+                {hasLootBox && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setLootBoxOpen(true)}
+                    className="relative"
+                  >
+                    <Gift className="h-4 w-4 mr-1" aria-hidden="true" />
+                    Open
+                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-primary rounded-full animate-pulse" />
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between mt-3 pt-3 border-t">
+              <div>
                 <p className="text-sm text-muted-foreground">Total Fires</p>
                 <p className="text-lg font-semibold text-orange-500">{stats?.total_fire_received || 0} 🔥</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Total XP</p>
+                <p className="text-lg font-semibold text-primary">{Number(stats?.total_xp || 0).toLocaleString()}</p>
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Verified Skills */}
+        <VerifiedSkillsCard providerId={provider.id} className="mx-4 mb-4" />
+
+        {/* Loot Box Modal */}
+        <LootBoxModal
+          providerId={provider.id}
+          open={lootBoxOpen}
+          onOpenChange={setLootBoxOpen}
+        />
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <div className="px-4">
