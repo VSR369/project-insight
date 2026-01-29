@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
 import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -46,8 +46,15 @@ const contentTypeLabels = {
   post: 'Post',
 } as const;
 
-export function ContentCard({ content, currentUserProviderId, onContentClick, onProfileClick, onCommentClick }: ContentCardProps) {
+export const ContentCard = memo(function ContentCard({ 
+  content, 
+  currentUserProviderId, 
+  onContentClick, 
+  onProfileClick, 
+  onCommentClick 
+}: ContentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [imageError, setImageError] = useState(false);
   
   const providerName = content.provider 
     ? `${content.provider.first_name || ''} ${content.provider.last_name || ''}`.trim() || 'Anonymous'
@@ -65,15 +72,26 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
   
   const shouldTruncate = displayText && displayText.length > 280;
 
+  const handleProfileKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onProfileClick?.();
+    }
+  };
+
   return (
     <Card className="border-x-0 rounded-none shadow-none hover:bg-muted/30 transition-colors">
       <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2">
-        {/* Avatar */}
+        {/* Avatar - keyboard accessible */}
         <Avatar 
           className="h-10 w-10 cursor-pointer ring-2 ring-border"
           onClick={onProfileClick}
+          tabIndex={0}
+          role="button"
+          aria-label={`View ${providerName}'s profile`}
+          onKeyDown={handleProfileKeyDown}
         >
-          <AvatarImage src={content.provider?.avatar_url} />
+          <AvatarImage src={content.provider?.avatar_url} alt="" />
           <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
             {initials}
           </AvatarFallback>
@@ -85,11 +103,15 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
             <span 
               className="font-semibold text-sm truncate cursor-pointer hover:underline"
               onClick={onProfileClick}
+              tabIndex={0}
+              role="button"
+              aria-label={`View ${providerName}'s profile`}
+              onKeyDown={handleProfileKeyDown}
             >
               {providerName}
             </span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-              <ContentIcon className="h-3 w-3 mr-1" />
+              <ContentIcon className="h-3 w-3 mr-1" aria-hidden="true" />
               {contentTypeLabels[content.content_type as keyof typeof contentTypeLabels]}
             </Badge>
           </div>
@@ -98,11 +120,16 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
           </span>
         </div>
 
-        {/* More Options */}
+        {/* More Options - accessible trigger */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0">
-              <MoreHorizontal className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="h-8 w-8 shrink-0"
+              aria-label="Content options"
+            >
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -130,16 +157,23 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
             {content.content_type === 'reel' && (
               <div className="absolute inset-0 flex items-center justify-center bg-black/20">
                 <div className="h-16 w-16 rounded-full bg-background/90 flex items-center justify-center">
-                  <Play className="h-8 w-8 text-foreground ml-1" />
+                  <Play className="h-8 w-8 text-foreground ml-1" aria-hidden="true" />
                 </div>
               </div>
             )}
-            {content.cover_image_url && (
+            {content.cover_image_url && !imageError && (
               <img 
                 src={content.cover_image_url} 
-                alt="" 
+                alt={content.title || content.headline || 'Content preview'}
                 className="w-full h-full object-cover"
+                loading="lazy"
+                onError={() => setImageError(true)}
               />
+            )}
+            {imageError && (
+              <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                <ImageIcon className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
+              </div>
             )}
           </div>
         )}
@@ -162,6 +196,7 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
               e.stopPropagation();
               setIsExpanded(!isExpanded);
             }}
+            aria-expanded={isExpanded}
           >
             {isExpanded ? 'Show less' : 'Read more'}
           </Button>
@@ -169,15 +204,15 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
 
         {/* Tags */}
         {content.tags && content.tags.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-3">
+          <div className="flex flex-wrap gap-1 mt-3" role="list" aria-label="Content tags">
             {content.tags.slice(0, 5).map((tag) => (
-              <Badge key={tag.id} variant="outline" className="text-xs">
+              <Badge key={tag.id} variant="outline" className="text-xs" role="listitem">
                 #{tag.name}
               </Badge>
             ))}
             {content.tags.length > 5 && (
-              <Badge variant="outline" className="text-xs">
-                +{content.tags.length - 5}
+              <Badge variant="outline" className="text-xs" role="listitem">
+                +{content.tags.length - 5} more
               </Badge>
             )}
           </div>
@@ -198,4 +233,4 @@ export function ContentCard({ content, currentUserProviderId, onContentClick, on
       </CardFooter>
     </Card>
   );
-}
+});

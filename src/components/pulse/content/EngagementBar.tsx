@@ -89,20 +89,22 @@ export function EngagementBar({
   };
 
   return (
-    <div className="flex items-center justify-between w-full">
+    <div className="flex items-center justify-between w-full" role="group" aria-label="Content engagement actions">
       <div className="flex items-center gap-1">
         {/* Fire Button */}
         <Button
           variant="ghost"
           size="sm"
           className={cn(
-            "h-9 px-2 gap-1.5",
+            "h-9 px-2 gap-1.5 min-w-[44px]",
             hasFired && "text-orange-500 hover:text-orange-600"
           )}
           onClick={handleFire}
           disabled={toggleEngagement.isPending || isOwnContent}
+          aria-label={hasFired ? `Remove fire reaction (${fireCount} fires)` : `Give fire reaction (${fireCount} fires)`}
+          aria-pressed={hasFired}
         >
-          <Flame className={cn("h-5 w-5", hasFired && "fill-current")} />
+          <Flame className={cn("h-5 w-5", hasFired && "fill-current")} aria-hidden="true" />
           {showCounts && fireCount > 0 && (
             <span className="text-xs font-medium">{formatCount(fireCount)}</span>
           )}
@@ -112,10 +114,11 @@ export function EngagementBar({
         <Button
           variant="ghost"
           size="sm"
-          className="h-9 px-2 gap-1.5"
+          className="h-9 px-2 gap-1.5 min-w-[44px]"
           onClick={onCommentClick}
+          aria-label={`View comments (${commentCount} comments)`}
         >
-          <MessageCircle className="h-5 w-5" />
+          <MessageCircle className="h-5 w-5" aria-hidden="true" />
           {showCounts && commentCount > 0 && (
             <span className="text-xs font-medium">{formatCount(commentCount)}</span>
           )}
@@ -126,13 +129,15 @@ export function EngagementBar({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-9 px-2 gap-1.5",
+            "h-9 px-2 gap-1.5 min-w-[44px]",
             hasGolded && "text-yellow-500 hover:text-yellow-600"
           )}
           onClick={handleGold}
           disabled={toggleEngagement.isPending || isOwnContent}
+          aria-label={hasGolded ? `Remove gold award (${goldCount} gold)` : `Give gold award (${goldCount} gold)`}
+          aria-pressed={hasGolded}
         >
-          <Coins className={cn("h-5 w-5", hasGolded && "fill-current")} />
+          <Coins className={cn("h-5 w-5", hasGolded && "fill-current")} aria-hidden="true" />
           {showCounts && goldCount > 0 && (
             <span className="text-xs font-medium">{formatCount(goldCount)}</span>
           )}
@@ -143,13 +148,15 @@ export function EngagementBar({
           variant="ghost"
           size="sm"
           className={cn(
-            "h-9 px-2 gap-1.5",
+            "h-9 px-2 gap-1.5 min-w-[44px]",
             hasSaved && "text-primary"
           )}
           onClick={handleSave}
           disabled={toggleEngagement.isPending || isOwnContent}
+          aria-label={hasSaved ? `Unsave content (${saveCount} saves)` : `Save content (${saveCount} saves)`}
+          aria-pressed={hasSaved}
         >
-          <Bookmark className={cn("h-5 w-5", hasSaved && "fill-current")} />
+          <Bookmark className={cn("h-5 w-5", hasSaved && "fill-current")} aria-hidden="true" />
           {showCounts && saveCount > 0 && (
             <span className="text-xs font-medium">{formatCount(saveCount)}</span>
           )}
@@ -162,23 +169,26 @@ export function EngagementBar({
           variant="ghost"
           size="icon"
           className={cn(
-            "h-9 w-9",
+            "h-9 w-9 min-w-[44px] min-h-[44px]",
             hasBookmarked && "text-primary"
           )}
           onClick={handleBookmark}
           disabled={toggleEngagement.isPending}
+          aria-label={hasBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}
+          aria-pressed={hasBookmarked}
         >
-          <Bookmark className={cn("h-4 w-4", hasBookmarked && "fill-current")} />
+          <Bookmark className={cn("h-4 w-4", hasBookmarked && "fill-current")} aria-hidden="true" />
         </Button>
 
         {/* Share */}
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9"
+          className="h-9 w-9 min-w-[44px] min-h-[44px]"
           onClick={handleShare}
+          aria-label="Share content"
         >
-          <Share2 className="h-4 w-4" />
+          <Share2 className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
     </div>
