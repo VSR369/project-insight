@@ -2,8 +2,11 @@
  * Pulse Engagement Hooks Tests
  * Tests for fire, gold, save, bookmark toggles and user engagement status
  */
-import { describe, it, expect, vi, beforeEach, waitFor } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+
+// Helper for async waiting in tests
+const waitFor = vi.waitFor;
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { 
