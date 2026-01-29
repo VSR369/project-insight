@@ -1,14 +1,14 @@
 /**
  * Knowledge Spark Builder Component
  * Create visually-rich spark cards with statistics and live preview
- * Per Phase 1 specification
+ * Per Phase 1 specification - Now with real AI insight generation
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Sparkles, Loader2, Lightbulb } from 'lucide-react';
+import { Sparkles, Loader2, Lightbulb, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -28,6 +28,7 @@ import {
 import { useCreatePulseContent } from '@/hooks/queries/usePulseContent';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
+import { useGenerateSparkInsights, type SparkSuggestion } from '@/hooks/mutations/useAiEnhance';
 import { sparkSchema, type SparkFormData } from '@/lib/validations/media';
 import { toast } from 'sonner';
 
@@ -41,11 +42,13 @@ export function SparkBuilder({ onCancel }: SparkBuilderProps) {
   // =====================================================
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [aiAssistEnabled, setAiAssistEnabled] = useState(false);
+  const [aiSuggestions, setAiSuggestions] = useState<SparkSuggestion[]>([]);
 
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
   const { data: industries = [], isLoading: industriesLoading } = useIndustrySegments();
   const createContent = useCreatePulseContent();
+  const generateInsights = useGenerateSparkInsights();
 
   const form = useForm<SparkFormData>({
     resolver: zodResolver(sparkSchema),
@@ -77,11 +80,50 @@ export function SparkBuilder({ onCancel }: SparkBuilderProps) {
     form.setValue('industry_segment_id', industryId, { shouldValidate: true });
   };
 
-  const handleAiAssistToggle = (enabled: boolean) => {
+  const handleAiAssistToggle = async (enabled: boolean) => {
     setAiAssistEnabled(enabled);
     form.setValue('ai_assist', enabled);
-    if (enabled) {
-      toast.info('AI enhancement will analyze your content for statistics');
+    
+    if (enabled && selectedIndustry) {
+      // Generate AI suggestions when enabled
+      try {
+        const result = await generateInsights.mutateAsync({
+          industry: selectedIndustry.name,
+        });
+        setAiSuggestions(result.suggestions || []);
+        toast.success(`Generated ${result.suggestions?.length || 0} spark ideas!`);
+      } catch {
+        // Error handled by mutation
+      }
+    } else if (!enabled) {
+      setAiSuggestions([]);
+    }
+  };
+
+  const handleSelectSuggestion = (suggestion: SparkSuggestion) => {
+    form.setValue('headline', suggestion.headline);
+    form.setValue('key_insight', suggestion.key_insight);
+    if (suggestion.suggested_source) {
+      form.setValue('source', suggestion.suggested_source);
+    }
+    toast.success('Suggestion applied!');
+  };
+
+  const handleRegenerateSuggestions = async () => {
+    if (!selectedIndustry) {
+      toast.error('Please select an industry first');
+      return;
+    }
+    
+    try {
+      const result = await generateInsights.mutateAsync({
+        industry: selectedIndustry.name,
+        context: form.getValues('headline') || undefined,
+      });
+      setAiSuggestions(result.suggestions || []);
+      toast.success('New suggestions generated!');
+    } catch {
+      // Error handled by mutation
     }
   };
 
@@ -141,14 +183,70 @@ export function SparkBuilder({ onCancel }: SparkBuilderProps) {
                 <Label htmlFor="ai-assist" className="text-sm font-medium">
                   AI Assist
                 </Label>
+                <span className="text-xs text-muted-foreground">
+                  (generates spark ideas)
+                </span>
               </div>
               <Switch
                 id="ai-assist"
                 checked={aiAssistEnabled}
                 onCheckedChange={handleAiAssistToggle}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !selectedIndustryId || generateInsights.isPending}
               />
             </div>
+
+            {/* AI Suggestions */}
+            {aiAssistEnabled && aiSuggestions.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm text-muted-foreground">AI Suggestions</Label>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRegenerateSuggestions}
+                    disabled={generateInsights.isPending}
+                    className="h-7 text-xs gap-1"
+                  >
+                    {generateInsights.isPending ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <RefreshCw className="h-3 w-3" />
+                    )}
+                    Regenerate
+                  </Button>
+                </div>
+                <div className="grid gap-2">
+                  {aiSuggestions.map((suggestion, idx) => (
+                    <Card 
+                      key={idx}
+                      className="cursor-pointer hover:border-primary/50 transition-colors"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                    >
+                      <CardContent className="p-3">
+                        <p className="font-medium text-sm">{suggestion.headline}</p>
+                        <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                          {suggestion.key_insight}
+                        </p>
+                        {suggestion.statistic && (
+                          <Badge variant="secondary" className="mt-2 text-xs">
+                            📊 {suggestion.statistic}
+                          </Badge>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Loading state for AI */}
+            {generateInsights.isPending && (
+              <div className="flex items-center justify-center p-4 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Generating spark ideas...
+              </div>
+            )}
 
             {/* Industry Category Selector */}
             <FormField

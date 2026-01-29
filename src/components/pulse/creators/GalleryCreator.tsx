@@ -1,7 +1,7 @@
 /**
  * Gallery Creator Component
  * Upload multiple images to create a carousel gallery
- * Per Phase 4 specification
+ * Per Phase 4 specification - Now with real AI enhancement
  */
 
 import { useState, useRef, useCallback } from "react";
@@ -14,14 +14,16 @@ import {
   Sparkles, 
   Loader2, 
   Images,
-  AlertCircle
+  AlertCircle,
+  Undo2
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { gallerySchema, type GalleryFormData, MEDIA_LIMITS, formatBytes } from "@/lib/validations/media";
+import { gallerySchema, type GalleryFormData, MEDIA_LIMITS } from "@/lib/validations/media";
 import { useUploadMultiplePulseMedia } from "@/hooks/mutations/usePulseUpload";
 import { useCreatePulseContent } from "@/hooks/queries/usePulseContent";
 import { useAuth } from "@/hooks/useAuth";
+import { useQuickEnhance } from "@/hooks/mutations/useAiEnhance";
 import { ImageGrid } from "./ImageGrid";
 
 interface GalleryCreatorProps {
@@ -42,8 +44,8 @@ export function GalleryCreator({ onSuccess, onCancel }: GalleryCreatorProps) {
   // SECTION 1: useState hooks
   // ═══════════════════════════════════════════
   const [images, setImages] = useState<ImageItem[]>([]);
-  const [isEnhancing, setIsEnhancing] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [originalCaption, setOriginalCaption] = useState<string | null>(null);
 
   // ═══════════════════════════════════════════
   // SECTION 2: Refs
@@ -55,6 +57,7 @@ export function GalleryCreator({ onSuccess, onCancel }: GalleryCreatorProps) {
   // ═══════════════════════════════════════════
   const { user } = useAuth();
   const uploadMutation = useUploadMultiplePulseMedia();
+  const { enhance, isEnhancing } = useQuickEnhance('gallery');
   const createContent = useCreatePulseContent();
 
   // ═══════════════════════════════════════════
@@ -169,29 +172,28 @@ export function GalleryCreator({ onSuccess, onCancel }: GalleryCreatorProps) {
   };
 
   const handleAIEnhance = async () => {
-    if (images.length === 0) {
-      toast.error("Add images first to generate caption");
-      return;
+    const currentCaption = watch("caption") || "";
+    
+    // If no caption, generate a base one
+    const textToEnhance = currentCaption.trim() || 
+      `Sharing ${images.length} image${images.length > 1 ? 's' : ''} from my latest work.`;
+    
+    // Save original for revert
+    if (!originalCaption) {
+      setOriginalCaption(currentCaption);
     }
 
-    setIsEnhancing(true);
-    try {
-      // Simulate AI enhancement (would call edge function)
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      const suggestions = [
-        `A visual journey through ${images.length} moments that capture the essence of innovation and creativity.`,
-        `Sharing ${images.length} snapshots from my latest project. Each image tells a story of progress and learning.`,
-        `Here's a glimpse into the work that drives me. ${images.length} perspectives, one vision.`,
-      ];
-      
-      const randomSuggestion = suggestions[Math.floor(Math.random() * suggestions.length)];
-      setValue("caption", randomSuggestion);
-      toast.success("Caption generated!");
-    } catch (error) {
-      toast.error("Failed to generate caption");
-    } finally {
-      setIsEnhancing(false);
+    const result = await enhance(textToEnhance, { type: 'engaging' });
+    if (result) {
+      setValue("caption", result.enhanced_text);
+    }
+  };
+
+  const handleRevertCaption = () => {
+    if (originalCaption !== null) {
+      setValue("caption", originalCaption);
+      setOriginalCaption(null);
+      toast.info("Reverted to original caption");
     }
   };
 
@@ -253,21 +255,35 @@ export function GalleryCreator({ onSuccess, onCancel }: GalleryCreatorProps) {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <Label htmlFor="caption">Caption</Label>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={handleAIEnhance}
-            disabled={isEnhancing || images.length === 0}
-            className="gap-1 h-7 text-xs"
-          >
-            {isEnhancing ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Sparkles className="h-3 w-3" />
+          <div className="flex items-center gap-1">
+            {originalCaption !== null && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleRevertCaption}
+                className="gap-1 h-7 text-xs text-muted-foreground"
+              >
+                <Undo2 className="h-3 w-3" />
+                Revert
+              </Button>
             )}
-            AI Enhance Caption
-          </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleAIEnhance}
+              disabled={isEnhancing}
+              className="gap-1 h-7 text-xs"
+            >
+              {isEnhancing ? (
+                <Loader2 className="h-3 w-3 animate-spin" />
+              ) : (
+                <Sparkles className="h-3 w-3" />
+            )}
+              AI Enhance Caption
+            </Button>
+          </div>
         </div>
         <Textarea
           id="caption"
