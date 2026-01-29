@@ -10,3 +10,6 @@ export { ReelCreator } from './ReelCreator';
 export { VideoUploader } from './VideoUploader';
 export { TagInput } from './TagInput';
 export { VisibilitySelector } from './VisibilitySelector';
+export { PodcastStudio } from './PodcastStudio';
+export { AudioRecorder } from './AudioRecorder';
+export { WaveformDisplay } from './WaveformDisplay';
