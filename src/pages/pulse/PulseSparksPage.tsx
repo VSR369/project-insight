@@ -5,11 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PulseLayout } from '@/components/pulse/layout';
+import { PulseMetricsCard } from '@/components/pulse/gamification/PulseMetricsCard';
 import { usePulseFeed } from '@/hooks/queries/usePulseContent';
+import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PulseSparksPage() {
   const navigate = useNavigate();
+  const { data: provider } = useCurrentProvider();
   const { data: feedContent, isLoading, refetch, isRefetching } = usePulseFeed({ contentType: 'spark' });
 
   if (isLoading) {
@@ -47,6 +50,13 @@ export default function PulseSparksPage() {
             Share a Spark
           </Button>
         </div>
+
+        {/* Pulse Metrics Card */}
+        {provider?.id && (
+          <div className="px-4 pb-4">
+            <PulseMetricsCard providerId={provider.id} />
+          </div>
+        )}
 
         {sparks.length === 0 ? (
           <div className="text-center py-16 px-4">

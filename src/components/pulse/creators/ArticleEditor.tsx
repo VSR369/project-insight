@@ -1,10 +1,10 @@
 /**
  * Article Editor Component
- * Long-form content editor with writing tips
- * Per Phase 5 specification
+ * Long-form content editor with writing tips and rich text toolbar
+ * Per Phase 5 specification + Phase E rich text enhancement
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,6 +29,7 @@ import {
 import { useCreatePulseContent } from '@/hooks/queries/usePulseContent';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { articleSchema, type ArticleFormData } from '@/lib/validations/media';
+import { RichTextToolbar, useRichTextKeyboard } from './RichTextToolbar';
 import { toast } from 'sonner';
 
 interface ArticleEditorProps {
@@ -60,6 +61,7 @@ export function ArticleEditor({ onCancel }: ArticleEditorProps) {
   // =====================================================
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tipsOpen, setTipsOpen] = useState(true);
+  const bodyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
@@ -83,6 +85,13 @@ export function ArticleEditor({ onCancel }: ArticleEditorProps) {
   const minBodyChars = 100;
   const maxBodyChars = 50000;
   const isValid = titleCount > 0 && titleCount <= 200 && bodyCount >= minBodyChars && bodyCount <= maxBodyChars;
+
+  // Rich text keyboard handler
+  const handleBodyKeyDown = useRichTextKeyboard(
+    bodyTextareaRef,
+    bodyValue || '',
+    (newValue) => form.setValue('body_text', newValue)
+  );
 
   // =====================================================
   // HANDLERS
@@ -177,19 +186,27 @@ export function ArticleEditor({ onCancel }: ArticleEditorProps) {
             )}
           />
 
-          {/* Body */}
+          {/* Body with Rich Text Toolbar */}
           <FormField
             control={form.control}
             name="body_text"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="sr-only">Body</FormLabel>
+                <RichTextToolbar
+                  textareaRef={bodyTextareaRef}
+                  value={field.value || ''}
+                  onChange={(value) => form.setValue('body_text', value)}
+                  className="mb-2"
+                />
                 <FormControl>
                   <Textarea
                     {...field}
-                    placeholder="Write your article here... (Markdown supported)"
+                    ref={bodyTextareaRef}
+                    placeholder="Write your article here... (Markdown supported - use Ctrl+B for bold, Ctrl+I for italic)"
                     className="min-h-[400px] resize-y text-base leading-relaxed"
                     disabled={isSubmitting}
+                    onKeyDown={handleBodyKeyDown}
                   />
                 </FormControl>
                 <div className="flex justify-between text-xs text-muted-foreground">

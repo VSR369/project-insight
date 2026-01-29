@@ -4,10 +4,10 @@
  */
 
 import { format } from 'date-fns';
-import { Sparkles, Star, Flame } from 'lucide-react';
+import { Sparkles, Star, Flame, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { useProviderStats } from '@/hooks/queries/usePulseStats';
+import { useProviderStats, useOnlineNetworkCount } from '@/hooks/queries/usePulseStats';
 import { cn } from '@/lib/utils';
 
 interface PersonalizedFeedHeaderProps {
@@ -26,6 +26,7 @@ export function PersonalizedFeedHeader({
   className,
 }: PersonalizedFeedHeaderProps) {
   const { data: stats } = useProviderStats(providerId);
+  const { data: onlineCount } = useOnlineNetworkCount(providerId);
   
   const today = new Date();
   const formattedDate = format(today, 'EEEE, MMMM d');
@@ -105,6 +106,13 @@ export function PersonalizedFeedHeader({
                 <Badge variant="outline" className="text-xs">
                   <Flame className="h-3 w-3 mr-1 text-orange-500" aria-hidden="true" />
                   {stats.current_streak} day streak
+                </Badge>
+              )}
+              {/* Online network count */}
+              {onlineCount !== undefined && onlineCount > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  <Users className="h-3 w-3 mr-1 text-green-500" aria-hidden="true" />
+                  {onlineCount} online
                 </Badge>
               )}
             </div>

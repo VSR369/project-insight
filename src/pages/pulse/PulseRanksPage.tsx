@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ScrollArea, ScrollBar } from '@/components/ui/scroll-area';
 import { PulseLayout } from '@/components/pulse/layout';
-import { useGlobalLeaderboard, useWeeklyLeaderboard, useIndustryLeaderboard } from '@/hooks/queries/usePulseStats';
+import { useGlobalLeaderboard, useWeeklyLeaderboard, useMonthlyLeaderboard, useIndustryLeaderboard } from '@/hooks/queries/usePulseStats';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { cn } from '@/lib/utils';
@@ -17,21 +17,22 @@ import { cn } from '@/lib/utils';
 export default function PulseRanksPage() {
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
-  const [period, setPeriod] = useState<'all' | 'weekly'>('weekly');
+  const [period, setPeriod] = useState<'all' | 'weekly' | 'monthly'>('weekly');
   const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
   
   const { data: industries, isLoading: industriesLoading } = useIndustrySegments();
   const { data: globalLeaderboard, isLoading: globalLoading } = useGlobalLeaderboard(100);
   const { data: weeklyLeaderboard, isLoading: weeklyLoading } = useWeeklyLeaderboard(100);
+  const { data: monthlyLeaderboard, isLoading: monthlyLoading } = useMonthlyLeaderboard(100);
   const { data: industryLeaderboard, isLoading: industryLoading } = useIndustryLeaderboard(selectedIndustry || undefined, 100);
 
   const isLoading = selectedIndustry 
     ? industryLoading 
-    : (period === 'all' ? globalLoading : weeklyLoading);
+    : (period === 'all' ? globalLoading : period === 'monthly' ? monthlyLoading : weeklyLoading);
   
   const leaderboard = selectedIndustry 
     ? industryLeaderboard 
-    : (period === 'all' ? globalLeaderboard : weeklyLeaderboard);
+    : (period === 'all' ? globalLeaderboard : period === 'monthly' ? monthlyLeaderboard : weeklyLeaderboard);
 
   const getRankBadge = (rank: number) => {
     if (rank === 1) return { emoji: '🥇', color: 'text-yellow-500' };
@@ -112,12 +113,16 @@ export default function PulseRanksPage() {
 
         {/* Period Tabs (only show when no industry selected) */}
         {!selectedIndustry && (
-          <Tabs value={period} onValueChange={(v) => setPeriod(v as 'all' | 'weekly')} className="w-full">
+          <Tabs value={period} onValueChange={(v) => setPeriod(v as 'all' | 'weekly' | 'monthly')} className="w-full">
             <div className="px-4 pt-4">
               <TabsList className="w-full">
                 <TabsTrigger value="weekly" className="flex-1">
                   <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
                   This Week
+                </TabsTrigger>
+                <TabsTrigger value="monthly" className="flex-1">
+                  <Calendar className="h-4 w-4 mr-2" aria-hidden="true" />
+                  This Month
                 </TabsTrigger>
                 <TabsTrigger value="all" className="flex-1">
                   <Trophy className="h-4 w-4 mr-2" aria-hidden="true" />
