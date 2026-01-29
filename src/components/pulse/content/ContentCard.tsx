@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EngagementBar } from './EngagementBar';
+import { MediaRenderer } from './MediaRenderer';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
+import type { PulseContentType } from '@/constants/pulse.constants';
 
 type PulseContent = Database['public']['Tables']['pulse_content']['Row'];
 
@@ -54,7 +56,6 @@ export const ContentCard = memo(function ContentCard({
   onCommentClick 
 }: ContentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-  const [imageError, setImageError] = useState(false);
   
   const providerName = content.provider 
     ? `${content.provider.first_name || ''} ${content.provider.last_name || ''}`.trim() || 'Anonymous'
@@ -151,30 +152,16 @@ export const ContentCard = memo(function ContentCard({
           <h3 className="font-bold text-lg mb-2 text-primary">{content.headline}</h3>
         )}
 
-        {/* Media Preview (for reels/galleries) */}
+        {/* Media Preview */}
         {content.media_urls && Array.isArray(content.media_urls) && (content.media_urls as string[]).length > 0 && (
-          <div className="relative rounded-lg overflow-hidden mb-3 bg-muted aspect-video">
-            {content.content_type === 'reel' && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/20">
-                <div className="h-16 w-16 rounded-full bg-background/90 flex items-center justify-center">
-                  <Play className="h-8 w-8 text-foreground ml-1" aria-hidden="true" />
-                </div>
-              </div>
-            )}
-            {content.cover_image_url && !imageError && (
-              <img 
-                src={content.cover_image_url} 
-                alt={content.title || content.headline || 'Content preview'}
-                className="w-full h-full object-cover"
-                loading="lazy"
-                onError={() => setImageError(true)}
-              />
-            )}
-            {imageError && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                <ImageIcon className="h-12 w-12 text-muted-foreground" aria-hidden="true" />
-              </div>
-            )}
+          <div className="mb-3">
+            <MediaRenderer
+              contentType={content.content_type as PulseContentType}
+              mediaUrls={content.media_urls as string[]}
+              coverImageUrl={content.cover_image_url || undefined}
+              title={content.title || content.headline || undefined}
+              isPreview
+            />
           </div>
         )}
 
