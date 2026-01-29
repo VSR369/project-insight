@@ -1,14 +1,14 @@
 /**
  * Reel Creator Component
  * Upload or record short video content with captions, tags, and visibility
- * Per Phase 2 specification
+ * Per Phase 2 specification - Now with real AI enhancement
  */
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Sparkles, Loader2, Film, ImageIcon } from 'lucide-react';
+import { Sparkles, Loader2, Film, ImageIcon, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
@@ -28,6 +28,7 @@ import { VisibilitySelector } from './VisibilitySelector';
 import { useCreatePulseContent, useAddContentTags } from '@/hooks/queries/usePulseContent';
 import { useUploadPulseMedia } from '@/hooks/mutations/usePulseUpload';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useQuickEnhance } from '@/hooks/mutations/useAiEnhance';
 import { reelSchema, type ReelFormData } from '@/lib/validations/media';
 import { toast } from 'sonner';
 
@@ -40,17 +41,18 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
   // HOOKS (all at top, before any conditional returns)
   // =====================================================
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [aiAssistEnabled, setAiAssistEnabled] = useState(false);
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [visibility, setVisibility] = useState<'public' | 'connections'>('public');
+  const [originalCaption, setOriginalCaption] = useState<string | null>(null);
 
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
   const createContent = useCreatePulseContent();
   const addContentTags = useAddContentTags();
   const uploadMedia = useUploadPulseMedia();
+  const { enhance, isEnhancing } = useQuickEnhance('reel');
 
   const form = useForm<ReelFormData>({
     resolver: zodResolver(reelSchema),
@@ -77,10 +79,29 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
     setCoverBlob(blob);
   }, []);
 
-  const handleAiAssistToggle = (enabled: boolean) => {
-    setAiAssistEnabled(enabled);
-    if (enabled) {
-      toast.info('AI will analyze your video and suggest a caption');
+  const handleAiEnhance = async () => {
+    const currentCaption = form.getValues('caption') || '';
+    
+    // If no caption, provide a starter
+    const textToEnhance = currentCaption.trim() || 
+      'Check out my latest video!';
+    
+    // Save original for revert
+    if (originalCaption === null) {
+      setOriginalCaption(currentCaption);
+    }
+
+    const result = await enhance(textToEnhance, { type: 'engaging' });
+    if (result) {
+      form.setValue('caption', result.enhanced_text);
+    }
+  };
+
+  const handleRevertCaption = () => {
+    if (originalCaption !== null) {
+      form.setValue('caption', originalCaption);
+      setOriginalCaption(null);
+      toast.info("Reverted to original caption");
     }
   };
 
@@ -124,7 +145,7 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
         caption: data.caption || null,
         media_urls: [videoUpload.publicUrl],
         cover_image_url: coverImageUrl,
-        ai_enhanced: aiAssistEnabled,
+        ai_enhanced: originalCaption !== null,
         content_status: 'published',
       });
 
@@ -180,20 +201,43 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
             </div>
           )}
 
-          {/* AI Assist Toggle */}
+          {/* AI Enhance Button */}
           <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-purple-500" />
-              <Label htmlFor="ai-assist" className="text-sm font-medium">
+              <Label className="text-sm font-medium">
                 AI Enhance Caption
               </Label>
             </div>
-            <Switch
-              id="ai-assist"
-              checked={aiAssistEnabled}
-              onCheckedChange={handleAiAssistToggle}
-              disabled={isSubmitting}
-            />
+            <div className="flex items-center gap-2">
+              {originalCaption !== null && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRevertCaption}
+                  className="h-7 text-xs gap-1"
+                >
+                  <Undo2 className="h-3 w-3" />
+                  Revert
+                </Button>
+              )}
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={handleAiEnhance}
+                disabled={isSubmitting || isEnhancing}
+                className="h-7 text-xs gap-1"
+              >
+                {isEnhancing ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Sparkles className="h-3 w-3" />
+                )}
+                Enhance
+              </Button>
+            </div>
           </div>
 
           {/* Caption */}
