@@ -214,10 +214,39 @@ export default function PulseRanksPage() {
                         </p>
                         <div className="flex items-center justify-end gap-1 text-xs text-muted-foreground">
                           <span>XP</span>
+                          {/* Rank position change indicator */}
+                          {entry.rank_change !== undefined && entry.rank_change !== 0 && (
+                            <Badge 
+                              variant="outline" 
+                              className={cn(
+                                "text-[10px] px-1 py-0",
+                                entry.rank_change > 0 
+                                  ? "text-green-600 border-green-200" 
+                                  : "text-red-600 border-red-200"
+                              )}
+                            >
+                              {entry.rank_change > 0 ? (
+                                <>
+                                  <ChevronUp className="h-3 w-3" aria-hidden="true" />
+                                  {entry.rank_change}
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3 w-3" aria-hidden="true" />
+                                  {Math.abs(entry.rank_change)}
+                                </>
+                              )}
+                            </Badge>
+                          )}
+                          {entry.rank_change === 0 && (
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground border-muted">
+                              <Minus className="h-3 w-3" aria-hidden="true" />
+                            </Badge>
+                          )}
+                          {/* XP change for weekly view */}
                           {entry.xp_change !== undefined && entry.xp_change > 0 && (
-                            <Badge variant="outline" className="text-[10px] px-1 py-0 text-green-600 border-green-200">
-                              <ChevronUp className="h-3 w-3" aria-hidden="true" />
-                              {entry.xp_change}
+                            <Badge variant="outline" className="text-[10px] px-1 py-0 text-primary border-primary/30">
+                              +{entry.xp_change}
                             </Badge>
                           )}
                         </div>

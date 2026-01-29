@@ -37,6 +37,7 @@ export interface LeaderboardEntry {
   current_level: number;
   rank: number;
   xp_change?: number; // For weekly/monthly leaderboards
+  rank_change?: number; // Position change: positive = moved up, negative = moved down
 }
 
 // =====================================================
@@ -268,6 +269,12 @@ export function useGlobalLeaderboard(limit = 50) {
   return useQuery({
     queryKey: [PULSE_QUERY_KEYS.leaderboard, "global", limit],
     queryFn: async (): Promise<LeaderboardEntry[]> => {
+      // Get yesterday's date for rank comparison
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
+      // Fetch current stats
       const { data, error } = await supabase
         .from("pulse_provider_stats")
         .select(`
@@ -281,13 +288,37 @@ export function useGlobalLeaderboard(limit = 50) {
 
       if (error) throw new Error(error.message);
 
-      return (data || []).map((entry, index) => ({
-        provider_id: entry.provider_id,
-        provider_name: `${(entry as any).provider?.first_name || ""} ${(entry as any).provider?.last_name || ""}`.trim() || "Anonymous",
-        total_xp: Number(entry.total_xp),
-        current_level: entry.current_level,
-        rank: index + 1,
-      }));
+      // Fetch yesterday's snapshots for rank comparison
+      const { data: yesterdaySnapshots } = await supabase
+        .from("pulse_xp_snapshots")
+        .select("provider_id, total_xp_at_date")
+        .eq("snapshot_date", yesterdayStr)
+        .eq("snapshot_type", "daily");
+
+      // Calculate yesterday's ranks
+      const sortedYesterday = (yesterdaySnapshots || [])
+        .sort((a, b) => Number(b.total_xp_at_date) - Number(a.total_xp_at_date))
+        .map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+
+      const yesterdayRankMap = new Map(
+        sortedYesterday.map((e) => [e.provider_id, e.rank])
+      );
+
+      return (data || []).map((entry, index) => {
+        const currentRank = index + 1;
+        const previousRank = yesterdayRankMap.get(entry.provider_id);
+        // rank_change: positive means moved up, negative means moved down
+        const rank_change = previousRank !== undefined ? previousRank - currentRank : undefined;
+
+        return {
+          provider_id: entry.provider_id,
+          provider_name: `${(entry as any).provider?.first_name || ""} ${(entry as any).provider?.last_name || ""}`.trim() || "Anonymous",
+          total_xp: Number(entry.total_xp),
+          current_level: entry.current_level,
+          rank: currentRank,
+          rank_change,
+        };
+      });
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -303,6 +334,11 @@ export function useWeeklyLeaderboard(limit = 50) {
       const diff = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
       const weekStart = new Date(now.setDate(diff)).toISOString().split("T")[0];
 
+      // Get yesterday for rank comparison
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split("T")[0];
+
       // Get snapshots from start of week
       const { data: startSnapshots, error: startError } = await supabase
         .from("pulse_xp_snapshots")
@@ -311,6 +347,13 @@ export function useWeeklyLeaderboard(limit = 50) {
         .eq("snapshot_type", "daily");
 
       if (startError) throw new Error(startError.message);
+
+      // Get yesterday's snapshots for rank comparison
+      const { data: yesterdaySnapshots } = await supabase
+        .from("pulse_xp_snapshots")
+        .select("provider_id, total_xp_at_date")
+        .eq("snapshot_date", yesterdayStr)
+        .eq("snapshot_type", "daily");
 
       // Get current stats
       const { data: currentStats, error: currentError } = await supabase
@@ -331,6 +374,22 @@ export function useWeeklyLeaderboard(limit = 50) {
         (startSnapshots || []).map((s) => [s.provider_id, Number(s.total_xp_at_date)])
       );
 
+      // Calculate yesterday's weekly rankings for comparison
+      const yesterdayXpChangeMap = new Map(
+        (yesterdaySnapshots || []).map((s) => {
+          const startXp = startXpMap.get(s.provider_id) || 0;
+          return [s.provider_id, Number(s.total_xp_at_date) - startXp];
+        })
+      );
+
+      const sortedYesterdayByWeeklyXp = Array.from(yesterdayXpChangeMap.entries())
+        .sort((a, b) => b[1] - a[1])
+        .map(([providerId], idx) => ({ providerId, rank: idx + 1 }));
+
+      const yesterdayRankMap = new Map(
+        sortedYesterdayByWeeklyXp.map((e) => [e.providerId, e.rank])
+      );
+
       const leaderboard = (currentStats || [])
         .map((entry) => {
           const startXp = startXpMap.get(entry.provider_id) || 0;
@@ -343,11 +402,17 @@ export function useWeeklyLeaderboard(limit = 50) {
             current_level: entry.current_level,
             xp_change: xpChange,
             rank: 0,
+            rank_change: undefined as number | undefined,
           };
         })
         .sort((a, b) => b.xp_change - a.xp_change)
         .slice(0, limit)
-        .map((entry, index) => ({ ...entry, rank: index + 1 }));
+        .map((entry, index) => {
+          const currentRank = index + 1;
+          const previousRank = yesterdayRankMap.get(entry.provider_id);
+          const rank_change = previousRank !== undefined ? previousRank - currentRank : undefined;
+          return { ...entry, rank: currentRank, rank_change };
+        });
 
       return leaderboard;
     },

@@ -35,6 +35,16 @@ export const MEDIA_LIMITS = {
     extensions: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
     label: '10MB'
   },
+  document: {
+    maxSize: 10 * 1024 * 1024, // 10MB
+    types: [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ],
+    extensions: ['.pdf', '.doc', '.docx'],
+    label: '10MB'
+  },
 } as const;
 
 export type MediaContentType = keyof typeof MEDIA_LIMITS;

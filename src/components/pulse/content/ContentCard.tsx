@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap } from 'lucide-react';
+import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap, Clock } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,7 @@ interface ContentCardProps {
       avatar_url?: string;
     };
     tags?: Array<{ id: string; name: string }>;
+    industry_segment?: { id: string; name: string } | null;
   };
   currentUserProviderId: string;
   onContentClick?: () => void;
@@ -47,6 +48,15 @@ const contentTypeLabels = {
   gallery: 'Gallery',
   post: 'Post',
 } as const;
+
+// Calculate read time for articles (200 WPM)
+function calculateReadTime(text: string | null | undefined): string | null {
+  if (!text) return null;
+  const wordsPerMinute = 200;
+  const wordCount = text.trim().split(/\s+/).length;
+  const minutes = Math.ceil(wordCount / wordsPerMinute);
+  return `${minutes} min read`;
+}
 
 export const ContentCard = memo(function ContentCard({ 
   content, 
@@ -113,8 +123,18 @@ export const ContentCard = memo(function ContentCard({
             </span>
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
               <ContentIcon className="h-3 w-3 mr-1" aria-hidden="true" />
-              {contentTypeLabels[content.content_type as keyof typeof contentTypeLabels]}
+              {/* Show industry name for sparks, otherwise show content type */}
+              {content.content_type === 'spark' && content.industry_segment?.name
+                ? content.industry_segment.name
+                : contentTypeLabels[content.content_type as keyof typeof contentTypeLabels]}
             </Badge>
+            {/* Read time badge for articles */}
+            {content.content_type === 'article' && content.body_text && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
+                <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+                {calculateReadTime(content.body_text)}
+              </Badge>
+            )}
           </div>
           <span className="text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(content.created_at), { addSuffix: true })}

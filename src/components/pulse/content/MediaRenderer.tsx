@@ -1,10 +1,10 @@
 /**
  * Media Renderer Component
  * Renders different media types for pulse content (reels, podcasts, galleries, etc.)
- * Per Phase 7 specification
+ * Per Phase D specification - with video autoplay on scroll
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Play, Pause, Volume2, VolumeX, Maximize, ChevronLeft, ChevronRight, Image as ImageIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
@@ -19,6 +19,7 @@ interface MediaRendererProps {
   audioWaveformData?: number[];
   className?: string;
   isPreview?: boolean;
+  isInFeed?: boolean; // Enable autoplay behavior for feed view
 }
 
 export function MediaRenderer({
@@ -29,6 +30,7 @@ export function MediaRenderer({
   audioWaveformData,
   className,
   isPreview = false,
+  isInFeed = false,
 }: MediaRendererProps) {
   if (!mediaUrls || mediaUrls.length === 0) {
     // Fallback for content without media
@@ -54,6 +56,7 @@ export function MediaRenderer({
           src={mediaUrls[0]}
           coverImageUrl={coverImageUrl}
           isPreview={isPreview}
+          isInFeed={isInFeed}
           className={className}
         />
       );
@@ -89,22 +92,55 @@ export function MediaRenderer({
 }
 
 // =====================================================
-// VIDEO PLAYER (Reels)
+// VIDEO PLAYER (Reels) with Intersection Observer
 // =====================================================
 
 interface VideoPlayerProps {
   src: string;
   coverImageUrl?: string;
   isPreview?: boolean;
+  isInFeed?: boolean;
   className?: string;
 }
 
-function VideoPlayer({ src, coverImageUrl, isPreview, className }: VideoPlayerProps) {
+function VideoPlayer({ src, coverImageUrl, isPreview, isInFeed, className }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(true);
   const [progress, setProgress] = useState(0);
   const [showControls, setShowControls] = useState(true);
+
+  // Intersection Observer for autoplay in feed
+  useEffect(() => {
+    if (!isInFeed || isPreview) return;
+
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
+          // Video is 50%+ visible - autoplay (muted)
+          video.muted = true;
+          setIsMuted(true);
+          video.play().catch(() => {
+            // Autoplay blocked by browser - that's ok
+          });
+          setIsPlaying(true);
+        } else {
+          // Video is less than 50% visible - pause
+          video.pause();
+          setIsPlaying(false);
+        }
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [isInFeed, isPreview]);
 
   const togglePlay = () => {
     if (!videoRef.current) return;
@@ -165,6 +201,7 @@ function VideoPlayer({ src, coverImageUrl, isPreview, className }: VideoPlayerPr
 
   return (
     <div 
+      ref={containerRef}
       className={cn("relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[500px]", className)}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => !isPlaying && setShowControls(true)}
@@ -180,6 +217,8 @@ function VideoPlayer({ src, coverImageUrl, isPreview, className }: VideoPlayerPr
         onTimeUpdate={handleTimeUpdate}
         onEnded={() => setIsPlaying(false)}
         onClick={togglePlay}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
       />
 
       {/* Play/Pause Overlay */}
@@ -517,9 +556,9 @@ interface SingleImageProps {
 }
 
 function SingleImage({ src, alt, className }: SingleImageProps) {
-  const [error, setError] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
-  if (error) {
+  if (hasError) {
     return (
       <div className={cn("rounded-lg bg-muted aspect-video flex items-center justify-center", className)}>
         <ImageIcon className="h-12 w-12 text-muted-foreground" />
@@ -534,7 +573,7 @@ function SingleImage({ src, alt, className }: SingleImageProps) {
         alt={alt}
         className="w-full h-auto max-h-[400px] object-cover"
         loading="lazy"
-        onError={() => setError(true)}
+        onError={() => setHasError(true)}
       />
     </div>
   );
