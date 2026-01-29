@@ -163,7 +163,9 @@ export function useToggleEngagement() {
         const action = result.added ? "Added" : "Removed";
         const label = result.engagementType === "fire" ? "🔥" :
                       result.engagementType === "gold" ? "🥇" : "💾";
-        toast.success(`${action} ${label}`);
+        const xpAmount = result.engagementType === "fire" ? 2 : result.engagementType === "gold" ? 15 : 5;
+        const xpInfo = result.added ? ` (Creator gets +${xpAmount} XP)` : "";
+        toast.success(`${action} ${label}${xpInfo}`);
       }
     },
   });
