@@ -13,3 +13,5 @@ export { VisibilitySelector } from './VisibilitySelector';
 export { PodcastStudio } from './PodcastStudio';
 export { AudioRecorder } from './AudioRecorder';
 export { WaveformDisplay } from './WaveformDisplay';
+export { GalleryCreator } from './GalleryCreator';
+export { ImageGrid } from './ImageGrid';

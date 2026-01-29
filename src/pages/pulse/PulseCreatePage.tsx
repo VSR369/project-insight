@@ -4,7 +4,7 @@ import { Film, Mic, Zap, FileText, Image, MessageSquare, ArrowLeft } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { PulseLayout } from '@/components/pulse/layout';
-import { PostCreator, SparkBuilder, ArticleEditor, ReelCreator, PodcastStudio } from '@/components/pulse/creators';
+import { PostCreator, SparkBuilder, ArticleEditor, ReelCreator, PodcastStudio, GalleryCreator } from '@/components/pulse/creators';
 import { toast } from 'sonner';
 
 const contentTypes = [
@@ -51,7 +51,7 @@ const contentTypes = [
     icon: Image,
     color: 'text-green-500',
     bgColor: 'bg-green-500/10',
-    available: false,
+    available: true,
   },
   {
     id: 'post',
@@ -108,18 +108,7 @@ export default function PulseCreatePage() {
           {selectedType === 'article' && <ArticleEditor onCancel={handleBack} />}
           {selectedType === 'reel' && <ReelCreator onCancel={handleBack} />}
           {selectedType === 'podcast' && <PodcastStudio onCancel={handleBack} />}
-          
-          {/* Placeholder for unimplemented creators */}
-          {['gallery'].includes(selectedType) && (
-            <div className="text-center py-16">
-              <p className="text-muted-foreground">
-                {selectedTypeInfo?.name} creator coming soon!
-              </p>
-              <Button className="mt-4" onClick={handleBack}>
-                Go Back
-              </Button>
-            </div>
-          )}
+          {selectedType === 'gallery' && <GalleryCreator onCancel={handleBack} />}
         </div>
       </PulseLayout>
     );
