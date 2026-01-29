@@ -1,5 +1,14 @@
 project_id = "izwimkvabbvnqcrrubpf"
 
+[functions.create-pulse-xp-snapshot]
+verify_jwt = false
+
+[functions.award-pulse-xp]
+verify_jwt = false
+
+[functions.claim-pulse-loot-box]
+verify_jwt = false
+
 [functions.accept-reviewer-invitation]
 verify_jwt = false
 
