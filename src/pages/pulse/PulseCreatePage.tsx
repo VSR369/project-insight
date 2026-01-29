@@ -4,7 +4,7 @@ import { Film, Mic, Zap, FileText, Image, MessageSquare, ArrowLeft } from 'lucid
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { PulseLayout } from '@/components/pulse/layout';
-import { PostCreator, SparkBuilder, ArticleEditor, ReelCreator } from '@/components/pulse/creators';
+import { PostCreator, SparkBuilder, ArticleEditor, ReelCreator, PodcastStudio } from '@/components/pulse/creators';
 import { toast } from 'sonner';
 
 const contentTypes = [
@@ -24,7 +24,7 @@ const contentTypes = [
     icon: Mic,
     color: 'text-purple-500',
     bgColor: 'bg-purple-500/10',
-    available: false,
+    available: true,
   },
   {
     id: 'spark',
@@ -107,9 +107,10 @@ export default function PulseCreatePage() {
           {selectedType === 'spark' && <SparkBuilder onCancel={handleBack} />}
           {selectedType === 'article' && <ArticleEditor onCancel={handleBack} />}
           {selectedType === 'reel' && <ReelCreator onCancel={handleBack} />}
+          {selectedType === 'podcast' && <PodcastStudio onCancel={handleBack} />}
           
           {/* Placeholder for unimplemented creators */}
-          {['podcast', 'gallery'].includes(selectedType) && (
+          {['gallery'].includes(selectedType) && (
             <div className="text-center py-16">
               <p className="text-muted-foreground">
                 {selectedTypeInfo?.name} creator coming soon!
