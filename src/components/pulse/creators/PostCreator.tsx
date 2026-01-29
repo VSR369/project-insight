@@ -1,14 +1,14 @@
 /**
  * Quick Post Creator Component
- * Simple text post with optional image attachment
- * Per Phase 6 specification
+ * Simple text post with optional image or document attachment
+ * Per Phase D specification
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Image, FileText, Smile, X, Loader2 } from 'lucide-react';
+import { Image, FileText, X, Loader2, FileIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
@@ -22,7 +22,8 @@ import {
 import { useCreatePulseContent } from '@/hooks/queries/usePulseContent';
 import { useUploadPulseMedia } from '@/hooks/mutations/usePulseUpload';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { postSchema, type PostFormData, validateFile } from '@/lib/validations/media';
+import { postSchema, type PostFormData, validateFile, formatBytes } from '@/lib/validations/media';
+import { EmojiPicker } from './EmojiPicker';
 import { toast } from 'sonner';
 
 interface PostCreatorProps {
@@ -35,7 +36,9 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
   // =====================================================
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedDocument, setSelectedDocument] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
@@ -71,9 +74,39 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
       return;
     }
 
+    // Clear document if selecting image
+    if (selectedDocument) {
+      setSelectedDocument(null);
+    }
+
     setSelectedImage(file);
     setImagePreview(URL.createObjectURL(file));
     form.setValue('image', file);
+  };
+
+  const handleDocumentSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file as document
+    const validation = validateFile(file, 'document');
+    if (!validation.valid) {
+      toast.error(validation.error);
+      e.target.value = '';
+      return;
+    }
+
+    // Clear image if selecting document
+    if (selectedImage) {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+      }
+      setSelectedImage(null);
+      setImagePreview(null);
+      form.setValue('image', null);
+    }
+
+    setSelectedDocument(file);
   };
 
   const handleRemoveImage = () => {
@@ -83,6 +116,30 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
     setSelectedImage(null);
     setImagePreview(null);
     form.setValue('image', null);
+  };
+
+  const handleRemoveDocument = () => {
+    setSelectedDocument(null);
+  };
+
+  const handleEmojiSelect = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      // Fallback: append to end
+      form.setValue('content', (contentValue || '') + emoji);
+      return;
+    }
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newValue = contentValue.slice(0, start) + emoji + contentValue.slice(end);
+    form.setValue('content', newValue);
+
+    // Restore cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + emoji.length, start + emoji.length);
+    }, 0);
   };
 
   const handleSubmit = async (data: PostFormData) => {
@@ -106,6 +163,16 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
         mediaUrls = [uploadResult.publicUrl];
       }
 
+      // Upload document if selected
+      if (selectedDocument) {
+        const uploadResult = await uploadMedia.mutateAsync({
+          file: selectedDocument,
+          contentType: 'document',
+          providerId: provider.id,
+        });
+        mediaUrls = [uploadResult.publicUrl];
+      }
+
       // Create the content
       await createContent.mutateAsync({
         provider_id: provider.id,
@@ -117,6 +184,7 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
 
       // Clean up and navigate
       handleRemoveImage();
+      handleRemoveDocument();
       navigate('/pulse/feed');
     } catch (error) {
       // Error already handled by mutation hooks
@@ -153,6 +221,10 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
                   <div className="relative">
                     <Textarea
                       {...field}
+                      ref={(e) => {
+                        field.ref(e);
+                        (textareaRef as any).current = e;
+                      }}
                       placeholder="What do you want to talk about?"
                       className="min-h-[200px] resize-none pr-16"
                       maxLength={maxChars}
@@ -195,6 +267,27 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
             </div>
           )}
 
+          {/* Document Preview */}
+          {selectedDocument && (
+            <div className="relative inline-flex items-center gap-3 p-3 bg-muted rounded-lg">
+              <FileIcon className="h-8 w-8 text-primary" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">{selectedDocument.name}</p>
+                <p className="text-xs text-muted-foreground">{formatBytes(selectedDocument.size)}</p>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 shrink-0"
+                onClick={handleRemoveDocument}
+                disabled={isSubmitting}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
+
           {/* Attachment Bar */}
           <div className="flex items-center gap-2 border-t pt-4">
             <label className="cursor-pointer">
@@ -203,13 +296,13 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
                 accept="image/*"
                 className="hidden"
                 onChange={handleImageSelect}
-                disabled={isSubmitting || !!selectedImage}
+                disabled={isSubmitting || !!selectedImage || !!selectedDocument}
               />
               <Button 
                 type="button" 
                 variant="ghost" 
                 size="sm"
-                disabled={isSubmitting || !!selectedImage}
+                disabled={isSubmitting || !!selectedImage || !!selectedDocument}
                 asChild
               >
                 <span>
@@ -219,15 +312,32 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
               </Button>
             </label>
 
-            <Button type="button" variant="ghost" size="sm" disabled>
-              <FileText className="h-5 w-5 mr-2" />
-              Document
-            </Button>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                className="hidden"
+                onChange={handleDocumentSelect}
+                disabled={isSubmitting || !!selectedImage || !!selectedDocument}
+              />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="sm"
+                disabled={isSubmitting || !!selectedImage || !!selectedDocument}
+                asChild
+              >
+                <span>
+                  <FileText className="h-5 w-5 mr-2" />
+                  Document
+                </span>
+              </Button>
+            </label>
 
-            <Button type="button" variant="ghost" size="sm" disabled>
-              <Smile className="h-5 w-5 mr-2" />
-              Emoji
-            </Button>
+            <EmojiPicker 
+              onSelect={handleEmojiSelect} 
+              disabled={isSubmitting}
+            />
           </div>
 
           {/* Actions */}

@@ -15,3 +15,4 @@ export { AudioRecorder } from './AudioRecorder';
 export { WaveformDisplay } from './WaveformDisplay';
 export { GalleryCreator } from './GalleryCreator';
 export { ImageGrid } from './ImageGrid';
+export { EmojiPicker } from './EmojiPicker';
