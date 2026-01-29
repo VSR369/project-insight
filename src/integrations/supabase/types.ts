@@ -2941,6 +2941,46 @@ export type Database = {
         | "portfolio"
         | "testimonial"
         | "other"
+      pulse_content_status:
+        | "draft"
+        | "scheduled"
+        | "published"
+        | "archived"
+        | "removed"
+      pulse_content_type:
+        | "reel"
+        | "podcast"
+        | "spark"
+        | "article"
+        | "gallery"
+        | "post"
+      pulse_engagement_type: "fire" | "gold" | "save" | "bookmark"
+      pulse_notification_type:
+        | "new_follower"
+        | "fire_reaction"
+        | "gold_award"
+        | "comment"
+        | "comment_reply"
+        | "streak_reminder"
+        | "loot_box_ready"
+        | "level_up"
+        | "skill_verified"
+        | "leaderboard_rank_change"
+        | "content_milestone"
+        | "system"
+      pulse_report_status: "pending" | "under_review" | "actioned" | "dismissed"
+      pulse_report_type:
+        | "spam"
+        | "harassment"
+        | "misinformation"
+        | "inappropriate"
+        | "copyright"
+        | "other"
+      pulse_verification_source:
+        | "self_declared"
+        | "assessment_passed"
+        | "interview_verified"
+        | "platform_awarded"
       question_difficulty: "introductory" | "applied" | "advanced" | "strategic"
       question_type:
         | "conceptual"
@@ -3120,6 +3160,51 @@ export const Constants = {
         "portfolio",
         "testimonial",
         "other",
+      ],
+      pulse_content_status: [
+        "draft",
+        "scheduled",
+        "published",
+        "archived",
+        "removed",
+      ],
+      pulse_content_type: [
+        "reel",
+        "podcast",
+        "spark",
+        "article",
+        "gallery",
+        "post",
+      ],
+      pulse_engagement_type: ["fire", "gold", "save", "bookmark"],
+      pulse_notification_type: [
+        "new_follower",
+        "fire_reaction",
+        "gold_award",
+        "comment",
+        "comment_reply",
+        "streak_reminder",
+        "loot_box_ready",
+        "level_up",
+        "skill_verified",
+        "leaderboard_rank_change",
+        "content_milestone",
+        "system",
+      ],
+      pulse_report_status: ["pending", "under_review", "actioned", "dismissed"],
+      pulse_report_type: [
+        "spam",
+        "harassment",
+        "misinformation",
+        "inappropriate",
+        "copyright",
+        "other",
+      ],
+      pulse_verification_source: [
+        "self_declared",
+        "assessment_passed",
+        "interview_verified",
+        "platform_awarded",
       ],
       question_difficulty: ["introductory", "applied", "advanced", "strategic"],
       question_type: [
