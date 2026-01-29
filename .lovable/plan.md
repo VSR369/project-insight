@@ -1,380 +1,266 @@
 
-
-# Phase 2: Database Tables Implementation Plan
+# Phase 9: Testing, Polish & Accessibility Audit
 
 ## Overview
-Create all 15 `pulse_` tables in a single comprehensive migration, ordered by foreign key dependencies.
+This final phase ensures the Industry Pulse module is production-ready through comprehensive testing, accessibility compliance, UI/UX polish, and performance optimization.
 
 ---
 
-## Migration Structure
+## 1. Unit & Integration Tests
 
-### Batch 1: Independent Tables (No FK Dependencies)
+### 1.1 Hook Tests (New Files)
 
-#### 1. `pulse_tags` - Hashtag System
-```sql
-CREATE TABLE public.pulse_tags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
-  display_name TEXT,
-  usage_count INTEGER NOT NULL DEFAULT 0,
-  is_featured BOOLEAN NOT NULL DEFAULT FALSE,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ
-);
-```
+| File | Purpose | Test Cases |
+|------|---------|------------|
+| `src/test/pulse/pulse-content.test.ts` | Content hooks | Create, update, publish, delete, archive content; feed filtering |
+| `src/test/pulse/pulse-engagements.test.ts` | Engagement hooks | Fire, gold, save, bookmark toggle; own-content prevention |
+| `src/test/pulse/pulse-social.test.ts` | Social hooks | Comments CRUD, follow/unfollow, notifications |
+| `src/test/pulse/pulse-stats.test.ts` | Stats & gamification | XP calculation, level progress, streak multipliers, leaderboards |
 
-#### 2. `pulse_provider_stats` - XP/Level/Streak Tracking
-```sql
-CREATE TABLE public.pulse_provider_stats (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL UNIQUE REFERENCES solution_providers(id) ON DELETE CASCADE,
-  total_xp BIGINT NOT NULL DEFAULT 0,
-  current_level INTEGER NOT NULL DEFAULT 1,
-  current_streak INTEGER NOT NULL DEFAULT 0,
-  longest_streak INTEGER NOT NULL DEFAULT 0,
-  last_activity_date DATE,
-  total_reels INTEGER NOT NULL DEFAULT 0,
-  total_podcasts INTEGER NOT NULL DEFAULT 0,
-  total_sparks INTEGER NOT NULL DEFAULT 0,
-  total_articles INTEGER NOT NULL DEFAULT 0,
-  total_galleries INTEGER NOT NULL DEFAULT 0,
-  total_posts INTEGER NOT NULL DEFAULT 0,
-  total_contributions INTEGER NOT NULL DEFAULT 0,
-  total_fire_received BIGINT NOT NULL DEFAULT 0,
-  total_gold_received BIGINT NOT NULL DEFAULT 0,
-  total_comments_received BIGINT NOT NULL DEFAULT 0,
-  total_saves_received BIGINT NOT NULL DEFAULT 0,
-  follower_count INTEGER NOT NULL DEFAULT 0,
-  following_count INTEGER NOT NULL DEFAULT 0,
-  gold_token_balance INTEGER NOT NULL DEFAULT 10,
-  visibility_boost_tokens INTEGER NOT NULL DEFAULT 0,
-  timezone TEXT NOT NULL DEFAULT 'UTC',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ
-);
+### 1.2 Component Tests (New Files)
+
+| File | Purpose | Test Cases |
+|------|---------|------------|
+| `src/components/pulse/content/ContentCard.test.tsx` | Content rendering | All 6 content types render correctly, tag display, truncation logic |
+| `src/components/pulse/content/EngagementBar.test.tsx` | Engagement buttons | Button states, own-content disabled, optimistic updates |
+| `src/components/pulse/content/CommentSection.test.tsx` | Comment rendering | Thread nesting, reply depth limits, delete own comment |
+| `src/components/pulse/dashboard/PulseDashboardWidget.test.tsx` | Widget states | Loading, inactive user, active user with stats |
+
+### 1.3 Test Patterns
+
+```typescript
+// Example test structure for hooks
+describe('usePulseContent', () => {
+  it('filters feed by content type', async () => { /* ... */ });
+  it('handles empty feed state gracefully', async () => { /* ... */ });
+  it('applies audit fields on create', async () => { /* ... */ });
+});
+
+// Example test structure for components  
+describe('ContentCard', () => {
+  it('renders reel with play button overlay', () => { /* ... */ });
+  it('truncates caption at 280 characters with Read more', () => { /* ... */ });
+  it('displays maximum 5 tags with overflow badge', () => { /* ... */ });
+});
 ```
 
 ---
 
-### Batch 2: Tables Referencing Core Entities
+## 2. Accessibility Audit (WCAG 2.1 AA)
 
-#### 3. `pulse_content` - Main Content Table
-```sql
-CREATE TABLE public.pulse_content (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  enrollment_id UUID REFERENCES provider_industry_enrollments(id) ON DELETE SET NULL,
-  industry_segment_id UUID REFERENCES industry_segments(id) ON DELETE SET NULL,
-  content_type pulse_content_type NOT NULL,
-  content_status pulse_content_status NOT NULL DEFAULT 'draft',
-  title TEXT,
-  caption TEXT,
-  body_text TEXT,
-  headline TEXT,
-  key_insight TEXT,
-  ai_enhanced BOOLEAN NOT NULL DEFAULT FALSE,
-  original_caption TEXT,
-  media_urls JSONB NOT NULL DEFAULT '[]',
-  cover_image_url TEXT,
-  secondary_industry_ids UUID[] NOT NULL DEFAULT '{}',
-  fire_count INTEGER NOT NULL DEFAULT 0,
-  comment_count INTEGER NOT NULL DEFAULT 0,
-  gold_count INTEGER NOT NULL DEFAULT 0,
-  save_count INTEGER NOT NULL DEFAULT 0,
-  visibility_boost_multiplier DECIMAL(4,2) NOT NULL DEFAULT 1.00,
-  visibility_boost_expires_at TIMESTAMPTZ,
-  is_published BOOLEAN GENERATED ALWAYS AS (content_status = 'published') STORED,
-  scheduled_publish_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ,
-  created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id),
-  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ,
-  deleted_by UUID REFERENCES auth.users(id),
-  
-  -- Constraints
-  CONSTRAINT chk_pulse_key_insight_length CHECK (key_insight IS NULL OR LENGTH(key_insight) <= 500),
-  CONSTRAINT chk_pulse_headline_length CHECK (headline IS NULL OR LENGTH(headline) <= 50),
-  CONSTRAINT chk_pulse_article_title_max CHECK (title IS NULL OR LENGTH(title) <= 200),
-  CONSTRAINT chk_pulse_spark_required CHECK (
-    content_type != 'spark' OR (headline IS NOT NULL AND key_insight IS NOT NULL)
-  )
-);
-```
+### 2.1 Interactive Element Fixes
 
-#### 4. `pulse_skills` - Provider Expertise
-```sql
-CREATE TABLE public.pulse_skills (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  industry_segment_id UUID NOT NULL REFERENCES industry_segments(id) ON DELETE CASCADE,
-  expertise_level_id UUID REFERENCES expertise_levels(id) ON DELETE SET NULL,
-  verification_source pulse_verification_source,
-  verification_enrollment_id UUID REFERENCES provider_industry_enrollments(id) ON DELETE SET NULL,
-  skill_name TEXT NOT NULL,
-  current_xp BIGINT NOT NULL DEFAULT 0,
-  current_level INTEGER NOT NULL DEFAULT 1,
-  is_verified BOOLEAN NOT NULL DEFAULT FALSE,
-  verified_at TIMESTAMPTZ,
-  verified_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ,
-  
-  CONSTRAINT uq_pulse_skills_provider_industry UNIQUE (provider_id, industry_segment_id)
-);
-```
+| Component | Issue | Fix |
+|-----------|-------|-----|
+| `EngagementBar` | Buttons lack accessible names | Add `aria-label` (e.g., "Give fire reaction", "Add bookmark") |
+| `ContentCard` | Avatar click lacks keyboard access | Add `tabIndex={0}` and `onKeyDown` for Enter/Space |
+| `CommentSection` | Reply button lacks context | Add `aria-label="Reply to {userName}"` |
+| `PulseBottomNav` | Active state not announced | Add `aria-current="page"` to active NavLink |
+| `ContentCard DropdownMenu` | Trigger lacks context | Add `aria-label="Content options"` |
 
-#### 5. `pulse_connections` - Social Graph
-```sql
-CREATE TABLE public.pulse_connections (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  follower_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  following_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT chk_pulse_no_self_follow CHECK (follower_id != following_id),
-  CONSTRAINT uq_pulse_connections UNIQUE (follower_id, following_id)
-);
-```
+### 2.2 Form Accessibility
 
-#### 6. `pulse_daily_standups` - Daily Activity Tracking
-```sql
-CREATE TABLE public.pulse_daily_standups (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  standup_date DATE NOT NULL,
-  completed_at TIMESTAMPTZ,
-  window_start TIMESTAMPTZ,
-  xp_awarded INTEGER NOT NULL DEFAULT 0,
-  visibility_boost_earned BOOLEAN NOT NULL DEFAULT FALSE,
-  updates_viewed INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT uq_pulse_standups_provider_date UNIQUE (provider_id, standup_date)
-);
-```
+| Location | Issue | Fix |
+|----------|-------|-----|
+| Comment `Textarea` | Missing label | Add `aria-label="Write a comment"` or visible label |
+| Reply `Textarea` | Missing label | Add `aria-label="Write a reply"` |
+| `PulseCreatePage` cards | Selection not announced | Add `aria-selected` and `role="option"` pattern |
 
-#### 7. `pulse_loot_boxes` - Daily Rewards
-```sql
-CREATE TABLE public.pulse_loot_boxes (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  claim_date DATE NOT NULL,
-  available_at TIMESTAMPTZ NOT NULL,
-  expires_at TIMESTAMPTZ NOT NULL,
-  opened_at TIMESTAMPTZ,
-  streak_at_claim INTEGER NOT NULL DEFAULT 0,
-  streak_multiplier DECIMAL(3,2) NOT NULL DEFAULT 1.00,
-  rewards JSONB NOT NULL DEFAULT '{}',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT uq_pulse_lootbox_provider_date UNIQUE (provider_id, claim_date)
-);
-```
+### 2.3 Focus Management
+
+| Scenario | Required Behavior |
+|----------|-------------------|
+| Reply input opens | Focus moves to textarea |
+| Comment added | Focus returns to comment list |
+| Modal/dialog opens | Focus trapped within |
+| Dropdown closes | Focus returns to trigger |
+
+### 2.4 Color Contrast
+
+| Element | Current | Required | Action |
+|---------|---------|----------|--------|
+| `text-muted-foreground` | Verify ratio | 4.5:1 minimum | Audit and adjust if needed |
+| Badge variants | Verify contrast | 3:1 for large text | Check all badge color combos |
+| Disabled buttons | Verify visibility | Non-reliance on color alone | Add visual indicator |
 
 ---
 
-### Batch 3: Tables Referencing pulse_content
+## 3. UI/UX Polish
 
-#### 8. `pulse_engagements` - Fire/Gold/Save/Bookmark
-```sql
-CREATE TABLE public.pulse_engagements (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_id UUID NOT NULL REFERENCES pulse_content(id) ON DELETE CASCADE,
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  engagement_type pulse_engagement_type NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ,
-  
-  CONSTRAINT uq_pulse_engagement UNIQUE (content_id, provider_id, engagement_type)
-);
-```
+### 3.1 Loading States
 
-#### 9. `pulse_comments` - Threaded Comments
-```sql
-CREATE TABLE public.pulse_comments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_id UUID NOT NULL REFERENCES pulse_content(id) ON DELETE CASCADE,
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  parent_comment_id UUID REFERENCES pulse_comments(id) ON DELETE CASCADE,
-  comment_text TEXT NOT NULL,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ,
-  is_deleted BOOLEAN NOT NULL DEFAULT FALSE,
-  deleted_at TIMESTAMPTZ,
-  deleted_by UUID REFERENCES auth.users(id),
-  
-  CONSTRAINT chk_pulse_comment_length CHECK (LENGTH(comment_text) <= 1500)
-);
-```
+| Component | Enhancement |
+|-----------|-------------|
+| `PulseFeedPage` | Skeleton cards with proper aspect ratios |
+| `PulseProfilePage` | Skeleton for avatar, stats grid, content tabs |
+| `PulseRanksPage` | Skeleton leaderboard entries |
+| `ContentCard` (images) | Add `loading="lazy"` and blur placeholder |
 
-#### 10. `pulse_content_tags` - Junction Table
-```sql
-CREATE TABLE public.pulse_content_tags (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_id UUID NOT NULL REFERENCES pulse_content(id) ON DELETE CASCADE,
-  tag_id UUID NOT NULL REFERENCES pulse_tags(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT uq_pulse_content_tag UNIQUE (content_id, tag_id)
-);
-```
+### 3.2 Empty States
 
-#### 11. `pulse_notifications` - User Notifications
-```sql
-CREATE TABLE public.pulse_notifications (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  notification_type pulse_notification_type NOT NULL,
-  title TEXT NOT NULL,
-  body TEXT,
-  related_content_id UUID REFERENCES pulse_content(id) ON DELETE CASCADE,
-  related_provider_id UUID REFERENCES solution_providers(id) ON DELETE CASCADE,
-  data JSONB NOT NULL DEFAULT '{}',
-  is_read BOOLEAN NOT NULL DEFAULT FALSE,
-  read_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+| Screen | Current | Enhancement |
+|--------|---------|-------------|
+| Feed | Basic text | Add illustration/icon + CTA button |
+| Profile posts | "No posts yet" | Add "Create your first post" button |
+| Bookmarks | "No saved posts" | Add "Explore feed" button |
+| Leaderboard | "No rankings yet" | Add motivational message |
 
-#### 12. `pulse_content_reports` - Moderation Reports
-```sql
-CREATE TABLE public.pulse_content_reports (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_id UUID NOT NULL REFERENCES pulse_content(id) ON DELETE CASCADE,
-  reporter_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  report_type pulse_report_type NOT NULL,
-  description TEXT,
-  status pulse_report_status NOT NULL DEFAULT 'pending',
-  reviewed_by UUID REFERENCES auth.users(id),
-  reviewed_at TIMESTAMPTZ,
-  action_taken TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-```
+### 3.3 Error States
 
-#### 13. `pulse_content_impressions` - Analytics
-```sql
-CREATE TABLE public.pulse_content_impressions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  content_id UUID NOT NULL REFERENCES pulse_content(id) ON DELETE CASCADE,
-  viewer_id UUID REFERENCES solution_providers(id) ON DELETE SET NULL,
-  impression_type TEXT NOT NULL DEFAULT 'feed',
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT chk_pulse_impression_type CHECK (impression_type IN ('feed', 'detail', 'share'))
-);
-```
+| Scenario | Required UI |
+|----------|-------------|
+| Feed fetch fails | Error card with retry button |
+| Content detail 404 | "Content not found" with back navigation |
+| Engagement fails | Toast with retry option (already using `handleMutationError`) |
+| Image load fails | Fallback placeholder image |
+
+### 3.4 Mobile Responsiveness
+
+| Component | Check |
+|-----------|-------|
+| `PulseBottomNav` | Safe area insets for notched devices |
+| `ContentCard` | Full-bleed images on mobile |
+| `CommentSection` | Comfortable touch targets (44x44px minimum) |
+| Tabs | Horizontal scroll if needed |
 
 ---
 
-### Batch 4: Audit/Snapshot Tables
+## 4. Performance Optimization
 
-#### 14. `pulse_xp_snapshots` - Leaderboard History
-```sql
-CREATE TABLE public.pulse_xp_snapshots (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  snapshot_date DATE NOT NULL,
-  snapshot_type TEXT NOT NULL DEFAULT 'daily',
-  total_xp_at_date BIGINT NOT NULL DEFAULT 0,
-  current_level_at_date INTEGER NOT NULL DEFAULT 1,
-  follower_count_at_date INTEGER NOT NULL DEFAULT 0,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  
-  CONSTRAINT uq_pulse_snapshot UNIQUE (provider_id, snapshot_date, snapshot_type),
-  CONSTRAINT chk_pulse_snapshot_type CHECK (snapshot_type IN ('daily', 'weekly', 'monthly'))
-);
-```
+### 4.1 Query Caching Review
 
-#### 15. `pulse_xp_audit_log` - XP Change Audit Trail
-```sql
-CREATE TABLE public.pulse_xp_audit_log (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  provider_id UUID NOT NULL REFERENCES solution_providers(id) ON DELETE CASCADE,
-  action_type TEXT NOT NULL,
-  xp_change INTEGER NOT NULL,
-  previous_total BIGINT NOT NULL,
-  new_total BIGINT NOT NULL,
-  reference_id UUID,
-  reference_type TEXT,
-  notes TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  created_by UUID REFERENCES auth.users(id)
-);
-```
+| Hook | Current `staleTime` | Recommendation |
+|------|---------------------|----------------|
+| `usePulseFeed` | 10s | Keep (real-time feel) |
+| `useProviderStats` | 30s | Keep |
+| `useGlobalLeaderboard` | 5min | Keep (low update frequency) |
+| `usePulseTags` | 5min | Keep |
+| `useMyPulseContent` | 30s | Consider 60s for drafts |
+
+### 4.2 Image Optimization
+
+| Action | Implementation |
+|--------|----------------|
+| Lazy loading | Add `loading="lazy"` to all `<img>` tags |
+| Placeholder | Add blur-up or skeleton while loading |
+| Format | Ensure WebP support in upload flow (if not already) |
+
+### 4.3 Component Optimization
+
+| Component | Optimization |
+|-----------|--------------|
+| `ContentCard` | Wrap in `React.memo()` to prevent unnecessary re-renders |
+| `EngagementBar` | Already optimistic; verify no redundant queries |
+| Comment list | Consider virtualization if >50 comments typical |
 
 ---
 
-## Performance Indexes
+## 5. Edge Case Handling
 
-```sql
--- pulse_content indexes
-CREATE INDEX idx_pulse_content_provider ON pulse_content(provider_id, created_at DESC);
-CREATE INDEX idx_pulse_content_industry ON pulse_content(industry_segment_id, created_at DESC);
-CREATE INDEX idx_pulse_content_status ON pulse_content(content_status, is_deleted) WHERE content_status = 'published';
-CREATE INDEX idx_pulse_content_type ON pulse_content(content_type, created_at DESC);
-CREATE INDEX idx_pulse_content_feed ON pulse_content(created_at DESC) WHERE content_status = 'published' AND is_deleted = FALSE;
+### 5.1 Network Error Scenarios
 
--- pulse_engagements indexes
-CREATE INDEX idx_pulse_engagements_content ON pulse_engagements(content_id, engagement_type);
-CREATE INDEX idx_pulse_engagements_provider ON pulse_engagements(provider_id, created_at DESC);
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Offline during fire | Show error toast, revert optimistic update |
+| Offline during comment | Show error toast, preserve draft text |
+| Slow network | Loading indicators visible |
 
--- pulse_comments indexes
-CREATE INDEX idx_pulse_comments_content ON pulse_comments(content_id, created_at DESC);
-CREATE INDEX idx_pulse_comments_parent ON pulse_comments(parent_comment_id);
+### 5.2 Concurrent Update Scenarios
 
--- pulse_connections indexes
-CREATE INDEX idx_pulse_connections_follower ON pulse_connections(follower_id);
-CREATE INDEX idx_pulse_connections_following ON pulse_connections(following_id);
+| Scenario | Expected Behavior |
+|----------|-------------------|
+| Two users fire simultaneously | Both succeed, count accurate |
+| Comment while viewing detail | New comments appear via polling |
+| Content deleted while viewing | Handle 404 gracefully |
 
--- pulse_notifications indexes
-CREATE INDEX idx_pulse_notifications_provider ON pulse_notifications(provider_id, is_read, created_at DESC);
+### 5.3 Edge Cases in Business Logic
 
--- pulse_xp_snapshots indexes
-CREATE INDEX idx_pulse_snapshots_leaderboard ON pulse_xp_snapshots(snapshot_date, total_xp_at_date DESC);
-
--- pulse_provider_stats indexes
-CREATE INDEX idx_pulse_stats_xp ON pulse_provider_stats(total_xp DESC);
-CREATE INDEX idx_pulse_stats_level ON pulse_provider_stats(current_level DESC);
-```
+| Scenario | Test Case |
+|----------|-----------|
+| User has 0 XP | Level displays as 1, progress bar at 0% |
+| User at max gold tokens (1000) | Can't receive more gold from loot box |
+| Streak breaks at midnight | Multiplier resets to 1.0x |
+| Own-content engagement | All buttons disabled except bookmark |
 
 ---
 
-## RLS Policies
+## 6. Security Review
 
-All 15 tables will have RLS enabled with these policy patterns:
+### 6.1 RLS Policy Verification
 
-1. **Owner Access** - Users can manage their own data
-2. **Admin Override** - Platform admins have full access
-3. **Public Read** - Published content is publicly readable
-4. **Self-Engagement Prevention** - Users cannot engage with their own content
+| Table | Verify |
+|-------|--------|
+| `pulse_content` | Users can only update/delete own content |
+| `pulse_comments` | Users can only delete own comments |
+| `pulse_engagements` | Proper isolation by provider_id |
+| `pulse_connections` | Can only manage own follow relationships |
+
+### 6.2 Input Validation
+
+| Input | Validation |
+|-------|------------|
+| Comment text | Max 1500 chars (enforced in UI) |
+| Content caption | Max length per content type |
+| Tags | Sanitize input, prevent XSS |
+
+---
+
+## 7. Files to Create/Modify
+
+### New Files
+
+| Path | Purpose |
+|------|---------|
+| `src/test/pulse/pulse-content.test.ts` | Content hook tests |
+| `src/test/pulse/pulse-engagements.test.ts` | Engagement hook tests |
+| `src/test/pulse/pulse-social.test.ts` | Social hook tests |
+| `src/test/pulse/pulse-stats.test.ts` | Stats/gamification tests |
+| `src/components/pulse/content/ContentCard.test.tsx` | Component tests |
+| `src/components/pulse/content/EngagementBar.test.tsx` | Component tests |
+| `src/components/pulse/content/CommentSection.test.tsx` | Component tests |
+
+### Modified Files
+
+| Path | Changes |
+|------|---------|
+| `src/components/pulse/content/ContentCard.tsx` | ARIA labels, lazy loading, React.memo |
+| `src/components/pulse/content/EngagementBar.tsx` | ARIA labels, accessible names |
+| `src/components/pulse/content/CommentSection.tsx` | ARIA labels, focus management |
+| `src/components/pulse/layout/PulseBottomNav.tsx` | aria-current, keyboard navigation |
+| `src/pages/pulse/PulseFeedPage.tsx` | Enhanced empty/error states |
+| `src/pages/pulse/PulseProfilePage.tsx` | Enhanced empty states |
+| `src/pages/pulse/PulseRanksPage.tsx` | Enhanced empty states |
+
+---
+
+## 8. Implementation Order
+
+1. **Accessibility fixes** (quick wins, high impact)
+2. **Empty/error state enhancements** (improved UX)
+3. **Loading state polish** (visual consistency)
+4. **Performance optimizations** (React.memo, lazy loading)
+5. **Unit tests for hooks** (regression protection)
+6. **Component tests** (UI behavior verification)
+7. **Security verification** (RLS smoke tests)
+8. **End-to-end manual testing** (full flow validation)
+
+---
+
+## 9. Success Criteria
+
+| Category | Metric |
+|----------|--------|
+| Accessibility | 0 WCAG 2.1 AA violations in Pulse pages |
+| Tests | 80%+ coverage on Pulse hooks |
+| Performance | TTI < 1.5s for Pulse Feed page |
+| Mobile | All touch targets 44px minimum |
+| Error handling | All error states have retry options |
 
 ---
 
 ## Technical Notes
 
-- **FK Ordering**: Tables created in dependency order to prevent FK errors
-- **Generated Column**: `is_published` uses `GENERATED ALWAYS AS` for automatic status tracking
-- **Soft Delete**: `pulse_content` and `pulse_comments` support soft delete pattern
-- **Audit Fields**: All content tables include `created_by`, `updated_by` for audit compliance
-- **JSONB Fields**: `media_urls`, `rewards`, `data` use JSONB for flexible structured data
-
----
-
-## Deliverables
-
-| Category | Count |
-|----------|-------|
-| Tables | 15 |
-| Indexes | 14 |
-| Unique Constraints | 8 |
-| Check Constraints | 6 |
-| RLS Policies | ~30 |
-
-**Ready to execute**: Single migration file with all 15 tables, constraints, indexes, and RLS policies.
-
+- Test framework: Vitest + Testing Library (already configured)
+- Test location: `src/test/pulse/` for hooks, co-located for components
+- ARIA testing: Can use `@testing-library/jest-dom` matchers
+- Focus testing: Use `screen.getByRole()` patterns
