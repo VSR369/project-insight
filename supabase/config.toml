@@ -15,6 +15,9 @@ verify_jwt = false
 [functions.generate-spark-insights]
 verify_jwt = false
 
+[functions.send-streak-reminder]
+verify_jwt = false
+
 [functions.accept-reviewer-invitation]
 verify_jwt = false
 

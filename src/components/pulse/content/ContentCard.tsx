@@ -1,6 +1,6 @@
 import { useState, memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap, Clock } from 'lucide-react';
+import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap, Clock, CheckCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EngagementBar } from './EngagementBar';
 import { MediaRenderer } from './MediaRenderer';
+import { SparkTrendChart } from './SparkTrendChart';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 import type { PulseContentType } from '@/constants/pulse.constants';
@@ -21,14 +22,23 @@ interface ContentCardProps {
       first_name: string | null;
       last_name: string | null;
       avatar_url?: string;
+      verified_skill?: string | null;
     };
     tags?: Array<{ id: string; name: string }>;
     industry_segment?: { id: string; name: string } | null;
+    duration_seconds?: number | null;
   };
   currentUserProviderId: string;
   onContentClick?: () => void;
   onProfileClick?: () => void;
   onCommentClick?: () => void;
+}
+
+// Format video duration as MM:SS or M:SS
+function formatDuration(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 const contentTypeIcons = {
@@ -121,6 +131,13 @@ export const ContentCard = memo(function ContentCard({
             >
               {providerName}
             </span>
+            {/* Verified skill badge */}
+            {content.provider?.verified_skill && (
+              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-green-600 border-green-200 shrink-0">
+                <CheckCircle className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />
+                {content.provider.verified_skill}
+              </Badge>
+            )}
             <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
               <ContentIcon className="h-3 w-3 mr-1" aria-hidden="true" />
               {/* Show industry name for sparks, otherwise show content type */}
@@ -174,7 +191,7 @@ export const ContentCard = memo(function ContentCard({
 
         {/* Media Preview */}
         {content.media_urls && Array.isArray(content.media_urls) && (content.media_urls as string[]).length > 0 && (
-          <div className="mb-3">
+          <div className="mb-3 relative">
             <MediaRenderer
               contentType={content.content_type as PulseContentType}
               mediaUrls={content.media_urls as string[]}
@@ -182,17 +199,32 @@ export const ContentCard = memo(function ContentCard({
               title={content.title || content.headline || undefined}
               isPreview
             />
+            {/* Video duration badge for reels */}
+            {content.content_type === 'reel' && content.duration_seconds && (
+              <Badge 
+                className="absolute top-2 right-2 bg-black/70 text-white text-xs border-0"
+                aria-label={`Duration: ${formatDuration(content.duration_seconds)}`}
+              >
+                {formatDuration(content.duration_seconds)}
+              </Badge>
+            )}
           </div>
         )}
 
         {/* Text Content */}
         {displayText && (
-          <p className={cn(
-            "text-sm text-foreground/90 whitespace-pre-wrap",
-            !isExpanded && shouldTruncate && "line-clamp-4"
-          )}>
-            {displayText}
-          </p>
+          <div>
+            <p className={cn(
+              "text-sm text-foreground/90 whitespace-pre-wrap",
+              !isExpanded && shouldTruncate && "line-clamp-4"
+            )}>
+              {displayText}
+            </p>
+            {/* Spark trend chart for sparks with statistics */}
+            {content.content_type === 'spark' && content.key_insight && (
+              <SparkTrendChart insightText={content.key_insight} />
+            )}
+          </div>
         )}
         
         {shouldTruncate && (
