@@ -3738,6 +3738,49 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      pulse_award_xp: {
+        Args: {
+          p_action_type: string
+          p_notes?: string
+          p_provider_id: string
+          p_reference_id?: string
+          p_reference_type?: string
+          p_xp_amount: number
+        }
+        Returns: boolean
+      }
+      pulse_calculate_level: { Args: { p_total_xp: number }; Returns: number }
+      pulse_get_ranked_feed: {
+        Args: {
+          p_content_type?: Database["public"]["Enums"]["pulse_content_type"]
+          p_industry_segment_id?: string
+          p_limit?: number
+          p_offset?: number
+          p_viewer_id?: string
+        }
+        Returns: {
+          caption: string
+          comment_count: number
+          content_type: Database["public"]["Enums"]["pulse_content_type"]
+          cover_image_url: string
+          created_at: string
+          fire_count: number
+          gold_count: number
+          headline: string
+          id: string
+          key_insight: string
+          media_urls: Json
+          provider_id: string
+          ranking_score: number
+          save_count: number
+          title: string
+        }[]
+      }
+      pulse_get_streak_multiplier: {
+        Args: { p_streak: number }
+        Returns: number
+      }
+      pulse_update_streak: { Args: { p_provider_id: string }; Returns: number }
       refresh_all_composite_slots: { Args: never; Returns: number }
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
