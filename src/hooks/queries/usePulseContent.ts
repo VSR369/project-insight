@@ -331,3 +331,63 @@ export function useArchivePulseContent() {
     },
   });
 }
+
+// =====================================================
+// ADD CONTENT TAGS
+// =====================================================
+
+export function useAddContentTags() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contentId, tagIds }: { contentId: string; tagIds: string[] }) => {
+      if (tagIds.length === 0) return [];
+
+      const insertData = tagIds.map(tagId => ({
+        content_id: contentId,
+        tag_id: tagId,
+      }));
+
+      const { data, error } = await supabase
+        .from("pulse_content_tags")
+        .insert(insertData)
+        .select();
+
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [PULSE_QUERY_KEYS.contentDetail, variables.contentId] });
+      queryClient.invalidateQueries({ queryKey: [PULSE_QUERY_KEYS.tags] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: "add_content_tags" });
+    },
+  });
+}
+
+// =====================================================
+// REMOVE CONTENT TAG
+// =====================================================
+
+export function useRemoveContentTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ contentId, tagId }: { contentId: string; tagId: string }) => {
+      const { error } = await supabase
+        .from("pulse_content_tags")
+        .delete()
+        .eq("content_id", contentId)
+        .eq("tag_id", tagId);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: [PULSE_QUERY_KEYS.contentDetail, variables.contentId] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: "remove_content_tag" });
+    },
+  });
+}
