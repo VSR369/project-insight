@@ -427,3 +427,46 @@ export function useTrendingTags(limit = 10) {
     staleTime: 5 * 60 * 1000,
   });
 }
+
+// =====================================================
+// CREATE TAG
+// =====================================================
+
+export function useCreatePulseTag() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ name }: { name: string }) => {
+      // Check if tag already exists (case-insensitive)
+      const { data: existing } = await supabase
+        .from("pulse_tags")
+        .select("*")
+        .ilike("name", name.trim())
+        .maybeSingle();
+
+      if (existing) {
+        return existing;
+      }
+
+      // Create new tag
+      const { data, error } = await supabase
+        .from("pulse_tags")
+        .insert({
+          name: name.trim(),
+          is_active: true,
+          usage_count: 0,
+        })
+        .select()
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [PULSE_QUERY_KEYS.tags] });
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: "create_pulse_tag" });
+    },
+  });
+}
