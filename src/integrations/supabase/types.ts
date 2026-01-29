@@ -2168,6 +2168,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           deleted_by: string | null
+          duration_seconds: number | null
           enrollment_id: string | null
           fire_count: number
           gold_count: number
@@ -2201,6 +2202,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          duration_seconds?: number | null
           enrollment_id?: string | null
           fire_count?: number
           gold_count?: number
@@ -2234,6 +2236,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          duration_seconds?: number | null
           enrollment_id?: string | null
           fire_count?: number
           gold_count?: number
