@@ -18,6 +18,10 @@ import {
   ClipboardCheck,
   BookOpen,
   ArrowLeft,
+  Zap,
+  Flame,
+  Trophy,
+  PlusCircle,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -40,10 +44,18 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
 const mainNavItems = [
   { title: 'Dashboard', url: '/dashboard', icon: LayoutDashboard },
   { title: 'My Profile', url: '/profile', icon: User },
   { title: 'Invitations', url: '/invitations', icon: Mail },
+];
+
+const pulseNavItems = [
+  { title: 'Feed', url: '/pulse/feed', icon: Flame },
+  { title: 'Sparks', url: '/pulse/sparks', icon: Zap },
+  { title: 'Create', url: '/pulse/create', icon: PlusCircle },
+  { title: 'Leaderboard', url: '/pulse/ranks', icon: Trophy },
 ];
 
 const profileBuildingItems = [
@@ -82,6 +94,8 @@ export function AppSidebar() {
   const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
 
   const currentStep = calculateCurrentStep(provider, activeEnrollment, enrollmentProficiencyAreas);
+
+  const isPulseActive = location.pathname.startsWith('/pulse');
 
   const isActive = (path: string) => location.pathname === path;
   const isProfileBuildActive = location.pathname.startsWith('/profile/build');
@@ -122,6 +136,35 @@ export function AppSidebar() {
                   <SidebarMenuButton asChild isActive={isActive(item.url)}>
                     <NavLink 
                       to={item.url} 
+                      className="flex items-center gap-2"
+                      activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </NavLink>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        {/* Industry Pulse */}
+        <SidebarGroup>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <Flame className="h-3 w-3 text-orange-500" />
+            Industry Pulse
+            {isPulseActive && (
+              <ChevronRight className="h-3 w-3 text-primary" />
+            )}
+          </SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {pulseNavItems.map((item) => (
+                <SidebarMenuItem key={item.title}>
+                  <SidebarMenuButton asChild isActive={isActive(item.url)}>
+                    <NavLink 
+                      to={item.url}
                       className="flex items-center gap-2"
                       activeClassName="bg-sidebar-accent text-sidebar-accent-foreground"
                     >
