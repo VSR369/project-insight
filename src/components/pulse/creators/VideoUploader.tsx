@@ -4,7 +4,7 @@
  */
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, Video, Camera, X, Play, Pause, StopCircle, Loader2 } from 'lucide-react';
+import { Upload, Video, Camera, X, StopCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -18,6 +18,64 @@ interface VideoUploaderProps {
   disabled?: boolean;
 }
 
+type CameraState = 'idle' | 'initializing' | 'ready' | 'recording';
+
+/**
+ * Detect the best supported mimeType for MediaRecorder
+ * Handles cross-browser compatibility (Chrome, Firefox, Safari)
+ */
+const getSupportedMimeType = (): string => {
+  const mimeTypes = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4',  // Safari fallback
+  ];
+  
+  for (const mimeType of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(mimeType)) {
+      console.log('Using mimeType:', mimeType);
+      return mimeType;
+    }
+  }
+  
+  // Last resort: let browser choose
+  console.warn('No preferred mimeType supported, using browser default');
+  return '';
+};
+
+/**
+ * Get file extension based on mimeType
+ */
+const getFileExtension = (mimeType: string): string => {
+  if (mimeType.includes('mp4')) return 'mp4';
+  return 'webm';
+};
+
+/**
+ * Handle camera errors with user-friendly messages
+ */
+const handleCameraError = (error: unknown) => {
+  const err = error as Error;
+  
+  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    toast.error('Camera permission denied. Please allow camera access in your browser settings.');
+  } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+    toast.error('No camera found. Please connect a camera and try again.');
+  } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+    toast.error('Camera is in use by another application. Please close other apps using the camera.');
+  } else if (err.name === 'OverconstrainedError') {
+    toast.error('Camera does not support required settings. Please try again.');
+  } else if (err.message?.includes('timeout')) {
+    toast.error('Camera took too long to respond. Please try again.');
+  } else {
+    toast.error(`Could not access camera: ${err.message || 'Unknown error'}`);
+  }
+  
+  console.error('Camera error:', error);
+};
+
 export function VideoUploader({ 
   videoFile, 
   onVideoChange, 
@@ -25,7 +83,7 @@ export function VideoUploader({
   disabled 
 }: VideoUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [isRecording, setIsRecording] = useState(false);
+  const [cameraState, setCameraState] = useState<CameraState>('idle');
   const [recordingTime, setRecordingTime] = useState(0);
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -36,6 +94,7 @@ export function VideoUploader({
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mimeTypeRef = useRef<string>('');
 
   const MAX_DURATION_SECONDS = 180; // 3 minutes
 
@@ -152,23 +211,69 @@ export function VideoUploader({
     }
   };
 
-  // Webcam recording
-  const startRecording = async () => {
+  // Webcam recording with robust initialization
+  const startRecording = useCallback(async () => {
+    setCameraState('initializing');
+    
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user', width: 1280, height: 720 },
-        audio: true,
-      });
+      // Step 1: Request camera with fallback constraints
+      let stream: MediaStream;
+      try {
+        // Try preferred constraints first (front camera, HD)
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: true,
+        });
+      } catch (constraintError) {
+        // Fallback: accept any available camera
+        console.warn('Preferred camera constraints failed, using defaults:', constraintError);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
+      
       streamRef.current = stream;
 
+      // Step 2: Properly attach stream to video element and wait for it to be ready
       if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
+        const video = videoRef.current;
+        video.srcObject = stream;
+        
+        // Wait for video to be ready before playing
+        await new Promise<void>((resolve, reject) => {
+          const timeoutId = setTimeout(() => {
+            reject(new Error('Video load timeout'));
+          }, 5000);
+          
+          video.onloadedmetadata = () => {
+            clearTimeout(timeoutId);
+            video.play()
+              .then(() => resolve())
+              .catch(reject);
+          };
+          
+          video.onerror = () => {
+            clearTimeout(timeoutId);
+            reject(new Error('Video element error'));
+          };
+        });
       }
-
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9,opus',
-      });
+      
+      // Step 3: Create MediaRecorder with browser-compatible mimeType
+      const mimeType = getSupportedMimeType();
+      mimeTypeRef.current = mimeType;
+      
+      const recorderOptions: MediaRecorderOptions = {};
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType;
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
       chunksRef.current = [];
 
@@ -179,15 +284,24 @@ export function VideoUploader({
       };
 
       mediaRecorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: 'video/webm' });
-        const file = new File([blob], `recording_${Date.now()}.webm`, {
-          type: 'video/webm',
+        const actualMimeType = mimeTypeRef.current || 'video/webm';
+        const blob = new Blob(chunksRef.current, { type: actualMimeType });
+        const extension = getFileExtension(actualMimeType);
+        const file = new File([blob], `recording_${Date.now()}.${extension}`, {
+          type: actualMimeType,
         });
         handleFileSelect(file);
+        setCameraState('idle');
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('MediaRecorder error:', event);
+        toast.error('Recording failed. Please try again.');
+        stopRecording();
       };
 
       mediaRecorder.start(1000); // Collect data every second
-      setIsRecording(true);
+      setCameraState('recording');
       setRecordingTime(0);
 
       // Start timer
@@ -202,25 +316,45 @@ export function VideoUploader({
       }, 1000);
 
     } catch (error) {
-      toast.error('Could not access camera. Please check permissions.');
+      handleCameraError(error);
+      setCameraState('idle');
+      
+      // Cleanup on error
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
     }
-  };
+  }, [handleFileSelect]);
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && isRecording) {
+  const stopRecording = useCallback(() => {
+    // Stop MediaRecorder first
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
     }
+    
+    // Stop all tracks
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current.getTracks().forEach(track => {
+        track.stop();
+      });
+      streamRef.current = null;
     }
+    
+    // Clear timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
+      timerRef.current = null;
     }
-    setIsRecording(false);
+    
+    // Clear video element
     if (videoRef.current) {
       videoRef.current.srcObject = null;
+      videoRef.current.load(); // Reset video element state
     }
-  };
+    
+    // Note: setCameraState('idle') is handled in mediaRecorder.onstop
+  }, []);
 
   const clearVideo = () => {
     if (videoPreviewUrl) {
@@ -239,8 +373,40 @@ export function VideoUploader({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Show initializing UI
+  if (cameraState === 'initializing') {
+    return (
+      <Card className="border-2 border-primary">
+        <CardContent className="p-4">
+          <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
+            <div className="text-center text-white">
+              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+              <p className="text-lg font-medium">Initializing camera...</p>
+              <p className="text-sm text-white/70 mt-1">Please allow camera access if prompted</p>
+            </div>
+          </div>
+          <div className="flex justify-center mt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (streamRef.current) {
+                  streamRef.current.getTracks().forEach(track => track.stop());
+                  streamRef.current = null;
+                }
+                setCameraState('idle');
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   // Show recording UI
-  if (isRecording) {
+  if (cameraState === 'recording') {
     return (
       <Card className="border-2 border-destructive">
         <CardContent className="p-4">
@@ -249,6 +415,7 @@ export function VideoUploader({
               ref={videoRef}
               muted
               playsInline
+              autoPlay
               className="w-full h-full object-cover"
             />
             <div className="absolute top-3 left-3 flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm">
@@ -370,6 +537,14 @@ export function VideoUploader({
         <Camera className="h-4 w-4 mr-2" />
         Record with Camera
       </Button>
+      
+      {/* Hidden video element for recording - will be shown when recording starts */}
+      <video
+        ref={videoRef}
+        muted
+        playsInline
+        className="hidden"
+      />
     </div>
   );
 }
