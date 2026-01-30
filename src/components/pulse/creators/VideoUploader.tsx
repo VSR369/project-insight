@@ -2,12 +2,12 @@
  * Video Uploader Component
  * Drag/drop upload and webcam recording for reels
  * 
- * CRITICAL: Uses a SINGLE persistent video element to prevent stream loss
- * during React re-renders. The video element must stay mounted across all
- * camera states (idle, initializing, recording) to maintain the MediaStream.
+ * CRITICAL FIX: Uses deferred initialization pattern to prevent React timing bug.
+ * The video element is ALWAYS mounted (hidden when not in use) so videoRef.current
+ * is always valid. Camera initialization happens via useEffect AFTER render completes.
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, Video, Camera, X, StopCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -26,7 +26,7 @@ type CameraState = 'idle' | 'initializing' | 'recording' | 'stopping';
 
 /**
  * Detect the best supported mimeType for MediaRecorder
- * Handles cross-browser compatibility (Chrome, Firefox, Safari)
+ * VP8 is prioritized for better stability across browsers
  */
 const getSupportedMimeType = (): string => {
   const mimeTypes = [
@@ -44,7 +44,6 @@ const getSupportedMimeType = (): string => {
     }
   }
   
-  // Last resort: let browser choose
   console.warn('[VideoUploader] No preferred mimeType supported, using browser default');
   return '';
 };
@@ -92,6 +91,7 @@ export function VideoUploader({
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
 
+  // Refs - these persist across renders
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -99,6 +99,9 @@ export function VideoUploader({
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const mimeTypeRef = useRef<string>('');
+  
+  // Flag to track if we need to initialize camera after render
+  const pendingCameraInit = useRef<boolean>(false);
 
   const MAX_DURATION_SECONDS = 180; // 3 minutes
 
@@ -159,7 +162,6 @@ export function VideoUploader({
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
-        // Handle non-finite durations (can happen with some recordings)
         const duration = isFinite(video.duration) ? video.duration : 0;
         resolve(duration);
       };
@@ -203,6 +205,255 @@ export function VideoUploader({
     });
   };
 
+  // Cleanup helper - used by initializeCamera, cancelRecording, and onstop
+  const cleanupCamera = useCallback(() => {
+    console.log('[VideoUploader] Cleaning up camera...');
+    
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => {
+        console.log('[VideoUploader] Stopping track:', track.kind);
+        track.stop();
+      });
+      streamRef.current = null;
+    }
+    
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    chunksRef.current = [];
+    mediaRecorderRef.current = null;
+  }, []);
+
+  // Initialize camera - called by useEffect AFTER video element is mounted
+  const initializeCamera = useCallback(async () => {
+    console.log('[VideoUploader] initializeCamera starting...');
+    
+    // Double-check video element is available
+    if (!videoRef.current) {
+      console.error('[VideoUploader] Video element not found!');
+      toast.error('Camera initialization failed. Please try again.');
+      setCameraState('idle');
+      return;
+    }
+    
+    try {
+      // Step 1: Request camera with fallback constraints
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { 
+            facingMode: 'user',
+            width: { ideal: 1280 },
+            height: { ideal: 720 }
+          },
+          audio: true,
+        });
+      } catch (constraintError) {
+        console.warn('[VideoUploader] Preferred constraints failed, using defaults:', constraintError);
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: true,
+        });
+      }
+      
+      streamRef.current = stream;
+      console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => `${t.kind}:${t.readyState}`));
+
+      // Step 2: Attach stream to video element
+      const video = videoRef.current;
+      video.srcObject = stream;
+      video.muted = true; // Prevent audio feedback
+      
+      console.log('[VideoUploader] Stream attached to video element');
+      
+      // Step 3: Wait for video to be ready
+      await new Promise<void>((resolve, reject) => {
+        const timeoutId = setTimeout(() => {
+          reject(new Error('Video load timeout'));
+        }, 5000);
+        
+        const handleLoadedMetadata = () => {
+          clearTimeout(timeoutId);
+          video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          console.log('[VideoUploader] Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
+          
+          video.play()
+            .then(() => {
+              console.log('[VideoUploader] Video playing successfully');
+              resolve();
+            })
+            .catch((playError) => {
+              console.error('[VideoUploader] Video play failed:', playError);
+              reject(playError);
+            });
+        };
+        
+        video.addEventListener('loadedmetadata', handleLoadedMetadata);
+        
+        // If metadata already loaded
+        if (video.readyState >= 1) {
+          clearTimeout(timeoutId);
+          video.removeEventListener('loadedmetadata', handleLoadedMetadata);
+          video.play()
+            .then(() => {
+              console.log('[VideoUploader] Video already ready, playing');
+              resolve();
+            })
+            .catch(reject);
+        }
+      });
+      
+      // Step 4: Create MediaRecorder
+      const mimeType = getSupportedMimeType();
+      mimeTypeRef.current = mimeType;
+      
+      const recorderOptions: MediaRecorderOptions = {
+        videoBitsPerSecond: 2500000, // 2.5 Mbps for better quality
+      };
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType;
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
+      mediaRecorderRef.current = mediaRecorder;
+      chunksRef.current = [];
+
+      // Data handler
+      mediaRecorder.ondataavailable = (e) => {
+        console.log('[VideoUploader] Chunk received:', e.data.size, 'bytes');
+        if (e.data.size > 0) {
+          chunksRef.current.push(e.data);
+        }
+      };
+
+      // Stop handler - CRITICAL: cleanup happens here AFTER blob is created
+      mediaRecorder.onstop = () => {
+        console.log('[VideoUploader] MediaRecorder.onstop fired');
+        
+        const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        console.log('[VideoUploader] Total recorded:', chunksRef.current.length, 'chunks,', totalSize, 'bytes');
+        
+        // Validate minimum size (10KB minimum for a valid recording)
+        if (totalSize < 10000) {
+          console.error('[VideoUploader] Recording too small:', totalSize);
+          toast.error('Recording failed - please try again');
+          cleanupCamera();
+          setCameraState('idle');
+          return;
+        }
+        
+        // Create blob with BASE MIME type (strip codec params)
+        const fullMimeType = mimeTypeRef.current || 'video/webm';
+        const baseMimeType = fullMimeType.split(';')[0].trim();
+        const extension = getFileExtension(fullMimeType);
+        
+        console.log('[VideoUploader] Creating blob with type:', baseMimeType);
+        
+        const blob = new Blob(chunksRef.current, { type: baseMimeType });
+        const file = new File([blob], `recording_${Date.now()}.${extension}`, {
+          type: baseMimeType,
+        });
+        
+        console.log('[VideoUploader] File created:', file.name, file.size, 'bytes');
+        
+        // Pass file to handler
+        handleFileSelect(file);
+        
+        // NOW cleanup - AFTER file is created
+        cleanupCamera();
+        setCameraState('idle');
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error('[VideoUploader] MediaRecorder error:', event);
+        toast.error('Recording failed. Please try again.');
+        cleanupCamera();
+        setCameraState('idle');
+      };
+
+      // Start recording
+      mediaRecorder.start(1000); // Collect data every second
+      console.log('[VideoUploader] Recording started');
+      
+      setCameraState('recording');
+      setRecordingTime(0);
+
+      // Start timer
+      timerRef.current = setInterval(() => {
+        setRecordingTime(prev => {
+          if (prev >= MAX_DURATION_SECONDS - 1) {
+            stopRecording();
+            return prev;
+          }
+          return prev + 1;
+        });
+      }, 1000);
+
+    } catch (error) {
+      handleCameraError(error);
+      cleanupCamera();
+      setCameraState('idle');
+    }
+  }, [handleFileSelect, cleanupCamera]);
+
+  // Handle camera initialization AFTER state change and DOM update
+  useEffect(() => {
+    if (pendingCameraInit.current && cameraState === 'initializing') {
+      pendingCameraInit.current = false;
+      // Use requestAnimationFrame to ensure DOM is fully updated
+      requestAnimationFrame(() => {
+        initializeCamera();
+      });
+    }
+  }, [cameraState, initializeCamera]);
+
+  // Start recording - sets state and schedules camera init
+  const startRecording = useCallback(() => {
+    console.log('[VideoUploader] startRecording called - scheduling initialization');
+    pendingCameraInit.current = true;
+    setCameraState('initializing');
+    // Camera will be initialized by useEffect after this render completes
+  }, []);
+
+  // Stop recording - signals stop, lets onstop handle cleanup
+  const stopRecording = useCallback(() => {
+    console.log('[VideoUploader] stopRecording called');
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.log('[VideoUploader] Requesting final data and stopping...');
+      mediaRecorderRef.current.requestData();
+      mediaRecorderRef.current.stop();
+      setCameraState('stopping');
+      // onstop handler will do the rest
+    }
+  }, []);
+
+  // Cancel recording - cleanup without saving
+  const cancelRecording = useCallback(() => {
+    console.log('[VideoUploader] cancelRecording called');
+    
+    // Clear chunks so onstop doesn't process them
+    chunksRef.current = [];
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    
+    cleanupCamera();
+    setCameraState('idle');
+  }, [cleanupCamera]);
+
   // Drag and drop handlers
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -231,234 +482,6 @@ export function VideoUploader({
     }
   };
 
-  // Webcam recording with robust initialization
-  const startRecording = useCallback(async () => {
-    setCameraState('initializing');
-    console.log('[VideoUploader] Starting camera initialization...');
-    
-    try {
-      // Step 1: Request camera with fallback constraints
-      let stream: MediaStream;
-      try {
-        // Try preferred constraints first (front camera, HD)
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { 
-            facingMode: 'user',
-            width: { ideal: 1280 },
-            height: { ideal: 720 }
-          },
-          audio: true,
-        });
-      } catch (constraintError) {
-        // Fallback: accept any available camera
-        console.warn('[VideoUploader] Preferred camera constraints failed, using defaults:', constraintError);
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
-      }
-      
-      streamRef.current = stream;
-      console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => t.kind));
-
-      // Step 2: Attach stream to persistent video element
-      if (videoRef.current) {
-        const video = videoRef.current;
-        video.srcObject = stream;
-        
-        // Wait for video to be ready before playing
-        await new Promise<void>((resolve, reject) => {
-          const timeoutId = setTimeout(() => {
-            reject(new Error('Video load timeout'));
-          }, 5000);
-          
-          video.onloadedmetadata = () => {
-            clearTimeout(timeoutId);
-            console.log('[VideoUploader] Video metadata loaded');
-            video.play()
-              .then(() => {
-                console.log('[VideoUploader] Video playing');
-                resolve();
-              })
-              .catch(reject);
-          };
-          
-          video.onerror = () => {
-            clearTimeout(timeoutId);
-            reject(new Error('Video element error'));
-          };
-        });
-      }
-      
-      // Step 3: Create MediaRecorder with browser-compatible mimeType
-      const mimeType = getSupportedMimeType();
-      mimeTypeRef.current = mimeType;
-      
-      const recorderOptions: MediaRecorderOptions = {};
-      if (mimeType) {
-        recorderOptions.mimeType = mimeType;
-      }
-      
-      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
-      mediaRecorderRef.current = mediaRecorder;
-      chunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (e) => {
-        console.log('[VideoUploader] ondataavailable:', e.data.size, 'bytes');
-        if (e.data.size > 0) {
-          chunksRef.current.push(e.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        console.log('[VideoUploader] 4. onstop fired');
-        
-        // Calculate total size
-        const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
-        console.log('[VideoUploader] Total recorded size:', totalSize, 'bytes');
-        
-        // Validate minimum size (10KB minimum for a valid recording)
-        if (totalSize < 10000) {
-          console.error('[VideoUploader] Recording too small:', totalSize);
-          toast.error('Recording failed - please try again');
-          
-          // Cleanup and return to idle
-          if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-          }
-          if (videoRef.current) {
-            videoRef.current.srcObject = null;
-          }
-          chunksRef.current = [];
-          setCameraState('idle');
-          return;
-        }
-        
-        // Create blob with BASE MIME type (strip codec params)
-        const fullMimeType = mimeTypeRef.current || 'video/webm';
-        const baseMimeType = fullMimeType.split(';')[0].trim();
-        const extension = getFileExtension(fullMimeType);
-        
-        const blob = new Blob(chunksRef.current, { type: baseMimeType });
-        const file = new File([blob], `recording_${Date.now()}.${extension}`, {
-          type: baseMimeType,
-        });
-        
-        console.log('[VideoUploader] 5. File created:', {
-          name: file.name,
-          size: file.size,
-          type: file.type
-        });
-        
-        // Pass file to handler
-        handleFileSelect(file);
-        
-        // ✅ NOW cleanup - AFTER file is created
-        console.log('[VideoUploader] 6. Cleaning up stream and video element');
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => {
-            console.log('[VideoUploader] Stopping track:', track.kind);
-            track.stop();
-          });
-          streamRef.current = null;
-        }
-        if (videoRef.current) {
-          videoRef.current.srcObject = null;
-        }
-        chunksRef.current = [];
-        
-        setCameraState('idle');
-      };
-
-      mediaRecorder.onerror = (event) => {
-        console.error('[VideoUploader] MediaRecorder error:', event);
-        toast.error('Recording failed. Please try again.');
-        stopRecording();
-      };
-
-      mediaRecorder.start(1000); // Collect data every second
-      console.log('[VideoUploader] MediaRecorder started');
-      
-      setCameraState('recording');
-      setRecordingTime(0);
-
-      // Start timer
-      timerRef.current = setInterval(() => {
-        setRecordingTime(prev => {
-          if (prev >= MAX_DURATION_SECONDS - 1) {
-            stopRecording();
-            return prev;
-          }
-          return prev + 1;
-        });
-      }, 1000);
-
-    } catch (error) {
-      handleCameraError(error);
-      setCameraState('idle');
-      
-      // Cleanup on error
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop());
-        streamRef.current = null;
-      }
-    }
-  }, [handleFileSelect]);
-
-  const stopRecording = useCallback(() => {
-    console.log('[VideoUploader] 1. stopRecording called');
-    
-    // Only stop the recorder - DO NOT cleanup here
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      console.log('[VideoUploader] 2. Requesting final data...');
-      mediaRecorderRef.current.requestData();
-      mediaRecorderRef.current.stop();
-      console.log('[VideoUploader] 3. stop() called, waiting for onstop...');
-    }
-    
-    // Clear timer (safe to do here - doesn't affect recording)
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
-    // Set stopping state to show "Finalizing..." UI
-    setCameraState('stopping');
-    
-    // ✅ NO cleanup here! Let onstop handle it after blob is created
-  }, []);
-
-  const cancelRecording = useCallback(() => {
-    console.log('[VideoUploader] cancelRecording called');
-    
-    // Stop without processing
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      // Clear chunks so onstop doesn't process them
-      chunksRef.current = [];
-      mediaRecorderRef.current.stop();
-    }
-    
-    // Stop all tracks
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-    
-    // Clear timer
-    if (timerRef.current) {
-      clearInterval(timerRef.current);
-      timerRef.current = null;
-    }
-    
-    // Clear video element
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-    
-    setCameraState('idle');
-  }, []);
-
   const clearVideo = () => {
     if (videoPreviewUrl) {
       URL.revokeObjectURL(videoPreviewUrl);
@@ -476,23 +499,19 @@ export function VideoUploader({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Determine if we should show camera UI (initializing, recording, or stopping)
+  // UI state flags
   const showCameraUI = cameraState === 'initializing' || cameraState === 'recording' || cameraState === 'stopping';
-  
-  // Determine if we should show video preview (file selected)
   const showPreview = videoFile && videoPreviewUrl && cameraState === 'idle';
-  
-  // Determine if we should show upload zone (idle, no file)
   const showUploadZone = cameraState === 'idle' && !videoFile;
 
   return (
     <div className="space-y-3">
-      {/* Camera UI - Initializing or Recording */}
-      {showCameraUI && (
+      {/* Camera Container - Always mounted, visibility controlled by CSS */}
+      <div className={showCameraUI ? '' : 'hidden'}>
         <Card className={`border-2 ${cameraState === 'recording' ? 'border-destructive' : 'border-primary'}`}>
           <CardContent className="p-4">
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-              {/* PERSISTENT video element - stays mounted across states */}
+              {/* ALWAYS MOUNTED video element - visibility controlled by parent div */}
               <video
                 ref={videoRef}
                 muted
@@ -570,7 +589,7 @@ export function VideoUploader({
             </div>
           </CardContent>
         </Card>
-      )}
+      </div>
 
       {/* Preview - Video file selected */}
       {showPreview && (
@@ -580,6 +599,7 @@ export function VideoUploader({
               <video
                 src={videoPreviewUrl}
                 controls
+                playsInline
                 className="w-full h-full object-contain"
               />
               <Button
@@ -605,6 +625,10 @@ export function VideoUploader({
               </span>
               <span>{formatBytes(videoFile.size)}</span>
             </div>
+            {/* Audio hint */}
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              🔊 Click the video and use speaker icon to hear audio
+            </p>
           </CardContent>
         </Card>
       )}
