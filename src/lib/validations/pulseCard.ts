@@ -3,7 +3,7 @@
  */
 
 import { z } from 'zod';
-import { CARD_LIMITS, FLAG_TYPES } from '@/constants/pulseCards.constants';
+import { CARD_LIMITS } from '@/constants/pulseCards.constants';
 
 // ===========================================
 // Card Schemas
@@ -53,16 +53,14 @@ export type VoteInput = z.infer<typeof voteSchema>;
 // Flag Schemas
 // ===========================================
 
-const flagTypeValues = Object.values(FLAG_TYPES).map(ft => ft.value) as [string, ...string[]];
-
-export const createFlagSchema = z.object({
+export const flagSchema = z.object({
   target_type: z.enum(['card', 'layer']),
   target_id: z.string().uuid('Target ID is required'),
-  flag_type: z.enum(flagTypeValues),
+  flag_type: z.enum(['spam', 'false_claim', 'uncited', 'unconstructive', 'other']),
   description: z.string().max(500, 'Description too long').optional(),
 });
 
-export type CreateFlagInput = z.infer<typeof createFlagSchema>;
+export type FlagInput = z.infer<typeof flagSchema>;
 
 // ===========================================
 // Topic Schemas
