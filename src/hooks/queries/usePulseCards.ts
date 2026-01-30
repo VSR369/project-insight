@@ -27,6 +27,10 @@ export interface PulseCard {
   created_at: string;
   updated_at: string | null;
   created_by: string | null;
+  // Compilation fields
+  compiled_narrative: string | null;
+  compiled_at: string | null;
+  compilation_stale: boolean;
   // Joined data
   topic?: {
     id: string;

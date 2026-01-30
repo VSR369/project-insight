@@ -1,5 +1,8 @@
 project_id = "izwimkvabbvnqcrrubpf"
 
+[functions.compile-card-narrative]
+verify_jwt = false
+
 [functions.create-pulse-xp-snapshot]
 verify_jwt = false
 
