@@ -4,17 +4,22 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { PulseLayout } from '@/components/pulse/layout';
-import { ContentCard } from '@/components/pulse/content';
+import { ContentCard, PulseCardFeedItem } from '@/components/pulse/content';
 import { DailyStandupBanner, PersonalizedFeedHeader } from '@/components/pulse/gamification';
-import { usePulseFeed } from '@/hooks/queries/usePulseContent';
+import { useUnifiedPulseFeed } from '@/hooks/queries/useUnifiedPulseFeed';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+
 export default function PulseFeedPage() {
   const navigate = useNavigate();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { data: feedContent, isLoading, isRefetching, refetch, error } = usePulseFeed();
+  const { data: feedItems, isLoading, isRefetching, refetch, error } = useUnifiedPulseFeed();
 
   const handleContentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}`);
+  };
+
+  const handleCardClick = (cardId: string) => {
+    navigate(`/pulse/cards/${cardId}`);
   };
 
   const handleProfileClick = (providerId: string) => {
@@ -23,14 +28,6 @@ export default function PulseFeedPage() {
 
   const handleCommentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}#comments`);
-  };
-
-  // Transform tags from {tag: {id, name}}[] to {id, name}[]
-  const transformContent = (content: typeof feedContent) => {
-    return content?.map(c => ({
-      ...c,
-      tags: c.tags?.map(t => t.tag) ?? [],
-    }));
   };
 
   if (providerLoading) {
@@ -93,8 +90,6 @@ export default function PulseFeedPage() {
     );
   }
 
-  const transformedContent = transformContent(feedContent);
-
   // Provider name from available fields
   const providerName = `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there';
 
@@ -153,7 +148,7 @@ export default function PulseFeedPage() {
               </div>
             ))}
           </div>
-        ) : !transformedContent || transformedContent.length === 0 ? (
+        ) : !feedItems || feedItems.length === 0 ? (
           <div className="text-center py-16 px-4">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Rss className="h-8 w-8 text-primary" aria-hidden="true" />
@@ -173,16 +168,33 @@ export default function PulseFeedPage() {
           </div>
         ) : (
           <div className="divide-y divide-border" role="feed" aria-label="Content feed">
-            {transformedContent.map((content) => (
-              <ContentCard
-                key={content.id}
-                content={content}
-                currentUserProviderId={provider.id}
-                onContentClick={() => handleContentClick(content.id)}
-                onProfileClick={() => handleProfileClick(content.provider_id)}
-                onCommentClick={() => handleCommentClick(content.id)}
-              />
-            ))}
+            {feedItems.map((item) => {
+              if (item.type === 'card' && item.card) {
+                return (
+                  <PulseCardFeedItem
+                    key={`card-${item.id}`}
+                    card={item.card}
+                    onCardClick={() => handleCardClick(item.id)}
+                    onProfileClick={() => handleProfileClick(item.card!.seed_creator_id)}
+                  />
+                );
+              }
+              
+              if (item.type === 'content' && item.content) {
+                return (
+                  <ContentCard
+                    key={`content-${item.id}`}
+                    content={item.content as any}
+                    currentUserProviderId={provider.id}
+                    onContentClick={() => handleContentClick(item.id)}
+                    onProfileClick={() => handleProfileClick(item.content!.provider_id)}
+                    onCommentClick={() => handleCommentClick(item.id)}
+                  />
+                );
+              }
+              
+              return null;
+            })}
           </div>
         )}
       </div>
