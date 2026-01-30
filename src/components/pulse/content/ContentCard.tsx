@@ -191,7 +191,7 @@ export const ContentCard = memo(function ContentCard({
 
         {/* Media Preview */}
         {content.media_urls && Array.isArray(content.media_urls) && (content.media_urls as string[]).length > 0 && (
-          <div className="mb-3 relative">
+          <div className="mb-3 relative flex justify-center">
             <MediaRenderer
               contentType={content.content_type as PulseContentType}
               mediaUrls={content.media_urls as string[]}
