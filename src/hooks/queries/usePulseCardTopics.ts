@@ -31,11 +31,11 @@ export interface PulseCardTopic {
   industry_segment?: {
     id: string;
     name: string;
-  };
+  } | null;
 }
 
 // ===========================================
-// Query: Fetch all active topics
+// Query: Fetch all active topics (admin use)
 // ===========================================
 
 export function usePulseCardTopics(includeInactive: boolean = false) {
@@ -62,6 +62,50 @@ export function usePulseCardTopics(includeInactive: boolean = false) {
     },
     staleTime: 5 * 60 * 1000, // 5 minutes - topics don't change often
     gcTime: 30 * 60 * 1000, // 30 minutes
+  });
+}
+
+// ===========================================
+// Query: Fetch topics for provider's enrolled industries
+// ===========================================
+
+export function usePulseCardTopicsForProvider(industrySegmentIds: string[]) {
+  return useQuery({
+    queryKey: ['pulse-card-topics-for-provider', industrySegmentIds],
+    queryFn: async () => {
+      // Build filter for: General topics (NULL) OR matching industries
+      let query = supabase
+        .from('pulse_card_topics')
+        .select(`
+          *,
+          industry_segment:industry_segments(id, name)
+        `)
+        .eq('is_active', true);
+
+      // If provider has enrolled industries, filter to those + general
+      // If no enrollments, show only general topics
+      if (industrySegmentIds.length > 0) {
+        // Filter: industry_segment_id IS NULL OR in enrolled list
+        query = query.or(
+          `industry_segment_id.is.null,industry_segment_id.in.(${industrySegmentIds.join(',')})`
+        );
+      } else {
+        // No enrollments - only show general topics
+        query = query.is('industry_segment_id', null);
+      }
+
+      query = query
+        .order('industry_segment_id', { ascending: true, nullsFirst: true })
+        .order('display_order', { ascending: true });
+
+      const { data, error } = await query;
+
+      if (error) throw new Error(error.message);
+      return data as PulseCardTopic[];
+    },
+    enabled: true, // Always enabled, even with empty array
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -124,6 +168,7 @@ export function useCreatePulseCardTopic() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pulse-card-topics'] });
+      queryClient.invalidateQueries({ queryKey: ['pulse-card-topics-for-provider'] });
       toast.success('Topic created successfully');
     },
     onError: (error: Error) => {
@@ -156,6 +201,7 @@ export function useUpdatePulseCardTopic() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pulse-card-topics'] });
+      queryClient.invalidateQueries({ queryKey: ['pulse-card-topics-for-provider'] });
       toast.success('Topic updated');
     },
     onError: (error: Error) => {
@@ -186,6 +232,7 @@ export function useDeactivatePulseCardTopic() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pulse-card-topics'] });
+      queryClient.invalidateQueries({ queryKey: ['pulse-card-topics-for-provider'] });
       toast.success('Topic deactivated');
     },
     onError: (error: Error) => {
