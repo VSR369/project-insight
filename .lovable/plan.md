@@ -1,350 +1,187 @@
 
-# Phase E: Requirements Completion - Full Implementation Plan
 
-## Gap Analysis Summary
+# 5-Why Root Cause Analysis: Pulse Content Upload Failures
 
-After comparing the **Industry Pulse Requirements Document** against the current codebase, I have identified **13 specific gaps** that need to be addressed for 100% compliance.
-
----
-
-## Identified Gaps (Categorized by Priority)
-
-### HIGH Priority Gaps
-
-| # | Requirement ID | Gap Description | Current State | Required State |
-|---|----------------|-----------------|---------------|----------------|
-| 1 | **DASH-005/006** | Online network count | Not implemented | Display real-time count of online network connections, update every 60 seconds |
-| 2 | **FEED-004** | Video duration badge | Not shown on feed cards | Display video duration badge in top-right corner of reel thumbnails |
-| 3 | **FEED-011** | Mini trend visualization | Not implemented for Sparks | Display mini bar chart showing growth/trend on Knowledge Spark data cards |
-| 4 | **PULSE-001 to 010** | Pulse Metrics section | Missing from Sparks page | Add analytics dashboard showing impressions, engagement rate, top content, follower growth, rank change |
-| 5 | **ART-001 to 004** | Rich text formatting | Plain textarea with Markdown hint | WYSIWYG-style editor with formatting toolbar (bold, italic, headings, lists) |
-
-### MEDIUM Priority Gaps
-
-| # | Requirement ID | Gap Description | Current State | Required State |
-|---|----------------|-----------------|---------------|----------------|
-| 6 | **SPRK-010** | Auto-extract statistics | Not implemented | Auto-extract percentages/stats from insight text and create trend visualization |
-| 7 | **RNK-003** | Monthly leaderboard | Only Weekly + All Time | Add "This Month" period filter to Galaxy Leaderboard |
-| 8 | **SKL-008** | Skill badge on content | Not shown on ContentCard | Display verified skill badge next to creator name in feed |
-| 9 | **STK-006** | Streak break reminder | Not implemented | Send notification before streak breaks (end of day reminder) |
-
-### LOW Priority Gaps
-
-| # | Requirement ID | Gap Description | Current State | Required State |
-|---|----------------|-----------------|---------------|----------------|
-| 10 | **IMG-008** | Drag to reorder images | Not implemented | Allow drag-to-reorder in gallery creator |
-| 11 | **ENG-010** | Real-time engagement | 5s polling exists | Already implemented via polling (acceptable) |
-| 12 | **RNK-009** | Pull-to-refresh | Button refresh exists | Add pull-to-refresh gesture on mobile |
-| 13 | **LOOT-007** | Celebration animation | Basic modal | Enhance loot box animation with confetti/particle effects |
-
----
-
-## Implementation Plan
-
-### Section 1: Online Network Count (DASH-005, DASH-006)
-
-**Objective:** Display real-time count of online network connections with 60-second polling.
-
-**Files to Modify:**
-- `src/components/pulse/gamification/PersonalizedFeedHeader.tsx`
-- `src/hooks/queries/usePulseStats.ts` (add new hook)
-
-**Implementation:**
-1. Create `useOnlineNetworkCount` hook that queries `pulse_provider_stats` for providers with `last_activity_date = today`
-2. Set polling interval to 60 seconds using `refetchInterval`
-3. Display count in PersonalizedFeedHeader: `"{count} online in your network"`
-
-**Database Query:**
-```sql
-SELECT COUNT(*) FROM pulse_provider_stats
-WHERE last_activity_date = CURRENT_DATE
-  AND provider_id IN (
-    SELECT followed_id FROM pulse_follows WHERE follower_id = {current_provider_id}
-  )
+## 📋 Issue Summary
+All content types (reels, podcasts, knowledge sparks, articles, galleries, quick posts) fail to upload with error:
+```
+"new row violates row-level security policy"
 ```
 
 ---
 
-### Section 2: Video Duration Badge (FEED-004)
+## 🔍 5-Why Analysis
 
-**Objective:** Show video duration overlay on reel thumbnails in feed.
+### Why #1: Why does the upload fail?
+**Answer:** The Supabase Storage RLS policy rejects the upload request with "Unauthorized" error.
 
-**Files to Modify:**
-- `src/components/pulse/content/ContentCard.tsx`
-- `src/components/pulse/content/MediaRenderer.tsx`
+### Why #2: Why does RLS reject the request?
+**Answer:** The RLS policy condition `(storage.foldername(name))[1] = (auth.uid())::text` evaluates to `false`.
 
-**Implementation:**
-1. Add `duration_seconds` field to content data (already in DB schema)
-2. Format duration as "MM:SS" or "M:SS"
-3. Display badge in top-right corner of video preview with semi-transparent background
+### Why #3: Why does the condition evaluate to false?
+**Answer:** The code is uploading to path:
+- **Actual path:** `ce00180c-1ff5-4e48-8d79-d4eb7ada8070/post/...` (provider_id)
+- **Expected by RLS:** `32aec070-360a-4d73-a6dd-28961c629ca6/...` (auth.uid/user_id)
 
-**UI Component:**
-```tsx
-{content.content_type === 'reel' && content.duration_seconds && (
-  <Badge className="absolute top-2 right-2 bg-black/70 text-white text-xs">
-    {formatDuration(content.duration_seconds)}
-  </Badge>
-)}
-```
+The first folder segment is the **provider_id**, but RLS expects **user_id (auth.uid())**.
 
----
-
-### Section 3: Pulse Metrics Section (PULSE-001 to PULSE-010)
-
-**Objective:** Add comprehensive analytics dashboard to the Sparks page.
-
-**Files to Modify:**
-- `src/pages/pulse/PulseSparksPage.tsx`
-- `src/components/pulse/gamification/PulseMetricsCard.tsx` (new file)
-- `src/hooks/queries/usePulseStats.ts`
-
-**Implementation:**
-1. Create `PulseMetricsCard` component with 5 metric displays
-2. Create `usePulseMetrics` hook querying aggregated impression/engagement data
-3. Integrate into Sparks page above the Knowledge Sparks list
-
-**Metrics to Display:**
-- **Impressions this week:** Query `pulse_content_impressions` with period filter
-- **Engagement rate:** Calculate (total_engagements / total_impressions) × 100
-- **Top performing content:** Query `pulse_content` ORDER BY `fire_count + gold_count * 5 DESC LIMIT 1`
-- **Follower growth:** Query `pulse_follows` count for period vs previous period
-- **Industry rank change:** Already calculated in leaderboard hooks
-
-**UI Layout:**
-```
-┌────────────────────────────────────┐
-│       YOUR PULSE METRICS           │
-├──────────┬──────────┬──────────────┤
-│ 12,400   │   8.2%   │   +23        │
-│ Impress. │ Eng Rate │  Followers   │
-├──────────┴──────────┴──────────────┤
-│ Top Post: AI Diagnostics (847 🔥)   │
-│ Rank: #7 Healthcare (↑12)           │
-└────────────────────────────────────┘
-```
-
----
-
-### Section 4: Knowledge Spark Trend Visualization (FEED-011, SPRK-010)
-
-**Objective:** Display mini bar chart on Spark cards when statistics are present.
-
-**Files to Modify:**
-- `src/components/pulse/content/ContentCard.tsx`
-- `src/components/pulse/content/SparkTrendChart.tsx` (new file)
-- `src/components/pulse/creators/SparkBuilder.tsx`
-
-**Implementation:**
-1. Create `SparkTrendChart` component using Recharts (already installed)
-2. Auto-extract statistics from `key_insight` text using regex patterns
-3. Generate mock trend data based on extracted value (e.g., +23% → upward trend)
-4. Display compact bar chart (40px height) on Spark cards
-
-**Regex Patterns for Stat Extraction:**
+### Why #4: Why is provider_id being used instead of user_id?
+**Answer:** The `generateStoragePath()` function receives `providerId` from components:
 ```typescript
-const STAT_PATTERNS = [
-  /(\d+(?:\.\d+)?)\s*%/,           // Percentages: "94%"
-  /\$(\d+(?:,\d{3})*(?:\.\d+)?)/,  // Currency: "$1,234"
-  /(\d+(?:,\d{3})*)\s*(million|billion|K|M|B)/i, // Large numbers
-  /(\d+)x/,                         // Multipliers: "10x"
-];
+const path = generateStoragePath(providerId, contentType, file.name);
+// Generates: {providerId}/{contentType}/{timestamp}_{filename}
 ```
 
----
-
-### Section 5: Rich Text Article Editor (ART-001 to ART-004)
-
-**Objective:** Replace plain textarea with rich text formatting toolbar.
-
-**Files to Modify:**
-- `src/components/pulse/creators/ArticleEditor.tsx`
-- `src/components/pulse/creators/RichTextToolbar.tsx` (new file)
-
-**Implementation:**
-1. Create `RichTextToolbar` component with formatting buttons
-2. Use contenteditable div or implement Markdown shortcuts
-3. Support: Bold (Ctrl+B), Italic (Ctrl+I), Headings (H1-H3), Bullet lists, Numbered lists
-4. Convert to Markdown before storage (already supports Markdown)
-
-**Toolbar Layout:**
-```
-┌───┬───┬────┬────┬────┬───┬───┐
-│ B │ I │ H1 │ H2 │ H3 │ • │ 1.│
-└───┴───┴────┴────┴────┴───┴───┘
+All creator components pass `provider.id`:
+```typescript
+providerId: provider.id  // This is solution_providers.id, NOT auth.uid()
 ```
 
-**Approach:** Use keyboard shortcuts with Markdown syntax insertion:
-- **Bold:** Wrap selection with `**text**`
-- **Italic:** Wrap selection with `*text*`
-- **H1:** Prefix line with `# `
-- **List:** Prefix line with `- ` or `1. `
+### Why #5: Why wasn't this mismatch caught during design?
+**Answer:** There's a conceptual mismatch between two valid approaches:
+- **RLS Policy Design:** Based on `auth.uid()` (user's auth ID) for security
+- **Path Generation Code:** Based on `provider.id` (business entity ID) for organization
+
+The Memory note stated "folder-based storage model where authenticated users can only upload to and manage files within their own `/{user_id}/` subfolders" but the implementation used `provider_id`.
 
 ---
 
-### Section 6: Monthly Leaderboard Period (RNK-003)
+## ✅ Root Cause (Single Sentence)
+**The upload path uses `provider_id` as the first folder segment, but the RLS policy expects `auth.uid()` (user_id), causing a permanent mismatch for all authenticated uploads.**
 
-**Objective:** Add "This Month" tab to Galaxy Leaderboard.
+---
 
-**Files to Modify:**
-- `src/hooks/queries/usePulseStats.ts`
-- `src/pages/pulse/PulseRanksPage.tsx`
+## 🔧 Solution Options
 
-**Implementation:**
-1. Create `useMonthlyLeaderboard` hook similar to `useWeeklyLeaderboard`
-2. Calculate XP change from `pulse_xp_snapshots` with monthly date range
-3. Add "This Month" tab to period selector
+### Option A: Fix the Code (Recommended)
+Change `generateStoragePath()` to use `user_id` instead of `provider_id`:
 
-**Period Tab Update:**
-```tsx
-<TabsList>
-  <TabsTrigger value="weekly">This Week</TabsTrigger>
-  <TabsTrigger value="monthly">This Month</TabsTrigger>
-  <TabsTrigger value="all">All Time</TabsTrigger>
-</TabsList>
+**File:** `src/lib/validations/media.ts`
+```typescript
+// Before (broken):
+export function generateStoragePath(
+  providerId: string, 
+  contentType: string, 
+  filename: string
+): string {
+  return `${providerId}/${contentType}/${timestamp}_${sanitized}`;
+}
+
+// After (fixed):
+export function generateStoragePath(
+  userId: string,  // Renamed parameter 
+  contentType: string, 
+  filename: string
+): string {
+  return `${userId}/${contentType}/${timestamp}_${sanitized}`;
+}
 ```
 
----
+**Update all callers** to pass `user.id` (from auth) instead of `provider.id`:
+- `PostCreator.tsx`
+- `ReelCreator.tsx`
+- `PodcastStudio.tsx`
+- `ArticleEditor.tsx`
+- `GalleryCreator.tsx`
+- `SparkBuilder.tsx` (if it has media)
 
-### Section 7: Skill Badge on Content Cards (SKL-008)
+This requires getting the authenticated user's ID via `supabase.auth.getUser()` or a context hook.
 
-**Objective:** Display verified skill badge next to creator name in feed.
+### Option B: Fix the RLS Policy (Alternative)
+Modify the storage RLS policy to use provider_id mapping:
 
-**Files to Modify:**
-- `src/components/pulse/content/ContentCard.tsx`
-- `src/hooks/queries/usePulseContent.ts` (add skill join)
+```sql
+-- Change from:
+(storage.foldername(name))[1] = (auth.uid())::text
 
-**Implementation:**
-1. Extend feed query to join `pulse_provider_stats` for top skill
-2. Add verified skill badge component next to provider name
-3. Show skill name with checkmark icon
-
-**Badge Display:**
-```tsx
-{content.provider?.verified_skill && (
-  <Badge variant="outline" className="text-[10px] text-green-600">
-    <CheckCircle className="h-3 w-3 mr-1" />
-    {content.provider.verified_skill}
-  </Badge>
-)}
+-- Change to (lookup provider_id from solution_providers):
+(storage.foldername(name))[1] IN (
+  SELECT id::text FROM solution_providers WHERE user_id = auth.uid()
+)
 ```
 
----
-
-### Section 8: Streak Break Reminder (STK-006)
-
-**Objective:** Notify users before their streak breaks.
-
-**Files to Create/Modify:**
-- `supabase/functions/send-streak-reminder/index.ts` (new)
-- Database: Add scheduled cron job
-
-**Implementation:**
-1. Create edge function that runs daily at 9 PM local time (or configurable)
-2. Query users with active streaks who haven't had activity today
-3. Send push notification or email reminder
-4. "Don't lose your {streak} day streak! Log in now to keep it going."
-
-**Cron Schedule:** `0 21 * * *` (9 PM daily)
+**Pros:** Less code changes
+**Cons:** More complex RLS query, potential performance impact
 
 ---
 
-### Section 9: Gallery Drag-to-Reorder (IMG-008)
+## 📝 Implementation Plan (Option A - Code Fix)
 
-**Objective:** Allow users to reorder images in gallery by dragging.
+### Step 1: Update Path Generation Signature
+Update `generateStoragePath` to clearly expect `userId`:
 
-**Files to Modify:**
-- `src/components/pulse/creators/GalleryCreator.tsx`
-- `src/components/pulse/creators/ImageGrid.tsx`
+```typescript
+// src/lib/validations/media.ts
+export function generateStoragePath(
+  userId: string,  // auth.uid() - the user's auth ID
+  contentType: string, 
+  filename: string
+): string {
+  const timestamp = Date.now();
+  const sanitized = filename
+    .toLowerCase()
+    .replace(/[^a-z0-9.-]/g, '_')
+    .replace(/_+/g, '_');
+  
+  return `${userId}/${contentType}/${timestamp}_${sanitized}`;
+}
+```
 
-**Implementation:**
-1. Use HTML5 drag-and-drop API or add `@dnd-kit/core` library
-2. Implement `onDragStart`, `onDragOver`, `onDrop` handlers
-3. Update image order array on drop
-4. Show drag handle icon on each image thumbnail
+### Step 2: Update Upload Hook
+Modify `usePulseUpload.ts` to accept `userId` instead of `providerId`:
 
----
+```typescript
+export interface UploadParams {
+  file: File;
+  contentType: MediaContentType;
+  userId: string;  // Changed from providerId
+}
+```
 
-### Section 10: Enhanced Loot Box Animation (LOOT-007)
+### Step 3: Update All Creator Components
+Each creator component needs to pass the authenticated user's ID:
 
-**Objective:** Add celebration animation with confetti/particles.
+```typescript
+// PostCreator.tsx, ReelCreator.tsx, etc.
+import { useAuth } from '@/hooks/useAuth';
 
-**Files to Modify:**
-- `src/components/pulse/gamification/LootBoxModal.tsx`
+// Inside component:
+const { user } = useAuth();  // Get authenticated user
 
-**Implementation:**
-1. Use CSS animations for box opening effect
-2. Add confetti burst using CSS keyframes (no library needed)
-3. Show reward items with staggered fade-in animation
-4. Play optional sound effect (if enabled)
+// When uploading:
+const uploadResult = await uploadMedia.mutateAsync({
+  file: selectedImage,
+  contentType: 'post',
+  userId: user?.id || '',  // Use auth user ID, not provider.id
+});
+```
 
-**Animation Sequence:**
-1. Box shakes for 0.5s
-2. Box opens with scale/rotate transform
-3. Confetti particles burst outward
-4. Rewards fade in with bounce effect
-
----
-
-## File Changes Summary
-
-| File | Action | Gap Addressed |
-|------|--------|---------------|
-| `PersonalizedFeedHeader.tsx` | Modify | Online network count |
-| `ContentCard.tsx` | Modify | Video duration badge, Skill badge |
-| `MediaRenderer.tsx` | Modify | Video duration display |
-| `PulseSparksPage.tsx` | Modify | Pulse Metrics section |
-| `PulseMetricsCard.tsx` | Create | Pulse Metrics section |
-| `SparkTrendChart.tsx` | Create | Trend visualization |
-| `ArticleEditor.tsx` | Modify | Rich text formatting |
-| `RichTextToolbar.tsx` | Create | Rich text formatting |
-| `PulseRanksPage.tsx` | Modify | Monthly leaderboard |
-| `usePulseStats.ts` | Modify | Online count, Monthly leaderboard, Metrics |
-| `usePulseContent.ts` | Modify | Skill badge join |
-| `GalleryCreator.tsx` | Modify | Drag-to-reorder |
-| `ImageGrid.tsx` | Modify | Drag-to-reorder |
-| `LootBoxModal.tsx` | Modify | Celebration animation |
-| `send-streak-reminder/index.ts` | Create | Streak reminder |
-
-**Total: 15 files (5 new, 10 modified)**
-
----
-
-## Implementation Priority Order
-
-| Phase | Items | Effort | Impact |
-|-------|-------|--------|--------|
-| E.1 | Video Duration Badge + Skill Badge | Low | High |
-| E.2 | Pulse Metrics Section | Medium | High |
-| E.3 | Online Network Count | Low | Medium |
-| E.4 | Monthly Leaderboard | Low | Medium |
-| E.5 | Spark Trend Visualization | Medium | Medium |
-| E.6 | Rich Text Article Editor | Medium | High |
-| E.7 | Gallery Drag-to-Reorder | Medium | Low |
-| E.8 | Enhanced Loot Box Animation | Low | Low |
-| E.9 | Streak Break Reminder | Low | Medium |
+### Step 4: Affected Files
+1. `src/lib/validations/media.ts` - Update function signature
+2. `src/hooks/mutations/usePulseUpload.ts` - Update interface
+3. `src/components/pulse/creators/PostCreator.tsx` - Pass user.id
+4. `src/components/pulse/creators/ReelCreator.tsx` - Pass user.id
+5. `src/components/pulse/creators/PodcastStudio.tsx` - Pass user.id
+6. `src/components/pulse/creators/GalleryCreator.tsx` - Pass user.id
+7. `src/components/pulse/creators/ArticleEditor.tsx` - If media uploads
+8. `src/components/pulse/creators/SparkBuilder.tsx` - If media uploads
 
 ---
 
-## Compliance Checklist
+## 🛡️ Prevention Measures
 
-After implementation, verify:
-- [ ] Online network count displays and updates every 60s
-- [ ] Video duration badge visible on reel cards (MM:SS format)
-- [ ] Pulse Metrics section shows 5 key metrics on Sparks page
-- [ ] Mini trend chart appears on Spark cards with statistics
-- [ ] Article editor has formatting toolbar (B, I, H1, H2, lists)
-- [ ] Monthly leaderboard tab functions correctly
-- [ ] Verified skill badge appears next to creator names
-- [ ] Gallery images can be reordered via drag-and-drop
-- [ ] Loot box opening has confetti animation
-- [ ] Streak reminder edge function deployed and scheduled
+1. **Align terminology:** Use consistent naming (`userId` for auth IDs, `providerId` for business entity IDs)
+2. **Add JSDoc comments:** Document what ID type each function expects
+3. **Integration tests:** Add tests that verify storage uploads work end-to-end
+4. **RLS testing:** Test storage policies with actual authenticated requests before deployment
 
 ---
 
-## Summary
+## 📊 Technical Details
 
-**Total Gaps Identified:** 13  
-**Files to Create:** 5  
-**Files to Modify:** 10  
-**Estimated Effort:** 3-4 development cycles  
-**Post-Implementation Status:** 100% Requirements Coverage
+| Component | Current (Broken) | Fixed |
+|-----------|-----------------|-------|
+| Upload Path | `{provider_id}/post/...` | `{user_id}/post/...` |
+| RLS Check | `folder[1] = auth.uid()` | `folder[1] = auth.uid()` ✓ |
+| Example Path | `ce00180c.../post/file.png` | `32aec070.../post/file.png` |
+
