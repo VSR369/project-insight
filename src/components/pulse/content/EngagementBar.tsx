@@ -1,4 +1,4 @@
-import { Flame, MessageCircle, Coins, Bookmark, Share2 } from 'lucide-react';
+import { Flame, MessageCircle, Medal, Bookmark, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToggleEngagement, useUserEngagements } from '@/hooks/queries/usePulseEngagements';
@@ -33,7 +33,6 @@ export function EngagementBar({
   const hasFired = userEngagements?.fire ?? false;
   const hasGolded = userEngagements?.gold ?? false;
   const hasSaved = userEngagements?.save ?? false;
-  const hasBookmarked = userEngagements?.bookmark ?? false;
 
   const isOwnContent = providerId === currentUserProviderId;
 
@@ -63,16 +62,8 @@ export function EngagementBar({
   };
 
   const handleSave = () => {
-    if (isOwnContent) {
-      toast.error("You can't engage with your own content");
-      return;
-    }
     toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'save' });
-  };
-
-  const handleBookmark = () => {
-    toggleEngagement.mutate({ contentId, providerId: currentUserProviderId, engagementType: 'bookmark' });
-    toast.success(hasBookmarked ? 'Removed from bookmarks' : 'Added to bookmarks');
+    toast.success(hasSaved ? 'Removed from saved' : 'Saved for later');
   };
 
   const handleShare = async () => {
@@ -137,13 +128,13 @@ export function EngagementBar({
           aria-label={hasGolded ? `Remove gold award (${goldCount} gold)` : `Give gold award (${goldCount} gold)`}
           aria-pressed={hasGolded}
         >
-          <Coins className={cn("h-5 w-5", hasGolded && "fill-current")} aria-hidden="true" />
+          <Medal className={cn("h-5 w-5", hasGolded && "fill-current")} aria-hidden="true" />
           {showCounts && goldCount > 0 && (
             <span className="text-xs font-medium">{formatCount(goldCount)}</span>
           )}
         </Button>
 
-        {/* Save Button */}
+        {/* Save/Bookmark Button */}
         <Button
           variant="ghost"
           size="sm"
@@ -152,34 +143,15 @@ export function EngagementBar({
             hasSaved && "text-primary"
           )}
           onClick={handleSave}
-          disabled={toggleEngagement.isPending || isOwnContent}
-          aria-label={hasSaved ? `Unsave content (${saveCount} saves)` : `Save content (${saveCount} saves)`}
+          disabled={toggleEngagement.isPending}
+          aria-label={hasSaved ? 'Remove from saved' : 'Save for later'}
           aria-pressed={hasSaved}
         >
           <Bookmark className={cn("h-5 w-5", hasSaved && "fill-current")} aria-hidden="true" />
-          {showCounts && saveCount > 0 && (
-            <span className="text-xs font-medium">{formatCount(saveCount)}</span>
-          )}
         </Button>
       </div>
 
       <div className="flex items-center gap-1">
-        {/* Private Bookmark */}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "h-9 w-9 min-w-[44px] min-h-[44px]",
-            hasBookmarked && "text-primary"
-          )}
-          onClick={handleBookmark}
-          disabled={toggleEngagement.isPending}
-          aria-label={hasBookmarked ? 'Remove from bookmarks' : 'Add to bookmarks'}
-          aria-pressed={hasBookmarked}
-        >
-          <Bookmark className={cn("h-4 w-4", hasBookmarked && "fill-current")} aria-hidden="true" />
-        </Button>
-
         {/* Share */}
         <Button
           variant="ghost"
@@ -188,7 +160,7 @@ export function EngagementBar({
           onClick={handleShare}
           aria-label="Share content"
         >
-          <Share2 className="h-4 w-4" aria-hidden="true" />
+          <Share2 className="h-5 w-5" aria-hidden="true" />
         </Button>
       </div>
     </div>
