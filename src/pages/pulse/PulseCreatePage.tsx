@@ -63,8 +63,8 @@ const contentTypes = [
     available: true,
   },
   {
-    id: 'pulse-pages',
-    name: 'Pulse Pages',
+    id: 'pulse-cards',
+    name: 'Pulse Cards',
     description: 'Collaborative knowledge cards',
     icon: Layers,
     color: 'text-cyan-500',
