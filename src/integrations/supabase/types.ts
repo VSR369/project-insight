@@ -2302,6 +2302,9 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           build_count: number | null
+          compilation_stale: boolean
+          compiled_at: string | null
+          compiled_narrative: string | null
           created_at: string | null
           created_by: string | null
           current_featured_layer_id: string | null
@@ -2318,6 +2321,9 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           build_count?: number | null
+          compilation_stale?: boolean
+          compiled_at?: string | null
+          compiled_narrative?: string | null
           created_at?: string | null
           created_by?: string | null
           current_featured_layer_id?: string | null
@@ -2334,6 +2340,9 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           build_count?: number | null
+          compilation_stale?: boolean
+          compiled_at?: string | null
+          compiled_narrative?: string | null
           created_at?: string | null
           created_by?: string | null
           current_featured_layer_id?: string | null
