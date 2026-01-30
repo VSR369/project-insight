@@ -22,6 +22,7 @@ import {
   Flame,
   Trophy,
   PlusCircle,
+  Layers,
 } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -54,6 +55,7 @@ const mainNavItems = [
 const pulseNavItems = [
   { title: 'Feed', url: '/pulse/feed', icon: Flame },
   { title: 'Sparks', url: '/pulse/sparks', icon: Zap },
+  { title: 'Pulse Pages', url: '/pulse/cards', icon: Layers },
   { title: 'Create', url: '/pulse/create', icon: PlusCircle },
   { title: 'Leaderboard', url: '/pulse/ranks', icon: Trophy },
 ];
