@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Film, Mic, Zap, FileText, Image, MessageSquare, ArrowLeft } from 'lucide-react';
+import { Film, Mic, Zap, FileText, Image, MessageSquare, ArrowLeft, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardTitle } from '@/components/ui/card';
 import { PulseLayout } from '@/components/pulse/layout';
@@ -62,6 +62,16 @@ const contentTypes = [
     bgColor: 'bg-orange-500/10',
     available: true,
   },
+  {
+    id: 'pulse-pages',
+    name: 'Pulse Pages',
+    description: 'Collaborative knowledge cards',
+    icon: Layers,
+    color: 'text-cyan-500',
+    bgColor: 'bg-cyan-500/10',
+    available: true,
+    navigateTo: '/pulse/cards',
+  },
 ];
 
 export default function PulseCreatePage() {
@@ -76,6 +86,11 @@ export default function PulseCreatePage() {
       const typeConfig = contentTypes.find(t => t.id === selectedType);
       if (!typeConfig?.available) {
         toast.info(`${typeConfig?.name || 'This content type'} creator coming soon!`);
+        return;
+      }
+      // Navigate to external page if specified
+      if (typeConfig.navigateTo) {
+        navigate(typeConfig.navigateTo);
         return;
       }
       setShowForm(true);
