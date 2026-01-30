@@ -5,3 +5,5 @@ export { default as PulseRanksPage } from './PulseRanksPage';
 export { default as PulseProfilePage } from './PulseProfilePage';
 export { default as PulseContentDetailPage } from './PulseContentDetailPage';
 export { default as PulsePublicProfilePage } from './PulsePublicProfilePage';
+export { default as PulseCardsPage } from './PulseCardsPage';
+export { default as PulseCardDetailPage } from './PulseCardDetailPage';
