@@ -36,9 +36,9 @@ export const REPUTATION_ACTIONS = {
 export const REPUTATION_GATES = {
   VIEW_CARDS: 0,
   REACT_COMMENT: 0,
-  START_CARD: 50,
-  BUILD_ON_CARD: 10,
-  VOTE_LAYER: 10,
+  START_CARD: 0,  // Temporarily 0 for launch; will increase to 50 when user base grows
+  BUILD_ON_CARD: 0,
+  VOTE_LAYER: 0,
   FLAG_CONTENT: 10,
   TRUST_COUNCIL_ELIGIBLE: 1000,
 } as const;
