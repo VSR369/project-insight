@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PulseLayout } from '@/components/pulse/layout';
-import { PulseCardLayer, CreateLayerDialog, ReputationBadge } from '@/components/pulse/cards';
+import { PulseCardLayer, CreateLayerDialog, FlagCardDialog } from '@/components/pulse/cards';
 import { usePulseCard, useIncrementCardView } from '@/hooks/queries/usePulseCards';
 import { usePulseCardLayers } from '@/hooks/queries/usePulseCardLayers';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -25,7 +25,8 @@ import {
   Clock, 
   Eye,
   Share2,
-  Crown
+  Crown,
+  Flag
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -33,7 +34,8 @@ export default function PulseCardDetailPage() {
   const { cardId } = useParams<{ cardId: string }>();
   const navigate = useNavigate();
   const [isCreateLayerOpen, setIsCreateLayerOpen] = useState(false);
-
+  const [isFlagDialogOpen, setIsFlagDialogOpen] = useState(false);
+  const [flagTarget, setFlagTarget] = useState<{ type: 'card' | 'layer'; id: string } | null>(null);
   const { data: provider } = useCurrentProvider();
   const { data: card, isLoading: cardLoading } = usePulseCard(cardId);
   const { data: layers, isLoading: layersLoading } = usePulseCardLayers(cardId);
@@ -43,9 +45,22 @@ export default function PulseCardDetailPage() {
 
   const canBuild = reputation?.canBuild ?? false;
   const canVote = reputation?.canVote ?? false;
+  const canFlag = reputation?.canFlag ?? false;
   const buildReason = !canBuild 
     ? `Need ${REPUTATION_GATES.BUILD_ON_CARD} reputation to build on cards`
     : undefined;
+
+  const handleFlagCard = () => {
+    if (cardId) {
+      setFlagTarget({ type: 'card', id: cardId });
+      setIsFlagDialogOpen(true);
+    }
+  };
+
+  const handleFlagLayer = (layerId: string) => {
+    setFlagTarget({ type: 'layer', id: layerId });
+    setIsFlagDialogOpen(true);
+  };
 
   // Track view on mount
   useEffect(() => {
@@ -124,9 +139,22 @@ export default function PulseCardDetailPage() {
                 {card.share_count}
               </Badge>
             </div>
-            <span className="text-xs text-muted-foreground">
-              {formatDistanceToNow(new Date(card.created_at), { addSuffix: true })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(card.created_at), { addSuffix: true })}
+              </span>
+              {canFlag && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                  onClick={handleFlagCard}
+                  title="Report this card"
+                >
+                  <Flag className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Featured Layer (Current Best Answer) */}
@@ -210,6 +238,20 @@ export default function PulseCardDetailPage() {
           open={isCreateLayerOpen}
           onOpenChange={setIsCreateLayerOpen}
           cardId={cardId}
+          providerId={provider.id}
+        />
+      )}
+
+      {/* Flag Dialog */}
+      {provider?.id && flagTarget && (
+        <FlagCardDialog
+          open={isFlagDialogOpen}
+          onOpenChange={(open) => {
+            setIsFlagDialogOpen(open);
+            if (!open) setFlagTarget(null);
+          }}
+          targetType={flagTarget.type}
+          targetId={flagTarget.id}
           providerId={provider.id}
         />
       )}

@@ -7,11 +7,11 @@
 // Reputation Tiers
 // ===========================================
 export const REPUTATION_TIERS = {
-  SEEDLING: { min: 0, max: 49, name: 'Seedling', emoji: '🌱', description: 'Can view, react, comment' },
-  CONTRIBUTOR: { min: 50, max: 199, name: 'Contributor', emoji: '🌿', description: 'Can start cards' },
-  BUILDER: { min: 200, max: 499, name: 'Builder', emoji: '🌳', description: 'Can build on any card' },
+  SEEDLING: { min: 0, max: 49, name: 'Seedling', emoji: '🌱', description: 'Can view, react, comment', voteWeight: 1 },
+  CONTRIBUTOR: { min: 50, max: 199, name: 'Contributor', emoji: '🌿', description: 'Can start cards', voteWeight: 1 },
+  BUILDER: { min: 200, max: 499, name: 'Builder', emoji: '🌳', description: 'Can build on any card', voteWeight: 1 },
   EXPERT: { min: 500, max: 999, name: 'Expert', emoji: '🏆', description: 'Vote carries 2x weight', voteWeight: 2 },
-  TRUST_COUNCIL: { min: 1000, max: Infinity, name: 'Trust Council', emoji: '👑', description: 'Moderation powers' },
+  TRUST_COUNCIL: { min: 1000, max: Infinity, name: 'Trust Council', emoji: '👑', description: 'Moderation powers', voteWeight: 2 },
 } as const;
 
 export type ReputationTierKey = keyof typeof REPUTATION_TIERS;
@@ -69,14 +69,14 @@ export type LayerStatus = typeof LAYER_STATUS[keyof typeof LAYER_STATUS];
 // Flag Types
 // ===========================================
 export const FLAG_TYPES = {
-  SPAM: { value: 'spam', label: 'Spam', description: 'Promotional content without value' },
-  FALSE_CLAIM: { value: 'false_claim', label: 'False Claim', description: 'Inaccurate or misleading information' },
-  UNCITED: { value: 'uncited', label: 'Uncited', description: 'Making claims without sources' },
-  UNCONSTRUCTIVE: { value: 'unconstructive', label: 'Unconstructive', description: 'Not adding value to the discussion' },
-  OTHER: { value: 'other', label: 'Other', description: 'Other violation' },
+  spam: { label: 'Spam', emoji: '🚫', description: 'Promotional or irrelevant content' },
+  false_claim: { label: 'False Claim', emoji: '❌', description: 'Factually incorrect information' },
+  uncited: { label: 'Uncited Source', emoji: '📚', description: 'Claims without proper attribution' },
+  unconstructive: { label: 'Unconstructive', emoji: '⚠️', description: 'Attacks without adding value' },
+  other: { label: 'Other', emoji: '💬', description: 'Other violation not listed above' },
 } as const;
 
-export type FlagType = typeof FLAG_TYPES[keyof typeof FLAG_TYPES]['value'];
+export type FlagType = keyof typeof FLAG_TYPES;
 
 // ===========================================
 // Flag Status
@@ -93,10 +93,11 @@ export type FlagStatus = typeof FLAG_STATUS[keyof typeof FLAG_STATUS];
 // Moderation Action Types
 // ===========================================
 export const MODERATION_ACTIONS = {
-  WARNING: { value: 'warning', label: 'Warning', strike: 1 },
-  MUTE_7D: { value: 'mute_7d', label: '7-Day Mute', strike: 2 },
-  ARCHIVE: { value: 'archive', label: 'Archive Content', strike: 3 },
-  STRIKE: { value: 'strike', label: 'Strike', strike: 1 },
+  no_action: { label: 'No Action', severity: 0 },
+  warning: { label: 'Warning', severity: 1 },
+  mute_7d: { label: '7-Day Mute', severity: 2 },
+  archive: { label: 'Archive Content', severity: 3 },
+  strike: { label: 'Strike', severity: 4 },
 } as const;
 
 // ===========================================
@@ -116,6 +117,8 @@ export const CARD_LIMITS = {
   MAX_CONTENT_LENGTH: 280,
   VOTING_WINDOW_HOURS: 24,
   MAX_MEDIA_SIZE_MB: 50,
+  MAX_LAYERS_PER_CARD: 100,
+  MAX_FLAGS_BEFORE_AUTO_HIDE: 3,
 } as const;
 
 // ===========================================
@@ -124,6 +127,7 @@ export const CARD_LIMITS = {
 export const PULSE_CARDS_POLLING = {
   FEED_MS: 30000, // 30 seconds for feed
   DETAIL_MS: 5000, // 5 seconds for card detail
+  VOTES_MS: 5000, // 5 seconds for vote updates
 } as const;
 
 // ===========================================
@@ -154,7 +158,7 @@ export function getReputationTier(totalRep: number): typeof REPUTATION_TIERS[Rep
  */
 export function getVoteWeight(totalRep: number): number {
   const tier = getReputationTier(totalRep);
-  return 'voteWeight' in tier ? tier.voteWeight : 1;
+  return tier.voteWeight;
 }
 
 /**
