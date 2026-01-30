@@ -129,10 +129,14 @@ export function validateFiles(files: File[], contentType: MediaContentType, maxC
 
 /**
  * Generate Supabase Storage path for pulse media
- * Format: {providerId}/{contentType}/{timestamp}_{sanitizedFilename}
+ * Format: {userId}/{contentType}/{timestamp}_{sanitizedFilename}
+ * 
+ * IMPORTANT: userId must be auth.uid() (the authenticated user's ID),
+ * NOT provider.id (the solution_providers business entity ID).
+ * This is required to match the RLS policy on the pulse-media bucket.
  */
 export function generateStoragePath(
-  providerId: string, 
+  userId: string, 
   contentType: string, 
   filename: string
 ): string {
@@ -143,7 +147,7 @@ export function generateStoragePath(
     .replace(/[^a-z0-9.-]/g, '_')
     .replace(/_+/g, '_');
   
-  return `${providerId}/${contentType}/${timestamp}_${sanitized}`;
+  return `${userId}/${contentType}/${timestamp}_${sanitized}`;
 }
 
 // =====================================================

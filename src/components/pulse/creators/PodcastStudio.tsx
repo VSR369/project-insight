@@ -183,17 +183,17 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
   };
 
   const handleSubmit = async (data: PodcastFormData) => {
-    if (!audioFile || !user) {
+    if (!audioFile || !user?.id) {
       toast.error("Please record or upload audio first");
       return;
     }
 
     try {
-      // Upload audio file
+      // Upload audio file - use user.id (auth.uid) for RLS compliance
       const uploadResult = await uploadMutation.mutateAsync({
         file: audioFile,
         contentType: "podcast",
-        providerId: user.id,
+        userId: user.id,
       });
 
       // Create content record

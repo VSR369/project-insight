@@ -22,6 +22,7 @@ import {
 import { useCreatePulseContent } from '@/hooks/queries/usePulseContent';
 import { useUploadPulseMedia } from '@/hooks/mutations/usePulseUpload';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useAuth } from '@/hooks/useAuth';
 import { postSchema, type PostFormData, validateFile, formatBytes } from '@/lib/validations/media';
 import { EmojiPicker } from './EmojiPicker';
 import { toast } from 'sonner';
@@ -41,6 +42,7 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: provider } = useCurrentProvider();
   const createContent = useCreatePulseContent();
   const uploadMedia = useUploadPulseMedia();
@@ -143,7 +145,7 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
   };
 
   const handleSubmit = async (data: PostFormData) => {
-    if (!provider?.id) {
+    if (!provider?.id || !user?.id) {
       toast.error('Please complete your profile first');
       return;
     }
@@ -153,22 +155,22 @@ export function PostCreator({ onCancel }: PostCreatorProps) {
     try {
       let mediaUrls: string[] = [];
 
-      // Upload image if selected
+      // Upload image if selected - use user.id (auth.uid) for RLS compliance
       if (selectedImage) {
         const uploadResult = await uploadMedia.mutateAsync({
           file: selectedImage,
           contentType: 'post',
-          providerId: provider.id,
+          userId: user.id,
         });
         mediaUrls = [uploadResult.publicUrl];
       }
 
-      // Upload document if selected
+      // Upload document if selected - use user.id (auth.uid) for RLS compliance
       if (selectedDocument) {
         const uploadResult = await uploadMedia.mutateAsync({
           file: selectedDocument,
           contentType: 'document',
-          providerId: provider.id,
+          userId: user.id,
         });
         mediaUrls = [uploadResult.publicUrl];
       }
