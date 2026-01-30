@@ -1,6 +1,13 @@
 /**
- * Audio Recorder Component
- * Handles microphone recording with pause/resume functionality
+ * Audio Recorder Component - FIXED VERSION
+ * 
+ * Fixes:
+ * 1. Duration closure issue - uses durationRef to get current duration
+ * 2. Added stream validation before recording
+ * 3. Better cleanup handling with streamRef
+ * 4. Added audio level monitoring to verify mic is working
+ * 5. Better MIME type detection
+ * 6. Specific error messages per error type
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
@@ -27,24 +34,70 @@ export function AudioRecorder({
   const [state, setState] = useState<RecordingState>("idle");
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0); // For visual feedback
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null); // FIX: Store stream in ref
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedDurationRef = useRef<number>(0);
+  const durationRef = useRef<number>(0); // FIX: Track duration in ref for onstop callback
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+
+  // Keep durationRef in sync with duration state
+  useEffect(() => {
+    durationRef.current = duration;
+  }, [duration]);
+
+  // Comprehensive cleanup function
+  const cleanup = useCallback(() => {
+    // Stop timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Stop animation frame
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    
+    // Close audio context
+    if (audioContextRef.current) {
+      audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+      analyserRef.current = null;
+    }
+    
+    // Stop media recorder
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      try {
+        mediaRecorderRef.current.stop();
+      } catch (e) {
+        // Ignore errors during cleanup
+      }
+    }
+    mediaRecorderRef.current = null;
+    
+    // Stop stream tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    setAudioLevel(0);
+  }, []);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (timerRef.current) {
-        clearInterval(timerRef.current);
-      }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-        mediaRecorderRef.current.stop();
-      }
+      cleanup();
     };
-  }, []);
+  }, [cleanup]);
 
   const formatTime = (seconds: number): string => {
     const mins = Math.floor(seconds / 60);
@@ -72,46 +125,165 @@ export function AudioRecorder({
     pausedDurationRef.current = duration;
   }, [duration]);
 
+  // Monitor audio levels for visual feedback
+  const startAudioLevelMonitoring = useCallback((stream: MediaStream) => {
+    try {
+      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(stream);
+      
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      
+      audioContextRef.current = audioContext;
+      analyserRef.current = analyser;
+      
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      
+      const updateLevel = () => {
+        if (!analyserRef.current) return;
+        
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
+        const normalized = Math.min(100, (average / 128) * 100);
+        setAudioLevel(normalized);
+        
+        animationFrameRef.current = requestAnimationFrame(updateLevel);
+      };
+      
+      updateLevel();
+    } catch (e) {
+      console.warn("[AudioRecorder] Could not start audio level monitoring:", e);
+    }
+  }, []);
+
   const startRecording = async () => {
     try {
       setError(null);
       chunksRef.current = [];
       pausedDurationRef.current = 0;
       setDuration(0);
+      durationRef.current = 0;
 
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      console.log("[AudioRecorder] Requesting microphone permission...");
       
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: MediaRecorder.isTypeSupported("audio/webm") 
-          ? "audio/webm" 
-          : "audio/mp4",
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      
+      // Validate audio track
+      const audioTrack = stream.getAudioTracks()[0];
+      if (!audioTrack) {
+        throw new Error("No audio track available");
+      }
+      
+      console.log("[AudioRecorder] Audio track:", {
+        label: audioTrack.label,
+        readyState: audioTrack.readyState,
+        enabled: audioTrack.enabled,
+        muted: audioTrack.muted,
       });
-
+      
+      if (audioTrack.readyState !== "live") {
+        throw new Error("Audio track is not live");
+      }
+      
+      // Start audio level monitoring
+      startAudioLevelMonitoring(stream);
+      
+      // Better MIME type detection
+      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") 
+        ? "audio/webm;codecs=opus"
+        : MediaRecorder.isTypeSupported("audio/webm") 
+          ? "audio/webm" 
+          : "audio/mp4";
+      
+      console.log("[AudioRecorder] Using mimeType:", mimeType);
+      
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
+        console.log("[AudioRecorder] Chunk received:", event.data.size, "bytes");
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = () => {
-        const audioBlob = new Blob(chunksRef.current, { 
-          type: mediaRecorder.mimeType 
-        });
+        console.log("[AudioRecorder] Recording stopped");
         
-        // Stop all tracks
-        stream.getTracks().forEach(track => track.stop());
+        // Calculate total size
+        const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        console.log("[AudioRecorder] Total recorded:", totalSize, "bytes");
         
-        onRecordingComplete(audioBlob, duration);
+        if (totalSize === 0) {
+          setError("Recording failed - no audio data captured");
+          cleanup();
+          setState("idle");
+          return;
+        }
+        
+        // Use BASE mime type for the blob (strip codec params)
+        const baseMimeType = (mediaRecorder.mimeType || "audio/webm").split(";")[0];
+        const audioBlob = new Blob(chunksRef.current, { type: baseMimeType });
+        
+        console.log("[AudioRecorder] Created blob:", audioBlob.size, "bytes, type:", baseMimeType);
+        
+        // FIX: Use durationRef.current instead of duration (which would be stale)
+        const finalDuration = durationRef.current;
+        console.log("[AudioRecorder] Duration:", finalDuration, "seconds");
+        
+        // Cleanup stream and audio context
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => track.stop());
+          streamRef.current = null;
+        }
+        
+        if (audioContextRef.current) {
+          audioContextRef.current.close().catch(() => {});
+          audioContextRef.current = null;
+        }
+        
+        if (animationFrameRef.current) {
+          cancelAnimationFrame(animationFrameRef.current);
+          animationFrameRef.current = null;
+        }
+        
+        setAudioLevel(0);
+        
+        // Pass to parent with correct duration
+        onRecordingComplete(audioBlob, finalDuration);
+      };
+
+      mediaRecorder.onerror = (event) => {
+        console.error("[AudioRecorder] MediaRecorder error:", event);
+        setError("Recording error occurred");
+        cleanup();
+        setState("idle");
       };
 
       mediaRecorder.start(1000); // Collect data every second
+      console.log("[AudioRecorder] Recording started");
+      
       setState("recording");
       startTimer();
+      
     } catch (err) {
-      console.error("Error accessing microphone:", err);
-      setError("Could not access microphone. Please check permissions.");
+      const error = err as Error;
+      console.error("[AudioRecorder] Error:", error);
+      
+      // Specific error messages
+      if (error.name === "NotAllowedError") {
+        setError("Microphone permission denied. Please allow access in browser settings.");
+      } else if (error.name === "NotFoundError") {
+        setError("No microphone found. Please connect a microphone.");
+      } else if (error.name === "NotReadableError") {
+        setError("Microphone is in use by another application.");
+      } else {
+        setError(error.message || "Could not access microphone.");
+      }
+      
+      cleanup();
     }
   };
 
@@ -120,6 +292,12 @@ export function AudioRecorder({
       mediaRecorderRef.current.pause();
       setState("paused");
       stopTimer();
+      
+      // Pause level monitoring
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+      }
     }
   };
 
@@ -128,22 +306,36 @@ export function AudioRecorder({
       mediaRecorderRef.current.resume();
       setState("recording");
       startTimer();
+      
+      // Resume level monitoring
+      if (streamRef.current) {
+        startAudioLevelMonitoring(streamRef.current);
+      }
     }
   };
 
-  const stopRecording = () => {
-    if (mediaRecorderRef.current && state !== "idle") {
-      stopTimer();
+  const stopRecording = useCallback(() => {
+    console.log("[AudioRecorder] stopRecording called, state:", state);
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+      mediaRecorderRef.current.requestData(); // Flush any pending data
       mediaRecorderRef.current.stop();
       setState("stopped");
     }
-  };
+  }, [state]);
 
   const resetRecording = () => {
     setState("idle");
     setDuration(0);
     pausedDurationRef.current = 0;
+    durationRef.current = 0;
     chunksRef.current = [];
+    setError(null);
   };
 
   return (
@@ -154,6 +346,23 @@ export function AudioRecorder({
           isRecording={state === "recording"} 
           barCount={50}
         />
+        
+        {/* Audio Level Indicator - shows during recording */}
+        {state === "recording" && (
+          <div className="flex items-center gap-2 mt-3">
+            <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
+              <div 
+                className="h-full bg-green-500 transition-all duration-100"
+                style={{ width: `${audioLevel}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground min-w-[200px]">
+              {audioLevel > 5 
+                ? "🎤 Microphone is picking up sound" 
+                : "🔇 No sound detected - speak into microphone"}
+            </span>
+          </div>
+        )}
         
         {/* Timer */}
         <div className="text-center mt-4">
@@ -175,7 +384,9 @@ export function AudioRecorder({
 
       {/* Error Message */}
       {error && (
-        <p className="text-sm text-destructive text-center">{error}</p>
+        <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
+          <p className="text-sm text-destructive text-center">{error}</p>
+        </div>
       )}
 
       {/* Controls */}
