@@ -3,7 +3,7 @@
  * Follows mockup design with topic, content, and media
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -34,6 +34,7 @@ import { ReputationBadge } from './ReputationBadge';
 import { createCardSchema, type CreateCardInput } from '@/lib/validations/pulseCard';
 import { useCreatePulseCard } from '@/hooks/queries/usePulseCards';
 import { usePulseCardsReputation } from '@/hooks/queries/usePulseCardsReputation';
+import { useProviderEnrollments } from '@/hooks/queries/useProviderEnrollments';
 import { CARD_LIMITS, REPUTATION_GATES } from '@/constants/pulseCards.constants';
 
 interface CreateCardDialogProps {
@@ -50,7 +51,13 @@ export function CreateCardDialog({
   const [mediaType, setMediaType] = useState<'image' | 'video' | undefined>();
   
   const { data: reputation, isLoading: repLoading } = usePulseCardsReputation(providerId);
+  const { data: enrollments = [] } = useProviderEnrollments(providerId);
   const createCard = useCreatePulseCard();
+
+  // Extract industry segment IDs from provider's enrollments
+  const industrySegmentIds = useMemo(() => {
+    return enrollments.map(e => e.industry_segment_id).filter(Boolean) as string[];
+  }, [enrollments]);
 
   const canCreateCard = reputation?.canStartCard ?? false;
 
@@ -120,6 +127,7 @@ export function CreateCardDialog({
                     <TopicSelector
                       value={field.value}
                       onChange={field.onChange}
+                      industrySegmentIds={industrySegmentIds}
                       disabled={!canCreateCard}
                     />
                   </FormControl>
