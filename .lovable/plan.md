@@ -644,9 +644,9 @@ export function useCreatePulseCard() {
 - [x] Built ReputationBadge component
 - [x] Created reputation log triggers (via DB functions)
 
-### Phase 5: Moderation ⏳ IN PROGRESS
+### Phase 5: Moderation ✅ COMPLETE
 - [x] Implemented flagging system (usePulseModeration hook)
 - [x] Built FlagCardDialog component
-- [ ] Build Trust Council selection UI
-- [ ] Create moderation dashboard for council members
-- [ ] Add strike tracking UI
+- [x] Built Trust Council Dashboard (TrustCouncilDashboard.tsx)
+- [x] Created moderation page for council members (/pulse/moderation)
+- [x] Added StrikeTracker component for profile strike visibility

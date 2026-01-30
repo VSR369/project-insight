@@ -7,3 +7,4 @@ export { default as PulseContentDetailPage } from './PulseContentDetailPage';
 export { default as PulsePublicProfilePage } from './PulsePublicProfilePage';
 export { default as PulseCardsPage } from './PulseCardsPage';
 export { default as PulseCardDetailPage } from './PulseCardDetailPage';
+export { default as PulseModerationPage } from './PulseModerationPage';
