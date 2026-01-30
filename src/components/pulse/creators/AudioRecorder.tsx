@@ -126,9 +126,16 @@ export function AudioRecorder({
   }, [duration]);
 
   // Monitor audio levels for visual feedback
-  const startAudioLevelMonitoring = useCallback((stream: MediaStream) => {
+  const startAudioLevelMonitoring = useCallback(async (stream: MediaStream) => {
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      
+      // FIX: Resume the AudioContext - it starts suspended in modern browsers
+      if (audioContext.state === 'suspended') {
+        await audioContext.resume();
+      }
+      console.log('[AudioRecorder] AudioContext state:', audioContext.state);
+      
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
       
@@ -187,8 +194,8 @@ export function AudioRecorder({
         throw new Error("Audio track is not live");
       }
       
-      // Start audio level monitoring
-      startAudioLevelMonitoring(stream);
+      // Start audio level monitoring (now async)
+      await startAudioLevelMonitoring(stream);
       
       // Better MIME type detection
       const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") 
