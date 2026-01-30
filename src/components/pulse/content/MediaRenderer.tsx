@@ -181,7 +181,7 @@ function VideoPlayer({ src, coverImageUrl, isPreview, isInFeed, className }: Vid
   // Preview mode: just show cover with play button
   if (isPreview) {
     return (
-      <div className={cn("relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px]", className)}>
+      <div className={cn("relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px] mx-auto w-full max-w-[280px] sm:max-w-[320px]", className)}>
         {coverImageUrl && (
           <img
             src={coverImageUrl}
@@ -202,7 +202,7 @@ function VideoPlayer({ src, coverImageUrl, isPreview, isInFeed, className }: Vid
   return (
     <div 
       ref={containerRef}
-      className={cn("relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[500px]", className)}
+      className={cn("relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[600px] mx-auto w-full max-w-[350px] sm:max-w-[400px]", className)}
       onMouseEnter={() => setShowControls(true)}
       onMouseLeave={() => !isPlaying && setShowControls(true)}
     >
