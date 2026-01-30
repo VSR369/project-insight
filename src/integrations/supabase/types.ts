@@ -2058,6 +2058,359 @@ export type Database = {
           },
         ]
       }
+      pulse_card_flags: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          flag_type: string
+          id: string
+          reporter_id: string
+          resolution_reason: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          flag_type: string
+          id?: string
+          reporter_id: string
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          flag_type?: string
+          id?: string
+          reporter_id?: string
+          resolution_reason?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_card_flags_reporter_id_fkey"
+            columns: ["reporter_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_card_layers: {
+        Row: {
+          card_id: string
+          content_text: string
+          created_at: string | null
+          created_by: string | null
+          creator_id: string
+          featured_at: string | null
+          id: string
+          is_featured: boolean | null
+          layer_order: number | null
+          media_type: string | null
+          media_url: string | null
+          parent_layer_id: string | null
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+          vote_score: number | null
+          votes_down: number | null
+          votes_up: number | null
+          voting_ends_at: string | null
+        }
+        Insert: {
+          card_id: string
+          content_text: string
+          created_at?: string | null
+          created_by?: string | null
+          creator_id: string
+          featured_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          layer_order?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          parent_layer_id?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vote_score?: number | null
+          votes_down?: number | null
+          votes_up?: number | null
+          voting_ends_at?: string | null
+        }
+        Update: {
+          card_id?: string
+          content_text?: string
+          created_at?: string | null
+          created_by?: string | null
+          creator_id?: string
+          featured_at?: string | null
+          id?: string
+          is_featured?: boolean | null
+          layer_order?: number | null
+          media_type?: string | null
+          media_url?: string | null
+          parent_layer_id?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          vote_score?: number | null
+          votes_down?: number | null
+          votes_up?: number | null
+          voting_ends_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_card_layers_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_layers_creator_id_fkey"
+            columns: ["creator_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_layers_parent_layer_id_fkey"
+            columns: ["parent_layer_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_card_layers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_card_topics: {
+        Row: {
+          card_count: number | null
+          color: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          icon: string | null
+          id: string
+          industry_segment_id: string | null
+          is_active: boolean | null
+          name: string
+          slug: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          card_count?: number | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          industry_segment_id?: string | null
+          is_active?: boolean | null
+          name: string
+          slug: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          card_count?: number | null
+          color?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          icon?: string | null
+          id?: string
+          industry_segment_id?: string | null
+          is_active?: boolean | null
+          name?: string
+          slug?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_card_topics_industry_segment_id_fkey"
+            columns: ["industry_segment_id"]
+            isOneToOne: false
+            referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_card_votes: {
+        Row: {
+          created_at: string | null
+          id: string
+          layer_id: string
+          vote_type: string
+          vote_weight: number | null
+          voter_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          layer_id: string
+          vote_type: string
+          vote_weight?: number | null
+          voter_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          layer_id?: string
+          vote_type?: string
+          vote_weight?: number | null
+          voter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_card_votes_layer_id_fkey"
+            columns: ["layer_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_card_layers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_votes_voter_id_fkey"
+            columns: ["voter_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_cards: {
+        Row: {
+          archived_at: string | null
+          archived_by: string | null
+          build_count: number | null
+          created_at: string | null
+          created_by: string | null
+          current_featured_layer_id: string | null
+          id: string
+          seed_creator_id: string
+          share_count: number | null
+          status: string
+          topic_id: string
+          updated_at: string | null
+          updated_by: string | null
+          view_count: number | null
+        }
+        Insert: {
+          archived_at?: string | null
+          archived_by?: string | null
+          build_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          current_featured_layer_id?: string | null
+          id?: string
+          seed_creator_id: string
+          share_count?: number | null
+          status?: string
+          topic_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          view_count?: number | null
+        }
+        Update: {
+          archived_at?: string | null
+          archived_by?: string | null
+          build_count?: number | null
+          created_at?: string | null
+          created_by?: string | null
+          current_featured_layer_id?: string | null
+          id?: string
+          seed_creator_id?: string
+          share_count?: number | null
+          status?: string
+          topic_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          view_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fk_pulse_cards_featured_layer"
+            columns: ["current_featured_layer_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_card_layers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_seed_creator_id_fkey"
+            columns: ["seed_creator_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_cards_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_card_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pulse_cards_reputation_log: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: string
+          points_delta: number
+          provider_id: string
+          reason: string | null
+          reference_id: string | null
+          reference_type: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: string
+          points_delta: number
+          provider_id: string
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          points_delta?: number
+          provider_id?: string
+          reason?: string | null
+          reference_id?: string | null
+          reference_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_cards_reputation_log_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pulse_comments: {
         Row: {
           comment_text: string
@@ -2547,6 +2900,53 @@ export type Database = {
           },
         ]
       }
+      pulse_moderation_actions: {
+        Row: {
+          action_type: string
+          council_votes: Json | null
+          created_at: string | null
+          created_by: string | null
+          flag_id: string | null
+          id: string
+          outcome: string
+          reasoning: string
+          target_id: string
+          target_type: string
+        }
+        Insert: {
+          action_type: string
+          council_votes?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          flag_id?: string | null
+          id?: string
+          outcome: string
+          reasoning: string
+          target_id: string
+          target_type: string
+        }
+        Update: {
+          action_type?: string
+          council_votes?: Json | null
+          created_at?: string | null
+          created_by?: string | null
+          flag_id?: string | null
+          id?: string
+          outcome?: string
+          reasoning?: string
+          target_id?: string
+          target_type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_moderation_actions_flag_id_fkey"
+            columns: ["flag_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_card_flags"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pulse_notifications: {
         Row: {
           body: string | null
@@ -2821,6 +3221,41 @@ export type Database = {
           usage_count?: number
         }
         Relationships: []
+      }
+      pulse_trust_council: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          provider_id: string
+          week_end: string
+          week_start: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          provider_id: string
+          week_end: string
+          week_start: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          provider_id?: string
+          week_end?: string
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_trust_council_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pulse_xp_audit_log: {
         Row: {
@@ -3753,6 +4188,21 @@ export type Database = {
         Returns: boolean
       }
       pulse_calculate_level: { Args: { p_total_xp: number }; Returns: number }
+      pulse_cards_award_reputation: {
+        Args: {
+          p_action_type: string
+          p_points: number
+          p_provider_id: string
+          p_reason?: string
+          p_reference_id?: string
+          p_reference_type?: string
+        }
+        Returns: boolean
+      }
+      pulse_cards_get_reputation: {
+        Args: { p_provider_id: string }
+        Returns: number
+      }
       pulse_get_ranked_feed: {
         Args: {
           p_content_type?: Database["public"]["Enums"]["pulse_content_type"]
