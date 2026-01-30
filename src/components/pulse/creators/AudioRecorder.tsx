@@ -356,10 +356,14 @@ export function AudioRecorder({
                 style={{ width: `${audioLevel}%` }}
               />
             </div>
-            <span className="text-xs text-muted-foreground min-w-[200px]">
+            {/* Responsive text - short on mobile, full on larger screens */}
+            <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
               {audioLevel > 5 
                 ? "🎤 Microphone is picking up sound" 
                 : "🔇 No sound detected - speak into microphone"}
+            </span>
+            <span className="text-xs text-muted-foreground whitespace-nowrap sm:hidden">
+              {audioLevel > 5 ? "🎤 Active" : "🔇 Silent"}
             </span>
           </div>
         )}
