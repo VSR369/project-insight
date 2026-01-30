@@ -50,6 +50,8 @@ export interface FeedCardItem {
   share_count: number;
   build_count: number;
   created_at: string;
+  compiled_narrative: string | null;
+  compiled_at: string | null;
   topic?: {
     id: string;
     name: string;
@@ -114,11 +116,12 @@ export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) {
 
       if (contentError) throw new Error(contentError.message);
 
-      // Fetch pulse_cards with featured layer
+      // Fetch pulse_cards with featured layer and compiled narrative
       const { data: cardsData, error: cardsError } = await supabase
         .from('pulse_cards')
         .select(`
           id, topic_id, seed_creator_id, status, view_count, share_count, build_count, created_at,
+          compiled_narrative, compiled_at,
           topic:pulse_card_topics(id, name, slug, icon, color),
           creator:solution_providers!seed_creator_id(id, first_name, last_name),
           featured_layer:pulse_card_layers!current_featured_layer_id(

@@ -1,11 +1,11 @@
 /**
  * PulseCardFeedItem - Display a Pulse Card in the main feed
- * Compact card format matching ContentCard style
+ * Shows compiled AI narrative with "Read more" link
  */
 
 import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Layers, Eye, Share2, GitBranch } from 'lucide-react';
+import { MoreHorizontal, Layers, Eye, Share2, GitBranch, BookOpen, Users } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,8 +31,11 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
 
   const initials = creatorName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   
-  const contentText = card.featured_layer?.content_text || '';
-  const shouldTruncate = contentText.length > 280;
+  // Prefer compiled narrative, fallback to featured layer content
+  const displayText = card.compiled_narrative || card.featured_layer?.content_text || '';
+  const hasCompiledNarrative = !!card.compiled_narrative;
+  const shouldTruncate = displayText.length > 200;
+  const contributorCount = card.build_count || 1;
 
   const handleProfileKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
@@ -109,10 +112,10 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
         </DropdownMenu>
       </CardHeader>
 
-      <CardContent className="px-4 py-2 cursor-pointer" onClick={onCardClick}>
+      <CardContent className="px-4 py-2">
         {/* Media preview if available */}
         {card.featured_layer?.media_url && (
-          <div className="mb-3 rounded-lg overflow-hidden">
+          <div className="mb-3 rounded-lg overflow-hidden cursor-pointer" onClick={onCardClick}>
             {card.featured_layer.media_type === 'video' ? (
               <video
                 src={card.featured_layer.media_url}
@@ -130,28 +133,36 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
           </div>
         )}
 
-        {/* Content Text */}
-        {contentText && (
-          <p className={cn(
-            "text-sm text-foreground/90 whitespace-pre-wrap",
-            shouldTruncate && "line-clamp-4"
-          )}>
-            {contentText}
-          </p>
+        {/* Compiled Content with indicator */}
+        {displayText && (
+          <div className="space-y-2">
+            {hasCompiledNarrative && (
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <BookOpen className="h-3 w-3" aria-hidden="true" />
+                <span>AI-synthesized from {contributorCount} contribution{contributorCount !== 1 ? 's' : ''}</span>
+              </div>
+            )}
+            <p className={cn(
+              "text-sm text-foreground/90 whitespace-pre-wrap leading-relaxed",
+              shouldTruncate && "line-clamp-4"
+            )}>
+              {displayText}
+            </p>
+          </div>
         )}
 
-        {shouldTruncate && (
-          <Button
-            variant="link"
-            className="p-0 h-auto text-primary text-sm"
-            onClick={(e) => {
-              e.stopPropagation();
-              onCardClick?.();
-            }}
-          >
-            View full card
-          </Button>
-        )}
+        {/* Read more link */}
+        <Button
+          variant="link"
+          className="p-0 h-auto text-primary text-sm mt-2 gap-1"
+          onClick={(e) => {
+            e.stopPropagation();
+            onCardClick?.();
+          }}
+        >
+          <BookOpen className="h-3.5 w-3.5" />
+          Read more
+        </Button>
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t border-border">
@@ -162,8 +173,8 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
             <span>{card.view_count || 0}</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <GitBranch className="h-4 w-4" aria-hidden="true" />
-            <span>{card.build_count || 0} builds</span>
+            <Users className="h-4 w-4" aria-hidden="true" />
+            <span>{contributorCount} contributor{contributorCount !== 1 ? 's' : ''}</span>
           </div>
           <div className="flex items-center gap-1.5">
             <Share2 className="h-4 w-4" aria-hidden="true" />
