@@ -1,116 +1,291 @@
 
-# Fix: Camera Recording Creates Empty/0-Byte File
+# Fix: Video Recording Black Screen / No Audio
 
-## Root Cause Analysis (5-Why)
+## Confirmed Root Cause
 
-| Level | Question | Answer |
-|-------|----------|--------|
-| Why #1 | Why is the recording file empty? | `chunksRef.current` contains no data when MediaRecorder stops |
-| Why #2 | Why does MediaRecorder collect no data? | The MediaRecorder is created but the video preview disappears |
-| Why #3 | Why does the preview disappear? | React re-renders and the video element changes between states |
-| Why #4 | Why does the video element change? | There are TWO separate `<video>` elements with the same `ref={videoRef}` in different render branches |
-| **Root Cause** | | When state changes from `idle` → `recording`, the old video element (with the stream attached) is unmounted and a NEW video element is rendered. The stream is lost. |
-
-## Technical Details
-
-**Current Code Structure (Problematic):**
-```text
-Line 488-548 (idle state):
-  <video ref={videoRef} ... className="hidden" />  ← Stream attached HERE
-
-Line 409-445 (recording state):
-  <video ref={videoRef} ... />  ← NEW element, NO stream
-```
-
-**What Happens:**
-1. User clicks "Record with Camera"
-2. `startRecording()` runs, attaches stream to `videoRef.current` (hidden video)
-3. State changes to `recording` → Component re-renders
-4. Hidden video element is UNMOUNTED (React destroys it)
-5. New video element is MOUNTED with same `ref`
-6. `videoRef.current` now points to NEW element with `srcObject = null`
-7. User sees black screen, MediaRecorder may fail to collect data
-
-## Solution
-
-**Move video element OUTSIDE conditional renders so it persists across all states:**
+Looking at the current code (lines 378-407), the bug is exactly as described:
 
 ```typescript
-export function VideoUploader({ ... }) {
-  // ... state and refs ...
-
-  return (
-    <>
-      {/* PERSISTENT video element - never unmounted */}
-      <video
-        ref={videoRef}
-        muted
-        playsInline
-        autoPlay
-        className={
-          cameraState === 'recording' || cameraState === 'initializing'
-            ? 'w-full h-full object-cover'
-            : 'hidden'
-        }
-      />
-      
-      {/* Rest of UI based on state */}
-      {cameraState === 'initializing' && (
-        <Card>...</Card>
-      )}
-      
-      {cameraState === 'recording' && (
-        <Card>
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-            {/* Video element is OUTSIDE this card, positioned absolutely or via portal */}
-          </div>
-        </Card>
-      )}
-      
-      {/* idle/preview states... */}
-    </>
-  );
-}
+// Current stopRecording() - PROBLEMATIC
+const stopRecording = useCallback(() => {
+  console.log('[VideoUploader] stopRecording called');
+  
+  // Request final data before stopping
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    mediaRecorderRef.current.requestData();
+    mediaRecorderRef.current.stop();
+  }
+  
+  // ❌ BUG: Cleanup happens IMMEDIATELY, before onstop fires
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => {
+      track.stop();  // ← Kills the stream while MediaRecorder still needs it
+    });
+    streamRef.current = null;
+  }
+  
+  // ❌ BUG: Clears video before MediaRecorder finalizes
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+  }
+  
+  // Note: setCameraState('idle') is handled in mediaRecorder.onstop
+}, []);
 ```
 
-**Alternative (Simpler):** Keep single video element at component root level with conditional visibility, then position it into the card UI using CSS.
+**Timeline Problem:**
+```text
+[stop() called] → [tracks killed] → [srcObject cleared] → [onstop fires] → [blob created]
+                         ↑                  ↑
+                    MediaRecorder still needs these to finalize!
+```
 
-## Implementation Plan
+## Solution Summary
 
-### Step 1: Restructure VideoUploader Component
+| Change | Location | Purpose |
+|--------|----------|---------|
+| 1. Add `'stopping'` camera state | Type definition + state | Show "Finalizing..." UI |
+| 2. Remove ALL cleanup from `stopRecording()` | Lines 387-404 | Let MediaRecorder finalize first |
+| 3. Move ALL cleanup INTO `mediaRecorder.onstop` | Lines 313-341 | Cleanup AFTER blob is created |
+| 4. Reorder VP8 before VP9 | Lines 32-38 | More stable codec |
+| 5. Use base MIME type for Blob/File | Line 327 | Better compatibility |
+| 6. Add minimum size validation | Inside onstop | Catch empty recordings |
 
-1. Move the video element to component root level (before all conditional returns)
-2. Make it a single persistent element that shows/hides based on `cameraState`
-3. Use CSS to position it correctly within the recording UI container
-4. Use a wrapper `<div>` with the video inside for proper layout
+---
 
-### Step 2: Fix Recording UI Layout
+## Detailed Implementation
 
-1. Create a container div that the persistent video element can be placed into
-2. Use CSS classes to show/hide and style the video based on state
+### Change 1: Add 'stopping' Camera State
 
-### Step 3: Ensure Stream Reattachment Safety
+**Line 25:**
+```typescript
+// BEFORE
+type CameraState = 'idle' | 'initializing' | 'recording';
 
-1. After state change, verify `videoRef.current.srcObject` is still valid
-2. Add a check in recording state to reattach if needed
+// AFTER
+type CameraState = 'idle' | 'initializing' | 'recording' | 'stopping';
+```
 
-### Step 4: Add Debug Logging
+### Change 2: Reorder MIME Types (VP8 First)
 
-Add console logs to verify:
-- MediaRecorder is collecting data (`ondataavailable` called)
-- `chunksRef.current` has data when `onstop` fires
-- File size is non-zero before passing to `handleFileSelect`
+**Lines 31-38:**
+```typescript
+const getSupportedMimeType = (): string => {
+  const mimeTypes = [
+    'video/webm;codecs=vp8,opus',  // VP8 first - more stable
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4',  // Safari fallback
+  ];
+  // ... rest unchanged
+};
+```
+
+### Change 3: Refactor stopRecording() - Remove ALL Cleanup
+
+**Lines 378-407 → Replace entire function:**
+```typescript
+const stopRecording = useCallback(() => {
+  console.log('[VideoUploader] 1. stopRecording called');
+  
+  // Only stop the recorder - DO NOT cleanup here
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+    console.log('[VideoUploader] 2. Requesting final data...');
+    mediaRecorderRef.current.requestData();
+    mediaRecorderRef.current.stop();
+    console.log('[VideoUploader] 3. stop() called, waiting for onstop...');
+  }
+  
+  // Clear timer (safe to do here - doesn't affect recording)
+  if (timerRef.current) {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+  
+  // Set stopping state to show "Finalizing..." UI
+  setCameraState('stopping');
+  
+  // ✅ NO cleanup here! Let onstop handle it after blob is created
+}, []);
+```
+
+### Change 4: Refactor mediaRecorder.onstop - Add ALL Cleanup
+
+**Lines 313-341 → Replace onstop handler:**
+```typescript
+mediaRecorder.onstop = () => {
+  console.log('[VideoUploader] 4. onstop fired');
+  
+  // Calculate total size
+  const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+  console.log('[VideoUploader] Total recorded size:', totalSize, 'bytes');
+  
+  // Validate minimum size (10KB minimum for a valid recording)
+  if (totalSize < 10000) {
+    console.error('[VideoUploader] Recording too small:', totalSize);
+    toast.error('Recording failed - please try again');
+    
+    // Cleanup and return to idle
+    performCleanup();
+    setCameraState('idle');
+    return;
+  }
+  
+  // Create blob with BASE MIME type (strip codec params)
+  const fullMimeType = mimeTypeRef.current || 'video/webm';
+  const baseMimeType = fullMimeType.split(';')[0].trim();
+  const extension = getFileExtension(fullMimeType);
+  
+  const blob = new Blob(chunksRef.current, { type: baseMimeType });
+  const file = new File([blob], `recording_${Date.now()}.${extension}`, {
+    type: baseMimeType,
+  });
+  
+  console.log('[VideoUploader] 5. File created:', {
+    name: file.name,
+    size: file.size,
+    type: file.type
+  });
+  
+  // Pass file to handler
+  handleFileSelect(file);
+  
+  // ✅ NOW cleanup - AFTER file is created
+  console.log('[VideoUploader] 6. Cleaning up stream and video element');
+  performCleanup();
+  
+  setCameraState('idle');
+};
+```
+
+### Change 5: Add Cleanup Helper Function
+
+**Add new function after line 436 (after cancelRecording):**
+```typescript
+// Shared cleanup function - called ONLY from onstop or cancelRecording
+const performCleanup = useCallback(() => {
+  // Stop all tracks
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => {
+      console.log('[VideoUploader] Stopping track:', track.kind);
+      track.stop();
+    });
+    streamRef.current = null;
+  }
+  
+  // Clear video element
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+  }
+  
+  // Clear chunks
+  chunksRef.current = [];
+}, []);
+```
+
+### Change 6: Update cancelRecording to Use performCleanup
+
+**Lines 409-437 → Refactor:**
+```typescript
+const cancelRecording = useCallback(() => {
+  console.log('[VideoUploader] cancelRecording called');
+  
+  // Clear chunks so onstop doesn't process them
+  chunksRef.current = [];
+  
+  // Stop recorder if active
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    mediaRecorderRef.current.stop();
+  }
+  
+  // Clear timer
+  if (timerRef.current) {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+  
+  // Cleanup immediately (user explicitly cancelled)
+  performCleanup();
+  
+  setCameraState('idle');
+}, [performCleanup]);
+```
+
+### Change 7: Update UI for 'stopping' State
+
+**Line 457 → Update showCameraUI:**
+```typescript
+// BEFORE
+const showCameraUI = cameraState === 'initializing' || cameraState === 'recording';
+
+// AFTER
+const showCameraUI = cameraState === 'initializing' || cameraState === 'recording' || cameraState === 'stopping';
+```
+
+**Lines 492-506 → Add stopping overlay (after recording overlay):**
+```typescript
+{/* Stopping/Finalizing overlay */}
+{cameraState === 'stopping' && (
+  <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+    <div className="text-center text-white">
+      <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+      <p className="text-lg font-medium">Finalizing recording...</p>
+      <p className="text-sm text-white/70 mt-1">Please wait</p>
+    </div>
+  </div>
+)}
+```
+
+**Lines 510-532 → Hide controls during stopping:**
+```typescript
+{/* Controls - hide during stopping */}
+<div className="flex justify-center gap-3 mt-4">
+  {cameraState === 'initializing' && (
+    // ... existing Cancel button
+  )}
+  
+  {cameraState === 'recording' && (
+    // ... existing Stop Recording button
+  )}
+  
+  {cameraState === 'stopping' && (
+    <p className="text-sm text-muted-foreground">Processing...</p>
+  )}
+</div>
+```
+
+---
+
+## Verification Checklist
+
+After implementation, the console should show this exact order:
+```text
+1. stopRecording called
+2. Requesting final data...
+3. stop() called, waiting for onstop...
+4. onstop fired
+5. File created: { name: "recording_xxx.webm", size: 683000, type: "video/webm" }
+6. Cleaning up stream and video element
+```
+
+If cleanup logs appear between steps 3 and 4, the bug still exists.
+
+---
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/pulse/creators/VideoUploader.tsx` | Restructure to use single persistent video element |
+| `src/components/pulse/creators/VideoUploader.tsx` | All changes above |
+
+---
 
 ## Expected Outcome
 
 After this fix:
-- Camera preview shows correctly during recording
-- MediaRecorder captures all video data
-- Recording produces valid video file with proper size
-- File saves successfully to Supabase storage
+- Camera preview shows live feed during recording (no black screen)
+- Recorded file contains valid video and audio data
+- Playback works correctly with both video and sound
+- "Finalizing..." UI shows while MediaRecorder processes
+- VP8 codec used by default for better stability
