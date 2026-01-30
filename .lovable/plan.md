@@ -1,140 +1,99 @@
 
+# Fix: Video Alignment and Width Issues
 
-# Fix: Audio Level Monitoring Shows "No Sound" Despite Recording Working
+## Problem Analysis
 
-## Root Cause Analysis
+The video player in the feed appears **left-aligned** and **narrow** because:
 
-### The Bug
-The `startAudioLevelMonitoring` function creates an `AudioContext` but **never calls `audioContext.resume()`**.
+| Location | Current Issue |
+|----------|---------------|
+| `MediaRenderer.tsx` VideoPlayer | Uses `aspect-[9/16]` (portrait) with no horizontal centering (`mx-auto`) |
+| `ContentCard.tsx` wrapper | Uses `<div className="mb-3 relative">` with no centering or width control |
+| Container | No `w-full` or `max-w-*` to control width |
 
-### Why This Happens
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│ Modern Browser Security Policy:                                 │
-│                                                                 │
-│ 1. AudioContext is created in "suspended" state                 │
-│ 2. getByteFrequencyData() returns all zeros when suspended      │
-│ 3. average = 0, normalized = 0, audioLevel = 0                  │
-│ 4. Since audioLevel <= 5, shows "No sound detected"             │
-│                                                                 │
-│ MediaRecorder works fine because it uses the raw stream,        │
-│ NOT the AudioContext. That's why recording works but the        │
-│ level meter doesn't!                                            │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Root Cause
 
-### Console Evidence
-The logs show recording works perfectly (210941 bytes over 13 seconds), but no audio level updates are logged - because the context is suspended.
-
----
+The VideoPlayer component has a fixed portrait aspect ratio (`9:16`) intended for TikTok-style vertical videos, but:
+1. No `mx-auto` to center it horizontally
+2. No responsive width control
+3. Videos that are landscape (16:9) get letterboxed inside a narrow 9:16 container
 
 ## Solution
 
-Add `await audioContext.resume()` after creating the AudioContext to ensure it's in "running" state before reading frequency data.
+### Option 1: Center Portrait Videos (Quick Fix)
+Add `mx-auto` to center the 9:16 video container and increase max-height:
 
-### Current Code (Broken)
-```typescript
-const startAudioLevelMonitoring = useCallback((stream: MediaStream) => {
-  try {
-    const audioContext = new AudioContext();
-    const analyser = audioContext.createAnalyser();
-    // ...
-    // ❌ AudioContext is "suspended" - getByteFrequencyData returns zeros!
-    updateLevel();
-  } catch (e) {
-    console.warn("Could not start audio level monitoring:", e);
-  }
-}, []);
+```tsx
+// MediaRenderer.tsx - VideoPlayer preview mode (line 184)
+<div className={cn(
+  "relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[400px] mx-auto w-full max-w-[280px] sm:max-w-[320px]",
+  className
+)}>
+
+// MediaRenderer.tsx - VideoPlayer full mode (line 202-205)
+<div 
+  ref={containerRef}
+  className={cn(
+    "relative rounded-lg overflow-hidden bg-black aspect-[9/16] max-h-[600px] mx-auto w-full max-w-[350px] sm:max-w-[400px]",
+    className
+  )}
+>
 ```
 
-### Fixed Code
-```typescript
-const startAudioLevelMonitoring = useCallback(async (stream: MediaStream) => {
-  try {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-    
-    // FIX: Resume the AudioContext - it starts suspended in modern browsers
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
-    }
-    console.log('[AudioRecorder] AudioContext state:', audioContext.state);
-    
-    const analyser = audioContext.createAnalyser();
-    const source = audioContext.createMediaStreamSource(stream);
-    
-    analyser.fftSize = 256;
-    source.connect(analyser);
-    
-    audioContextRef.current = audioContext;
-    analyserRef.current = analyser;
-    
-    const dataArray = new Uint8Array(analyser.frequencyBinCount);
-    
-    const updateLevel = () => {
-      if (!analyserRef.current) return;
-      
-      analyserRef.current.getByteFrequencyData(dataArray);
-      const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      const normalized = Math.min(100, (average / 128) * 100);
-      setAudioLevel(normalized);
-      
-      animationFrameRef.current = requestAnimationFrame(updateLevel);
-    };
-    
-    updateLevel();
-  } catch (e) {
-    console.warn("[AudioRecorder] Could not start audio level monitoring:", e);
-  }
-}, []);
+### Option 2: Smart Aspect Ratio (Better UX)
+Detect video orientation and use appropriate aspect ratio:
+
+```tsx
+// For landscape videos: aspect-video (16:9)
+// For portrait videos: aspect-[9/16]
+
+// This requires storing video dimensions in the database
 ```
 
-### Update the Call Site
-Since the function is now async, update the call in `startRecording`:
+## Recommended Changes
 
-```typescript
-// Start audio level monitoring (now async)
-await startAudioLevelMonitoring(stream);
+### File: `src/components/pulse/content/MediaRenderer.tsx`
+
+**Change 1: Preview Mode (line 184)**
+- Add `mx-auto` for horizontal centering
+- Add responsive width constraints
+
+**Change 2: Full Player (line 202-205)**
+- Add `mx-auto` for horizontal centering  
+- Increase `max-h` from 500px to 600px
+- Add responsive max-width
+
+**Change 3: ContentCard wrapper (optional)**
+In `ContentCard.tsx` line 194, add flex centering:
+```tsx
+<div className="mb-3 relative flex justify-center">
 ```
 
----
+## Visual Result
 
-## Files to Modify
-
-| File | Changes |
-|------|---------|
-| `src/components/pulse/creators/AudioRecorder.tsx` | Add `audioContext.resume()` and make function async |
-
----
+```
+Before:                          After:
+┌─────────────────────┐          ┌─────────────────────┐
+│ [Video]             │          │      [Video]        │
+│ ████                │    →     │     ████████        │
+│ ████                │          │     ████████        │
+│                     │          │     ████████        │
+└─────────────────────┘          └─────────────────────┘
+  Left-aligned, narrow             Centered, wider
+```
 
 ## Summary of Changes
 
-| # | Change | Purpose |
-|---|--------|---------|
-| 1 | Make `startAudioLevelMonitoring` async | Allow await for resume |
-| 2 | Add `await audioContext.resume()` | Ensure context is "running" |
-| 3 | Add state logging | Debug confirmation |
-| 4 | Update call to `await startAudioLevelMonitoring(stream)` | Ensure monitoring starts before recording |
+| File | Line | Change |
+|------|------|--------|
+| `MediaRenderer.tsx` | 184 | Add `mx-auto w-full max-w-[280px] sm:max-w-[320px]` |
+| `MediaRenderer.tsx` | 202-205 | Add `mx-auto w-full max-w-[350px] sm:max-w-[400px]`, increase `max-h` to 600px |
+| `ContentCard.tsx` | 194 | Add `flex justify-center` to wrapper |
 
----
+## Testing After Fix
 
-## Expected Result After Fix
-
-Console will show:
-```text
-[AudioRecorder] AudioContext state: running
-```
-
-And the audio level indicator will properly show:
-- 🎤 Active (when speaking)
-- 🔇 Silent (when quiet)
-
----
-
-## Testing Checklist
-
-- [ ] Start recording
-- [ ] Speak into microphone
-- [ ] Green bar should animate based on volume
-- [ ] Shows "🎤 Active" or "🎤 Microphone is picking up sound"
-- [ ] Console shows "AudioContext state: running"
-
+1. Upload a reel video
+2. View in feed - should be horizontally centered
+3. Video should have increased width
+4. Check on mobile viewport - should still look good
+5. Click to expand - full player should also be centered
