@@ -24,7 +24,14 @@ export function PulseHeader({ title, showBackButton = false }: PulseHeaderProps)
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(-1)}
+              onClick={() => {
+                // If there's history, go back; otherwise go to cards list
+                if (window.history.length > 1) {
+                  navigate(-1);
+                } else {
+                  navigate('/pulse/cards');
+                }
+              }}
               className="h-9 w-9"
             >
               <ArrowLeft className="h-5 w-5" />
