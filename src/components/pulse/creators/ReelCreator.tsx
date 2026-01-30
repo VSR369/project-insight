@@ -28,6 +28,7 @@ import { VisibilitySelector } from './VisibilitySelector';
 import { useCreatePulseContent, useAddContentTags } from '@/hooks/queries/usePulseContent';
 import { useUploadPulseMedia } from '@/hooks/mutations/usePulseUpload';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useAuth } from '@/hooks/useAuth';
 import { useQuickEnhance } from '@/hooks/mutations/useAiEnhance';
 import { reelSchema, type ReelFormData } from '@/lib/validations/media';
 import { toast } from 'sonner';
@@ -48,6 +49,7 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
   const [originalCaption, setOriginalCaption] = useState<string | null>(null);
 
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: provider } = useCurrentProvider();
   const createContent = useCreatePulseContent();
   const addContentTags = useAddContentTags();
@@ -106,7 +108,7 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
   };
 
   const handleSubmit = async (data: ReelFormData) => {
-    if (!provider?.id) {
+    if (!provider?.id || !user?.id) {
       toast.error('Please complete your profile first');
       return;
     }
@@ -119,21 +121,21 @@ export function ReelCreator({ onCancel }: ReelCreatorProps) {
     setIsSubmitting(true);
 
     try {
-      // 1. Upload video file
+      // 1. Upload video file - use user.id (auth.uid) for RLS compliance
       const videoUpload = await uploadMedia.mutateAsync({
         file: videoFile,
         contentType: 'reel',
-        providerId: provider.id,
+        userId: user.id,
       });
 
-      // 2. Upload cover image if extracted
+      // 2. Upload cover image if extracted - use user.id (auth.uid) for RLS compliance
       let coverImageUrl: string | null = null;
       if (coverBlob) {
         const coverFile = new File([coverBlob], 'cover.jpg', { type: 'image/jpeg' });
         const coverUpload = await uploadMedia.mutateAsync({
           file: coverFile,
           contentType: 'gallery', // Use gallery limits for images
-          providerId: provider.id,
+          userId: user.id,
         });
         coverImageUrl = coverUpload.publicUrl;
       }

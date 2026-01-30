@@ -19,10 +19,15 @@ import {
 // TYPES
 // =====================================================
 
+/**
+ * Parameters for single file upload
+ * IMPORTANT: userId must be auth.uid() (the authenticated user's ID),
+ * NOT provider.id. This is required to match the RLS policy.
+ */
 export interface UploadParams {
   file: File;
   contentType: MediaContentType;
-  providerId: string;
+  userId: string;
 }
 
 export interface UploadResult {
@@ -32,10 +37,15 @@ export interface UploadResult {
   fileSize: number;
 }
 
+/**
+ * Parameters for multi-file upload (galleries)
+ * IMPORTANT: userId must be auth.uid() (the authenticated user's ID),
+ * NOT provider.id. This is required to match the RLS policy.
+ */
 export interface MultiUploadParams {
   files: File[];
   contentType: MediaContentType;
-  providerId: string;
+  userId: string;
   maxCount?: number;
 }
 
@@ -51,15 +61,15 @@ export interface UploadProgress {
 
 export function useUploadPulseMedia() {
   return useMutation({
-    mutationFn: async ({ file, contentType, providerId }: UploadParams): Promise<UploadResult> => {
+    mutationFn: async ({ file, contentType, userId }: UploadParams): Promise<UploadResult> => {
       // 1. Client-side validation
       const validation = validateFile(file, contentType);
       if (!validation.valid) {
         throw new Error(validation.error);
       }
 
-      // 2. Generate storage path
-      const path = generateStoragePath(providerId, contentType, file.name);
+      // 2. Generate storage path using userId (auth.uid), NOT providerId
+      const path = generateStoragePath(userId, contentType, file.name);
 
       // 3. Upload to Supabase Storage
       const { data, error } = await supabase.storage
@@ -110,7 +120,7 @@ export function useUploadMultiplePulseMedia() {
     mutationFn: async ({ 
       files, 
       contentType, 
-      providerId,
+      userId,
       maxCount = 10,
     }: MultiUploadParams): Promise<UploadResult[]> => {
       // 1. Validate all files first
@@ -124,7 +134,8 @@ export function useUploadMultiplePulseMedia() {
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const path = generateStoragePath(providerId, contentType, file.name);
+        // Use userId (auth.uid), NOT providerId
+        const path = generateStoragePath(userId, contentType, file.name);
 
         const { data, error } = await supabase.storage
           .from('pulse-media')

@@ -198,18 +198,18 @@ export function GalleryCreator({ onSuccess, onCancel }: GalleryCreatorProps) {
   };
 
   const handleSubmit = async (data: GalleryFormData) => {
-    if (!user || images.length === 0) {
+    if (!user?.id || images.length === 0) {
       toast.error("Please add at least one image");
       return;
     }
 
     try {
-      // Upload all images
+      // Upload all images - use user.id (auth.uid) for RLS compliance
       const files = images.map(img => img.file);
       const uploadResults = await uploadMutation.mutateAsync({
         files,
         contentType: "gallery",
-        providerId: user.id,
+        userId: user.id,
         maxCount: MAX_IMAGES,
       });
 
