@@ -1,10 +1,15 @@
 /**
- * Video Uploader Component
- * Drag/drop upload and webcam recording for reels
+ * Video Uploader Component - FOOLPROOF VERSION
  * 
- * CRITICAL FIX: Uses deferred initialization pattern to prevent React timing bug.
- * The video element is ALWAYS mounted (hidden when not in use) so videoRef.current
- * is always valid. Camera initialization happens via useEffect AFTER render completes.
+ * CRITICAL FIX: Uses programmatic video element creation to bypass React/CSS timing issues.
+ * The video element is created with document.createElement() and appended to a container,
+ * ensuring it's always visible and has real dimensions before MediaRecorder starts.
+ * 
+ * Key changes from original:
+ * 1. Video element created programmatically, not via JSX
+ * 2. Explicit wait for videoWidth > 0 before starting MediaRecorder
+ * 3. Uses visibility positioning instead of display:none
+ * 4. 300ms stabilization delay ensures frames are stable
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
@@ -30,11 +35,11 @@ type CameraState = 'idle' | 'initializing' | 'recording' | 'stopping';
  */
 const getSupportedMimeType = (): string => {
   const mimeTypes = [
-    'video/webm;codecs=vp8,opus',  // VP8 first - more stable
+    'video/webm;codecs=vp8,opus',
     'video/webm;codecs=vp9,opus',
     'video/webm;codecs=vp8',
     'video/webm',
-    'video/mp4',  // Safari fallback
+    'video/mp4',
   ];
   
   for (const mimeType of mimeTypes) {
@@ -91,19 +96,18 @@ export function VideoUploader({
   const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [isExtracting, setIsExtracting] = useState(false);
 
-  // Refs - these persist across renders
+  // Refs
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoContainerRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const mimeTypeRef = useRef<string>('');
-  
-  // Flag to track if we need to initialize camera after render
   const pendingCameraInit = useRef<boolean>(false);
 
-  const MAX_DURATION_SECONDS = 180; // 3 minutes
+  const MAX_DURATION_SECONDS = 180;
 
   // Handle file validation and selection
   const handleFileSelect = useCallback(async (file: File) => {
@@ -113,7 +117,6 @@ export function VideoUploader({
       type: file.type
     });
 
-    // Check for empty file
     if (file.size === 0) {
       toast.error('Recording failed - empty file. Please try again.');
       console.error('[VideoUploader] Empty file received');
@@ -127,21 +130,17 @@ export function VideoUploader({
       return;
     }
 
-    // Check video duration
     const duration = await getVideoDuration(file);
     if (duration > MAX_DURATION_SECONDS) {
       toast.error(`Video must be under ${MAX_DURATION_SECONDS / 60} minutes`);
       return;
     }
 
-    // Set the file
     onVideoChange(file);
 
-    // Create preview URL
     const url = URL.createObjectURL(file);
     setVideoPreviewUrl(url);
 
-    // Extract cover image
     setIsExtracting(true);
     try {
       const cover = await extractVideoThumbnail(file);
@@ -155,7 +154,6 @@ export function VideoUploader({
     }
   }, [onVideoChange, onCoverExtracted]);
 
-  // Get video duration
   const getVideoDuration = (file: File): Promise<number> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
@@ -170,7 +168,6 @@ export function VideoUploader({
     });
   };
 
-  // Extract thumbnail from video
   const extractVideoThumbnail = (file: File): Promise<Blob | null> => {
     return new Promise((resolve) => {
       const video = document.createElement('video');
@@ -205,7 +202,7 @@ export function VideoUploader({
     });
   };
 
-  // Cleanup helper - used by initializeCamera, cancelRecording, and onstop
+  // Cleanup helper
   const cleanupCamera = useCallback(() => {
     console.log('[VideoUploader] Cleaning up camera...');
     
@@ -217,9 +214,11 @@ export function VideoUploader({
       streamRef.current = null;
     }
     
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
+    // Clean up programmatic video element
+    if (videoContainerRef.current) {
+      videoContainerRef.current.innerHTML = '';
     }
+    videoRef.current = null;
     
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -230,20 +229,19 @@ export function VideoUploader({
     mediaRecorderRef.current = null;
   }, []);
 
-  // Initialize camera - called by useEffect AFTER video element is mounted
+  // Initialize camera - FOOLPROOF version with programmatic video element
   const initializeCamera = useCallback(async () => {
     console.log('[VideoUploader] initializeCamera starting...');
     
-    // Double-check video element is available
-    if (!videoRef.current) {
-      console.error('[VideoUploader] Video element not found!');
+    if (!videoContainerRef.current) {
+      console.error('[VideoUploader] Video container not found!');
       toast.error('Camera initialization failed. Please try again.');
       setCameraState('idle');
       return;
     }
     
     try {
-      // Step 1: Request camera with fallback constraints
+      // Step 1: Get camera stream with fallback
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -265,56 +263,58 @@ export function VideoUploader({
       streamRef.current = stream;
       console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => `${t.kind}:${t.readyState}`));
 
-      // Step 2: Attach stream to video element
-      const video = videoRef.current;
+      // Step 2: Create video element PROGRAMMATICALLY
+      const video = document.createElement('video');
+      video.muted = true;
+      video.playsInline = true;
+      video.autoplay = true;
+      video.style.width = '100%';
+      video.style.height = '100%';
+      video.style.objectFit = 'cover';
+      
+      // Step 3: Add to DOM BEFORE attaching stream
+      videoContainerRef.current.innerHTML = '';
+      videoContainerRef.current.appendChild(video);
+      videoRef.current = video;
+      
+      // Step 4: Attach stream
       video.srcObject = stream;
-      video.muted = true; // Prevent audio feedback
+      console.log('[VideoUploader] Stream attached to programmatic video element');
       
-      console.log('[VideoUploader] Stream attached to video element');
-      
-      // Step 3: Wait for video to be ready
+      // Step 5: Wait for video to have ACTUAL FRAMES (not just metadata)
       await new Promise<void>((resolve, reject) => {
         const timeoutId = setTimeout(() => {
-          reject(new Error('Video load timeout'));
-        }, 5000);
+          reject(new Error('Video frame timeout - camera may not be working'));
+        }, 10000);
         
-        const handleLoadedMetadata = () => {
-          clearTimeout(timeoutId);
-          video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-          console.log('[VideoUploader] Video metadata loaded, dimensions:', video.videoWidth, 'x', video.videoHeight);
-          
-          video.play()
-            .then(() => {
-              console.log('[VideoUploader] Video playing successfully');
-              resolve();
-            })
-            .catch((playError) => {
-              console.error('[VideoUploader] Video play failed:', playError);
-              reject(playError);
-            });
+        const checkFrames = () => {
+          if (video.videoWidth > 0 && video.videoHeight > 0) {
+            clearTimeout(timeoutId);
+            console.log('[VideoUploader] Video has frames:', video.videoWidth, 'x', video.videoHeight);
+            resolve();
+          } else {
+            requestAnimationFrame(checkFrames);
+          }
         };
         
-        video.addEventListener('loadedmetadata', handleLoadedMetadata);
-        
-        // If metadata already loaded
-        if (video.readyState >= 1) {
-          clearTimeout(timeoutId);
-          video.removeEventListener('loadedmetadata', handleLoadedMetadata);
-          video.play()
-            .then(() => {
-              console.log('[VideoUploader] Video already ready, playing');
-              resolve();
-            })
-            .catch(reject);
-        }
+        video.play()
+          .then(() => {
+            console.log('[VideoUploader] Video playing, waiting for frames...');
+            checkFrames();
+          })
+          .catch(reject);
       });
       
-      // Step 4: Create MediaRecorder
+      // Step 6: Additional delay to ensure stable frames
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('[VideoUploader] Frames stable, starting MediaRecorder');
+      
+      // Step 7: Create MediaRecorder
       const mimeType = getSupportedMimeType();
       mimeTypeRef.current = mimeType;
       
       const recorderOptions: MediaRecorderOptions = {
-        videoBitsPerSecond: 2500000, // 2.5 Mbps for better quality
+        videoBitsPerSecond: 2500000,
       };
       if (mimeType) {
         recorderOptions.mimeType = mimeType;
@@ -332,14 +332,13 @@ export function VideoUploader({
         }
       };
 
-      // Stop handler - CRITICAL: cleanup happens here AFTER blob is created
+      // Stop handler
       mediaRecorder.onstop = () => {
         console.log('[VideoUploader] MediaRecorder.onstop fired');
         
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
         console.log('[VideoUploader] Total recorded:', chunksRef.current.length, 'chunks,', totalSize, 'bytes');
         
-        // Validate minimum size (10KB minimum for a valid recording)
         if (totalSize < 10000) {
           console.error('[VideoUploader] Recording too small:', totalSize);
           toast.error('Recording failed - please try again');
@@ -348,7 +347,6 @@ export function VideoUploader({
           return;
         }
         
-        // Create blob with BASE MIME type (strip codec params)
         const fullMimeType = mimeTypeRef.current || 'video/webm';
         const baseMimeType = fullMimeType.split(';')[0].trim();
         const extension = getFileExtension(fullMimeType);
@@ -362,10 +360,7 @@ export function VideoUploader({
         
         console.log('[VideoUploader] File created:', file.name, file.size, 'bytes');
         
-        // Pass file to handler
         handleFileSelect(file);
-        
-        // NOW cleanup - AFTER file is created
         cleanupCamera();
         setCameraState('idle');
       };
@@ -378,7 +373,7 @@ export function VideoUploader({
       };
 
       // Start recording
-      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorder.start(1000);
       console.log('[VideoUploader] Recording started');
       
       setCameraState('recording');
@@ -402,26 +397,24 @@ export function VideoUploader({
     }
   }, [handleFileSelect, cleanupCamera]);
 
-  // Handle camera initialization AFTER state change and DOM update
+  // Handle camera initialization after state change
   useEffect(() => {
     if (pendingCameraInit.current && cameraState === 'initializing') {
       pendingCameraInit.current = false;
-      // Use requestAnimationFrame to ensure DOM is fully updated
       requestAnimationFrame(() => {
         initializeCamera();
       });
     }
   }, [cameraState, initializeCamera]);
 
-  // Start recording - sets state and schedules camera init
+  // Start recording
   const startRecording = useCallback(() => {
     console.log('[VideoUploader] startRecording called - scheduling initialization');
     pendingCameraInit.current = true;
     setCameraState('initializing');
-    // Camera will be initialized by useEffect after this render completes
   }, []);
 
-  // Stop recording - signals stop, lets onstop handle cleanup
+  // Stop recording
   const stopRecording = useCallback(() => {
     console.log('[VideoUploader] stopRecording called');
     
@@ -435,15 +428,12 @@ export function VideoUploader({
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
       setCameraState('stopping');
-      // onstop handler will do the rest
     }
   }, []);
 
-  // Cancel recording - cleanup without saving
+  // Cancel recording
   const cancelRecording = useCallback(() => {
     console.log('[VideoUploader] cancelRecording called');
-    
-    // Clear chunks so onstop doesn't process them
     chunksRef.current = [];
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
@@ -506,18 +496,18 @@ export function VideoUploader({
 
   return (
     <div className="space-y-3">
-      {/* Camera Container - Always mounted, visibility controlled by CSS */}
-      <div className={showCameraUI ? '' : 'hidden'}>
+      {/* Camera Container - Uses visibility positioning instead of display:none */}
+      <div 
+        className={showCameraUI ? '' : 'invisible absolute -left-[9999px]'}
+        style={{ height: showCameraUI ? 'auto' : 0, overflow: 'hidden' }}
+      >
         <Card className={`border-2 ${cameraState === 'recording' ? 'border-destructive' : 'border-primary'}`}>
           <CardContent className="p-4">
             <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-              {/* ALWAYS MOUNTED video element - visibility controlled by parent div */}
-              <video
-                ref={videoRef}
-                muted
-                playsInline
-                autoPlay
-                className="w-full h-full object-cover"
+              {/* Container for programmatic video element - ALWAYS in DOM */}
+              <div 
+                ref={videoContainerRef}
+                className="w-full h-full"
               />
               
               {/* Initializing overlay */}
@@ -547,7 +537,7 @@ export function VideoUploader({
                 </>
               )}
               
-              {/* Stopping/Finalizing overlay */}
+              {/* Stopping overlay */}
               {cameraState === 'stopping' && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/70">
                   <div className="text-center text-white">
