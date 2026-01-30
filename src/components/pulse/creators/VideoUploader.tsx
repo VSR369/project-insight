@@ -1,6 +1,10 @@
 /**
  * Video Uploader Component
  * Drag/drop upload and webcam recording for reels
+ * 
+ * CRITICAL: Uses a SINGLE persistent video element to prevent stream loss
+ * during React re-renders. The video element must stay mounted across all
+ * camera states (idle, initializing, recording) to maintain the MediaStream.
  */
 
 import { useState, useRef, useCallback } from 'react';
@@ -18,7 +22,7 @@ interface VideoUploaderProps {
   disabled?: boolean;
 }
 
-type CameraState = 'idle' | 'initializing' | 'ready' | 'recording';
+type CameraState = 'idle' | 'initializing' | 'recording';
 
 /**
  * Detect the best supported mimeType for MediaRecorder
@@ -35,13 +39,13 @@ const getSupportedMimeType = (): string => {
   
   for (const mimeType of mimeTypes) {
     if (MediaRecorder.isTypeSupported(mimeType)) {
-      console.log('Using mimeType:', mimeType);
+      console.log('[VideoUploader] Using mimeType:', mimeType);
       return mimeType;
     }
   }
   
   // Last resort: let browser choose
-  console.warn('No preferred mimeType supported, using browser default');
+  console.warn('[VideoUploader] No preferred mimeType supported, using browser default');
   return '';
 };
 
@@ -73,7 +77,7 @@ const handleCameraError = (error: unknown) => {
     toast.error(`Could not access camera: ${err.message || 'Unknown error'}`);
   }
   
-  console.error('Camera error:', error);
+  console.error('[VideoUploader] Camera error:', error);
 };
 
 export function VideoUploader({ 
@@ -100,9 +104,23 @@ export function VideoUploader({
 
   // Handle file validation and selection
   const handleFileSelect = useCallback(async (file: File) => {
+    console.log('[VideoUploader] handleFileSelect called:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
+
+    // Check for empty file
+    if (file.size === 0) {
+      toast.error('Recording failed - empty file. Please try again.');
+      console.error('[VideoUploader] Empty file received');
+      return;
+    }
+
     const validation = validateFile(file, 'reel');
     if (!validation.valid) {
       toast.error(validation.error);
+      console.error('[VideoUploader] Validation failed:', validation.error);
       return;
     }
 
@@ -128,7 +146,7 @@ export function VideoUploader({
         onCoverExtracted(cover);
       }
     } catch (error) {
-      console.warn('Could not extract cover image');
+      console.warn('[VideoUploader] Could not extract cover image:', error);
     } finally {
       setIsExtracting(false);
     }
@@ -141,7 +159,9 @@ export function VideoUploader({
       video.preload = 'metadata';
       video.onloadedmetadata = () => {
         URL.revokeObjectURL(video.src);
-        resolve(video.duration);
+        // Handle non-finite durations (can happen with some recordings)
+        const duration = isFinite(video.duration) ? video.duration : 0;
+        resolve(duration);
       };
       video.onerror = () => resolve(0);
       video.src = URL.createObjectURL(file);
@@ -214,6 +234,7 @@ export function VideoUploader({
   // Webcam recording with robust initialization
   const startRecording = useCallback(async () => {
     setCameraState('initializing');
+    console.log('[VideoUploader] Starting camera initialization...');
     
     try {
       // Step 1: Request camera with fallback constraints
@@ -230,7 +251,7 @@ export function VideoUploader({
         });
       } catch (constraintError) {
         // Fallback: accept any available camera
-        console.warn('Preferred camera constraints failed, using defaults:', constraintError);
+        console.warn('[VideoUploader] Preferred camera constraints failed, using defaults:', constraintError);
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
@@ -238,8 +259,9 @@ export function VideoUploader({
       }
       
       streamRef.current = stream;
+      console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => t.kind));
 
-      // Step 2: Properly attach stream to video element and wait for it to be ready
+      // Step 2: Attach stream to persistent video element
       if (videoRef.current) {
         const video = videoRef.current;
         video.srcObject = stream;
@@ -252,8 +274,12 @@ export function VideoUploader({
           
           video.onloadedmetadata = () => {
             clearTimeout(timeoutId);
+            console.log('[VideoUploader] Video metadata loaded');
             video.play()
-              .then(() => resolve())
+              .then(() => {
+                console.log('[VideoUploader] Video playing');
+                resolve();
+              })
               .catch(reject);
           };
           
@@ -278,29 +304,51 @@ export function VideoUploader({
       chunksRef.current = [];
 
       mediaRecorder.ondataavailable = (e) => {
+        console.log('[VideoUploader] ondataavailable:', e.data.size, 'bytes');
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
       };
 
       mediaRecorder.onstop = () => {
+        console.log('[VideoUploader] MediaRecorder stopped, chunks:', chunksRef.current.length);
+        
+        // Calculate total size
+        const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
+        console.log('[VideoUploader] Total recorded size:', totalSize, 'bytes');
+        
+        if (totalSize === 0) {
+          toast.error('Recording failed - no data captured. Please try again.');
+          setCameraState('idle');
+          return;
+        }
+        
         const actualMimeType = mimeTypeRef.current || 'video/webm';
         const blob = new Blob(chunksRef.current, { type: actualMimeType });
         const extension = getFileExtension(actualMimeType);
         const file = new File([blob], `recording_${Date.now()}.${extension}`, {
           type: actualMimeType,
         });
+        
+        console.log('[VideoUploader] Created file:', {
+          name: file.name,
+          size: file.size,
+          type: file.type
+        });
+        
         handleFileSelect(file);
         setCameraState('idle');
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error('MediaRecorder error:', event);
+        console.error('[VideoUploader] MediaRecorder error:', event);
         toast.error('Recording failed. Please try again.');
         stopRecording();
       };
 
       mediaRecorder.start(1000); // Collect data every second
+      console.log('[VideoUploader] MediaRecorder started');
+      
       setCameraState('recording');
       setRecordingTime(0);
 
@@ -328,8 +376,11 @@ export function VideoUploader({
   }, [handleFileSelect]);
 
   const stopRecording = useCallback(() => {
-    // Stop MediaRecorder first
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    console.log('[VideoUploader] stopRecording called');
+    
+    // Request final data before stopping
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
     }
     
@@ -350,10 +401,39 @@ export function VideoUploader({
     // Clear video element
     if (videoRef.current) {
       videoRef.current.srcObject = null;
-      videoRef.current.load(); // Reset video element state
     }
     
     // Note: setCameraState('idle') is handled in mediaRecorder.onstop
+  }, []);
+
+  const cancelRecording = useCallback(() => {
+    console.log('[VideoUploader] cancelRecording called');
+    
+    // Stop without processing
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      // Clear chunks so onstop doesn't process them
+      chunksRef.current = [];
+      mediaRecorderRef.current.stop();
+    }
+    
+    // Stop all tracks
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
+    
+    // Clear timer
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Clear video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    setCameraState('idle');
   }, []);
 
   const clearVideo = () => {
@@ -373,178 +453,179 @@ export function VideoUploader({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Show initializing UI
-  if (cameraState === 'initializing') {
-    return (
-      <Card className="border-2 border-primary">
-        <CardContent className="p-4">
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden flex items-center justify-center">
-            <div className="text-center text-white">
-              <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
-              <p className="text-lg font-medium">Initializing camera...</p>
-              <p className="text-sm text-white/70 mt-1">Please allow camera access if prompted</p>
-            </div>
-          </div>
-          <div className="flex justify-center mt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                if (streamRef.current) {
-                  streamRef.current.getTracks().forEach(track => track.stop());
-                  streamRef.current = null;
-                }
-                setCameraState('idle');
-              }}
-            >
-              Cancel
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
+  // Determine if we should show camera UI (initializing or recording)
+  const showCameraUI = cameraState === 'initializing' || cameraState === 'recording';
+  
+  // Determine if we should show video preview (file selected)
+  const showPreview = videoFile && videoPreviewUrl && cameraState === 'idle';
+  
+  // Determine if we should show upload zone (idle, no file)
+  const showUploadZone = cameraState === 'idle' && !videoFile;
 
-  // Show recording UI
-  if (cameraState === 'recording') {
-    return (
-      <Card className="border-2 border-destructive">
-        <CardContent className="p-4">
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-            <video
-              ref={videoRef}
-              muted
-              playsInline
-              autoPlay
-              className="w-full h-full object-cover"
-            />
-            <div className="absolute top-3 left-3 flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm">
-              <span className="h-2 w-2 bg-white rounded-full animate-pulse" />
-              REC {formatTime(recordingTime)}
-            </div>
-            <div className="absolute bottom-0 left-0 right-0 p-2">
-              <Progress 
-                value={(recordingTime / MAX_DURATION_SECONDS) * 100} 
-                className="h-1"
-              />
-            </div>
-          </div>
-          <div className="flex justify-center mt-4">
-            <Button
-              type="button"
-              variant="destructive"
-              size="lg"
-              onClick={stopRecording}
-            >
-              <StopCircle className="h-5 w-5 mr-2" />
-              Stop Recording
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show preview if video selected
-  if (videoFile && videoPreviewUrl) {
-    return (
-      <Card className="border-2 border-primary">
-        <CardContent className="p-4">
-          <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
-            <video
-              src={videoPreviewUrl}
-              controls
-              className="w-full h-full object-contain"
-            />
-            <Button
-              type="button"
-              variant="destructive"
-              size="icon"
-              className="absolute top-2 right-2"
-              onClick={clearVideo}
-              disabled={disabled}
-            >
-              <X className="h-4 w-4" />
-            </Button>
-            {isExtracting && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin text-white" />
-              </div>
-            )}
-          </div>
-          <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Video className="h-4 w-4" />
-              {videoFile.name}
-            </span>
-            <span>{formatBytes(videoFile.size)}</span>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  // Show upload zone
   return (
     <div className="space-y-3">
-      <Card
-        className={`border-2 border-dashed transition-colors cursor-pointer ${
-          isDragging 
-            ? 'border-primary bg-primary/5' 
-            : 'border-muted-foreground/25 hover:border-primary/50'
-        }`}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-        onClick={() => fileInputRef.current?.click()}
-      >
-        <CardContent className="flex flex-col items-center justify-center py-12">
-          <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-            <Upload className="h-8 w-8 text-muted-foreground" />
+      {/* Camera UI - Initializing or Recording */}
+      {showCameraUI && (
+        <Card className={`border-2 ${cameraState === 'recording' ? 'border-destructive' : 'border-primary'}`}>
+          <CardContent className="p-4">
+            <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+              {/* PERSISTENT video element - stays mounted across states */}
+              <video
+                ref={videoRef}
+                muted
+                playsInline
+                autoPlay
+                className="w-full h-full object-cover"
+              />
+              
+              {/* Initializing overlay */}
+              {cameraState === 'initializing' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                  <div className="text-center text-white">
+                    <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+                    <p className="text-lg font-medium">Initializing camera...</p>
+                    <p className="text-sm text-white/70 mt-1">Please allow camera access if prompted</p>
+                  </div>
+                </div>
+              )}
+              
+              {/* Recording overlay */}
+              {cameraState === 'recording' && (
+                <>
+                  <div className="absolute top-3 left-3 flex items-center gap-2 bg-destructive text-destructive-foreground px-3 py-1 rounded-full text-sm">
+                    <span className="h-2 w-2 bg-white rounded-full animate-pulse" />
+                    REC {formatTime(recordingTime)}
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-2">
+                    <Progress 
+                      value={(recordingTime / MAX_DURATION_SECONDS) * 100} 
+                      className="h-1"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+            
+            {/* Controls */}
+            <div className="flex justify-center gap-3 mt-4">
+              {cameraState === 'initializing' && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={cancelRecording}
+                >
+                  Cancel
+                </Button>
+              )}
+              
+              {cameraState === 'recording' && (
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="lg"
+                  onClick={stopRecording}
+                >
+                  <StopCircle className="h-5 w-5 mr-2" />
+                  Stop Recording
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Preview - Video file selected */}
+      {showPreview && (
+        <Card className="border-2 border-primary">
+          <CardContent className="p-4">
+            <div className="relative aspect-video bg-black rounded-lg overflow-hidden">
+              <video
+                src={videoPreviewUrl}
+                controls
+                className="w-full h-full object-contain"
+              />
+              <Button
+                type="button"
+                variant="destructive"
+                size="icon"
+                className="absolute top-2 right-2"
+                onClick={clearVideo}
+                disabled={disabled}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+              {isExtracting && (
+                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 animate-spin text-white" />
+                </div>
+              )}
+            </div>
+            <div className="flex items-center justify-between mt-3 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Video className="h-4 w-4" />
+                {videoFile.name}
+              </span>
+              <span>{formatBytes(videoFile.size)}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Upload Zone - Idle state, no file */}
+      {showUploadZone && (
+        <>
+          <Card
+            className={`border-2 border-dashed transition-colors cursor-pointer ${
+              isDragging 
+                ? 'border-primary bg-primary/5' 
+                : 'border-muted-foreground/25 hover:border-primary/50'
+            }`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <CardContent className="flex flex-col items-center justify-center py-12">
+              <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                <Upload className="h-8 w-8 text-muted-foreground" />
+              </div>
+              <p className="text-lg font-medium mb-1">Upload Video</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Drag & drop or click to browse
+              </p>
+              <p className="text-xs text-muted-foreground">
+                MP4, MOV, WebM • Max {MEDIA_LIMITS.reel.label} • Max 3 minutes
+              </p>
+            </CardContent>
+          </Card>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            onChange={handleFileInputChange}
+            className="hidden"
+            disabled={disabled}
+          />
+
+          <div className="flex items-center gap-2">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">or</span>
+            <div className="flex-1 h-px bg-border" />
           </div>
-          <p className="text-lg font-medium mb-1">Upload Video</p>
-          <p className="text-sm text-muted-foreground mb-4">
-            Drag & drop or click to browse
-          </p>
-          <p className="text-xs text-muted-foreground">
-            MP4, MOV, WebM • Max {MEDIA_LIMITS.reel.label} • Max 3 minutes
-          </p>
-        </CardContent>
-      </Card>
 
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="video/*"
-        onChange={handleFileInputChange}
-        className="hidden"
-        disabled={disabled}
-      />
-
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-px bg-border" />
-        <span className="text-xs text-muted-foreground">or</span>
-        <div className="flex-1 h-px bg-border" />
-      </div>
-
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full"
-        onClick={startRecording}
-        disabled={disabled}
-      >
-        <Camera className="h-4 w-4 mr-2" />
-        Record with Camera
-      </Button>
-      
-      {/* Hidden video element for recording - will be shown when recording starts */}
-      <video
-        ref={videoRef}
-        muted
-        playsInline
-        className="hidden"
-      />
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            onClick={startRecording}
+            disabled={disabled}
+          >
+            <Camera className="h-4 w-4 mr-2" />
+            Record with Camera
+          </Button>
+        </>
+      )}
     </div>
   );
 }
