@@ -46,6 +46,7 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
   const [showUploader, setShowUploader] = useState(false);
+  const [playbackComplete, setPlaybackComplete] = useState(false);
 
   // ═══════════════════════════════════════════
   // SECTION 2: Refs
@@ -150,6 +151,11 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
     if (isPlaying) {
       audioRef.current.pause();
     } else {
+      // Reset to start if playback was complete
+      if (playbackComplete) {
+        audioRef.current.currentTime = 0;
+        setPlaybackComplete(false);
+      }
       audioRef.current.play();
     }
     setIsPlaying(!isPlaying);
@@ -356,12 +362,22 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
                 </p>
               </div>
 
+              {/* Playback complete indicator */}
+              {playbackComplete && (
+                <p className="text-xs text-muted-foreground text-center">
+                  ✓ Playback complete - click Play to replay
+                </p>
+              )}
+
               {/* Hidden audio element */}
               {audioUrl && (
                 <audio
                   ref={audioRef}
                   src={audioUrl}
-                  onEnded={() => setIsPlaying(false)}
+                  onEnded={() => {
+                    setIsPlaying(false);
+                    setPlaybackComplete(true);
+                  }}
                   className="hidden"
                 />
               )}

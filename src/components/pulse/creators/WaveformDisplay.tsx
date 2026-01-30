@@ -3,7 +3,7 @@
  * Visualizes audio as animated bars or static waveform
  */
 
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface WaveformDisplayProps {
@@ -14,13 +14,14 @@ interface WaveformDisplayProps {
   barCount?: number;
 }
 
-export function WaveformDisplay({
-  audioUrl,
-  isRecording = false,
-  isPlaying = false,
-  className,
-  barCount = 40,
-}: WaveformDisplayProps) {
+export const WaveformDisplay = forwardRef<HTMLDivElement, WaveformDisplayProps>(
+  function WaveformDisplay({
+    audioUrl,
+    isRecording = false,
+    isPlaying = false,
+    className,
+    barCount = 40,
+  }, ref) {
   const [bars, setBars] = useState<number[]>([]);
   const animationRef = useRef<number>();
   const audioContextRef = useRef<AudioContext>();
@@ -90,30 +91,32 @@ export function WaveformDisplay({
     }
   };
 
-  return (
-    <div 
-      className={cn(
-        "flex items-center justify-center gap-0.5 h-24",
-        className
-      )}
-    >
-      {bars.map((height, index) => (
-        <div
-          key={index}
-          className={cn(
-            "w-1.5 rounded-full transition-all duration-100",
-            isRecording 
-              ? "bg-red-500" 
-              : isPlaying 
-                ? "bg-primary" 
-                : "bg-primary/60"
-          )}
-          style={{
-            height: `${height * 100}%`,
-            minHeight: "4px",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
+    return (
+      <div 
+        ref={ref}
+        className={cn(
+          "flex items-center justify-center gap-0.5 h-24",
+          className
+        )}
+      >
+        {bars.map((height, index) => (
+          <div
+            key={index}
+            className={cn(
+              "w-1.5 rounded-full transition-all duration-100",
+              isRecording 
+                ? "bg-red-500" 
+                : isPlaying 
+                  ? "bg-primary" 
+                  : "bg-primary/60"
+            )}
+            style={{
+              height: `${height * 100}%`,
+              minHeight: "4px",
+            }}
+          />
+        ))}
+      </div>
+    );
+  }
+);
