@@ -1,187 +1,242 @@
 
-
-# 5-Why Root Cause Analysis: Pulse Content Upload Failures
+# 5-Why Root Cause Analysis: Camera Not Displaying Video Feed
 
 ## 📋 Issue Summary
-All content types (reels, podcasts, knowledge sparks, articles, galleries, quick posts) fail to upload with error:
-```
-"new row violates row-level security policy"
-```
+When clicking "Record with Camera" in the Reel Creator, the camera does not display any video feed. The session replay showed a toast notification "Video must be under 3 minutes" appearing, suggesting partial processing but no visible camera preview.
 
 ---
 
-## 🔍 5-Why Analysis
+## 🔍 5-Why Root Cause Analysis
 
-### Why #1: Why does the upload fail?
-**Answer:** The Supabase Storage RLS policy rejects the upload request with "Unauthorized" error.
+### Why #1: Why is the camera not showing the video feed?
+**Answer:** The `videoRef.current` video element exists but is not receiving/displaying the MediaStream correctly, resulting in a black or blank screen.
 
-### Why #2: Why does RLS reject the request?
-**Answer:** The RLS policy condition `(storage.foldername(name))[1] = (auth.uid())::text` evaluates to `false`.
+### Why #2: Why is the video element not displaying the stream?
+**Answer:** Multiple potential issues in the current implementation:
+1. The video element may not exist in the DOM when `srcObject` is set (React render timing)
+2. The `video.play()` call happens immediately after setting `srcObject` without waiting for the stream to be ready
+3. No `onloadedmetadata` event handler to ensure the video is ready before playing
 
-### Why #3: Why does the condition evaluate to false?
-**Answer:** The code is uploading to path:
-- **Actual path:** `ce00180c-1ff5-4e48-8d79-d4eb7ada8070/post/...` (provider_id)
-- **Expected by RLS:** `32aec070-360a-4d73-a6dd-28961c629ca6/...` (auth.uid/user_id)
+### Why #3: Why does the video.play() fail silently?
+**Answer:** The current code calls `videoRef.current.play()` synchronously after setting `srcObject`, but:
+- Modern browsers require `play()` to return a Promise
+- The Promise rejection is not being caught
+- iOS Safari has stricter autoplay policies requiring explicit user gesture handling
+- The `muted` attribute alone is not sufficient on all browsers/devices
 
-The first folder segment is the **provider_id**, but RLS expects **user_id (auth.uid())**.
+### Why #4: Why is the MediaRecorder mimeType causing issues?
+**Answer:** The code hardcodes `'video/webm;codecs=vp9,opus'` which:
+- Is NOT supported on Safari/iOS (which only supports H.264/AAC via MP4)
+- May not be supported on older browsers
+- No fallback mechanism exists when `isTypeSupported()` returns false
+- This causes MediaRecorder instantiation to fail silently
 
-### Why #4: Why is provider_id being used instead of user_id?
-**Answer:** The `generateStoragePath()` function receives `providerId` from components:
-```typescript
-const path = generateStoragePath(providerId, contentType, file.name);
-// Generates: {providerId}/{contentType}/{timestamp}_{filename}
-```
-
-All creator components pass `provider.id`:
-```typescript
-providerId: provider.id  // This is solution_providers.id, NOT auth.uid()
-```
-
-### Why #5: Why wasn't this mismatch caught during design?
-**Answer:** There's a conceptual mismatch between two valid approaches:
-- **RLS Policy Design:** Based on `auth.uid()` (user's auth ID) for security
-- **Path Generation Code:** Based on `provider.id` (business entity ID) for organization
-
-The Memory note stated "folder-based storage model where authenticated users can only upload to and manage files within their own `/{user_id}/` subfolders" but the implementation used `provider_id`.
+### Why #5: Why wasn't browser compatibility considered?
+**Answer:** The implementation assumed Chrome-like behavior without:
+- Checking `MediaRecorder.isTypeSupported()` before creating the recorder
+- Providing fallback codecs for different browsers
+- Handling Safari's requirement for `video/mp4` format
+- Proper error logging to identify the failure point
 
 ---
 
-## ✅ Root Cause (Single Sentence)
-**The upload path uses `provider_id` as the first folder segment, but the RLS policy expects `auth.uid()` (user_id), causing a permanent mismatch for all authenticated uploads.**
+## ✅ Root Causes (Summary)
+
+| Issue | Root Cause | Impact |
+|-------|------------|--------|
+| **Black Screen** | `video.play()` called before stream is ready; no `onloadedmetadata` handler | Camera appears to work but shows nothing |
+| **Safari/iOS Failure** | Hardcoded `video/webm;codecs=vp9,opus` not supported | Complete failure on Apple devices |
+| **Silent Failures** | `play()` Promise rejections not caught | No user feedback when camera fails |
+| **No Default Camera** | Using `facingMode: 'user'` locks to front camera; no fallback | May fail on devices without front camera |
 
 ---
 
-## 🔧 Solution Options
+## 🔧 Comprehensive Solution
 
-### Option A: Fix the Code (Recommended)
-Change `generateStoragePath()` to use `user_id` instead of `provider_id`:
-
-**File:** `src/lib/validations/media.ts`
-```typescript
-// Before (broken):
-export function generateStoragePath(
-  providerId: string, 
-  contentType: string, 
-  filename: string
-): string {
-  return `${providerId}/${contentType}/${timestamp}_${sanitized}`;
-}
-
-// After (fixed):
-export function generateStoragePath(
-  userId: string,  // Renamed parameter 
-  contentType: string, 
-  filename: string
-): string {
-  return `${userId}/${contentType}/${timestamp}_${sanitized}`;
-}
-```
-
-**Update all callers** to pass `user.id` (from auth) instead of `provider.id`:
-- `PostCreator.tsx`
-- `ReelCreator.tsx`
-- `PodcastStudio.tsx`
-- `ArticleEditor.tsx`
-- `GalleryCreator.tsx`
-- `SparkBuilder.tsx` (if it has media)
-
-This requires getting the authenticated user's ID via `supabase.auth.getUser()` or a context hook.
-
-### Option B: Fix the RLS Policy (Alternative)
-Modify the storage RLS policy to use provider_id mapping:
-
-```sql
--- Change from:
-(storage.foldername(name))[1] = (auth.uid())::text
-
--- Change to (lookup provider_id from solution_providers):
-(storage.foldername(name))[1] IN (
-  SELECT id::text FROM solution_providers WHERE user_id = auth.uid()
-)
-```
-
-**Pros:** Less code changes
-**Cons:** More complex RLS query, potential performance impact
-
----
-
-## 📝 Implementation Plan (Option A - Code Fix)
-
-### Step 1: Update Path Generation Signature
-Update `generateStoragePath` to clearly expect `userId`:
+### Fix 1: Robust Camera Stream Initialization
 
 ```typescript
-// src/lib/validations/media.ts
-export function generateStoragePath(
-  userId: string,  // auth.uid() - the user's auth ID
-  contentType: string, 
-  filename: string
-): string {
-  const timestamp = Date.now();
-  const sanitized = filename
-    .toLowerCase()
-    .replace(/[^a-z0-9.-]/g, '_')
-    .replace(/_+/g, '_');
+const startRecording = async () => {
+  try {
+    // Step 1: Request camera with fallback constraints
+    let stream: MediaStream;
+    try {
+      // Try preferred constraints first
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'user',  // Front camera preferred
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
+        audio: true,
+      });
+    } catch (constraintError) {
+      // Fallback: accept any available camera
+      console.warn('Preferred camera constraints failed, using defaults');
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true,
+      });
+    }
+    
+    streamRef.current = stream;
+
+    // Step 2: Properly attach stream to video element
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream;
+      
+      // Wait for video to be ready before playing
+      await new Promise<void>((resolve, reject) => {
+        const video = videoRef.current!;
+        video.onloadedmetadata = () => {
+          video.play()
+            .then(() => resolve())
+            .catch(reject);
+        };
+        video.onerror = () => reject(new Error('Video element error'));
+        
+        // Timeout after 5 seconds
+        setTimeout(() => reject(new Error('Video load timeout')), 5000);
+      });
+    }
+    
+    // Step 3: Create MediaRecorder with browser-compatible mimeType
+    const mimeType = getSupportedMimeType();
+    const mediaRecorder = new MediaRecorder(stream, { mimeType });
+    // ... rest of recording logic
+    
+  } catch (error) {
+    handleCameraError(error);
+  }
+};
+```
+
+### Fix 2: Browser-Compatible MimeType Detection
+
+```typescript
+const getSupportedMimeType = (): string => {
+  const mimeTypes = [
+    'video/webm;codecs=vp9,opus',
+    'video/webm;codecs=vp8,opus',
+    'video/webm;codecs=vp8',
+    'video/webm',
+    'video/mp4',  // Safari fallback
+  ];
   
-  return `${userId}/${contentType}/${timestamp}_${sanitized}`;
-}
+  for (const mimeType of mimeTypes) {
+    if (MediaRecorder.isTypeSupported(mimeType)) {
+      console.log('Using mimeType:', mimeType);
+      return mimeType;
+    }
+  }
+  
+  // Last resort: let browser choose
+  return '';
+};
 ```
 
-### Step 2: Update Upload Hook
-Modify `usePulseUpload.ts` to accept `userId` instead of `providerId`:
+### Fix 3: Comprehensive Error Handling
 
 ```typescript
-export interface UploadParams {
-  file: File;
-  contentType: MediaContentType;
-  userId: string;  // Changed from providerId
-}
+const handleCameraError = (error: unknown) => {
+  const err = error as Error;
+  
+  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+    toast.error('Camera permission denied. Please allow camera access in your browser settings.');
+  } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+    toast.error('No camera found. Please connect a camera and try again.');
+  } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+    toast.error('Camera is in use by another application. Please close other apps using the camera.');
+  } else if (err.name === 'OverconstrainedError') {
+    toast.error('Camera does not support required settings. Trying with default camera...');
+  } else if (err.message?.includes('timeout')) {
+    toast.error('Camera took too long to respond. Please try again.');
+  } else {
+    toast.error(`Could not access camera: ${err.message || 'Unknown error'}`);
+  }
+  
+  console.error('Camera error:', error);
+};
 ```
 
-### Step 3: Update All Creator Components
-Each creator component needs to pass the authenticated user's ID:
+### Fix 4: Proper Cleanup and State Management
 
 ```typescript
-// PostCreator.tsx, ReelCreator.tsx, etc.
-import { useAuth } from '@/hooks/useAuth';
-
-// Inside component:
-const { user } = useAuth();  // Get authenticated user
-
-// When uploading:
-const uploadResult = await uploadMedia.mutateAsync({
-  file: selectedImage,
-  contentType: 'post',
-  userId: user?.id || '',  // Use auth user ID, not provider.id
-});
+const stopRecording = useCallback(() => {
+  // Stop MediaRecorder first
+  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+    mediaRecorderRef.current.stop();
+  }
+  
+  // Stop all tracks
+  if (streamRef.current) {
+    streamRef.current.getTracks().forEach(track => {
+      track.stop();
+    });
+    streamRef.current = null;
+  }
+  
+  // Clear timer
+  if (timerRef.current) {
+    clearInterval(timerRef.current);
+    timerRef.current = null;
+  }
+  
+  // Clear video element
+  if (videoRef.current) {
+    videoRef.current.srcObject = null;
+    videoRef.current.load();  // Reset video element state
+  }
+  
+  setIsRecording(false);
+}, []);
 ```
-
-### Step 4: Affected Files
-1. `src/lib/validations/media.ts` - Update function signature
-2. `src/hooks/mutations/usePulseUpload.ts` - Update interface
-3. `src/components/pulse/creators/PostCreator.tsx` - Pass user.id
-4. `src/components/pulse/creators/ReelCreator.tsx` - Pass user.id
-5. `src/components/pulse/creators/PodcastStudio.tsx` - Pass user.id
-6. `src/components/pulse/creators/GalleryCreator.tsx` - Pass user.id
-7. `src/components/pulse/creators/ArticleEditor.tsx` - If media uploads
-8. `src/components/pulse/creators/SparkBuilder.tsx` - If media uploads
 
 ---
 
-## 🛡️ Prevention Measures
+## 📝 Implementation Plan
 
-1. **Align terminology:** Use consistent naming (`userId` for auth IDs, `providerId` for business entity IDs)
-2. **Add JSDoc comments:** Document what ID type each function expects
-3. **Integration tests:** Add tests that verify storage uploads work end-to-end
-4. **RLS testing:** Test storage policies with actual authenticated requests before deployment
+### Step 1: Update VideoUploader.tsx
+
+1. Add `getSupportedMimeType()` helper function
+2. Add `handleCameraError()` for comprehensive error messages
+3. Refactor `startRecording()` to:
+   - Use fallback camera constraints
+   - Wait for `onloadedmetadata` before calling `play()`
+   - Handle `play()` Promise properly
+   - Use dynamic mimeType detection
+4. Improve `stopRecording()` cleanup
+5. Add loading state during camera initialization
+
+### Step 2: Add Camera Preview State
+
+Add a new "camera initializing" state to show feedback while camera is loading:
+
+```typescript
+const [cameraState, setCameraState] = useState<'idle' | 'initializing' | 'ready' | 'recording'>('idle');
+```
+
+### Step 3: UI Improvements
+
+- Show "Initializing camera..." spinner while waiting for stream
+- Better error messages with actionable instructions
+- Add retry button when camera fails
 
 ---
 
-## 📊 Technical Details
+## 📊 Affected Files
 
-| Component | Current (Broken) | Fixed |
-|-----------|-----------------|-------|
-| Upload Path | `{provider_id}/post/...` | `{user_id}/post/...` |
-| RLS Check | `folder[1] = auth.uid()` | `folder[1] = auth.uid()` ✓ |
-| Example Path | `ce00180c.../post/file.png` | `32aec070.../post/file.png` |
+| File | Changes |
+|------|---------|
+| `src/components/pulse/creators/VideoUploader.tsx` | Complete refactor of camera handling |
 
+---
+
+## ✅ Expected Outcome
+
+After implementation:
+1. ✅ Camera automatically selects the best available camera (front by default, any camera as fallback)
+2. ✅ Video feed appears immediately after permission granted
+3. ✅ Works on Chrome, Firefox, Safari, and mobile browsers
+4. ✅ Clear error messages guide users when issues occur
+5. ✅ Behaves like standard Reels/Shorts apps
