@@ -22,7 +22,7 @@ interface VideoUploaderProps {
   disabled?: boolean;
 }
 
-type CameraState = 'idle' | 'initializing' | 'recording';
+type CameraState = 'idle' | 'initializing' | 'recording' | 'stopping';
 
 /**
  * Detect the best supported mimeType for MediaRecorder
@@ -30,8 +30,8 @@ type CameraState = 'idle' | 'initializing' | 'recording';
  */
 const getSupportedMimeType = (): string => {
   const mimeTypes = [
+    'video/webm;codecs=vp8,opus',  // VP8 first - more stable
     'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
     'video/webm;codecs=vp8',
     'video/webm',
     'video/mp4',  // Safari fallback
@@ -311,32 +311,63 @@ export function VideoUploader({
       };
 
       mediaRecorder.onstop = () => {
-        console.log('[VideoUploader] MediaRecorder stopped, chunks:', chunksRef.current.length);
+        console.log('[VideoUploader] 4. onstop fired');
         
         // Calculate total size
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
         console.log('[VideoUploader] Total recorded size:', totalSize, 'bytes');
         
-        if (totalSize === 0) {
-          toast.error('Recording failed - no data captured. Please try again.');
+        // Validate minimum size (10KB minimum for a valid recording)
+        if (totalSize < 10000) {
+          console.error('[VideoUploader] Recording too small:', totalSize);
+          toast.error('Recording failed - please try again');
+          
+          // Cleanup and return to idle
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+          }
+          if (videoRef.current) {
+            videoRef.current.srcObject = null;
+          }
+          chunksRef.current = [];
           setCameraState('idle');
           return;
         }
         
-        const actualMimeType = mimeTypeRef.current || 'video/webm';
-        const blob = new Blob(chunksRef.current, { type: actualMimeType });
-        const extension = getFileExtension(actualMimeType);
+        // Create blob with BASE MIME type (strip codec params)
+        const fullMimeType = mimeTypeRef.current || 'video/webm';
+        const baseMimeType = fullMimeType.split(';')[0].trim();
+        const extension = getFileExtension(fullMimeType);
+        
+        const blob = new Blob(chunksRef.current, { type: baseMimeType });
         const file = new File([blob], `recording_${Date.now()}.${extension}`, {
-          type: actualMimeType,
+          type: baseMimeType,
         });
         
-        console.log('[VideoUploader] Created file:', {
+        console.log('[VideoUploader] 5. File created:', {
           name: file.name,
           size: file.size,
           type: file.type
         });
         
+        // Pass file to handler
         handleFileSelect(file);
+        
+        // ✅ NOW cleanup - AFTER file is created
+        console.log('[VideoUploader] 6. Cleaning up stream and video element');
+        if (streamRef.current) {
+          streamRef.current.getTracks().forEach(track => {
+            console.log('[VideoUploader] Stopping track:', track.kind);
+            track.stop();
+          });
+          streamRef.current = null;
+        }
+        if (videoRef.current) {
+          videoRef.current.srcObject = null;
+        }
+        chunksRef.current = [];
+        
         setCameraState('idle');
       };
 
@@ -376,34 +407,26 @@ export function VideoUploader({
   }, [handleFileSelect]);
 
   const stopRecording = useCallback(() => {
-    console.log('[VideoUploader] stopRecording called');
+    console.log('[VideoUploader] 1. stopRecording called');
     
-    // Request final data before stopping
+    // Only stop the recorder - DO NOT cleanup here
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      console.log('[VideoUploader] 2. Requesting final data...');
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
+      console.log('[VideoUploader] 3. stop() called, waiting for onstop...');
     }
     
-    // Stop all tracks
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => {
-        track.stop();
-      });
-      streamRef.current = null;
-    }
-    
-    // Clear timer
+    // Clear timer (safe to do here - doesn't affect recording)
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    // Clear video element
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
+    // Set stopping state to show "Finalizing..." UI
+    setCameraState('stopping');
     
-    // Note: setCameraState('idle') is handled in mediaRecorder.onstop
+    // ✅ NO cleanup here! Let onstop handle it after blob is created
   }, []);
 
   const cancelRecording = useCallback(() => {
@@ -453,8 +476,8 @@ export function VideoUploader({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Determine if we should show camera UI (initializing or recording)
-  const showCameraUI = cameraState === 'initializing' || cameraState === 'recording';
+  // Determine if we should show camera UI (initializing, recording, or stopping)
+  const showCameraUI = cameraState === 'initializing' || cameraState === 'recording' || cameraState === 'stopping';
   
   // Determine if we should show video preview (file selected)
   const showPreview = videoFile && videoPreviewUrl && cameraState === 'idle';
@@ -504,6 +527,17 @@ export function VideoUploader({
                   </div>
                 </>
               )}
+              
+              {/* Stopping/Finalizing overlay */}
+              {cameraState === 'stopping' && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                  <div className="text-center text-white">
+                    <Loader2 className="h-12 w-12 animate-spin mx-auto mb-4" />
+                    <p className="text-lg font-medium">Finalizing recording...</p>
+                    <p className="text-sm text-white/70 mt-1">Please wait</p>
+                  </div>
+                </div>
+              )}
             </div>
             
             {/* Controls */}
@@ -528,6 +562,10 @@ export function VideoUploader({
                   <StopCircle className="h-5 w-5 mr-2" />
                   Stop Recording
                 </Button>
+              )}
+              
+              {cameraState === 'stopping' && (
+                <p className="text-sm text-muted-foreground">Processing...</p>
               )}
             </div>
           </CardContent>
