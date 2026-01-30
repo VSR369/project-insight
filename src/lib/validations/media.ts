@@ -93,8 +93,12 @@ export function validateFile(file: File, contentType: MediaContentType): FileVal
     };
   }
 
-  // Check MIME type
-  if (!(limits.types as readonly string[]).includes(file.type)) {
+  // Check MIME type - normalize to base type (strip codec parameters)
+  // MediaRecorder produces types like "video/webm;codecs=vp9,opus"
+  // We need to match against base types like "video/webm"
+  const baseMimeType = file.type.split(';')[0].trim().toLowerCase();
+  
+  if (!(limits.types as readonly string[]).includes(baseMimeType)) {
     const allowedExts = limits.extensions.join(', ');
     return { 
       valid: false, 
