@@ -1,242 +1,110 @@
 
-# 5-Why Root Cause Analysis: Camera Not Displaying Video Feed
+# Fix: Camera Recording Validation Failure
 
-## 📋 Issue Summary
-When clicking "Record with Camera" in the Reel Creator, the camera does not display any video feed. The session replay showed a toast notification "Video must be under 3 minutes" appearing, suggesting partial processing but no visible camera preview.
-
----
-
-## 🔍 5-Why Root Cause Analysis
-
-### Why #1: Why is the camera not showing the video feed?
-**Answer:** The `videoRef.current` video element exists but is not receiving/displaying the MediaStream correctly, resulting in a black or blank screen.
-
-### Why #2: Why is the video element not displaying the stream?
-**Answer:** Multiple potential issues in the current implementation:
-1. The video element may not exist in the DOM when `srcObject` is set (React render timing)
-2. The `video.play()` call happens immediately after setting `srcObject` without waiting for the stream to be ready
-3. No `onloadedmetadata` event handler to ensure the video is ready before playing
-
-### Why #3: Why does the video.play() fail silently?
-**Answer:** The current code calls `videoRef.current.play()` synchronously after setting `srcObject`, but:
-- Modern browsers require `play()` to return a Promise
-- The Promise rejection is not being caught
-- iOS Safari has stricter autoplay policies requiring explicit user gesture handling
-- The `muted` attribute alone is not sufficient on all browsers/devices
-
-### Why #4: Why is the MediaRecorder mimeType causing issues?
-**Answer:** The code hardcodes `'video/webm;codecs=vp9,opus'` which:
-- Is NOT supported on Safari/iOS (which only supports H.264/AAC via MP4)
-- May not be supported on older browsers
-- No fallback mechanism exists when `isTypeSupported()` returns false
-- This causes MediaRecorder instantiation to fail silently
-
-### Why #5: Why wasn't browser compatibility considered?
-**Answer:** The implementation assumed Chrome-like behavior without:
-- Checking `MediaRecorder.isTypeSupported()` before creating the recorder
-- Providing fallback codecs for different browsers
-- Handling Safari's requirement for `video/mp4` format
-- Proper error logging to identify the failure point
-
----
-
-## ✅ Root Causes (Summary)
-
-| Issue | Root Cause | Impact |
-|-------|------------|--------|
-| **Black Screen** | `video.play()` called before stream is ready; no `onloadedmetadata` handler | Camera appears to work but shows nothing |
-| **Safari/iOS Failure** | Hardcoded `video/webm;codecs=vp9,opus` not supported | Complete failure on Apple devices |
-| **Silent Failures** | `play()` Promise rejections not caught | No user feedback when camera fails |
-| **No Default Camera** | Using `facingMode: 'user'` locks to front camera; no fallback | May fail on devices without front camera |
-
----
-
-## 🔧 Comprehensive Solution
-
-### Fix 1: Robust Camera Stream Initialization
-
-```typescript
-const startRecording = async () => {
-  try {
-    // Step 1: Request camera with fallback constraints
-    let stream: MediaStream;
-    try {
-      // Try preferred constraints first
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: 'user',  // Front camera preferred
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-        audio: true,
-      });
-    } catch (constraintError) {
-      // Fallback: accept any available camera
-      console.warn('Preferred camera constraints failed, using defaults');
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true,
-      });
-    }
-    
-    streamRef.current = stream;
-
-    // Step 2: Properly attach stream to video element
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
-      
-      // Wait for video to be ready before playing
-      await new Promise<void>((resolve, reject) => {
-        const video = videoRef.current!;
-        video.onloadedmetadata = () => {
-          video.play()
-            .then(() => resolve())
-            .catch(reject);
-        };
-        video.onerror = () => reject(new Error('Video element error'));
-        
-        // Timeout after 5 seconds
-        setTimeout(() => reject(new Error('Video load timeout')), 5000);
-      });
-    }
-    
-    // Step 3: Create MediaRecorder with browser-compatible mimeType
-    const mimeType = getSupportedMimeType();
-    const mediaRecorder = new MediaRecorder(stream, { mimeType });
-    // ... rest of recording logic
-    
-  } catch (error) {
-    handleCameraError(error);
-  }
-};
+## Problem
+After recording a video with the camera, clicking "Stop Recording" shows the error:
+```
+Unsupported format. Allowed: .mp4, .mov, .avi, .webm
 ```
 
-### Fix 2: Browser-Compatible MimeType Detection
+## Root Cause Analysis (5-Why)
 
+| Level | Question | Answer |
+|-------|----------|--------|
+| Why #1 | Why is the error appearing? | `validateFile()` rejects the recorded file's MIME type |
+| Why #2 | Why does validation fail? | The recorded file has `type: "video/webm;codecs=vp9,opus"` |
+| Why #3 | Why doesn't that match? | Allowed types are `['video/mp4', 'video/webm', ...]` - exact match only |
+| Why #4 | Why exact matching? | `limits.types.includes(file.type)` uses strict equality |
+| **Root Cause** | | MediaRecorder creates MIME types with codec suffixes that don't exactly match the allowed list |
+
+## Technical Details
+
+**Current Validation (Line 97 in media.ts):**
 ```typescript
-const getSupportedMimeType = (): string => {
-  const mimeTypes = [
-    'video/webm;codecs=vp9,opus',
-    'video/webm;codecs=vp8,opus',
-    'video/webm;codecs=vp8',
-    'video/webm',
-    'video/mp4',  // Safari fallback
-  ];
-  
-  for (const mimeType of mimeTypes) {
-    if (MediaRecorder.isTypeSupported(mimeType)) {
-      console.log('Using mimeType:', mimeType);
-      return mimeType;
-    }
-  }
-  
-  // Last resort: let browser choose
-  return '';
-};
+if (!(limits.types as readonly string[]).includes(file.type)) {
+  // This fails because:
+  // file.type = "video/webm;codecs=vp9,opus"
+  // limits.types = ["video/webm", "video/mp4", ...]
+  // "video/webm;codecs=vp9,opus" !== "video/webm" → REJECTED
+}
 ```
 
-### Fix 3: Comprehensive Error Handling
+**Recorded File Properties:**
+- `file.type`: `"video/webm;codecs=vp9,opus"` (with codec info)
+- `file.name`: `"recording_1706589123456.webm"` (correct extension)
 
+## Solution
+
+Update `validateFile()` to use **base MIME type matching** instead of exact matching:
+
+**Option A: Strip codec suffix before comparison (Recommended)**
 ```typescript
-const handleCameraError = (error: unknown) => {
-  const err = error as Error;
-  
-  if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-    toast.error('Camera permission denied. Please allow camera access in your browser settings.');
-  } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-    toast.error('No camera found. Please connect a camera and try again.');
-  } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-    toast.error('Camera is in use by another application. Please close other apps using the camera.');
-  } else if (err.name === 'OverconstrainedError') {
-    toast.error('Camera does not support required settings. Trying with default camera...');
-  } else if (err.message?.includes('timeout')) {
-    toast.error('Camera took too long to respond. Please try again.');
-  } else {
-    toast.error(`Could not access camera: ${err.message || 'Unknown error'}`);
-  }
-  
-  console.error('Camera error:', error);
-};
+// Get base MIME type (everything before semicolon)
+const baseMimeType = file.type.split(';')[0].trim();
+
+if (!(limits.types as readonly string[]).includes(baseMimeType)) {
+  return { valid: false, error: `Unsupported format...` };
+}
 ```
 
-### Fix 4: Proper Cleanup and State Management
-
+**Option B: Use startsWith matching**
 ```typescript
-const stopRecording = useCallback(() => {
-  // Stop MediaRecorder first
-  if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-    mediaRecorderRef.current.stop();
-  }
-  
-  // Stop all tracks
-  if (streamRef.current) {
-    streamRef.current.getTracks().forEach(track => {
-      track.stop();
-    });
-    streamRef.current = null;
-  }
-  
-  // Clear timer
-  if (timerRef.current) {
-    clearInterval(timerRef.current);
-    timerRef.current = null;
-  }
-  
-  // Clear video element
-  if (videoRef.current) {
-    videoRef.current.srcObject = null;
-    videoRef.current.load();  // Reset video element state
-  }
-  
-  setIsRecording(false);
-}, []);
+const isValidType = limits.types.some(
+  type => file.type === type || file.type.startsWith(type + ';')
+);
 ```
 
----
+I recommend **Option A** as it's cleaner and handles all codec variations.
 
-## 📝 Implementation Plan
+## Implementation
 
-### Step 1: Update VideoUploader.tsx
+**File: `src/lib/validations/media.ts`**
 
-1. Add `getSupportedMimeType()` helper function
-2. Add `handleCameraError()` for comprehensive error messages
-3. Refactor `startRecording()` to:
-   - Use fallback camera constraints
-   - Wait for `onloadedmetadata` before calling `play()`
-   - Handle `play()` Promise properly
-   - Use dynamic mimeType detection
-4. Improve `stopRecording()` cleanup
-5. Add loading state during camera initialization
-
-### Step 2: Add Camera Preview State
-
-Add a new "camera initializing" state to show feedback while camera is loading:
+Update the `validateFile` function to normalize MIME types before comparison:
 
 ```typescript
-const [cameraState, setCameraState] = useState<'idle' | 'initializing' | 'ready' | 'recording'>('idle');
+export function validateFile(file: File, contentType: MediaContentType): FileValidationResult {
+  const limits = MEDIA_LIMITS[contentType];
+  
+  if (!limits) {
+    return { valid: false, error: 'Unknown content type' };
+  }
+
+  // Check file size
+  if (file.size > limits.maxSize) {
+    return { 
+      valid: false, 
+      error: `File exceeds ${limits.label} limit (${formatBytes(file.size)})` 
+    };
+  }
+
+  // Check MIME type - normalize to base type (strip codec parameters)
+  // MediaRecorder produces types like "video/webm;codecs=vp9,opus"
+  // We need to match against base types like "video/webm"
+  const baseMimeType = file.type.split(';')[0].trim().toLowerCase();
+  
+  if (!(limits.types as readonly string[]).includes(baseMimeType)) {
+    const allowedExts = limits.extensions.join(', ');
+    return { 
+      valid: false, 
+      error: `Unsupported format. Allowed: ${allowedExts}` 
+    };
+  }
+
+  return { valid: true };
+}
 ```
 
-### Step 3: UI Improvements
+## Files to Modify
 
-- Show "Initializing camera..." spinner while waiting for stream
-- Better error messages with actionable instructions
-- Add retry button when camera fails
+| File | Change |
+|------|--------|
+| `src/lib/validations/media.ts` | Update `validateFile()` to normalize MIME types before comparison |
 
----
+## Expected Outcome
 
-## 📊 Affected Files
-
-| File | Changes |
-|------|---------|
-| `src/components/pulse/creators/VideoUploader.tsx` | Complete refactor of camera handling |
-
----
-
-## ✅ Expected Outcome
-
-After implementation:
-1. ✅ Camera automatically selects the best available camera (front by default, any camera as fallback)
-2. ✅ Video feed appears immediately after permission granted
-3. ✅ Works on Chrome, Firefox, Safari, and mobile browsers
-4. ✅ Clear error messages guide users when issues occur
-5. ✅ Behaves like standard Reels/Shorts apps
+After this fix:
+- Camera recordings with `video/webm;codecs=vp9,opus` will match `video/webm`
+- Safari recordings with `video/mp4;codecs=avc1` will match `video/mp4`
+- Regular file uploads continue to work as before
+- All reel content types (recorded and uploaded) will validate correctly
