@@ -1,232 +1,106 @@
 
-# Plan: Pulse Cards Dual-View UX System
 
-## Overview
-Transform the Pulse Cards detail page into a modern dual-view wiki system with:
-1. **Compiled View (Default)**: AI-synthesized narrative combining all contributions
-2. **Contributors View**: Individual contribution cards with voting (current design, refined)
+## Navigation Improvement Plan for Industry Pulse Module
 
-## Current State Analysis
+### Current Issues Identified
 
-### Existing Components
-- `PulseCardDetailPage.tsx` - Detail page showing layers with voting
-- `PulseCardLayer.tsx` - Individual layer display with votes
-- `CreateLayerDialog.tsx` - "Build on card" modal
-- Existing AI edge function pattern in `enhance-pulse-content/`
+1. **No way to return to main dashboard** from any Pulse page (feed, sparks, cards, reels, etc.)
+2. **Detail pages navigate incorrectly** - Pulse Card detail goes to `/pulse/cards` as fallback, but content detail pages don't have proper fallback routing
+3. **Bottom navigation is self-contained** - no exit point to the main application
 
-### Database Schema (No Changes Required)
-The existing `pulse_cards` and `pulse_card_layers` tables support this feature:
-- `pulse_cards`: id, topic_id, seed_creator_id, current_featured_layer_id, view_count, etc.
-- `pulse_card_layers`: id, card_id, creator_id, content_text, votes_up, votes_down, is_featured, etc.
+### Proposed Solution
 
-**New fields needed on `pulse_cards`:**
-- `compiled_narrative TEXT` - Cached AI-compiled narrative
-- `compiled_at TIMESTAMPTZ` - When compilation occurred
-- `compilation_stale BOOLEAN DEFAULT false` - Flag when new layer added
+#### 1. Add Dashboard Exit Button to PulseHeader
 
-## Implementation Architecture
+Add a persistent "Dashboard" or "Exit" icon in the header for all Pulse pages:
 
-### Phase 1: Database Schema Update
-
-Add compilation cache fields to `pulse_cards` table:
-
-```sql
-ALTER TABLE pulse_cards
-  ADD COLUMN compiled_narrative TEXT,
-  ADD COLUMN compiled_at TIMESTAMPTZ,
-  ADD COLUMN compilation_stale BOOLEAN DEFAULT false;
+```text
+┌─────────────────────────────────────────────┐
+│ [←Back] [🏠Dashboard]   Pulse    [🔍] [🔔]  │
+└─────────────────────────────────────────────┘
 ```
 
-Add trigger to mark narrative stale when new layer is added.
+**Technical approach:**
+- Add a `LayoutDashboard` or `Home` icon to the left section of `PulseHeader.tsx`
+- Always visible, navigates to `/dashboard`
+- Position: Left side, before the title/logo
 
-### Phase 2: New Components
+#### 2. Smart Context-Aware Back Navigation
 
-#### A) ViewModeToggle Component
-Pill toggle with "Read" and "Contributors" tabs using Radix Tabs:
+Enhance `PulseHeader.tsx` with a new optional `parentRoute` prop for intelligent fallback:
 
-```
-src/components/pulse/cards/ViewModeToggle.tsx
-```
+| Current Page | Parent Route |
+|--------------|--------------|
+| `/pulse/content/:id` (any content) | Based on content type |
+| `/pulse/cards/:cardId` | `/pulse/cards` |
+| `/pulse/profile/:providerId` | `/pulse/feed` |
 
-Features:
-- Uses existing shadcn Tabs component
-- Styled as pill toggle per design spec
-- Keyboard accessible
+**Technical approach:**
+- Add `parentRoute?: string` prop to `PulseHeader`
+- Update fallback logic: `navigate(parentRoute || '/pulse/feed')`
 
-#### B) CompiledView Component
-Synthesized narrative display:
+#### 3. Update Detail Page Layouts
 
-```
-src/components/pulse/cards/CompiledView.tsx
-```
+Modify each detail page to pass appropriate `parentRoute`:
 
-Features:
-- Displays cached compiled_narrative
-- Contributor avatars in footer (overlapping style)
-- "View build history" expandable link
-- "Improve this Knowledge" CTA button
-- Loading state with spinner during AI compilation
-- Fallback to featured layer if AI unavailable
+| File | Change |
+|------|--------|
+| `PulseCardDetailPage.tsx` | Add `parentRoute="/pulse/cards"` |
+| `PulseContentDetailPage.tsx` | Add dynamic `parentRoute` based on content type |
+| `PulsePublicProfilePage.tsx` | Add `parentRoute="/pulse/feed"` |
 
-#### C) ContributorsView Component
-Refactored layer list (current design enhanced):
-
-```
-src/components/pulse/cards/ContributorsView.tsx
-```
-
-Features:
-- Featured layer at top with "Featured" badge
-- "Build on this Card" button
-- Collapsible "Other Contributions" section
-- Seed creator info at bottom
-
-#### D) ContributorAvatars Component
-Overlapping avatar row with hover tooltips:
-
-```
-src/components/pulse/cards/ContributorAvatars.tsx
-```
-
-### Phase 3: AI Compilation Edge Function
-
-New edge function: `compile-card-narrative/`
-
-```typescript
-// supabase/functions/compile-card-narrative/index.ts
-
-// Uses Lovable AI Gateway (google/gemini-3-flash-preview)
-// Follows existing enhance-pulse-content pattern
-
-// Input: { cardId: string }
-// Output: { compiled_narrative: string }
-
-// Synthesis prompt:
-// - Combine all contributions into one coherent professional paragraph
-// - Preserve key insights, remove redundancy
-// - Keep under 600 characters
-// - No bullet points, flowing prose
-```
-
-### Phase 4: Hooks Updates
-
-#### A) New Hook: useCompiledNarrative
-```typescript
-// src/hooks/queries/useCompiledNarrative.ts
-
-export function useCompiledNarrative(cardId: string) {
-  // Returns cached narrative or triggers compilation
-}
-
-export function useCompileCardNarrative() {
-  // Mutation to trigger AI compilation
-}
-```
-
-#### B) Update usePulseCardLayers Hook
-Add unique contributors aggregation.
-
-### Phase 5: Detail Page Refactor
-
-Update `PulseCardDetailPage.tsx`:
-
-```
-Layout Structure:
-+-------------------------------------------+
-|  [Topic Badge] [Stats: Views/Builds/Shares] |
-|                                             |
-|  +---------------------------------------+  |
-|  |  [Read]      |      [Contributors]    |  |
-|  +---------------------------------------+  |
-|                                             |
-|  +----- Content Area (animated) ---------+  |
-|  |                                       |  |
-|  |  (CompiledView OR ContributorsView)  |  |
-|  |                                       |  |
-|  +---------------------------------------+  |
-|                                             |
-|  [+ Improve this Knowledge] button          |
-|                                             |
-|  [Card started by @Creator, X time ago]     |
-+-------------------------------------------+
-```
-
-## Technical Specifications
-
-### Animation
-- Use framer-motion or CSS keyframes for fade transition
-- 300ms ease-in-out crossfade between views
-
-### Responsive Design
-- Mobile: Full-width toggle, stacked footer
-- Tablet: Side-by-side contributor avatars and build history
-- Desktop: Optimal layout as shown in spec
-
-### Accessibility
-- Toggle uses role="tablist" with aria-selected
-- Keyboard navigation (Arrow keys, Enter, Space)
-- Screen reader announcements for view changes
-- 44px minimum touch targets
-
-### Performance
-- Lazy load contributors view (defer layer fetching)
-- Cache compiled narrative (don't re-compile unless stale)
-- View switch under 100ms (no API call)
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/pulse/cards/ViewModeToggle.tsx` | Pill toggle component |
-| `src/components/pulse/cards/CompiledView.tsx` | AI narrative view |
-| `src/components/pulse/cards/ContributorsView.tsx` | Layer cards view |
-| `src/components/pulse/cards/ContributorAvatars.tsx` | Overlapping avatars |
-| `src/hooks/queries/useCompiledNarrative.ts` | Compilation hook |
-| `supabase/functions/compile-card-narrative/index.ts` | AI synthesis function |
-
-## Files to Modify
+#### 4. Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/pages/pulse/PulseCardDetailPage.tsx` | Integrate dual view system |
-| `src/components/pulse/cards/index.ts` | Export new components |
-| `src/constants/pulseCards.constants.ts` | Add compilation constants |
-| `supabase/config.toml` | Add new edge function |
+| `src/components/pulse/layout/PulseHeader.tsx` | Add dashboard button, add `parentRoute` prop, update back logic |
+| `src/pages/pulse/PulseCardDetailPage.tsx` | Pass `parentRoute="/pulse/cards"` |
+| `src/pages/pulse/PulseContentDetailPage.tsx` | Pass dynamic `parentRoute` |
+| `src/pages/pulse/PulsePublicProfilePage.tsx` | Pass `parentRoute="/pulse/feed"` |
 
-## UX Flow
+### Visual Design
 
-1. User opens card detail page
-2. Default view: "Read" (Compiled View)
-   - Shows AI-synthesized narrative
-   - Contributor avatars at bottom
-   - "Improve this Knowledge" CTA
-3. User taps "Contributors" toggle
-   - Smooth fade transition
-   - Featured contribution at top
-   - "Build on this Card" button
-   - Other contributions below
-4. User taps "Build on this Card"
-   - Opens CreateLayerDialog
-   - On success: marks narrative stale, triggers recompile
-5. User can switch back to "Read" view
-   - Shows updated narrative (or "Compiling..." spinner)
+**Updated Header Layout:**
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [Grid Icon]  [← Back]  Title        [Search] [Bell]    │
+│    ↓             ↓                                      │
+│  Dashboard   Go Back                                    │
+│  (always)    (contextual)                               │
+└─────────────────────────────────────────────────────────┘
+```
 
-## Edge Cases Handled
+- **Grid/Dashboard icon**: Always visible on all Pulse pages, exits to `/dashboard`
+- **Back arrow**: Only shown when `showBackButton={true}`, goes to parent route or browser history
 
-| Scenario | Behavior |
-|----------|----------|
-| Single contribution | Compiled view shows original text as-is |
-| No contributions yet | Show "Be the first to add knowledge" placeholder |
-| AI compilation fails | Fallback to featured layer text + "Auto-synthesis unavailable" |
-| Stale narrative | Show existing + subtle "Updating..." indicator |
-| Empty card | Disable toggle, show only "Add Knowledge" CTA |
+### Technical Details
 
-## Implementation Sequence
+**Updated PulseHeader interface:**
+```typescript
+interface PulseHeaderProps {
+  title?: string;
+  showBackButton?: boolean;
+  parentRoute?: string;  // NEW: Fallback route for back button
+}
+```
 
-1. **Database Migration**: Add compiled_narrative fields + trigger
-2. **Edge Function**: Create compile-card-narrative function
-3. **Components**: Build ViewModeToggle, CompiledView, ContributorAvatars
-4. **Hooks**: Create useCompiledNarrative
-5. **Integration**: Refactor PulseCardDetailPage with new components
-6. **Polish**: Animations, loading states, error handling
-7. **Testing**: Verify accessibility, mobile responsiveness, AI fallback
+**Back button logic update:**
+```typescript
+onClick={() => {
+  if (window.history.length > 2) {
+    navigate(-1);
+  } else {
+    navigate(parentRoute || '/pulse/feed');
+  }
+}}
+```
+
+### Is This Design Okay?
+
+Yes, this design follows standard mobile app patterns:
+
+1. **Consistent exit point** - Users can always return to the main dashboard
+2. **Context-aware back** - Back button goes to logical parent (Spark detail → Sparks list)
+3. **No dead ends** - Every page has a clear navigation path
+4. **Familiar UX** - Similar to Instagram/TikTok where tapping the logo returns to home
+
