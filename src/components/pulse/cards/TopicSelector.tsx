@@ -1,25 +1,10 @@
 /**
- * TopicSelector - Select topic for card creation
+ * TopicSelector - Inline topic chips for one-tap selection
  */
 
-import { Check, ChevronsUpDown } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { usePulseCardTopics } from '@/hooks/queries/usePulseCardTopics';
-import { useState } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface TopicSelectorProps {
   value: string;
@@ -34,74 +19,57 @@ export function TopicSelector({
   disabled = false,
   className,
 }: TopicSelectorProps) {
-  const [open, setOpen] = useState(false);
   const { data: topics = [], isLoading } = usePulseCardTopics();
 
-  const selectedTopic = topics.find((t) => t.id === value);
+  // Loading state - skeleton chips
+  if (isLoading) {
+    return (
+      <div className={cn("flex flex-wrap gap-2", className)}>
+        {[1, 2, 3, 4, 5].map((i) => (
+          <Skeleton key={i} className="h-8 w-20 rounded-full" />
+        ))}
+      </div>
+    );
+  }
+
+  // Empty state
+  if (topics.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">No topics available</p>
+    );
+  }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          role="combobox"
-          aria-expanded={open}
-          aria-label="Select topic"
-          disabled={disabled || isLoading}
-          className={cn(
-            "w-full justify-between min-h-[44px]",
-            !value && "text-muted-foreground",
-            className
-          )}
-        >
-          {selectedTopic ? (
-            <span className="flex items-center gap-2">
-              {selectedTopic.icon && <span>{selectedTopic.icon}</span>}
-              {selectedTopic.name}
-            </span>
-          ) : (
-            "Select a topic..."
-          )}
-          <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-full p-0" align="start">
-        <Command>
-          <CommandInput placeholder="Search topics..." />
-          <CommandList>
-            <CommandEmpty>No topics found.</CommandEmpty>
-            <CommandGroup>
-              {topics.map((topic) => (
-                <CommandItem
-                  key={topic.id}
-                  value={topic.name}
-                  onSelect={() => {
-                    onChange(topic.id);
-                    setOpen(false);
-                  }}
-                  className="min-h-[44px]"
-                >
-                  <Check
-                    className={cn(
-                      "mr-2 h-4 w-4",
-                      value === topic.id ? "opacity-100" : "opacity-0"
-                    )}
-                  />
-                  <span className="flex items-center gap-2">
-                    {topic.icon && <span>{topic.icon}</span>}
-                    {topic.name}
-                  </span>
-                  {topic.card_count > 0 && (
-                    <span className="ml-auto text-xs text-muted-foreground">
-                      {topic.card_count} cards
-                    </span>
-                  )}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          </CommandList>
-        </Command>
-      </PopoverContent>
-    </Popover>
+    <div
+      role="radiogroup"
+      aria-label="Select a topic"
+      className={cn("flex flex-wrap gap-2", className)}
+    >
+      {topics.map((topic) => {
+        const isSelected = value === topic.id;
+        return (
+          <button
+            key={topic.id}
+            type="button"
+            role="radio"
+            aria-checked={isSelected}
+            onClick={() => onChange(topic.id)}
+            disabled={disabled}
+            className={cn(
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium",
+              "transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "min-h-[36px]",
+              isSelected
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted hover:bg-muted/80 text-foreground border border-border",
+              disabled && "opacity-50 cursor-not-allowed"
+            )}
+          >
+            {topic.icon && <span>{topic.icon}</span>}
+            {topic.name}
+          </button>
+        );
+      })}
+    </div>
   );
 }
