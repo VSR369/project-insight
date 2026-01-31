@@ -3,9 +3,10 @@ import { RefreshCw, AlertCircle, Rss, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PulseLayout, PulseLayoutFirstTime, ProfileBuildBanner } from '@/components/pulse/layout';
+import { PulseLayout, ProfileBuildBanner } from '@/components/pulse/layout';
 import { ContentCard, PulseCardFeedItem } from '@/components/pulse/content';
 import { DailyStandupBanner, PersonalizedFeedHeader } from '@/components/pulse/gamification';
+import { StartPostWidget } from '@/components/pulse/widgets';
 import { useUnifiedPulseFeed } from '@/hooks/queries/useUnifiedPulseFeed';
 import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
 
@@ -99,6 +100,17 @@ export default function PulseFeedPage() {
         {isFirstTime && (
           <div className="p-4 border-b">
             <ProfileBuildBanner />
+          </div>
+        )}
+
+        {/* Start a Post widget - all users with provider */}
+        {provider && (
+          <div className="p-4 border-b">
+            <StartPostWidget
+              providerId={provider.id}
+              providerName={providerName}
+              isFirstTime={isFirstTime}
+            />
           </div>
         )}
 
