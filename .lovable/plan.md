@@ -1,340 +1,256 @@
 
-# Implementation Plan: Complete QA Documentation Generation
-## Reverse Engineering from Codebase (Phases 1-6)
+# Plan: Add Full Pulse Social Rules to Pulse Cards
+
+## Executive Summary
+This plan adds all standard Pulse Social features to Pulse Cards to make them fully integrated with the gamification system, exactly like Reels, Articles, Sparks, and other feed content types.
 
 ---
 
-## Overview
+## Current State Analysis
 
-Following the uploaded **PRD Reverse Engineering Prompt**, I will generate a comprehensive QA Test Documentation Package by analyzing the entire codebase. This involves creating **7 detailed documents** organized by the 6 phases specified in the template.
+### What Pulse Content (Reels/Articles/Sparks/Posts) Has:
+| Feature | Implementation |
+|---------|----------------|
+| **XP for Creation** | podcast=200, reel=100, article=150, gallery=75, spark=50, post=25 |
+| **Engagement Buttons** | Fire (🔥), Gold (🥇), Save (💾), Bookmark |
+| **XP for Engagements Received** | fire=+2 XP, gold=+15 XP, save=+5 XP |
+| **Engagement Counts** | fire_count, gold_count, save_count, comment_count on pulse_content |
+| **Stats Tracking** | total_sparks, total_reels, total_podcasts, etc. in pulse_provider_stats |
+| **Streak Integration** | Creates content → updates streak → affects loot box multiplier |
+| **Feed Ranking** | Uses engagement counts in feed scoring algorithm |
+| **Leaderboard Integration** | XP contributes to global/weekly/industry leaderboards |
+| **EngagementBar Component** | Full UI for Fire/Gold/Save/Bookmark/Share |
 
----
-
-## Document Deliverables
-
-| Doc # | Document Name | Phase Source | Purpose |
-|-------|---------------|--------------|---------|
-| 1 | `QA-01-System-Overview.md` | Phase 1 | Full codebase scan results, module inventory |
-| 2 | `QA-02-Data-Model-Documentation.md` | Phase 3.2 | Database tables, columns, RLS, relationships |
-| 3 | `QA-03-User-Stories-Catalog.md` | Phase 3.3 | All user stories with acceptance criteria |
-| 4 | `QA-04-Business-Rules-Catalog.md` | Phase 3.4 | All business rules from conditional logic |
-| 5 | `QA-05-Validation-Rules-Catalog.md` | Phase 3.5 | All Zod schemas and validation rules |
-| 6 | `QA-06-Calculations-State-Machines.md` | Phase 3.6 & 3.7 | Formulas, calculations, state transitions |
-| 7 | `QA-07-Test-Case-Catalog.md` | Phase 4 | Complete test case catalog |
-| 8 | `QA-08-API-Documentation.md` | Phase 3.8 | All API/Service operations |
-| 9 | `QA-09-E2E-Workflows.md` | Phase 3.9 | End-to-end workflow documentation |
-| 10 | `QA-10-Traceability-Matrix.md` | Phase 5 & 6 | Full traceability + statistics |
-
----
-
-## Phase 1: Comprehensive Codebase Analysis
-
-### Scan Targets (from codebase discovery)
-
-| Layer | Location | Count | Items to Extract |
-|-------|----------|-------|------------------|
-| Database | `supabase/migrations/` | 110 files | Tables, columns, RLS policies, triggers, indexes |
-| Constants | `src/constants/` | 9 files | Enums, thresholds, configuration |
-| Services | `src/services/` | 16 files | Business logic, calculations |
-| Query Hooks | `src/hooks/queries/` | 58 files | API operations, mutations |
-| Pages | `src/pages/` | 30+ files | Workflows, user journeys |
-| Components | `src/components/` | 100+ files | UI logic, forms, validations |
-| Types | `src/integrations/supabase/types.ts` | 1 file | All TypeScript interfaces |
-
-### Extraction Checklist
-- [ ] All database tables and columns
-- [ ] All foreign key relationships
-- [ ] All RLS policies with conditions
-- [ ] All enum types and valid values
-- [ ] All Zod validation schemas
-- [ ] All calculation functions
-- [ ] All state machine transitions
-- [ ] All API endpoints and operations
-- [ ] All business rules from conditional logic
-- [ ] All error messages and toast notifications
+### What Pulse Cards Currently Has:
+| Feature | Current Status |
+|---------|----------------|
+| **XP for Creation** | ❌ Missing - uses separate reputation system |
+| **Engagement Buttons** | ❌ Missing - only has view_count, share_count, build_count |
+| **XP for Engagements Received** | ❌ Missing |
+| **Engagement Counts** | ❌ Missing fire_count, gold_count, save_count |
+| **Stats Tracking** | ❌ Missing total_cards, total_layers in pulse_provider_stats |
+| **Streak Integration** | ❌ Missing - card creation doesn't update streak |
+| **Feed Ranking** | ⚠️ Partial - uses build_count instead of engagements |
+| **Leaderboard Integration** | ❌ Missing - cards don't contribute to main XP |
+| **EngagementBar Component** | ❌ Missing - shows only views/contributors/shares |
 
 ---
 
-## Phase 2: Document Generation Structure
+## Implementation Plan
 
-### Each Document Will Follow IEEE 830 Adaptation
+### Phase 1: Database Schema Updates
 
-```text
-DOCUMENT HEADER
-├── Document ID
-├── Version
-├── Last Updated
-├── Modules Covered
-└── Total Items Documented
+**1.1 Add engagement columns to `pulse_cards` table:**
+```sql
+ALTER TABLE pulse_cards ADD COLUMN IF NOT EXISTS fire_count INTEGER DEFAULT 0;
+ALTER TABLE pulse_cards ADD COLUMN IF NOT EXISTS gold_count INTEGER DEFAULT 0;
+ALTER TABLE pulse_cards ADD COLUMN IF NOT EXISTS save_count INTEGER DEFAULT 0;
+ALTER TABLE pulse_cards ADD COLUMN IF NOT EXISTS comment_count INTEGER DEFAULT 0;
+```
 
-TABLE OF CONTENTS
+**1.2 Create `pulse_card_engagements` table (mirrors pulse_engagements):**
+```sql
+CREATE TABLE pulse_card_engagements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  card_id UUID NOT NULL REFERENCES pulse_cards(id) ON DELETE CASCADE,
+  provider_id UUID NOT NULL REFERENCES solution_providers(id),
+  engagement_type engagement_type NOT NULL, -- fire, gold, save, bookmark
+  is_deleted BOOLEAN DEFAULT false,
+  deleted_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(card_id, provider_id, engagement_type)
+);
+```
 
-MAIN CONTENT
-├── [Section by module/feature]
-│   ├── Source File References
-│   ├── Extracted Specifications
-│   ├── Examples with Code Evidence
-│   └── Test Cases (if applicable)
+**1.3 Add card stats to `pulse_provider_stats`:**
+```sql
+ALTER TABLE pulse_provider_stats 
+  ADD COLUMN IF NOT EXISTS total_cards INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_layers INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_card_fire_received INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_card_gold_received INTEGER DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS total_card_saves_received INTEGER DEFAULT 0;
+```
 
-APPENDIX
-└── Source Code References
+**1.4 Add XP reward constants for Cards:**
+```typescript
+// In pulseCards.constants.ts
+export const PULSE_CARD_XP_REWARDS = {
+  CARD_CREATED: 75,      // Similar to gallery
+  LAYER_CREATED: 25,     // Similar to post (building on card)
+  ENGAGEMENT_RECEIVED: {
+    fire: 2,
+    gold: 15,
+    save: 5,
+    bookmark: 0,
+  },
+} as const;
 ```
 
 ---
 
-## Phase 3: Detailed Extraction Templates
+### Phase 2: Database Triggers (XP & Stats Automation)
 
-### 3.1 Module Inventory (QA-01)
+**2.1 Create trigger: `pulse_on_card_created`**
+- Awards 75 XP when card is created
+- Increments `total_cards` in `pulse_provider_stats`
+- Updates streak via `pulse_update_streak()`
 
-I will document the following **core modules**:
+**2.2 Create trigger: `pulse_on_layer_created`**
+- Awards 25 XP when layer is added
+- Increments `total_layers` in `pulse_provider_stats`
+- Updates streak
 
-| Module ID | Module Name | Primary Tables | Key Files |
-|-----------|-------------|----------------|-----------|
-| MOD-001 | Authentication & Registration | solution_providers, auth.users | useAuth, Register.tsx, Login.tsx |
-| MOD-002 | Provider Enrollment Wizard | provider_industry_enrollments | WizardLayout, Registration.tsx, etc. |
-| MOD-003 | Participation Modes | participation_modes | ParticipationMode.tsx, hooks |
-| MOD-004 | Organization Management | (embedded in enrollments) | Organization.tsx |
-| MOD-005 | Proficiency Taxonomy | proficiency_areas, sub_domains, specialities | useProficiencyTaxonomy |
-| MOD-006 | Academic Taxonomy | universities, academic_years, academic_specializations | useAcademicTaxonomy |
-| MOD-007 | Proof Points | proof_points | useProofPoints |
-| MOD-008 | Assessment System | assessment_attempts, assessment_responses | useAssessment, TakeAssessment |
-| MOD-009 | Question Bank | question_bank | useQuestionBank |
-| MOD-010 | Interview Scheduling | interview_bookings | useInterviewScheduling |
-| MOD-011 | Reviewer Portal | panel_reviewers, reviewer_availability | useReviewerDashboard |
-| MOD-012 | Lifecycle Management | (lifecycle_status columns) | lifecycleService |
-| MOD-013 | Industry Pulse - Content | pulse_content | usePulseContent |
-| MOD-014 | Industry Pulse - Social | pulse_engagements, pulse_comments | usePulseSocial |
-| MOD-015 | Industry Pulse - Gamification | pulse_provider_stats, pulse_loot_boxes | usePulseStats |
-| MOD-016 | PulseCards Wiki | pulse_cards, pulse_card_layers | usePulseCards |
-| MOD-017 | Admin Master Data | countries, industry_segments, expertise_levels | useCountries, etc. |
-
-### 3.2 Data Model Documentation (QA-02)
-
-For each table, extract:
-- Column definitions with types and constraints
-- Foreign key relationships
-- RLS policies (SELECT/INSERT/UPDATE/DELETE)
-- Indexes
-- Triggers if any
-- Enum types used
-
-### 3.3 User Stories (QA-03)
-
-Generate user stories following the template:
-- Source file references
-- AS A / I WANT TO / SO THAT
-- Preconditions from code
-- Acceptance criteria from implementation
-- UI elements from JSX
-- Field specifications from Zod
-- API calls from hooks
-- Error scenarios from catch blocks
-
-### 3.4 Business Rules (QA-04)
-
-Extract from:
-- `lifecycleService.ts` - Lock thresholds, state transitions
-- `certification.constants.ts` - Scoring thresholds
-- `assessmentService.ts` - Pass/fail logic
-- All conditional `if/else` blocks with business meaning
-
-### 3.5 Validation Rules (QA-05)
-
-Extract from:
-- All Zod schemas in components
-- Form validation in Registration, Organization, etc.
-- Server-side validation in services
-- Pattern matching (PIN codes, emails, etc.)
-
-### 3.6 Calculations (QA-06)
-
-Document these key calculations:
-- Composite certification score
-- XP/Level calculations
-- Streak multipliers
-- Feed ranking algorithm
-- Assessment scoring
-- Proof points scoring
-
-### 3.7 State Machines (QA-06)
-
-Document:
-- Lifecycle state machine (21 states)
-- Assessment status transitions
-- Interview booking states
-- Content moderation states
+**2.3 Create trigger: `pulse_on_card_engagement_change`**
+- Mirrors `pulse_on_engagement_change` for regular content
+- Awards XP to card creator (fire=2, gold=15, save=5)
+- Updates fire_count/gold_count/save_count on pulse_cards
+- Updates total_card_fire_received etc. in pulse_provider_stats
 
 ---
 
-## Phase 4: Test Case Catalog (QA-07)
+### Phase 3: RLS Policies for Card Engagements
 
-### Test Categories to Generate
+```sql
+-- Users can view all engagements
+CREATE POLICY "Users view card engagements"
+ON pulse_card_engagements FOR SELECT
+USING (true);
 
-| Category | Count Est. | Source |
-|----------|------------|--------|
-| Functional - CRUD | ~150 | Each entity: Create, Read, Update, Delete, List |
-| Validation | ~200 | Each field validation rule |
-| Business Rules | ~100 | Each BR with true/false/boundary |
-| Calculations | ~50 | Each formula with examples |
-| State Transitions | ~75 | Each valid/invalid transition |
-| Integration/API | ~100 | Each API operation |
-| E2E Workflows | ~30 | Each user journey |
-| Security/RLS | ~50 | Each role/permission combination |
-| Negative | ~75 | Error handling, edge cases |
-| **Total** | **~830** | |
-
-### Test Case Format
-
-```text
-TEST CASE: [TC-XXXX-YYY]
-TITLE: [Description]
-TYPE: [Functional/Integration/E2E/Boundary/Negative/Security]
-PRIORITY: [P1/P2/P3/P4]
-MODULE: [MOD-XXX]
-TRACEABILITY:
-• User Story: [US-XXX]
-• Business Rule: [BR-XXX]
-PRECONDITIONS:
-1. [Condition]
-TEST DATA:
-| Element | Value |
-TEST STEPS:
-| # | Action | Expected Result |
-VERIFICATION POINTS:
-• [What to verify]
-POSTCONDITIONS:
-• [State after test]
+-- Users can manage own engagements
+CREATE POLICY "Users manage own card engagements"
+ON pulse_card_engagements FOR ALL
+USING (is_pulse_provider_owner(provider_id));
 ```
 
 ---
 
-## Phase 5: Traceability Matrix (QA-10)
+### Phase 4: React Hooks Updates
 
-### Matrix Structure
-
-| User Story | Business Rules | Validations | Calculations | APIs | Test Cases |
-|------------|----------------|-------------|--------------|------|------------|
-| US-001 | BR-001, BR-002 | VR-001-010 | - | API-001 | TC-001-015 |
-| US-002 | BR-003 | VR-011-020 | CALC-001 | API-002 | TC-016-030 |
-| ... | ... | ... | ... | ... | ... |
-
----
-
-## Phase 6: Output Statistics Summary (QA-10)
-
-The final document will include:
-
-```text
-DOCUMENTATION STATISTICS
-════════════════════════════════════════
-
-EXTRACTION SUMMARY:
-• Source Files Analyzed: ~250
-• Database Tables Documented: ~50+
-• Database Columns Documented: ~500+
-
-DOCUMENTATION GENERATED:
-• Modules Identified: 17
-• User Stories Generated: ~80
-• Business Rules Extracted: ~100
-• Validation Rules Extracted: ~200
-• Calculations Documented: ~10
-• State Machines Documented: 4
-• API Operations Documented: ~150
-• E2E Workflows Documented: ~15
-
-TEST COVERAGE:
-• Total Test Cases Generated: ~830
-• Functional Tests: ~300
-• Validation Tests: ~200
-• Business Rule Tests: ~100
-• Integration Tests: ~100
-• E2E Tests: ~30
-• Security Tests: ~50
-• Negative Tests: ~50
-
-TRACEABILITY:
-• Requirements Traced: 100%
+**4.1 Create `usePulseCardEngagements.ts`:**
+```typescript
+// Mirrors usePulseEngagements.ts but for cards
+export function useCardUserEngagements(cardId, providerId)
+export function useToggleCardEngagement()
+export function useToggleCardFire()
+export function useToggleCardGold()
+export function useToggleCardSave()
+export function useToggleCardBookmark()
 ```
 
----
+**4.2 Update `usePulseCards.ts`:**
+- Add `fire_count`, `gold_count`, `save_count` to PulseCard type
+- Include in select queries
 
-## Implementation Approach
-
-### Step 1: Create Document Structure
-Create all 10 document files with headers and TOC
-
-### Step 2: Scan Database Layer
-- Parse key migrations for table definitions
-- Extract RLS policies
-- Document all relationships
-
-### Step 3: Extract Constants & Types
-- Parse all constants files
-- Extract Supabase types
-
-### Step 4: Extract Services & Hooks
-- Document all business logic from services
-- Document all API operations from hooks
-
-### Step 5: Extract UI Components
-- Document forms and validations
-- Document user flows
-
-### Step 6: Generate Test Cases
-- Create comprehensive test catalog
-- Ensure traceability
-
-### Step 7: Build Traceability Matrix
-- Link all artifacts
-- Generate statistics
+**4.3 Update card creation mutations:**
+- Invalidate `pulse-provider-stats` after creating card/layer
+- Toast message shows XP earned
 
 ---
 
-## File Outputs
+### Phase 5: UI Component Updates
 
-All documents will be placed in:
-
-```text
-docs/qa/
-├── QA-01-System-Overview.md
-├── QA-02-Data-Model-Documentation.md
-├── QA-03-User-Stories-Catalog.md
-├── QA-04-Business-Rules-Catalog.md
-├── QA-05-Validation-Rules-Catalog.md
-├── QA-06-Calculations-State-Machines.md
-├── QA-07-Test-Case-Catalog.md
-├── QA-08-API-Documentation.md
-├── QA-09-E2E-Workflows.md
-└── QA-10-Traceability-Matrix.md
+**5.1 Create `CardEngagementBar.tsx`:**
+```typescript
+// Mirrors EngagementBar.tsx but uses card-specific hooks
+export function CardEngagementBar({
+  cardId,
+  creatorId,
+  currentUserProviderId,
+  fireCount,
+  goldCount,
+  saveCount,
+  commentCount,
+  ...
+})
 ```
 
----
+**5.2 Update `PulseCardFeedItem.tsx`:**
+- Replace current footer with `CardEngagementBar`
+- Show fire/gold/save/bookmark buttons
+- Display counts
 
-## Scope Confirmation
-
-This implementation will:
-- ✅ Follow all 6 phases from the uploaded template
-- ✅ Use exact templates provided for each artifact type
-- ✅ Extract ACTUAL implemented logic from source code
-- ✅ Generate comprehensive test cases derived from code
-- ✅ Maintain 100% traceability between all artifacts
-- ✅ Provide source file references for verification
-- ✅ Be complete, consistent, correct, and unambiguous
+**5.3 Update `PulseCard.tsx`:**
+- Add engagement bar in detail view
+- Show XP rewards in tooltips
 
 ---
 
-## Estimated Artifact Counts
+### Phase 6: Constants Updates
 
-| Artifact Type | Estimated Count |
-|---------------|-----------------|
-| Modules | 17 |
-| Database Tables | 50+ |
-| User Stories | 80+ |
-| Business Rules | 100+ |
-| Validation Rules | 200+ |
-| Calculations | 10+ |
-| State Machines | 4 |
-| API Operations | 150+ |
-| E2E Workflows | 15+ |
-| Test Cases | 830+ |
+**6.1 Update `pulseCards.constants.ts`:**
+```typescript
+export const PULSE_CARD_XP_REWARDS = {
+  CARD_CREATED: 75,
+  LAYER_CREATED: 25,
+  ENGAGEMENT_RECEIVED: {
+    fire: 2,
+    gold: 15,
+    save: 5,
+    bookmark: 0,
+  },
+} as const;
+
+export const PULSE_CARD_QUERY_KEYS = {
+  cardEngagements: 'pulse-card-engagements',
+  userCardEngagements: 'pulse-user-card-engagements',
+} as const;
+```
+
+**6.2 Update feed ranking to include card engagements:**
+- Cards use same scoring: `(fire×1) + (comment×3) + (gold×10) + (save×5)`
+
+---
+
+## Files to Create/Modify
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `supabase/migrations/[timestamp].sql` | Create | Schema changes + triggers |
+| `src/constants/pulseCards.constants.ts` | Modify | Add XP rewards, query keys |
+| `src/hooks/queries/usePulseCardEngagements.ts` | Create | Engagement CRUD hooks |
+| `src/hooks/queries/usePulseCards.ts` | Modify | Add engagement counts to types |
+| `src/components/pulse/cards/CardEngagementBar.tsx` | Create | Engagement UI component |
+| `src/components/pulse/content/PulseCardFeedItem.tsx` | Modify | Use CardEngagementBar |
+| `src/components/pulse/cards/PulseCard.tsx` | Modify | Add engagement bar |
+| `src/hooks/queries/usePulseStats.ts` | Modify | Include card stats in types |
+| `src/hooks/queries/useUnifiedPulseFeed.ts` | Modify | Include card engagement counts |
+
+---
+
+## Feature Parity Matrix (After Implementation)
+
+| Feature | Regular Content | Pulse Cards |
+|---------|-----------------|-------------|
+| XP for Creation | ✅ | ✅ (75 XP card, 25 XP layer) |
+| Fire Button | ✅ | ✅ |
+| Gold Button | ✅ | ✅ |
+| Save Button | ✅ | ✅ |
+| Bookmark Button | ✅ | ✅ |
+| XP for Fire Received | ✅ +2 | ✅ +2 |
+| XP for Gold Received | ✅ +15 | ✅ +15 |
+| XP for Save Received | ✅ +5 | ✅ +5 |
+| Streak Updates | ✅ | ✅ |
+| Leaderboard Integration | ✅ | ✅ |
+| Stats Tracking | ✅ | ✅ |
+| Feed Ranking | ✅ | ✅ |
+
+---
+
+## Implementation Order
+
+1. **Database Migration** - Add columns, create table, add triggers
+2. **Constants Update** - Add XP rewards and query keys
+3. **Backend Hooks** - Create engagement hooks
+4. **UI Components** - Create CardEngagementBar
+5. **Integration** - Wire up feed item and detail views
+6. **Testing** - Verify XP awards, streak updates, leaderboard
+
+---
+
+## Notes
+
+- **Backward Compatibility**: Existing cards get 0 engagement counts initially
+- **Self-Engagement Block**: Cannot fire/gold own cards (same as regular content)
+- **Reputation System Retained**: The existing reputation tier system for PulseCards (voting privileges, moderation) remains - this adds XP/engagement on top
+- **Dual Reward**: Card creators get BOTH reputation points (existing) AND XP (new)
