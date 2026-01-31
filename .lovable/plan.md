@@ -1,86 +1,223 @@
 
+# Plan: Desktop Three-Column Layout with Sidebars + Daily Standup Page
 
-# Plan: Remove Redundant Get Started Page & Simplify Flow
+## Problem Summary
+The current Industry Pulse layout is mobile-first with a single narrow column (`max-w-lg mx-auto`). On desktop screens, this leaves significant empty space on both sides. Additionally, there's no dedicated Daily Standup page - it only exists as a dismissible banner.
 
-## Summary
-Remove the `/pulse/get-started` page (PulseGetStartedPage.tsx) since it duplicates content already shown on the Welcome page. Update the ProfileBuildBanner to navigate directly to `/welcome`.
+## Current State
+| Page | Exists | Status |
+|------|--------|--------|
+| Feed | ✅ | Working |
+| Sparks | ✅ | Working |
+| Cards | ✅ | Working |
+| Create | ✅ | Working (7 content types) |
+| Ranks | ✅ | Working (Galaxy Leaderboard) |
+| Profile | ✅ | Working |
+| Daily Standup | ❌ | Only exists as banner component |
+
+## Solution Overview
+
+### 1. Create Desktop Three-Column Layout
+Transform the feed page to use a responsive three-column layout on desktop while maintaining the mobile single-column experience.
+
+```
+Desktop (lg+):
+┌─────────────┬─────────────────────┬─────────────────┐
+│ LEFT SIDEBAR│     MAIN FEED       │  RIGHT SIDEBAR  │
+│  (280px)    │   (max-w-lg)        │    (320px)      │
+├─────────────┼─────────────────────┼─────────────────┤
+│ • Leaderboard│ • Feed header      │ • Daily Standup │
+│   Mini Widget│ • Content posts    │   Full Widget   │
+│ • Top 5 Ranks│ • Cards            │ • Loot Box CTA  │
+│ • Your Rank  │                    │ • Pulse Metrics │
+│ • XP Progress│                    │ • Trending Tags │
+└─────────────┴─────────────────────┴─────────────────┘
+
+Mobile/Tablet:
+Single column with bottom nav (unchanged)
+```
+
+### 2. Create Dedicated Daily Standup Page
+A full-page experience for daily standup with more features than the banner.
 
 ---
 
-## Current Flow (Redundant)
-```
-Pulse Feed → Click "Get Started" → /pulse/get-started → Click "Let's Build Your Profile" → /welcome
-```
+## Implementation Details
 
-## New Flow (Simplified)
-```
-Pulse Feed → Click "Let's Build Your Profile" → /welcome → /enroll/participation-mode
-```
+### Phase 1: Create Sidebar Widget Components
 
----
+**1.1 Create `LeaderboardMiniWidget.tsx`**
+Location: `src/components/pulse/widgets/LeaderboardMiniWidget.tsx`
 
-## Changes Required
+Features:
+- Top 5 ranked providers with avatars
+- Current user's rank highlighted
+- "View All" link to `/pulse/ranks`
+- Compact card design
+- Uses existing `useWeeklyLeaderboard` hook
 
-### 1. Update ProfileBuildBanner Navigation
-**File:** `src/components/pulse/layout/ProfileBuildBanner.tsx`
+**1.2 Create `DailyStandupWidget.tsx`**
+Location: `src/components/pulse/widgets/DailyStandupWidget.tsx`
 
-| Current | New |
-|---------|-----|
-| `navigate('/pulse/get-started')` | `navigate('/welcome')` |
-| Button text: "Get Started" | Button text: "Let's Build Your Profile" |
+Features:
+- Expanded version of DailyStandupBanner
+- Shows more detail than banner
+- Countdown timer
+- Link to dedicated standup page
+- Streak visualization
 
----
+**1.3 Create `TrendingTopicsWidget.tsx`**
+Location: `src/components/pulse/widgets/TrendingTopicsWidget.tsx`
 
-### 2. Remove `/pulse/get-started` Route from App.tsx
-**File:** `src/App.tsx`
+Features:
+- Trending hashtags/topics
+- Content type breakdown
+- Quick filter links
 
-- Remove the route definition (lines 601-608):
+**1.4 Create `QuickActionsWidget.tsx`**
+Location: `src/components/pulse/widgets/QuickActionsWidget.tsx`
+
+Features:
+- Loot box claim CTA (if available)
+- Create content shortcuts
+- Profile completion progress
+
+### Phase 2: Create Desktop Layout Wrapper
+
+**2.1 Create `PulseDesktopLayout.tsx`**
+Location: `src/components/pulse/layout/PulseDesktopLayout.tsx`
+
+Purpose: Three-column responsive layout
+- Mobile: Single column (as today)
+- Desktop (lg+): Left sidebar + Main + Right sidebar
+
+Structure:
 ```tsx
-// REMOVE THIS:
-<Route
-  path="/pulse/get-started"
-  element={
-    <AuthGuard>
-      <PulseGetStartedPage />
-    </AuthGuard>
-  }
-/>
+<div className="flex min-h-screen bg-background">
+  {/* Left Sidebar - hidden on mobile */}
+  <aside className="hidden lg:block w-[280px] sticky top-14 h-[calc(100vh-56px)]">
+    <LeftSidebarContent />
+  </aside>
+  
+  {/* Main Content */}
+  <main className="flex-1 max-w-lg mx-auto lg:mx-0">
+    {children}
+  </main>
+  
+  {/* Right Sidebar - hidden on mobile/tablet */}
+  <aside className="hidden xl:block w-[320px] sticky top-14 h-[calc(100vh-56px)]">
+    <RightSidebarContent />
+  </aside>
+</div>
 ```
 
-- Remove `PulseGetStartedPage` from the import statement at line 93
+**2.2 Create `LeftSidebar.tsx`**
+Location: `src/components/pulse/layout/LeftSidebar.tsx`
+
+Contents:
+- LeaderboardMiniWidget
+- XP Progress Card
+- Navigation shortcuts
+
+**2.3 Create `RightSidebar.tsx`**
+Location: `src/components/pulse/layout/RightSidebar.tsx`
+
+Contents:
+- DailyStandupWidget
+- QuickActionsWidget (Loot Box CTA)
+- PulseMetricsCard (reuse existing)
+- TrendingTopicsWidget
+
+### Phase 3: Create Daily Standup Page
+
+**3.1 Create `PulseStandupPage.tsx`**
+Location: `src/pages/pulse/PulseStandupPage.tsx`
+
+Features:
+- Full standup experience (not just banner)
+- Show industry updates/highlights from last 24h
+- Quick reactions to content
+- Streak calendar/history
+- Rewards summary
+- XP earned today breakdown
+- "Complete Standup" action
+
+**3.2 Add Route in App.tsx**
+```tsx
+<Route path="/pulse/standup" element={<AuthGuard><PulseStandupPage /></AuthGuard>} />
+```
+
+### Phase 4: Update Existing Components
+
+**4.1 Update `PulseLayout.tsx`**
+- Add responsive container that switches between mobile and desktop layouts
+- Integrate sidebars for desktop view
+- Keep mobile layout unchanged
+
+**4.2 Update `PulseFeedPage.tsx`**
+- Remove DailyStandupBanner from main content (moved to right sidebar)
+- Adjust for new layout
 
 ---
 
-### 3. Remove Page Export
-**File:** `src/pages/pulse/index.ts`
+## Files to Create
 
-- Remove: `export { default as PulseGetStartedPage } from './PulseGetStartedPage';`
-
----
-
-### 4. Delete the Redundant Page File
-**File:** `src/pages/pulse/PulseGetStartedPage.tsx`
-
-- Delete the entire file (it's no longer needed)
-
----
+| File | Purpose |
+|------|---------|
+| `src/components/pulse/widgets/index.ts` | Widget exports |
+| `src/components/pulse/widgets/LeaderboardMiniWidget.tsx` | Top 5 leaderboard |
+| `src/components/pulse/widgets/DailyStandupWidget.tsx` | Expanded standup widget |
+| `src/components/pulse/widgets/TrendingTopicsWidget.tsx` | Trending topics |
+| `src/components/pulse/widgets/QuickActionsWidget.tsx` | Quick actions panel |
+| `src/components/pulse/layout/LeftSidebar.tsx` | Left sidebar container |
+| `src/components/pulse/layout/RightSidebar.tsx` | Right sidebar container |
+| `src/pages/pulse/PulseStandupPage.tsx` | Dedicated standup page |
 
 ## Files to Modify
 
-| File | Action |
-|------|--------|
-| `src/components/pulse/layout/ProfileBuildBanner.tsx` | Update navigation to `/welcome`, change button text |
-| `src/App.tsx` | Remove route for `/pulse/get-started`, remove import |
-| `src/pages/pulse/index.ts` | Remove export of `PulseGetStartedPage` |
-| `src/pages/pulse/PulseGetStartedPage.tsx` | **DELETE** |
+| File | Changes |
+|------|---------|
+| `src/components/pulse/layout/PulseLayout.tsx` | Add responsive three-column layout |
+| `src/components/pulse/layout/index.ts` | Export new sidebar components |
+| `src/pages/pulse/PulseFeedPage.tsx` | Adjust for new layout, move standup to sidebar |
+| `src/pages/pulse/index.ts` | Export new standup page |
+| `src/App.tsx` | Add `/pulse/standup` route |
 
 ---
 
-## Technical Notes
+## Responsive Breakpoint Strategy
 
-1. **Welcome page already has**: The motivational content, "Why Your Profile Matters" section, and "Let's Build Your Profile" CTA that navigates to `/enroll/participation-mode`
+| Screen Size | Layout |
+|-------------|--------|
+| Mobile (< 1024px) | Single column, bottom nav |
+| Desktop (1024px - 1280px) | Main + Right sidebar |
+| Large Desktop (1280px+) | Left sidebar + Main + Right sidebar |
 
-2. **No breaking changes**: The `/pulse/get-started` route was only used from the banner, and we're updating that reference
+---
 
-3. **Cleaner user journey**: One less click for users to start building their profile
+## Technical Considerations
 
+1. **Sidebar Sticky Positioning**: Use `sticky top-14` to account for fixed header (56px)
+2. **Scroll Independence**: Each column scrolls independently
+3. **Performance**: Widgets use existing hooks with appropriate `staleTime`
+4. **Mobile Unchanged**: All mobile behavior preserved via responsive classes
+5. **Reuse Existing Components**: PulseMetricsCard, leaderboard hooks already exist
+
+---
+
+## Expected Result
+
+**Desktop View:**
+- Left sidebar: Galaxy Leaderboard (Top 5), XP Progress
+- Center: Main feed content
+- Right sidebar: Daily Standup, Loot Box, Pulse Metrics, Trending
+
+**Mobile View:**
+- Unchanged single-column layout
+- Bottom navigation with 6 items
+- DailyStandupBanner shown at top of feed
+
+**New Standup Page:**
+- Accessible via link in widget or direct navigation
+- Full daily standup experience with content highlights
+- Streak tracking and rewards summary
