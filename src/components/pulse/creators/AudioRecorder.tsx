@@ -1,20 +1,27 @@
 /**
- * Audio Recorder Component - FIXED VERSION
+ * Audio Recorder Component - ROBUST VERSION
  * 
- * Fixes:
- * 1. Duration closure issue - uses durationRef to get current duration
- * 2. Added stream validation before recording
- * 3. Better cleanup handling with streamRef
- * 4. Added audio level monitoring to verify mic is working
- * 5. Better MIME type detection
- * 6. Specific error messages per error type
+ * Features:
+ * 1. Browser-aware MIME type selection for cross-browser compatibility
+ * 2. RMS-based audio level meter (accurate speech detection)
+ * 3. Post-recording validation to detect silent recordings
+ * 4. Device selector for choosing specific microphone
+ * 5. Clear error messages with actionable guidance
  */
 
 import { useState, useRef, useCallback, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, Square, Pause, Play, Upload } from "lucide-react";
+import { Mic, Square, Pause, Play, Upload, Settings2 } from "lucide-react";
 import { WaveformDisplay } from "./WaveformDisplay";
+import { MicrophoneSelector } from "./MicrophoneSelector";
 import { cn } from "@/lib/utils";
+import {
+  getSupportedMimeType,
+  calculateRMSFromTimeDomain,
+  validateRecordedAudio,
+  isSuspiciousDevice,
+  getPreferredDevice,
+} from "./audioUtils";
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob, duration: number) => void;
@@ -23,7 +30,7 @@ interface AudioRecorderProps {
   className?: string;
 }
 
-type RecordingState = "idle" | "recording" | "paused" | "stopped";
+type RecordingState = "idle" | "recording" | "paused" | "validating" | "stopped";
 
 export function AudioRecorder({
   onRecordingComplete,
@@ -34,18 +41,25 @@ export function AudioRecorder({
   const [state, setState] = useState<RecordingState>("idle");
   const [duration, setDuration] = useState(0);
   const [error, setError] = useState<string | null>(null);
-  const [audioLevel, setAudioLevel] = useState(0); // For visual feedback
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [showDeviceSelector, setShowDeviceSelector] = useState(false);
+  const [suggestDeviceChange, setSuggestDeviceChange] = useState(false);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(
+    getPreferredDevice()
+  );
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null); // FIX: Store stream in ref
+  const streamRef = useRef<MediaStream | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const startTimeRef = useRef<number>(0);
   const pausedDurationRef = useRef<number>(0);
-  const durationRef = useRef<number>(0); // FIX: Track duration in ref for onstop callback
+  const durationRef = useRef<number>(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const mimeTypeRef = useRef<string>("");
+  const extensionRef = useRef<string>("webm");
 
   // Keep durationRef in sync with duration state
   useEffect(() => {
@@ -54,26 +68,22 @@ export function AudioRecorder({
 
   // Comprehensive cleanup function
   const cleanup = useCallback(() => {
-    // Stop timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
     
-    // Stop animation frame
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = null;
     }
     
-    // Close audio context
     if (audioContextRef.current) {
       audioContextRef.current.close().catch(() => {});
       audioContextRef.current = null;
       analyserRef.current = null;
     }
     
-    // Stop media recorder
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
       try {
         mediaRecorderRef.current.stop();
@@ -83,7 +93,6 @@ export function AudioRecorder({
     }
     mediaRecorderRef.current = null;
     
-    // Stop stream tracks
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => track.stop());
       streamRef.current = null;
@@ -125,35 +134,33 @@ export function AudioRecorder({
     pausedDurationRef.current = duration;
   }, [duration]);
 
-  // Monitor audio levels for visual feedback
+  // RMS-based audio level monitoring (more accurate for speech)
   const startAudioLevelMonitoring = useCallback(async (stream: MediaStream) => {
     try {
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
       
-      // FIX: Resume the AudioContext - it starts suspended in modern browsers
       if (audioContext.state === 'suspended') {
         await audioContext.resume();
       }
-      console.log('[AudioRecorder] AudioContext state:', audioContext.state);
       
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaStreamSource(stream);
       
-      analyser.fftSize = 256;
+      analyser.fftSize = 2048;
       source.connect(analyser);
       
       audioContextRef.current = audioContext;
       analyserRef.current = analyser;
       
-      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      // Use time-domain data for RMS calculation
+      const dataArray = new Uint8Array(analyser.fftSize);
       
       const updateLevel = () => {
         if (!analyserRef.current) return;
         
-        analyserRef.current.getByteFrequencyData(dataArray);
-        const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-        const normalized = Math.min(100, (average / 128) * 100);
-        setAudioLevel(normalized);
+        analyserRef.current.getByteTimeDomainData(dataArray);
+        const rmsLevel = calculateRMSFromTimeDomain(dataArray);
+        setAudioLevel(rmsLevel);
         
         animationFrameRef.current = requestAnimationFrame(updateLevel);
       };
@@ -167,6 +174,7 @@ export function AudioRecorder({
   const startRecording = async () => {
     try {
       setError(null);
+      setSuggestDeviceChange(false);
       chunksRef.current = [];
       pausedDurationRef.current = 0;
       setDuration(0);
@@ -174,13 +182,20 @@ export function AudioRecorder({
 
       console.log("[AudioRecorder] Requesting microphone permission...");
       
-      // FIX: Enhanced audio constraints for Edge/Windows compatibility
+      // Build constraints with optional device selection
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+      
+      if (selectedDeviceId) {
+        audioConstraints.deviceId = { exact: selectedDeviceId };
+        console.log("[AudioRecorder] Using selected device:", selectedDeviceId);
+      }
+      
       const stream = await navigator.mediaDevices.getUserMedia({ 
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-        }
+        audio: audioConstraints
       });
       streamRef.current = stream;
       
@@ -190,33 +205,41 @@ export function AudioRecorder({
         throw new Error("No audio track available");
       }
       
-      // FIX: Explicitly enable track - Edge sometimes delivers muted tracks
       audioTrack.enabled = true;
       
+      const trackLabel = audioTrack.label;
       console.log("[AudioRecorder] Audio track:", {
-        label: audioTrack.label,
+        label: trackLabel,
         readyState: audioTrack.readyState,
         enabled: audioTrack.enabled,
         muted: audioTrack.muted,
       });
       
+      // Warn if suspicious device
+      if (isSuspiciousDevice(trackLabel)) {
+        console.warn("[AudioRecorder] Suspicious device detected:", trackLabel);
+      }
+      
       if (audioTrack.readyState !== "live") {
         throw new Error("Audio track is not live");
       }
       
-      // Start audio level monitoring (now async)
       await startAudioLevelMonitoring(stream);
       
-      // Better MIME type detection
-      const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") 
-        ? "audio/webm;codecs=opus"
-        : MediaRecorder.isTypeSupported("audio/webm") 
-          ? "audio/webm" 
-          : "audio/mp4";
+      // Get best supported MIME type for this browser
+      const { mimeType, extension, baseMimeType } = getSupportedMimeType();
+      mimeTypeRef.current = mimeType;
+      extensionRef.current = extension;
       
-      console.log("[AudioRecorder] Using mimeType:", mimeType);
+      console.log("[AudioRecorder] Using MIME type:", mimeType, "Extension:", extension);
       
-      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      // Create MediaRecorder with or without explicit mimeType
+      const recorderOptions: MediaRecorderOptions = {};
+      if (mimeType) {
+        recorderOptions.mimeType = mimeType;
+      }
+      
+      const mediaRecorder = new MediaRecorder(stream, recorderOptions);
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
@@ -226,29 +249,30 @@ export function AudioRecorder({
         }
       };
 
-      mediaRecorder.onstop = () => {
-        console.log("[AudioRecorder] Recording stopped");
+      mediaRecorder.onstop = async () => {
+        console.log("[AudioRecorder] Recording stopped, validating...");
+        setState("validating");
         
-        // Calculate total size
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
         console.log("[AudioRecorder] Total recorded:", totalSize, "bytes");
         
         if (totalSize === 0) {
-          setError("Recording failed - no audio data captured");
+          setError("Recording failed - no audio data captured. Please check your microphone.");
+          setSuggestDeviceChange(true);
           cleanup();
           setState("idle");
           return;
         }
         
-        // Use BASE mime type for the blob (strip codec params)
-        const baseMimeType = (mediaRecorder.mimeType || "audio/webm").split(";")[0];
-        const audioBlob = new Blob(chunksRef.current, { type: baseMimeType });
+        // Create blob with correct base MIME type
+        const actualMimeType = mediaRecorder.mimeType || mimeTypeRef.current;
+        const baseMime = actualMimeType.split(";")[0] || "audio/webm";
+        const audioBlob = new Blob(chunksRef.current, { type: baseMime });
         
-        console.log("[AudioRecorder] Created blob:", audioBlob.size, "bytes, type:", baseMimeType);
+        console.log("[AudioRecorder] Created blob:", audioBlob.size, "bytes, type:", baseMime);
         
-        // FIX: Use durationRef.current instead of duration (which would be stale)
-        const finalDuration = durationRef.current;
-        console.log("[AudioRecorder] Duration:", finalDuration, "seconds");
+        // Validate the recording has actual audio
+        const validation = await validateRecordedAudio(audioBlob);
         
         // Cleanup stream and audio context
         if (streamRef.current) {
@@ -268,18 +292,30 @@ export function AudioRecorder({
         
         setAudioLevel(0);
         
+        if (!validation.isValid) {
+          console.error("[AudioRecorder] Validation failed:", validation.errorMessage);
+          setError(validation.errorMessage || "Recording validation failed");
+          setSuggestDeviceChange(validation.suggestDeviceChange || false);
+          setState("idle");
+          return;
+        }
+        
+        console.log("[AudioRecorder] Validation passed, RMS:", validation.rms.toFixed(4));
+        
         // Pass to parent with correct duration
+        const finalDuration = durationRef.current || Math.round(validation.duration);
         onRecordingComplete(audioBlob, finalDuration);
+        setState("stopped");
       };
 
       mediaRecorder.onerror = (event) => {
         console.error("[AudioRecorder] MediaRecorder error:", event);
-        setError("Recording error occurred");
+        setError("Recording error occurred. Please try again.");
         cleanup();
         setState("idle");
       };
 
-      mediaRecorder.start(500); // FIX: More frequent chunks for better reliability
+      mediaRecorder.start(500); // Frequent chunks for reliability
       console.log("[AudioRecorder] Recording started");
       
       setState("recording");
@@ -289,15 +325,21 @@ export function AudioRecorder({
       const error = err as Error;
       console.error("[AudioRecorder] Error:", error);
       
-      // Specific error messages with Edge/Windows guidance
       if (error.name === "NotAllowedError") {
-        setError("Microphone permission denied. Please allow access in browser settings. On Windows, also check Settings → Privacy → Microphone.");
+        setError("Microphone permission denied. Please allow access in your browser settings.");
       } else if (error.name === "NotFoundError") {
-        setError("No microphone found. Please connect a microphone.");
+        setError("No microphone found. Please connect a microphone and try again.");
+        setSuggestDeviceChange(true);
       } else if (error.name === "NotReadableError") {
-        setError("Microphone is in use by another application. On Edge/Windows, check Settings → Privacy → Microphone is enabled for desktop apps.");
+        setError("Microphone is in use by another application or not accessible.");
+        setSuggestDeviceChange(true);
+      } else if (error.name === "OverconstrainedError") {
+        // Selected device no longer available
+        setError("Selected microphone is not available. Please choose a different one.");
+        setSelectedDeviceId(null);
+        setSuggestDeviceChange(true);
       } else {
-        setError(error.message || "Could not access microphone.");
+        setError(error.message || "Could not access microphone. Please check your settings.");
       }
       
       cleanup();
@@ -310,7 +352,6 @@ export function AudioRecorder({
       setState("paused");
       stopTimer();
       
-      // Pause level monitoring
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = null;
@@ -324,7 +365,6 @@ export function AudioRecorder({
       setState("recording");
       startTimer();
       
-      // Resume level monitoring
       if (streamRef.current) {
         startAudioLevelMonitoring(streamRef.current);
       }
@@ -340,9 +380,8 @@ export function AudioRecorder({
     }
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      mediaRecorderRef.current.requestData(); // Flush any pending data
+      mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
-      setState("stopped");
     }
   }, [state]);
 
@@ -353,10 +392,26 @@ export function AudioRecorder({
     durationRef.current = 0;
     chunksRef.current = [];
     setError(null);
+    setSuggestDeviceChange(false);
+  };
+
+  const handleDeviceChange = (deviceId: string | null) => {
+    setSelectedDeviceId(deviceId);
+    setSuggestDeviceChange(false);
+    setError(null);
   };
 
   return (
     <div className={cn("space-y-6", className)}>
+      {/* Device Selector (shown when needed or requested) */}
+      {(showDeviceSelector || suggestDeviceChange) && state === "idle" && (
+        <MicrophoneSelector
+          onDeviceChange={handleDeviceChange}
+          showWarning={suggestDeviceChange}
+          className="mb-4"
+        />
+      )}
+      
       {/* Waveform Display */}
       <div className="bg-muted/50 rounded-xl p-6">
         <WaveformDisplay 
@@ -364,24 +419,36 @@ export function AudioRecorder({
           barCount={50}
         />
         
-        {/* Audio Level Indicator - shows during recording */}
-        {state === "recording" && (
+        {/* Audio Level Indicator */}
+        {(state === "recording" || state === "paused") && (
           <div className="flex items-center gap-2 mt-3">
             <div className="flex-1 h-2 bg-muted rounded-full overflow-hidden">
               <div 
-                className="h-full bg-green-500 transition-all duration-100"
-                style={{ width: `${audioLevel}%` }}
+                className={cn(
+                  "h-full transition-all duration-100",
+                  audioLevel > 10 ? "bg-green-500" : audioLevel > 2 ? "bg-yellow-500" : "bg-red-500"
+                )}
+                style={{ width: `${Math.min(100, audioLevel)}%` }}
               />
             </div>
-            {/* Responsive text - short on mobile, full on larger screens */}
             <span className="text-xs text-muted-foreground whitespace-nowrap hidden sm:inline">
-              {audioLevel > 5 
-                ? "🎤 Microphone is picking up sound" 
-                : "🔇 No sound detected - speak into microphone"}
+              {audioLevel > 10 
+                ? "🎤 Microphone active" 
+                : audioLevel > 2
+                  ? "🔈 Weak signal"
+                  : "🔇 No audio - check microphone"}
             </span>
             <span className="text-xs text-muted-foreground whitespace-nowrap sm:hidden">
-              {audioLevel > 5 ? "🎤 Active" : "🔇 Silent"}
+              {audioLevel > 10 ? "🎤 Active" : audioLevel > 2 ? "🔈 Weak" : "🔇 Silent"}
             </span>
+          </div>
+        )}
+        
+        {/* Validating state */}
+        {state === "validating" && (
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <div className="h-4 w-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            <span className="text-sm text-muted-foreground">Verifying recording...</span>
           </div>
         )}
         
@@ -407,6 +474,18 @@ export function AudioRecorder({
       {error && (
         <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-3">
           <p className="text-sm text-destructive text-center">{error}</p>
+          {suggestDeviceChange && !showDeviceSelector && (
+            <div className="flex justify-center mt-2">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setShowDeviceSelector(true)}
+              >
+                <Settings2 className="h-4 w-4 mr-2" />
+                Change Microphone
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -433,6 +512,17 @@ export function AudioRecorder({
               <Upload className="h-5 w-5" />
               Upload Audio
             </Button>
+            {!showDeviceSelector && (
+              <Button
+                type="button"
+                size="lg"
+                variant="ghost"
+                onClick={() => setShowDeviceSelector(true)}
+                title="Choose microphone"
+              >
+                <Settings2 className="h-5 w-5" />
+              </Button>
+            )}
           </>
         )}
 
@@ -483,6 +573,17 @@ export function AudioRecorder({
               Stop
             </Button>
           </>
+        )}
+        
+        {state === "validating" && (
+          <Button
+            type="button"
+            size="lg"
+            disabled
+            className="gap-2"
+          >
+            Verifying...
+          </Button>
         )}
 
         {state === "stopped" && (
