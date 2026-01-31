@@ -28,6 +28,7 @@ import { podcastSchema, type PodcastFormData, MEDIA_LIMITS, formatBytes } from "
 import { useUploadPulseMedia } from "@/hooks/mutations/usePulseUpload";
 import { useCreatePulseContent } from "@/hooks/queries/usePulseContent";
 import { useAuth } from "@/hooks/useAuth";
+import { useCurrentProvider } from "@/hooks/queries/useProvider";
 import { AudioRecorder } from "./AudioRecorder";
 import { WaveformDisplay } from "./WaveformDisplay";
 
@@ -58,6 +59,7 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
   // SECTION 3: Context and custom hooks
   // ═══════════════════════════════════════════
   const { user } = useAuth();
+  const { data: provider } = useCurrentProvider();
   const uploadMutation = useUploadPulseMedia();
   const createContent = useCreatePulseContent();
 
@@ -204,6 +206,13 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
       return;
     }
 
+    // IMPORTANT: pulse_content.provider_id references solution_providers.id (NOT auth.users.id).
+    // RLS on pulse_content enforces provider ownership via solution_providers.user_id = auth.uid().
+    if (!provider?.id) {
+      toast.error("Your provider profile isn't ready yet. Please refresh and try again.");
+      return;
+    }
+
     try {
       // Upload audio file - use user.id (auth.uid) for RLS compliance
       const uploadResult = await uploadMutation.mutateAsync({
@@ -219,7 +228,9 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
         caption: data.description || null,
         media_urls: [uploadResult.publicUrl],
         content_status: "published",
-        provider_id: user.id,
+        provider_id: provider.id,
+        industry_segment_id: provider.industry_segment_id ?? null,
+        duration_seconds: audioDuration || null,
       });
 
       toast.success("Podcast published successfully!");
