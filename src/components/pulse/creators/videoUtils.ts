@@ -14,6 +14,9 @@
 const STORAGE_KEY_PREFERRED_CAMERA = 'pulse_preferred_camera_deviceId';
 const STORAGE_KEY_FACING_MODE = 'pulse_preferred_facing_mode';
 
+// Testing default: Set to specific deviceId for testing, or null for system default
+const TESTING_DEFAULT_CAMERA_ID: string | null = null;
+
 const MIN_VALID_RECORDING_SIZE = 50000; // 50KB minimum for valid video
 
 // =====================================================
@@ -121,13 +124,15 @@ export function savePreferredCamera(deviceId: string): void {
 }
 
 /**
- * Get preferred camera device ID from localStorage
+ * Get preferred camera device ID from localStorage.
+ * Falls back to testing default if no preference saved.
  */
 export function getPreferredCamera(): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEY_PREFERRED_CAMERA);
+    const saved = localStorage.getItem(STORAGE_KEY_PREFERRED_CAMERA);
+    return saved || TESTING_DEFAULT_CAMERA_ID;
   } catch {
-    return null;
+    return TESTING_DEFAULT_CAMERA_ID;
   }
 }
 
