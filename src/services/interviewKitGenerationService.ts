@@ -9,6 +9,7 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import type { ProofPointForReview } from "@/hooks/queries/useCandidateProofPoints";
+import { logWarning } from "@/lib/errorHandler";
 import type { InterviewKitCompetency } from "@/hooks/queries/useInterviewKitCompetencies";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -109,7 +110,7 @@ export async function generateDomainQuestions(
     .eq("is_active", true);
 
   if (error) {
-    console.error("Error fetching domain questions:", error);
+    logWarning("Error fetching domain questions", { operation: 'generateDomainQuestions' }, { error: error.message });
     return [];
   }
 
@@ -180,7 +181,7 @@ export async function generateCompetencyQuestions(
       .eq("is_active", true);
 
     if (error) {
-      console.error(`Error fetching competency questions for ${competency.name}:`, error);
+      logWarning(`Error fetching competency questions for ${competency.name}`, { operation: 'generateCompetencyQuestions' }, { error: error.message });
       continue;
     }
 

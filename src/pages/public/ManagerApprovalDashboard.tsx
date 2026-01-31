@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { handleMutationError } from '@/lib/errorHandler';
 
 interface ManagerSessionData {
   orgId: string;
@@ -87,8 +88,7 @@ export default function ManagerApprovalDashboard() {
       toast.success(action === 'approve' ? 'Request approved!' : 'Request declined');
 
     } catch (err: any) {
-      console.error('Decision error:', err);
-      toast.error('An unexpected error occurred');
+      handleMutationError(err, { operation: 'process_manager_decision' });
     } finally {
       setIsProcessing(false);
     }

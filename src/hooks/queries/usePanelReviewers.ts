@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type PanelReviewer = Tables<"panel_reviewers">;
 export type PanelReviewerUpdate = TablesUpdate<"panel_reviewers">;
@@ -156,7 +157,7 @@ export function useCreatePanelReviewer() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create reviewer: ${error.message}`);
+      handleMutationError(error, { operation: 'create_panel_reviewer' });
     },
   });
 }
@@ -205,7 +206,7 @@ export function useSendReviewerInvitation() {
       toast.success("Invitation sent successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to send invitation: ${error.message}`);
+      handleMutationError(error, { operation: 'send_reviewer_invitation' });
     },
   });
 }
@@ -234,7 +235,7 @@ export function useUpdatePanelReviewer() {
       toast.success("Reviewer updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update reviewer: ${error.message}`);
+      handleMutationError(error, { operation: 'update_panel_reviewer' });
     },
   });
 }
@@ -260,7 +261,7 @@ export function useDeactivatePanelReviewer() {
       toast.success("Reviewer deactivated");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate reviewer: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_panel_reviewer' });
     },
   });
 }
@@ -286,7 +287,7 @@ export function useRestorePanelReviewer() {
       toast.success("Reviewer restored");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore reviewer: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_panel_reviewer' });
     },
   });
 }
@@ -423,7 +424,7 @@ export function useCancelReviewerInvitation() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to cancel invitation: ${error.message}`);
+      handleMutationError(error, { operation: 'cancel_reviewer_invitation' });
     },
   });
 }
@@ -474,7 +475,7 @@ export function useDeletePanelReviewer() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete reviewer: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_panel_reviewer' });
     },
   });
 }

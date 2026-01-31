@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { logWarning } from "@/lib/errorHandler";
 
 interface AcademicTreePreviewProps {
   open: boolean;
@@ -106,7 +107,7 @@ export function AcademicTreePreview({
       setExpandedDisciplines(new Set(tree.map(d => d.id)));
       setExpandedStreams(new Set(tree.flatMap(d => d.streams.map(s => s.id))));
     } catch (error) {
-      console.error("Failed to fetch tree data:", error);
+      logWarning("Failed to fetch academic tree data", { operation: 'fetchTreeData' }, { error: (error as Error).message });
     } finally {
       setIsLoading(false);
     }

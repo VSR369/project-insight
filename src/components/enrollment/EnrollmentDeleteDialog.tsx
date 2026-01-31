@@ -47,6 +47,7 @@ import {
   type Stakeholder,
 } from '@/services/enrollmentDeletionService';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 interface EnrollmentDeleteDialogProps {
   open: boolean;
@@ -80,8 +81,7 @@ export function EnrollmentDeleteDialog({
           setValidation(result);
         })
         .catch(error => {
-          console.error('Validation error:', error);
-          toast.error('Failed to validate deletion');
+          handleMutationError(error, { operation: 'validate_enrollment_deletion' });
         })
         .finally(() => {
           setIsValidating(false);

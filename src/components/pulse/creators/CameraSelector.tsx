@@ -21,6 +21,7 @@ import {
   getPreferredFacingMode,
   type VideoInputDevice,
 } from './videoUtils';
+import { logWarning } from '@/lib/errorHandler';
 
 interface CameraSelectorProps {
   onDeviceSelect?: (deviceId: string | null, facingMode: 'user' | 'environment') => void;
@@ -61,7 +62,7 @@ export function CameraSelector({
       setFacingMode(savedFacingMode);
       
     } catch (error) {
-      console.error('[CameraSelector] Failed to load devices:', error);
+      logWarning('Failed to load camera devices', { operation: 'loadCameraDevices' }, { error: (error as Error).message });
     } finally {
       setIsLoading(false);
     }

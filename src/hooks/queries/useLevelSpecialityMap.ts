@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type LevelSpecialityMap = Tables<"level_speciality_map">;
 export type LevelSpecialityMapInsert = TablesInsert<"level_speciality_map">;
@@ -70,7 +71,7 @@ export function useCreateLevelSpecialityMapping() {
       if (error.message.includes("duplicate")) {
         toast.error("This expertise level is already linked to this speciality");
       } else {
-        toast.error(`Failed to link expertise level: ${error.message}`);
+        handleMutationError(error, { operation: 'link_expertise_level' });
       }
     },
   });
@@ -94,7 +95,7 @@ export function useDeleteLevelSpecialityMapping() {
       toast.success("Expertise level unlinked successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to unlink expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'unlink_expertise_level' });
     },
   });
 }
@@ -138,7 +139,7 @@ export function useBulkUpdateMappings() {
       toast.success("Expertise level mappings updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update mappings: ${error.message}`);
+      handleMutationError(error, { operation: 'update_level_mappings' });
     },
   });
 }
