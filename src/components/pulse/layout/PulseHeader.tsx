@@ -1,4 +1,4 @@
-import { ArrowLeft, Bell, Search } from 'lucide-react';
+import { ArrowLeft, Bell, Search, LayoutDashboard } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,39 +8,56 @@ import { useCurrentProvider } from '@/hooks/queries/useProvider';
 interface PulseHeaderProps {
   title?: string;
   showBackButton?: boolean;
+  parentRoute?: string; // Fallback route for back button
 }
 
-export function PulseHeader({ title, showBackButton = false }: PulseHeaderProps) {
+export function PulseHeader({ title, showBackButton = false, parentRoute }: PulseHeaderProps) {
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
   const { data: unreadCount = 0 } = useUnreadNotificationCount(provider?.id);
+
+  const handleBackClick = () => {
+    // If there's meaningful history (more than just this page), go back
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      // Otherwise use parent route or default to feed
+      navigate(parentRoute || '/pulse/feed');
+    }
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-sm border-b border-border z-50">
       <div className="h-full max-w-lg mx-auto px-4 flex items-center justify-between">
         {/* Left section */}
-        <div className="flex items-center gap-2">
-          {showBackButton ? (
+        <div className="flex items-center gap-1">
+          {/* Dashboard exit - always visible */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate('/dashboard')}
+            className="h-9 w-9"
+            title="Exit to Dashboard"
+          >
+            <LayoutDashboard className="h-5 w-5" />
+          </Button>
+          
+          {/* Back button - contextual */}
+          {showBackButton && (
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => {
-                // If there's history, go back; otherwise go to cards list
-                if (window.history.length > 1) {
-                  navigate(-1);
-                } else {
-                  navigate('/pulse/cards');
-                }
-              }}
+              onClick={handleBackClick}
               className="h-9 w-9"
             >
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          ) : null}
+          )}
+          
           {title ? (
-            <h1 className="font-semibold text-lg">{title}</h1>
+            <h1 className="font-semibold text-lg ml-1">{title}</h1>
           ) : (
-            <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+            <span className="font-bold text-xl bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent ml-1">
               Pulse
             </span>
           )}

@@ -168,7 +168,7 @@ export default function PulseCardDetailPage() {
   const isStale = card.compilation_stale === true;
 
   return (
-    <PulseLayout title={card.topic?.name || 'Card'} showBackButton>
+    <PulseLayout title={card.topic?.name || 'Card'} showBackButton parentRoute="/pulse/cards">
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4 pb-24">
           {/* Header with Stats */}

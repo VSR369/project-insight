@@ -98,8 +98,20 @@ export default function PulseContentDetailPage() {
   // Transform tags from {tag: {id, name}}[] to {id, name}[]
   const tags = content.tags?.map(t => t.tag) || [];
 
+  // Determine parent route based on content type
+  const getParentRoute = () => {
+    switch (content.content_type) {
+      case 'spark':
+        return '/pulse/sparks';
+      case 'reel':
+        return '/pulse/reels';
+      default:
+        return '/pulse/feed';
+    }
+  };
+
   return (
-    <PulseLayout>
+    <PulseLayout parentRoute={getParentRoute()}>
       <div className="max-w-lg mx-auto">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">

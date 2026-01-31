@@ -120,22 +120,8 @@ export default function PulsePublicProfilePage() {
   }));
 
   return (
-    <PulseLayout>
+    <PulseLayout title={providerName} showBackButton parentRoute="/pulse/feed">
       <div className="max-w-lg mx-auto">
-        {/* Header */}
-        <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
-          <div className="flex items-center gap-3 p-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="font-semibold flex-1">{providerName}</h1>
-          </div>
-        </div>
 
         {/* Profile Info */}
         <div className="p-4 border-b">
