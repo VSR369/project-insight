@@ -7,6 +7,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
+import { PULSE_QUERY_KEYS } from '@/constants/pulse.constants';
 
 /**
  * Update the pulse headline in pulse_provider_stats
@@ -25,9 +26,11 @@ export function useUpdatePulseHeadline() {
         .eq('provider_id', providerId);
       
       if (error) throw error;
+      return headline; // Return the saved headline
     },
-    onSuccess: (_, vars) => {
-      queryClient.invalidateQueries({ queryKey: ['pulse-stats', vars.providerId] });
+    onSuccess: (savedHeadline, vars) => {
+      // Invalidate with correct query key
+      queryClient.invalidateQueries({ queryKey: [PULSE_QUERY_KEYS.providerStats, vars.providerId] });
       toast.success('Headline updated');
     },
     onError: (error: Error) => {
