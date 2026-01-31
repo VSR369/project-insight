@@ -6,7 +6,7 @@
 
 import { useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Clock, Share2, Flag, MoreHorizontal, Zap } from 'lucide-react';
+import { Clock, Share2, Flag, MoreHorizontal, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -68,12 +68,14 @@ export default function PulseContentDetailPage() {
 
   if (error || !content) {
     return (
-      <PulseLayout>
+      <PulseLayout 
+        breadcrumb={{
+          parentLabel: 'Feed',
+          parentPath: '/pulse/feed',
+          currentLabel: 'Not Found',
+        }}
+      >
         <div className="max-w-lg mx-auto p-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
           <Alert variant="destructive">
             <AlertDescription>
               {error?.message || 'Content not found or has been removed.'}
@@ -99,34 +101,30 @@ export default function PulseContentDetailPage() {
   const tags = content.tags?.map(t => t.tag) || [];
 
   // Determine parent route based on content type
-  const getParentRoute = () => {
+  const getParentInfo = () => {
     switch (content.content_type) {
       case 'spark':
-        return '/pulse/sparks';
-      case 'reel':
-        return '/pulse/reels';
+        return { label: 'Sparks', path: '/pulse/sparks' };
       default:
-        return '/pulse/feed';
+        return { label: 'Feed', path: '/pulse/feed' };
     }
   };
 
+  const parentInfo = getParentInfo();
+  const contentTitle = content.title || content.headline || 'Content';
+
   return (
-    <PulseLayout parentRoute={getParentRoute()}>
+    <PulseLayout 
+      breadcrumb={{
+        parentLabel: parentInfo.label,
+        parentPath: parentInfo.path,
+        currentLabel: contentTitle.length > 30 ? contentTitle.slice(0, 30) + '...' : contentTitle,
+      }}
+    >
       <div className="max-w-lg mx-auto">
-        {/* Header */}
+        {/* Header with Actions */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
-          <div className="flex items-center gap-3 p-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate(-1)}
-              aria-label="Go back"
-            >
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <h1 className="font-semibold flex-1">
-              {contentTypeLabel}
-            </h1>
+          <div className="flex items-center justify-end gap-2 p-3">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" aria-label="More options">
@@ -189,7 +187,7 @@ export default function PulseContentDetailPage() {
 
           {/* Media */}
           {content.media_urls && (content.media_urls as string[]).length > 0 && (
-          <div className="mb-4">
+            <div className="mb-4">
               <MediaRenderer
                 contentType={content.content_type as PulseContentType}
                 mediaUrls={content.media_urls as string[]}

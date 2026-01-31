@@ -18,7 +18,7 @@ import { usePulseCard, useIncrementCardView } from '@/hooks/queries/usePulseCard
 import { usePulseCardLayers } from '@/hooks/queries/usePulseCardLayers';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { usePulseCardsReputation } from '@/hooks/queries/usePulseCardsReputation';
-import { useCastVote, useUserVote } from '@/hooks/queries/usePulseCardVotes';
+import { useCastVote } from '@/hooks/queries/usePulseCardVotes';
 import { useCompileCardNarrative, extractContributors } from '@/hooks/queries/useCompiledNarrative';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -27,7 +27,6 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { REPUTATION_GATES } from '@/constants/pulseCards.constants';
 import { 
   Layers, 
-  ArrowLeft, 
   Eye,
   Share2,
   Flag
@@ -58,9 +57,6 @@ export default function PulseCardDetailPage() {
   const canBuild = reputation?.canBuild ?? false;
   const canVote = reputation?.canVote ?? false;
   const canFlag = reputation?.canFlag ?? false;
-  const buildReason = !canBuild 
-    ? `Need ${REPUTATION_GATES.BUILD_ON_CARD} reputation to build on cards`
-    : undefined;
 
   // Extract unique contributors from layers
   const contributors = useMemo(() => {
@@ -124,13 +120,18 @@ export default function PulseCardDetailPage() {
   };
 
   const handleViewHistory = () => {
-    // Switch to contributors view to show history
     setViewMode('contributors');
   };
 
   if (cardLoading) {
     return (
-      <PulseLayout title="Card" showBackButton>
+      <PulseLayout 
+        breadcrumb={{
+          parentLabel: 'Cards',
+          parentPath: '/pulse/cards',
+          currentLabel: 'Loading...',
+        }}
+      >
         <div className="p-4 space-y-4">
           <Skeleton className="h-10 w-48 mx-auto rounded-full" />
           <Skeleton className="h-48 w-full rounded-xl" />
@@ -142,7 +143,13 @@ export default function PulseCardDetailPage() {
 
   if (!card) {
     return (
-      <PulseLayout title="Card" showBackButton>
+      <PulseLayout 
+        breadcrumb={{
+          parentLabel: 'Cards',
+          parentPath: '/pulse/cards',
+          currentLabel: 'Not Found',
+        }}
+      >
         <div className="flex flex-col items-center justify-center h-full gap-4 px-6 text-center">
           <div className="p-4 rounded-full bg-muted">
             <Layers className="h-8 w-8 text-muted-foreground" />
@@ -153,10 +160,6 @@ export default function PulseCardDetailPage() {
               This card may have been removed or archived.
             </p>
           </div>
-          <Button variant="outline" onClick={() => navigate('/pulse/cards')}>
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Cards
-          </Button>
         </div>
       </PulseLayout>
     );
@@ -166,9 +169,16 @@ export default function PulseCardDetailPage() {
   const compiledNarrative = card.compiled_narrative || null;
   const compiledAt = card.compiled_at || null;
   const isStale = card.compilation_stale === true;
+  const cardTitle = card.topic?.name || 'Card';
 
   return (
-    <PulseLayout title={card.topic?.name || 'Card'} showBackButton parentRoute="/pulse/cards">
+    <PulseLayout 
+      breadcrumb={{
+        parentLabel: 'Cards',
+        parentPath: '/pulse/cards',
+        currentLabel: cardTitle.length > 25 ? cardTitle.slice(0, 25) + '...' : cardTitle,
+      }}
+    >
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4 pb-24">
           {/* Header with Stats */}
@@ -284,5 +294,3 @@ export default function PulseCardDetailPage() {
     </PulseLayout>
   );
 }
-
-// Layer voting wrapper removed - now handled in ContributorsView

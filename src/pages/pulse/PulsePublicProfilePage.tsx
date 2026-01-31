@@ -5,7 +5,7 @@
  */
 
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trophy, Grid3X3, UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import { Trophy, Grid3X3, UserPlus, UserMinus, Loader2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -94,12 +94,14 @@ export default function PulsePublicProfilePage() {
 
   if (providerError || !profileProvider) {
     return (
-      <PulseLayout>
+      <PulseLayout 
+        breadcrumb={{
+          parentLabel: 'Feed',
+          parentPath: '/pulse/feed',
+          currentLabel: 'Not Found',
+        }}
+      >
         <div className="max-w-lg mx-auto p-4">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
-          </Button>
           <Alert variant="destructive">
             <AlertDescription>
               {providerError?.message || 'User not found.'}
@@ -120,7 +122,13 @@ export default function PulsePublicProfilePage() {
   }));
 
   return (
-    <PulseLayout title={providerName} showBackButton parentRoute="/pulse/feed">
+    <PulseLayout 
+      breadcrumb={{
+        parentLabel: 'Feed',
+        parentPath: '/pulse/feed',
+        currentLabel: providerName.length > 20 ? providerName.slice(0, 20) + '...' : providerName,
+      }}
+    >
       <div className="max-w-lg mx-auto">
 
         {/* Profile Info */}

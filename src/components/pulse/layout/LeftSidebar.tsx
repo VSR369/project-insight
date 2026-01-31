@@ -1,10 +1,13 @@
 /**
  * Left Sidebar
- * Contains LeaderboardMiniWidget and XP Progress
+ * Contains Desktop Navigation, LeaderboardMiniWidget and XP Progress
  */
 
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, Zap, Target, Award } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { 
+  Sparkles, Zap, Target, Award, Home, Layers, 
+  PlusCircle, Trophy, User, Flame 
+} from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -19,6 +22,17 @@ interface LeftSidebarProps {
   className?: string;
 }
 
+// Desktop navigation items
+const NAV_ITEMS = [
+  { path: '/pulse/feed', label: 'Feed', icon: Home },
+  { path: '/pulse/sparks', label: 'Sparks', icon: Zap },
+  { path: '/pulse/cards', label: 'Cards', icon: Layers },
+  { path: '/pulse/create', label: 'Create', icon: PlusCircle },
+  { path: '/pulse/ranks', label: 'Ranks', icon: Trophy },
+  { path: '/pulse/profile', label: 'Profile', icon: User },
+  { path: '/pulse/standup', label: 'Daily Standup', icon: Flame },
+];
+
 // XP required per level (simplified formula)
 const getXpForLevel = (level: number) => level * 500;
 const getXpProgress = (totalXp: number, level: number) => {
@@ -31,13 +45,51 @@ const getXpProgress = (totalXp: number, level: number) => {
 
 export function LeftSidebar({ providerId, className }: LeftSidebarProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { data: stats, isLoading: statsLoading } = useProviderStats(providerId || '');
   const { data: metrics, isLoading: metricsLoading } = usePulseMetrics(providerId || '');
 
   const isLoading = statsLoading || metricsLoading;
+  const currentPath = location.pathname;
+
+  const isActive = (path: string) => {
+    if (path === '/pulse/feed') {
+      return currentPath === '/pulse/feed' || currentPath === '/pulse';
+    }
+    return currentPath.startsWith(path);
+  };
 
   return (
     <div className={cn("p-4 space-y-4 overflow-y-auto", className)}>
+      {/* Desktop Navigation */}
+      <nav className="space-y-1" aria-label="Pulse navigation">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const active = isActive(item.path);
+          
+          return (
+            <Button
+              key={item.path}
+              variant={active ? "secondary" : "ghost"}
+              size="sm"
+              className={cn(
+                "w-full justify-start text-sm",
+                active && "bg-primary/10 text-primary font-medium"
+              )}
+              onClick={() => navigate(item.path)}
+            >
+              <Icon className={cn(
+                "h-4 w-4 mr-2",
+                active && "text-primary",
+                item.icon === Flame && "text-orange-500",
+                item.icon === Zap && !active && "text-yellow-500"
+              )} />
+              {item.label}
+            </Button>
+          );
+        })}
+      </nav>
+
       {/* Galaxy Leaderboard */}
       <LeaderboardMiniWidget currentProviderId={providerId} />
 
@@ -107,30 +159,6 @@ export function LeftSidebar({ providerId, className }: LeftSidebarProps) {
           </CardContent>
         </Card>
       )}
-
-      {/* Navigation Shortcuts */}
-      <Card>
-        <CardContent className="p-3 space-y-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sm"
-            onClick={() => navigate('/pulse/sparks')}
-          >
-            <Sparkles className="h-4 w-4 mr-2 text-yellow-500" />
-            Browse Sparks
-          </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="w-full justify-start text-sm"
-            onClick={() => navigate('/pulse/cards')}
-          >
-            <Award className="h-4 w-4 mr-2 text-primary" />
-            Pulse Cards
-          </Button>
-        </CardContent>
-      </Card>
     </div>
   );
 }
