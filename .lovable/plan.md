@@ -1,235 +1,154 @@
 
 
-# Plan: Clear Navigation Design for Industry Pulse
+# Plan: Show Sidebars for First-Time Users with Onboarding Context
 
 ## Problem Analysis
 
-Based on the current implementation, there are **multiple overlapping navigation elements** causing confusion:
+The sidebars are **intentionally hidden** for first-time users based on this logic:
 
-### Current Navigation Elements (Overlapping)
+| File | Line | Code | Effect |
+|------|------|------|--------|
+| `PulseFeedPage.tsx` | 95 | `showSidebars={!isFirstTime}` | Hides sidebars when `isFirstTime === true` |
+| `useIsFirstTimeProvider.ts` | 16 | `isFirstTime = !enrollments || enrollments.length === 0` | User has no enrollments |
 
-| Element | Location | Function | Problem |
-|---------|----------|----------|---------|
-| Dashboard Icon (`LayoutDashboard`) | Header Left | Exit to main app | Unclear purpose |
-| Back Arrow (`ArrowLeft`) | Header Left (conditional) | Go back | Inconsistent: sometimes shown, sometimes not |
-| "Pulse" Logo | Header Left | Brand | Competes with navigation icons |
-| Bottom Nav (6 items) | Footer | Primary navigation | Works on mobile, hidden on desktop |
-| Left Sidebar | Desktop | Leaderboard/XP widgets | Not navigation |
-| Inline Back Buttons | Various pages | Go back | Duplicates header back button |
+**Why the banner shows:** The "Ready to stand out?" `ProfileBuildBanner` only appears for first-time users (line 99-103).
 
-### Key Confusion Points
-
-1. **Two exit mechanisms**: Dashboard icon vs Back arrow
-2. **Inconsistent back button visibility**: Some pages show it, others don't
-3. **No clear hierarchy labels**: Users don't know where they are in the app
-4. **Desktop users have no persistent nav**: Bottom nav hidden on lg+
+**Why sidebars are hidden:** The original design assumed first-time users shouldn't see sidebars, but this creates a confusing empty layout.
 
 ---
 
-## Proposed Navigation Architecture
+## Solution
 
-### Core Principles
-1. **One clear exit to main app** (Dashboard)
-2. **One clear back within Pulse** (contextual arrow)
-3. **Breadcrumb trail showing hierarchy** on detail pages
-4. **Consistent labeling** across all pages
-
----
-
-### Navigation Flow Diagram
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  MAIN APP (Dashboard)                                       │
-│  └─── Industry Pulse (module boundary)                      │
-│       │                                                     │
-│       ├─── Feed (home)                                      │
-│       │    └─── Content Detail → "← Feed / Post Title"      │
-│       │    └─── Profile (public) → "← Feed / Username"      │
-│       │                                                     │
-│       ├─── Sparks (home)                                    │
-│       │    └─── Content Detail → "← Sparks / Spark Title"   │
-│       │                                                     │
-│       ├─── Cards (home)                                     │
-│       │    └─── Card Detail → "← Cards / Topic Name"        │
-│       │                                                     │
-│       ├─── Create (home)                                    │
-│       │    └─── Creator Form → "← Create / Content Type"    │
-│       │                                                     │
-│       ├─── Ranks (home)                                     │
-│       │                                                     │
-│       ├─── Profile (own)                                    │
-│       │                                                     │
-│       ├─── Standup (linked from widget)                     │
-│       │                                                     │
-│       ├─── Search (linked from header)                      │
-│       │                                                     │
-│       └─── Notifications (linked from header)               │
-└─────────────────────────────────────────────────────────────┘
-```
+**Show sidebars for ALL users**, but adapt the widget content for first-time users:
+- Leaderboard: Show "Join to appear here" message
+- Daily Standup: Show "Complete profile to track streaks"
+- Quick Actions: Emphasize "Build Profile" CTA
 
 ---
 
-## New Header Design
+## Changes Required
 
-### Primary Pages (Feed, Sparks, Cards, Create, Ranks, Profile)
+### 1. Update `PulseFeedPage.tsx`
 
-```
-┌────────────────────────────────────────────────────────────┐
-│ [←Dashboard]  Pulse                       [Search] [Bell]  │
-└────────────────────────────────────────────────────────────┘
+**Change:** Always show sidebars regardless of first-time status
 
-- Left: Dashboard exit icon with tooltip "Exit to Dashboard"
-- Center-left: "Pulse" branding
-- Right: Search + Notifications
-- NO back button on primary pages (use bottom nav)
-```
-
-### Detail/Secondary Pages
-
-```
-┌────────────────────────────────────────────────────────────┐
-│ [←]  Feed › Post Title                    [Search] [Bell]  │
-└────────────────────────────────────────────────────────────┘
-
-- Left: Single back arrow (goes to parent section)
-- Center: Breadcrumb showing hierarchy (parent › current)
-- Right: Search + Notifications
-- NO dashboard icon (back arrow is sufficient)
+```tsx
+// Line 91-96 - Change showSidebars to always true
+<PulseLayout 
+  isPrimaryPage={true}  // Always primary page
+  providerId={provider?.id} 
+  isFirstTime={isFirstTime}
+  showSidebars={true}  // ← Always show sidebars
+>
 ```
 
----
+### 2. Update `LeftSidebar.tsx`
 
-## Implementation Details
+**Add:** First-time user state for leaderboard widget
 
-### 1. Update `PulseHeader.tsx`
-
-**New Props Interface:**
-```typescript
-interface PulseHeaderProps {
-  // For primary pages (Feed, Sparks, etc.)
-  isPrimaryPage?: boolean;
-  
-  // For detail pages - shows breadcrumb
-  breadcrumb?: {
-    parentLabel: string;    // e.g., "Feed", "Cards"
-    parentPath: string;     // e.g., "/pulse/feed"
-    currentLabel: string;   // e.g., "Post Title", "Topic Name"
-  };
-  
-  // Optional: hide search/notifications (for create flow)
-  hideActions?: boolean;
+```tsx
+interface LeftSidebarProps {
+  providerId?: string;
+  isFirstTime?: boolean;  // Add this prop
+  className?: string;
 }
+
+// Pass isFirstTime to LeaderboardMiniWidget
+<LeaderboardMiniWidget isFirstTime={isFirstTime} />
 ```
 
-**Visual Design:**
+### 3. Update `LeaderboardMiniWidget.tsx`
 
-| Page Type | Left Side | Right Side |
-|-----------|-----------|------------|
-| Primary (Feed, Sparks, Cards, Create, Ranks, Profile) | Dashboard Icon + "Pulse" | Search + Bell |
-| Detail (Content, Card Detail, Public Profile) | Back Arrow + Breadcrumb | Search + Bell |
-| Create Form | Back Arrow + "New [Type]" | X (Cancel) |
-| Search/Notifications | Back Arrow + "Search"/"Notifications" | - |
+**Add:** Onboarding message for first-time users
 
----
-
-### 2. Remove Inline Back Buttons
-
-Currently, many pages have BOTH:
-- Header back button
-- Inline "← Back" button
-
-**Remove inline back buttons from:**
-- `PulseCreatePage.tsx` (line 116-119)
-- `PulseContentDetailPage.tsx` (line 119-125)
-- `PulsePublicProfilePage.tsx` (error state)
-- `PulseCardDetailPage.tsx` (line 156-159)
-
----
-
-### 3. Add Desktop Primary Navigation
-
-Since bottom nav is hidden on desktop (lg+), add navigation to left sidebar:
-
-**Update `LeftSidebar.tsx`:**
-```typescript
-// Add navigation section at top
-<nav className="p-4 border-b">
-  <NavLinks items={[
-    { path: '/pulse/feed', label: 'Feed', icon: Home },
-    { path: '/pulse/sparks', label: 'Sparks', icon: Zap },
-    { path: '/pulse/cards', label: 'Cards', icon: Layers },
-    { path: '/pulse/create', label: 'Create', icon: PlusCircle },
-    { path: '/pulse/ranks', label: 'Ranks', icon: Trophy },
-    { path: '/pulse/profile', label: 'Profile', icon: User },
-    { path: '/pulse/standup', label: 'Daily Standup', icon: Flame },
-  ]} />
-</nav>
+```tsx
+// When isFirstTime, show motivational message
+{isFirstTime && (
+  <div className="text-center py-6 text-muted-foreground">
+    <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
+    <p className="text-sm">Build your profile to join the rankings!</p>
+  </div>
+)}
 ```
 
----
+### 4. Update `RightSidebar.tsx` 
 
-### 4. Page-by-Page Configuration
+**Already has `isFirstTime` prop** - Just verify it passes correctly to widgets
 
-| Page | isPrimaryPage | breadcrumb | Notes |
-|------|---------------|------------|-------|
-| Feed | true | - | Primary, no back |
-| Sparks | true | - | Primary, no back |
-| Cards | true | - | Primary, no back |
-| Create (type selection) | true | - | Primary, no back |
-| Create (form) | false | {parent: "Create", current: "New Reel"} | Back to type selection |
-| Ranks | true | - | Primary, no back |
-| Profile (own) | true | - | Primary, no back |
-| Content Detail | false | {parent: "Feed", current: "[Title]"} | Back to Feed |
-| Spark Detail | false | {parent: "Sparks", current: "[Headline]"} | Back to Sparks |
-| Card Detail | false | {parent: "Cards", current: "[Topic]"} | Back to Cards |
-| Public Profile | false | {parent: "Feed", current: "[Name]"} | Back to Feed |
-| Daily Standup | false | {parent: "Feed", current: "Daily Standup"} | Back to Feed |
-| Search | false | - | Back to previous |
-| Notifications | false | - | Back to previous |
+### 5. Update `DailyStandupWidget.tsx`
+
+**Add:** First-time state
+
+```tsx
+{isFirstTime ? (
+  <div className="text-center py-4">
+    <p className="text-sm text-muted-foreground">
+      Complete your profile to start tracking daily streaks
+    </p>
+  </div>
+) : (
+  // Existing standup content
+)}
+```
+
+### 6. Update `QuickActionsWidget.tsx`
+
+**Already adapts to first-time users** - The profile progress indicator adjusts based on `profileProgress` prop
+
+### 7. Update `PulseLayout.tsx`
+
+**Add:** Pass `isFirstTime` to LeftSidebar
+
+```tsx
+<LeftSidebar providerId={providerId} isFirstTime={isFirstTime} />
+```
 
 ---
 
 ## Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/components/pulse/layout/PulseHeader.tsx` | Complete redesign with breadcrumb support |
-| `src/components/pulse/layout/LeftSidebar.tsx` | Add desktop navigation links |
-| `src/pages/pulse/PulseFeedPage.tsx` | Add `isPrimaryPage` prop |
-| `src/pages/pulse/PulseSparksPage.tsx` | Add `isPrimaryPage` prop |
-| `src/pages/pulse/PulseCardsPage.tsx` | Add `isPrimaryPage` prop |
-| `src/pages/pulse/PulseCreatePage.tsx` | Add breadcrumb, remove inline back button |
-| `src/pages/pulse/PulseRanksPage.tsx` | Add `isPrimaryPage` prop |
-| `src/pages/pulse/PulseProfilePage.tsx` | Add `isPrimaryPage` prop |
-| `src/pages/pulse/PulseContentDetailPage.tsx` | Add breadcrumb, remove inline back button |
-| `src/pages/pulse/PulseCardDetailPage.tsx` | Add breadcrumb, remove inline back button |
-| `src/pages/pulse/PulsePublicProfilePage.tsx` | Add breadcrumb |
-| `src/pages/pulse/PulseStandupPage.tsx` | Add breadcrumb |
+| File | Change |
+|------|--------|
+| `src/pages/pulse/PulseFeedPage.tsx` | Set `showSidebars={true}` always |
+| `src/components/pulse/layout/PulseLayout.tsx` | Pass `isFirstTime` to LeftSidebar |
+| `src/components/pulse/layout/LeftSidebar.tsx` | Accept and pass `isFirstTime` prop |
+| `src/components/pulse/widgets/LeaderboardMiniWidget.tsx` | Add first-time user state |
+| `src/components/pulse/widgets/DailyStandupWidget.tsx` | Add first-time user message |
 
 ---
 
-## Visual Summary
+## Expected Result
 
-### Before (Confusing)
+### Before (Current - Empty)
 ```
-[Dashboard] [Back?] Pulse/Title/Nothing?    [Search] [Bell]
-           ↑ inconsistent
+┌────────────────────────────────────────────────────┐
+│                    MAIN FEED                       │
+│              (no left/right sidebars)              │
+│                                                    │
+└────────────────────────────────────────────────────┘
 ```
 
-### After (Clear)
+### After (Fixed - Full Layout)
 ```
-Primary Pages:   [←Dashboard] Pulse            [Search] [Bell]
-Detail Pages:    [←] Feed › Post Title         [Search] [Bell]
+┌──────────┬──────────────────────┬──────────────────┐
+│ LEFT     │     MAIN FEED        │   RIGHT          │
+│ SIDEBAR  │                      │   SIDEBAR        │
+├──────────┼──────────────────────┼──────────────────┤
+│ [Leader- │ Profile Build Banner │ [Daily Standup]  │
+│  board]  │                      │ "Complete profile│
+│ "Build   │ Feed Content         │  to track..."    │
+│  profile │                      │                  │
+│  to join │                      │ [Quick Actions]  │
+│  ranks"  │                      │ Build Profile CTA│
+└──────────┴──────────────────────┴──────────────────┘
 ```
 
 ---
 
-## Expected User Experience
+## Technical Notes
 
-1. **Primary Navigation**: Bottom nav (mobile) / Left sidebar (desktop)
-2. **Exit to Main App**: Always visible dashboard icon on primary pages
-3. **Back Within Pulse**: Clear back arrow on detail pages with breadcrumb
-4. **Hierarchy Awareness**: Breadcrumb shows "where I am" (Feed › Post Title)
-5. **Consistent Behavior**: Same pattern across all pages
+1. **No breaking changes** - Just enabling existing sidebar components
+2. **Graceful degradation** - Widgets adapt their content based on `isFirstTime` prop
+3. **Consistent with other pages** - Other Pulse pages (Sparks, Cards, Ranks) may need same fix
+4. **Desktop-only** - Sidebars are still hidden on mobile (responsive design preserved)
 
