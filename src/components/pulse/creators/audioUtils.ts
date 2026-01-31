@@ -193,6 +193,9 @@ export async function validateRecordedAudio(blob: Blob): Promise<ValidationResul
 
 const DEVICE_STORAGE_KEY = 'pulse_preferred_mic_device';
 
+// Testing default: Use 'default' for system default, or paste specific deviceId for testing
+const TESTING_DEFAULT_MIC_ID: string | null = 'default';
+
 export interface AudioDevice {
   deviceId: string;
   label: string;
@@ -230,12 +233,14 @@ export function savePreferredDevice(deviceId: string): void {
 
 /**
  * Gets the previously saved preferred device ID.
+ * Falls back to testing default if no preference saved.
  */
 export function getPreferredDevice(): string | null {
   try {
-    return localStorage.getItem(DEVICE_STORAGE_KEY);
+    const saved = localStorage.getItem(DEVICE_STORAGE_KEY);
+    return saved || TESTING_DEFAULT_MIC_ID;
   } catch (err) {
-    return null;
+    return TESTING_DEFAULT_MIC_ID;
   }
 }
 
