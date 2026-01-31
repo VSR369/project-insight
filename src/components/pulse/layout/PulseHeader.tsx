@@ -1,7 +1,18 @@
-import { ArrowLeft, Bell, Search, LayoutDashboard, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Bell, Search, LayoutDashboard, ChevronRight, LogOut, User } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 import { useUnreadNotificationCount } from '@/hooks/queries/usePulseSocial';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { cn } from '@/lib/utils';
@@ -37,8 +48,22 @@ export function PulseHeader({
   hideActions = false,
 }: PulseHeaderProps) {
   const navigate = useNavigate();
+  const { user, signOut } = useAuth();
   const { data: provider } = useCurrentProvider();
   const { data: unreadCount = 0 } = useUnreadNotificationCount(provider?.id);
+
+  // User initials for avatar
+  const firstName = user?.user_metadata?.first_name || '';
+  const lastName = user?.user_metadata?.last_name || '';
+  const initials = firstName && lastName 
+    ? `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase() 
+    : user?.email?.slice(0, 2).toUpperCase() || 'U';
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+    navigate('/login');
+  };
 
   // Determine navigation mode
   const isDetailPage = !!breadcrumb || showBackButton;
@@ -112,37 +137,74 @@ export function PulseHeader({
           )}
         </div>
 
-        {/* Right section - Search and Notifications */}
-        {!hideActions && (
-          <div className="flex items-center gap-1 flex-shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/pulse/search')}
-              className="h-9 w-9"
-              aria-label="Search"
-            >
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate('/pulse/notifications')}
-              className="h-9 w-9 relative"
-              aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <Badge 
-                  variant="destructive" 
-                  className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-xs"
-                >
-                  {unreadCount > 99 ? '99+' : unreadCount}
-                </Badge>
-              )}
-            </Button>
-          </div>
-        )}
+        {/* Right section - Search, Notifications, and User Menu */}
+        <div className="flex items-center gap-1 flex-shrink-0">
+          {!hideActions && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/pulse/search')}
+                className="h-9 w-9"
+                aria-label="Search"
+              >
+                <Search className="h-5 w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate('/pulse/notifications')}
+                className="h-9 w-9 relative"
+                aria-label={`Notifications${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
+              >
+                <Bell className="h-5 w-5" />
+                {unreadCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-xs"
+                  >
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </Badge>
+                )}
+              </Button>
+            </>
+          )}
+          
+          {/* User Menu with Logout */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-9 w-9">
+                <Avatar className="h-7 w-7">
+                  <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>
+                <div className="flex flex-col space-y-1">
+                  <p className="text-sm font-medium">{firstName} {lastName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{user?.email}</p>
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => navigate('/pulse/profile')}>
+                <User className="mr-2 h-4 w-4" />
+                Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => navigate('/dashboard')}>
+                <LayoutDashboard className="mr-2 h-4 w-4" />
+                Dashboard
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive">
+                <LogOut className="mr-2 h-4 w-4" />
+                Sign Out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   );

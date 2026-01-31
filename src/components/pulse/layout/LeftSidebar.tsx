@@ -1,16 +1,21 @@
 /**
  * Left Sidebar
- * Contains ProfileMiniCard, LeaderboardMiniWidget, and XP Progress Card
+ * Contains ProfileMiniCard, LeaderboardMiniWidget, XP Progress Card, and Logout
  */
 
-import { Sparkles, Zap, Target, Award } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Sparkles, Zap, Target, Award, LogOut, LayoutDashboard, Settings } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { LeaderboardMiniWidget, ProfileMiniCard } from '@/components/pulse/widgets';
 import { useProviderStats, usePulseMetrics } from '@/hooks/queries/usePulseStats';
+import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface LeftSidebarProps {
   providerId?: string;
@@ -30,10 +35,18 @@ const getXpProgress = (totalXp: number, level: number) => {
 };
 
 export function LeftSidebar({ providerId, userId, isFirstTime, className }: LeftSidebarProps) {
+  const navigate = useNavigate();
+  const { signOut } = useAuth();
   const { data: stats, isLoading: statsLoading } = useProviderStats(providerId || '');
   const { data: metrics, isLoading: metricsLoading } = usePulseMetrics(providerId || '');
 
   const isLoading = statsLoading || metricsLoading;
+
+  const handleSignOut = async () => {
+    await signOut();
+    toast.success('Signed out successfully');
+    navigate('/login');
+  };
 
   return (
     <div className={cn("p-3 lg:p-4 space-y-3 lg:space-y-4 overflow-y-auto", className)}>
@@ -111,6 +124,40 @@ export function LeftSidebar({ providerId, userId, isFirstTime, className }: Left
           </CardContent>
         </Card>
       )}
+
+      {/* Quick Actions */}
+      <div className="mt-auto pt-4">
+        <Separator className="mb-4" />
+        <div className="space-y-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => navigate('/dashboard')}
+          >
+            <LayoutDashboard className="mr-2 h-4 w-4" />
+            Dashboard
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-muted-foreground hover:text-foreground"
+            onClick={() => navigate('/settings')}
+          >
+            <Settings className="mr-2 h-4 w-4" />
+            Settings
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full justify-start text-destructive hover:text-destructive hover:bg-destructive/10"
+            onClick={handleSignOut}
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        </div>
+      </div>
     </div>
   );
 }
