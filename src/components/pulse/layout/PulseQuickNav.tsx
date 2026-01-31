@@ -1,9 +1,8 @@
-import { User, Flame, Video, Mic, Zap, FileText, Images, Layers } from 'lucide-react';
+import { Flame, Video, Mic, Zap, FileText, Images, Layers } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { path: '/pulse/profile', label: 'Profile', icon: User },
   { path: '/pulse/feed', label: 'Feed', icon: Flame },
   { path: '/pulse/reels', label: 'Reels', icon: Video },
   { path: '/pulse/podcasts', label: 'Podcast', icon: Mic },
