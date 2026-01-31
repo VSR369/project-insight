@@ -1,92 +1,86 @@
 
 
-# Plan: Remove Redundant "Build Profile" Button from Header
+# Plan: Remove Redundant Get Started Page & Simplify Flow
 
 ## Summary
-Remove the "Build Profile" button from the first-time user header since the "Let's Build Your Profile" CTA already exists in the `ProfileBuildBanner` component below. This eliminates redundancy and creates a cleaner header design.
+Remove the `/pulse/get-started` page (PulseGetStartedPage.tsx) since it duplicates content already shown on the Welcome page. Update the ProfileBuildBanner to navigate directly to `/welcome`.
 
 ---
 
-## Current State
-The `PulseHeaderFirstTime` component has:
-- Pulse branding (left)
-- "Build Profile" button (right) ← **Redundant - to be removed**
+## Current Flow (Redundant)
+```
+Pulse Feed → Click "Get Started" → /pulse/get-started → Click "Let's Build Your Profile" → /welcome
+```
 
-Meanwhile, the `ProfileBuildBanner` already has the prominent "Let's Build Your Profile" CTA.
+## New Flow (Simplified)
+```
+Pulse Feed → Click "Let's Build Your Profile" → /welcome → /enroll/participation-mode
+```
 
 ---
 
 ## Changes Required
 
-### File: `src/components/pulse/layout/PulseHeaderFirstTime.tsx`
+### 1. Update ProfileBuildBanner Navigation
+**File:** `src/components/pulse/layout/ProfileBuildBanner.tsx`
 
-**Before:**
-```tsx
-import { Sparkles, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-
-export function PulseHeaderFirstTime() {
-  const navigate = useNavigate();
-
-  return (
-    <header className="...">
-      <div className="... justify-between">
-        {/* Pulse branding */}
-        ...
-        
-        {/* Build Profile CTA - REDUNDANT */}
-        <Button onClick={() => navigate('/pulse/get-started')} ...>
-          Build Profile
-          <ArrowRight />
-        </Button>
-      </div>
-    </header>
-  );
-}
-```
-
-**After:**
-```tsx
-import { Sparkles } from 'lucide-react';
-
-export function PulseHeaderFirstTime() {
-  return (
-    <header className="...">
-      <div className="... justify-center">
-        {/* Center - Pulse branding only */}
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-full bg-primary/10 ...">
-            <Sparkles className="h-4 w-4 text-primary" />
-          </div>
-          <span className="font-bold text-xl ...">
-            Pulse
-          </span>
-        </div>
-      </div>
-    </header>
-  );
-}
-```
+| Current | New |
+|---------|-----|
+| `navigate('/pulse/get-started')` | `navigate('/welcome')` |
+| Button text: "Get Started" | Button text: "Let's Build Your Profile" |
 
 ---
 
-## What Changes
+### 2. Remove `/pulse/get-started` Route from App.tsx
+**File:** `src/App.tsx`
 
-| Item | Action |
+- Remove the route definition (lines 601-608):
+```tsx
+// REMOVE THIS:
+<Route
+  path="/pulse/get-started"
+  element={
+    <AuthGuard>
+      <PulseGetStartedPage />
+    </AuthGuard>
+  }
+/>
+```
+
+- Remove `PulseGetStartedPage` from the import statement at line 93
+
+---
+
+### 3. Remove Page Export
+**File:** `src/pages/pulse/index.ts`
+
+- Remove: `export { default as PulseGetStartedPage } from './PulseGetStartedPage';`
+
+---
+
+### 4. Delete the Redundant Page File
+**File:** `src/pages/pulse/PulseGetStartedPage.tsx`
+
+- Delete the entire file (it's no longer needed)
+
+---
+
+## Files to Modify
+
+| File | Action |
 |------|--------|
-| Import `ArrowRight` | Remove |
-| Import `useNavigate` | Remove |
-| Import `Button` | Remove |
-| `const navigate = useNavigate()` | Remove |
-| Flex alignment | Change from `justify-between` to `justify-center` |
-| "Build Profile" Button | Remove entirely |
-| Pulse branding | Keep, center it |
+| `src/components/pulse/layout/ProfileBuildBanner.tsx` | Update navigation to `/welcome`, change button text |
+| `src/App.tsx` | Remove route for `/pulse/get-started`, remove import |
+| `src/pages/pulse/index.ts` | Remove export of `PulseGetStartedPage` |
+| `src/pages/pulse/PulseGetStartedPage.tsx` | **DELETE** |
 
 ---
 
-## Result
-- Cleaner header with just the Pulse branding centered
-- Single CTA in the `ProfileBuildBanner` ("Let's Build Your Profile")
-- No duplicate navigation options confusing users
+## Technical Notes
+
+1. **Welcome page already has**: The motivational content, "Why Your Profile Matters" section, and "Let's Build Your Profile" CTA that navigates to `/enroll/participation-mode`
+
+2. **No breaking changes**: The `/pulse/get-started` route was only used from the banner, and we're updating that reference
+
+3. **Cleaner user journey**: One less click for users to start building their profile
 
