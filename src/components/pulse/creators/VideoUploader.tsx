@@ -19,6 +19,8 @@ import { Progress } from '@/components/ui/progress';
 import { validateFile, MEDIA_LIMITS, formatBytes } from '@/lib/validations/media';
 import { toast } from 'sonner';
 import { CameraSelector } from './CameraSelector';
+import { MicrophoneSelector } from './MicrophoneSelector';
+import { getPreferredDevice as getPreferredMicDevice } from './audioUtils';
 import {
   getSupportedVideoMimeType,
   getVideoFileExtension,
@@ -51,6 +53,7 @@ export function VideoUploader({
   const [isExtracting, setIsExtracting] = useState(false);
   const [showCameraSettings, setShowCameraSettings] = useState(false);
   const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+  const [selectedMicDeviceId, setSelectedMicDeviceId] = useState<string | null>(null);
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
 
   // Refs
@@ -69,6 +72,7 @@ export function VideoUploader({
   // Load saved preferences on mount
   useEffect(() => {
     setFacingMode(getPreferredFacingMode());
+    setSelectedMicDeviceId(getPreferredMicDevice());
   }, []);
 
   // Sync recordingTime to ref
@@ -233,32 +237,72 @@ export function VideoUploader({
       }
 
       // ================================================================
+      // Build audio constraints (same pattern as working AudioRecorder)
+      // ================================================================
+      const audioConstraints: MediaTrackConstraints = {
+        echoCancellation: true,
+        noiseSuppression: true,
+        autoGainControl: true,
+      };
+      
+      if (selectedMicDeviceId) {
+        audioConstraints.deviceId = { exact: selectedMicDeviceId };
+        console.log('[VideoUploader] Using selected microphone:', selectedMicDeviceId);
+      }
+
+      // ================================================================
       // CRITICAL: getUserMedia called DIRECTLY in click handler context
       // This is the key fix - no useEffect, no requestAnimationFrame!
       // ================================================================
       let stream: MediaStream;
       try {
         console.log('[VideoUploader] Requesting camera with constraints:', videoConstraints);
+        console.log('[VideoUploader] Requesting audio with constraints:', audioConstraints);
         stream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints,
-          audio: true,
+          audio: audioConstraints,
         });
       } catch (constraintError) {
         console.warn('[VideoUploader] Preferred constraints failed, trying fallback:', constraintError);
-        // Fallback to basic constraints
+        // Fallback to basic constraints but keep audio processing
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+          },
         });
       }
       
       streamRef.current = stream;
       console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => `${t.kind}:${t.readyState}`));
 
-      // Activate tracks explicitly (Edge compatibility)
-      stream.getTracks().forEach(track => {
-        track.enabled = true;
-      });
+      // Activate video track explicitly (Edge compatibility)
+      const videoTrack = stream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = true;
+        console.log('[VideoUploader] Video track:', {
+          label: videoTrack.label,
+          readyState: videoTrack.readyState,
+          enabled: videoTrack.enabled,
+        });
+      }
+      
+      // Activate audio track explicitly (Edge compatibility - CRITICAL for audio capture)
+      const audioTrack = stream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = true;
+        console.log('[VideoUploader] Audio track:', {
+          label: audioTrack.label,
+          readyState: audioTrack.readyState,
+          enabled: audioTrack.enabled,
+          muted: audioTrack.muted,
+        });
+      } else {
+        console.warn('[VideoUploader] No audio track in stream!');
+        toast.warning('No microphone detected. Video will record without audio.');
+      }
 
       // Create video element PROGRAMMATICALLY
       const video = document.createElement('video');
@@ -426,7 +470,7 @@ export function VideoUploader({
       // Show camera settings on error
       setShowCameraSettings(true);
     }
-  }, [selectedDeviceId, facingMode, handleFileSelect, cleanupCamera]);
+  }, [selectedDeviceId, selectedMicDeviceId, facingMode, handleFileSelect, cleanupCamera]);
 
   // Stop recording
   const stopRecording = useCallback(() => {
@@ -716,13 +760,19 @@ export function VideoUploader({
             </Button>
           </div>
 
-          {/* Camera selector (shown on toggle or after error) */}
+          {/* Camera and Microphone selectors (shown on toggle or after error) */}
           {showCameraSettings && (
-            <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-              <span className="text-sm text-muted-foreground">Select camera:</span>
-              <CameraSelector
-                onDeviceSelect={handleCameraSelect}
-                disabled={disabled}
+            <div className="space-y-3 p-3 bg-muted/50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">Camera:</span>
+                <CameraSelector
+                  onDeviceSelect={handleCameraSelect}
+                  disabled={disabled}
+                />
+              </div>
+              <MicrophoneSelector
+                onDeviceChange={setSelectedMicDeviceId}
+                className="pt-2 border-t border-border"
               />
             </div>
           )}
