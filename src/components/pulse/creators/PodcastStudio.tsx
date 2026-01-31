@@ -234,6 +234,11 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
       });
 
       toast.success("Podcast published successfully!");
+      
+      // Reset form and audio state after success to prevent duplicate submissions
+      form.reset();
+      handleRemoveAudio();
+      
       onSuccess?.();
     } catch (error) {
       toast.error("Failed to publish podcast");
