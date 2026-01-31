@@ -145,10 +145,10 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
 
   return (
     <Card className={cn("", className)}>
-      <CardContent className="p-4 flex flex-col items-center gap-3">
+      <CardContent className="p-5 flex flex-col items-center gap-4">
         {isLoading ? (
           <>
-            <Skeleton className="h-16 w-16 rounded-full" />
+            <Skeleton className="h-20 w-20 rounded-full" />
             <Skeleton className="h-4 w-32" />
             <Skeleton className="h-8 w-24" />
           </>
@@ -156,7 +156,7 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
           <>
             {/* Avatar with upload overlay */}
             <div className="relative group">
-              <Avatar className="h-16 w-16 border-2 border-primary/20">
+              <Avatar className="h-20 w-20 border-2 border-primary/20">
                 <AvatarImage src={profile?.avatar_url || undefined} alt="Profile" />
                 <AvatarFallback className="text-lg font-medium bg-primary/10">
                   {getInitials()}
