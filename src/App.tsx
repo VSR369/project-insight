@@ -77,6 +77,7 @@ import { ReviewerAvailabilityPage } from "@/pages/admin/reviewer-availability";
 import { InterviewKitPage, InterviewKitQuestionsPage } from "@/pages/admin/interview-kit";
 import RegressionTestPage from "@/pages/provider/RegressionTestPage";
 import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
+import PulseSocialTestPage from "@/pages/admin/PulseSocialTestPage";
 
 // Reviewer Pages
 import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
@@ -526,6 +527,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <ReviewerAvailabilityPage />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/pulse-social-test"
+              element={
+                <AdminGuard>
+                  <PulseSocialTestPage />
                 </AdminGuard>
               }
             />
