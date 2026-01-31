@@ -211,7 +211,7 @@ export default function Login() {
       if (session?.session?.user) {
         const userId = session.session.user.id;
         
-        // Fetch roles, provider record, and reviewer record in parallel
+        // Fetch roles, provider record, reviewer record, and enrollments in parallel
         const [rolesResult, providerResult, reviewerResult] = await Promise.all([
           supabase
             .from('user_roles')
@@ -240,6 +240,25 @@ export default function Login() {
         
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
+        
+        // Check if first-time provider (has provider record but no enrollments)
+        let isFirstTimeProvider = false;
+        if (hasProviderRecord && selectedRole === 'provider' && !isPlatformAdmin && !isPanelReviewer) {
+          const { data: enrollments } = await supabase
+            .from('provider_industry_enrollments')
+            .select('id')
+            .eq('provider_id', providerRecord.id)
+            .limit(1);
+          
+          isFirstTimeProvider = !enrollments || enrollments.length === 0;
+        }
+        
+        // First-time providers go to Pulse feed for onboarding
+        if (isFirstTimeProvider) {
+          toast.success('Welcome! Explore Industry Pulse and build your profile.');
+          navigate('/pulse/feed', { replace: true });
+          return;
+        }
         
         // Validate user has access to selected portal
         const canAccessSelected = 

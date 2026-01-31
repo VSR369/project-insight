@@ -41,10 +41,12 @@ export function RoleBasedRedirect() {
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
 
       // Fetch roles and records to validate cached portal or determine new one
-      const [rolesResult, providerResult, reviewerResult] = await Promise.all([
+      const [rolesResult, providerResult, reviewerResult, enrollmentsResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
-        supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle()
+        supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
+        // Also fetch enrollments to determine first-time provider status
+        supabase.from('provider_industry_enrollments').select('id').eq('provider_id', (await supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle()).data?.id || '').limit(1),
       ]);
 
       const roles = rolesResult.data;
@@ -52,6 +54,16 @@ export function RoleBasedRedirect() {
       const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerResult.data;
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
+      const hasEnrollments = (enrollmentsResult.data?.length || 0) > 0;
+
+      // First-time provider: has provider record but no enrollments, OR no provider record at all
+      // These users go to /pulse/feed for the onboarding experience
+      const isFirstTimeProvider = hasProviderRecord && !hasEnrollments && !isPlatformAdmin && !isPanelReviewer;
+      
+      if (isFirstTimeProvider) {
+        navigate('/pulse/feed', { replace: true });
+        return;
+      }
 
       // Validate cached portal - user must still have access
       if (cachedPortal) {
