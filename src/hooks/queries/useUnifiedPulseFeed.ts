@@ -49,6 +49,11 @@ export interface FeedCardItem {
   view_count: number;
   share_count: number;
   build_count: number;
+  // Engagement counts (XP integration)
+  fire_count: number;
+  gold_count: number;
+  save_count: number;
+  comment_count: number;
   created_at: string;
   compiled_narrative: string | null;
   compiled_at: string | null;
@@ -116,12 +121,13 @@ export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) {
 
       if (contentError) throw new Error(contentError.message);
 
-      // Fetch pulse_cards with featured layer and compiled narrative
+      // Fetch pulse_cards with featured layer, compiled narrative, and engagement counts
       const { data: cardsData, error: cardsError } = await supabase
         .from('pulse_cards')
         .select(`
-          id, topic_id, seed_creator_id, status, view_count, share_count, build_count, created_at,
-          compiled_narrative, compiled_at,
+          id, topic_id, seed_creator_id, status, view_count, share_count, build_count,
+          fire_count, gold_count, save_count, comment_count,
+          created_at, compiled_narrative, compiled_at,
           topic:pulse_card_topics(id, name, slug, icon, color),
           creator:solution_providers!seed_creator_id(id, first_name, last_name),
           featured_layer:pulse_card_layers!current_featured_layer_id(

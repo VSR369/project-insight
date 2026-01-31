@@ -24,6 +24,11 @@ export interface PulseCard {
   view_count: number;
   share_count: number;
   build_count: number;
+  // Engagement counts (XP integration)
+  fire_count: number;
+  gold_count: number;
+  save_count: number;
+  comment_count: number;
   created_at: string;
   updated_at: string | null;
   created_by: string | null;

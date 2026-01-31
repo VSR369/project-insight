@@ -1,16 +1,16 @@
 /**
  * PulseCard - Single card display component
- * Visual-first design with topic, content, media, and creator info
+ * Visual-first design with topic, content, media, and engagement bar
  */
 
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Share2, Layers } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Layers } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ReputationBadge } from './ReputationBadge';
+import { CardEngagementBar } from './CardEngagementBar';
 import type { PulseCard as PulseCardType } from '@/hooks/queries/usePulseCards';
 import type { PulseCardLayer } from '@/hooks/queries/usePulseCardLayers';
 
@@ -18,6 +18,7 @@ interface PulseCardProps {
   card: PulseCardType;
   featuredLayer?: PulseCardLayer | null;
   reputation?: number;
+  currentUserProviderId?: string;
   onShare?: () => void;
   className?: string;
   isDetailView?: boolean;
@@ -27,6 +28,7 @@ export function PulseCard({
   card,
   featuredLayer,
   reputation = 0,
+  currentUserProviderId = '',
   onShare,
   className,
   isDetailView = false,
@@ -120,29 +122,29 @@ export function PulseCard({
             </div>
           </div>
 
-          {/* Metrics */}
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
+          {/* Build Count */}
+          <div className="flex items-center gap-1 text-sm text-muted-foreground">
             <span className="flex items-center gap-1" aria-label={`${card.build_count} builds`}>
               <Layers className="h-4 w-4" aria-hidden="true" />
               {card.build_count}
             </span>
-            {onShare && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onShare();
-                }}
-                aria-label="Share card"
-              >
-                <Share2 className="h-4 w-4" />
-              </Button>
-            )}
           </div>
         </div>
+
+        {/* Engagement Bar */}
+        {currentUserProviderId && (
+          <div className="mt-3 pt-3 border-t border-border">
+            <CardEngagementBar
+              cardId={card.id}
+              creatorId={card.seed_creator_id}
+              currentUserProviderId={currentUserProviderId}
+              fireCount={card.fire_count || 0}
+              commentCount={card.comment_count || 0}
+              goldCount={card.gold_count || 0}
+              saveCount={card.save_count || 0}
+            />
+          </div>
+        )}
       </CardContent>
     </Card>
   );
