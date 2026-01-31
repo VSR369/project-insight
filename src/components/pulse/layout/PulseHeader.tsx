@@ -58,7 +58,7 @@ export function PulseHeader({
 
   return (
     <header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-sm border-b border-border z-50">
-      <div className="h-full max-w-lg mx-auto px-4 flex items-center justify-between">
+      <div className="h-full w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 flex items-center justify-between">
         {/* Left section */}
         <div className="flex items-center gap-1 min-w-0 flex-1">
           {/* Primary pages: Dashboard exit + Pulse branding */}

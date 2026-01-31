@@ -36,7 +36,7 @@ export function LeftSidebar({ providerId, userId, isFirstTime, className }: Left
   const isLoading = statsLoading || metricsLoading;
 
   return (
-    <div className={cn("p-4 space-y-4 overflow-y-auto", className)}>
+    <div className={cn("p-3 lg:p-4 space-y-3 lg:space-y-4 overflow-y-auto", className)}>
       {/* Profile Card */}
       {providerId && userId && (
         <ProfileMiniCard providerId={providerId} userId={userId} />
@@ -48,13 +48,13 @@ export function LeftSidebar({ providerId, userId, isFirstTime, className }: Left
       {/* XP Progress Card */}
       {providerId && (
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <Zap className="h-4 w-4 text-yellow-500" />
+          <CardHeader className="pb-2 p-3 lg:p-4">
+            <CardTitle className="text-xs lg:text-sm font-medium flex items-center gap-2">
+              <Zap className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-yellow-500" />
               Your Progress
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-2 lg:space-y-3 p-3 lg:p-4 pt-0">
             {isLoading ? (
               <>
                 <Skeleton className="h-8 w-full" />
@@ -65,18 +65,18 @@ export function LeftSidebar({ providerId, userId, isFirstTime, className }: Left
                 {/* Level & XP */}
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-primary-foreground font-bold">
+                    <div className="w-8 h-8 lg:w-10 lg:h-10 rounded-full bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center text-primary-foreground font-bold text-sm lg:text-base">
                       {stats?.current_level || 1}
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Level {stats?.current_level || 1}</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs lg:text-sm font-medium">Level {stats?.current_level || 1}</p>
+                      <p className="text-[10px] lg:text-xs text-muted-foreground">
                         {(stats?.total_xp || 0).toLocaleString()} XP
                       </p>
                     </div>
                   </div>
-                  <Badge variant="secondary" className="text-[10px]">
-                    <Sparkles className="h-3 w-3 mr-1" />
+                  <Badge variant="secondary" className="text-[9px] lg:text-[10px]">
+                    <Sparkles className="h-2.5 w-2.5 lg:h-3 lg:w-3 mr-0.5 lg:mr-1" />
                     {stats?.current_streak || 0} streak
                   </Badge>
                 </div>

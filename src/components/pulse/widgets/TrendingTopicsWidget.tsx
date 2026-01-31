@@ -34,39 +34,39 @@ export function TrendingTopicsWidget({ className }: TrendingTopicsWidgetProps) {
 
   return (
     <Card className={cn("", className)}>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-primary" />
+      <CardHeader className="pb-2 lg:pb-3 p-3 lg:p-4">
+        <CardTitle className="text-xs lg:text-sm font-medium flex items-center gap-2">
+          <TrendingUp className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-primary" />
           Trending Now
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-3 lg:space-y-4 p-3 lg:p-4 pt-0">
         {/* Trending Hashtags */}
-        <div className="space-y-2">
+        <div className="space-y-1.5 lg:space-y-2">
           {TRENDING_TOPICS.map((topic, index) => (
             <div
               key={topic.tag}
-              className="flex items-center justify-between group cursor-pointer hover:bg-muted/50 rounded-lg p-1.5 -mx-1.5 transition-colors"
+              className="flex items-center justify-between group cursor-pointer hover:bg-muted/50 rounded-lg p-1 lg:p-1.5 -mx-1 lg:-mx-1.5 transition-colors"
               onClick={() => navigate(`/pulse/sparks?tag=${topic.tag}`)}
             >
-              <div className="flex items-center gap-2">
-                <Hash className="h-3.5 w-3.5 text-primary" />
-                <span className="text-sm group-hover:text-primary transition-colors">
+              <div className="flex items-center gap-1.5 lg:gap-2 min-w-0">
+                <Hash className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-primary flex-shrink-0" />
+                <span className="text-xs lg:text-sm group-hover:text-primary transition-colors truncate">
                   {topic.tag}
                 </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-xs text-muted-foreground">{topic.count}</span>
+              <div className="flex items-center gap-1 lg:gap-1.5 flex-shrink-0">
+                <span className="text-[10px] lg:text-xs text-muted-foreground">{topic.count}</span>
                 {topic.trend === 'up' && (
-                  <TrendingUp className="h-3 w-3 text-green-500" />
+                  <TrendingUp className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-green-500" />
                 )}
                 {topic.trend === 'new' && (
-                  <Badge className="text-[10px] px-1 py-0 h-4 bg-primary/20 text-primary">
+                  <Badge className="text-[9px] lg:text-[10px] px-1 py-0 h-3.5 lg:h-4 bg-primary/20 text-primary">
                     NEW
                   </Badge>
                 )}
                 {topic.trend === 'stable' && (
-                  <Flame className="h-3 w-3 text-orange-500" />
+                  <Flame className="h-2.5 w-2.5 lg:h-3 lg:w-3 text-orange-500" />
                 )}
               </div>
             </div>
@@ -74,18 +74,18 @@ export function TrendingTopicsWidget({ className }: TrendingTopicsWidgetProps) {
         </div>
 
         {/* Content Type Breakdown */}
-        <div className="pt-3 border-t">
-          <p className="text-xs text-muted-foreground mb-2">Content This Week</p>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="pt-2 lg:pt-3 border-t">
+          <p className="text-[10px] lg:text-xs text-muted-foreground mb-1.5 lg:mb-2">Content This Week</p>
+          <div className="grid grid-cols-2 gap-1.5 lg:gap-2">
             {CONTENT_TYPES.map((content) => (
               <div
                 key={content.type}
-                className="flex items-center gap-1.5 text-xs p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors"
+                className="flex items-center gap-1 lg:gap-1.5 text-[10px] lg:text-xs p-1 lg:p-1.5 rounded hover:bg-muted/50 cursor-pointer transition-colors min-h-[32px]"
                 onClick={() => navigate(`/pulse/feed?type=${content.type.toLowerCase()}`)}
               >
-                <content.icon className={cn("h-3.5 w-3.5", content.color)} />
-                <span>{content.type}</span>
-                <span className="text-muted-foreground ml-auto">{content.count}</span>
+                <content.icon className={cn("h-3 w-3 lg:h-3.5 lg:w-3.5 flex-shrink-0", content.color)} />
+                <span className="truncate">{content.type}</span>
+                <span className="text-muted-foreground ml-auto flex-shrink-0">{content.count}</span>
               </div>
             ))}
           </div>

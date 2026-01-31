@@ -57,34 +57,34 @@ export function PulseLayout({
       {/* Main content wrapper - responsive three-column layout */}
       <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
         <div className="flex h-full">
-          {/* Left Sidebar - hidden on mobile/tablet, visible on large desktop */}
+          {/* Left Sidebar - hidden on mobile/tablet, visible on xl desktop */}
           {showSidebars && (
-            <aside className="hidden xl:block w-[280px] flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
+            <aside className="hidden xl:flex flex-col w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
               <LeftSidebar providerId={providerId} userId={user?.id} isFirstTime={isFirstTime} />
             </aside>
           )}
           
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto min-w-0">
-            {/* Desktop Quick Nav - visible when sidebars are shown */}
+            {/* Desktop Quick Nav - visible when sidebars are shown on lg+ */}
             {showSidebars && (
-              <div className="hidden lg:block sticky top-0 z-10 bg-background border-b">
+              <div className="hidden lg:block sticky top-0 z-10 bg-background border-b overflow-x-auto scrollbar-hide">
                 <PulseQuickNav />
               </div>
             )}
             {children}
           </main>
           
-          {/* Right Sidebar - hidden on mobile, visible on desktop */}
+          {/* Right Sidebar - hidden on mobile/tablet, visible on lg desktop */}
           {showSidebars && (
-            <aside className="hidden lg:block w-[320px] flex-shrink-0 border-l overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
+            <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 border-l overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
               <RightSidebar providerId={providerId} isFirstTime={isFirstTime} />
             </aside>
           )}
         </div>
       </div>
       
-      {/* Bottom Navigation - fixed at bottom, only on mobile */}
+      {/* Bottom Navigation - fixed at bottom, only on mobile/tablet */}
       <div className="lg:hidden">
         <PulseBottomNav />
       </div>

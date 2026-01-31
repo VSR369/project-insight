@@ -102,10 +102,10 @@ export const ContentCard = memo(function ContentCard({
 
   return (
     <Card className="border-x-0 rounded-none shadow-none hover:bg-muted/30 transition-colors">
-      <CardHeader className="flex flex-row items-start gap-3 p-4 pb-2">
+      <CardHeader className="flex flex-row items-start gap-2 sm:gap-3 p-3 sm:p-4 pb-2">
         {/* Avatar - keyboard accessible */}
         <Avatar 
-          className="h-10 w-10 cursor-pointer ring-2 ring-border"
+          className="h-8 w-8 sm:h-10 sm:w-10 cursor-pointer ring-2 ring-border flex-shrink-0"
           onClick={onProfileClick}
           tabIndex={0}
           role="button"
@@ -113,16 +113,16 @@ export const ContentCard = memo(function ContentCard({
           onKeyDown={handleProfileKeyDown}
         >
           <AvatarImage src={content.provider?.avatar_url} alt="" />
-          <AvatarFallback className="bg-primary/10 text-primary text-sm font-medium">
+          <AvatarFallback className="bg-primary/10 text-primary text-xs sm:text-sm font-medium">
             {initials}
           </AvatarFallback>
         </Avatar>
 
         {/* Header Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
             <span 
-              className="font-semibold text-sm truncate cursor-pointer hover:underline"
+              className="font-semibold text-xs sm:text-sm truncate cursor-pointer hover:underline"
               onClick={onProfileClick}
               tabIndex={0}
               role="button"
@@ -133,27 +133,29 @@ export const ContentCard = memo(function ContentCard({
             </span>
             {/* Verified skill badge */}
             {content.provider?.verified_skill && (
-              <Badge variant="outline" className="text-[10px] px-1 py-0 h-4 text-green-600 border-green-200 shrink-0">
-                <CheckCircle className="h-2.5 w-2.5 mr-0.5" aria-hidden="true" />
-                {content.provider.verified_skill}
+              <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 h-3.5 sm:h-4 text-green-600 border-green-200 shrink-0">
+                <CheckCircle className="h-2 w-2 sm:h-2.5 sm:w-2.5 mr-0.5" aria-hidden="true" />
+                <span className="hidden sm:inline">{content.provider.verified_skill}</span>
               </Badge>
             )}
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-              <ContentIcon className="h-3 w-3 mr-1" aria-hidden="true" />
+            <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-4 sm:h-5 shrink-0">
+              <ContentIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" aria-hidden="true" />
               {/* Show industry name for sparks, otherwise show content type */}
-              {content.content_type === 'spark' && content.industry_segment?.name
-                ? content.industry_segment.name
-                : contentTypeLabels[content.content_type as keyof typeof contentTypeLabels]}
+              <span className="hidden sm:inline">
+                {content.content_type === 'spark' && content.industry_segment?.name
+                  ? content.industry_segment.name
+                  : contentTypeLabels[content.content_type as keyof typeof contentTypeLabels]}
+              </span>
             </Badge>
             {/* Read time badge for articles */}
             {content.content_type === 'article' && content.body_text && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-                <Clock className="h-3 w-3 mr-1" aria-hidden="true" />
+              <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-4 sm:h-5 shrink-0 hidden sm:flex">
+                <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" aria-hidden="true" />
                 {calculateReadTime(content.body_text)}
               </Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] sm:text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(content.created_at), { addSuffix: true })}
           </span>
         </div>
@@ -164,10 +166,10 @@ export const ContentCard = memo(function ContentCard({
             <Button 
               variant="ghost" 
               size="icon" 
-              className="h-8 w-8 shrink-0"
+              className="h-7 w-7 sm:h-8 sm:w-8 shrink-0"
               aria-label="Content options"
             >
-              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
+              <MoreHorizontal className="h-3.5 w-3.5 sm:h-4 sm:w-4" aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
@@ -178,20 +180,20 @@ export const ContentCard = memo(function ContentCard({
         </DropdownMenu>
       </CardHeader>
 
-      <CardContent className="px-4 py-2 cursor-pointer" onClick={onContentClick}>
+      <CardContent className="px-3 sm:px-4 py-2 cursor-pointer" onClick={onContentClick}>
         {/* Title (for articles/podcasts) */}
         {content.title && (
-          <h3 className="font-semibold text-base mb-2">{content.title}</h3>
+          <h3 className="font-semibold text-sm sm:text-base mb-2">{content.title}</h3>
         )}
 
         {/* Headline (for sparks) */}
         {content.headline && (
-          <h3 className="font-bold text-lg mb-2 text-primary">{content.headline}</h3>
+          <h3 className="font-bold text-base sm:text-lg mb-2 text-primary">{content.headline}</h3>
         )}
 
-        {/* Media Preview */}
+        {/* Media Preview - ensure it scales */}
         {content.media_urls && Array.isArray(content.media_urls) && (content.media_urls as string[]).length > 0 && (
-          <div className="mb-3 relative flex justify-center">
+          <div className="mb-2 sm:mb-3 relative flex justify-center">
             <MediaRenderer
               contentType={content.content_type as PulseContentType}
               mediaUrls={content.media_urls as string[]}
