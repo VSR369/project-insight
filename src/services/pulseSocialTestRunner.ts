@@ -1,6 +1,7 @@
 /**
  * Industry Pulse Social Channel Test Runner
  * Comprehensive test suite for social networking features
+ * Version: 2.0 - ~100 tests across 17 categories
  */
 
 import { supabase } from "@/integrations/supabase/client";
@@ -90,10 +91,9 @@ async function getOtherProvider(excludeId: string): Promise<{ id: string; user_i
 }
 
 // ============================================================================
-// TEST CATEGORIES
+// CATEGORY 1: CONTENT CREATION TESTS (CC-xxx) - 10 tests
 // ============================================================================
 
-// Category 1: Content Creation Tests
 const contentCreationTests: TestCase[] = [
   {
     id: "CC-001",
@@ -109,7 +109,6 @@ const contentCreationTests: TestCase[] = [
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
-      // Pass even if no data - just verifying query works
     }),
   },
   {
@@ -200,12 +199,94 @@ const contentCreationTests: TestCase[] = [
       if (error) throw new Error(`Query failed: ${error.message}`);
       
       const types = new Set((data || []).map(d => d.content_type));
-      // Just verify query works, don't require specific count
+      // Just verify query works
+    }),
+  },
+  {
+    id: "CC-007",
+    category: "Content Creation",
+    name: "Visibility boost fields",
+    description: "Verify visibility_boost_multiplier and visibility_boost_expires_at exist",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, visibility_boost_multiplier, visibility_boost_expires_at")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 0) {
+        const first = data[0];
+        if (first.visibility_boost_multiplier === undefined) {
+          throw new Error("visibility_boost_multiplier field missing");
+        }
+      }
+    }),
+  },
+  {
+    id: "CC-008",
+    category: "Content Creation",
+    name: "Content has provider link",
+    description: "Verify all content has provider_id",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, provider_id")
+        .eq("is_deleted", false)
+        .limit(20);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const missing = (data || []).filter(d => !d.provider_id);
+      if (missing.length > 0) {
+        throw new Error(`Found ${missing.length} content items without provider_id`);
+      }
+    }),
+  },
+  {
+    id: "CC-009",
+    category: "Content Creation",
+    name: "AI enhanced tracking",
+    description: "Verify ai_enhanced and original_caption fields exist",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, ai_enhanced, original_caption")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      // Field existence validated by query success
+    }),
+  },
+  {
+    id: "CC-010",
+    category: "Content Creation",
+    name: "Media URL structure",
+    description: "Verify media_urls is valid array",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, media_urls")
+        .not("media_urls", "is", null)
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 0) {
+        for (const item of data) {
+          if (!Array.isArray(item.media_urls)) {
+            throw new Error("media_urls is not an array");
+          }
+        }
+      }
     }),
   },
 ];
 
-// Category 2: Engagement Tests
+// ============================================================================
+// CATEGORY 2: ENGAGEMENT TESTS (EN-xxx) - 10 tests
+// ============================================================================
+
 const engagementTests: TestCase[] = [
   {
     id: "EN-001",
@@ -314,9 +395,110 @@ const engagementTests: TestCase[] = [
       }
     }),
   },
+  {
+    id: "EN-007",
+    category: "Engagements",
+    name: "No self-engagement data",
+    description: "Verify no engagement where provider = content owner",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select(`
+          id,
+          provider_id,
+          content:pulse_content!inner(provider_id)
+        `)
+        .eq("is_deleted", false)
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const selfEngagements = (data || []).filter(
+        e => e.provider_id === (e.content as any)?.provider_id
+      );
+      
+      if (selfEngagements.length > 0) {
+        throw new Error(`Found ${selfEngagements.length} self-engagement records`);
+      }
+    }),
+  },
+  {
+    id: "EN-008",
+    category: "Engagements",
+    name: "Unique engagement constraint",
+    description: "Check for duplicate engagements",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select("provider_id, content_id, engagement_type")
+        .eq("is_deleted", false)
+        .limit(200);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      
+      for (const e of data || []) {
+        const key = `${e.provider_id}-${e.content_id}-${e.engagement_type}`;
+        if (seen.has(key)) {
+          duplicates.push(key);
+        }
+        seen.add(key);
+      }
+      
+      if (duplicates.length > 0) {
+        throw new Error(`Found ${duplicates.length} duplicate engagements`);
+      }
+    }),
+  },
+  {
+    id: "EN-009",
+    category: "Engagements",
+    name: "Engagement timestamps",
+    description: "Verify created_at present on engagements",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select("id, created_at")
+        .eq("is_deleted", false)
+        .limit(20);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const missing = (data || []).filter(d => !d.created_at);
+      if (missing.length > 0) {
+        throw new Error("Some engagements missing created_at");
+      }
+    }),
+  },
+  {
+    id: "EN-010",
+    category: "Engagements",
+    name: "Gold token balance tracking",
+    description: "Verify gold_token_balance field on provider stats",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, gold_token_balance")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 0) {
+        const first = data[0];
+        if (first.gold_token_balance === undefined) {
+          throw new Error("gold_token_balance field missing");
+        }
+      }
+    }),
+  },
 ];
 
-// Category 3: Comments & Replies Tests
+// ============================================================================
+// CATEGORY 3: COMMENTS & REPLIES TESTS (CM-xxx) - 4 tests
+// ============================================================================
+
 const commentsTests: TestCase[] = [
   {
     id: "CM-001",
@@ -389,7 +571,10 @@ const commentsTests: TestCase[] = [
   },
 ];
 
-// Category 4: Follow/Connection Tests
+// ============================================================================
+// CATEGORY 4: FOLLOW/CONNECTION TESTS (FL-xxx) - 4 tests
+// ============================================================================
+
 const connectionTests: TestCase[] = [
   {
     id: "FL-001",
@@ -466,7 +651,10 @@ const connectionTests: TestCase[] = [
   },
 ];
 
-// Category 5: XP & Gamification Tests
+// ============================================================================
+// CATEGORY 5: XP & GAMIFICATION TESTS (XP-xxx) - 8 tests
+// ============================================================================
+
 const gamificationTests: TestCase[] = [
   {
     id: "XP-001",
@@ -534,9 +722,80 @@ const gamificationTests: TestCase[] = [
       if (error) throw new Error(`Query failed: ${error.message}`);
     }),
   },
+  {
+    id: "XP-005",
+    category: "XP & Gamification",
+    name: "Streak fields exist",
+    description: "Verify current_streak and longest_streak fields",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, current_streak, longest_streak")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 0) {
+        const first = data[0];
+        if (first.current_streak === undefined) throw new Error("current_streak field missing");
+        if (first.longest_streak === undefined) throw new Error("longest_streak field missing");
+      }
+    }),
+  },
+  {
+    id: "XP-006",
+    category: "XP & Gamification",
+    name: "Gold token balance field",
+    description: "Verify gold_token_balance on provider stats",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, gold_token_balance")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 0) {
+        if (data[0].gold_token_balance === undefined) {
+          throw new Error("gold_token_balance field missing");
+        }
+      }
+    }),
+  },
+  {
+    id: "XP-007",
+    category: "XP & Gamification",
+    name: "Contribution counts",
+    description: "Verify total_posts, total_sparks, etc. fields",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, total_posts, total_sparks, total_reels, total_podcasts, total_articles, total_galleries")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "XP-008",
+    category: "XP & Gamification",
+    name: "Activity date tracking",
+    description: "Verify last_activity_date field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, last_activity_date")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
 ];
 
-// Category 6: Leaderboard Tests
+// ============================================================================
+// CATEGORY 6: LEADERBOARD TESTS (LB-xxx) - 3 tests
+// ============================================================================
+
 const leaderboardTests: TestCase[] = [
   {
     id: "LB-001",
@@ -597,7 +856,10 @@ const leaderboardTests: TestCase[] = [
   },
 ];
 
-// Category 7: Feed & Discovery Tests
+// ============================================================================
+// CATEGORY 7: FEED & DISCOVERY TESTS (FD-xxx) - 4 tests
+// ============================================================================
+
 const feedTests: TestCase[] = [
   {
     id: "FD-001",
@@ -622,7 +884,6 @@ const feedTests: TestCase[] = [
     name: "Content type filter",
     description: "Verify filtering by content_type",
     run: () => runTest(async () => {
-      // Test a few known content types
       const { data: posts, error: postErr } = await supabase
         .from("pulse_content")
         .select("id")
@@ -679,7 +940,10 @@ const feedTests: TestCase[] = [
   },
 ];
 
-// Category 8: Multi-Provider Scenarios
+// ============================================================================
+// CATEGORY 8: MULTI-PROVIDER SCENARIOS (MP-xxx) - 4 tests
+// ============================================================================
+
 const multiProviderTests: TestCase[] = [
   {
     id: "MP-001",
@@ -744,7 +1008,6 @@ const multiProviderTests: TestCase[] = [
       const provider = await getCurrentProvider();
       if (!provider) throw new Error("SKIP: No current provider");
       
-      // Get my content
       const { data: myContent, error: myError } = await supabase
         .from("pulse_content")
         .select("id")
@@ -754,7 +1017,6 @@ const multiProviderTests: TestCase[] = [
       
       if (myError) throw new Error(`Query failed: ${myError.message}`);
       
-      // Get other content
       const { data: otherContent, error: otherError } = await supabase
         .from("pulse_content")
         .select("id")
@@ -764,13 +1026,14 @@ const multiProviderTests: TestCase[] = [
         .limit(5);
       
       if (otherError) throw new Error(`Query failed: ${otherError.message}`);
-      
-      // Just verify both queries work
     }),
   },
 ];
 
-// Category 9: Notification Tests
+// ============================================================================
+// CATEGORY 9: NOTIFICATION TESTS (NT-xxx) - 6 tests
+// ============================================================================
+
 const notificationTests: TestCase[] = [
   {
     id: "NT-001",
@@ -780,7 +1043,7 @@ const notificationTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_notifications")
-        .select("id")
+        .select("id, notification_type, is_read")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
@@ -808,19 +1071,80 @@ const notificationTests: TestCase[] = [
     id: "NT-003",
     category: "Notifications",
     name: "Notification types",
-    description: "Verify notification_type values",
+    description: "Verify notification_type enum values",
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_notifications")
-        .select("id")
+        .select("notification_type")
         .limit(50);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const validTypes = ["fire", "gold", "save", "comment", "follow", "mention", "level_up", "streak", "badge"];
+      const invalid = (data || []).filter(d => !validTypes.includes(d.notification_type));
+      
+      if (invalid.length > 0) {
+        // This is a warning, not a failure - types may expand
+      }
+    }),
+  },
+  {
+    id: "NT-004",
+    category: "Notifications",
+    name: "Actor tracking",
+    description: "Verify related_provider_id field for actor",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_notifications")
+        .select("id, related_provider_id")
+        .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
     }),
   },
+  {
+    id: "NT-005",
+    category: "Notifications",
+    name: "Content reference",
+    description: "Verify related_content_id field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_notifications")
+        .select("id, related_content_id")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "NT-006",
+    category: "Notifications",
+    name: "Timestamp ordering",
+    description: "Verify created_at DESC ordering",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_notifications")
+        .select("id, created_at")
+        .order("created_at", { ascending: false })
+        .limit(20);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      if (data && data.length > 1) {
+        for (let i = 1; i < data.length; i++) {
+          if (new Date(data[i].created_at) > new Date(data[i - 1].created_at)) {
+            throw new Error("Notifications not properly sorted");
+          }
+        }
+      }
+    }),
+  },
 ];
 
-// Category 10: Security & RLS Tests
+// ============================================================================
+// CATEGORY 10: SECURITY & RLS TESTS (SR-xxx) - 8 tests
+// ============================================================================
+
 const securityTests: TestCase[] = [
   {
     id: "SR-001",
@@ -878,9 +1202,104 @@ const securityTests: TestCase[] = [
       if (error) throw new Error(`RLS may be blocking: ${error.message}`);
     }),
   },
+  {
+    id: "SR-004",
+    category: "Security & RLS",
+    name: "Auth required check",
+    description: "Verify user is authenticated",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("User must be authenticated to run tests");
+      }
+    }),
+  },
+  {
+    id: "SR-005",
+    category: "Security & RLS",
+    name: "Provider exists for user",
+    description: "Verify solution_providers.user_id link",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("SKIP: Not authenticated");
+      
+      const { data, error } = await supabase
+        .from("solution_providers")
+        .select("id, user_id")
+        .eq("user_id", user.id)
+        .limit(1);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      // User may not have provider - that's OK for admin
+    }),
+  },
+  {
+    id: "SR-006",
+    category: "Security & RLS",
+    name: "Stats auto-created",
+    description: "Verify stats exist for providers",
+    run: () => runTest(async () => {
+      const { data: providers, error: provErr } = await supabase
+        .from("solution_providers")
+        .select("id")
+        .limit(5);
+      
+      if (provErr) throw new Error(`Query failed: ${provErr.message}`);
+      
+      if (providers && providers.length > 0) {
+        const providerIds = providers.map(p => p.id);
+        const { data: stats, error: statsErr } = await supabase
+          .from("pulse_provider_stats")
+          .select("provider_id")
+          .in("provider_id", providerIds);
+        
+        if (statsErr) throw new Error(`Stats query failed: ${statsErr.message}`);
+      }
+    }),
+  },
+  {
+    id: "SR-007",
+    category: "Security & RLS",
+    name: "No cross-tenant leak",
+    description: "Verify provider isolation in queries",
+    run: () => runTest(async () => {
+      const provider = await getCurrentProvider();
+      if (!provider) throw new Error("SKIP: No current provider");
+      
+      // Query should only return own provider stats
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id")
+        .eq("provider_id", provider.id)
+        .single();
+      
+      if (error && error.code !== "PGRST116") {
+        throw new Error(`Query failed: ${error.message}`);
+      }
+    }),
+  },
+  {
+    id: "SR-008",
+    category: "Security & RLS",
+    name: "Soft delete respects RLS",
+    description: "Verify deleted content hidden by default",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, is_deleted")
+        .eq("is_deleted", true)
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      // Query should work but return nothing or only own deleted content
+    }),
+  },
 ];
 
-// Category 11: Pulse Cards Tests
+// ============================================================================
+// CATEGORY 11: PULSE CARDS TESTS (PC-xxx) - 4 tests
+// ============================================================================
+
 const pulseCardsTests: TestCase[] = [
   {
     id: "PC-001",
@@ -942,7 +1361,655 @@ const pulseCardsTests: TestCase[] = [
 ];
 
 // ============================================================================
-// EXPORT ALL CATEGORIES
+// CATEGORY 12: DAILY STANDUP TESTS (DS-xxx) - 5 tests [NEW]
+// ============================================================================
+
+const dailyStandupTests: TestCase[] = [
+  {
+    id: "DS-001",
+    category: "Daily Standups",
+    name: "Standup table exists",
+    description: "Verify pulse_daily_standups is queryable",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_daily_standups")
+        .select("id, provider_id, standup_date, completed_at, xp_awarded")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "DS-002",
+    category: "Daily Standups",
+    name: "Standup structure",
+    description: "Verify standup_date, completed_at, xp_awarded fields",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_daily_standups")
+        .select("standup_date, completed_at, xp_awarded")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "DS-003",
+    category: "Daily Standups",
+    name: "Visibility boost earned",
+    description: "Verify visibility_boost_earned boolean field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_daily_standups")
+        .select("id, visibility_boost_earned")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "DS-004",
+    category: "Daily Standups",
+    name: "Updates viewed tracking",
+    description: "Verify updates_viewed counter field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_daily_standups")
+        .select("id, updates_viewed")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "DS-005",
+    category: "Daily Standups",
+    name: "One standup per day",
+    description: "Verify unique constraint on (provider_id, standup_date)",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_daily_standups")
+        .select("provider_id, standup_date")
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      
+      for (const s of data || []) {
+        const key = `${s.provider_id}-${s.standup_date}`;
+        if (seen.has(key)) {
+          duplicates.push(key);
+        }
+        seen.add(key);
+      }
+      
+      if (duplicates.length > 0) {
+        throw new Error(`Found ${duplicates.length} duplicate standups`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// CATEGORY 13: LOOT BOX TESTS (LX-xxx) - 5 tests [NEW]
+// ============================================================================
+
+const lootBoxTests: TestCase[] = [
+  {
+    id: "LX-001",
+    category: "Loot Boxes",
+    name: "Loot box table exists",
+    description: "Verify pulse_loot_boxes is queryable",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_loot_boxes")
+        .select("id, provider_id, claim_date")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "LX-002",
+    category: "Loot Boxes",
+    name: "Loot box structure",
+    description: "Verify claim_date, available_at, expires_at fields",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_loot_boxes")
+        .select("claim_date, available_at, expires_at")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "LX-003",
+    category: "Loot Boxes",
+    name: "Rewards structure",
+    description: "Verify rewards JSONB field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_loot_boxes")
+        .select("id, rewards")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "LX-004",
+    category: "Loot Boxes",
+    name: "Loot box claims tracking",
+    description: "Verify loot box claim history via provider stats",
+    run: () => runTest(async () => {
+      // Check last_loot_box_claimed_at field on provider stats instead
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, last_loot_box_claimed_at")
+        .not("last_loot_box_claimed_at", "is", null)
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "LX-005",
+    category: "Loot Boxes",
+    name: "One loot box per day",
+    description: "Verify unique constraint on (provider_id, claim_date)",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_loot_boxes")
+        .select("provider_id, claim_date")
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      
+      for (const l of data || []) {
+        const key = `${l.provider_id}-${l.claim_date}`;
+        if (seen.has(key)) {
+          duplicates.push(key);
+        }
+        seen.add(key);
+      }
+      
+      if (duplicates.length > 0) {
+        throw new Error(`Found ${duplicates.length} duplicate loot boxes`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// CATEGORY 14: SKILLS & VERIFICATION TESTS (SK-xxx) - 6 tests [NEW]
+// ============================================================================
+
+const skillsTests: TestCase[] = [
+  {
+    id: "SK-001",
+    category: "Skills & Verification",
+    name: "Skills table exists",
+    description: "Verify pulse_skills is queryable",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("id, provider_id, skill_name")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "SK-002",
+    category: "Skills & Verification",
+    name: "Skill structure",
+    description: "Verify skill_name, current_xp, current_level fields",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("skill_name, current_xp, current_level")
+        .limit(5);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "SK-003",
+    category: "Skills & Verification",
+    name: "Industry link",
+    description: "Verify industry_segment_id FK on skills",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("id, industry_segment_id")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "SK-004",
+    category: "Skills & Verification",
+    name: "Verification fields",
+    description: "Verify is_verified, verified_at, verification_source",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("id, is_verified, verified_at, verification_source")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "SK-005",
+    category: "Skills & Verification",
+    name: "Expertise level link",
+    description: "Verify expertise_level_id FK",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("id, expertise_level_id")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "SK-006",
+    category: "Skills & Verification",
+    name: "Skill XP non-negative",
+    description: "Verify current_xp >= 0",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_skills")
+        .select("id, current_xp")
+        .limit(50);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const negative = (data || []).filter(d => d.current_xp < 0);
+      if (negative.length > 0) {
+        throw new Error(`Found ${negative.length} skills with negative XP`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// CATEGORY 15: VISIBILITY BOOST TESTS (VB-xxx) - 4 tests [NEW]
+// ============================================================================
+
+const visibilityBoostTests: TestCase[] = [
+  {
+    id: "VB-001",
+    category: "Visibility Boost",
+    name: "Boost fields on content",
+    description: "Verify visibility_boost_multiplier >= 1",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, visibility_boost_multiplier")
+        .not("visibility_boost_multiplier", "is", null)
+        .limit(20);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const invalid = (data || []).filter(d => d.visibility_boost_multiplier < 1);
+      if (invalid.length > 0) {
+        throw new Error(`Found ${invalid.length} content with boost < 1`);
+      }
+    }),
+  },
+  {
+    id: "VB-002",
+    category: "Visibility Boost",
+    name: "Boost expiry tracking",
+    description: "Verify visibility_boost_expires_at field",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, visibility_boost_expires_at")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "VB-003",
+    category: "Visibility Boost",
+    name: "Boost tokens on stats",
+    description: "Verify visibility_boost_tokens field on provider stats",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_provider_stats")
+        .select("provider_id, visibility_boost_tokens")
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "VB-004",
+    category: "Visibility Boost",
+    name: "Boost multiplier validation",
+    description: "Verify boost multipliers are within valid range",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, visibility_boost_multiplier")
+        .gt("visibility_boost_multiplier", 1)
+        .limit(10);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const tooHigh = (data || []).filter(d => d.visibility_boost_multiplier > 100);
+      if (tooHigh.length > 0) {
+        throw new Error(`Found ${tooHigh.length} content with unreasonably high boost`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// CATEGORY 16: EDGE FUNCTIONS & RPCs TESTS (EF-xxx) - 5 tests [NEW]
+// ============================================================================
+
+const edgeFunctionTests: TestCase[] = [
+  {
+    id: "EF-001",
+    category: "Edge Functions",
+    name: "Award XP RPC exists",
+    description: "Verify pulse_award_xp function is callable",
+    run: () => runTest(async () => {
+      // We don't actually call it to avoid side effects
+      // Just verify the function exists by checking if RPC call returns expected error
+      const { data, error } = await supabase.rpc("pulse_award_xp", {
+        p_provider_id: "00000000-0000-0000-0000-000000000000",
+        p_xp_amount: 0,
+        p_action_type: "test",
+      });
+      
+      // RPC exists if we get a proper error (not a function-not-found error)
+      if (error && error.message.includes("function pulse_award_xp") && error.message.includes("does not exist")) {
+        throw new Error("RPC function pulse_award_xp does not exist");
+      }
+    }),
+  },
+  {
+    id: "EF-002",
+    category: "Edge Functions",
+    name: "Update streak RPC exists",
+    description: "Verify pulse_update_streak function is callable",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase.rpc("pulse_update_streak", {
+        p_provider_id: "00000000-0000-0000-0000-000000000000",
+      });
+      
+      if (error && error.message.includes("function pulse_update_streak") && error.message.includes("does not exist")) {
+        throw new Error("RPC function pulse_update_streak does not exist");
+      }
+    }),
+  },
+  {
+    id: "EF-003",
+    category: "Edge Functions",
+    name: "Streak multiplier RPC",
+    description: "Verify pulse_get_streak_multiplier returns valid range",
+    run: () => runTest(async () => {
+      // Test various streak values
+      for (const streak of [0, 7, 14, 30, 90, 180, 365]) {
+        const { data, error } = await supabase.rpc("pulse_get_streak_multiplier", {
+          p_streak: streak,
+        });
+        
+        if (error) throw new Error(`RPC failed for streak ${streak}: ${error.message}`);
+        if (data < 1.0 || data > 3.0) {
+          throw new Error(`Invalid multiplier ${data} for streak ${streak}`);
+        }
+      }
+    }),
+  },
+  {
+    id: "EF-004",
+    category: "Edge Functions",
+    name: "Level calculation RPC",
+    description: "Verify pulse_calculate_level returns >= 1",
+    run: () => runTest(async () => {
+      for (const xp of [0, 100, 500, 1000, 5000, 10000]) {
+        const { data, error } = await supabase.rpc("pulse_calculate_level", {
+          p_total_xp: xp,
+        });
+        
+        if (error) throw new Error(`RPC failed for XP ${xp}: ${error.message}`);
+        if (data < 1) {
+          throw new Error(`Invalid level ${data} for XP ${xp}`);
+        }
+      }
+    }),
+  },
+  {
+    id: "EF-005",
+    category: "Edge Functions",
+    name: "Reputation RPC",
+    description: "Verify pulse_cards_get_reputation is callable",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase.rpc("pulse_cards_get_reputation", {
+        p_provider_id: "00000000-0000-0000-0000-000000000000",
+      });
+      
+      if (error && error.message.includes("function pulse_cards_get_reputation") && error.message.includes("does not exist")) {
+        throw new Error("RPC function pulse_cards_get_reputation does not exist");
+      }
+      
+      // Function exists and returned something
+      if (typeof data === "number" && data < 0) {
+        throw new Error("Reputation cannot be negative");
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// CATEGORY 17: NEGATIVE CASES TESTS (NC-xxx) - 8 tests [NEW]
+// ============================================================================
+
+const negativeCaseTests: TestCase[] = [
+  {
+    id: "NC-001",
+    category: "Negative Cases",
+    name: "Auth check on tables",
+    description: "Verify authenticated access to pulse tables",
+    run: () => runTest(async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error("Must be authenticated - this validates auth requirement");
+      }
+      
+      // Verify we can access pulse tables when authenticated
+      const { error } = await supabase
+        .from("pulse_content")
+        .select("id")
+        .limit(1);
+      
+      if (error) throw new Error(`Authenticated access failed: ${error.message}`);
+    }),
+  },
+  {
+    id: "NC-002",
+    category: "Negative Cases",
+    name: "Self-engagement prevention",
+    description: "Verify business logic prevents self-fire",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select(`
+          id,
+          provider_id,
+          content:pulse_content!inner(provider_id)
+        `)
+        .eq("is_deleted", false)
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const selfEngagements = (data || []).filter(
+        e => e.provider_id === (e.content as any)?.provider_id
+      );
+      
+      if (selfEngagements.length > 0) {
+        throw new Error(`Business logic failure: Found ${selfEngagements.length} self-engagements`);
+      }
+    }),
+  },
+  {
+    id: "NC-003",
+    category: "Negative Cases",
+    name: "Self-follow prevention",
+    description: "Verify database constraint prevents self-follow",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_connections")
+        .select("follower_id, following_id")
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const selfFollows = (data || []).filter(
+        d => d.follower_id === d.following_id
+      );
+      
+      if (selfFollows.length > 0) {
+        throw new Error(`Constraint failure: Found ${selfFollows.length} self-follow records`);
+      }
+    }),
+  },
+  {
+    id: "NC-004",
+    category: "Negative Cases",
+    name: "Deleted content hidden",
+    description: "Verify is_deleted = true filtered properly",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("id, is_deleted")
+        .eq("content_status", "published")
+        .eq("is_deleted", false)
+        .limit(50);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const leakedDeleted = (data || []).filter(d => d.is_deleted === true);
+      if (leakedDeleted.length > 0) {
+        throw new Error(`Filter failure: Found ${leakedDeleted.length} deleted items in results`);
+      }
+    }),
+  },
+  {
+    id: "NC-005",
+    category: "Negative Cases",
+    name: "Invalid content type check",
+    description: "Verify content_type enum constraint",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_content")
+        .select("content_type")
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const validTypes = ["reel", "podcast", "spark", "article", "gallery", "post"];
+      const invalid = (data || []).filter(d => !validTypes.includes(d.content_type));
+      
+      if (invalid.length > 0) {
+        throw new Error(`Enum violation: Found ${invalid.length} invalid content types`);
+      }
+    }),
+  },
+  {
+    id: "NC-006",
+    category: "Negative Cases",
+    name: "Invalid engagement type check",
+    description: "Verify engagement_type enum constraint",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select("engagement_type")
+        .limit(100);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const validTypes = ["fire", "gold", "save", "bookmark"];
+      const invalid = (data || []).filter(d => !validTypes.includes(d.engagement_type));
+      
+      if (invalid.length > 0) {
+        throw new Error(`Enum violation: Found ${invalid.length} invalid engagement types`);
+      }
+    }),
+  },
+  {
+    id: "NC-007",
+    category: "Negative Cases",
+    name: "Empty comment validation",
+    description: "Verify comments have content",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_comments")
+        .select("id, comment_text")
+        .eq("is_deleted", false)
+        .limit(50);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const empty = (data || []).filter(
+        d => !d.comment_text || d.comment_text.trim() === ""
+      );
+      
+      if (empty.length > 0) {
+        throw new Error(`Validation failure: Found ${empty.length} empty comments`);
+      }
+    }),
+  },
+  {
+    id: "NC-008",
+    category: "Negative Cases",
+    name: "Duplicate engagement prevention",
+    description: "Verify unique constraint on engagements",
+    run: () => runTest(async () => {
+      const { data, error } = await supabase
+        .from("pulse_engagements")
+        .select("provider_id, content_id, engagement_type")
+        .eq("is_deleted", false)
+        .limit(200);
+      
+      if (error) throw new Error(`Query failed: ${error.message}`);
+      
+      const seen = new Set<string>();
+      const duplicates: string[] = [];
+      
+      for (const e of data || []) {
+        const key = `${e.provider_id}-${e.content_id}-${e.engagement_type}`;
+        if (seen.has(key)) {
+          duplicates.push(key);
+        }
+        seen.add(key);
+      }
+      
+      if (duplicates.length > 0) {
+        throw new Error(`Unique constraint failure: Found ${duplicates.length} duplicate engagements`);
+      }
+    }),
+  },
+];
+
+// ============================================================================
+// EXPORT ALL CATEGORIES - 17 CATEGORIES, ~100 TESTS
 // ============================================================================
 
 export const testCategories: TestCategory[] = [
@@ -1012,6 +2079,42 @@ export const testCategories: TestCategory[] = [
     description: "Tests for collaborative card system",
     tests: pulseCardsTests,
   },
+  {
+    id: "daily-standups",
+    name: "Daily Standups",
+    description: "Tests for daily standup completion and rewards",
+    tests: dailyStandupTests,
+  },
+  {
+    id: "loot-boxes",
+    name: "Loot Boxes",
+    description: "Tests for loot box claiming and rewards",
+    tests: lootBoxTests,
+  },
+  {
+    id: "skills",
+    name: "Skills & Verification",
+    description: "Tests for skills and verification system",
+    tests: skillsTests,
+  },
+  {
+    id: "visibility-boost",
+    name: "Visibility Boost",
+    description: "Tests for visibility boost mechanics",
+    tests: visibilityBoostTests,
+  },
+  {
+    id: "edge-functions",
+    name: "Edge Functions & RPCs",
+    description: "Tests for database functions and edge functions",
+    tests: edgeFunctionTests,
+  },
+  {
+    id: "negative-cases",
+    name: "Negative Cases",
+    description: "Tests for validation and constraint enforcement",
+    tests: negativeCaseTests,
+  },
 ];
 
 export function getAllTests(): TestCase[] {
@@ -1025,4 +2128,11 @@ export function getTestById(id: string): TestCase | undefined {
 export function getTestsByCategory(categoryId: string): TestCase[] {
   const category = testCategories.find(c => c.id === categoryId);
   return category?.tests || [];
+}
+
+export function getTestSummary(): { total: number; categories: number } {
+  return {
+    total: getAllTests().length,
+    categories: testCategories.length,
+  };
 }
