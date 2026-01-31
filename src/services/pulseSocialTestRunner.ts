@@ -566,7 +566,7 @@ const leaderboardTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_xp_snapshots")
-        .select("id, provider_id, total_xp, snapshot_date")
+        .select("id, provider_id, total_xp_at_date, snapshot_date")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
@@ -905,7 +905,7 @@ const pulseCardsTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_cards")
-        .select("id, topic_id, seed_text, status")
+        .select("id, topic_id, compiled_narrative, status")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
@@ -919,7 +919,7 @@ const pulseCardsTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_card_layers")
-        .select("id, card_id, layer_number, content")
+        .select("id, card_id, layer_order, content_text")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
@@ -933,7 +933,7 @@ const pulseCardsTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("pulse_card_votes")
-        .select("id, layer_id, provider_id, vote_type")
+        .select("id, layer_id, voter_id, vote_type")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
