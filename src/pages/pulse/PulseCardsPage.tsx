@@ -43,7 +43,7 @@ export default function PulseCardsPage() {
   };
 
   return (
-    <PulseLayout isPrimaryPage>
+    <PulseLayout isPrimaryPage providerId={provider?.id} showSidebars>
       <div className="flex flex-col h-full">
         {/* Topic Filter */}
         <div className="px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
