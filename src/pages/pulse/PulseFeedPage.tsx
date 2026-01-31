@@ -89,6 +89,7 @@ export default function PulseFeedPage() {
 
   return (
     <PulseLayout 
+      isPrimaryPage={!isFirstTime}
       providerId={provider?.id} 
       isFirstTime={isFirstTime}
       showSidebars={!isFirstTime}

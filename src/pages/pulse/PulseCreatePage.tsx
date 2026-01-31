@@ -111,13 +111,14 @@ export default function PulseCreatePage() {
   // Render the appropriate creator component based on selected type
   if (showForm && selectedType) {
     return (
-      <PulseLayout title={`New ${selectedTypeInfo?.name || 'Content'}`} showBackButton>
+      <PulseLayout 
+        breadcrumb={{
+          parentLabel: 'Create',
+          parentPath: '/pulse/create',
+          currentLabel: `New ${selectedTypeInfo?.name || 'Content'}`,
+        }}
+      >
         <div className="max-w-4xl mx-auto p-4">
-          <Button variant="ghost" size="sm" onClick={handleBack} className="mb-4">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to content types
-          </Button>
-
           {selectedType === 'post' && <PostCreator onCancel={handleBack} />}
           {selectedType === 'spark' && <SparkBuilder onCancel={handleBack} />}
           {selectedType === 'article' && <ArticleEditor onCancel={handleBack} />}
@@ -130,7 +131,7 @@ export default function PulseCreatePage() {
   }
 
   return (
-    <PulseLayout title="Create" showBackButton>
+    <PulseLayout isPrimaryPage>
       <div className="max-w-lg mx-auto p-4">
         <div className="mb-6">
           <h2 className="text-xl font-semibold mb-1">What would you like to share?</h2>

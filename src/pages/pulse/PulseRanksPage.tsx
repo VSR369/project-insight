@@ -48,7 +48,7 @@ export default function PulseRanksPage() {
   const isCurrentUser = (providerId: string) => provider?.id === providerId;
 
   return (
-    <PulseLayout title="Galaxy Leaderboard">
+    <PulseLayout isPrimaryPage>
       <div className="max-w-lg mx-auto">
         {/* Header Stats */}
         <div className="p-4 border-b" role="region" aria-label="Leaderboard statistics">

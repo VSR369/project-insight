@@ -91,7 +91,13 @@ export default function PulseStandupPage() {
   ]);
 
   return (
-    <PulseLayout title="Daily Standup" showBackButton parentRoute="/pulse/feed">
+    <PulseLayout 
+      breadcrumb={{
+        parentLabel: 'Feed',
+        parentPath: '/pulse/feed',
+        currentLabel: 'Daily Standup',
+      }}
+    >
       <div className="max-w-lg mx-auto p-4 space-y-6">
         {/* Header */}
         <div className="text-center space-y-2">
@@ -306,15 +312,6 @@ export default function PulseStandupPage() {
           </CardContent>
         </Card>
 
-        {/* Back to Feed */}
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={() => navigate('/pulse/feed')}
-        >
-          <ChevronLeft className="h-4 w-4 mr-2" />
-          Back to Feed
-        </Button>
       </div>
     </PulseLayout>
   );

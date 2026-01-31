@@ -36,7 +36,7 @@ export default function PulseProfilePage() {
 
   if (isLoading) {
     return (
-      <PulseLayout title="Profile">
+      <PulseLayout isPrimaryPage>
         <div className="max-w-lg mx-auto p-4 space-y-4" aria-label="Loading profile">
           <div className="flex items-start gap-4">
             <Skeleton className="h-20 w-20 rounded-full" />
@@ -59,7 +59,7 @@ export default function PulseProfilePage() {
 
   if (!provider) {
     return (
-      <PulseLayout title="Profile">
+      <PulseLayout isPrimaryPage>
         <div className="max-w-lg mx-auto p-4 text-center py-16">
           <p className="text-muted-foreground">Please complete your profile.</p>
           <Button className="mt-4" onClick={() => navigate('/profile')}>
@@ -71,7 +71,7 @@ export default function PulseProfilePage() {
   }
 
   return (
-    <PulseLayout title="Profile">
+    <PulseLayout isPrimaryPage>
       <div className="max-w-lg mx-auto">
         <div className="p-4 border-b">
           <div className="flex items-start gap-4 mb-4">

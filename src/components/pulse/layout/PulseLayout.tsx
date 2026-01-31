@@ -4,11 +4,23 @@ import { PulseHeader } from './PulseHeader';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 
+interface BreadcrumbConfig {
+  parentLabel: string;
+  parentPath: string;
+  currentLabel: string;
+}
+
 interface PulseLayoutProps {
   children: ReactNode;
+  // New navigation props
+  isPrimaryPage?: boolean;
+  breadcrumb?: BreadcrumbConfig;
+  hideActions?: boolean;
+  // Legacy props (still supported)
   title?: string;
   showBackButton?: boolean;
   parentRoute?: string;
+  // Sidebar props
   providerId?: string;
   isFirstTime?: boolean;
   showSidebars?: boolean;
@@ -16,6 +28,9 @@ interface PulseLayoutProps {
 
 export function PulseLayout({ 
   children, 
+  isPrimaryPage,
+  breadcrumb,
+  hideActions,
   title, 
   showBackButton = false, 
   parentRoute,
@@ -26,7 +41,14 @@ export function PulseLayout({
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header - fixed at top */}
-      <PulseHeader title={title} showBackButton={showBackButton} parentRoute={parentRoute} />
+      <PulseHeader 
+        isPrimaryPage={isPrimaryPage}
+        breadcrumb={breadcrumb}
+        hideActions={hideActions}
+        title={title} 
+        showBackButton={showBackButton} 
+        parentRoute={parentRoute} 
+      />
       
       {/* Main content wrapper - responsive three-column layout */}
       <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
