@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { Film, Mic, Zap, FileText, Image, MessageSquare, Layers } from 'lucide-react';
+import { Film, Mic, Zap, FileText, Image, Layers } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -18,15 +18,12 @@ const CONTENT_TYPES = [
   { id: 'spark', label: 'Spark', icon: Zap, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
   { id: 'article', label: 'Article', icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
   { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-green-500', bgColor: 'bg-green-500/10' },
-  { id: 'post', label: 'Quick Post', icon: MessageSquare, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
   { id: 'pulse-cards', label: 'Pulse Cards', icon: Layers, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
 ] as const;
 
 export function StartPostWidget({
-  providerId,
   providerName = 'there',
   providerAvatar,
-  isFirstTime = false,
   className,
 }: StartPostWidgetProps) {
   const navigate = useNavigate();
@@ -42,25 +39,18 @@ export function StartPostWidget({
   };
 
   const handleInputClick = () => {
-    if (isFirstTime) {
-      navigate('/welcome');
-    } else {
-      navigate('/pulse/create');
-    }
+    // Navigate directly to Quick Post creator
+    navigate('/pulse/create', { state: { type: 'post' } });
   };
 
   const handleContentTypeClick = (typeId: string) => {
-    if (isFirstTime) {
-      navigate('/welcome');
-      return;
-    }
-    
-    // Special case: Pulse Cards navigates directly
+    // Special case: Pulse Cards navigates directly to /pulse/cards
     if (typeId === 'pulse-cards') {
       navigate('/pulse/cards');
       return;
     }
     
+    // All other types navigate to /pulse/create with the type pre-selected
     navigate('/pulse/create', { state: { type: typeId } });
   };
 
@@ -89,8 +79,8 @@ export function StartPostWidget({
         </button>
       </div>
 
-      {/* Quick Action Buttons Row */}
-      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
+      {/* Quick Action Buttons Row - 6 items */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
         {CONTENT_TYPES.map(({ id, label, icon: Icon, color, bgColor }) => (
           <button
             key={id}
