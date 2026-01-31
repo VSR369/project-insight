@@ -174,6 +174,7 @@ export default function PulseFeedPage() {
                   <PulseCardFeedItem
                     key={`card-${item.id}`}
                     card={item.card}
+                    currentUserProviderId={provider.id}
                     onCardClick={() => handleCardClick(item.id)}
                     onProfileClick={() => handleProfileClick(item.card!.seed_creator_id)}
                   />

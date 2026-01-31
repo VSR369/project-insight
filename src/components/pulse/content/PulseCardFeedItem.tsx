@@ -1,27 +1,30 @@
 /**
  * PulseCardFeedItem - Display a Pulse Card in the main feed
- * Shows compiled AI narrative with "Read more" link
+ * Shows compiled AI narrative with "Read more" link and full engagement bar
  */
 
 import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Layers, Eye, Share2, GitBranch, BookOpen, Users } from 'lucide-react';
+import { MoreHorizontal, Layers, BookOpen } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
+import { CardEngagementBar } from '@/components/pulse/cards/CardEngagementBar';
 import type { FeedCardItem } from '@/hooks/queries/useUnifiedPulseFeed';
 
 interface PulseCardFeedItemProps {
   card: FeedCardItem;
+  currentUserProviderId?: string;
   onCardClick?: () => void;
   onProfileClick?: () => void;
 }
 
 export const PulseCardFeedItem = memo(function PulseCardFeedItem({
   card,
+  currentUserProviderId = '',
   onCardClick,
   onProfileClick,
 }: PulseCardFeedItemProps) {
@@ -166,21 +169,17 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
       </CardContent>
 
       <CardFooter className="px-4 py-2 border-t border-border">
-        {/* Card-specific stats */}
-        <div className="flex items-center gap-4 text-muted-foreground text-sm">
-          <div className="flex items-center gap-1.5">
-            <Eye className="h-4 w-4" aria-hidden="true" />
-            <span>{card.view_count || 0}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Users className="h-4 w-4" aria-hidden="true" />
-            <span>{contributorCount} contributor{contributorCount !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Share2 className="h-4 w-4" aria-hidden="true" />
-            <span>{card.share_count || 0}</span>
-          </div>
-        </div>
+        {/* Full Engagement Bar - matches other content types */}
+        <CardEngagementBar
+          cardId={card.id}
+          creatorId={card.seed_creator_id}
+          currentUserProviderId={currentUserProviderId}
+          fireCount={card.fire_count || 0}
+          commentCount={card.comment_count || 0}
+          goldCount={card.gold_count || 0}
+          saveCount={card.save_count || 0}
+          onCommentClick={onCardClick}
+        />
       </CardFooter>
     </Card>
   );

@@ -2058,6 +2058,51 @@ export type Database = {
           },
         ]
       }
+      pulse_card_engagements: {
+        Row: {
+          card_id: string
+          created_at: string | null
+          deleted_at: string | null
+          engagement_type: Database["public"]["Enums"]["pulse_engagement_type"]
+          id: string
+          is_deleted: boolean | null
+          provider_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string | null
+          deleted_at?: string | null
+          engagement_type: Database["public"]["Enums"]["pulse_engagement_type"]
+          id?: string
+          is_deleted?: boolean | null
+          provider_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string | null
+          deleted_at?: string | null
+          engagement_type?: Database["public"]["Enums"]["pulse_engagement_type"]
+          id?: string
+          is_deleted?: boolean | null
+          provider_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pulse_card_engagements_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "pulse_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pulse_card_engagements_provider_id_fkey"
+            columns: ["provider_id"]
+            isOneToOne: false
+            referencedRelation: "solution_providers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pulse_card_flags: {
         Row: {
           created_at: string | null
@@ -2302,13 +2347,17 @@ export type Database = {
           archived_at: string | null
           archived_by: string | null
           build_count: number | null
+          comment_count: number | null
           compilation_stale: boolean
           compiled_at: string | null
           compiled_narrative: string | null
           created_at: string | null
           created_by: string | null
           current_featured_layer_id: string | null
+          fire_count: number | null
+          gold_count: number | null
           id: string
+          save_count: number | null
           seed_creator_id: string
           share_count: number | null
           status: string
@@ -2321,13 +2370,17 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           build_count?: number | null
+          comment_count?: number | null
           compilation_stale?: boolean
           compiled_at?: string | null
           compiled_narrative?: string | null
           created_at?: string | null
           created_by?: string | null
           current_featured_layer_id?: string | null
+          fire_count?: number | null
+          gold_count?: number | null
           id?: string
+          save_count?: number | null
           seed_creator_id: string
           share_count?: number | null
           status?: string
@@ -2340,13 +2393,17 @@ export type Database = {
           archived_at?: string | null
           archived_by?: string | null
           build_count?: number | null
+          comment_count?: number | null
           compilation_stale?: boolean
           compiled_at?: string | null
           compiled_narrative?: string | null
           created_at?: string | null
           created_by?: string | null
           current_featured_layer_id?: string | null
+          fire_count?: number | null
+          gold_count?: number | null
           id?: string
+          save_count?: number | null
           seed_creator_id?: string
           share_count?: number | null
           status?: string
@@ -3034,11 +3091,16 @@ export type Database = {
           provider_id: string
           timezone: string
           total_articles: number
+          total_card_fire_received: number | null
+          total_card_gold_received: number | null
+          total_card_saves_received: number | null
+          total_cards: number | null
           total_comments_received: number
           total_contributions: number
           total_fire_received: number
           total_galleries: number
           total_gold_received: number
+          total_layers: number | null
           total_podcasts: number
           total_posts: number
           total_reels: number
@@ -3061,11 +3123,16 @@ export type Database = {
           provider_id: string
           timezone?: string
           total_articles?: number
+          total_card_fire_received?: number | null
+          total_card_gold_received?: number | null
+          total_card_saves_received?: number | null
+          total_cards?: number | null
           total_comments_received?: number
           total_contributions?: number
           total_fire_received?: number
           total_galleries?: number
           total_gold_received?: number
+          total_layers?: number | null
           total_podcasts?: number
           total_posts?: number
           total_reels?: number
@@ -3088,11 +3155,16 @@ export type Database = {
           provider_id?: string
           timezone?: string
           total_articles?: number
+          total_card_fire_received?: number | null
+          total_card_gold_received?: number | null
+          total_card_saves_received?: number | null
+          total_cards?: number | null
           total_comments_received?: number
           total_contributions?: number
           total_fire_received?: number
           total_galleries?: number
           total_gold_received?: number
+          total_layers?: number | null
           total_podcasts?: number
           total_posts?: number
           total_reels?: number

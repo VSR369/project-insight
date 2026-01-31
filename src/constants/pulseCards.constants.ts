@@ -131,6 +131,28 @@ export const PULSE_CARDS_POLLING = {
 } as const;
 
 // ===========================================
+// XP Rewards (matching other content types)
+// ===========================================
+export const PULSE_CARD_XP_REWARDS = {
+  CARD_CREATED: 75,      // Similar to gallery
+  LAYER_CREATED: 25,     // Similar to post (building on card)
+  ENGAGEMENT_RECEIVED: {
+    fire: 2,
+    gold: 15,
+    save: 5,
+    bookmark: 0,
+  },
+} as const;
+
+// ===========================================
+// Query Keys for Card Engagements
+// ===========================================
+export const PULSE_CARD_QUERY_KEYS = {
+  cardEngagements: 'pulse-card-engagements',
+  userCardEngagements: 'pulse-user-card-engagements',
+} as const;
+
+// ===========================================
 // Helper Functions
 // ===========================================
 
