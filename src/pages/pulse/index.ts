@@ -9,3 +9,7 @@ export { default as PulseCardsPage } from './PulseCardsPage';
 export { default as PulseCardDetailPage } from './PulseCardDetailPage';
 export { default as PulseModerationPage } from './PulseModerationPage';
 export { default as PulseStandupPage } from './PulseStandupPage';
+export { default as PulseReelsPage } from './PulseReelsPage';
+export { default as PulsePodcastsPage } from './PulsePodcastsPage';
+export { default as PulseArticlesPage } from './PulseArticlesPage';
+export { default as PulseGalleryPage } from './PulseGalleryPage';
