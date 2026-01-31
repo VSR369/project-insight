@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useWeeklyLeaderboard } from '@/hooks/queries/usePulseStats';
+import { useWeeklyLeaderboard, useGlobalLeaderboard } from '@/hooks/queries/usePulseStats';
 import { cn } from '@/lib/utils';
 
 interface LeaderboardMiniWidgetProps {
@@ -22,7 +22,16 @@ interface LeaderboardMiniWidgetProps {
 
 export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, className }: LeaderboardMiniWidgetProps) {
   const navigate = useNavigate();
-  const { data: leaderboard, isLoading } = useWeeklyLeaderboard(10);
+  const { data: weeklyLeaderboard, isLoading: isLoadingWeekly } = useWeeklyLeaderboard(10);
+  const { data: globalLeaderboard, isLoading: isLoadingGlobal } = useGlobalLeaderboard(10);
+
+  // Use weekly leaderboard if it has data, otherwise fall back to global (total XP)
+  const hasWeeklyData = weeklyLeaderboard && weeklyLeaderboard.length > 0 && 
+    weeklyLeaderboard.some(e => e.xp_change && e.xp_change > 0);
+  
+  const leaderboard = hasWeeklyData ? weeklyLeaderboard : globalLeaderboard;
+  const isLoading = isLoadingWeekly && isLoadingGlobal;
+  const leaderboardType = hasWeeklyData ? 'Weekly' : 'All Time';
 
   const top5 = leaderboard?.slice(0, 5) || [];
   const currentUserEntry = currentProviderId 
@@ -38,14 +47,23 @@ export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, classNam
     return null;
   };
 
-  const getRankChange = (change: number) => {
+  const getRankChange = (change: number | undefined) => {
+    if (change === undefined) return null;
     if (change > 0) return <TrendingUp className="h-3 w-3 text-green-500" />;
     if (change < 0) return <TrendingDown className="h-3 w-3 text-red-500" />;
     return <Minus className="h-3 w-3 text-muted-foreground" />;
   };
 
   const getInitials = (name: string) => {
+    if (!name || name === 'Anonymous') return '??';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const getXpDisplay = (entry: typeof top5[0]) => {
+    if (hasWeeklyData && entry.xp_change !== undefined) {
+      return `+${entry.xp_change.toLocaleString()} XP`;
+    }
+    return `${entry.total_xp.toLocaleString()} XP`;
   };
 
   if (isLoading) {
@@ -74,21 +92,19 @@ export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, classNam
             <Sparkles className="h-4 w-4 text-primary" />
             Galaxy Leaders
           </CardTitle>
-          <Badge variant="secondary" className="text-[10px]">Weekly</Badge>
+          <Badge variant="secondary" className="text-[10px]">{leaderboardType}</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {isFirstTime ? (
+        {top5.length === 0 ? (
           <div className="text-center py-6">
             <Trophy className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
             <p className="text-sm text-muted-foreground">
-              Build your profile to join the rankings!
+              {isFirstTime 
+                ? "Build your profile to join the rankings!"
+                : "No rankings yet - be the first!"}
             </p>
           </div>
-        ) : top5.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            No data yet this week
-          </p>
         ) : (
           <>
             {top5.map((entry, index) => {
@@ -97,24 +113,24 @@ export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, classNam
                 <div
                   key={entry.provider_id}
                   className={cn(
-                    "flex items-center gap-2 p-2 rounded-lg transition-colors cursor-pointer hover:bg-muted/50",
+                    "flex items-center gap-2 p-1.5 sm:p-2 rounded-lg transition-colors cursor-pointer hover:bg-muted/50",
                     isCurrentUser && "bg-primary/10 border border-primary/20"
                   )}
                   onClick={() => navigate(`/pulse/profile/${entry.provider_id}`)}
                 >
                   {/* Rank */}
-                  <div className="w-6 flex justify-center">
+                  <div className="w-5 sm:w-6 flex justify-center shrink-0">
                     {getRankIcon(entry.rank) || (
-                      <span className="text-sm font-medium text-muted-foreground">
+                      <span className="text-xs sm:text-sm font-medium text-muted-foreground">
                         {entry.rank}
                       </span>
                     )}
                   </div>
 
                   {/* Avatar */}
-                  <Avatar className="h-8 w-8">
+                  <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
                     <AvatarFallback className={cn(
-                      "text-xs",
+                      "text-[10px] sm:text-xs",
                       index === 0 && "bg-yellow-500/20 text-yellow-600",
                       index === 1 && "bg-gray-300/30 text-gray-600",
                       index === 2 && "bg-amber-500/20 text-amber-600"
@@ -126,20 +142,22 @@ export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, classNam
                   {/* Name & XP */}
                   <div className="flex-1 min-w-0">
                     <p className={cn(
-                      "text-sm font-medium truncate",
+                      "text-xs sm:text-sm font-medium truncate",
                       isCurrentUser && "text-primary"
                     )}>
                       {isCurrentUser ? 'You' : entry.provider_name}
                     </p>
-                    <p className="text-xs text-muted-foreground">
-                      +{entry.xp_change.toLocaleString()} XP
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {getXpDisplay(entry)}
                     </p>
                   </div>
 
-                  {/* Rank Change */}
-                  <div className="flex items-center">
-                    {getRankChange(entry.rank_change)}
-                  </div>
+                  {/* Rank Change (only for weekly) */}
+                  {hasWeeklyData && (
+                    <div className="flex items-center shrink-0">
+                      {getRankChange(entry.rank_change)}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -149,24 +167,24 @@ export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, classNam
               <>
                 <div className="border-t my-2" />
                 <div
-                  className="flex items-center gap-2 p-2 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer"
+                  className="flex items-center gap-2 p-1.5 sm:p-2 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer"
                   onClick={() => navigate(`/pulse/profile/${currentUserEntry.provider_id}`)}
                 >
-                  <div className="w-6 flex justify-center">
-                    <span className="text-sm font-medium">{currentUserEntry.rank}</span>
+                  <div className="w-5 sm:w-6 flex justify-center shrink-0">
+                    <span className="text-xs sm:text-sm font-medium">{currentUserEntry.rank}</span>
                   </div>
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="text-xs">
+                  <Avatar className="h-7 w-7 sm:h-8 sm:w-8 shrink-0">
+                    <AvatarFallback className="text-[10px] sm:text-xs">
                       {getInitials(currentUserEntry.provider_name)}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-primary truncate">You</p>
-                    <p className="text-xs text-muted-foreground">
-                      +{currentUserEntry.xp_change.toLocaleString()} XP
+                    <p className="text-xs sm:text-sm font-medium text-primary truncate">You</p>
+                    <p className="text-[10px] sm:text-xs text-muted-foreground">
+                      {getXpDisplay(currentUserEntry)}
                     </p>
                   </div>
-                  {getRankChange(currentUserEntry.rank_change)}
+                  {hasWeeklyData && getRankChange(currentUserEntry.rank_change)}
                 </div>
               </>
             )}
