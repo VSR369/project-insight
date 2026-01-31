@@ -32,11 +32,11 @@ export function ProfileBuildBanner({ className }: ProfileBuildBannerProps) {
         </div>
 
         <Button
-          onClick={() => navigate('/pulse/get-started')}
+          onClick={() => navigate('/welcome')}
           variant="secondary"
           className="flex-shrink-0 bg-white text-primary hover:bg-white/90 font-medium shadow-lg"
         >
-          Get Started
+          Let's Build Your Profile
           <ArrowRight className="h-4 w-4 ml-1" />
         </Button>
       </div>
