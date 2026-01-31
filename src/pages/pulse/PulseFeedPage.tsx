@@ -3,15 +3,15 @@ import { RefreshCw, AlertCircle, Rss, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { PulseLayout } from '@/components/pulse/layout';
+import { PulseLayout, PulseLayoutFirstTime, ProfileBuildBanner } from '@/components/pulse/layout';
 import { ContentCard, PulseCardFeedItem } from '@/components/pulse/content';
 import { DailyStandupBanner, PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { useUnifiedPulseFeed } from '@/hooks/queries/useUnifiedPulseFeed';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
 
 export default function PulseFeedPage() {
   const navigate = useNavigate();
-  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  const { isFirstTime, isLoading: firstTimeLoading, provider } = useIsFirstTimeProvider();
   const { data: feedItems, isLoading, isRefetching, refetch, error } = useUnifiedPulseFeed();
 
   const handleContentClick = (contentId: string) => {
@@ -30,7 +30,8 @@ export default function PulseFeedPage() {
     navigate(`/pulse/content/${contentId}#comments`);
   };
 
-  if (providerLoading) {
+  // Loading state
+  if (firstTimeLoading) {
     return (
       <PulseLayout>
         <div className="max-w-lg mx-auto p-4 space-y-4" aria-label="Loading feed">
@@ -51,23 +52,11 @@ export default function PulseFeedPage() {
     );
   }
 
-  if (!provider) {
-    return (
-      <PulseLayout>
-        <div className="max-w-lg mx-auto p-4 text-center py-16">
-          <p className="text-muted-foreground">Please complete your profile to access Pulse.</p>
-          <Button className="mt-4" onClick={() => navigate('/profile')}>
-            Complete Profile
-          </Button>
-        </div>
-      </PulseLayout>
-    );
-  }
-
   // Error state with retry
   if (error) {
+    const Layout = isFirstTime ? PulseLayoutFirstTime : PulseLayout;
     return (
-      <PulseLayout>
+      <Layout>
         <div className="max-w-lg mx-auto p-4">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
@@ -86,33 +75,51 @@ export default function PulseFeedPage() {
             </AlertDescription>
           </Alert>
         </div>
-      </PulseLayout>
+      </Layout>
     );
   }
 
   // Provider name from available fields
-  const providerName = `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there';
+  const providerName = provider 
+    ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
+    : 'there';
+
+  // Choose layout based on first-time status
+  const Layout = isFirstTime ? PulseLayoutFirstTime : PulseLayout;
 
   return (
-    <PulseLayout>
+    <Layout>
       <div className="max-w-lg mx-auto">
-        {/* Personalized Header */}
-        <PersonalizedFeedHeader
-          providerId={provider.id}
-          providerName={providerName}
-        />
+        {/* First-time user: Show profile build banner */}
+        {isFirstTime && (
+          <div className="p-4 border-b">
+            <ProfileBuildBanner />
+          </div>
+        )}
 
-        {/* Daily Standup Banner */}
-        <div className="p-4 border-b">
-          <DailyStandupBanner providerId={provider.id} />
-        </div>
+        {/* Personalized Header - only show for returning users with provider */}
+        {!isFirstTime && provider && (
+          <PersonalizedFeedHeader
+            providerId={provider.id}
+            providerName={providerName}
+          />
+        )}
+
+        {/* Daily Standup Banner - only for returning users */}
+        {!isFirstTime && provider && (
+          <div className="p-4 border-b">
+            <DailyStandupBanner providerId={provider.id} />
+          </div>
+        )}
 
         {/* Feed Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
           <div className="flex items-center justify-between px-4 py-2">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span className="font-medium text-sm">YOUR FEED</span>
+              <span className="font-medium text-sm">
+                {isFirstTime ? 'INDUSTRY PULSE' : 'YOUR FEED'}
+              </span>
             </div>
             <Button
               variant="ghost"
@@ -153,17 +160,29 @@ export default function PulseFeedPage() {
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Rss className="h-8 w-8 text-primary" aria-hidden="true" />
             </div>
-            <p className="text-lg font-medium mb-2">Your feed is empty</p>
+            <p className="text-lg font-medium mb-2">
+              {isFirstTime ? 'Welcome to Industry Pulse!' : 'Your feed is empty'}
+            </p>
             <p className="text-muted-foreground text-sm mb-6">
-              Follow people or create content to see updates here.
+              {isFirstTime 
+                ? 'Explore what other solution providers are sharing. Build your profile to start creating content.'
+                : 'Follow people or create content to see updates here.'}
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
-              <Button onClick={() => navigate('/pulse/create')}>
-                Create Your First Post
-              </Button>
-              <Button variant="outline" onClick={() => navigate('/pulse/ranks')}>
-                Discover Creators
-              </Button>
+              {isFirstTime ? (
+                <Button onClick={() => navigate('/pulse/get-started')}>
+                  Build Your Profile
+                </Button>
+              ) : (
+                <>
+                  <Button onClick={() => navigate('/pulse/create')}>
+                    Create Your First Post
+                  </Button>
+                  <Button variant="outline" onClick={() => navigate('/pulse/ranks')}>
+                    Discover Creators
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         ) : (
@@ -174,7 +193,7 @@ export default function PulseFeedPage() {
                   <PulseCardFeedItem
                     key={`card-${item.id}`}
                     card={item.card}
-                    currentUserProviderId={provider.id}
+                    currentUserProviderId={provider?.id || ''}
                     onCardClick={() => handleCardClick(item.id)}
                     onProfileClick={() => handleProfileClick(item.card!.seed_creator_id)}
                   />
@@ -186,7 +205,7 @@ export default function PulseFeedPage() {
                   <ContentCard
                     key={`content-${item.id}`}
                     content={item.content as any}
-                    currentUserProviderId={provider.id}
+                    currentUserProviderId={provider?.id || ''}
                     onContentClick={() => handleContentClick(item.id)}
                     onProfileClick={() => handleProfileClick(item.content!.provider_id)}
                     onCommentClick={() => handleCommentClick(item.id)}
@@ -199,6 +218,6 @@ export default function PulseFeedPage() {
           </div>
         )}
       </div>
-    </PulseLayout>
+    </Layout>
   );
 }

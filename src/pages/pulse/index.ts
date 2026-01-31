@@ -8,3 +8,4 @@ export { default as PulsePublicProfilePage } from './PulsePublicProfilePage';
 export { default as PulseCardsPage } from './PulseCardsPage';
 export { default as PulseCardDetailPage } from './PulseCardDetailPage';
 export { default as PulseModerationPage } from './PulseModerationPage';
+export { default as PulseGetStartedPage } from './PulseGetStartedPage';
