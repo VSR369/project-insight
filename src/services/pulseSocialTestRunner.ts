@@ -1503,13 +1503,12 @@ const lootBoxTests: TestCase[] = [
     id: "LX-004",
     category: "Loot Boxes",
     name: "Loot box claims tracking",
-    description: "Verify loot box claim history via provider stats",
+    description: "Verify streak_multiplier and opened_at tracking on claims",
     run: () => runTest(async () => {
-      // Check last_loot_box_claimed_at field on provider stats instead
+      // Check streak_multiplier and opened_at fields on loot_boxes table
       const { data, error } = await supabase
-        .from("pulse_provider_stats")
-        .select("provider_id, last_loot_box_claimed_at")
-        .not("last_loot_box_claimed_at", "is", null)
+        .from("pulse_loot_boxes")
+        .select("id, streak_at_claim, streak_multiplier, opened_at")
         .limit(10);
       
       if (error) throw new Error(`Query failed: ${error.message}`);
