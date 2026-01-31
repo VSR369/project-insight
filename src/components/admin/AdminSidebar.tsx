@@ -40,6 +40,7 @@ import {
   ClipboardList,
   Mail,
   ChevronRight,
+  Activity,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -68,6 +69,7 @@ const interviewItems = [
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
+  { title: 'Social Channel Test', icon: Activity, path: '/admin/pulse-social-test' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
   { title: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
