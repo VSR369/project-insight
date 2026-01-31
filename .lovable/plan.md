@@ -1,260 +1,275 @@
 
-# Plan: Create Content-Type Specific Feed Pages
+# Plan: Add Profile Section Above Galaxy Leaders in Left Sidebar
+
+## Overview
+
+Add a user profile card at the top of the left sidebar containing:
+1. **Profile photograph** with upload/replace capability
+2. **Editable headline/title** (like LinkedIn)
+3. **Clickable "View Profile" link**
+
+---
 
 ## Current State Analysis
 
-The navigation quick nav shows 8 items, but several routes don't exist yet:
-
-| Nav Item | Route | Page Exists? | Content Type Filter |
-|----------|-------|--------------|---------------------|
-| Profile | `/pulse/profile` | ✅ Yes | N/A |
-| Feed | `/pulse/feed` | ✅ Yes | **None** (shows ALL) |
-| Reels | `/pulse/reels` | ❌ **Missing** | `reel` |
-| Podcast | `/pulse/podcasts` | ❌ **Missing** | `podcast` |
-| Spark | `/pulse/sparks` | ✅ Yes | `spark` |
-| Article | `/pulse/articles` | ❌ **Missing** | `article` |
-| Gallery | `/pulse/gallery` | ❌ **Missing** | `gallery` |
-| Pulse Cards | `/pulse/cards` | ✅ Yes | N/A (separate table) |
-
-## Solution: Create 4 New Content-Type Pages
-
-Each page follows the same pattern as `PulseSparksPage`:
-- Uses `usePulseFeed({ contentType: 'xxx' })` hook
-- Displays content-type-specific header with icon
-- Shows empty state with CTA to create that content type
-- Displays filtered content list
+| Component | Location | Current Behavior |
+|-----------|----------|------------------|
+| Left Sidebar | `src/components/pulse/layout/LeftSidebar.tsx` | Shows Galaxy Leaders + XP Progress |
+| LeaderboardMiniWidget | `src/components/pulse/widgets/LeaderboardMiniWidget.tsx` | Shows top 5 ranked providers |
+| profiles table | Database | Has `avatar_url` column ✅ |
+| pulse_provider_stats table | Database | NO headline field ❌ |
 
 ---
 
-## Files to Create
+## Solution: 3 Parts
 
-### 1. `src/pages/pulse/PulseReelsPage.tsx`
+### Part 1: Database Migration
 
-```text
-┌─────────────────────────────────────┐
-│ 🎬 Reels                            │
-│ Short-form video content            │
-│ [Create a Reel]                     │
-├─────────────────────────────────────┤
-│ ┌─────────────────────────────┐     │
-│ │ [Video Preview] 📹         │     │
-│ │ Duration: 0:45             │     │
-│ │ 🔥 12  💬 3  🥇 1          │     │
-│ └─────────────────────────────┘     │
-│ ...more reels                       │
-└─────────────────────────────────────┘
-```
+Add `pulse_headline` column to `pulse_provider_stats` table:
 
-- Filter: `content_type: 'reel'`
-- Icon: `Video` (lucide)
-- CTA: "Share a Reel"
+```sql
+ALTER TABLE public.pulse_provider_stats 
+  ADD COLUMN IF NOT EXISTS pulse_headline TEXT DEFAULT NULL;
 
-### 2. `src/pages/pulse/PulsePodcastsPage.tsx`
-
-```text
-┌─────────────────────────────────────┐
-│ 🎙️ Podcasts                         │
-│ Audio content from experts          │
-│ [Start a Podcast]                   │
-├─────────────────────────────────────┤
-│ ┌─────────────────────────────┐     │
-│ │ [Cover Image] 🎧            │     │
-│ │ Duration: 15:30            │     │
-│ │ 🔥 45  💬 12  🥇 5         │     │
-│ └─────────────────────────────┘     │
-└─────────────────────────────────────┘
-```
-
-- Filter: `content_type: 'podcast'`
-- Icon: `Mic` (lucide)
-- CTA: "Share a Podcast"
-
-### 3. `src/pages/pulse/PulseArticlesPage.tsx`
-
-```text
-┌─────────────────────────────────────┐
-│ 📄 Articles                         │
-│ In-depth knowledge pieces           │
-│ [Write an Article]                  │
-├─────────────────────────────────────┤
-│ ┌─────────────────────────────┐     │
-│ │ [Title: "AI in Healthcare"] │     │
-│ │ Read time: 5 min           │     │
-│ │ 🔥 120  💬 34  🥇 15       │     │
-│ └─────────────────────────────┘     │
-└─────────────────────────────────────┘
-```
-
-- Filter: `content_type: 'article'`
-- Icon: `FileText` (lucide)
-- CTA: "Write an Article"
-
-### 4. `src/pages/pulse/PulseGalleryPage.tsx`
-
-```text
-┌─────────────────────────────────────┐
-│ 🖼️ Gallery                          │
-│ Visual content and portfolios       │
-│ [Create a Gallery]                  │
-├─────────────────────────────────────┤
-│ ┌───┬───┬───┐                       │
-│ │   │   │   │  (Image grid)         │
-│ └───┴───┴───┘                       │
-│ 🔥 25  💬 8  🥇 2                   │
-└─────────────────────────────────────┘
-```
-
-- Filter: `content_type: 'gallery'`
-- Icon: `Images` (lucide)
-- CTA: "Create a Gallery"
-
----
-
-## Files to Modify
-
-### 5. Update `src/pages/pulse/index.ts`
-
-Add exports for the 4 new pages:
-
-```typescript
-export { default as PulseReelsPage } from './PulseReelsPage';
-export { default as PulsePodcastsPage } from './PulsePodcastsPage';
-export { default as PulseArticlesPage } from './PulseArticlesPage';
-export { default as PulseGalleryPage } from './PulseGalleryPage';
-```
-
-### 6. Update `src/App.tsx`
-
-Add 4 new routes:
-
-```typescript
-// Import new pages
-import { 
-  PulseFeedPage, 
-  PulseSparksPage, 
-  PulseReelsPage,      // NEW
-  PulsePodcastsPage,   // NEW
-  PulseArticlesPage,   // NEW
-  PulseGalleryPage,    // NEW
-  // ... existing
-} from "@/pages/pulse";
-
-// Add routes
-<Route path="/pulse/reels" element={<AuthGuard><PulseReelsPage /></AuthGuard>} />
-<Route path="/pulse/podcasts" element={<AuthGuard><PulsePodcastsPage /></AuthGuard>} />
-<Route path="/pulse/articles" element={<AuthGuard><PulseArticlesPage /></AuthGuard>} />
-<Route path="/pulse/gallery" element={<AuthGuard><PulseGalleryPage /></AuthGuard>} />
+COMMENT ON COLUMN public.pulse_provider_stats.pulse_headline 
+  IS 'User-defined professional headline shown in Pulse (LinkedIn-style)';
 ```
 
 ---
 
-## Page Component Template
+### Part 2: Create ProfileMiniCard Component
 
-All 4 pages follow the same structure (using `PulseArticlesPage` as example):
+**New file:** `src/components/pulse/widgets/ProfileMiniCard.tsx`
 
+```text
+┌─────────────────────────────────────────┐
+│  ┌───────────┐                          │
+│  │  📷       │  ← Photo with upload     │
+│  │  Avatar   │     overlay icon         │
+│  └───────────┘                          │
+│                                         │
+│  Senior Technology Consultant           │  ← Editable headline
+│  ✏️ (edit icon on hover)                │
+│                                         │
+│  [👁️ View Profile]                      │  ← Clickable link
+└─────────────────────────────────────────┘
+```
+
+**Features:**
+- **Avatar with AvatarImage**: Shows `profiles.avatar_url` if set, fallback to initials
+- **Photo upload overlay**: Camera icon appears on hover, opens file picker
+- **Editable headline**: Click to edit, saves to `pulse_provider_stats.pulse_headline`
+- **View Profile link**: Navigates to `/pulse/profile`
+
+**Component Structure:**
 ```tsx
-import { useNavigate } from 'react-router-dom';
-import { FileText, RefreshCw } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { PulseLayout } from '@/components/pulse/layout';
-import { usePulseFeed } from '@/hooks/queries/usePulseContent';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
-import { formatDistanceToNow } from 'date-fns';
+interface ProfileMiniCardProps {
+  providerId?: string;
+  userId?: string;
+  className?: string;
+}
 
-export default function PulseArticlesPage() {
-  const navigate = useNavigate();
-  const { data: provider } = useCurrentProvider();
-  const { data: feedContent, isLoading, refetch, isRefetching } = usePulseFeed({ contentType: 'article' });
+export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCardProps) {
+  // State
+  const [isEditingHeadline, setIsEditingHeadline] = useState(false);
+  const [headlineValue, setHeadlineValue] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Loading state
-  if (isLoading) {
-    return (
-      <PulseLayout title="Articles" providerId={provider?.id} showSidebars>
-        <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-      </PulseLayout>
-    );
-  }
+  // Data fetching
+  const { data: profile } = useQuery(['profile', userId], ...);
+  const { data: stats } = useProviderStats(providerId);
 
-  const articles = feedContent ?? [];
+  // Mutations
+  const uploadPhoto = useUploadPulseMedia();
+  const updateHeadline = useMutation(...);
 
   return (
-    <PulseLayout title="Articles" providerId={provider?.id} showSidebars>
-      <div className="max-w-lg mx-auto lg:max-w-none">
-        {/* Header */}
-        <div className="p-4 border-b">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h2 className="font-semibold text-lg flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-500" />
-                Articles
-              </h2>
-              <p className="text-sm text-muted-foreground">In-depth knowledge pieces</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={() => refetch()} disabled={isRefetching}>
-              <RefreshCw className={`h-4 w-4 ${isRefetching ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-          <Button className="w-full" onClick={() => navigate('/pulse/create', { state: { type: 'article' } })}>
-            <FileText className="h-4 w-4 mr-2" />
-            Write an Article
-          </Button>
+    <Card>
+      <CardContent>
+        {/* Avatar with upload overlay */}
+        <div className="relative group">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={profile?.avatar_url} />
+            <AvatarFallback>{initials}</AvatarFallback>
+          </Avatar>
+          <button onClick={() => fileInputRef.current?.click()} className="overlay">
+            <Camera className="h-4 w-4" />
+          </button>
+          <input type="file" ref={fileInputRef} onChange={handlePhotoUpload} hidden />
         </div>
 
-        {/* Content list or empty state */}
-        {articles.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-lg font-medium mb-2">No Articles Yet</p>
-            <p className="text-sm text-muted-foreground">Be the first to share your expertise</p>
-          </div>
+        {/* Editable Headline */}
+        {isEditingHeadline ? (
+          <Input value={headlineValue} onBlur={saveHeadline} autoFocus />
         ) : (
-          <div className="p-4 space-y-3">
-            {articles.map((article) => (
-              <Card key={article.id} className="cursor-pointer hover:bg-muted/50" onClick={() => navigate(`/pulse/content/${article.id}`)}>
-                <CardContent className="p-4">
-                  {/* Content card details */}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          <p onClick={() => setIsEditingHeadline(true)}>
+            {stats?.pulse_headline || 'Add your title'}
+            <Pencil className="h-3 w-3" />
+          </p>
         )}
-      </div>
-    </PulseLayout>
+
+        {/* View Profile Link */}
+        <Button variant="link" onClick={() => navigate('/pulse/profile')}>
+          <Eye className="h-3 w-3 mr-1" />
+          View Profile
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 ```
 
 ---
 
-## Summary of Changes
+### Part 3: Integrate into LeftSidebar
 
-| File | Action | Description |
-|------|--------|-------------|
-| `src/pages/pulse/PulseReelsPage.tsx` | **CREATE** | Filtered feed for reels |
-| `src/pages/pulse/PulsePodcastsPage.tsx` | **CREATE** | Filtered feed for podcasts |
-| `src/pages/pulse/PulseArticlesPage.tsx` | **CREATE** | Filtered feed for articles |
-| `src/pages/pulse/PulseGalleryPage.tsx` | **CREATE** | Filtered feed for galleries |
-| `src/pages/pulse/index.ts` | MODIFY | Export new pages |
-| `src/App.tsx` | MODIFY | Add 4 new routes |
+**Modify:** `src/components/pulse/layout/LeftSidebar.tsx`
 
-**Total: 4 new files, 2 modified files**
+Add `ProfileMiniCard` above `LeaderboardMiniWidget`:
+
+```tsx
+import { ProfileMiniCard } from '@/components/pulse/widgets';
+
+export function LeftSidebar({ providerId, userId, isFirstTime, className }: LeftSidebarProps) {
+  return (
+    <div className={cn("p-4 space-y-4 overflow-y-auto", className)}>
+      {/* NEW: Profile Card */}
+      {providerId && (
+        <ProfileMiniCard providerId={providerId} userId={userId} />
+      )}
+
+      {/* Existing: Galaxy Leaderboard */}
+      <LeaderboardMiniWidget currentProviderId={providerId} isFirstTime={isFirstTime} />
+
+      {/* Existing: XP Progress Card */}
+      {providerId && (
+        <Card>...</Card>
+      )}
+    </div>
+  );
+}
+```
 
 ---
 
-## How It Works
+### Part 4: Create Hook for Profile Updates
 
-1. User clicks "Reels" in `PulseQuickNav`
-2. Navigates to `/pulse/reels`
-3. `PulseReelsPage` loads
-4. Calls `usePulseFeed({ contentType: 'reel' })`
-5. Hook queries `pulse_content` table with `content_type = 'reel'` filter
-6. Shows only reel content
+**New file:** `src/hooks/mutations/usePulseProfile.ts`
 
-User clicks "Feed" → Shows ALL content types (existing behavior)
+```typescript
+// Update pulse headline
+export function useUpdatePulseHeadline() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ providerId, headline }: { providerId: string; headline: string }) => {
+      const { error } = await supabase
+        .from('pulse_provider_stats')
+        .update({ pulse_headline: headline, updated_at: new Date().toISOString() })
+        .eq('provider_id', providerId);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['pulse-stats', vars.providerId] });
+      toast.success('Headline updated');
+    },
+  });
+}
+
+// Update profile avatar
+export function useUpdateProfileAvatar() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, avatarUrl }: { userId: string; avatarUrl: string }) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+        .eq('user_id', userId);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['profile', vars.userId] });
+      toast.success('Photo updated');
+    },
+  });
+}
+```
+
+---
+
+### Part 5: Update PulseLayout to Pass userId
+
+**Modify:** `src/components/pulse/layout/PulseLayout.tsx`
+
+Ensure `userId` is passed to `LeftSidebar`:
+
+```tsx
+// Get userId from auth
+const { user } = useAuth();
+
+// Pass to LeftSidebar
+<LeftSidebar 
+  providerId={providerId} 
+  userId={user?.id}
+  isFirstTime={isFirstTime} 
+/>
+```
+
+---
+
+## File Changes Summary
+
+| File | Action | Description |
+|------|--------|-------------|
+| **Migration** | CREATE | Add `pulse_headline` column to `pulse_provider_stats` |
+| `src/components/pulse/widgets/ProfileMiniCard.tsx` | CREATE | New profile card component with photo upload + headline |
+| `src/components/pulse/widgets/index.ts` | MODIFY | Export ProfileMiniCard |
+| `src/hooks/mutations/usePulseProfile.ts` | CREATE | Mutations for headline and avatar updates |
+| `src/components/pulse/layout/LeftSidebar.tsx` | MODIFY | Add ProfileMiniCard above LeaderboardMiniWidget |
+| `src/components/pulse/layout/PulseLayout.tsx` | MODIFY | Pass userId to LeftSidebar |
+
+**Total: 2 new files, 3 modified files, 1 migration**
+
+---
+
+## Visual Result
+
+```text
+┌─────────────── Left Sidebar ──────────────┐
+│                                            │
+│  ┌──────────────────────────────────────┐  │
+│  │      ┌──────────┐                    │  │
+│  │      │  📷      │ ← Upload overlay   │  │
+│  │      │  Avatar  │                    │  │
+│  │      └──────────┘                    │  │
+│  │                                      │  │
+│  │  Senior Consultant ✏️                │  │
+│  │  👁️ View Profile                     │  │
+│  └──────────────────────────────────────┘  │
+│                                            │
+│  ┌──────────────────────────────────────┐  │
+│  │ ✨ Galaxy Leaders         [Weekly]   │  │
+│  │                                      │  │
+│  │  👑 #1  John D.   +1,234 XP  ↑       │  │
+│  │  🥈 #2  Sarah M.  +987 XP    ↓       │  │
+│  │  🥉 #3  Mike T.   +654 XP    —       │  │
+│  │  ...                                 │  │
+│  │                                      │  │
+│  │  [View Full Leaderboard]             │  │
+│  └──────────────────────────────────────┘  │
+│                                            │
+│  ┌──────────────────────────────────────┐  │
+│  │ ⚡ Your Progress                     │  │
+│  │ ...                                  │  │
+│  └──────────────────────────────────────┘  │
+└────────────────────────────────────────────┘
+```
+
+---
+
+## Technical Notes
+
+1. **Storage path for avatar**: Uses existing `pulse-media` bucket with path `{userId}/avatar/{timestamp}_{filename}`
+2. **Photo validation**: Uses existing `validateFile()` with 'gallery' type (50MB max, image formats)
+3. **Headline max length**: 120 characters (matching LinkedIn's limit)
+4. **RLS**: Avatar upload uses `userId` (auth.uid) matching bucket RLS policy
+5. **Caching**: Profile data cached with 5min staleTime, invalidated on update
