@@ -86,7 +86,17 @@ export function PodcastStudio({ onSuccess, onCancel }: PodcastStudioProps) {
   // SECTION 6: Event handlers
   // ═══════════════════════════════════════════
   const handleRecordingComplete = (blob: Blob, duration: number) => {
-    const file = new File([blob], `recording_${Date.now()}.webm`, {
+    // Determine correct file extension from MIME type
+    const mimeToExt: Record<string, string> = {
+      'audio/webm': 'webm',
+      'audio/ogg': 'ogg',
+      'audio/mp4': 'm4a',
+      'audio/mpeg': 'mp3',
+    };
+    const baseMime = blob.type.split(';')[0];
+    const ext = mimeToExt[baseMime] || 'webm';
+    
+    const file = new File([blob], `recording_${Date.now()}.${ext}`, {
       type: blob.type,
     });
     setAudioFile(file);
