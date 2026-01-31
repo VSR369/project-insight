@@ -1,14 +1,16 @@
-import { Home, Zap, Layers, PlusCircle, Trophy, User } from 'lucide-react';
+import { User, Flame, Video, Mic, Zap, FileText, Images, Layers } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { path: '/pulse/feed', label: 'Feed', icon: Home },
-  { path: '/pulse/sparks', label: 'Sparks', icon: Zap },
-  { path: '/pulse/cards', label: 'Cards', icon: Layers },
-  { path: '/pulse/create', label: 'Create', icon: PlusCircle },
-  { path: '/pulse/ranks', label: 'Ranks', icon: Trophy },
   { path: '/pulse/profile', label: 'Profile', icon: User },
+  { path: '/pulse/feed', label: 'Feed', icon: Flame },
+  { path: '/pulse/reels', label: 'Reels', icon: Video },
+  { path: '/pulse/podcasts', label: 'Podcast', icon: Mic },
+  { path: '/pulse/sparks', label: 'Spark', icon: Zap },
+  { path: '/pulse/articles', label: 'Article', icon: FileText },
+  { path: '/pulse/gallery', label: 'Gallery', icon: Images },
+  { path: '/pulse/cards', label: 'Pulse Cards', icon: Layers },
 ];
 
 export function PulseQuickNav() {
