@@ -90,7 +90,7 @@ import CandidateDetailPage from "@/pages/reviewer/CandidateDetailPage";
 import ReviewerPendingApproval from "@/pages/reviewer/ReviewerPendingApproval";
 
 // Pulse Pages
-import { PulseFeedPage, PulseSparksPage, PulseCreatePage, PulseRanksPage, PulseProfilePage, PulseContentDetailPage, PulsePublicProfilePage, PulseCardsPage, PulseCardDetailPage, PulseModerationPage } from "@/pages/pulse";
+import { PulseFeedPage, PulseSparksPage, PulseCreatePage, PulseRanksPage, PulseProfilePage, PulseContentDetailPage, PulsePublicProfilePage, PulseCardsPage, PulseCardDetailPage, PulseModerationPage, PulseStandupPage } from "@/pages/pulse";
 
 import { queryClient } from "@/lib/queryClient";
 
@@ -677,6 +677,14 @@ const App = () => (
               element={
                 <AuthGuard>
                   <PulseModerationPage />
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/pulse/standup"
+              element={
+                <AuthGuard>
+                  <PulseStandupPage />
                 </AuthGuard>
               }
             />

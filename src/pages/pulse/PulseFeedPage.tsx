@@ -33,8 +33,8 @@ export default function PulseFeedPage() {
   // Loading state
   if (firstTimeLoading) {
     return (
-      <PulseLayout>
-        <div className="max-w-lg mx-auto p-4 space-y-4" aria-label="Loading feed">
+      <PulseLayout showSidebars={false}>
+        <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4" aria-label="Loading feed">
           {[1, 2, 3].map(i => (
             <div key={i} className="space-y-3 p-4 border-b">
               <div className="flex gap-3">
@@ -54,10 +54,13 @@ export default function PulseFeedPage() {
 
   // Error state with retry
   if (error) {
-    const Layout = isFirstTime ? PulseLayoutFirstTime : PulseLayout;
     return (
-      <Layout>
-        <div className="max-w-lg mx-auto p-4">
+      <PulseLayout 
+        providerId={provider?.id} 
+        isFirstTime={isFirstTime}
+        showSidebars={!isFirstTime}
+      >
+        <div className="max-w-lg mx-auto lg:max-w-none p-4">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Failed to load feed</AlertTitle>
@@ -75,7 +78,7 @@ export default function PulseFeedPage() {
             </AlertDescription>
           </Alert>
         </div>
-      </Layout>
+      </PulseLayout>
     );
   }
 
@@ -84,12 +87,13 @@ export default function PulseFeedPage() {
     ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
     : 'there';
 
-  // Choose layout based on first-time status
-  const Layout = isFirstTime ? PulseLayoutFirstTime : PulseLayout;
-
   return (
-    <Layout>
-      <div className="max-w-lg mx-auto">
+    <PulseLayout 
+      providerId={provider?.id} 
+      isFirstTime={isFirstTime}
+      showSidebars={!isFirstTime}
+    >
+      <div className="max-w-lg mx-auto lg:max-w-none">
         {/* First-time user: Show profile build banner */}
         {isFirstTime && (
           <div className="p-4 border-b">
@@ -105,9 +109,9 @@ export default function PulseFeedPage() {
           />
         )}
 
-        {/* Daily Standup Banner - only for returning users */}
+        {/* Daily Standup Banner - only for returning users on mobile (desktop shows in sidebar) */}
         {!isFirstTime && provider && (
-          <div className="p-4 border-b">
+          <div className="p-4 border-b lg:hidden">
             <DailyStandupBanner providerId={provider.id} />
           </div>
         )}
@@ -170,7 +174,7 @@ export default function PulseFeedPage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               {isFirstTime ? (
-                <Button onClick={() => navigate('/pulse/get-started')}>
+                <Button onClick={() => navigate('/welcome')}>
                   Build Your Profile
                 </Button>
               ) : (
@@ -218,6 +222,6 @@ export default function PulseFeedPage() {
           </div>
         )}
       </div>
-    </Layout>
+    </PulseLayout>
   );
 }
