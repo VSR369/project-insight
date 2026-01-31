@@ -1,6 +1,6 @@
 /**
  * Left Sidebar
- * Contains LeaderboardMiniWidget and XP Progress Card
+ * Contains ProfileMiniCard, LeaderboardMiniWidget, and XP Progress Card
  */
 
 import { Sparkles, Zap, Target, Award } from 'lucide-react';
@@ -8,12 +8,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LeaderboardMiniWidget } from '@/components/pulse/widgets';
+import { LeaderboardMiniWidget, ProfileMiniCard } from '@/components/pulse/widgets';
 import { useProviderStats, usePulseMetrics } from '@/hooks/queries/usePulseStats';
 import { cn } from '@/lib/utils';
 
 interface LeftSidebarProps {
   providerId?: string;
+  userId?: string;
   isFirstTime?: boolean;
   className?: string;
 }
@@ -28,7 +29,7 @@ const getXpProgress = (totalXp: number, level: number) => {
   return Math.min((xpIntoLevel / xpNeeded) * 100, 100);
 };
 
-export function LeftSidebar({ providerId, isFirstTime, className }: LeftSidebarProps) {
+export function LeftSidebar({ providerId, userId, isFirstTime, className }: LeftSidebarProps) {
   const { data: stats, isLoading: statsLoading } = useProviderStats(providerId || '');
   const { data: metrics, isLoading: metricsLoading } = usePulseMetrics(providerId || '');
 
@@ -36,6 +37,11 @@ export function LeftSidebar({ providerId, isFirstTime, className }: LeftSidebarP
 
   return (
     <div className={cn("p-4 space-y-4 overflow-y-auto", className)}>
+      {/* Profile Card */}
+      {providerId && userId && (
+        <ProfileMiniCard providerId={providerId} userId={userId} />
+      )}
+
       {/* Galaxy Leaderboard */}
       <LeaderboardMiniWidget currentProviderId={providerId} isFirstTime={isFirstTime} />
 

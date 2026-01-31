@@ -3089,6 +3089,7 @@ export type Database = {
           last_activity_date: string | null
           longest_streak: number
           provider_id: string
+          pulse_headline: string | null
           timezone: string
           total_articles: number
           total_card_fire_received: number | null
@@ -3121,6 +3122,7 @@ export type Database = {
           last_activity_date?: string | null
           longest_streak?: number
           provider_id: string
+          pulse_headline?: string | null
           timezone?: string
           total_articles?: number
           total_card_fire_received?: number | null
@@ -3153,6 +3155,7 @@ export type Database = {
           last_activity_date?: string | null
           longest_streak?: number
           provider_id?: string
+          pulse_headline?: string | null
           timezone?: string
           total_articles?: number
           total_card_fire_received?: number | null

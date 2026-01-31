@@ -4,6 +4,7 @@ import { PulseHeader } from './PulseHeader';
 import { PulseQuickNav } from './PulseQuickNav';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
+import { useAuth } from '@/hooks/useAuth';
 
 interface BreadcrumbConfig {
   parentLabel: string;
@@ -39,6 +40,8 @@ export function PulseLayout({
   isFirstTime = false,
   showSidebars = true
 }: PulseLayoutProps) {
+  const { user } = useAuth();
+  
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header - fixed at top */}
@@ -57,7 +60,7 @@ export function PulseLayout({
           {/* Left Sidebar - hidden on mobile/tablet, visible on large desktop */}
           {showSidebars && (
             <aside className="hidden xl:block w-[280px] flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
-              <LeftSidebar providerId={providerId} isFirstTime={isFirstTime} />
+              <LeftSidebar providerId={providerId} userId={user?.id} isFirstTime={isFirstTime} />
             </aside>
           )}
           
