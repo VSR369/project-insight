@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { EngagementBar } from './EngagementBar';
 import { MediaRenderer } from './MediaRenderer';
 import { SparkTrendChart } from './SparkTrendChart';
+import { FollowButton } from '@/components/pulse/social/FollowButton';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 import type { PulseContentType } from '@/constants/pulse.constants';
@@ -120,7 +121,7 @@ export const ContentCard = memo(function ContentCard({
 
         {/* Header Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
             <span 
               className="font-semibold text-xs sm:text-sm truncate cursor-pointer hover:underline"
               onClick={onProfileClick}
@@ -131,6 +132,14 @@ export const ContentCard = memo(function ContentCard({
             >
               {providerName}
             </span>
+            {/* Follow button - only show for other users' content */}
+            {content.provider?.id && (
+              <FollowButton
+                targetProviderId={content.provider.id}
+                currentUserProviderId={currentUserProviderId}
+                variant="compact"
+              />
+            )}
             {/* Verified skill badge */}
             {content.provider?.verified_skill && (
               <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 py-0 h-3.5 sm:h-4 text-green-600 border-green-200 shrink-0">

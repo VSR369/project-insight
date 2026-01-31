@@ -13,6 +13,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { CardEngagementBar } from '@/components/pulse/cards/CardEngagementBar';
+import { FollowButton } from '@/components/pulse/social/FollowButton';
 import type { FeedCardItem } from '@/hooks/queries/useUnifiedPulseFeed';
 
 interface PulseCardFeedItemProps {
@@ -66,9 +67,9 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
 
         {/* Header Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
             <span 
-              className="font-semibold text-sm truncate cursor-pointer hover:underline"
+              className="font-semibold text-xs sm:text-sm truncate cursor-pointer hover:underline"
               onClick={onProfileClick}
               tabIndex={0}
               role="button"
@@ -77,20 +78,28 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
             >
               {creatorName}
             </span>
+            {/* Follow button - only show for other users' cards */}
+            {card.seed_creator_id && (
+              <FollowButton
+                targetProviderId={card.seed_creator_id}
+                currentUserProviderId={currentUserProviderId}
+                variant="compact"
+              />
+            )}
             {/* Pulse Card badge */}
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5 shrink-0 bg-cyan-500/10 text-cyan-700 border-cyan-200">
-              <Layers className="h-3 w-3 mr-1" aria-hidden="true" />
-              Pulse Card
+            <Badge variant="secondary" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-4 sm:h-5 shrink-0 bg-cyan-500/10 text-cyan-700 border-cyan-200">
+              <Layers className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" aria-hidden="true" />
+              <span className="hidden sm:inline">Pulse Card</span>
             </Badge>
             {/* Topic badge */}
             {card.topic && (
-              <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 shrink-0">
-                {card.topic.icon && <span className="mr-1">{card.topic.icon}</span>}
-                {card.topic.name}
+              <Badge variant="outline" className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0 h-4 sm:h-5 shrink-0">
+                {card.topic.icon && <span className="mr-0.5 sm:mr-1">{card.topic.icon}</span>}
+                <span className="hidden sm:inline">{card.topic.name}</span>
               </Badge>
             )}
           </div>
-          <span className="text-xs text-muted-foreground">
+          <span className="text-[10px] sm:text-xs text-muted-foreground">
             {formatDistanceToNow(new Date(card.created_at), { addSuffix: true })}
           </span>
         </div>
