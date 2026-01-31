@@ -16,10 +16,11 @@ import { cn } from '@/lib/utils';
 
 interface LeaderboardMiniWidgetProps {
   currentProviderId?: string;
+  isFirstTime?: boolean;
   className?: string;
 }
 
-export function LeaderboardMiniWidget({ currentProviderId, className }: LeaderboardMiniWidgetProps) {
+export function LeaderboardMiniWidget({ currentProviderId, isFirstTime, className }: LeaderboardMiniWidgetProps) {
   const navigate = useNavigate();
   const { data: leaderboard, isLoading } = useWeeklyLeaderboard(10);
 
@@ -77,7 +78,14 @@ export function LeaderboardMiniWidget({ currentProviderId, className }: Leaderbo
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        {top5.length === 0 ? (
+        {isFirstTime ? (
+          <div className="text-center py-6">
+            <Trophy className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              Build your profile to join the rankings!
+            </p>
+          </div>
+        ) : top5.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-4">
             No data yet this week
           </p>

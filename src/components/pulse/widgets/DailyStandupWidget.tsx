@@ -17,10 +17,11 @@ import { cn } from '@/lib/utils';
 
 interface DailyStandupWidgetProps {
   providerId: string;
+  isFirstTime?: boolean;
   className?: string;
 }
 
-export function DailyStandupWidget({ providerId, className }: DailyStandupWidgetProps) {
+export function DailyStandupWidget({ providerId, isFirstTime, className }: DailyStandupWidgetProps) {
   const navigate = useNavigate();
   const { data: todayStandup, isLoading } = useTodayStandup(providerId);
   const { data: stats } = useProviderStats(providerId);
@@ -76,6 +77,28 @@ export function DailyStandupWidget({ providerId, className }: DailyStandupWidget
 
   const isCompleted = !!todayStandup?.completed_at;
   const currentStreak = stats?.current_streak || 0;
+
+  // First-time users see onboarding message
+  if (isFirstTime) {
+    return (
+      <Card className={cn("", className)}>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-medium flex items-center gap-2">
+            <Zap className="h-4 w-4 text-primary" />
+            Daily Standup
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center py-4">
+            <Flame className="h-8 w-8 mx-auto mb-2 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
+              Complete your profile to start tracking daily streaks
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className={cn(
