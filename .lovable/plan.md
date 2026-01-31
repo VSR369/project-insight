@@ -1,154 +1,214 @@
 
 
-# Plan: Show Sidebars for First-Time Users with Onboarding Context
+# Plan: Add "Start a Post" Creator Widget Below Profile Build Banner
 
-## Problem Analysis
+## Overview
 
-The sidebars are **intentionally hidden** for first-time users based on this logic:
-
-| File | Line | Code | Effect |
-|------|------|------|--------|
-| `PulseFeedPage.tsx` | 95 | `showSidebars={!isFirstTime}` | Hides sidebars when `isFirstTime === true` |
-| `useIsFirstTimeProvider.ts` | 16 | `isFirstTime = !enrollments || enrollments.length === 0` | User has no enrollments |
-
-**Why the banner shows:** The "Ready to stand out?" `ProfileBuildBanner` only appears for first-time users (line 99-103).
-
-**Why sidebars are hidden:** The original design assumed first-time users shouldn't see sidebars, but this creates a confusing empty layout.
+Create a LinkedIn-style "Start a Post" widget to be displayed **below the "Ready to stand out?" banner** on the Industry Pulse feed. This widget provides quick access to content creation directly from the feed.
 
 ---
 
-## Solution
+## Design Reference Analysis
 
-**Show sidebars for ALL users**, but adapt the widget content for first-time users:
-- Leaderboard: Show "Join to appear here" message
-- Daily Standup: Show "Complete profile to track streaks"
-- Quick Actions: Emphasize "Build Profile" CTA
+Based on the uploaded image, the component structure is:
 
----
-
-## Changes Required
-
-### 1. Update `PulseFeedPage.tsx`
-
-**Change:** Always show sidebars regardless of first-time status
-
-```tsx
-// Line 91-96 - Change showSidebars to always true
-<PulseLayout 
-  isPrimaryPage={true}  // Always primary page
-  providerId={provider?.id} 
-  isFirstTime={isFirstTime}
-  showSidebars={true}  // ← Always show sidebars
->
+```
+┌──────────────────────────────────────────────────────────────┐
+│ ┌─────┐                                                      │
+│ │Photo│  Start a Post ___________________________            │
+│ └─────┘                                                      │
+│                                                              │
+│  📝           📹          🎙️           📄          ⚡         │
+│ Quick Post   Reel       Podcast      Article     Spark      │
+│                                                              │
+│                                                    📚        │
+│                                               Pulse Cards    │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-### 2. Update `LeftSidebar.tsx`
+**Key Design Elements:**
+- Provider photo on left with green border
+- "Start a Post" text input area (click opens create flow)
+- 6 quick action buttons with icons and labels below
 
-**Add:** First-time user state for leaderboard widget
+---
 
-```tsx
-interface LeftSidebarProps {
+## Implementation Details
+
+### Phase 1: Create the StartPostWidget Component
+
+**File:** `src/components/pulse/widgets/StartPostWidget.tsx`
+
+**Props:**
+```typescript
+interface StartPostWidgetProps {
   providerId?: string;
-  isFirstTime?: boolean;  // Add this prop
+  providerName?: string;
+  providerAvatar?: string | null;
+  isFirstTime?: boolean;
   className?: string;
 }
-
-// Pass isFirstTime to LeaderboardMiniWidget
-<LeaderboardMiniWidget isFirstTime={isFirstTime} />
 ```
 
-### 3. Update `LeaderboardMiniWidget.tsx`
+**Features:**
+1. **Avatar Section** (left side):
+   - Show provider photo with green border (like the image)
+   - Fallback to initials if no avatar
+   - Use existing Avatar component
 
-**Add:** Onboarding message for first-time users
+2. **Input Area** (center):
+   - Clickable div styled like input
+   - "Start a Post" placeholder text
+   - Click navigates to `/pulse/create`
 
+3. **Quick Actions Row** (bottom):
+   - 6 content type buttons matching PulseCreatePage
+   - Order: Quick Post, Reel, Podcast, Article, Spark, Pulse Cards
+   - Each button navigates with pre-selected type
+
+**Content Type Icons (matching existing):**
+| Type | Icon | Color |
+|------|------|-------|
+| Quick Post | MessageSquare | Orange |
+| Reel | Film | Pink |
+| Podcast | Mic | Purple |
+| Article | FileText | Blue |
+| Spark | Zap | Yellow |
+| Pulse Cards | Layers | Cyan |
+
+---
+
+### Phase 2: Update PulseFeedPage
+
+**File:** `src/pages/pulse/PulseFeedPage.tsx`
+
+**Changes:**
+1. Import `StartPostWidget`
+2. Add widget below `ProfileBuildBanner` for all users (not just first-time)
+3. Pass provider info (id, name, avatar)
+
+**New Structure:**
 ```tsx
-// When isFirstTime, show motivational message
+{/* Profile build banner - first-time users only */}
 {isFirstTime && (
-  <div className="text-center py-6 text-muted-foreground">
-    <Trophy className="h-8 w-8 mx-auto mb-2 opacity-50" />
-    <p className="text-sm">Build your profile to join the rankings!</p>
+  <div className="p-4 border-b">
+    <ProfileBuildBanner />
   </div>
 )}
-```
 
-### 4. Update `RightSidebar.tsx` 
-
-**Already has `isFirstTime` prop** - Just verify it passes correctly to widgets
-
-### 5. Update `DailyStandupWidget.tsx`
-
-**Add:** First-time state
-
-```tsx
-{isFirstTime ? (
-  <div className="text-center py-4">
-    <p className="text-sm text-muted-foreground">
-      Complete your profile to start tracking daily streaks
-    </p>
-  </div>
-) : (
-  // Existing standup content
-)}
-```
-
-### 6. Update `QuickActionsWidget.tsx`
-
-**Already adapts to first-time users** - The profile progress indicator adjusts based on `profileProgress` prop
-
-### 7. Update `PulseLayout.tsx`
-
-**Add:** Pass `isFirstTime` to LeftSidebar
-
-```tsx
-<LeftSidebar providerId={providerId} isFirstTime={isFirstTime} />
+{/* Start a Post widget - all users */}
+<div className="p-4 border-b">
+  <StartPostWidget 
+    providerId={provider?.id}
+    providerName={providerName}
+    isFirstTime={isFirstTime}
+  />
+</div>
 ```
 
 ---
+
+### Phase 3: Add Avatar URL Fetching
+
+Since `solution_providers` doesn't have an avatar field but the `profiles` table does, we need to:
+
+**Option A: Fetch from profiles table**
+- Join or separate query to get `avatar_url` from `profiles` table using `user_id`
+
+**Option B: Use Auth user metadata**
+- Some setups store avatar in auth user metadata
+
+**Recommended Approach:**
+Create a helper hook or modify the provider fetch to include profile avatar. For now, the component will use initials fallback (like existing PersonalizedFeedHeader).
+
+---
+
+## Component Styling
+
+**StartPostWidget visual design:**
+```css
+/* Card container */
+- White/card background
+- Rounded border (rounded-xl)
+- Border: primary/20 (green tint like image)
+- Padding: p-4
+
+/* Avatar */
+- Size: 48x48 (h-12 w-12)
+- Border: 2px solid green-500 (matching image)
+- Rounded full
+
+/* Input mock */
+- Full width flex-1
+- Border: 1px rounded-full
+- Light gray background (muted/10)
+- Click cursor
+
+/* Quick action buttons */
+- Grid or flex row
+- Icon + label vertically stacked
+- Each colored per content type
+- Hover state with slight scale
+```
+
+---
+
+## Files to Create
+
+| File | Purpose |
+|------|---------|
+| `src/components/pulse/widgets/StartPostWidget.tsx` | Main "Start a Post" component |
 
 ## Files to Modify
 
-| File | Change |
-|------|--------|
-| `src/pages/pulse/PulseFeedPage.tsx` | Set `showSidebars={true}` always |
-| `src/components/pulse/layout/PulseLayout.tsx` | Pass `isFirstTime` to LeftSidebar |
-| `src/components/pulse/layout/LeftSidebar.tsx` | Accept and pass `isFirstTime` prop |
-| `src/components/pulse/widgets/LeaderboardMiniWidget.tsx` | Add first-time user state |
-| `src/components/pulse/widgets/DailyStandupWidget.tsx` | Add first-time user message |
+| File | Changes |
+|------|---------|
+| `src/components/pulse/widgets/index.ts` | Export StartPostWidget |
+| `src/pages/pulse/PulseFeedPage.tsx` | Add StartPostWidget below banner |
 
 ---
 
-## Expected Result
+## Visual Result
 
-### Before (Current - Empty)
+**Desktop (with sidebars):**
 ```
-┌────────────────────────────────────────────────────┐
-│                    MAIN FEED                       │
-│              (no left/right sidebars)              │
-│                                                    │
-└────────────────────────────────────────────────────┘
+┌─────────────┬─────────────────────────────────┬─────────────┐
+│ LEFT        │  ┌─ Ready to stand out? ──────┐ │ RIGHT       │
+│ SIDEBAR     │  │  ...banner content...      │ │ SIDEBAR     │
+│             │  └────────────────────────────┘ │             │
+│             │  ┌─ Start a Post ─────────────┐ │             │
+│             │  │ [Photo] Start a Post____   │ │             │
+│             │  │                             │ │             │
+│             │  │ Post  Reel  Pod  Art  Spark│ │             │
+│             │  │                    Cards   │ │             │
+│             │  └────────────────────────────┘ │             │
+│             │                                 │             │
+│             │  FEED CONTENT...                │             │
+└─────────────┴─────────────────────────────────┴─────────────┘
 ```
 
-### After (Fixed - Full Layout)
+**Mobile:**
 ```
-┌──────────┬──────────────────────┬──────────────────┐
-│ LEFT     │     MAIN FEED        │   RIGHT          │
-│ SIDEBAR  │                      │   SIDEBAR        │
-├──────────┼──────────────────────┼──────────────────┤
-│ [Leader- │ Profile Build Banner │ [Daily Standup]  │
-│  board]  │                      │ "Complete profile│
-│ "Build   │ Feed Content         │  to track..."    │
-│  profile │                      │                  │
-│  to join │                      │ [Quick Actions]  │
-│  ranks"  │                      │ Build Profile CTA│
-└──────────┴──────────────────────┴──────────────────┘
+┌─────────────────────────────────┐
+│  Ready to stand out? banner    │
+├─────────────────────────────────┤
+│ [Photo] Start a Post____       │
+│                                 │
+│ Post  Reel  Pod  Art  Spark    │
+│                       Cards    │
+├─────────────────────────────────┤
+│  FEED CONTENT...                │
+│                                 │
+└─────────────────────────────────┘
 ```
 
 ---
 
 ## Technical Notes
 
-1. **No breaking changes** - Just enabling existing sidebar components
-2. **Graceful degradation** - Widgets adapt their content based on `isFirstTime` prop
-3. **Consistent with other pages** - Other Pulse pages (Sparks, Cards, Ranks) may need same fix
-4. **Desktop-only** - Sidebars are still hidden on mobile (responsive design preserved)
+1. **Reuse content types config** - Import from PulseCreatePage or extract to shared constants
+2. **Navigation with state** - Pass selected type to create page via router state
+3. **First-time users** - Widget still shows but clicking navigates to welcome flow instead
+4. **Responsive** - Buttons wrap on smaller screens if needed
+5. **Accessibility** - Proper labels and keyboard navigation
 
