@@ -155,6 +155,60 @@ export function getPreferredFacingMode(): 'user' | 'environment' {
 }
 
 // =====================================================
+// LIVE PREVIEW VALIDATION
+// =====================================================
+
+export interface PreviewCheckResult {
+  isValid: boolean;
+  avgBrightness: number;
+}
+
+/**
+ * Check if camera preview is not black BEFORE starting recording
+ * This catches physical camera covers, wrong device selection, etc.
+ * 
+ * @param video - The live video preview element
+ * @returns Object with isValid flag and brightness value
+ */
+export function checkPreviewNotBlack(video: HTMLVideoElement): PreviewCheckResult {
+  try {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    
+    if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) {
+      console.log('[videoUtils] Cannot check preview - no dimensions');
+      return { isValid: true, avgBrightness: -1 }; // Can't check = assume valid
+    }
+    
+    // Small sample for fast check
+    canvas.width = 64;
+    canvas.height = 48;
+    ctx.drawImage(video, 0, 0, 64, 48);
+    
+    const imageData = ctx.getImageData(0, 0, 64, 48);
+    const pixels = imageData.data;
+    
+    let totalBrightness = 0;
+    const sampleCount = pixels.length / 16; // Sample every 4th pixel (RGBA)
+    
+    for (let i = 0; i < pixels.length; i += 16) {
+      totalBrightness += (pixels[i] + pixels[i + 1] + pixels[i + 2]) / 3;
+    }
+    
+    const avgBrightness = totalBrightness / sampleCount;
+    
+    // Threshold of 5: anything above complete black is considered valid
+    // This allows for very dark scenes while catching covered cameras
+    const isValid = avgBrightness > 5;
+    
+    return { isValid, avgBrightness };
+  } catch (e) {
+    console.warn('[videoUtils] Preview check error:', e);
+    return { isValid: true, avgBrightness: -1 }; // Error = assume valid
+  }
+}
+
+// =====================================================
 // RECORDING VALIDATION
 // =====================================================
 
@@ -195,7 +249,10 @@ export async function validateRecordedVideo(blob: Blob): Promise<RecordingValida
 
 /**
  * Check if a video blob has actual visual content (not black screen)
- * Samples a frame and checks for pixel variance
+ * FIXED: Uses canplaythrough + play() pattern for WebM blob compatibility
+ * 
+ * Previous issue: WebM blobs from MediaRecorder lack complete metadata,
+ * causing seek-based validation to fail (canvas draws black frame).
  */
 async function checkVideoHasContent(blob: Blob): Promise<boolean> {
   return new Promise((resolve) => {
@@ -204,32 +261,30 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
     
     video.muted = true;
     video.playsInline = true;
+    video.preload = 'auto'; // Force preload for better WebM handling
     
     const cleanup = () => {
       URL.revokeObjectURL(url);
+      video.pause();
       video.src = '';
     };
     
     const timeoutId = setTimeout(() => {
+      console.log('[videoUtils] Content check timeout - assuming valid');
       cleanup();
       resolve(true); // Timeout = assume valid
     }, 5000);
     
-    video.onloadedmetadata = () => {
-      // Seek to 1 second or 10% into the video
-      video.currentTime = Math.min(1, video.duration * 0.1);
-    };
-    
-    video.onseeked = () => {
-      clearTimeout(timeoutId);
-      
+    // Frame analysis function - checks both variance AND brightness
+    const analyzeFrame = () => {
       try {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
         if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) {
+          console.log('[videoUtils] Cannot analyze - no video dimensions');
           cleanup();
-          resolve(true); // Can't check = assume valid
+          resolve(true); // Can't analyze = assume valid
           return;
         }
         
@@ -244,9 +299,10 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
         const imageData = ctx.getImageData(0, 0, sampleWidth, sampleHeight);
         const pixels = imageData.data;
         
-        // Check pixel variance - if all pixels are nearly identical, it's likely black/blank
+        // Improved: Calculate BOTH variance AND absolute brightness
+        let totalBrightness = 0;
         let variance = 0;
-        const sampleSize = Math.min(pixels.length / 4, 1000); // Sample up to 1000 pixels
+        const sampleSize = Math.min(pixels.length / 4, 1000);
         const step = Math.floor(pixels.length / 4 / sampleSize);
         
         let prevR = pixels[0];
@@ -258,19 +314,26 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
           const g = pixels[i + 1];
           const b = pixels[i + 2];
           
+          totalBrightness += (r + g + b) / 3;
           variance += Math.abs(r - prevR) + Math.abs(g - prevG) + Math.abs(b - prevB);
           prevR = r;
           prevG = g;
           prevB = b;
         }
         
+        const avgBrightness = totalBrightness / sampleSize;
         const avgVariance = variance / sampleSize;
-        console.log('[videoUtils] Video content variance:', avgVariance);
+        
+        console.log('[videoUtils] Frame analysis:', { avgBrightness, avgVariance, sampleSize });
         
         cleanup();
         
-        // If variance is very low (< 2), likely a black/blank screen
-        resolve(avgVariance >= 2);
+        // Accept if EITHER:
+        // 1. Variance >= 2 (has visual detail/edges)
+        // 2. Brightness > 10 (not completely black, could be dim scene)
+        const isValid = avgVariance >= 2 || avgBrightness > 10;
+        console.log('[videoUtils] Content validation result:', isValid);
+        resolve(isValid);
         
       } catch (error) {
         console.warn('[videoUtils] Frame analysis failed:', error);
@@ -279,14 +342,55 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
       }
     };
     
+    // FIXED: Use canplaythrough + play pattern for WebM compatibility
+    // Previous pattern (loadedmetadata + seek) fails for MediaRecorder blobs
+    video.oncanplaythrough = () => {
+      clearTimeout(timeoutId);
+      console.log('[videoUtils] Video canplaythrough, duration:', video.duration);
+      
+      // For short videos or invalid duration, analyze first frame directly
+      if (!isFinite(video.duration) || video.duration < 2) {
+        console.log('[videoUtils] Short/invalid duration - analyzing current frame');
+        analyzeFrame();
+        return;
+      }
+      
+      // For longer videos, try to get a frame at 1 second
+      const seekTarget = Math.min(1, video.duration * 0.1);
+      
+      const onTimeUpdate = () => {
+        if (video.currentTime >= seekTarget * 0.8) {
+          video.removeEventListener('timeupdate', onTimeUpdate);
+          console.log('[videoUtils] Reached target time:', video.currentTime);
+          analyzeFrame();
+        }
+      };
+      
+      video.addEventListener('timeupdate', onTimeUpdate);
+      video.currentTime = seekTarget;
+      
+      // Ensure playback starts - if it fails, analyze anyway
+      video.play().catch(() => {
+        console.log('[videoUtils] Play failed during seek - analyzing current frame');
+        video.removeEventListener('timeupdate', onTimeUpdate);
+        analyzeFrame();
+      });
+    };
+    
     video.onerror = () => {
       clearTimeout(timeoutId);
+      console.warn('[videoUtils] Video error during validation');
       cleanup();
       resolve(true); // Error = assume valid, let upload proceed
     };
     
     video.src = url;
     video.load();
+    
+    // Start playback attempt immediately (helps with WebM metadata loading)
+    video.play().catch(() => {
+      console.log('[videoUtils] Initial play attempt failed - waiting for canplaythrough');
+    });
   });
 }
 
