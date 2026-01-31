@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, Film, Mic, FileText, Zap, Layers } from 'lucide-react';
+import { Film, Mic, Zap, FileText, Image, MessageSquare, Layers } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -13,12 +13,13 @@ interface StartPostWidgetProps {
 }
 
 const CONTENT_TYPES = [
-  { id: 'quick_post', label: 'Quick Post', icon: MessageSquare, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
   { id: 'reel', label: 'Reel', icon: Film, color: 'text-pink-500', bgColor: 'bg-pink-500/10' },
   { id: 'podcast', label: 'Podcast', icon: Mic, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
-  { id: 'article', label: 'Article', icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
   { id: 'spark', label: 'Spark', icon: Zap, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
-  { id: 'pulse_card', label: 'Pulse Cards', icon: Layers, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
+  { id: 'article', label: 'Article', icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-green-500', bgColor: 'bg-green-500/10' },
+  { id: 'post', label: 'Quick Post', icon: MessageSquare, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  { id: 'pulse-cards', label: 'Pulse Cards', icon: Layers, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
 ] as const;
 
 export function StartPostWidget({
@@ -51,9 +52,16 @@ export function StartPostWidget({
   const handleContentTypeClick = (typeId: string) => {
     if (isFirstTime) {
       navigate('/welcome');
-    } else {
-      navigate('/pulse/create', { state: { selectedType: typeId } });
+      return;
     }
+    
+    // Special case: Pulse Cards navigates directly
+    if (typeId === 'pulse-cards') {
+      navigate('/pulse/cards');
+      return;
+    }
+    
+    navigate('/pulse/create', { state: { type: typeId } });
   };
 
   return (
@@ -82,7 +90,7 @@ export function StartPostWidget({
       </div>
 
       {/* Quick Action Buttons Row */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
         {CONTENT_TYPES.map(({ id, label, icon: Icon, color, bgColor }) => (
           <button
             key={id}
