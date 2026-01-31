@@ -1,214 +1,93 @@
 
 
-# Plan: Add "Start a Post" Creator Widget Below Profile Build Banner
+# Plan: Align StartPostWidget Icons with PulseCreatePage
 
-## Overview
+## Problem Identified
 
-Create a LinkedIn-style "Start a Post" widget to be displayed **below the "Ready to stand out?" banner** on the Industry Pulse feed. This widget provides quick access to content creation directly from the feed.
+The `StartPostWidget` (feed widget) has **different content type IDs** than `PulseCreatePage`, causing the pre-selection to fail when navigating.
 
----
+### Current Mismatches
 
-## Design Reference Analysis
+| Widget ID | Create Page ID | Match? |
+|-----------|----------------|--------|
+| `quick_post` | `post` | ❌ |
+| `pulse_card` | `pulse-cards` | ❌ |
+| (missing) | `gallery` | ❌ |
 
-Based on the uploaded image, the component structure is:
-
-```
-┌──────────────────────────────────────────────────────────────┐
-│ ┌─────┐                                                      │
-│ │Photo│  Start a Post ___________________________            │
-│ └─────┘                                                      │
-│                                                              │
-│  📝           📹          🎙️           📄          ⚡         │
-│ Quick Post   Reel       Podcast      Article     Spark      │
-│                                                              │
-│                                                    📚        │
-│                                               Pulse Cards    │
-└──────────────────────────────────────────────────────────────┘
-```
-
-**Key Design Elements:**
-- Provider photo on left with green border
-- "Start a Post" text input area (click opens create flow)
-- 6 quick action buttons with icons and labels below
+When user clicks "Quick Post" on the widget, it passes `selectedType: 'quick_post'`, but PulseCreatePage looks for `post`.
 
 ---
 
-## Implementation Details
+## Solution
 
-### Phase 1: Create the StartPostWidget Component
+Update `StartPostWidget.tsx` to match **exact IDs, order, and include Gallery**:
 
-**File:** `src/components/pulse/widgets/StartPostWidget.tsx`
+### Updated CONTENT_TYPES Configuration
 
-**Props:**
 ```typescript
-interface StartPostWidgetProps {
-  providerId?: string;
-  providerName?: string;
-  providerAvatar?: string | null;
-  isFirstTime?: boolean;
-  className?: string;
-}
-```
+import { Film, Mic, Zap, FileText, Image, MessageSquare, Layers } from 'lucide-react';
 
-**Features:**
-1. **Avatar Section** (left side):
-   - Show provider photo with green border (like the image)
-   - Fallback to initials if no avatar
-   - Use existing Avatar component
-
-2. **Input Area** (center):
-   - Clickable div styled like input
-   - "Start a Post" placeholder text
-   - Click navigates to `/pulse/create`
-
-3. **Quick Actions Row** (bottom):
-   - 6 content type buttons matching PulseCreatePage
-   - Order: Quick Post, Reel, Podcast, Article, Spark, Pulse Cards
-   - Each button navigates with pre-selected type
-
-**Content Type Icons (matching existing):**
-| Type | Icon | Color |
-|------|------|-------|
-| Quick Post | MessageSquare | Orange |
-| Reel | Film | Pink |
-| Podcast | Mic | Purple |
-| Article | FileText | Blue |
-| Spark | Zap | Yellow |
-| Pulse Cards | Layers | Cyan |
-
----
-
-### Phase 2: Update PulseFeedPage
-
-**File:** `src/pages/pulse/PulseFeedPage.tsx`
-
-**Changes:**
-1. Import `StartPostWidget`
-2. Add widget below `ProfileBuildBanner` for all users (not just first-time)
-3. Pass provider info (id, name, avatar)
-
-**New Structure:**
-```tsx
-{/* Profile build banner - first-time users only */}
-{isFirstTime && (
-  <div className="p-4 border-b">
-    <ProfileBuildBanner />
-  </div>
-)}
-
-{/* Start a Post widget - all users */}
-<div className="p-4 border-b">
-  <StartPostWidget 
-    providerId={provider?.id}
-    providerName={providerName}
-    isFirstTime={isFirstTime}
-  />
-</div>
+const CONTENT_TYPES = [
+  { id: 'reel', label: 'Reel', icon: Film, color: 'text-pink-500', bgColor: 'bg-pink-500/10' },
+  { id: 'podcast', label: 'Podcast', icon: Mic, color: 'text-purple-500', bgColor: 'bg-purple-500/10' },
+  { id: 'spark', label: 'Spark', icon: Zap, color: 'text-yellow-500', bgColor: 'bg-yellow-500/10' },
+  { id: 'article', label: 'Article', icon: FileText, color: 'text-blue-500', bgColor: 'bg-blue-500/10' },
+  { id: 'gallery', label: 'Gallery', icon: Image, color: 'text-green-500', bgColor: 'bg-green-500/10' },
+  { id: 'post', label: 'Quick Post', icon: MessageSquare, color: 'text-orange-500', bgColor: 'bg-orange-500/10' },
+  { id: 'pulse-cards', label: 'Pulse Cards', icon: Layers, color: 'text-cyan-500', bgColor: 'bg-cyan-500/10' },
+] as const;
 ```
 
 ---
 
-### Phase 3: Add Avatar URL Fetching
+## Changes Required
 
-Since `solution_providers` doesn't have an avatar field but the `profiles` table does, we need to:
+### File: `src/components/pulse/widgets/StartPostWidget.tsx`
 
-**Option A: Fetch from profiles table**
-- Join or separate query to get `avatar_url` from `profiles` table using `user_id`
+| Change | From | To |
+|--------|------|-----|
+| Import | Missing `Image` | Add `Image` import |
+| Order | Random order | Match create page order |
+| ID | `quick_post` | `post` |
+| ID | `pulse_card` | `pulse-cards` |
+| Add | - | `gallery` type |
+| Grid | `grid-cols-3 sm:grid-cols-6` | `grid-cols-4 sm:grid-cols-7` (7 items) |
 
-**Option B: Use Auth user metadata**
-- Some setups store avatar in auth user metadata
+### Special Handling for Pulse Cards
 
-**Recommended Approach:**
-Create a helper hook or modify the provider fetch to include profile avatar. For now, the component will use initials fallback (like existing PersonalizedFeedHeader).
+The create page handles `pulse-cards` with a special `navigateTo` property. When clicking Pulse Cards in the widget, we should navigate directly to `/pulse/cards` instead of the create page.
 
----
-
-## Component Styling
-
-**StartPostWidget visual design:**
-```css
-/* Card container */
-- White/card background
-- Rounded border (rounded-xl)
-- Border: primary/20 (green tint like image)
-- Padding: p-4
-
-/* Avatar */
-- Size: 48x48 (h-12 w-12)
-- Border: 2px solid green-500 (matching image)
-- Rounded full
-
-/* Input mock */
-- Full width flex-1
-- Border: 1px rounded-full
-- Light gray background (muted/10)
-- Click cursor
-
-/* Quick action buttons */
-- Grid or flex row
-- Icon + label vertically stacked
-- Each colored per content type
-- Hover state with slight scale
+```typescript
+const handleContentTypeClick = (typeId: string) => {
+  if (isFirstTime) {
+    navigate('/welcome');
+    return;
+  }
+  
+  // Special case: Pulse Cards navigates directly
+  if (typeId === 'pulse-cards') {
+    navigate('/pulse/cards');
+    return;
+  }
+  
+  navigate('/pulse/create', { state: { selectedType: typeId } });
+};
 ```
 
 ---
-
-## Files to Create
-
-| File | Purpose |
-|------|---------|
-| `src/components/pulse/widgets/StartPostWidget.tsx` | Main "Start a Post" component |
 
 ## Files to Modify
 
 | File | Changes |
 |------|---------|
-| `src/components/pulse/widgets/index.ts` | Export StartPostWidget |
-| `src/pages/pulse/PulseFeedPage.tsx` | Add StartPostWidget below banner |
+| `src/components/pulse/widgets/StartPostWidget.tsx` | Fix IDs, add Gallery, update order, handle Pulse Cards navigation |
 
 ---
 
-## Visual Result
+## Expected Result
 
-**Desktop (with sidebars):**
-```
-┌─────────────┬─────────────────────────────────┬─────────────┐
-│ LEFT        │  ┌─ Ready to stand out? ──────┐ │ RIGHT       │
-│ SIDEBAR     │  │  ...banner content...      │ │ SIDEBAR     │
-│             │  └────────────────────────────┘ │             │
-│             │  ┌─ Start a Post ─────────────┐ │             │
-│             │  │ [Photo] Start a Post____   │ │             │
-│             │  │                             │ │             │
-│             │  │ Post  Reel  Pod  Art  Spark│ │             │
-│             │  │                    Cards   │ │             │
-│             │  └────────────────────────────┘ │             │
-│             │                                 │             │
-│             │  FEED CONTENT...                │             │
-└─────────────┴─────────────────────────────────┴─────────────┘
-```
-
-**Mobile:**
-```
-┌─────────────────────────────────┐
-│  Ready to stand out? banner    │
-├─────────────────────────────────┤
-│ [Photo] Start a Post____       │
-│                                 │
-│ Post  Reel  Pod  Art  Spark    │
-│                       Cards    │
-├─────────────────────────────────┤
-│  FEED CONTENT...                │
-│                                 │
-└─────────────────────────────────┘
-```
-
----
-
-## Technical Notes
-
-1. **Reuse content types config** - Import from PulseCreatePage or extract to shared constants
-2. **Navigation with state** - Pass selected type to create page via router state
-3. **First-time users** - Widget still shows but clicking navigates to welcome flow instead
-4. **Responsive** - Buttons wrap on smaller screens if needed
-5. **Accessibility** - Proper labels and keyboard navigation
+After fix, clicking any icon in the widget will:
+1. Navigate to `/pulse/create` with correct pre-selected type
+2. For Pulse Cards: Navigate directly to `/pulse/cards`
+3. Match exact behavior of the create page
 
