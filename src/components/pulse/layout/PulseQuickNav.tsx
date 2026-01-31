@@ -17,7 +17,7 @@ export function PulseQuickNav() {
 
   return (
     <nav 
-      className="hidden lg:flex items-center justify-center gap-0.5 px-2 py-1.5"
+      className="hidden lg:flex items-center justify-center gap-0.5 px-2 py-1.5 overflow-x-auto scrollbar-hide"
       aria-label="Pulse navigation"
       role="navigation"
     >
@@ -30,9 +30,10 @@ export function PulseQuickNav() {
             key={item.path}
             to={item.path}
             className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+              "flex items-center gap-1 lg:gap-1.5 px-2 lg:px-2.5 py-1.5 rounded-md text-[11px] lg:text-xs font-medium transition-colors whitespace-nowrap flex-shrink-0",
               "hover:bg-accent hover:text-accent-foreground",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+              "min-h-[36px]",
               isActive
                 ? "bg-primary/10 text-primary"
                 : "text-muted-foreground"
@@ -40,7 +41,7 @@ export function PulseQuickNav() {
             aria-current={isActive ? 'page' : undefined}
           >
             <Icon className={cn("h-3.5 w-3.5 flex-shrink-0", isActive && "stroke-[2.5]")} aria-hidden="true" />
-            <span>{item.label}</span>
+            <span className="hidden xl:inline">{item.label}</span>
           </NavLink>
         );
       })}

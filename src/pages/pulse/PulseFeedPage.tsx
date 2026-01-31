@@ -35,17 +35,17 @@ export default function PulseFeedPage() {
   if (firstTimeLoading) {
     return (
       <PulseLayout showSidebars={false}>
-        <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4" aria-label="Loading feed">
+        <div className="w-full px-2 sm:px-4 lg:px-0 lg:max-w-2xl lg:mx-auto space-y-4" aria-label="Loading feed">
           {[1, 2, 3].map(i => (
-            <div key={i} className="space-y-3 p-4 border-b">
-              <div className="flex gap-3">
-                <Skeleton className="h-10 w-10 rounded-full" />
+            <div key={i} className="space-y-3 p-3 sm:p-4 border-b">
+              <div className="flex gap-2 sm:gap-3">
+                <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0" />
                 <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-32" />
-                  <Skeleton className="h-3 w-20" />
+                  <Skeleton className="h-4 w-24 sm:w-32" />
+                  <Skeleton className="h-3 w-16 sm:w-20" />
                 </div>
               </div>
-              <Skeleton className="h-40 w-full rounded-lg" />
+              <Skeleton className="h-32 sm:h-40 w-full rounded-lg" />
             </div>
           ))}
         </div>
@@ -61,7 +61,7 @@ export default function PulseFeedPage() {
         isFirstTime={isFirstTime}
         showSidebars={true}
       >
-        <div className="max-w-lg mx-auto lg:max-w-none p-4">
+        <div className="w-full px-2 sm:px-4 lg:px-0 lg:max-w-2xl lg:mx-auto">
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Failed to load feed</AlertTitle>
@@ -95,17 +95,17 @@ export default function PulseFeedPage() {
       isFirstTime={isFirstTime}
       showSidebars={true}
     >
-      <div className="max-w-lg mx-auto lg:max-w-none">
+      <div className="w-full">
         {/* First-time user: Show profile build banner */}
         {isFirstTime && (
-          <div className="p-4 border-b">
+          <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
             <ProfileBuildBanner />
           </div>
         )}
 
         {/* Start a Post widget - all users with provider */}
         {provider && (
-          <div className="p-4 border-b">
+          <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
             <StartPostWidget
               providerId={provider.id}
               providerName={providerName}
@@ -124,17 +124,17 @@ export default function PulseFeedPage() {
 
         {/* Daily Standup Banner - only for returning users on mobile (desktop shows in sidebar) */}
         {!isFirstTime && provider && (
-          <div className="p-4 border-b lg:hidden">
+          <div className="px-2 sm:px-4 py-3 sm:py-4 border-b lg:hidden">
             <DailyStandupBanner providerId={provider.id} />
           </div>
         )}
 
         {/* Feed Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm border-b">
-          <div className="flex items-center justify-between px-4 py-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary" aria-hidden="true" />
-              <span className="font-medium text-sm">
+          <div className="flex items-center justify-between px-2 sm:px-4 py-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-primary" aria-hidden="true" />
+              <span className="font-medium text-xs sm:text-sm">
                 {isFirstTime ? 'INDUSTRY PULSE' : 'YOUR FEED'}
               </span>
             </div>
@@ -153,31 +153,31 @@ export default function PulseFeedPage() {
         </div>
 
         {isLoading ? (
-          <div className="p-4 space-y-4" aria-label="Loading content">
+          <div className="px-2 sm:px-4 py-4 space-y-4" aria-label="Loading content">
             {[1, 2, 3].map(i => (
-              <div key={i} className="space-y-3 p-4 border rounded-lg">
-                <div className="flex gap-3">
-                  <Skeleton className="h-10 w-10 rounded-full" />
+              <div key={i} className="space-y-3 p-3 sm:p-4 border rounded-lg">
+                <div className="flex gap-2 sm:gap-3">
+                  <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0" />
                   <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-20" />
+                    <Skeleton className="h-4 w-24 sm:w-32" />
+                    <Skeleton className="h-3 w-16 sm:w-20" />
                   </div>
                 </div>
-                <Skeleton className="h-40 w-full rounded-lg" />
+                <Skeleton className="h-32 sm:h-40 w-full rounded-lg" />
                 <div className="flex gap-2">
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
-                  <Skeleton className="h-8 w-16" />
+                  <Skeleton className="h-7 sm:h-8 w-14 sm:w-16" />
+                  <Skeleton className="h-7 sm:h-8 w-14 sm:w-16" />
+                  <Skeleton className="h-7 sm:h-8 w-14 sm:w-16" />
                 </div>
               </div>
             ))}
           </div>
         ) : !feedItems || feedItems.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Rss className="h-8 w-8 text-primary" aria-hidden="true" />
+          <div className="text-center py-12 sm:py-16 px-4">
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Rss className="h-7 w-7 sm:h-8 sm:w-8 text-primary" aria-hidden="true" />
             </div>
-            <p className="text-lg font-medium mb-2">
+            <p className="text-base sm:text-lg font-medium mb-2">
               {isFirstTime ? 'Welcome to Industry Pulse!' : 'Your feed is empty'}
             </p>
             <p className="text-muted-foreground text-sm mb-6">

@@ -14,37 +14,37 @@ export function ProfileBuildBanner({ className, profileProgress = 10 }: ProfileB
 
   return (
     <div 
-      className={`relative overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary/95 to-emerald-600 p-5 shadow-lg ${className}`}
+      className={`relative overflow-hidden rounded-xl bg-gradient-to-r from-primary via-primary/95 to-emerald-600 p-4 sm:p-5 shadow-lg ${className}`}
     >
-      {/* Decorative elements */}
-      <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-sm" />
-      <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
-      <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-amber-400/20 rounded-full blur-md" />
+      {/* Decorative elements - scale with container */}
+      <div className="absolute top-0 right-0 w-24 sm:w-40 h-24 sm:h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/4 blur-sm" />
+      <div className="absolute bottom-0 left-0 w-20 sm:w-32 h-20 sm:h-32 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/4" />
+      <div className="absolute top-1/2 right-1/4 w-12 sm:w-20 h-12 sm:h-20 bg-amber-400/20 rounded-full blur-md" />
       
-      <div className="relative z-10 space-y-4">
+      <div className="relative z-10 space-y-3 sm:space-y-4">
         {/* Header Section */}
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 h-14 w-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner">
-            <Sparkles className="h-7 w-7 text-white" />
+        <div className="flex items-start gap-3 sm:gap-4">
+          <div className="flex-shrink-0 h-10 w-10 sm:h-14 sm:w-14 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm shadow-inner">
+            <Sparkles className="h-5 w-5 sm:h-7 sm:w-7 text-white" />
           </div>
           
           <div className="flex-1 min-w-0">
-            <h3 className="text-white font-bold text-xl tracking-tight">
+            <h3 className="text-white font-bold text-lg sm:text-xl tracking-tight">
               Ready to Stand Out?
             </h3>
-            <p className="text-white/90 text-sm mt-1 font-medium italic">
+            <p className="text-white/90 text-xs sm:text-sm mt-0.5 sm:mt-1 font-medium italic">
               Solve Industry Problems and be a Game Changer
             </p>
           </div>
         </div>
 
-        {/* CTA Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+        {/* CTA Section - stacks on mobile */}
+        <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center">
           <Button
             onClick={() => navigate('/welcome')}
             variant="secondary"
-            size="lg"
-            className="flex-shrink-0 bg-white text-primary hover:bg-white/90 font-semibold shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
+            size="default"
+            className="flex-shrink-0 w-full sm:w-auto bg-white text-primary hover:bg-white/90 font-semibold shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
           >
             Let's Build Your Profile
             <ArrowRight className="h-4 w-4 ml-2" />

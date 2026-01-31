@@ -20,7 +20,7 @@ export function PulseBottomNav() {
       aria-label="Pulse navigation"
       role="navigation"
     >
-      <div className="h-full max-w-lg mx-auto flex items-center justify-around px-2">
+      <div className="h-full w-full max-w-lg mx-auto flex items-center justify-around px-1 sm:px-2">
         {navItems.map((item) => {
           const isActive = location.pathname.startsWith(item.path);
           const Icon = item.icon;
@@ -33,7 +33,7 @@ export function PulseBottomNav() {
               key={item.path}
               to={item.path}
               className={cn(
-                "flex flex-col items-center justify-center gap-0.5 px-3 py-1.5 rounded-lg transition-colors min-w-[60px] min-h-[44px]",
+                "flex flex-col items-center justify-center gap-0.5 px-2 sm:px-3 py-1.5 rounded-lg transition-colors min-w-[48px] sm:min-w-[56px] min-h-[44px] touch-target",
                 isActive 
                   ? "text-primary" 
                   : "text-muted-foreground hover:text-foreground focus-visible:text-foreground"
@@ -43,16 +43,16 @@ export function PulseBottomNav() {
             >
               {isCreate ? (
                 <div 
-                  className="h-10 w-10 rounded-full bg-primary flex items-center justify-center -mt-4 shadow-lg"
+                  className="h-9 w-9 sm:h-10 sm:w-10 rounded-full bg-primary flex items-center justify-center -mt-3 sm:-mt-4 shadow-lg"
                   aria-hidden="true"
                 >
-                  <Icon className="h-6 w-6 text-primary-foreground" />
+                  <Icon className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
                 </div>
               ) : (
-                <Icon className={cn("h-6 w-6", isActive && "stroke-[2.5]")} aria-hidden="true" />
+                <Icon className={cn("h-5 w-5 sm:h-6 sm:w-6", isActive && "stroke-[2.5]")} aria-hidden="true" />
               )}
               <span className={cn(
-                "text-[10px] font-medium",
+                "text-[9px] sm:text-[10px] font-medium",
                 isCreate && "mt-0.5"
               )}>
                 {item.label}

@@ -56,15 +56,15 @@ export function StartPostWidget({
 
   return (
     <Card className={cn(
-      'border-primary/20 bg-card p-4 rounded-xl',
+      'border-primary/20 bg-card p-3 sm:p-4 rounded-xl',
       className
     )}>
       {/* Top Row: Avatar + Input */}
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-2 sm:gap-3 mb-3 sm:mb-4">
         {/* Avatar with green border */}
-        <Avatar className="h-12 w-12 ring-2 ring-primary shrink-0">
+        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 ring-2 ring-primary shrink-0">
           <AvatarImage src={providerAvatar || undefined} alt={providerName} />
-          <AvatarFallback className="bg-primary/10 text-primary font-medium">
+          <AvatarFallback className="bg-primary/10 text-primary font-medium text-sm sm:text-base">
             {getInitials(providerName)}
           </AvatarFallback>
         </Avatar>
@@ -72,28 +72,28 @@ export function StartPostWidget({
         {/* Mock Input */}
         <button
           onClick={handleInputClick}
-          className="flex-1 h-11 px-4 rounded-full border border-border bg-muted/30 hover:bg-muted/50 transition-colors text-left text-muted-foreground text-sm cursor-pointer"
+          className="flex-1 h-9 sm:h-11 px-3 sm:px-4 rounded-full border border-border bg-muted/30 hover:bg-muted/50 transition-colors text-left text-muted-foreground text-xs sm:text-sm cursor-pointer min-w-0"
           aria-label="Start a post"
         >
           Start a Post
         </button>
       </div>
 
-      {/* Quick Action Buttons Row - 6 items */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
+      {/* Quick Action Buttons Row - 3 cols on mobile, 6 on larger */}
+      <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5 sm:gap-2">
         {CONTENT_TYPES.map(({ id, label, icon: Icon, color, bgColor }) => (
           <button
             key={id}
             onClick={() => handleContentTypeClick(id)}
             className={cn(
-              'flex flex-col items-center gap-1.5 p-2 rounded-lg transition-all',
+              'flex flex-col items-center gap-1 sm:gap-1.5 p-1.5 sm:p-2 rounded-lg transition-all min-h-[44px]',
               'hover:scale-105 hover:shadow-sm',
               bgColor
             )}
             aria-label={`Create ${label}`}
           >
-            <Icon className={cn('h-5 w-5', color)} aria-hidden="true" />
-            <span className={cn('text-xs font-medium truncate', color)}>
+            <Icon className={cn('h-4 w-4 sm:h-5 sm:w-5', color)} aria-hidden="true" />
+            <span className={cn('text-[10px] sm:text-xs font-medium truncate max-w-full', color)}>
               {label}
             </span>
           </button>
