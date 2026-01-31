@@ -5,7 +5,6 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PulseLayout } from '@/components/pulse/layout';
-import { PulseMetricsCard } from '@/components/pulse/gamification/PulseMetricsCard';
 import { usePulseFeed } from '@/hooks/queries/usePulseContent';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,8 +16,8 @@ export default function PulseSparksPage() {
 
   if (isLoading) {
     return (
-      <PulseLayout title="Sparks">
-        <div className="max-w-lg mx-auto p-4 space-y-4">
+      <PulseLayout title="Sparks" providerId={provider?.id} showSidebars>
+        <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4">
           {[1, 2, 3, 4].map(i => (
             <Skeleton key={i} className="h-32 w-full rounded-lg" />
           ))}
@@ -30,8 +29,8 @@ export default function PulseSparksPage() {
   const sparks = feedContent ?? [];
 
   return (
-    <PulseLayout title="Sparks">
-      <div className="max-w-lg mx-auto">
+    <PulseLayout title="Sparks" providerId={provider?.id} showSidebars>
+      <div className="max-w-lg mx-auto lg:max-w-none">
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-3">
             <div>
@@ -50,13 +49,6 @@ export default function PulseSparksPage() {
             Share a Spark
           </Button>
         </div>
-
-        {/* Pulse Metrics Card */}
-        {provider?.id && (
-          <div className="px-4 pb-4">
-            <PulseMetricsCard providerId={provider.id} />
-          </div>
-        )}
 
         {sparks.length === 0 ? (
           <div className="text-center py-16 px-4">
