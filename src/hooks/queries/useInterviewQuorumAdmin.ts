@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type InterviewQuorumRequirement = Tables<"interview_quorum_requirements">;
 export type InterviewQuorumRequirementInsert = TablesInsert<"interview_quorum_requirements">;
@@ -131,7 +132,7 @@ export function useSaveQuorumConfigs() {
       toast.success("Configuration saved successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save configuration: ${error.message}`);
+      handleMutationError(error, { operation: 'save_quorum_config' });
     },
   });
 }
@@ -173,7 +174,7 @@ export function useUpsertQuorumConfigs() {
       toast.success("Configuration saved successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save configuration: ${error.message}`);
+      handleMutationError(error, { operation: 'upsert_quorum_config' });
     },
   });
 }
@@ -201,7 +202,7 @@ export function useCreateQuorumConfig() {
       toast.success("Quorum configuration created");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create configuration: ${error.message}`);
+      handleMutationError(error, { operation: 'create_quorum_config' });
     },
   });
 }
@@ -230,7 +231,7 @@ export function useUpdateQuorumConfig() {
       toast.success("Quorum configuration updated");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update configuration: ${error.message}`);
+      handleMutationError(error, { operation: 'update_quorum_config' });
     },
   });
 }

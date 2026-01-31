@@ -42,7 +42,7 @@ export function useGenerateAssessmentQuestions() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Question generation failed: ${error.message}`);
+      handleMutationError(error, { operation: 'generate_assessment_questions' });
     },
   });
 }

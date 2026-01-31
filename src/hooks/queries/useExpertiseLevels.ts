@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type ExpertiseLevel = Tables<"expertise_levels">;
 export type ExpertiseLevelInsert = TablesInsert<"expertise_levels">;
@@ -57,7 +58,7 @@ export function useCreateExpertiseLevel() {
       toast.success("Expertise level created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'create_expertise_level' });
     },
   });
 }
@@ -86,7 +87,7 @@ export function useUpdateExpertiseLevel() {
       toast.success("Expertise level updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'update_expertise_level' });
     },
   });
 }
@@ -110,7 +111,7 @@ export function useDeleteExpertiseLevel() {
       toast.success("Expertise level deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_expertise_level' });
     },
   });
 }
@@ -135,7 +136,7 @@ export function useRestoreExpertiseLevel() {
       toast.success("Expertise level restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_expertise_level' });
     },
   });
 }
@@ -159,7 +160,7 @@ export function useHardDeleteExpertiseLevel() {
       toast.success("Expertise level permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete expertise level: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_expertise_level' });
     },
   });
 }

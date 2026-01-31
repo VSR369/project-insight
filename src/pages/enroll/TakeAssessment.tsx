@@ -27,6 +27,7 @@ import {
 } from '@/hooks/queries/useEnrollmentAssessment';
 import { AssessmentProgressHeader, QuestionSection, AssessmentDiagnosticBanner } from '@/components/assessment';
 import type { Json } from '@/integrations/supabase/types';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 
 // Types for hierarchical question grouping
 interface QuestionOption {
@@ -224,7 +225,7 @@ export default function TakeAssessment() {
         selectedOption: optionIndex,
       });
     } catch (error) {
-      console.error('Failed to save answer:', error);
+      logWarning('Failed to save assessment answer', { operation: 'save_assessment_answer' }, { error: (error as Error).message });
       toast.error('Failed to save answer. Please try again.');
       // Revert on error
       setAnswers(prev => ({ ...prev, [questionId]: null }));
@@ -331,7 +332,7 @@ export default function TakeAssessment() {
       toast.success('Assessment submitted (time expired)');
       navigate('/enroll/assessment/results', { state: { attemptId: attempt.id } });
     } catch (error) {
-      console.error('Failed to auto-submit assessment:', error);
+      logWarning('Failed to auto-submit assessment on time expiry', { operation: 'auto_submit_assessment' }, { error: (error as Error).message });
       // Show dialog as fallback if auto-submit fails
       setShowTimeExpiredDialog(true);
       setIsSubmitting(false);
@@ -420,7 +421,7 @@ export default function TakeAssessment() {
         toast.success(`Downloaded ${questions.length} questions as PDF`);
       })
       .catch((err: Error) => {
-        console.error('PDF generation failed:', err);
+        logWarning('PDF generation failed', { operation: 'generate_pdf' }, { error: err.message });
         toast.error('Failed to generate PDF');
       });
   }, [questions, attempt?.id, activeEnrollment]);
@@ -442,8 +443,8 @@ export default function TakeAssessment() {
       toast.success('Assessment submitted successfully!');
       navigate('/enroll/assessment/results', { state: { attemptId: attempt.id } });
     } catch (error) {
-      console.error('Failed to submit assessment:', error);
-      toast.error('Failed to submit assessment. Please try again.');
+      handleMutationError(error as Error, { operation: 'submit_assessment' });
+      setIsSubmitting(false);
       setIsSubmitting(false);
     }
   };
@@ -485,8 +486,7 @@ export default function TakeAssessment() {
         window.location.reload();
       }
     } catch (error) {
-      console.error('Failed to start assessment:', error);
-      toast.error('Failed to start assessment. Please try again.');
+      handleMutationError(error as Error, { operation: 'start_assessment' });
     }
   };
 

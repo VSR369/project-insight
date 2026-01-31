@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 // Import types for bulk import
 import type { ParsedAcademicRow } from "@/pages/admin/academic-taxonomy/types";
@@ -63,7 +64,7 @@ export function useCreateAcademicDiscipline() {
       toast.success("Discipline created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create discipline: ${error.message}`);
+      handleMutationError(error, { operation: 'create_discipline' });
     },
   });
 }
@@ -88,7 +89,7 @@ export function useUpdateAcademicDiscipline() {
       toast.success("Discipline updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update discipline: ${error.message}`);
+      handleMutationError(error, { operation: 'update_discipline' });
     },
   });
 }
@@ -109,7 +110,7 @@ export function useDeleteAcademicDiscipline() {
       toast.success("Discipline deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate discipline: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_discipline' });
     },
   });
 }
@@ -131,7 +132,7 @@ export function useRestoreAcademicDiscipline() {
       toast.success("Discipline restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore discipline: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_discipline' });
     },
   });
 }
@@ -152,7 +153,7 @@ export function useHardDeleteAcademicDiscipline() {
       toast.success("Discipline permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete discipline: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_discipline' });
     },
   });
 }
@@ -203,7 +204,7 @@ export function useCreateAcademicStream() {
       toast.success("Stream created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create stream: ${error.message}`);
+      handleMutationError(error, { operation: 'create_stream' });
     },
   });
 }
@@ -228,7 +229,7 @@ export function useUpdateAcademicStream() {
       toast.success("Stream updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update stream: ${error.message}`);
+      handleMutationError(error, { operation: 'update_stream' });
     },
   });
 }
@@ -249,7 +250,7 @@ export function useDeleteAcademicStream() {
       toast.success("Stream deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate stream: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_stream' });
     },
   });
 }
@@ -271,7 +272,7 @@ export function useRestoreAcademicStream() {
       toast.success("Stream restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore stream: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_stream' });
     },
   });
 }
@@ -292,7 +293,7 @@ export function useHardDeleteAcademicStream() {
       toast.success("Stream permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete stream: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_stream' });
     },
   });
 }
@@ -343,7 +344,7 @@ export function useCreateAcademicSubject() {
       toast.success("Subject created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create subject: ${error.message}`);
+      handleMutationError(error, { operation: 'create_subject' });
     },
   });
 }
@@ -368,7 +369,7 @@ export function useUpdateAcademicSubject() {
       toast.success("Subject updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update subject: ${error.message}`);
+      handleMutationError(error, { operation: 'update_subject' });
     },
   });
 }
@@ -389,7 +390,7 @@ export function useDeleteAcademicSubject() {
       toast.success("Subject deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate subject: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_subject' });
     },
   });
 }
@@ -411,7 +412,7 @@ export function useRestoreAcademicSubject() {
       toast.success("Subject restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore subject: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_subject' });
     },
   });
 }
@@ -432,7 +433,7 @@ export function useHardDeleteAcademicSubject() {
       toast.success("Subject permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete subject: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_subject' });
     },
   });
 }

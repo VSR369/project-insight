@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type OrganizationType = Tables<"organization_types">;
 export type OrganizationTypeInsert = TablesInsert<"organization_types">;
@@ -58,7 +59,7 @@ export function useCreateOrganizationType() {
       toast.success("Organization type created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create organization type: ${error.message}`);
+      handleMutationError(error, { operation: 'create_organization_type' });
     },
   });
 }
@@ -87,7 +88,7 @@ export function useUpdateOrganizationType() {
       toast.success("Organization type updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update organization type: ${error.message}`);
+      handleMutationError(error, { operation: 'update_organization_type' });
     },
   });
 }
@@ -111,7 +112,7 @@ export function useDeleteOrganizationType() {
       toast.success("Organization type deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate organization type: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_organization_type' });
     },
   });
 }
@@ -136,7 +137,7 @@ export function useRestoreOrganizationType() {
       toast.success("Organization type restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore organization type: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_organization_type' });
     },
   });
 }
@@ -160,7 +161,7 @@ export function useHardDeleteOrganizationType() {
       toast.success("Organization type permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete organization type: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_organization_type' });
     },
   });
 }

@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type ParticipationMode = Tables<"participation_modes">;
 export type ParticipationModeInsert = TablesInsert<"participation_modes">;
@@ -58,7 +59,7 @@ export function useCreateParticipationMode() {
       toast.success("Participation mode created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create participation mode: ${error.message}`);
+      handleMutationError(error, { operation: 'create_participation_mode' });
     },
   });
 }
@@ -87,7 +88,7 @@ export function useUpdateParticipationMode() {
       toast.success("Participation mode updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update participation mode: ${error.message}`);
+      handleMutationError(error, { operation: 'update_participation_mode' });
     },
   });
 }
@@ -111,7 +112,7 @@ export function useDeleteParticipationMode() {
       toast.success("Participation mode deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate participation mode: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_participation_mode' });
     },
   });
 }
@@ -136,7 +137,7 @@ export function useRestoreParticipationMode() {
       toast.success("Participation mode restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore participation mode: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_participation_mode' });
     },
   });
 }
@@ -160,7 +161,7 @@ export function useHardDeleteParticipationMode() {
       toast.success("Participation mode permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete participation mode: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_participation_mode' });
     },
   });
 }

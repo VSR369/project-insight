@@ -331,20 +331,6 @@ export function WizardLayout({
   }, [isOrgRequired, activeEnrollment?.organization, orgApprovalStatus]);
 
   const handleStepClick = (stepId: number) => {
-    // PHASE C: Add diagnostic logging for step navigation debugging
-    console.log('[WizardStepper] Step click:', {
-      targetStep: stepId,
-      currentStep,
-      enrollmentId: activeEnrollmentId,
-      lifecycleStatus: activeEnrollment?.lifecycle_status,
-      lifecycleRank,
-      completedSteps,
-      lockedSteps,
-      proofPointsCount,
-      assessmentPassed: assessmentResult?.is_passed,
-      interviewBooked: !!interviewBooking?.id,
-    });
-    
     // Block navigation to step 2 (Mode) ONLY if pending approval exists
     // This is the only true navigation block - prevents changing mode while approval is pending
     if (stepId === 2 && isModeStepBlocked) {

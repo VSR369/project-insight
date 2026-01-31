@@ -7,6 +7,8 @@
  * - Post-recording validation (black screen detection)
  */
 
+import { logInfo, logWarning } from "@/lib/errorHandler";
+
 // =====================================================
 // CONSTANTS
 // =====================================================
@@ -38,12 +40,12 @@ export function getSupportedVideoMimeType(): string {
   
   for (const mimeType of mimeTypes) {
     if (MediaRecorder.isTypeSupported(mimeType)) {
-      console.log('[videoUtils] Supported mimeType:', mimeType);
+      logInfo('Video MIME type supported', { operation: 'getSupportedVideoMimeType' }, { mimeType });
       return mimeType;
     }
   }
   
-  console.warn('[videoUtils] No preferred mimeType supported, using browser default');
+  logWarning('No preferred MIME type supported, using browser default', { operation: 'getSupportedVideoMimeType' });
   return '';
 }
 
@@ -96,7 +98,7 @@ export async function getVideoInputDevices(): Promise<VideoInputDevice[]> {
         isFrontCamera: detectFrontCamera(device.label),
       }));
   } catch (error) {
-    console.error('[videoUtils] Failed to enumerate devices:', error);
+    logWarning('Failed to enumerate camera devices', { operation: 'getVideoInputDevices' }, { error: (error as Error).message });
     return [];
   }
 }
@@ -119,7 +121,7 @@ export function savePreferredCamera(deviceId: string): void {
   try {
     localStorage.setItem(STORAGE_KEY_PREFERRED_CAMERA, deviceId);
   } catch (error) {
-    console.warn('[videoUtils] Could not save camera preference:', error);
+    logWarning('Could not save camera preference', { operation: 'savePreferredCamera' }, { error: (error as Error).message });
   }
 }
 
@@ -143,7 +145,7 @@ export function savePreferredFacingMode(mode: 'user' | 'environment'): void {
   try {
     localStorage.setItem(STORAGE_KEY_FACING_MODE, mode);
   } catch (error) {
-    console.warn('[videoUtils] Could not save facing mode preference:', error);
+    logWarning('Could not save facing mode preference', { operation: 'savePreferredFacingMode' }, { error: (error as Error).message });
   }
 }
 
@@ -181,7 +183,7 @@ export function checkPreviewNotBlack(video: HTMLVideoElement): PreviewCheckResul
     const ctx = canvas.getContext('2d');
     
     if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) {
-      console.log('[videoUtils] Cannot check preview - no dimensions');
+      logInfo('Cannot check preview - no dimensions', { operation: 'checkPreviewNotBlack' });
       return { isValid: true, avgBrightness: -1 }; // Can't check = assume valid
     }
     
@@ -208,7 +210,7 @@ export function checkPreviewNotBlack(video: HTMLVideoElement): PreviewCheckResul
     
     return { isValid, avgBrightness };
   } catch (e) {
-    console.warn('[videoUtils] Preview check error:', e);
+    logWarning('Preview check error', { operation: 'checkPreviewNotBlack' }, { error: (e as Error).message });
     return { isValid: true, avgBrightness: -1 }; // Error = assume valid
   }
 }
@@ -246,7 +248,7 @@ export async function validateRecordedVideo(blob: Blob): Promise<RecordingValida
     }
   } catch (error) {
     // If validation fails, log but don't block - better to let user decide
-    console.warn('[videoUtils] Content validation failed, allowing anyway:', error);
+    logWarning('Content validation failed, allowing anyway', { operation: 'validateRecordedVideo' }, { error: (error as Error).message });
   }
 
   return { isValid: true };
@@ -275,7 +277,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
     };
     
     const timeoutId = setTimeout(() => {
-      console.log('[videoUtils] Content check timeout - assuming valid');
+      logInfo('Content check timeout - assuming valid', { operation: 'checkVideoHasContent' });
       cleanup();
       resolve(true); // Timeout = assume valid
     }, 5000);
@@ -287,7 +289,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
         const ctx = canvas.getContext('2d');
         
         if (!ctx || video.videoWidth === 0 || video.videoHeight === 0) {
-          console.log('[videoUtils] Cannot analyze - no video dimensions');
+          logInfo('Cannot analyze - no video dimensions', { operation: 'analyzeFrame' });
           cleanup();
           resolve(true); // Can't analyze = assume valid
           return;
@@ -329,7 +331,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
         const avgBrightness = totalBrightness / sampleSize;
         const avgVariance = variance / sampleSize;
         
-        console.log('[videoUtils] Frame analysis:', { avgBrightness, avgVariance, sampleSize });
+        logInfo('Frame analysis complete', { operation: 'analyzeFrame' }, { avgBrightness, avgVariance, sampleSize });
         
         cleanup();
         
@@ -337,11 +339,11 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
         // 1. Variance >= 2 (has visual detail/edges)
         // 2. Brightness > 10 (not completely black, could be dim scene)
         const isValid = avgVariance >= 2 || avgBrightness > 10;
-        console.log('[videoUtils] Content validation result:', isValid);
+        logInfo('Content validation result', { operation: 'analyzeFrame' }, { isValid });
         resolve(isValid);
         
       } catch (error) {
-        console.warn('[videoUtils] Frame analysis failed:', error);
+        logWarning('Frame analysis failed', { operation: 'analyzeFrame' }, { error: (error as Error).message });
         cleanup();
         resolve(true); // Error = assume valid
       }
@@ -351,11 +353,11 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
     // Previous pattern (loadedmetadata + seek) fails for MediaRecorder blobs
     video.oncanplaythrough = () => {
       clearTimeout(timeoutId);
-      console.log('[videoUtils] Video canplaythrough, duration:', video.duration);
+      logInfo('Video canplaythrough', { operation: 'checkVideoHasContent' }, { duration: video.duration });
       
       // For short videos or invalid duration, analyze first frame directly
       if (!isFinite(video.duration) || video.duration < 2) {
-        console.log('[videoUtils] Short/invalid duration - analyzing current frame');
+        logInfo('Short/invalid duration - analyzing current frame', { operation: 'checkVideoHasContent' });
         analyzeFrame();
         return;
       }
@@ -366,7 +368,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
       const onTimeUpdate = () => {
         if (video.currentTime >= seekTarget * 0.8) {
           video.removeEventListener('timeupdate', onTimeUpdate);
-          console.log('[videoUtils] Reached target time:', video.currentTime);
+          logInfo('Reached target time for analysis', { operation: 'checkVideoHasContent' }, { currentTime: video.currentTime });
           analyzeFrame();
         }
       };
@@ -376,7 +378,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
       
       // Ensure playback starts - if it fails, analyze anyway
       video.play().catch(() => {
-        console.log('[videoUtils] Play failed during seek - analyzing current frame');
+        logInfo('Play failed during seek - analyzing current frame', { operation: 'checkVideoHasContent' });
         video.removeEventListener('timeupdate', onTimeUpdate);
         analyzeFrame();
       });
@@ -384,7 +386,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
     
     video.onerror = () => {
       clearTimeout(timeoutId);
-      console.warn('[videoUtils] Video error during validation');
+      logWarning('Video error during validation', { operation: 'checkVideoHasContent' });
       cleanup();
       resolve(true); // Error = assume valid, let upload proceed
     };
@@ -394,7 +396,7 @@ async function checkVideoHasContent(blob: Blob): Promise<boolean> {
     
     // Start playback attempt immediately (helps with WebM metadata loading)
     video.play().catch(() => {
-      console.log('[videoUtils] Initial play attempt failed - waiting for canplaythrough');
+      logInfo('Initial play attempt failed - waiting for canplaythrough', { operation: 'checkVideoHasContent' });
     });
   });
 }

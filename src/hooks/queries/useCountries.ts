@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type Country = Tables<"countries">;
 export type CountryInsert = TablesInsert<"countries">;
@@ -80,7 +81,7 @@ export function useCreateCountry() {
       toast.success("Country created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create country: ${error.message}`);
+      handleMutationError(error, { operation: 'create_country' });
     },
   });
 }
@@ -109,7 +110,7 @@ export function useUpdateCountry() {
       toast.success("Country updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update country: ${error.message}`);
+      handleMutationError(error, { operation: 'update_country' });
     },
   });
 }
@@ -134,7 +135,7 @@ export function useDeleteCountry() {
       toast.success("Country deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate country: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_country' });
     },
   });
 }
@@ -159,7 +160,7 @@ export function useRestoreCountry() {
       toast.success("Country restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore country: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_country' });
     },
   });
 }
@@ -183,7 +184,7 @@ export function useHardDeleteCountry() {
       toast.success("Country permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete country: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_country' });
     },
   });
 }
@@ -209,7 +210,7 @@ export function useUpdateDisplayOrder() {
       toast.success("Display order updated");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update display order: ${error.message}`);
+      handleMutationError(error, { operation: 'update_display_order' });
     },
   });
 }
