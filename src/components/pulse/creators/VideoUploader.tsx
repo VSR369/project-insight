@@ -26,6 +26,7 @@ import {
   getCameraErrorMessage,
   validateRecordedVideo,
   getPreferredFacingMode,
+  checkPreviewNotBlack,
 } from './videoUtils';
 
 interface VideoUploaderProps {
@@ -303,7 +304,23 @@ export function VideoUploader({
       
       // Stabilization delay
       await new Promise(resolve => setTimeout(resolve, 300));
-      console.log('[VideoUploader] Frames stable, starting MediaRecorder');
+      
+      // ================================================================
+      // PRE-RECORDING CHECK: Ensure camera preview is not black
+      // Catches physical camera covers, wrong device, etc. BEFORE recording
+      // ================================================================
+      const previewCheck = checkPreviewNotBlack(video);
+      console.log('[VideoUploader] Preview brightness check:', previewCheck.avgBrightness);
+      
+      if (!previewCheck.isValid) {
+        toast.error('Camera preview appears black. Check your camera cover or select a different camera.');
+        cleanupCamera();
+        setCameraState('idle');
+        setShowCameraSettings(true);
+        return;
+      }
+      
+      console.log('[VideoUploader] Frames stable, preview valid, starting MediaRecorder');
       
       // Create MediaRecorder
       const mimeType = getSupportedVideoMimeType();
