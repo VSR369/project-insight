@@ -55,30 +55,29 @@ export function PulseLayout({
       />
       
       {/* Main content wrapper - responsive three-column layout */}
-      <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0 flex flex-col">
-        {/* Desktop Quick Nav - full width above columns */}
-        {showSidebars && (
-          <div className="hidden lg:block sticky top-14 z-10 bg-background border-b">
-            <PulseQuickNav />
-          </div>
-        )}
-        
-        <div className="flex flex-1 min-h-0">
+      <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
+        <div className="flex h-full">
           {/* Left Sidebar - hidden on mobile/tablet, visible on large desktop */}
           {showSidebars && (
-            <aside className="hidden xl:block w-[280px] flex-shrink-0 border-r overflow-y-auto">
+            <aside className="hidden xl:block w-[280px] flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
               <LeftSidebar providerId={providerId} userId={user?.id} isFirstTime={isFirstTime} />
             </aside>
           )}
           
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto min-w-0">
+            {/* Desktop Quick Nav - visible when sidebars are shown */}
+            {showSidebars && (
+              <div className="hidden lg:block sticky top-0 z-10 bg-background border-b">
+                <PulseQuickNav />
+              </div>
+            )}
             {children}
           </main>
           
           {/* Right Sidebar - hidden on mobile, visible on desktop */}
           {showSidebars && (
-            <aside className="hidden lg:block w-[320px] flex-shrink-0 border-l overflow-y-auto">
+            <aside className="hidden lg:block w-[320px] flex-shrink-0 border-l overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
               <RightSidebar providerId={providerId} isFirstTime={isFirstTime} />
             </aside>
           )}
