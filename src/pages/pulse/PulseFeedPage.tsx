@@ -58,7 +58,7 @@ export default function PulseFeedPage() {
       <PulseLayout 
         providerId={provider?.id} 
         isFirstTime={isFirstTime}
-        showSidebars={!isFirstTime}
+        showSidebars={true}
       >
         <div className="max-w-lg mx-auto lg:max-w-none p-4">
           <Alert variant="destructive">
@@ -89,10 +89,10 @@ export default function PulseFeedPage() {
 
   return (
     <PulseLayout 
-      isPrimaryPage={!isFirstTime}
+      isPrimaryPage={true}
       providerId={provider?.id} 
       isFirstTime={isFirstTime}
-      showSidebars={!isFirstTime}
+      showSidebars={true}
     >
       <div className="max-w-lg mx-auto lg:max-w-none">
         {/* First-time user: Show profile build banner */}

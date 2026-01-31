@@ -15,9 +15,9 @@ interface RightSidebarProps {
 export function RightSidebar({ providerId, isFirstTime, className }: RightSidebarProps) {
   return (
     <div className={cn("p-4 space-y-4 overflow-y-auto", className)}>
-      {/* Daily Standup - only for returning users */}
-      {providerId && !isFirstTime && (
-        <DailyStandupWidget providerId={providerId} />
+      {/* Daily Standup - shows for all users with adapted content */}
+      {providerId && (
+        <DailyStandupWidget providerId={providerId} isFirstTime={isFirstTime} />
       )}
 
       {/* Quick Actions */}

@@ -56,7 +56,7 @@ export function PulseLayout({
           {/* Left Sidebar - hidden on mobile/tablet, visible on large desktop */}
           {showSidebars && (
             <aside className="hidden xl:block w-[280px] flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
-              <LeftSidebar providerId={providerId} />
+              <LeftSidebar providerId={providerId} isFirstTime={isFirstTime} />
             </aside>
           )}
           

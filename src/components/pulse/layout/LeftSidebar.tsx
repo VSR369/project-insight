@@ -19,6 +19,7 @@ import { cn } from '@/lib/utils';
 
 interface LeftSidebarProps {
   providerId?: string;
+  isFirstTime?: boolean;
   className?: string;
 }
 
@@ -43,7 +44,7 @@ const getXpProgress = (totalXp: number, level: number) => {
   return Math.min((xpIntoLevel / xpNeeded) * 100, 100);
 };
 
-export function LeftSidebar({ providerId, className }: LeftSidebarProps) {
+export function LeftSidebar({ providerId, isFirstTime, className }: LeftSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: stats, isLoading: statsLoading } = useProviderStats(providerId || '');
@@ -91,7 +92,7 @@ export function LeftSidebar({ providerId, className }: LeftSidebarProps) {
       </nav>
 
       {/* Galaxy Leaderboard */}
-      <LeaderboardMiniWidget currentProviderId={providerId} />
+      <LeaderboardMiniWidget currentProviderId={providerId} isFirstTime={isFirstTime} />
 
       {/* XP Progress Card */}
       {providerId && (
