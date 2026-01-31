@@ -1,83 +1,86 @@
-# Plan: First-Time Solution Provider Onboarding Flow
 
-## Status: ✅ IMPLEMENTED
 
-## Overview
-Redesigned the first-time Solution Provider experience to show Industry Pulse as the landing screen with a prominent CTA to build their profile, instead of the current Dashboard landing.
+# Plan: Remove Redundant Get Started Page & Simplify Flow
 
----
-
-## Implementation Summary
-
-### Files Created
-| File | Purpose | Status |
-|------|---------|--------|
-| `src/hooks/useIsFirstTimeProvider.ts` | Detection hook for first-time status | ✅ |
-| `src/components/pulse/layout/ProfileBuildBanner.tsx` | CTA banner for building profile | ✅ |
-| `src/components/pulse/layout/PulseLayoutFirstTime.tsx` | Layout without bottom nav for first-time users | ✅ |
-| `src/components/pulse/layout/PulseHeaderFirstTime.tsx` | Simplified header with Build Profile CTA | ✅ |
-| `src/pages/pulse/PulseGetStartedPage.tsx` | Onboarding motivation page | ✅ |
-
-### Files Modified
-| File | Changes | Status |
-|------|---------|--------|
-| `src/pages/Login.tsx` | Redirect first-time providers to `/pulse/feed` | ✅ |
-| `src/components/routing/RoleBasedRedirect.tsx` | First-time redirect to `/pulse/feed` | ✅ |
-| `src/pages/pulse/PulseFeedPage.tsx` | Conditional layout + ProfileBuildBanner | ✅ |
-| `src/components/pulse/layout/index.ts` | Export new components | ✅ |
-| `src/pages/pulse/index.ts` | Export new page | ✅ |
-| `src/App.tsx` | Add `/pulse/get-started` route | ✅ |
+## Summary
+Remove the `/pulse/get-started` page (PulseGetStartedPage.tsx) since it duplicates content already shown on the Welcome page. Update the ProfileBuildBanner to navigate directly to `/welcome`.
 
 ---
 
-## New User Journey
+## Current Flow (Redundant)
+```
+Pulse Feed → Click "Get Started" → /pulse/get-started → Click "Let's Build Your Profile" → /welcome
+```
 
-```text
-Step 1: User registers as Solution Provider
-        → After login, redirect to /pulse/feed
-
-Step 2: User lands on Industry Pulse (First-Time Layout)
-        - Sees feed with all provider posts
-        - NO bottom navigation bar
-        - Simplified header with "Build Profile" button
-        - Prominent ProfileBuildBanner at top of feed
-        - Can scroll, view, react to posts
-        
-Step 3: User clicks "Build Profile" or banner CTA
-        → Navigates to /pulse/get-started
-
-Step 4: User sees motivational onboarding page
-        - "Lead the way in digital age innovation"
-        - Why Your Profile Matters cards
-        - Verified providers benefits
-        - "Let's Build Your Profile" CTA button
-
-Step 5: User clicks CTA
-        → Navigates to /welcome (existing Welcome page)
-
-Step 6: User clicks "Let's Build Your Profile" on Welcome
-        → Starts enrollment wizard at /enroll/participation-mode
+## New Flow (Simplified)
+```
+Pulse Feed → Click "Let's Build Your Profile" → /welcome → /enroll/participation-mode
 ```
 
 ---
 
-## Key Design Decisions
+## Changes Required
 
-1. **First-time detection**: Based on enrollment count = 0, not lifecycle status
-2. **Pulse access**: First-time users CAN access Pulse and interact with content
-3. **Layout simplification**: No bottom nav = focus on CTA
-4. **Two-step motivation**: Banner → GetStarted page → Welcome → Wizard
-5. **Non-blocking**: Users can explore Pulse before building profile
+### 1. Update ProfileBuildBanner Navigation
+**File:** `src/components/pulse/layout/ProfileBuildBanner.tsx`
+
+| Current | New |
+|---------|-----|
+| `navigate('/pulse/get-started')` | `navigate('/welcome')` |
+| Button text: "Get Started" | Button text: "Let's Build Your Profile" |
 
 ---
 
-## Route Summary
+### 2. Remove `/pulse/get-started` Route from App.tsx
+**File:** `src/App.tsx`
 
-| Route | User Type | Layout | Purpose |
-|-------|-----------|--------|---------|
-| `/pulse/feed` | First-time | PulseLayoutFirstTime | Feed with CTA banner |
-| `/pulse/feed` | Returning | PulseLayout | Normal feed |
-| `/pulse/get-started` | First-time | Standalone | Motivational onboarding |
-| `/welcome` | All | Standalone | Current welcome (entry to wizard) |
-| `/enroll/*` | All | WizardLayout | Enrollment wizard steps |
+- Remove the route definition (lines 601-608):
+```tsx
+// REMOVE THIS:
+<Route
+  path="/pulse/get-started"
+  element={
+    <AuthGuard>
+      <PulseGetStartedPage />
+    </AuthGuard>
+  }
+/>
+```
+
+- Remove `PulseGetStartedPage` from the import statement at line 93
+
+---
+
+### 3. Remove Page Export
+**File:** `src/pages/pulse/index.ts`
+
+- Remove: `export { default as PulseGetStartedPage } from './PulseGetStartedPage';`
+
+---
+
+### 4. Delete the Redundant Page File
+**File:** `src/pages/pulse/PulseGetStartedPage.tsx`
+
+- Delete the entire file (it's no longer needed)
+
+---
+
+## Files to Modify
+
+| File | Action |
+|------|--------|
+| `src/components/pulse/layout/ProfileBuildBanner.tsx` | Update navigation to `/welcome`, change button text |
+| `src/App.tsx` | Remove route for `/pulse/get-started`, remove import |
+| `src/pages/pulse/index.ts` | Remove export of `PulseGetStartedPage` |
+| `src/pages/pulse/PulseGetStartedPage.tsx` | **DELETE** |
+
+---
+
+## Technical Notes
+
+1. **Welcome page already has**: The motivational content, "Why Your Profile Matters" section, and "Let's Build Your Profile" CTA that navigates to `/enroll/participation-mode`
+
+2. **No breaking changes**: The `/pulse/get-started` route was only used from the banner, and we're updating that reference
+
+3. **Cleaner user journey**: One less click for users to start building their profile
 
