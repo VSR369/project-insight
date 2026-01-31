@@ -598,6 +598,8 @@ const App = () => (
             />
 
             {/* Pulse Routes (mobile-first social network) */}
+            {/* Backward-compatible redirect (page removed) */}
+            <Route path="/pulse/get-started" element={<Navigate to="/welcome" replace />} />
             <Route
               path="/pulse/feed"
               element={
