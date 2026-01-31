@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, Target, Eye, ListChecks, Award, CheckCircle } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Target, Eye, ListChecks, Award, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
@@ -39,6 +39,21 @@ export default function PulseGetStartedPage() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Back Button */}
+      <div className="sticky top-0 z-20 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="max-w-2xl mx-auto px-4 py-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate('/pulse/feed')}
+            className="gap-2 text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Pulse
+          </Button>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <div className="relative overflow-hidden bg-gradient-to-br from-primary/5 via-background to-primary/10">
         {/* Decorative elements */}
