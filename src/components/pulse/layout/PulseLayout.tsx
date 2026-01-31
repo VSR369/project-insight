@@ -1,6 +1,7 @@
 import { ReactNode } from 'react';
 import { PulseBottomNav } from './PulseBottomNav';
 import { PulseHeader } from './PulseHeader';
+import { PulseQuickNav } from './PulseQuickNav';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 
@@ -62,6 +63,12 @@ export function PulseLayout({
           
           {/* Main Content */}
           <main className="flex-1 overflow-y-auto min-w-0">
+            {/* Desktop Quick Nav - visible when sidebars are shown */}
+            {showSidebars && (
+              <div className="hidden lg:block sticky top-0 z-10 bg-background border-b">
+                <PulseQuickNav />
+              </div>
+            )}
             {children}
           </main>
           
