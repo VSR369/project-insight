@@ -174,7 +174,14 @@ export function AudioRecorder({
 
       console.log("[AudioRecorder] Requesting microphone permission...");
       
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // FIX: Enhanced audio constraints for Edge/Windows compatibility
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        }
+      });
       streamRef.current = stream;
       
       // Validate audio track
@@ -182,6 +189,9 @@ export function AudioRecorder({
       if (!audioTrack) {
         throw new Error("No audio track available");
       }
+      
+      // FIX: Explicitly enable track - Edge sometimes delivers muted tracks
+      audioTrack.enabled = true;
       
       console.log("[AudioRecorder] Audio track:", {
         label: audioTrack.label,
@@ -269,7 +279,7 @@ export function AudioRecorder({
         setState("idle");
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorder.start(500); // FIX: More frequent chunks for better reliability
       console.log("[AudioRecorder] Recording started");
       
       setState("recording");
@@ -279,13 +289,13 @@ export function AudioRecorder({
       const error = err as Error;
       console.error("[AudioRecorder] Error:", error);
       
-      // Specific error messages
+      // Specific error messages with Edge/Windows guidance
       if (error.name === "NotAllowedError") {
-        setError("Microphone permission denied. Please allow access in browser settings.");
+        setError("Microphone permission denied. Please allow access in browser settings. On Windows, also check Settings → Privacy → Microphone.");
       } else if (error.name === "NotFoundError") {
         setError("No microphone found. Please connect a microphone.");
       } else if (error.name === "NotReadableError") {
-        setError("Microphone is in use by another application.");
+        setError("Microphone is in use by another application. On Edge/Windows, check Settings → Privacy → Microphone is enabled for desktop apps.");
       } else {
         setError(error.message || "Could not access microphone.");
       }
