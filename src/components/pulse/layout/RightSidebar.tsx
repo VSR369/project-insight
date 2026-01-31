@@ -1,9 +1,9 @@
 /**
  * Right Sidebar
- * Contains DailyStandupWidget, QuickActionsWidget, TrendingTopicsWidget
+ * Contains DailyStandupWidget, InspirationalBannerWidget, TrendingTopicsWidget
  */
 
-import { DailyStandupWidget, QuickActionsWidget, TrendingTopicsWidget } from '@/components/pulse/widgets';
+import { DailyStandupWidget, InspirationalBannerWidget, TrendingTopicsWidget } from '@/components/pulse/widgets';
 import { cn } from '@/lib/utils';
 
 interface RightSidebarProps {
@@ -20,12 +20,8 @@ export function RightSidebar({ providerId, isFirstTime, className }: RightSideba
         <DailyStandupWidget providerId={providerId} isFirstTime={isFirstTime} />
       )}
 
-      {/* Quick Actions */}
-      <QuickActionsWidget 
-        providerId={providerId}
-        hasLootBox={!isFirstTime}
-        profileProgress={isFirstTime ? 10 : 75}
-      />
+      {/* Inspirational Banner */}
+      <InspirationalBannerWidget />
 
       {/* Trending Topics */}
       <TrendingTopicsWidget />
