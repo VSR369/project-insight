@@ -43,7 +43,7 @@ export function PulseLayout({
   const { user } = useAuth();
   
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
       {/* Header - fixed at top */}
       <PulseHeader 
         isPrimaryPage={isPrimaryPage}
@@ -56,7 +56,7 @@ export function PulseLayout({
       
       {/* Main content wrapper - responsive three-column layout */}
       <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
-        <div className="flex h-full">
+        <div className="flex h-full w-full max-w-[1920px] mx-auto">
           {/* Left Sidebar - hidden on mobile/tablet, visible on xl desktop */}
           {showSidebars && (
             <aside className="hidden xl:flex flex-col w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
@@ -65,7 +65,7 @@ export function PulseLayout({
           )}
           
           {/* Main Content */}
-          <main className="flex-1 overflow-y-auto min-w-0">
+          <main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
             {/* Desktop Quick Nav - visible when sidebars are shown on lg+ */}
             {showSidebars && (
               <div className="hidden lg:block sticky top-0 z-10 bg-background border-b overflow-x-auto scrollbar-hide">
