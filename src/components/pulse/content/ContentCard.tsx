@@ -1,11 +1,11 @@
 import { useState, memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap, Clock, CheckCircle } from 'lucide-react';
+import { MoreHorizontal, Play, Volume2, Headphones, Image as ImageIcon, FileText, Zap, Clock, CheckCircle, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { EngagementBar } from './EngagementBar';
 import { MediaRenderer } from './MediaRenderer';
 import { SparkTrendChart } from './SparkTrendChart';
@@ -30,9 +30,11 @@ interface ContentCardProps {
     duration_seconds?: number | null;
   };
   currentUserProviderId: string;
+  isAdmin?: boolean;
   onContentClick?: () => void;
   onProfileClick?: () => void;
   onCommentClick?: () => void;
+  onDelete?: (contentId: string) => void;
 }
 
 // Format video duration as MM:SS or M:SS
@@ -71,12 +73,17 @@ function calculateReadTime(text: string | null | undefined): string | null {
 
 export const ContentCard = memo(function ContentCard({ 
   content, 
-  currentUserProviderId, 
+  currentUserProviderId,
+  isAdmin = false,
   onContentClick, 
   onProfileClick, 
-  onCommentClick 
+  onCommentClick,
+  onDelete,
 }: ContentCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  
+  // Check if current user can delete this content (owner or admin)
+  const canDelete = content.provider_id === currentUserProviderId || isAdmin;
   
   const providerName = content.provider 
     ? `${content.provider.first_name || ''} ${content.provider.last_name || ''}`.trim() || 'Anonymous'
@@ -185,6 +192,21 @@ export const ContentCard = memo(function ContentCard({
             <DropdownMenuItem>Share</DropdownMenuItem>
             <DropdownMenuItem>Copy Link</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
+            {canDelete && onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(content.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>
