@@ -98,7 +98,7 @@ const DEV_ACCOUNTS: Array<{
 // Portal home routes
 const PORTAL_ROUTES: Record<PortalType, string> = {
   admin: '/admin',
-  provider: '/dashboard',
+  provider: '/pulse/feed',  // Industry Pulse is the gateway for all providers
   reviewer: '/reviewer/dashboard',
 };
 
@@ -307,7 +307,7 @@ export default function Login() {
         navigate(PORTAL_ROUTES[targetPortal], { replace: true });
       } else {
         toast.success('Welcome back!');
-        navigate('/dashboard', { replace: true });
+        navigate('/pulse/feed', { replace: true });
       }
     } catch (err: unknown) {
       toast.error('An unexpected error occurred');
