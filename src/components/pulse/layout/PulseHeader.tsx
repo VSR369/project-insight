@@ -71,7 +71,8 @@ export function PulseHeader({
 
   const handleBackClick = () => {
     if (breadcrumb?.parentPath) {
-      navigate(breadcrumb.parentPath);
+      // Pass state to signal the page should reset to its initial view
+      navigate(breadcrumb.parentPath, { state: { fromBackButton: true } });
     } else if (parentRoute) {
       navigate(parentRoute);
     } else if (window.history.length > 2) {
