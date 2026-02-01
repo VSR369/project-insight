@@ -126,8 +126,8 @@ export default function PulseCreatePage() {
     return (
       <PulseLayout 
         breadcrumb={{
-          parentLabel: 'Create',
-          parentPath: '/pulse/create',
+          parentLabel: 'Feed',
+          parentPath: '/pulse/feed',
           currentLabel: `New ${selectedTypeInfo?.name || 'Content'}`,
         }}
       >
