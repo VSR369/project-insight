@@ -107,6 +107,10 @@ export default function PulseFeedPage() {
     ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
     : 'there';
 
+  // Calculate profile completion status for banner
+  const profileProgress = provider?.profile_completion_percentage ?? 0;
+  const isProfileComplete = profileProgress >= 100;
+
   return (
     <PulseLayout 
       isPrimaryPage={true}
@@ -115,10 +119,13 @@ export default function PulseFeedPage() {
       showSidebars={true}
     >
       <div className="w-full">
-        {/* First-time user: Show profile build banner */}
-        {isFirstTime && (
+        {/* Profile Banner - always visible, content changes based on completion */}
+        {provider && (
           <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
-            <ProfileBuildBanner />
+            <ProfileBuildBanner 
+              profileProgress={profileProgress}
+              isProfileComplete={isProfileComplete}
+            />
           </div>
         )}
 
