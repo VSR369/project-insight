@@ -77,7 +77,7 @@ export function ProfileBuildBanner({
         ) : (
           <div className="flex flex-col gap-3 sm:gap-4 sm:flex-row sm:items-center">
             <Button
-              onClick={() => navigate('/welcome')}
+              onClick={() => navigate('/dashboard')}
               variant="secondary"
               size="default"
               className="flex-shrink-0 w-full sm:w-auto bg-white text-primary hover:bg-white/90 font-semibold shadow-xl hover:shadow-2xl transition-all hover:scale-[1.02]"
@@ -96,7 +96,7 @@ export function ProfileBuildBanner({
               </div>
               <Progress value={profileProgress} className="h-2 bg-white/20" />
               <button
-                onClick={() => navigate('/welcome')}
+                onClick={() => navigate('/dashboard')}
                 className="flex items-center gap-1 text-white/80 hover:text-white text-xs mt-2 font-medium transition-colors group"
               >
                 Complete Profile

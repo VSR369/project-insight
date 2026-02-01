@@ -92,7 +92,7 @@ export default function Welcome() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Button 
                   size="lg" 
-                  onClick={() => navigate('/enroll/registration')}
+                  onClick={() => navigate('/dashboard')}
                   className="gap-2"
                 >
                   Let's Build Your Profile
