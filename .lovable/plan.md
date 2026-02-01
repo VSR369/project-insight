@@ -1,109 +1,133 @@
 
-# Responsive Design Fix for Dashboard & WizardLayout Pages
+# Comprehensive Responsive Design Fix for Dashboard & WizardLayout
 
 ## Problem Analysis
 
-The screenshot shows the `/enroll/panel-discussion` route displaying with horizontal scrolling on mobile. Based on my exploration of the codebase, I've identified several components causing the overflow:
+The screenshot shows severe layout distortion on tablet view where enrollment card content is overlapping and misaligned. The main issues identified:
 
-### Root Causes Identified
+### Root Causes
 
-| Component | Issue | Location |
-|-----------|-------|----------|
-| **Dashboard Enrollment Card** | `grid-cols-2 sm:grid-cols-4` for details grid doesn't scale well on small screens | Lines 422+ in Dashboard.tsx |
-| **Dashboard Enrollment Card** | `flex items-start gap-4` layout with action buttons overflows on narrow viewports | Lines 390, 478-573 |
-| **HierarchyBreadcrumb** | `overflow-x-auto` exists but no `max-w-full` constraint | Line 99 |
-| **WizardLayout Header** | Fixed `container` class without responsive constraints | Line 480, 604 |
-| **WizardLayout Main** | `max-w-4xl` may be too wide for mobile | Line 604 |
-| **Dashboard Page** | Content container lacks `overflow-x-hidden` | Line 287 |
+| Issue | Current State | Problem |
+|-------|---------------|---------|
+| Details Grid | `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` | At tablet (~768px), 2-column grid causes text overlap |
+| Card Layout | `flex flex-col sm:flex-row` | Transitions too early for content amount |
+| Action Buttons | `shrink-0 flex flex-wrap` | Buttons don't wrap properly on medium screens |
+| Text Content | Long values without truncation | Causes horizontal overflow |
+| Badge Layout | Multiple badges without wrapping | Creates horizontal squeeze |
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Dashboard Enrollment Cards (High Priority)
+### Phase 1: Dashboard Enrollment Cards
 
 **File: `src/pages/Dashboard.tsx`**
 
-**1.1 Fix Enrollment Card Layout (Lines 390-576)**
-- Change outer flex from `flex items-start gap-4` to responsive: `flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4`
-- Move action buttons below content on mobile
+**1.1 Fix Card Inner Layout (Line 390)**
+- Change from `sm:flex-row` to `md:flex-row` - only horizontal on medium+ screens
+- Add `min-w-0` to flex child for proper truncation
 
-**1.2 Fix Details Grid (Lines 422-456)**
-- Change `grid-cols-2 sm:grid-cols-4` to `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`
-- Ensure text truncation on long values
+```diff
+- <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
++ <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
+```
 
-**1.3 Fix Action Buttons (Lines 478-573)**
-- Wrap action buttons in responsive container
-- Stack buttons on very small screens
-- Use `flex-wrap` for button groups
+**1.2 Fix Details Grid (Line 422)**
+- Change breakpoints to be more conservative
+- Single column on mobile, 2-column on medium, 4-column on large+
 
-**1.4 Add Overflow Protection (Line 287)**
-- Add `overflow-x-hidden` to main container
+```diff
+- <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-4 gap-y-1 ...">
++ <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-1.5 ...">
+```
+
+**1.3 Fix Header Flex Layout (Line 406)**
+- Ensure badges wrap properly
+- Add minimum width constraints
+
+```diff
+- <div className="flex items-center gap-2 flex-wrap">
++ <div className="flex items-start gap-2 flex-wrap min-w-0">
+```
+
+**1.4 Fix Action Buttons Container (Line 479)**
+- Use `md:mt-0` instead of `sm:mt-0` to match card layout change
+- Ensure full-width on mobile for better tap targets
+
+```diff
+- <div className="shrink-0 flex flex-wrap items-center gap-2 mt-3 sm:mt-0">
++ <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 mt-3 md:mt-0 w-full md:w-auto">
+```
+
+**1.5 Add Text Truncation to Long Values (Lines 424-455)**
+- Add `truncate` class to detail text items
+- Wrap in flex container with proper constraints
 
 ---
 
-### Phase 2: WizardLayout Responsive Fixes
-
-**File: `src/components/layout/WizardLayout.tsx`**
-
-**2.1 Fix Header Container (Lines 479-518)**
-- Add `overflow-hidden` to prevent horizontal scroll
-- Make industry label responsive with truncation
-
-**2.2 Fix Main Content Area (Line 604)**
-- Change from fixed `max-w-4xl` to responsive: `max-w-full sm:max-w-2xl md:max-w-3xl lg:max-w-4xl`
-- Add horizontal padding adjustments: `px-3 sm:px-4 md:px-6`
-
-**2.3 Fix Footer Navigation (Lines 610-651)**
-- Add `overflow-hidden` to footer container
-- Ensure buttons don't overflow on mobile
-
----
-
-### Phase 3: HierarchyBreadcrumb Responsive Fix
+### Phase 2: HierarchyBreadcrumb Responsive Fix
 
 **File: `src/components/provider/HierarchyBreadcrumb.tsx`**
 
-**3.1 Fix Container (Lines 97-99)**
-- Add `max-w-full overflow-hidden` to outer container
-- Ensure inner scroll container has proper constraints
-- Add `scrollbar-hide` class for cleaner mobile UX
+**2.1 Fix Container (Lines 94-97)**
+- Add `max-w-full` constraint to prevent expansion
+
+```diff
+- <div className={cn("border-b px-4 py-2 bg-muted/30", className)}>
++ <div className={cn("border-b px-3 sm:px-4 py-2 bg-muted/30 max-w-full overflow-hidden", className)}>
+```
+
+**2.2 Fix Inner Scroll Container (Line 98)**
+- Add hidden scrollbar class for cleaner mobile UX
+
+```diff
+- <div className="flex items-center gap-2 overflow-x-auto text-sm">
++ <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide text-sm max-w-full">
+```
 
 ---
 
-### Phase 4: Global Overflow Prevention
+### Phase 3: WizardLayout Header Refinement
 
-**File: `src/index.css`**
+**File: `src/components/layout/WizardLayout.tsx`**
 
-**4.1 Add Global Overflow Prevention**
-```css
-/* Prevent horizontal overflow on body and root */
-html, body, #root {
-  overflow-x: hidden;
-  max-width: 100vw;
-}
+**3.1 Fix Industry Badge Truncation (Lines 493-498)**
+- Add max-width and truncation to industry name
+
+```diff
+- <span className="text-xs font-medium">
++ <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[200px]">
+```
+
+**3.2 Fix Header Flex Gap (Line 482)**
+- Reduce gap on smaller screens
+
+```diff
+- <div className="flex items-center gap-4">
++ <div className="flex items-center gap-2 sm:gap-4">
 ```
 
 ---
 
 ## Technical Details
 
-### Responsive Breakpoints Used
+### Breakpoint Strategy
 
-| Breakpoint | Size | Usage |
-|------------|------|-------|
-| (default) | < 640px | Mobile: Single column, stacked layouts |
-| `sm` | ≥ 640px | Large phones: 2-column grids |
-| `md` | ≥ 768px | Tablets: Wider containers |
-| `lg` | ≥ 1024px | Desktop: 4-column grids |
+| Breakpoint | Width | Layout |
+|------------|-------|--------|
+| Default | < 640px | Single column, stacked |
+| `sm` | ≥ 640px | Still mostly stacked |
+| `md` | ≥ 768px | Two-column content, side-by-side cards |
+| `lg` | ≥ 1024px | Wider containers |
+| `xl` | ≥ 1280px | Four-column details grid |
 
-### Key Patterns Applied
+### Key Patterns
 
-1. **Mobile-First Approach**: Base styles for mobile, progressive enhancement
-2. **Flex Wrap**: `flex-wrap` on button groups
-3. **Text Truncation**: `truncate` on long text
-4. **Container Constraints**: `max-w-full` with `overflow-hidden`
-5. **Responsive Grids**: `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`
+1. **Conservative Breakpoints**: Use `md:` instead of `sm:` for horizontal layouts
+2. **Text Truncation**: `truncate` on potentially long text
+3. **Min-Width Zero**: `min-w-0` on flex children to allow truncation
+4. **Proper Flex Wrapping**: `flex-wrap` with `justify-end` for buttons
+5. **Hidden Scrollbars**: `scrollbar-hide` for cleaner overflow
 
 ---
 
@@ -111,22 +135,22 @@ html, body, #root {
 
 | File | Changes |
 |------|---------|
-| `src/pages/Dashboard.tsx` | Responsive enrollment cards, grid layouts, action buttons |
-| `src/components/layout/WizardLayout.tsx` | Header, main content, footer responsiveness |
-| `src/components/provider/HierarchyBreadcrumb.tsx` | Overflow handling |
-| `src/index.css` | Global overflow prevention |
+| `src/pages/Dashboard.tsx` | Enrollment card layout, grid breakpoints, action buttons |
+| `src/components/provider/HierarchyBreadcrumb.tsx` | Container constraints, scrollbar hiding |
+| `src/components/layout/WizardLayout.tsx` | Header gaps, industry badge truncation |
 
 ---
 
 ## Testing Checklist
 
 After implementation, verify on:
-- [ ] Mobile (320px, 375px, 414px)
-- [ ] Small tablet (640px)
-- [ ] Tablet (768px)
-- [ ] Desktop (1024px+)
-- [ ] No horizontal scrolling on any viewport
+- [ ] Mobile 320px - Single column, no overflow
+- [ ] Mobile 375px - Proper stacking
+- [ ] Tablet 640px - Still stacked, no overlap
+- [ ] Tablet 768px - Horizontal layout begins
+- [ ] Desktop 1024px - Full layout
+- [ ] Desktop 1280px+ - 4-column details grid
+- [ ] No horizontal scrolling on any size
 - [ ] All buttons remain accessible
-- [ ] Text is readable and properly truncated
-- [ ] Enrollment cards display correctly
-- [ ] Progress bars and badges display properly
+- [ ] Text truncates with ellipsis where needed
+- [ ] Enrollment cards look clean on all sizes
