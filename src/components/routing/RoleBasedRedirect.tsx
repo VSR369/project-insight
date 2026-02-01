@@ -8,7 +8,7 @@ type PortalType = 'admin' | 'provider' | 'reviewer';
 
 const PORTAL_ROUTES: Record<PortalType, string> = {
   admin: '/admin',
-  provider: '/dashboard',
+  provider: '/pulse/feed',  // Industry Pulse is the gateway for all providers
   reviewer: '/reviewer/dashboard',
 };
 
@@ -55,15 +55,6 @@ export function RoleBasedRedirect() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasEnrollments = (enrollmentsResult.data?.length || 0) > 0;
-
-      // First-time provider: has provider record but no enrollments, OR no provider record at all
-      // These users go to /pulse/feed for the onboarding experience
-      const isFirstTimeProvider = hasProviderRecord && !hasEnrollments && !isPlatformAdmin && !isPanelReviewer;
-      
-      if (isFirstTimeProvider) {
-        navigate('/pulse/feed', { replace: true });
-        return;
-      }
 
       // Validate cached portal - user must still have access
       if (cachedPortal) {
