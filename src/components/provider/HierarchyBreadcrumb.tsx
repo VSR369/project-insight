@@ -95,8 +95,8 @@ export function HierarchyBreadcrumb({ className }: HierarchyBreadcrumbProps) {
   }
 
   return (
-    <div className={cn("border-b px-4 py-2 bg-muted/30", className)}>
-      <div className="flex items-center gap-2 overflow-x-auto text-sm">
+    <div className={cn("border-b px-3 sm:px-4 py-2 bg-muted/30 max-w-full overflow-hidden", className)}>
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto scrollbar-hide text-sm max-w-full">
         {/* Industry Segment */}
         <SingleItem 
           item={hierarchy.industrySegment} 

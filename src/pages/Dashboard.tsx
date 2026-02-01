@@ -387,7 +387,7 @@ export default function Dashboard() {
                       </Badge>
                     )}
 
-                    <div className="flex items-start gap-4">
+                    <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
                       {/* Industry Icon */}
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         isTerminal && enrollment.lifecycle_status !== 'not_verified'
@@ -403,7 +403,7 @@ export default function Dashboard() {
 
                       {/* Content */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-start gap-2 flex-wrap min-w-0">
                           <h4 className="font-semibold truncate">
                             {enrollment.industry_segment?.name || 'Unknown Industry'}
                           </h4>
@@ -419,36 +419,36 @@ export default function Dashboard() {
                         </div>
 
                         {/* Details Grid */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-1 mt-2 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-1.5 mt-2 text-sm text-muted-foreground">
                           {/* Expertise Level */}
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 min-w-0">
                             <GraduationCap className="h-3 w-3 shrink-0" />
-                            {enrollment.expertise_level?.name || 'Not selected'}
+                            <span className="truncate">{enrollment.expertise_level?.name || 'Not selected'}</span>
                           </span>
                           
                           {/* Participation Mode */}
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 min-w-0">
                             <Users className="h-3 w-3 shrink-0" />
-                            {getModeName(enrollment.participation_mode_id) || 'Not selected'}
+                            <span className="truncate">{getModeName(enrollment.participation_mode_id) || 'Not selected'}</span>
                           </span>
                           
                           {/* Proof Points */}
-                          <span className="flex items-center gap-1">
+                          <span className="flex items-center gap-1 min-w-0">
                             <FileText className="h-3 w-3 shrink-0" />
-                            {industryProofPoints} proof points
+                            <span className="truncate">{industryProofPoints} proof points</span>
                           </span>
                           
                           {/* Org Approval Status (if org_rep mode) */}
                           {enrollment.org_approval_status && (
-                            <span className="flex items-center gap-1">
+                            <span className="flex items-center gap-1 min-w-0">
                               <Briefcase className="h-3 w-3 shrink-0" />
-                              <span className={
+                              <span className={`truncate ${
                                 enrollment.org_approval_status === 'approved' 
                                   ? 'text-green-600' 
                                   : enrollment.org_approval_status === 'pending'
                                     ? 'text-amber-600'
                                     : 'text-destructive'
-                              }>
+                              }`}>
                                 Org: {enrollment.org_approval_status}
                               </span>
                             </span>
@@ -476,7 +476,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="shrink-0 flex items-center gap-2">
+                      <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 mt-3 md:mt-0 w-full md:w-auto">
                         {/* Delete Button - show for all non-primary enrollments (dialog handles validation) */}
                         {!enrollment.is_primary && enrollments.length > 1 && (
                           <Button

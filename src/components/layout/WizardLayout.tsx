@@ -479,7 +479,7 @@ export function WizardLayout({
         <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="container flex items-center justify-between h-14 px-4">
             {/* Logo and Industry Label (Read-Only) */}
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
                   <span className="text-primary-foreground font-bold text-sm">CB</span>
@@ -490,9 +490,9 @@ export function WizardLayout({
               {/* Industry Label - READ ONLY (no selector/dropdown) */}
               {activeEnrollment && (
                 <div className="flex items-center gap-2">
-                  <Badge variant="secondary" className="gap-1.5 px-3 py-1">
-                    <Building2 className="h-3.5 w-3.5" />
-                    <span className="text-xs font-medium">
+                  <Badge variant="secondary" className="gap-1.5 px-2 sm:px-3 py-1 max-w-[140px] sm:max-w-[200px]">
+                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                    <span className="text-xs font-medium truncate">
                       {activeEnrollment.industry_segment?.name || 'Unknown Industry'}
                     </span>
                   </Badge>
