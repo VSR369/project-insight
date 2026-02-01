@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Film, Mic, Zap, FileText, Image, MessageSquare, ArrowLeft, Layers } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,9 +77,22 @@ const contentTypes = [
 export default function PulseCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const preselectedType = (location.state as { type?: string })?.type;
+  const locationState = location.state as { type?: string; fromBackButton?: boolean } | null;
+  const preselectedType = locationState?.type;
+  const fromBackButton = locationState?.fromBackButton;
+  
   const [selectedType, setSelectedType] = useState<string | null>(preselectedType || null);
   const [showForm, setShowForm] = useState(!!preselectedType);
+
+  // Reset view when back button was clicked from header
+  useEffect(() => {
+    if (fromBackButton && showForm) {
+      setShowForm(false);
+      setSelectedType(null);
+      // Clear the navigation state to prevent re-triggering
+      navigate('/pulse/create', { replace: true });
+    }
+  }, [fromBackButton, showForm, navigate]);
 
   const handleContinue = () => {
     if (selectedType) {
