@@ -1,121 +1,186 @@
 
+# Delete Option for Industry Pulse Posts - Implementation Plan
 
-## Root Cause Analysis
+## Issue Confirmed
 
-The issue is a **duplicate `PORTAL_ROUTES` constant** that wasn't synchronized when the RoleBasedRedirect.tsx was updated.
+After auditing the codebase, I've confirmed that:
 
-### The Problem
-
-There are **TWO different locations** defining portal routes:
-
-| Location | Line | Provider Route | Status |
-|----------|------|---------------|--------|
-| `src/components/routing/RoleBasedRedirect.tsx` | Line 8 | `/pulse/feed` | Updated |
-| `src/pages/Login.tsx` | **Line 99-103** | `/dashboard` | **NOT UPDATED** |
-
-### Code Evidence
-
-**Login.tsx (Lines 99-103) - NOT UPDATED:**
-```typescript
-const PORTAL_ROUTES: Record<PortalType, string> = {
-  admin: '/admin',
-  provider: '/dashboard',  // ← Still pointing to dashboard!
-  reviewer: '/reviewer/dashboard',
-};
-```
-
-**RoleBasedRedirect.tsx (Lines 8-12) - Already Updated:**
-```typescript
-const PORTAL_ROUTES: Record<PortalType, string> = {
-  admin: '/admin',
-  provider: '/pulse/feed',  // ← Correctly updated
-  reviewer: '/reviewer/dashboard',
-};
-```
-
-### Login Flow Analysis
-
-When a user logs in:
-1. Login.tsx `onSubmit()` function handles authentication
-2. After successful login, it uses **its own** `PORTAL_ROUTES` constant (Line 307)
-3. This redirects providers to `/dashboard` instead of `/pulse/feed`
-
-**The affected code path in Login.tsx (Line 307):**
-```typescript
-navigate(PORTAL_ROUTES[targetPortal], { replace: true });
-```
-
-### Why RoleBasedRedirect Doesn't Help
-
-`RoleBasedRedirect` is only used:
-- When visiting the root path (`/`)
-- When a user is already logged in and needs routing
-
-But when logging in fresh, the redirect happens **inside Login.tsx** directly, bypassing `RoleBasedRedirect` entirely.
+1. **The `useDeletePulseContent` hook EXISTS** in `src/hooks/queries/usePulseContent.ts` (lines 266-298) and properly performs soft delete with audit fields
+2. **RLS policies already exist** for delete operations:
+   - `Owners delete own pulse_content` → `is_pulse_provider_owner(provider_id)`
+   - `Admin manage pulse_content` → `has_role(auth.uid(), 'platform_admin')`
+3. **The UI does NOT expose the delete option** - The dropdown menu in both `ContentCard.tsx` and `PulseCardFeedItem.tsx` only shows: Share, Copy Link, Report
 
 ---
 
-## Fix Plan
+## Root Cause
 
-### Change 1: Update Login.tsx PORTAL_ROUTES (Line 99-103)
+The delete functionality is fully implemented at the backend and hook level, but **the UI components do not include a Delete menu item** or the logic to conditionally show it to authorized users.
 
-**Current:**
-```typescript
-const PORTAL_ROUTES: Record<PortalType, string> = {
-  admin: '/admin',
-  provider: '/dashboard',
-  reviewer: '/reviewer/dashboard',
+---
+
+## Implementation Plan
+
+### Files to Modify
+
+| File | Change |
+|------|--------|
+| `src/components/pulse/content/ContentCard.tsx` | Add Delete menu item with auth check |
+| `src/components/pulse/content/PulseCardFeedItem.tsx` | Add Delete menu item with auth check |
+
+### Technical Changes
+
+#### 1. ContentCard.tsx - Add Delete Option
+
+**Current dropdown (lines 184-189):**
+```tsx
+<DropdownMenuContent align="end">
+  <DropdownMenuItem>Share</DropdownMenuItem>
+  <DropdownMenuItem>Copy Link</DropdownMenuItem>
+  <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
+</DropdownMenuContent>
+```
+
+**Changes needed:**
+
+1. Add new props to `ContentCardProps`:
+   - `onDelete?: (contentId: string) => void` - Delete handler
+   - Accept `isAdmin?: boolean` from parent (to check platform admin role)
+
+2. Calculate `canDelete` based on:
+   - User is the content author (`content.provider_id === currentUserProviderId`)
+   - OR user is platform admin (`isAdmin === true`)
+
+3. Add conditional Delete menu item:
+```tsx
+{canDelete && (
+  <>
+    <DropdownMenuSeparator />
+    <DropdownMenuItem 
+      className="text-destructive"
+      onClick={() => onDelete?.(content.id)}
+    >
+      <Trash2 className="h-4 w-4 mr-2" />
+      Delete
+    </DropdownMenuItem>
+  </>
+)}
+```
+
+4. Import `Trash2` from lucide-react
+5. Import `DropdownMenuSeparator` from the dropdown component
+
+#### 2. PulseCardFeedItem.tsx - Add Delete Option
+
+Same pattern as ContentCard:
+
+1. Add props:
+   - `onDelete?: (cardId: string) => void`
+   - Receive creator comparison from `card.seed_creator_id === currentUserProviderId`
+
+2. Add Delete menu item conditionally
+
+#### 3. Parent Component Updates (PulseFeedPage.tsx)
+
+1. Import and use `useDeletePulseContent` hook
+2. Import and use `useUserRoles` hook to get `isAdmin`
+3. Add delete confirmation dialog state
+4. Pass `onDelete` handler to ContentCard/PulseCardFeedItem
+5. Pass `isAdmin` prop to enable admin delete
+
+**Example implementation:**
+```tsx
+// In PulseFeedPage.tsx
+const { isAdmin } = useUserRoles();
+const deleteMutation = useDeletePulseContent();
+const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+
+const handleDeleteClick = (contentId: string, title?: string) => {
+  setDeleteTarget({ id: contentId, title: title || 'this post' });
+};
+
+const handleConfirmDelete = async () => {
+  if (deleteTarget) {
+    await deleteMutation.mutateAsync(deleteTarget.id);
+    setDeleteTarget(null);
+  }
 };
 ```
 
-**Updated:**
-```typescript
-const PORTAL_ROUTES: Record<PortalType, string> = {
-  admin: '/admin',
-  provider: '/pulse/feed',  // Industry Pulse is the gateway for all providers
-  reviewer: '/reviewer/dashboard',
-};
-```
+#### 4. Delete Confirmation Dialog
 
-### Change 2: Also update fallback redirect (Line 310)
+Use the existing `DeleteConfirmDialog` component from `src/components/admin/DeleteConfirmDialog.tsx` for consistent UX:
 
-There's a fallback redirect at Line 310 that also hardcodes `/dashboard`:
-
-**Current (Line 310):**
-```typescript
-navigate('/dashboard', { replace: true });
-```
-
-**Updated:**
-```typescript
-navigate('/pulse/feed', { replace: true });
+```tsx
+<DeleteConfirmDialog
+  open={!!deleteTarget}
+  onOpenChange={(open) => !open && setDeleteTarget(null)}
+  title="Delete Post"
+  itemName={deleteTarget?.title}
+  onConfirm={handleConfirmDelete}
+  isLoading={deleteMutation.isPending}
+  isSoftDelete={true}
+/>
 ```
 
 ---
 
-## Additional Fix: Clear Stale Session Storage
+## Security Considerations
 
-The user may have a cached `activePortal` value in sessionStorage that still points to `/dashboard`. The fix includes:
-
-1. When `activePortal` is `provider`, the redirect will now correctly go to `/pulse/feed`
-2. User may need to clear browser sessionStorage or logout/login again to reset
+1. **Frontend check is for UX only** - The actual security is enforced by RLS policies
+2. **RLS policies verified**:
+   - `is_pulse_provider_owner(provider_id)` checks if current user owns the content
+   - `has_role(auth.uid(), 'platform_admin')` checks admin role
+3. **Even if UI is bypassed**, the database will reject unauthorized deletes
 
 ---
 
-## Files to Modify
+## Updated Component Props
 
-| File | Lines | Change |
-|------|-------|--------|
-| `src/pages/Login.tsx` | 101 | Change `provider: '/dashboard'` to `provider: '/pulse/feed'` |
-| `src/pages/Login.tsx` | 310 | Change `navigate('/dashboard')` to `navigate('/pulse/feed')` |
+### ContentCard
+```typescript
+interface ContentCardProps {
+  content: PulseContent & { /* existing */ };
+  currentUserProviderId: string;
+  isAdmin?: boolean;  // NEW
+  onContentClick?: () => void;
+  onProfileClick?: () => void;
+  onCommentClick?: () => void;
+  onDelete?: (contentId: string) => void;  // NEW
+}
+```
+
+### PulseCardFeedItem
+```typescript
+interface PulseCardFeedItemProps {
+  card: FeedCardItem;
+  currentUserProviderId?: string;
+  isAdmin?: boolean;  // NEW
+  onCardClick?: () => void;
+  onProfileClick?: () => void;
+  onDelete?: (cardId: string) => void;  // NEW
+}
+```
+
+---
+
+## Implementation Summary
+
+| Step | Action |
+|------|--------|
+| 1 | Update `ContentCard.tsx` - Add delete menu item with auth check |
+| 2 | Update `PulseCardFeedItem.tsx` - Add delete menu item with auth check |
+| 3 | Update `PulseFeedPage.tsx` - Add delete mutation, useUserRoles, and confirmation dialog |
+| 4 | Add `DeleteConfirmDialog` to PulseFeedPage for confirmation UX |
 
 ---
 
 ## Testing Verification
 
-After fix, verify:
-1. Fresh login as provider → lands on `/pulse/feed`
-2. Already logged in provider visiting `/login` → redirects to `/pulse/feed`
-3. Dashboard still accessible via manual navigation or sidebar links
-4. Admin and Reviewer logins unaffected
-
+After implementation, verify:
+- [ ] Content author sees "Delete" option on their own posts
+- [ ] Platform admin sees "Delete" option on ALL posts
+- [ ] Regular users do NOT see "Delete" on others' posts
+- [ ] Delete confirmation dialog appears before deletion
+- [ ] Successful delete removes post from feed
+- [ ] Error handling works if delete fails
