@@ -57,9 +57,9 @@ export function PulseLayout({
       {/* Main content wrapper - responsive three-column layout */}
       <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
         <div className="flex h-full">
-          {/* Left Sidebar - hidden on mobile/tablet, visible on xl desktop */}
+          {/* Left Sidebar - hidden on mobile/tablet, visible on lg desktop */}
           {showSidebars && (
-            <aside className="hidden xl:flex flex-col w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
+            <aside className="hidden lg:flex flex-col w-56 xl:w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
               <LeftSidebar providerId={providerId} userId={user?.id} isFirstTime={isFirstTime} />
             </aside>
           )}
