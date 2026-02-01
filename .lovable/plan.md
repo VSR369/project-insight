@@ -1,186 +1,115 @@
 
-# Delete Option for Industry Pulse Posts - Implementation Plan
+# Layout Fix for Industry Pulse Sidebars
 
-## Issue Confirmed
+## Problem Summary
 
-After auditing the codebase, I've confirmed that:
+The screenshot shows two distinct issues after publishing:
+1. **Left sidebar invisible/hidden** - Should be visible on XL screens (1280px+)
+2. **Right sidebar clipped** - Content is being cut off at the right edge
 
-1. **The `useDeletePulseContent` hook EXISTS** in `src/hooks/queries/usePulseContent.ts` (lines 266-298) and properly performs soft delete with audit fields
-2. **RLS policies already exist** for delete operations:
-   - `Owners delete own pulse_content` → `is_pulse_provider_owner(provider_id)`
-   - `Admin manage pulse_content` → `has_role(auth.uid(), 'platform_admin')`
-3. **The UI does NOT expose the delete option** - The dropdown menu in both `ContentCard.tsx` and `PulseCardFeedItem.tsx` only shows: Share, Copy Link, Report
+## Root Cause Analysis
 
----
+After analyzing the codebase, I identified these issues:
 
-## Root Cause
+| Issue | Location | Current Code | Problem |
+|-------|----------|--------------|---------|
+| Viewport overflow | `PulseLayout.tsx` | No overflow control on outer wrapper | Content can extend beyond viewport |
+| Sidebar width mismatch | `PulseLayout.tsx` line 62, 80 | Left: `w-64 2xl:w-72`, Right: `w-72 xl:w-80` | Asymmetric widths cause imbalance |
+| Header constraint | `PulseHeader.tsx` line 86 | `max-w-7xl mx-auto` | Header is constrained but content is not |
+| Missing `min-w-0` | Main content | `flex-1 overflow-y-auto min-w-0` | Good, but parent needs constraint |
 
-The delete functionality is fully implemented at the backend and hook level, but **the UI components do not include a Delete menu item** or the logic to conditionally show it to authorized users.
+## Solution Plan
 
----
+### 1. Add Viewport Constraint to PulseLayout
 
-## Implementation Plan
+**File:** `src/components/pulse/layout/PulseLayout.tsx`
 
-### Files to Modify
-
-| File | Change |
-|------|--------|
-| `src/components/pulse/content/ContentCard.tsx` | Add Delete menu item with auth check |
-| `src/components/pulse/content/PulseCardFeedItem.tsx` | Add Delete menu item with auth check |
-
-### Technical Changes
-
-#### 1. ContentCard.tsx - Add Delete Option
-
-**Current dropdown (lines 184-189):**
-```tsx
-<DropdownMenuContent align="end">
-  <DropdownMenuItem>Share</DropdownMenuItem>
-  <DropdownMenuItem>Copy Link</DropdownMenuItem>
-  <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
-</DropdownMenuContent>
-```
-
-**Changes needed:**
-
-1. Add new props to `ContentCardProps`:
-   - `onDelete?: (contentId: string) => void` - Delete handler
-   - Accept `isAdmin?: boolean` from parent (to check platform admin role)
-
-2. Calculate `canDelete` based on:
-   - User is the content author (`content.provider_id === currentUserProviderId`)
-   - OR user is platform admin (`isAdmin === true`)
-
-3. Add conditional Delete menu item:
-```tsx
-{canDelete && (
-  <>
-    <DropdownMenuSeparator />
-    <DropdownMenuItem 
-      className="text-destructive"
-      onClick={() => onDelete?.(content.id)}
-    >
-      <Trash2 className="h-4 w-4 mr-2" />
-      Delete
-    </DropdownMenuItem>
-  </>
-)}
-```
-
-4. Import `Trash2` from lucide-react
-5. Import `DropdownMenuSeparator` from the dropdown component
-
-#### 2. PulseCardFeedItem.tsx - Add Delete Option
-
-Same pattern as ContentCard:
-
-1. Add props:
-   - `onDelete?: (cardId: string) => void`
-   - Receive creator comparison from `card.seed_creator_id === currentUserProviderId`
-
-2. Add Delete menu item conditionally
-
-#### 3. Parent Component Updates (PulseFeedPage.tsx)
-
-1. Import and use `useDeletePulseContent` hook
-2. Import and use `useUserRoles` hook to get `isAdmin`
-3. Add delete confirmation dialog state
-4. Pass `onDelete` handler to ContentCard/PulseCardFeedItem
-5. Pass `isAdmin` prop to enable admin delete
-
-**Example implementation:**
-```tsx
-// In PulseFeedPage.tsx
-const { isAdmin } = useUserRoles();
-const deleteMutation = useDeletePulseContent();
-const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
-
-const handleDeleteClick = (contentId: string, title?: string) => {
-  setDeleteTarget({ id: contentId, title: title || 'this post' });
-};
-
-const handleConfirmDelete = async () => {
-  if (deleteTarget) {
-    await deleteMutation.mutateAsync(deleteTarget.id);
-    setDeleteTarget(null);
-  }
-};
-```
-
-#### 4. Delete Confirmation Dialog
-
-Use the existing `DeleteConfirmDialog` component from `src/components/admin/DeleteConfirmDialog.tsx` for consistent UX:
+**Change the outer container wrapper:**
 
 ```tsx
-<DeleteConfirmDialog
-  open={!!deleteTarget}
-  onOpenChange={(open) => !open && setDeleteTarget(null)}
-  title="Delete Post"
-  itemName={deleteTarget?.title}
-  onConfirm={handleConfirmDelete}
-  isLoading={deleteMutation.isPending}
-  isSoftDelete={true}
-/>
+// Current (line 46-47):
+<div className="min-h-screen bg-background flex flex-col">
+
+// Updated:
+<div className="min-h-screen bg-background flex flex-col overflow-x-hidden">
 ```
 
----
+### 2. Add Container Constraint on Three-Column Flex Layout
 
-## Security Considerations
+**File:** `src/components/pulse/layout/PulseLayout.tsx`
 
-1. **Frontend check is for UX only** - The actual security is enforced by RLS policies
-2. **RLS policies verified**:
-   - `is_pulse_provider_owner(provider_id)` checks if current user owns the content
-   - `has_role(auth.uid(), 'platform_admin')` checks admin role
-3. **Even if UI is bypassed**, the database will reject unauthorized deletes
+**Wrap the three-column layout with a max-width constraint:**
 
----
+```tsx
+// Current (lines 58-59):
+<div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
+  <div className="flex h-full">
 
-## Updated Component Props
-
-### ContentCard
-```typescript
-interface ContentCardProps {
-  content: PulseContent & { /* existing */ };
-  currentUserProviderId: string;
-  isAdmin?: boolean;  // NEW
-  onContentClick?: () => void;
-  onProfileClick?: () => void;
-  onCommentClick?: () => void;
-  onDelete?: (contentId: string) => void;  // NEW
-}
+// Updated:
+<div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
+  <div className="flex h-full w-full max-w-[1920px] mx-auto">
 ```
 
-### PulseCardFeedItem
-```typescript
-interface PulseCardFeedItemProps {
-  card: FeedCardItem;
-  currentUserProviderId?: string;
-  isAdmin?: boolean;  // NEW
-  onCardClick?: () => void;
-  onProfileClick?: () => void;
-  onDelete?: (cardId: string) => void;  // NEW
-}
+This ensures:
+- Content is centered on very wide screens
+- Sidebars don't extend infinitely
+- Max width of 1920px covers most desktop monitors
+
+### 3. Ensure Main Content Has Proper Constraints
+
+**File:** `src/components/pulse/layout/PulseLayout.tsx`
+
+**Update main element (line 68):**
+
+```tsx
+// Current:
+<main className="flex-1 overflow-y-auto min-w-0">
+
+// Updated (add overflow-x-hidden for safety):
+<main className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
 ```
 
+### 4. Fix Header to Match Content Width
+
+**File:** `src/components/pulse/layout/PulseHeader.tsx`
+
+**Update header container (line 86):**
+
+```tsx
+// Current:
+<div className="h-full w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 flex items-center justify-between">
+
+// Updated (remove max-w-7xl to span full width like the content below):
+<div className="h-full w-full max-w-[1920px] mx-auto px-3 sm:px-4 lg:px-6 flex items-center justify-between">
+```
+
+### 5. Synchronize Sidebar Breakpoints (Optional Enhancement)
+
+Currently:
+- Left sidebar: `hidden xl:flex` (1280px+)
+- Right sidebar: `hidden lg:flex` (1024px+)
+
+This is intentional per the memory context (left at XL, right at LG), but to ensure consistency, verify both sidebars use `flex-shrink-0` (already present).
+
 ---
 
-## Implementation Summary
+## Summary of Changes
 
-| Step | Action |
-|------|--------|
-| 1 | Update `ContentCard.tsx` - Add delete menu item with auth check |
-| 2 | Update `PulseCardFeedItem.tsx` - Add delete menu item with auth check |
-| 3 | Update `PulseFeedPage.tsx` - Add delete mutation, useUserRoles, and confirmation dialog |
-| 4 | Add `DeleteConfirmDialog` to PulseFeedPage for confirmation UX |
+| File | Line(s) | Change |
+|------|---------|--------|
+| `PulseLayout.tsx` | 46 | Add `overflow-x-hidden` to root |
+| `PulseLayout.tsx` | 59 | Add `w-full max-w-[1920px] mx-auto` to flex container |
+| `PulseLayout.tsx` | 68 | Add `overflow-x-hidden` to main element |
+| `PulseHeader.tsx` | 86 | Change `max-w-7xl` to `max-w-[1920px]` |
 
 ---
 
-## Testing Verification
+## Technical Verification
 
-After implementation, verify:
-- [ ] Content author sees "Delete" option on their own posts
-- [ ] Platform admin sees "Delete" option on ALL posts
-- [ ] Regular users do NOT see "Delete" on others' posts
-- [ ] Delete confirmation dialog appears before deletion
-- [ ] Successful delete removes post from feed
-- [ ] Error handling works if delete fails
+After these changes, verify:
+- [ ] Left sidebar visible on screens ≥1280px (XL breakpoint)
+- [ ] Right sidebar visible on screens ≥1024px (LG breakpoint)
+- [ ] No horizontal scrollbar appears at any width
+- [ ] Sidebars are fully visible without clipping
+- [ ] Layout is centered on ultra-wide monitors (>1920px)
+- [ ] Mobile/tablet layouts unaffected (sidebars hidden)
