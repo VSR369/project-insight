@@ -5,12 +5,12 @@
 
 import { memo } from 'react';
 import { formatDistanceToNow } from 'date-fns';
-import { MoreHorizontal, Layers, BookOpen } from 'lucide-react';
+import { MoreHorizontal, Layers, BookOpen, Trash2 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { CardEngagementBar } from '@/components/pulse/cards/CardEngagementBar';
 import { FollowButton } from '@/components/pulse/social/FollowButton';
@@ -19,16 +19,23 @@ import type { FeedCardItem } from '@/hooks/queries/useUnifiedPulseFeed';
 interface PulseCardFeedItemProps {
   card: FeedCardItem;
   currentUserProviderId?: string;
+  isAdmin?: boolean;
   onCardClick?: () => void;
   onProfileClick?: () => void;
+  onDelete?: (cardId: string) => void;
 }
 
 export const PulseCardFeedItem = memo(function PulseCardFeedItem({
   card,
   currentUserProviderId = '',
+  isAdmin = false,
   onCardClick,
   onProfileClick,
+  onDelete,
 }: PulseCardFeedItemProps) {
+  // Check if current user can delete this card (owner or admin)
+  const canDelete = card.seed_creator_id === currentUserProviderId || isAdmin;
+  
   const creatorName = card.creator
     ? `${card.creator.first_name || ''} ${card.creator.last_name || ''}`.trim() || 'Anonymous'
     : 'Anonymous';
@@ -120,6 +127,21 @@ export const PulseCardFeedItem = memo(function PulseCardFeedItem({
             <DropdownMenuItem>Share</DropdownMenuItem>
             <DropdownMenuItem>Copy Link</DropdownMenuItem>
             <DropdownMenuItem className="text-destructive">Report</DropdownMenuItem>
+            {canDelete && onDelete && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDelete(card.id);
+                  }}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </CardHeader>

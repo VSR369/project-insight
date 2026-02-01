@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, AlertCircle, Rss, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -7,13 +8,21 @@ import { PulseLayout, ProfileBuildBanner } from '@/components/pulse/layout';
 import { ContentCard, PulseCardFeedItem } from '@/components/pulse/content';
 import { DailyStandupBanner, PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { StartPostWidget } from '@/components/pulse/widgets';
+import { DeleteConfirmDialog } from '@/components/admin/DeleteConfirmDialog';
 import { useUnifiedPulseFeed } from '@/hooks/queries/useUnifiedPulseFeed';
+import { useDeletePulseContent } from '@/hooks/queries/usePulseContent';
 import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
+import { useUserRoles } from '@/hooks/useUserRoles';
 
 export default function PulseFeedPage() {
   const navigate = useNavigate();
   const { isFirstTime, isLoading: firstTimeLoading, provider } = useIsFirstTimeProvider();
   const { data: feedItems, isLoading, isRefetching, refetch, error } = useUnifiedPulseFeed();
+  const { isAdmin } = useUserRoles();
+  const deleteMutation = useDeletePulseContent();
+  
+  // Delete confirmation dialog state
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; type: 'content' | 'card' } | null>(null);
 
   const handleContentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}`);
@@ -29,6 +38,16 @@ export default function PulseFeedPage() {
 
   const handleCommentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}#comments`);
+  };
+
+  const handleDeleteClick = (id: string, title: string, type: 'content' | 'card') => {
+    setDeleteTarget({ id, title, type });
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return;
+    await deleteMutation.mutateAsync(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   // Loading state
@@ -211,8 +230,10 @@ export default function PulseFeedPage() {
                     key={`card-${item.id}`}
                     card={item.card}
                     currentUserProviderId={provider?.id || ''}
+                    isAdmin={isAdmin}
                     onCardClick={() => handleCardClick(item.id)}
                     onProfileClick={() => handleProfileClick(item.card!.seed_creator_id)}
+                    onDelete={(cardId) => handleDeleteClick(cardId, 'this pulse card', 'card')}
                   />
                 );
               }
@@ -223,9 +244,15 @@ export default function PulseFeedPage() {
                     key={`content-${item.id}`}
                     content={item.content as any}
                     currentUserProviderId={provider?.id || ''}
+                    isAdmin={isAdmin}
                     onContentClick={() => handleContentClick(item.id)}
                     onProfileClick={() => handleProfileClick(item.content!.provider_id)}
                     onCommentClick={() => handleCommentClick(item.id)}
+                    onDelete={(contentId) => handleDeleteClick(
+                      contentId, 
+                      item.content?.title || item.content?.headline || 'this post', 
+                      'content'
+                    )}
                   />
                 );
               }
@@ -234,6 +261,17 @@ export default function PulseFeedPage() {
             })}
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <DeleteConfirmDialog
+          open={!!deleteTarget}
+          onOpenChange={(open) => !open && setDeleteTarget(null)}
+          title="Delete Post"
+          itemName={deleteTarget?.title}
+          onConfirm={handleConfirmDelete}
+          isLoading={deleteMutation.isPending}
+          isSoftDelete={true}
+        />
       </div>
     </PulseLayout>
   );
