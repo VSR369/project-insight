@@ -387,7 +387,7 @@ export default function Dashboard() {
                       </Badge>
                     )}
 
-                    <div className="flex flex-col md:flex-row md:items-start gap-3 md:gap-4">
+                    <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-4">
                       {/* Industry Icon */}
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
                         isTerminal && enrollment.lifecycle_status !== 'not_verified'
@@ -419,7 +419,7 @@ export default function Dashboard() {
                         </div>
 
                         {/* Details Grid */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-1.5 mt-2 text-sm text-muted-foreground">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-x-4 gap-y-1.5 mt-2 text-sm text-muted-foreground">
                           {/* Expertise Level */}
                           <span className="flex items-center gap-1 min-w-0">
                             <GraduationCap className="h-3 w-3 shrink-0" />
@@ -476,7 +476,7 @@ export default function Dashboard() {
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 mt-3 md:mt-0 w-full md:w-auto">
+                      <div className="shrink-0 flex flex-wrap items-center justify-end gap-2 mt-3 lg:mt-0 w-full lg:w-auto">
                         {/* Delete Button - show for all non-primary enrollments (dialog handles validation) */}
                         {!enrollment.is_primary && enrollments.length > 1 && (
                           <Button
@@ -513,7 +513,7 @@ export default function Dashboard() {
                             }}
                           >
                             <Crown className="h-4 w-4" />
-                            <span className="hidden sm:inline ml-1">Set Primary</span>
+                            <span className="hidden lg:inline ml-1">Set Primary</span>
                           </Button>
                         )}
 
