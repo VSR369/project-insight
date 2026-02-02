@@ -1792,6 +1792,10 @@ export type Database = {
       }
       provider_industry_enrollments: {
         Row: {
+          certification_level: string | null
+          certified_at: string | null
+          certified_by: string | null
+          composite_score: number | null
           created_at: string
           created_by: string | null
           expertise_flag_for_clarification: string | null
@@ -1814,10 +1818,15 @@ export type Database = {
           proof_points_reviewed_by: string | null
           proof_points_reviewer_notes: string | null
           provider_id: string
+          star_rating: number | null
           updated_at: string | null
           updated_by: string | null
         }
         Insert: {
+          certification_level?: string | null
+          certified_at?: string | null
+          certified_by?: string | null
+          composite_score?: number | null
           created_at?: string
           created_by?: string | null
           expertise_flag_for_clarification?: string | null
@@ -1840,10 +1849,15 @@ export type Database = {
           proof_points_reviewed_by?: string | null
           proof_points_reviewer_notes?: string | null
           provider_id: string
+          star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
         Update: {
+          certification_level?: string | null
+          certified_at?: string | null
+          certified_by?: string | null
+          composite_score?: number | null
           created_at?: string
           created_by?: string | null
           expertise_flag_for_clarification?: string | null
@@ -1866,6 +1880,7 @@ export type Database = {
           proof_points_reviewed_by?: string | null
           proof_points_reviewer_notes?: string | null
           provider_id?: string
+          star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -3738,6 +3753,7 @@ export type Database = {
           first_name: string
           id: string
           industry_segment_id: string | null
+          invitation_id: string | null
           is_student: boolean
           last_name: string
           lifecycle_rank: number
@@ -3746,6 +3762,7 @@ export type Database = {
           participation_mode_id: string | null
           pin_code: string | null
           profile_completion_percentage: number | null
+          registration_mode: Database["public"]["Enums"]["registration_mode"]
           timezone: string | null
           updated_at: string | null
           updated_by: string | null
@@ -3763,6 +3780,7 @@ export type Database = {
           first_name: string
           id?: string
           industry_segment_id?: string | null
+          invitation_id?: string | null
           is_student?: boolean
           last_name: string
           lifecycle_rank?: number
@@ -3771,6 +3789,7 @@ export type Database = {
           participation_mode_id?: string | null
           pin_code?: string | null
           profile_completion_percentage?: number | null
+          registration_mode?: Database["public"]["Enums"]["registration_mode"]
           timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -3788,6 +3807,7 @@ export type Database = {
           first_name?: string
           id?: string
           industry_segment_id?: string | null
+          invitation_id?: string | null
           is_student?: boolean
           last_name?: string
           lifecycle_rank?: number
@@ -3796,6 +3816,7 @@ export type Database = {
           participation_mode_id?: string | null
           pin_code?: string | null
           profile_completion_percentage?: number | null
+          registration_mode?: Database["public"]["Enums"]["registration_mode"]
           timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
@@ -3824,6 +3845,13 @@ export type Database = {
             columns: ["industry_segment_id"]
             isOneToOne: false
             referencedRelation: "industry_segments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solution_providers_invitation_id_fkey"
+            columns: ["invitation_id"]
+            isOneToOne: false
+            referencedRelation: "solution_provider_invitations"
             referencedColumns: ["id"]
           },
           {
@@ -4195,6 +4223,14 @@ export type Database = {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: undefined
       }
+      finalize_certification: {
+        Args: {
+          p_certifying_user_id: string
+          p_composite_score: number
+          p_enrollment_id: string
+        }
+        Returns: Json
+      }
       get_active_reviewer_count: {
         Args: { p_expertise_level_id: string; p_industry_segment_id: string }
         Returns: number
@@ -4426,6 +4462,7 @@ export type Database = {
         | "decision"
         | "proof"
       question_usage_mode: "self_assessment" | "interview" | "both"
+      registration_mode: "self_registered" | "invitation"
       verification_status: "pending" | "in_progress" | "verified" | "rejected"
     }
     CompositeTypes: {
@@ -4653,6 +4690,7 @@ export const Constants = {
         "proof",
       ],
       question_usage_mode: ["self_assessment", "interview", "both"],
+      registration_mode: ["self_registered", "invitation"],
       verification_status: ["pending", "in_progress", "verified", "rejected"],
     },
   },

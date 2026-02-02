@@ -1,7 +1,8 @@
 /**
  * Certification Constants
  * 
- * Score weights and certification outcome thresholds for Final Result calculation.
+ * Score weights, certification outcome thresholds, and display configuration
+ * for Final Result calculation.
  */
 
 /** Score weightages for composite score calculation */
@@ -14,9 +15,9 @@ export const SCORE_WEIGHTS = {
 /** Certification outcome thresholds (percentage) */
 export const CERTIFICATION_THRESHOLDS = {
   notCertified: 51.0,   // < 51.0% = Not Certified
-  oneStar: 66.0,        // 51.0% - 65.9% = One Star
-  twoStar: 86.0,        // 66.0% - 85.9% = Two Star
-  // >= 86.0% = Three Star
+  oneStar: 66.0,        // 51.0% - 65.9% = One Star (Basic)
+  twoStar: 86.0,        // 66.0% - 85.9% = Two Star (Competent)
+  // >= 86.0% = Three Star (Expert)
 } as const;
 
 /** Certification outcome types */
@@ -25,10 +26,14 @@ export type CertificationOutcome = 'not_certified' | 'one_star' | 'two_star' | '
 /** Stage status types */
 export type StageStatus = 'completed' | 'in_progress' | 'not_started';
 
+/** Certification level types (stored in database) */
+export type CertificationLevel = 'basic' | 'competent' | 'expert';
+
 /** Certification outcome display configuration */
 export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   label: string;
   stars: number;
+  level: CertificationLevel | null;
   colorClass: string;
   bgClass: string;
   textClass: string;
@@ -36,6 +41,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   not_certified: {
     label: 'Not Certified',
     stars: 0,
+    level: null,
     colorClass: 'text-destructive',
     bgClass: 'bg-destructive/10',
     textClass: 'text-destructive',
@@ -43,6 +49,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   one_star: {
     label: 'Certified',
     stars: 1,
+    level: 'basic',
     colorClass: 'text-amber-600',
     bgClass: 'bg-amber-50',
     textClass: 'text-amber-700',
@@ -50,6 +57,7 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   two_star: {
     label: 'Certified',
     stars: 2,
+    level: 'competent',
     colorClass: 'text-blue-600',
     bgClass: 'bg-blue-50',
     textClass: 'text-blue-700',
@@ -57,9 +65,41 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   three_star: {
     label: 'Certified',
     stars: 3,
+    level: 'expert',
     colorClass: 'text-green-600',
     bgClass: 'bg-green-50',
     textClass: 'text-green-700',
+  },
+};
+
+/** Certification level display configuration */
+export const CERTIFICATION_LEVELS: Record<CertificationLevel, {
+  label: string;
+  description: string;
+  stars: number;
+  minScore: number;
+  maxScore: number;
+}> = {
+  basic: {
+    label: 'Basic',
+    description: 'Entry-level certification',
+    stars: 1,
+    minScore: 51.0,
+    maxScore: 65.9,
+  },
+  competent: {
+    label: 'Competent',
+    description: 'Professional-level certification',
+    stars: 2,
+    minScore: 66.0,
+    maxScore: 85.9,
+  },
+  expert: {
+    label: 'Expert',
+    description: 'Expert-level certification',
+    stars: 3,
+    minScore: 86.0,
+    maxScore: 100.0,
   },
 };
 
@@ -98,6 +138,23 @@ export function getCertificationOutcome(compositeScore: number): CertificationOu
   if (compositeScore < CERTIFICATION_THRESHOLDS.oneStar) return 'one_star';
   if (compositeScore < CERTIFICATION_THRESHOLDS.twoStar) return 'two_star';
   return 'three_star';
+}
+
+/**
+ * Map certification outcome to certification level
+ */
+export function outcomeToLevel(outcome: CertificationOutcome): CertificationLevel | null {
+  return OUTCOME_DISPLAY[outcome].level;
+}
+
+/**
+ * Map star rating to certification level
+ */
+export function starRatingToLevel(starRating: number | null): CertificationLevel | null {
+  if (starRating === null || starRating === 0) return null;
+  if (starRating === 1) return 'basic';
+  if (starRating === 2) return 'competent';
+  return 'expert';
 }
 
 /**
