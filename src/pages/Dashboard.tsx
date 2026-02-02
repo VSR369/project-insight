@@ -13,6 +13,7 @@ import { getNextStepForStatus, getStepRoute, STEP_ROUTES } from '@/services/wiza
 import { AppLayout, LifecycleProgressIndicator } from '@/components/layout';
 import { AddIndustryDialog, EnrollmentDeleteDialog } from '@/components/enrollment';
 import { PulseDashboardWidget } from '@/components/pulse/dashboard';
+import { StarRating } from '@/components/ui/StarRating';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   AlertDialog,
@@ -407,6 +408,10 @@ export default function Dashboard() {
                             {getStatusIcon(enrollment.lifecycle_status)}
                             {getStatusDisplayName(enrollment.lifecycle_status)}
                           </Badge>
+                          {/* Star Rating for certified enrollments */}
+                          {enrollment.lifecycle_status === 'certified' && enrollment.star_rating != null && (
+                            <StarRating rating={enrollment.star_rating} size="sm" showLabel />
+                          )}
                           {!isTerminal && (
                             <span className="text-xs text-muted-foreground">
                               Rank {enrollment.lifecycle_rank} ({progress}%)

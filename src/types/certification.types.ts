@@ -66,3 +66,11 @@ export function getStarRatingDisplay(starRating: number | null) {
   if (!level) return null;
   return CERTIFICATION_LEVEL_DISPLAY[level];
 }
+
+/**
+ * Get display configuration for a certification level
+ */
+export function getCertificationLevelDisplay(level: CertificationLevel | null) {
+  if (!level) return null;
+  return CERTIFICATION_LEVEL_DISPLAY[level] || null;
+}
