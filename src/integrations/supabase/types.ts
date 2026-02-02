@@ -4362,6 +4362,7 @@ export type Database = {
         | "assessment_completed"
         | "verified"
         | "certified"
+        | "not_certified"
         | "not_verified"
         | "active"
         | "suspended"
@@ -4580,6 +4581,7 @@ export const Constants = {
         "assessment_completed",
         "verified",
         "certified",
+        "not_certified",
         "not_verified",
         "active",
         "suspended",
