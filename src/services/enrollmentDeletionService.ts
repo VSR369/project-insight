@@ -194,8 +194,8 @@ export async function validateEnrollmentDeletion(
     });
   }
 
-  // Rule 3: Cannot delete verified/certified enrollments
-  const terminalStatuses = ['verified', 'certified'];
+  // Rule 3: Cannot delete certified enrollments
+  const terminalStatuses = ['certified'];
   if (terminalStatuses.includes(enrollment.lifecycle_status)) {
     hardBlockers.push({
       type: 'hard',

@@ -278,7 +278,7 @@ export function useIsTerminalState(): {
       return { isTerminal: false, status: null, isLoading };
     }
 
-    const terminalStatuses = ['verified', 'certified', 'not_verified', 'active', 'suspended', 'inactive'];
+    const terminalStatuses = ['certified', 'not_certified', 'active', 'suspended', 'inactive'];
     // Use enrollment lifecycle status, fallback to provider for backward compatibility
     const lifecycleStatus = enrollmentContext?.activeLifecycleStatus ?? provider.lifecycle_status;
     const isTerminal = terminalStatuses.includes(lifecycleStatus);

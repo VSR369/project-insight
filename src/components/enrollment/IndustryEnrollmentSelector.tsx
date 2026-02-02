@@ -65,13 +65,13 @@ export function IndustryEnrollmentSelector({
 
   // Calculate progress percentage (simplified - based on lifecycle rank)
   const getProgressPercent = (lifecycleRank: number) => {
-    const maxRank = LIFECYCLE_RANKS.verified; // 140
+    const maxRank = LIFECYCLE_RANKS.certified; // 140
     return Math.min(100, Math.round((lifecycleRank / maxRank) * 100));
   };
 
   const getStatusBadgeVariant = (status: string): 'default' | 'secondary' | 'outline' | 'destructive' => {
-    if (status === 'verified' || status === 'certified') return 'default';
-    if (status === 'not_verified' || status === 'suspended') return 'destructive';
+    if (status === 'certified') return 'default';
+    if (status === 'not_certified' || status === 'suspended') return 'destructive';
     return 'secondary';
   };
 

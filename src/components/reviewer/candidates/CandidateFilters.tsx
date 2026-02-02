@@ -27,8 +27,8 @@ const STATUS_OPTIONS: { value: LifecycleStatus; label: string }[] = [
   { value: "assessment_completed", label: "Assessment Completed" },
   { value: "panel_scheduled", label: "Panel Scheduled" },
   { value: "panel_completed", label: "Panel Completed" },
-  { value: "verified", label: "Verified" },
-  { value: "not_verified", label: "Not Verified" },
+  { value: "certified", label: "Certified" },
+  { value: "not_certified", label: "Not Certified" },
 ];
 
 export function CandidateFiltersPanel({ filters, onFiltersChange }: CandidateFiltersProps) {
