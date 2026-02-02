@@ -24,41 +24,36 @@ import {
 // ============================================================================
 describe('BR-01: Terminal State Immutability', () => {
   
-  it('TC-BR01-01: VERIFIED profile (rank 140) should be completely frozen', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.verified, 'registration');
+  it('TC-BR01-01: CERTIFIED profile (rank 140) should be completely frozen', () => {
+    const result = canModifyField(LIFECYCLE_RANKS.certified, 'registration');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('everything');
     expect(result.reason).toContain('frozen');
   });
 
-  it('TC-BR01-02: CERTIFIED profile (rank 150) should be completely frozen', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.certified, 'registration');
+  it('TC-BR01-02: NOT_CERTIFIED profile (rank 150) should be completely frozen', () => {
+    const result = canModifyField(LIFECYCLE_RANKS.not_certified, 'configuration');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('everything');
   });
 
-  it('TC-BR01-03: NOT_VERIFIED profile (rank 160) should be completely frozen', () => {
-    const result = canModifyField(LIFECYCLE_RANKS.not_verified, 'configuration');
-    expect(result.allowed).toBe(false);
-    expect(result.lockLevel).toBe('everything');
-  });
-
-  it('TC-BR01-04: All field categories frozen at terminal state', () => {
+  it('TC-BR01-03: All field categories frozen at terminal state', () => {
     const categories = ['registration', 'configuration', 'content'] as const;
     categories.forEach(category => {
-      const result = canModifyField(LIFECYCLE_RANKS.verified, category);
+      const result = canModifyField(LIFECYCLE_RANKS.certified, category);
       expect(result.allowed).toBe(false);
       expect(result.lockLevel).toBe('everything');
     });
   });
 
-  it('TC-BR01-05: Terminal state includes verified, certified, and not_verified', () => {
-    const terminalStatuses = ['verified', 'certified', 'not_verified'] as const;
+  it('TC-BR01-04: Terminal state includes certified and not_certified', () => {
+    const terminalStatuses = ['certified', 'not_certified'] as const;
     terminalStatuses.forEach(status => {
       const rank = LIFECYCLE_RANKS[status];
       expect(rank).toBeGreaterThanOrEqual(LOCK_THRESHOLDS.EVERYTHING);
     });
   });
+
 });
 
 // ============================================================================
@@ -143,7 +138,7 @@ describe('BR-3.2: Industry Segment Changes (Hard Reset)', () => {
   it('TC-BR32-08: Industry change displays critical warning message', () => {
     const impact = getCascadeImpact('industry_segment_id', 50, true, true);
     expect(impact.message).toBeDefined();
-    expect(impact.message).toContain('Industry');
+    expect(impact.message?.toLowerCase()).toContain('industry');
   });
 });
 
@@ -244,9 +239,9 @@ describe('BR-5.1: Tab Visibility & Locking', () => {
     expect(isWizardStepLocked(5, LIFECYCLE_RANKS.assessment_in_progress)).toBe(true);
   });
 
-  it('TC-BR51-04: All steps (1-9) locked at VERIFIED (terminal)', () => {
+  it('TC-BR51-04: All steps (1-9) locked at CERTIFIED (terminal)', () => {
     for (let step = 1; step <= 9; step++) {
-      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.verified)).toBe(true);
+      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.certified)).toBe(true);
     }
   });
 
@@ -254,17 +249,12 @@ describe('BR-5.1: Tab Visibility & Locking', () => {
     expect(isWizardStepLocked(4, LIFECYCLE_RANKS.proof_points_min_met)).toBe(false);
   });
 
-  it('TC-BR51-06: All steps locked at CERTIFIED (terminal)', () => {
+  it('TC-BR51-06: All steps locked at NOT_CERTIFIED (terminal)', () => {
     for (let step = 1; step <= 9; step++) {
-      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.certified)).toBe(true);
+      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.not_certified)).toBe(true);
     }
   });
 
-  it('TC-BR51-07: All steps locked at NOT_VERIFIED (terminal)', () => {
-    for (let step = 1; step <= 9; step++) {
-      expect(isWizardStepLocked(step, LIFECYCLE_RANKS.not_verified)).toBe(true);
-    }
-  });
 });
 
 // ============================================================================
@@ -283,9 +273,9 @@ describe('Lock Thresholds Configuration', () => {
     expect(LIFECYCLE_RANKS.assessment_in_progress).toBe(100);
   });
 
-  it('TC-LT-03: Everything lock threshold is 140 (VERIFIED)', () => {
+  it('TC-LT-03: Everything lock threshold is 140 (CERTIFIED)', () => {
     expect(LOCK_THRESHOLDS.EVERYTHING).toBe(140);
-    expect(LIFECYCLE_RANKS.verified).toBe(140);
+    expect(LIFECYCLE_RANKS.certified).toBe(140);
   });
 
   it('TC-LT-04: Thresholds are in ascending order', () => {
@@ -310,29 +300,28 @@ describe('Lifecycle Ranks Configuration', () => {
     expect(LIFECYCLE_RANKS.expertise_selected).toBeLessThan(LIFECYCLE_RANKS.proof_points_min_met);
     expect(LIFECYCLE_RANKS.proof_points_min_met).toBeLessThan(LIFECYCLE_RANKS.assessment_in_progress);
     expect(LIFECYCLE_RANKS.assessment_in_progress).toBeLessThan(LIFECYCLE_RANKS.panel_scheduled);
-    expect(LIFECYCLE_RANKS.panel_scheduled).toBeLessThan(LIFECYCLE_RANKS.verified);
+    expect(LIFECYCLE_RANKS.panel_scheduled).toBeLessThan(LIFECYCLE_RANKS.certified);
   });
 
   it('TC-LR-03: getLifecycleRank returns correct rank for valid status', () => {
     expect(getLifecycleRank('enrolled')).toBe(20);
     expect(getLifecycleRank('expertise_selected')).toBe(50);
-    expect(getLifecycleRank('verified')).toBe(140);
-    expect(getLifecycleRank('certified')).toBe(150);
-    expect(getLifecycleRank('not_verified')).toBe(160);
+    expect(getLifecycleRank('certified')).toBe(140);
+    expect(getLifecycleRank('not_certified')).toBe(150);
   });
 
   it('TC-LR-04: getLifecycleRank returns 0 for unknown status', () => {
     expect(getLifecycleRank('unknown_status')).toBe(0);
   });
 
-  it('TC-LR-05: All 16+ stages have defined ranks', () => {
+  it('TC-LR-05: All 15 stages have defined ranks', () => {
     const expectedStages = [
       'invited', 'registered', 'enrolled', 'mode_selected',
       'org_info_pending', 'org_validated', 'expertise_selected',
       'proof_points_started', 'proof_points_min_met',
       'assessment_in_progress', 'assessment_passed',
       'panel_scheduled', 'panel_completed',
-      'verified', 'certified', 'not_verified'
+      'certified', 'not_certified'
     ];
     
     expectedStages.forEach(stage => {

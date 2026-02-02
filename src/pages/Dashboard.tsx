@@ -36,7 +36,7 @@ import {
 import { useParticipationModes } from '@/hooks/queries/useMasterData';
 
 // Terminal lifecycle statuses where profile is complete/locked
-const TERMINAL_STATUSES = ['verified', 'certified', 'not_verified'];
+const TERMINAL_STATUSES = ['certified', 'not_certified'];
 
 // Lifecycle rank thresholds for progress calculation
 const LIFECYCLE_PROGRESS_MAP: Record<string, number> = {
@@ -117,10 +117,9 @@ export default function Dashboard() {
         return 'Prepare for panel interview';
       case 'panel_completed':
         return 'View certification status';
-      case 'verified':
       case 'certified':
         return null; // Complete
-      case 'not_verified':
+      case 'not_certified':
         return 'Review certification status';
       default:
         return 'Continue setup';
@@ -174,11 +173,10 @@ export default function Dashboard() {
   // Get badge variant for lifecycle status
   const getStatusBadgeVariant = (status: string): 'default' | 'secondary' | 'destructive' | 'outline' => {
     switch (status) {
-      case 'verified':
       case 'certified':
       case 'active':
         return 'default';
-      case 'not_verified':
+      case 'not_certified':
       case 'suspended':
       case 'inactive':
         return 'destructive';
@@ -190,11 +188,9 @@ export default function Dashboard() {
   // Get status icon
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'verified':
-        return <ShieldCheck className="h-4 w-4" />;
       case 'certified':
         return <Star className="h-4 w-4" />;
-      case 'not_verified':
+      case 'not_certified':
         return <XCircle className="h-4 w-4" />;
       default:
         return null;
@@ -368,10 +364,10 @@ export default function Dashboard() {
                       isActive 
                         ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
                         : 'hover:bg-muted/50'
-                    } ${isTerminal && enrollment.lifecycle_status !== 'not_verified' 
+                    } ${isTerminal && enrollment.lifecycle_status !== 'not_certified' 
                         ? 'border-green-500/30 bg-green-500/5' 
                         : ''
-                    } ${enrollment.lifecycle_status === 'not_verified' 
+                    } ${enrollment.lifecycle_status === 'not_certified' 
                         ? 'border-destructive/30 bg-destructive/5' 
                         : ''
                     }`}
@@ -390,9 +386,9 @@ export default function Dashboard() {
                     <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-4">
                       {/* Industry Icon */}
                       <div className={`w-12 h-12 rounded-lg flex items-center justify-center shrink-0 ${
-                        isTerminal && enrollment.lifecycle_status !== 'not_verified'
+                        isTerminal && enrollment.lifecycle_status !== 'not_certified'
                           ? 'bg-green-500/10 text-green-600'
-                          : enrollment.lifecycle_status === 'not_verified'
+                          : enrollment.lifecycle_status === 'not_certified'
                             ? 'bg-destructive/10 text-destructive'
                             : isActive 
                               ? 'bg-primary/10 text-primary' 

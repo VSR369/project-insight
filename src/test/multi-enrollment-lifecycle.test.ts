@@ -46,7 +46,7 @@ describe('Multi-Enrollment Lifecycle Isolation', () => {
     });
 
     it('TC-ME01-02: Terminal state in one enrollment does not affect another', () => {
-      const enrollmentTerminal = { lifecycleRank: LIFECYCLE_RANKS.verified }; // 140
+      const enrollmentTerminal = { lifecycleRank: LIFECYCLE_RANKS.certified }; // 140
       const enrollmentActive = { lifecycleRank: LIFECYCLE_RANKS.expertise_selected }; // 50
 
       const terminalLock = canModifyField(enrollmentTerminal.lifecycleRank, 'content');
@@ -288,40 +288,31 @@ describe('Assessment Eligibility Per-Enrollment', () => {
 // ============================================================================
 describe('Terminal State Handling Per-Enrollment', () => {
 
-  it('TC-TS-01: Verified enrollment is frozen, other enrollments are not affected', () => {
-    const verifiedEnrollment = LIFECYCLE_RANKS.verified; // 140
+  it('TC-TS-01: Certified enrollment is frozen, other enrollments are not affected', () => {
+    const certifiedEnrollment = LIFECYCLE_RANKS.certified; // 140
     const activeEnrollment = LIFECYCLE_RANKS.expertise_selected; // 50
 
-    const verifiedCheck = canModifyField(verifiedEnrollment, 'content');
+    const certifiedCheck = canModifyField(certifiedEnrollment, 'content');
     const activeCheck = canModifyField(activeEnrollment, 'content');
 
-    expect(verifiedCheck.allowed).toBe(false);
-    expect(verifiedCheck.lockLevel).toBe('everything');
+    expect(certifiedCheck.allowed).toBe(false);
+    expect(certifiedCheck.lockLevel).toBe('everything');
     
     expect(activeCheck.allowed).toBe(true);
   });
 
-  it('TC-TS-02: Certified enrollment is frozen independently', () => {
-    const certifiedRank = LIFECYCLE_RANKS.certified; // 150
+  it('TC-TS-02: Not_certified enrollment is frozen independently', () => {
+    const notCertifiedRank = LIFECYCLE_RANKS.not_certified; // 150
     
-    const result = canModifyField(certifiedRank, 'registration');
+    const result = canModifyField(notCertifiedRank, 'configuration');
     expect(result.allowed).toBe(false);
     expect(result.lockLevel).toBe('everything');
   });
 
-  it('TC-TS-03: Not_verified enrollment is frozen independently', () => {
-    const notVerifiedRank = LIFECYCLE_RANKS.not_verified; // 160
-    
-    const result = canModifyField(notVerifiedRank, 'configuration');
-    expect(result.allowed).toBe(false);
-    expect(result.lockLevel).toBe('everything');
-  });
-
-  it('TC-TS-04: All three terminal states freeze all field categories', () => {
+  it('TC-TS-03: Both terminal states freeze all field categories', () => {
     const terminalRanks = [
-      LIFECYCLE_RANKS.verified,     // 140
-      LIFECYCLE_RANKS.certified,    // 150
-      LIFECYCLE_RANKS.not_verified, // 160
+      LIFECYCLE_RANKS.certified,      // 140
+      LIFECYCLE_RANKS.not_certified,  // 150
     ];
     
     const categories = ['registration', 'configuration', 'content'] as const;

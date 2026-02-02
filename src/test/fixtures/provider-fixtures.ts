@@ -12,7 +12,7 @@ export type LifecycleStatus =
   | 'proof_points_started' | 'proof_points_min_met'
   | 'assessment_in_progress' | 'assessment_passed'
   | 'panel_scheduled' | 'panel_completed'
-  | 'verified' | 'certified' | 'not_verified';
+  | 'certified' | 'not_certified';
 
 // Base provider fixture
 export interface ProviderFixture {
@@ -110,7 +110,7 @@ export function createProvidersAtAllStages(): Record<LifecycleStatus, ProviderFi
     'proof_points_started', 'proof_points_min_met',
     'assessment_in_progress', 'assessment_passed',
     'panel_scheduled', 'panel_completed',
-    'verified', 'certified', 'not_verified'
+    'certified', 'not_certified'
   ];
 
   return stages.reduce((acc, status) => {
@@ -175,7 +175,7 @@ export const CASCADE_TEST_SCENARIOS = {
   // Provider at terminal state - no changes allowed
   terminalState: {
     provider: createProviderFixture({
-      lifecycle_status: 'verified',
+      lifecycle_status: 'certified',
       lifecycle_rank: 140,
       industry_segment_id: 'industry-1',
       expertise_level_id: 'level-1',

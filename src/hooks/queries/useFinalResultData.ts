@@ -324,10 +324,10 @@ function deriveStageDescriptions(
 
   // Certification Status
   let certificationStatus = 'Pending evaluation';
-  if (lifecycleStatus === 'verified' || lifecycleStatus === 'certified') {
+  if (lifecycleStatus === 'certified') {
     certificationStatus = 'Certified';
-  } else if (lifecycleStatus === 'not_verified') {
-    certificationStatus = 'Not Verified';
+  } else if (lifecycleStatus === 'not_certified') {
+    certificationStatus = 'Not Certified';
   } else if (interviewBooking?.interview_submitted_at) {
     certificationStatus = 'Awaiting final decision';
   }

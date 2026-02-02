@@ -33,22 +33,21 @@ export const LIFECYCLE_RANKS: Record<string, number> = {
   assessment_passed: 110,
   panel_scheduled: 120,
   panel_completed: 130,
-  verified: 140,
-  active: 145,
-  certified: 150,
-  not_verified: 160,
+  active: 135,
+  certified: 140,
+  not_certified: 150,
   suspended: 200,
   inactive: 210,
 } as const;
 
 /** Terminal states - no further progression possible */
-export const TERMINAL_STATES = ['verified', 'certified', 'not_verified', 'suspended', 'inactive'] as const;
+export const TERMINAL_STATES = ['certified', 'not_certified', 'suspended', 'inactive'] as const;
 
 /** Hidden states - certification content should be hidden */
 export const HIDDEN_STATES = ['suspended', 'inactive'] as const;
 
 /** View-only terminal states - can view but not modify */
-export const VIEW_ONLY_STATES = ['verified', 'certified', 'not_verified'] as const;
+export const VIEW_ONLY_STATES = ['certified', 'not_certified'] as const;
 
 /** Field categories for lock checking */
 export type FieldCategory = 'registration' | 'configuration' | 'content';
@@ -77,10 +76,9 @@ export const STATUS_DISPLAY_NAMES: Record<string, string> = {
   assessment_passed: 'Assessment Passed',
   panel_scheduled: 'Panel Scheduled',
   panel_completed: 'Panel Completed',
-  verified: 'Verified',
   active: 'Active',
   certified: 'Certified',
-  not_verified: 'Not Verified',
+  not_certified: 'Not Certified',
   suspended: 'Suspended',
   inactive: 'Inactive',
 };

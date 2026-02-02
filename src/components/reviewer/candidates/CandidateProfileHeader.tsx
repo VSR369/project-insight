@@ -16,7 +16,6 @@ export function CandidateProfileHeader({ candidate }: CandidateProfileHeaderProp
     const displayName = STATUS_DISPLAY_NAMES[status] || status.replace(/_/g, " ");
     
     switch (status) {
-      case "verified":
       case "certified":
         return (
           <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -24,7 +23,7 @@ export function CandidateProfileHeader({ candidate }: CandidateProfileHeaderProp
             {displayName}
           </Badge>
         );
-      case "not_verified":
+      case "not_certified":
         return (
           <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
             <XCircle className="h-3 w-3 mr-1" />

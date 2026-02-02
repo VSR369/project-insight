@@ -54,9 +54,8 @@ export function WizardStepper({
       assessment_passed: 'Assessment Passed',
       panel_scheduled: 'Panel Scheduled',
       panel_completed: 'Panel Completed',
-      verified: 'Verified',
       certified: 'Certified',
-      not_verified: 'Not Verified',
+      not_certified: 'Not Certified',
     };
     return displayNames[status] || status.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
   };

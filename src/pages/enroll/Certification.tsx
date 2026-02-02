@@ -2,8 +2,8 @@
  * Certification Page
  * 
  * Step 9 of enrollment - Final Certification stage
- * Shown when lifecycle_status = 'panel_completed', 'verified', 'certified',
- * 'not_verified', 'suspended', or 'inactive'
+ * Shown when lifecycle_status = 'panel_completed', 'certified',
+ * 'not_certified', 'suspended', or 'inactive'
  */
 
 import { WizardLayout } from '@/components/layout';
@@ -41,23 +41,14 @@ export default function Certification() {
           title: 'Congratulations! You are Certified',
           description: 'You have successfully completed all verification steps.',
         };
-      case 'verified':
+      case 'not_certified':
         return {
-          badge: 'Verified',
-          badgeVariant: 'secondary',
-          icon: CheckCircle2,
-          iconColor: 'text-green-500',
-          title: 'You are Verified',
-          description: 'Your expertise has been verified by our panel.',
-        };
-      case 'not_verified':
-        return {
-          badge: 'Not Verified',
+          badge: 'Not Certified',
           badgeVariant: 'outline',
           icon: XCircle,
           iconColor: 'text-orange-500',
-          title: 'Verification Unsuccessful',
-          description: 'Unfortunately, your verification was not successful at this time.',
+          title: 'Certification Unsuccessful',
+          description: 'Unfortunately, your certification was not successful at this time.',
         };
       case 'suspended':
         return {
@@ -110,7 +101,7 @@ export default function Certification() {
   const isHidden = HIDDEN_STATES.includes(lifecycleStatus as typeof HIDDEN_STATES[number]);
   
   // Can show certificate download
-  const canDownloadCertificate = lifecycleStatus === 'verified' || lifecycleStatus === 'certified';
+  const canDownloadCertificate = lifecycleStatus === 'certified';
 
   return (
     <WizardLayout
@@ -201,7 +192,7 @@ export default function Certification() {
               <CardTitle>What's Next?</CardTitle>
             </CardHeader>
             <CardContent>
-              {lifecycleStatus === 'not_verified' ? (
+              {lifecycleStatus === 'not_certified' ? (
                 <ul className="space-y-3">
                   <li className="flex items-start gap-3">
                     <AlertTriangle className="h-5 w-5 text-orange-500 mt-0.5 shrink-0" />
