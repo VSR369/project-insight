@@ -36,6 +36,13 @@ export interface ProviderIndustryEnrollment {
   lifecycle_status: LifecycleStatus;
   lifecycle_rank: number;
   is_primary: boolean;
+  // Certification fields
+  composite_score: number | null;
+  certification_level: string | null;
+  star_rating: number | null;
+  certified_at: string | null;
+  certified_by: string | null;
+  // Timestamps
   created_at: string;
   updated_at: string | null;
   created_by: string | null;

@@ -14,6 +14,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Award, CheckCircle2, Download, Star, Trophy, XCircle, AlertTriangle, Ban } from 'lucide-react';
 import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { TERMINAL_STATES, HIDDEN_STATES } from '@/constants/lifecycle.constants';
+import { StarRating } from '@/components/ui/StarRating';
+import { getCertificationLevelDisplay } from '@/types/certification.types';
 
 interface StatusConfig {
   badge: string;
@@ -29,6 +31,13 @@ export default function Certification() {
   const { activeEnrollment } = useEnrollmentContext();
   
   const lifecycleStatus = activeEnrollment?.lifecycle_status;
+  const starRating = activeEnrollment?.star_rating;
+  const certificationLevel = activeEnrollment?.certification_level;
+  const compositeScore = activeEnrollment?.composite_score;
+  const certifiedAt = activeEnrollment?.certified_at;
+  
+  // Get certification level display info
+  const levelDisplay = getCertificationLevelDisplay(certificationLevel as 'basic' | 'competent' | 'expert' | null);
   
   const getStatusConfig = (): StatusConfig => {
     switch (lifecycleStatus) {
@@ -151,12 +160,43 @@ export default function Certification() {
                 {config.badge}
               </Badge>
               
+              {/* Star Rating - prominently displayed for certified providers */}
+              {lifecycleStatus === 'certified' && starRating != null && (
+                <div className="flex flex-col items-center gap-2 mb-4">
+                  <StarRating rating={starRating} size="lg" />
+                  {levelDisplay && (
+                    <Badge variant="secondary" className={levelDisplay.colorClass}>
+                      {levelDisplay.label} Certification
+                    </Badge>
+                  )}
+                </div>
+              )}
+              
               <h2 className="text-2xl font-bold text-foreground mb-2">
                 {config.title}
               </h2>
               <p className="text-muted-foreground max-w-md mx-auto">
                 {config.description}
               </p>
+              
+              {/* Composite Score breakdown for certified */}
+              {lifecycleStatus === 'certified' && compositeScore != null && (
+                <div className="mt-4 p-4 bg-muted/50 rounded-lg inline-block">
+                  <p className="text-sm text-muted-foreground">Composite Score</p>
+                  <p className="text-2xl font-bold text-primary">{compositeScore.toFixed(1)}%</p>
+                </div>
+              )}
+              
+              {/* Certified date */}
+              {lifecycleStatus === 'certified' && certifiedAt && (
+                <p className="text-xs text-muted-foreground mt-4">
+                  Certified on {new Date(certifiedAt).toLocaleDateString('en-US', { 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                  })}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

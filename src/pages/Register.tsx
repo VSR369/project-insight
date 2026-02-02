@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, UserPlus, GraduationCap, Briefcase, ClipboardCheck, Shield, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, Loader2, UserPlus, GraduationCap, Briefcase, ClipboardCheck, Shield, AlertCircle, Crown } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { 
   registerSchema, 
@@ -17,6 +17,7 @@ import {
 import { useCountries, useAcademicDisciplines, useAcademicStreams } from '@/hooks/queries/useMasterData';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
+import { getStoredInvitationData, clearStoredInvitationData, type InvitationData } from '@/hooks/queries/useValidateInvitation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,7 +26,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDes
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -65,30 +66,34 @@ const TIMEZONE_OPTIONS = [
 ];
 
 export default function Register() {
+  // ═══════════════════════════════════════════
+  // SECTION 1: All useState hooks FIRST
+  // ═══════════════════════════════════════════
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [activeRole, setActiveRole] = useState<RoleTab>('provider');
   const [providerSubTab, setProviderSubTab] = useState<ProviderSubTab>('experienced');
+  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('');
+  const [invitationData, setInvitationData] = useState<InvitationData | null>(null);
+
+  // ═══════════════════════════════════════════
+  // SECTION 2: Context and custom hooks
+  // ═══════════════════════════════════════════
   const { signUp, user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Fetch master data
   const { data: countries } = useCountries();
   const { data: disciplines } = useAcademicDisciplines();
   const { data: industrySegments } = useIndustrySegments();
   const { data: expertiseLevels } = useExpertiseLevels();
-
-  // Watch discipline for cascading streams
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('');
   const { data: streams } = useAcademicStreams(selectedDiscipline);
 
-  // Redirect if already logged in
-  if (user) {
-    navigate('/dashboard', { replace: true });
-    return null;
-  }
-
+  // ═══════════════════════════════════════════
+  // SECTION 3: Form hooks (React Hook Form)
+  // ═══════════════════════════════════════════
   // Provider forms
   const experiencedForm = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema),
@@ -153,18 +158,72 @@ export default function Register() {
     },
   });
 
+  // ═══════════════════════════════════════════
+  // SECTION 4: useEffect hooks
+  // ═══════════════════════════════════════════
+  // Check for invitation context from URL
+  useEffect(() => {
+    const isInvitation = searchParams.get('invitation') === 'true';
+    if (isInvitation) {
+      const stored = getStoredInvitationData();
+      if (stored) {
+        setInvitationData(stored);
+        // Pre-fill form with invitation data
+        experiencedForm.setValue('email', stored.email);
+        if (stored.first_name) {
+          experiencedForm.setValue('firstName', stored.first_name);
+        }
+        if (stored.last_name) {
+          experiencedForm.setValue('lastName', stored.last_name);
+        }
+        // Force provider tab for invitations
+        setActiveRole('provider');
+      }
+    }
+  }, [searchParams, experiencedForm]);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [user, navigate]);
+
+  // ═══════════════════════════════════════════
+  // SECTION 5: Conditional returns (AFTER ALL HOOKS)
+  // ═══════════════════════════════════════════
+  // Early return for logged in user (after useEffect handles navigation)
+  if (user) {
+    return null;
+  }
+
+  // Derived state
+  const isVipInvitation = invitationData?.invitation_type === 'vip_expert';
+  const hasInvitation = !!invitationData;
+
+  // ═══════════════════════════════════════════
+  // SECTION 6: Event handlers
+  // ═══════════════════════════════════════════
   const onProviderSubmit = async (data: RegisterFormData | StudentRegisterFormData) => {
     setIsLoading(true);
     try {
-      const metadata = {
+      const metadata: Record<string, unknown> = {
         first_name: data.firstName,
         last_name: data.lastName,
         is_student: providerSubTab === 'student',
-        role_type: 'provider', // Explicit role type for trigger
+        role_type: 'provider',
         address: data.address || null,
         pin_code: data.pinCode || null,
         country_id: data.countryId || null,
       };
+
+      // Add invitation context if present
+      if (invitationData) {
+        metadata.invitation_id = invitationData.id;
+        if (invitationData.industry_segment_id) {
+          metadata.industry_segment_id = invitationData.industry_segment_id;
+        }
+      }
 
       const { error } = await signUp(data.email, data.password, metadata);
       
@@ -175,6 +234,11 @@ export default function Register() {
           toast.error(error.message);
         }
         return;
+      }
+      
+      // Clear invitation data after successful signup
+      if (invitationData) {
+        clearStoredInvitationData();
       }
       
       toast.success('Account created! Please check your email to verify your account.');
