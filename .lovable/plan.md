@@ -1,278 +1,561 @@
 
-# Implementation Plan: Merge `verified` → `certified` and Rename `not_verified` → `not_certified`
+# Comprehensive Implementation Plan: Fill Provider Status Gaps
 
-## Summary of Changes
+## Executive Summary
 
-Based on your confirmation:
-1. **Merge `verified` (rank 140) INTO `certified` (rank 150)** - Only `certified` will remain as the success terminal state
-2. **Rename `not_verified` → `not_certified`** - More intuitive business meaning
-3. **`not_certified` providers stay in that status** - No retry mechanism for now
+This plan fills the gaps identified in the Solution Provider Status Reference Guide (Part 8) while preserving all existing functionality. The implementation adds missing database columns, VIP expert bypass flow, and certification level assignment logic.
 
 ---
 
-## Current State Analysis
+## Gap Analysis Summary
 
-### Existing lifecycle_status Enum Values (22 total)
-```
-invited → registered → enrolled → mode_selected → org_info_pending → org_validated →
-expertise_selected → profile_building → proof_points_started → proof_points_min_met →
-assessment_pending → assessment_in_progress → assessment_completed → assessment_passed →
-panel_scheduled → panel_completed → verified → active → certified → not_verified →
-suspended → inactive
-```
-
-### After Changes (21 total - removing `verified`)
-```
-invited → registered → enrolled → mode_selected → org_info_pending → org_validated →
-expertise_selected → profile_building → proof_points_started → proof_points_min_met →
-assessment_pending → assessment_in_progress → assessment_completed → assessment_passed →
-panel_scheduled → panel_completed → active → certified → not_certified →
-suspended → inactive
-```
-
-### New Lifecycle Ranks
-| Status | Old Rank | New Rank | Notes |
-|--------|----------|----------|-------|
-| panel_completed | 130 | 130 | No change |
-| ~~verified~~ | 140 | REMOVED | Merged into certified |
-| active | 145 | 135 | Moved up (rarely used) |
-| certified | 150 | 140 | Success terminal state |
-| ~~not_verified~~ | 160 | - | Renamed |
-| not_certified | - | 150 | Failure terminal state |
-| suspended | 200 | 200 | No change |
-| inactive | 210 | 210 | No change |
+| Feature | Current State | Required Change |
+|---------|---------------|-----------------|
+| `registration_mode` column | Missing | Add to `solution_providers` |
+| `composite_score` column | Missing | Add to `provider_industry_enrollments` |
+| `certification_level` column | Missing | Add to `provider_industry_enrollments` |
+| `star_rating` column | Missing | Add to `provider_industry_enrollments` |
+| `certified_at` column | Missing | Add to `provider_industry_enrollments` |
+| VIP bypass logic | Not implemented | Create invitation acceptance handler |
+| Certification level assignment | Not implemented | Add auto-assign after interview submission |
 
 ---
 
-## Impact Analysis
+## Implementation Phases
 
-### Files Requiring Updates (16 files identified)
+### Phase 1: Database Schema Additions
 
-#### Core Constants (2 files)
-| File | Changes Required |
-|------|-----------------|
-| `src/constants/lifecycle.constants.ts` | Remove `verified`, rename `not_verified` → `not_certified`, update ranks and display names |
-| `src/constants/certification.constants.ts` | No changes (uses outcomes, not statuses) |
+**Priority: HIGH | Risk: LOW**
 
-#### Services (2 files)
-| File | Changes Required |
-|------|-----------------|
-| `src/services/lifecycleService.ts` | Update TERMINAL_STATES, VIEW_ONLY_STATES, function logic |
-| `src/services/enrollmentDeletionService.ts` | Update `terminalStatuses` array |
-
-#### Hooks (3 files)
-| File | Changes Required |
-|------|-----------------|
-| `src/hooks/queries/useLifecycleValidation.ts` | Update `terminalStatuses` check |
-| `src/hooks/queries/useFinalResultData.ts` | Update certification status derivation logic |
-| `src/hooks/queries/useCandidateExpertise.ts` | Check for `verified` references (may be different context) |
-
-#### Components (6 files)
-| File | Changes Required |
-|------|-----------------|
-| `src/pages/enroll/Certification.tsx` | Remove `verified` case, update `not_verified` → `not_certified` |
-| `src/pages/Dashboard.tsx` | Update TERMINAL_STATUSES, status icons, badge variants |
-| `src/components/layout/WizardStepper.tsx` | Update display names |
-| `src/components/layout/EnrollmentSwitcher.tsx` | Update TERMINAL_STATUSES |
-| `src/components/enrollment/IndustryEnrollmentSelector.tsx` | Update status checks |
-| `src/components/reviewer/candidates/CandidateFilters.tsx` | Update filter options |
-| `src/components/reviewer/candidates/CandidateCard.tsx` | Update status badge logic |
-| `src/components/reviewer/candidates/CandidateProfileHeader.tsx` | Update status badge logic |
-
-#### Tests (3 files)
-| File | Changes Required |
-|------|-----------------|
-| `src/test/lifecycle-governance.test.ts` | Update terminal status tests, rank expectations |
-| `src/test/lifecycle-integration.test.ts` | Update status references |
-| `src/test/fixtures/provider-fixtures.ts` | Update status type and fixtures |
-
----
-
-## Database Migration Required
-
-### Challenge: PostgreSQL Enum Limitations
-PostgreSQL does NOT support:
-- Renaming enum values directly
-- Removing enum values
-
-### Solution: Text Column Migration
-Since renaming/removing enum values is complex, we'll use a safer approach:
+#### 1.1 Add `registration_mode` column to `solution_providers`
 
 ```sql
--- Migration: Merge verified → certified, Rename not_verified → not_certified
+-- Add registration_mode enum type
+CREATE TYPE registration_mode AS ENUM ('self_registered', 'invitation');
 
--- Step 1: Update existing data BEFORE modifying enum
--- Migrate any records with 'verified' to 'certified'
-UPDATE solution_providers 
-SET lifecycle_status = 'certified', lifecycle_rank = 140
-WHERE lifecycle_status = 'verified';
+-- Add column with default
+ALTER TABLE solution_providers 
+  ADD COLUMN registration_mode registration_mode NOT NULL DEFAULT 'self_registered';
 
-UPDATE provider_industry_enrollments 
-SET lifecycle_status = 'certified', lifecycle_rank = 140
-WHERE lifecycle_status = 'verified';
+-- Add invitation_id FK for traceability (optional but recommended)
+ALTER TABLE solution_providers
+  ADD COLUMN invitation_id UUID REFERENCES solution_provider_invitations(id);
+```
 
--- Step 2: Add new enum value 'not_certified'
-ALTER TYPE lifecycle_status ADD VALUE IF NOT EXISTS 'not_certified' AFTER 'certified';
+#### 1.2 Add certification columns to `provider_industry_enrollments`
 
--- Step 3: Migrate 'not_verified' → 'not_certified'
-UPDATE solution_providers 
-SET lifecycle_status = 'not_certified', lifecycle_rank = 150
-WHERE lifecycle_status = 'not_verified';
+```sql
+-- Add certification tracking columns
+ALTER TABLE provider_industry_enrollments
+  ADD COLUMN composite_score DECIMAL(5,2),
+  ADD COLUMN certification_level VARCHAR(20),
+  ADD COLUMN star_rating INTEGER CHECK (star_rating >= 0 AND star_rating <= 3),
+  ADD COLUMN certified_at TIMESTAMPTZ,
+  ADD COLUMN certified_by UUID REFERENCES auth.users(id);
 
-UPDATE provider_industry_enrollments 
-SET lifecycle_status = 'not_certified', lifecycle_rank = 150
-WHERE lifecycle_status = 'not_verified';
+-- Add index for reporting queries
+CREATE INDEX idx_enrollments_certification 
+  ON provider_industry_enrollments(certification_level, star_rating) 
+  WHERE lifecycle_status = 'certified';
+```
 
--- Note: 'verified' and 'not_verified' remain in enum (PostgreSQL limitation)
--- but are no longer used. Application code will not reference them.
+#### 1.3 Update `handle_new_user` trigger to set registration_mode
+
+```sql
+-- Modify handle_new_user to detect invitation vs self-registration
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_provider_id UUID;
+  v_is_student BOOLEAN;
+  v_industry_segment_id UUID;
+  v_country_id UUID;
+  v_enrollment_id UUID;
+  v_role_type TEXT;
+  v_invitation_id UUID;
+  v_invitation_type TEXT;
+  v_registration_mode registration_mode;
+BEGIN
+  -- Extract role type and invitation context from metadata
+  v_role_type := COALESCE(NEW.raw_user_meta_data->>'role_type', 'provider');
+  v_invitation_id := (NEW.raw_user_meta_data->>'invitation_id')::uuid;
+  
+  -- Determine registration mode
+  IF v_invitation_id IS NOT NULL THEN
+    v_registration_mode := 'invitation';
+    -- Lookup invitation type for VIP handling
+    SELECT invitation_type INTO v_invitation_type
+    FROM solution_provider_invitations
+    WHERE id = v_invitation_id;
+  ELSE
+    v_registration_mode := 'self_registered';
+  END IF;
+
+  -- ... existing profile creation logic ...
+  
+  -- For provider role type
+  IF v_role_type = 'provider' THEN
+    INSERT INTO public.solution_providers (
+      user_id,
+      first_name,
+      last_name,
+      is_student,
+      industry_segment_id,
+      country_id,
+      address,
+      pin_code,
+      lifecycle_status,
+      lifecycle_rank,
+      onboarding_status,
+      registration_mode,
+      invitation_id,
+      created_by
+    ) VALUES (
+      NEW.id,
+      COALESCE(NEW.raw_user_meta_data->>'first_name', ''),
+      COALESCE(NEW.raw_user_meta_data->>'last_name', ''),
+      v_is_student,
+      v_industry_segment_id,
+      v_country_id,
+      NEW.raw_user_meta_data->>'address',
+      NEW.raw_user_meta_data->>'pin_code',
+      CASE WHEN v_invitation_type = 'vip_expert' THEN 'certified' ELSE 'registered' END,
+      CASE WHEN v_invitation_type = 'vip_expert' THEN 140 ELSE 20 END,
+      CASE WHEN v_invitation_type = 'vip_expert' THEN 'completed' ELSE 'not_started' END,
+      v_registration_mode,
+      v_invitation_id,
+      NEW.id
+    ) RETURNING id INTO v_provider_id;
+
+    -- Create enrollment (VIP gets auto-certified)
+    IF v_industry_segment_id IS NOT NULL THEN
+      INSERT INTO public.provider_industry_enrollments (
+        provider_id,
+        industry_segment_id,
+        is_primary,
+        lifecycle_status,
+        lifecycle_rank,
+        composite_score,
+        certification_level,
+        star_rating,
+        certified_at,
+        created_by
+      ) VALUES (
+        v_provider_id,
+        v_industry_segment_id,
+        true,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN 'certified' ELSE 'registered' END,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN 140 ELSE 20 END,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN 100.0 ELSE NULL END,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN 'expert' ELSE NULL END,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN 3 ELSE NULL END,
+        CASE WHEN v_invitation_type = 'vip_expert' THEN NOW() ELSE NULL END,
+        NEW.id
+      ) RETURNING id INTO v_enrollment_id;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
 ```
 
 ---
 
-## Detailed Implementation Steps
+### Phase 2: Invitation Acceptance Flow for Providers
 
-### Phase 1: Database Migration
+**Priority: HIGH | Risk: MEDIUM**
 
-**Task 1.1: Create Migration Script**
-- Add `not_certified` enum value
-- Migrate existing `verified` records → `certified`
-- Migrate existing `not_verified` records → `not_certified`
-- Update lifecycle_rank values accordingly
+#### 2.1 Create Edge Function: `accept-provider-invitation`
 
-### Phase 2: Update Constants & Services
+This handles invitation token validation and links the invitation to user signup.
 
-**Task 2.1: Update `src/constants/lifecycle.constants.ts`**
 ```typescript
-// Remove 'verified' from LIFECYCLE_RANKS
-// Rename 'not_verified' → 'not_certified'
-// Update ranks: certified = 140, not_certified = 150
+// supabase/functions/accept-provider-invitation/index.ts
 
-export const LIFECYCLE_RANKS: Record<string, number> = {
-  // ... earlier statuses unchanged ...
-  panel_completed: 130,
-  active: 135,           // Moved up from 145
-  certified: 140,        // Was 150, now primary success state
-  not_certified: 150,    // Renamed from not_verified (was 160)
-  suspended: 200,
-  inactive: 210,
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-export const TERMINAL_STATES = ['certified', 'not_certified', 'suspended', 'inactive'] as const;
-export const VIEW_ONLY_STATES = ['certified', 'not_certified'] as const;
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
 
-export const STATUS_DISPLAY_NAMES: Record<string, string> = {
-  // ... update to remove 'verified', add 'not_certified' ...
-  certified: 'Certified',
-  not_certified: 'Not Certified',  // Renamed
+  try {
+    const { token } = await req.json();
+    
+    if (!token) {
+      return new Response(
+        JSON.stringify({ error: 'Invitation token is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const supabaseAdmin = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+    );
+
+    // Find valid invitation
+    const { data: invitation, error: inviteError } = await supabaseAdmin
+      .from('solution_provider_invitations')
+      .select('*')
+      .eq('token', token)
+      .is('accepted_at', null)
+      .is('declined_at', null)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (inviteError || !invitation) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid or expired invitation' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Return invitation details for signup form pre-fill
+    return new Response(
+      JSON.stringify({
+        success: true,
+        invitation: {
+          id: invitation.id,
+          email: invitation.email,
+          first_name: invitation.first_name,
+          last_name: invitation.last_name,
+          invitation_type: invitation.invitation_type,
+          industry_segment_id: invitation.industry_segment_id,
+        },
+      }),
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  } catch (error) {
+    console.error('Error:', error);
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
+      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+  }
+});
+```
+
+#### 2.2 Create Provider Invitation Accept Page
+
+New route: `/invite/:token` for provider invitation acceptance
+
+```typescript
+// src/pages/InviteAccept.tsx
+// - Validates token via edge function
+// - Pre-fills signup form with invitation data
+// - Passes invitation_id to signup metadata
+// - For VIP: Shows special welcome message
+```
+
+#### 2.3 Update Registration Flow
+
+Modify `src/pages/Register.tsx` to:
+- Accept `invitationId` from URL/query params
+- Include `invitation_id` in signup metadata
+- For VIP invitations, show condensed form (name + password only)
+
+---
+
+### Phase 3: Certification Level Assignment
+
+**Priority: HIGH | Risk: MEDIUM**
+
+#### 3.1 Create Database Function: `finalize_certification`
+
+```sql
+CREATE OR REPLACE FUNCTION public.finalize_certification(
+  p_enrollment_id UUID,
+  p_composite_score DECIMAL,
+  p_certifying_user_id UUID
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO 'public'
+AS $$
+DECLARE
+  v_certification_level VARCHAR(20);
+  v_star_rating INTEGER;
+  v_new_status lifecycle_status;
+BEGIN
+  -- Calculate certification level based on composite score
+  IF p_composite_score < 51.0 THEN
+    v_certification_level := NULL;
+    v_star_rating := NULL;
+    v_new_status := 'not_certified';
+  ELSIF p_composite_score < 66.0 THEN
+    v_certification_level := 'basic';
+    v_star_rating := 1;
+    v_new_status := 'certified';
+  ELSIF p_composite_score < 86.0 THEN
+    v_certification_level := 'competent';
+    v_star_rating := 2;
+    v_new_status := 'certified';
+  ELSE
+    v_certification_level := 'expert';
+    v_star_rating := 3;
+    v_new_status := 'certified';
+  END IF;
+
+  -- Update enrollment with certification details
+  UPDATE provider_industry_enrollments
+  SET 
+    composite_score = p_composite_score,
+    certification_level = v_certification_level,
+    star_rating = v_star_rating,
+    lifecycle_status = v_new_status,
+    lifecycle_rank = CASE WHEN v_new_status = 'certified' THEN 140 ELSE 150 END,
+    certified_at = CASE WHEN v_new_status = 'certified' THEN NOW() ELSE NULL END,
+    certified_by = p_certifying_user_id,
+    updated_at = NOW(),
+    updated_by = p_certifying_user_id
+  WHERE id = p_enrollment_id;
+
+  -- Update verification_status on provider
+  UPDATE solution_providers sp
+  SET 
+    verification_status = CASE WHEN v_new_status = 'certified' THEN 'verified' ELSE 'rejected' END,
+    updated_at = NOW()
+  WHERE id = (SELECT provider_id FROM provider_industry_enrollments WHERE id = p_enrollment_id);
+
+  RETURN json_build_object(
+    'success', true,
+    'certification_level', v_certification_level,
+    'star_rating', v_star_rating,
+    'lifecycle_status', v_new_status
+  );
+END;
+$$;
+```
+
+#### 3.2 Update Interview Submission Flow
+
+Modify `useSubmitInterview` hook in `src/hooks/queries/useInterviewKitEvaluation.ts`:
+
+```typescript
+// After interview score is saved to interview_bookings:
+// 1. Calculate composite score (proof_points_final_score + assessment % + interview score)
+// 2. Call finalize_certification RPC
+// 3. Invalidate relevant queries
+```
+
+#### 3.3 Create Certification Finalization Hook
+
+```typescript
+// src/hooks/mutations/useFinalizeCertification.ts
+export function useFinalizeCertification() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ enrollmentId }: { enrollmentId: string }) => {
+      // 1. Fetch all three scores
+      const { data: enrollment } = await supabase
+        .from('provider_industry_enrollments')
+        .select('proof_points_final_score')
+        .eq('id', enrollmentId)
+        .single();
+
+      const { data: assessment } = await supabase
+        .from('assessment_attempts')
+        .select('score_percentage')
+        .eq('enrollment_id', enrollmentId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      const { data: interview } = await supabase
+        .from('interview_bookings')
+        .select('interview_score_out_of_10')
+        .eq('enrollment_id', enrollmentId)
+        .not('interview_submitted_at', 'is', null)
+        .single();
+
+      // 2. Calculate composite
+      const proofScore = enrollment?.proof_points_final_score ?? 0;
+      const assessmentPct = assessment?.score_percentage ?? 0;
+      const interviewScore = interview?.interview_score_out_of_10 ?? 0;
+
+      const compositeScore = 
+        ((proofScore / 10) * 100 * 0.30) +
+        (assessmentPct * 0.50) +
+        ((interviewScore / 10) * 100 * 0.20);
+
+      // 3. Call RPC
+      const { data, error } = await supabase.rpc('finalize_certification', {
+        p_enrollment_id: enrollmentId,
+        p_composite_score: Math.round(compositeScore * 10) / 10,
+        p_certifying_user_id: (await supabase.auth.getUser()).data.user?.id,
+      });
+
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (_, { enrollmentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment', enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      queryClient.invalidateQueries({ queryKey: ['final-result-data'] });
+      toast.success('Certification finalized');
+    },
+  });
+}
+```
+
+---
+
+### Phase 4: UI Integration
+
+**Priority: MEDIUM | Risk: LOW**
+
+#### 4.1 Update Final Result Tab
+
+Modify `src/components/reviewer/candidates/FinalResultTabContent.tsx`:
+- Add "Finalize Certification" button (visible when interview submitted but not yet certified)
+- Show certification level and star rating prominently once finalized
+
+#### 4.2 Update Certification Page
+
+Modify `src/pages/enroll/Certification.tsx`:
+- Display star rating with visual stars (1-3)
+- Show certification level label
+- Display composite score breakdown
+
+#### 4.3 Update Dashboard
+
+Modify `src/pages/Dashboard.tsx`:
+- Show star badge next to certified enrollments
+- Display certification level in enrollment cards
+
+#### 4.4 Create Invitation Accept Page
+
+New page `src/pages/InviteAccept.tsx`:
+- Route: `/invite/:token`
+- Validates invitation token
+- Pre-fills registration form
+- Special flow for VIP experts
+
+---
+
+### Phase 5: TypeScript Types and Constants
+
+**Priority: MEDIUM | Risk: LOW**
+
+#### 5.1 Add Certification Level Types
+
+```typescript
+// src/types/certification.types.ts
+export type CertificationLevel = 'basic' | 'competent' | 'expert';
+export type RegistrationMode = 'self_registered' | 'invitation';
+
+export const CERTIFICATION_LEVEL_DISPLAY: Record<CertificationLevel, {
+  label: string;
+  stars: number;
+  colorClass: string;
+}> = {
+  basic: { label: 'Basic', stars: 1, colorClass: 'text-amber-600' },
+  competent: { label: 'Competent', stars: 2, colorClass: 'text-blue-600' },
+  expert: { label: 'Expert', stars: 3, colorClass: 'text-green-600' },
 };
 ```
 
-**Task 2.2: Update `src/services/lifecycleService.ts`**
-- Update function logic to use new status names
-- Update lock threshold (EVERYTHING = 140 for certified)
+#### 5.2 Update Constants
 
-### Phase 3: Update UI Components
-
-**Task 3.1: Update `src/pages/enroll/Certification.tsx`**
-- Remove `case 'verified'` switch case
-- Change `case 'not_verified'` → `case 'not_certified'`
-- Update display text from "Not Verified" to "Not Certified"
-
-**Task 3.2: Update `src/pages/Dashboard.tsx`**
-- Update `TERMINAL_STATUSES` array
-- Update `getStatusIcon()` function
-- Update `getStatusBadgeVariant()` function
-- Update conditional styling for `not_certified`
-
-**Task 3.3: Update Other Components**
-- `WizardStepper.tsx` - Display names
-- `EnrollmentSwitcher.tsx` - Terminal statuses
-- `IndustryEnrollmentSelector.tsx` - Status checks
-- `CandidateFilters.tsx` - Filter options
-- `CandidateCard.tsx` - Badge logic
-- `CandidateProfileHeader.tsx` - Badge logic
-
-### Phase 4: Update Hooks
-
-**Task 4.1: Update `src/hooks/queries/useFinalResultData.ts`**
-```typescript
-// Before:
-if (lifecycleStatus === 'verified' || lifecycleStatus === 'certified') {
-  certificationStatus = 'Certified';
-} else if (lifecycleStatus === 'not_verified') {
-  certificationStatus = 'Not Verified';
-}
-
-// After:
-if (lifecycleStatus === 'certified') {
-  certificationStatus = 'Certified';
-} else if (lifecycleStatus === 'not_certified') {
-  certificationStatus = 'Not Certified';
-}
-```
-
-**Task 4.2: Update `src/hooks/queries/useLifecycleValidation.ts`**
-- Update `terminalStatuses` array
-
-**Task 4.3: Update `src/services/enrollmentDeletionService.ts`**
-- Remove 'verified' from terminal check (only 'certified' now)
-
-### Phase 5: Update Tests
-
-**Task 5.1: Update Test Files**
-- `lifecycle-governance.test.ts` - Update assertions
-- `lifecycle-integration.test.ts` - Update status references
-- `provider-fixtures.ts` - Update type definitions and fixtures
-
----
-
-## Final Status Matrix (Simplified)
-
-| Status | Rank | Meaning | Terminal? |
-|--------|------|---------|-----------|
-| panel_completed | 130 | Interview panel done | No |
-| active | 135 | Active on platform (rarely used) | No |
-| **certified** | 140 | ✅ SUCCESS - Passed all stages | Yes |
-| **not_certified** | 150 | ❌ FAILED - Did not meet threshold | Yes |
-| suspended | 200 | Account suspended | Yes |
-| inactive | 210 | Account inactive | Yes |
-
----
-
-## Verification Checklist
-
-After implementation, verify:
-- [ ] No references to `'verified'` as lifecycle_status in code
-- [ ] No references to `'not_verified'` in code
-- [ ] All tests pass with updated assertions
-- [ ] Database has no records with old status values
-- [ ] UI displays "Certified" and "Not Certified" correctly
-- [ ] Lock thresholds work correctly at rank 140
+Add to `src/constants/certification.constants.ts`:
+- `CERTIFICATION_LEVELS` constant
+- `mapOutcomeToLevel()` helper function
 
 ---
 
 ## Technical Considerations
 
-### Note on `verification_status` Field
-The `verification_status` field on `solution_providers` table (`pending`, `in_progress`, `verified`, `rejected`) is **SEPARATE** from `lifecycle_status`. This field:
-- Uses a different enum (`verification_status` not `lifecycle_status`)
-- Is about proof point/credential verification process
-- Will NOT be changed in this implementation
-- The value `verified` in `verification_status` enum is unrelated to lifecycle
+### Database Constraints
 
-### Note on `ExpertiseLevelHeader.tsx`
-The `verified` references in reviewer candidate components refer to `expertise_review_status` (proof point review), NOT lifecycle. These will NOT be changed.
+1. **composite_score**: DECIMAL(5,2) allows 0.00 to 100.00
+2. **star_rating**: CHECK constraint 0-3 (0 = not certified)
+3. **certification_level**: Free text to allow future extensions
+4. **certified_at**: Only set when lifecycle_status = 'certified'
+
+### Migration Safety
+
+- All new columns have NULL defaults initially
+- Existing records unaffected (no breaking changes)
+- Trigger update is backward compatible
+
+### VIP Expert Auto-Certification
+
+- Sets `composite_score = 100.0`
+- Sets `certification_level = 'expert'`
+- Sets `star_rating = 3`
+- Sets `verification_status = NULL` (no verification needed)
+- Bypasses all enrollment steps
+
+---
+
+## Files to Create/Modify
+
+### New Files
+| File | Purpose |
+|------|---------|
+| `supabase/functions/accept-provider-invitation/index.ts` | Invitation token validation |
+| `src/pages/InviteAccept.tsx` | Invitation acceptance page |
+| `src/hooks/mutations/useFinalizeCertification.ts` | Certification finalization hook |
+| `src/types/certification.types.ts` | TypeScript types |
+
+### Modified Files
+| File | Changes |
+|------|---------|
+| `src/pages/Register.tsx` | Accept invitation_id, VIP condensed form |
+| `src/hooks/queries/useInterviewKitEvaluation.ts` | Trigger certification after interview |
+| `src/pages/enroll/Certification.tsx` | Display star rating and level |
+| `src/pages/Dashboard.tsx` | Show certification badges |
+| `src/components/reviewer/candidates/FinalResultTabContent.tsx` | Finalize button |
+| `supabase/config.toml` | Add new edge function |
+
+---
+
+## Verification Checklist
+
+After implementation:
+- [ ] New columns exist in database
+- [ ] Self-registered providers have `registration_mode = 'self_registered'`
+- [ ] Invited providers have `registration_mode = 'invitation'`
+- [ ] VIP experts are auto-certified with 3 stars on signup
+- [ ] Standard providers go through full 9-step flow
+- [ ] Interview submission triggers certification finalization
+- [ ] Composite score is calculated correctly (30% + 50% + 20%)
+- [ ] Certification level assigned based on score thresholds
+- [ ] Star rating displayed on dashboard and profiles
+- [ ] All existing functionality preserved
 
 ---
 
 ## Estimated Effort
 
-| Phase | Tasks | Complexity |
-|-------|-------|------------|
-| Phase 1: Database | 1 migration | Low |
-| Phase 2: Constants/Services | 2-3 files | Low |
-| Phase 3: UI Components | 8 files | Medium |
-| Phase 4: Hooks | 3 files | Low |
-| Phase 5: Tests | 3 files | Low |
+| Phase | Complexity | Estimate |
+|-------|------------|----------|
+| Phase 1: Database Schema | Low | 1 session |
+| Phase 2: Invitation Flow | Medium | 2 sessions |
+| Phase 3: Certification Assignment | Medium | 2 sessions |
+| Phase 4: UI Integration | Low | 1 session |
+| Phase 5: Types & Constants | Low | 1 session |
 
-**Total: ~16 files, straightforward search-and-replace with careful attention to enum handling**
+**Total: ~7 sessions**
+
+---
+
+## Risk Mitigation
+
+1. **Database Migration Rollback**: All columns are additive; can be dropped if issues arise
+2. **Trigger Update**: Test with both self-registration and invitation flows
+3. **VIP Bypass**: Test that VIP users cannot access enrollment wizard steps
+4. **Certification Lock**: Verify certified enrollments become read-only (rank 140)
