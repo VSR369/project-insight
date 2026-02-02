@@ -1,5 +1,8 @@
 project_id = "izwimkvabbvnqcrrubpf"
 
+[functions.accept-provider-invitation]
+verify_jwt = false
+
 [functions.compile-card-narrative]
 verify_jwt = false
 

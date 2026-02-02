@@ -25,6 +25,10 @@ export interface FinalResultData {
   industryName: string;
   expertiseLevelName: string;
 
+  // Lifecycle info
+  lifecycleStatus: string;
+  lifecycleRank: number;
+
   // Lifecycle Stage Statuses
   stages: {
     providerDetails: StageStatus;
@@ -65,6 +69,11 @@ export interface FinalResultData {
   // Certification Outcome
   certificationOutcome: CertificationOutcome | null;
 
+  // Certification details (from DB)
+  certificationLevel: string | null;
+  starRating: number | null;
+  certifiedAt: string | null;
+
   // Flags
   requiresOrgInfo: boolean;
   isInterviewSubmitted: boolean;
@@ -87,6 +96,10 @@ export function useFinalResultData(enrollmentId?: string) {
           participation_mode_id,
           proof_points_review_status,
           proof_points_final_score,
+          composite_score,
+          certification_level,
+          star_rating,
+          certified_at,
           industry_segment:industry_segments(id, name),
           expertise_level:expertise_levels(id, name),
           participation_mode:participation_modes(id, code, requires_org_info),
@@ -158,7 +171,7 @@ export function useFinalResultData(enrollmentId?: string) {
         lifecycleStatus
       );
 
-      // Extract scores
+      // Extract scores - prefer DB stored composite if available
       const proofPointsScore = enrollment.proof_points_final_score ?? null;
       const assessmentScore = latestAttempt?.answered_questions ?? null;
       const assessmentMax = latestAttempt?.total_questions ?? null;
@@ -166,12 +179,19 @@ export function useFinalResultData(enrollmentId?: string) {
       const interviewScore = interviewBooking?.interview_score_out_of_10 ?? null;
       const isInterviewSubmitted = !!interviewBooking?.interview_submitted_at;
 
-      // Calculate composite score
-      const { score: compositeScore, isComplete: isCompositeComplete } = calculateCompositeScore(
-        proofPointsScore,
-        assessmentPercentage,
-        interviewScore
-      );
+      // Use DB composite score if available, otherwise calculate
+      let compositeScore: number | null = enrollment.composite_score ?? null;
+      let isCompositeComplete = compositeScore !== null;
+      
+      if (!compositeScore) {
+        const calculated = calculateCompositeScore(
+          proofPointsScore,
+          assessmentPercentage,
+          interviewScore
+        );
+        compositeScore = calculated.score;
+        isCompositeComplete = calculated.isComplete;
+      }
 
       // Derive certification outcome
       const certificationOutcome = compositeScore !== null
@@ -183,6 +203,8 @@ export function useFinalResultData(enrollmentId?: string) {
         enrollmentId,
         industryName: industrySegment?.name ?? 'Unknown Industry',
         expertiseLevelName: expertiseLevel?.name ?? 'Unknown Level',
+        lifecycleStatus,
+        lifecycleRank,
         stages,
         stageDescriptions,
         scores: {
@@ -197,6 +219,9 @@ export function useFinalResultData(enrollmentId?: string) {
         compositeScore,
         isCompositeComplete,
         certificationOutcome,
+        certificationLevel: enrollment.certification_level ?? null,
+        starRating: enrollment.star_rating ?? null,
+        certifiedAt: enrollment.certified_at ?? null,
         requiresOrgInfo,
         isInterviewSubmitted,
       };

@@ -5,7 +5,7 @@
  * and final certification outcome for reviewers.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
   User,
   Building2,
@@ -16,6 +16,7 @@ import {
   Award,
   Loader2,
   AlertCircle,
+  CheckCircle2,
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -24,9 +25,12 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useFinalResultData } from '@/hooks/queries/useFinalResultData';
+import { useFinalizeCertification } from '@/hooks/mutations/useFinalizeCertification';
 import { LifecycleStageCard } from './LifecycleStageCard';
 import { ScoreSummaryTile } from './ScoreSummaryTile';
 import { CompositeScoreBanner } from './CompositeScoreBanner';
+import { StarRating } from '@/components/ui/StarRating';
+import { CERTIFICATION_LEVELS, type CertificationLevel } from '@/constants/certification.constants';
 
 interface FinalResultTabContentProps {
   enrollmentId: string;
@@ -35,6 +39,14 @@ interface FinalResultTabContentProps {
 export function FinalResultTabContent({ enrollmentId }: FinalResultTabContentProps) {
   const navigate = useNavigate();
   const { data, isLoading, error } = useFinalResultData(enrollmentId);
+  const finalizeMutation = useFinalizeCertification();
+  const [showFinalizeConfirm, setShowFinalizeConfirm] = useState(false);
+
+  // Check if interview is completed but certification not finalized
+  const canFinalize = data && 
+    data.stages.interviewSlot === 'completed' && 
+    data.lifecycleStatus === 'panel_completed' &&
+    data.isCompositeComplete;
 
   // Show info toast if composite is incomplete
   useEffect(() => {
@@ -76,15 +88,39 @@ export function FinalResultTabContent({ enrollmentId }: FinalResultTabContentPro
     );
   }
 
+  const handleFinalize = () => {
+    finalizeMutation.mutate(
+      { enrollmentId },
+      {
+        onSuccess: () => {
+          setShowFinalizeConfirm(false);
+        },
+      }
+    );
+  };
+
+  // Get certification level display
+  const certLevel = data.certificationLevel as CertificationLevel | null;
+  const certLevelDisplay = certLevel ? CERTIFICATION_LEVELS[certLevel] : null;
+
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {/* Header with optional certification badge */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-xl">Final Result</CardTitle>
-          <CardDescription>
-            Composite assessment with certification determination for {data.providerName}
-          </CardDescription>
+          <div className="flex items-start justify-between">
+            <div>
+              <CardTitle className="text-xl">Final Result</CardTitle>
+              <CardDescription>
+                Composite assessment with certification determination for {data.providerName}
+              </CardDescription>
+            </div>
+            {data.starRating !== null && data.starRating > 0 && (
+              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5">
+                <StarRating rating={data.starRating} size="lg" showLabel />
+              </div>
+            )}
+          </div>
         </CardHeader>
       </Card>
 
@@ -147,6 +183,82 @@ export function FinalResultTabContent({ enrollmentId }: FinalResultTabContentPro
         isComplete={data.isCompositeComplete}
         certificationOutcome={data.certificationOutcome}
       />
+
+      {/* Finalize Certification Action */}
+      {canFinalize && (
+        <Card className="border-primary/30 bg-primary/5">
+          <CardContent className="p-4">
+            {!showFinalizeConfirm ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <CheckCircle2 className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Ready to Finalize Certification</p>
+                    <p className="text-sm text-muted-foreground">
+                      All evaluation stages are complete. Click to finalize the certification outcome.
+                    </p>
+                  </div>
+                </div>
+                <Button onClick={() => setShowFinalizeConfirm(true)}>
+                  Finalize Certification
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <Alert>
+                  <AlertCircle className="h-4 w-4" />
+                  <AlertTitle>Confirm Certification Finalization</AlertTitle>
+                  <AlertDescription>
+                    This will calculate the final composite score ({data.compositeScore?.toFixed(1)}%) and 
+                    permanently set the certification level. This action cannot be undone.
+                  </AlertDescription>
+                </Alert>
+                <div className="flex gap-2 justify-end">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setShowFinalizeConfirm(false)}
+                    disabled={finalizeMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleFinalize}
+                    disabled={finalizeMutation.isPending}
+                  >
+                    {finalizeMutation.isPending ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Finalizing...
+                      </>
+                    ) : (
+                      'Confirm Finalization'
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Already Certified Display */}
+      {(data.lifecycleStatus === 'certified' || data.lifecycleStatus === 'not_certified') && certLevelDisplay && (
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <Award className="h-6 w-6 text-green-600" />
+              <div>
+                <p className="font-medium text-green-800">
+                  Certification Finalized: {certLevelDisplay.label} ({data.starRating} Star{data.starRating !== 1 ? 's' : ''})
+                </p>
+                <p className="text-sm text-green-700">
+                  Composite Score: {data.compositeScore?.toFixed(1)}% | {certLevelDisplay.description}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Separator />
 
