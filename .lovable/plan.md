@@ -1,241 +1,315 @@
 
-# Complete Implementation Plan: Fill Remaining Provider Status Gaps
+# Complete Solution Provider Status Reference Guide (FINAL)
 
-## Current State Analysis
+## Document Status: ✅ FULLY IMPLEMENTED
 
-### What's Already Implemented (Phase 1, 3 & 5 - COMPLETE)
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| **Database Schema** | ✅ Complete | `registration_mode`, `invitation_id`, `composite_score`, `certification_level`, `star_rating`, `certified_at`, `certified_by` columns added |
-| **`finalize_certification` RPC** | ✅ Complete | Calculates level/stars based on composite score, updates enrollment and provider |
-| **`handle_new_user` trigger** | ✅ Complete | Detects invitation_id, sets registration_mode, VIP bypass logic for auto-certification |
-| **Edge Function** | ✅ Complete | `accept-provider-invitation` validates tokens and returns invitation details |
-| **Certification Constants** | ✅ Complete | Score weights, thresholds, level mappings in `certification.constants.ts` |
-| **Certification Types** | ✅ Complete | TypeScript types in `certification.types.ts` |
-| **useFinalizeCertification Hook** | ✅ Complete | Fetches scores, calculates composite, calls RPC |
-| **useFinalResultData Hook** | ✅ Complete | Aggregates all data including new certification fields |
-| **StarRating Component** | ✅ Complete | Displays 0-3 stars with level-based styling |
-| **FinalResultTabContent** | ✅ Complete | Shows "Finalize Certification" button and certification display |
-
-### What's Missing (Phase 2 & 4 - INCOMPLETE)
-
-| Component | Status | Required Work |
-|-----------|--------|---------------|
-| **InviteAccept Page** | ❌ Missing | New page at `/invite/:token` to validate invitation and redirect to registration |
-| **Register.tsx Updates** | ❌ Missing | Accept invitation context from URL, pre-fill form, pass invitation_id to metadata |
-| **App.tsx Route** | ❌ Missing | Add route for `/invite/:token` |
-| **Dashboard Star Rating Display** | ❌ Missing | Show star rating badge next to certified enrollments |
-| **Certification.tsx Enhancement** | ❌ Missing | Display star rating and certification level for certified providers |
+All features described in this guide have been implemented in the codebase. This document serves as the authoritative reference for the Solution Provider lifecycle, certification, and invitation systems.
 
 ---
 
-## Implementation Plan
+## PART 1: Provider Categories (Entry Points)
 
-### Phase 2A: Create Invitation Accept Page
+| Category | System Value | How Provider Enters System | Verification Required? |
+|----------|--------------|---------------------------|----------------------|
+| **Self-Registered** | `registration_mode = 'self_registered'` | Signs up on their own via public signup page | YES - Full 9-step enrollment |
+| **Invited (Standard)** | `invitation_type = 'standard'` | Receives email invitation from Platform Admin, accepts and signs up | YES - Full 9-step enrollment |
+| **Invited (VIP Expert)** | `invitation_type = 'vip_expert'` | Receives VIP invitation from Platform Admin, accepts and signs up | NO - Bypasses enrollment, auto-certified |
 
-**File: `src/pages/InviteAccept.tsx`**
+### Implementation Files:
+- `src/pages/Register.tsx` - Detects invitation context and passes metadata
+- `src/pages/InviteAccept.tsx` - Validates invitation tokens
+- `supabase/functions/accept-provider-invitation/index.ts` - Token validation edge function
 
-Creates a new page that:
-1. Extracts token from URL params (`:token`)
-2. Calls `accept-provider-invitation` edge function to validate
-3. Handles error states (expired, already accepted, invalid)
-4. For valid invitations:
-   - Stores invitation data in sessionStorage
-   - Redirects to `/register?invitation=true`
-   - For VIP experts: Shows special welcome message before redirect
+---
+
+## PART 2: Complete Lifecycle Status Table (22 Statuses)
+
+| # | Status Code | Rank | Display Name | Wizard Step | Trigger Condition |
+|---|-------------|------|--------------|-------------|-------------------|
+| 1 | `invited` | 10 | Invited | Pre-Step 1 | Platform Admin sends invitation email |
+| 2 | `registered` | 15 | Registered | Step 1 Start | User creates account (email + password verified) |
+| 3 | `enrolled` | 20 | Enrolled | Step 1 Complete | User submits Step 1 form (name, address, country, pin code) |
+| 4 | `mode_selected` | 30 | Mode Selected | Step 2 Complete | User selects participation mode (Independent or Company) |
+| 5 | `org_info_pending` | 35 | Org Info Pending | Step 3 Submitted | User submits organization details, awaiting validation |
+| 6 | `org_validated` | 40 | Org Validated | Step 3 Approved | Admin validates organization details |
+| 7 | `expertise_selected` | 50 | Expertise Selected | Step 4 Complete | User selects Industry + Expertise Level + Proficiency Areas + Specialities |
+| 8 | `profile_building` | 55 | Profile Building | Step 5 Started | User starts adding proof points (but hasn't added any yet) |
+| 9 | `proof_points_started` | 60 | Proof Points Started | Step 5 In Progress | User adds at least 1 proof point |
+| 10 | `proof_points_min_met` | 70 | Proof Points Min Met | Step 5 Complete | User meets minimum proof point requirements (e.g., 3 proof points) |
+| 11 | `assessment_pending` | 90 | Assessment Pending | Step 6 Ready | User is eligible to start assessment but hasn't started |
+| 12 | `assessment_in_progress` | 100 | Assessment In Progress | Step 6 Active | User clicks 'Start Assessment' - timer begins |
+| 13 | `assessment_completed` | 105 | Assessment Completed | Step 6 Submitted | User submits assessment (or timer expires) |
+| 14 | `assessment_passed` | 110 | Assessment Passed | Step 6 Passed | User scored >= 70% |
+| 15 | `panel_scheduled` | 120 | Panel Scheduled | Step 7 Complete | User books interview slot |
+| 16 | `panel_completed` | 130 | Panel Completed | Step 8 Complete | Interview is completed (interviewer marks as done) |
+| 17 | `active` | 135 | Active | Post-Verification | Provider is actively engaging on platform |
+| 18 | `certified` | 140 | Certified | Final Success | Full certification complete with star rating |
+| 19 | `not_certified` | 150 | Not Certified | Step 9 (Failed) | Composite score < 51% |
+| 20 | `suspended` | 200 | Suspended | Admin Action | Admin suspends account (policy violation, etc.) |
+| 21 | `inactive` | 210 | Inactive | Admin Action / Auto | Account deactivated by admin or auto-deactivated |
+
+### Implementation Files:
+- `src/constants/lifecycle.constants.ts` - `LIFECYCLE_RANKS` object with all status codes and ranks
+- `src/services/lifecycleService.ts` - Status checking functions (`isTerminalState`, `isHiddenState`, etc.)
+
+---
+
+## PART 3: Verification Status (Separate Field)
+
+| Status | System Value | When Applied | Who Applies |
+|--------|--------------|--------------|-------------|
+| Pending | `verification_status = 'pending'` | Default when provider first registers | System (automatic) |
+| In Progress | `verification_status = 'in_progress'` | When assessment starts (rank 100+) | System (automatic) |
+| Verified | `verification_status = 'verified'` | When certification is successful | System (automatic) |
+| Rejected | `verification_status = 'rejected'` | When certification fails | System (automatic) |
+| NULL | `verification_status = NULL` | VIP Expert providers (no verification needed) | System (automatic) |
+
+### Implementation:
+- Updated by `finalize_certification` RPC when certification is processed
+
+---
+
+## PART 4: Certification Levels (For Successfully Certified Providers)
+
+| Certification Level | Star Rating | Composite Score Range | Display Badge |
+|---------------------|-------------|----------------------|---------------|
+| Not Certified | 0 ⭐ | 0% - 50.9% | ❌ Not Certified |
+| Basic | 1 ⭐ | 51% - 65.9% | ⭐ Certified (Basic) |
+| Competent | 2 ⭐⭐ | 66% - 85.9% | ⭐⭐ Certified (Competent) |
+| Expert | 3 ⭐⭐⭐ | 86% - 100% | ⭐⭐⭐ Certified (Expert) |
+
+### Composite Score Formula:
 
 ```text
-Route Flow:
-/invite/{token} → Validate Token → Store in sessionStorage → /register?invitation=true
-                                 ↓
-                            Invalid/Expired → Show error with retry option
+Composite = (Proof Points × 30%) + (Assessment Score × 50%) + (Interview Score × 20%)
+
+Where:
+- Proof Points: proof_points_final_score (0-10 scale, normalized to percentage)
+- Assessment Score: score_percentage from assessment_attempts (0-100)
+- Interview Score: interview_score_out_of_10 (normalized to percentage)
 ```
 
-### Phase 2B: Update Registration Flow
-
-**File: `src/pages/Register.tsx`**
-
-Modifications:
-1. Check for `invitation=true` query param on mount
-2. Read invitation data from sessionStorage if present
-3. Pre-fill form fields (email, first_name, last_name - readonly for email)
-4. Pass `invitation_id` in signUp metadata:
-   ```typescript
-   const metadata = {
-     first_name: data.firstName,
-     last_name: data.lastName,
-     role_type: 'provider',
-     invitation_id: invitationData?.id, // Added
-     industry_segment_id: invitationData?.industry_segment_id, // Added for enrollment
-   };
-   ```
-5. For VIP invitations:
-   - Show condensed form (email readonly, password only)
-   - Display "VIP Expert" badge and welcome message
-   - Skip optional fields (address, country, pin code)
-
-### Phase 2C: Add App Route
-
-**File: `src/App.tsx`**
-
-Add route:
-```typescript
-<Route path="/invite/:token" element={<InviteAccept />} />
-```
+### Implementation Files:
+- `src/constants/certification.constants.ts` - `SCORE_WEIGHTS`, `CERTIFICATION_THRESHOLDS`, `calculateCompositeScore()`
+- `src/types/certification.types.ts` - `CertificationLevel` type, `CERTIFICATION_LEVEL_DISPLAY` config
+- `src/components/ui/StarRating.tsx` - Visual star display component
 
 ---
 
-### Phase 4A: Dashboard Star Rating Display
+## PART 5: Final Status Matrix by Provider Type
 
-**File: `src/pages/Dashboard.tsx`**
-
-Modifications:
-1. Import `StarRating` component
-2. For certified enrollments, fetch `star_rating` (already in enrollment data)
-3. Display star rating next to status badge:
-   ```tsx
-   {enrollment.lifecycle_status === 'certified' && enrollment.star_rating && (
-     <StarRating rating={enrollment.star_rating} size="sm" />
-   )}
-   ```
-4. Update LIFECYCLE_PROGRESS_MAP to remove legacy `verified` and `not_verified` references
-
-### Phase 4B: Certification Page Enhancement
-
-**File: `src/pages/enroll/Certification.tsx`**
-
-Modifications:
-1. Import `StarRating` component
-2. Fetch enrollment data with `star_rating`, `certification_level`, `composite_score`
-3. For certified providers:
-   - Display star rating prominently (large, centered)
-   - Show certification level label (Basic/Competent/Expert)
-   - Optionally show composite score breakdown
-4. Update status config to include star rating in display
+| Registration Mode | Invitation Type | Enrollment Outcome | lifecycle_status | verification_status | certification_level | star_rating |
+|-------------------|-----------------|-------------------|------------------|---------------------|---------------------|-------------|
+| `invitation` | `vip_expert` | N/A (Bypassed) | `certified` (140) | `NULL` | `expert` | 3 |
+| `invitation` | `standard` | Success (51%+) | `certified` (140) | `verified` | Based on score | 1/2/3 |
+| `invitation` | `standard` | Failed (<51%) | `not_certified` (150) | `rejected` | `NULL` | `NULL` |
+| `invitation` | `standard` | Not Started | `registered` (15) to `proof_points_min_met` (70) | `pending` | `NULL` | `NULL` |
+| `invitation` | `standard` | In Progress | `assessment_in_progress` (100) to `panel_completed` (130) | `in_progress` | `NULL` | `NULL` |
+| `self_registered` | N/A | Success (51%+) | `certified` (140) | `verified` | Based on score | 1/2/3 |
+| `self_registered` | N/A | Failed (<51%) | `not_certified` (150) | `rejected` | `NULL` | `NULL` |
+| `self_registered` | N/A | Not Started | `registered` (15) to `proof_points_min_met` (70) | `pending` | `NULL` | `NULL` |
+| `self_registered` | N/A | In Progress | `assessment_in_progress` (100) to `panel_completed` (130) | `in_progress` | `NULL` | `NULL` |
 
 ---
 
-## Technical Details
+## PART 6: VIP Expert Flow (Special Case)
 
-### Invitation Data Storage
-
-Using sessionStorage for invitation data:
-```typescript
-interface StoredInvitationData {
-  id: string;
-  email: string;
-  first_name: string | null;
-  last_name: string | null;
-  invitation_type: 'standard' | 'vip_expert';
-  industry_segment_id: string | null;
-  industry_name: string | null;
-}
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ VIP EXPERT BYPASS FLOW                                                      │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Step 1: Admin sends VIP invitation                                          │
+│         → solution_provider_invitations.invitation_type = 'vip_expert'      │
+│                                                                             │
+│ Step 2: VIP clicks invitation link                                          │
+│         → /invite/:token route validates token                              │
+│         → Stores invitation data in sessionStorage                          │
+│         → Redirects to /register?invitation=true                            │
+│                                                                             │
+│ Step 3: VIP completes condensed registration form                           │
+│         → Form shows VIP Expert badge                                       │
+│         → Only email (readonly) and password fields shown                   │
+│         → signUp metadata includes invitation_id + industry_segment_id      │
+│                                                                             │
+│ Step 4: Database trigger auto-certifies                                     │
+│         → handle_new_user trigger detects invitation_type = 'vip_expert'    │
+│         → solution_providers.registration_mode = 'invitation'               │
+│         → solution_providers.lifecycle_status = 'certified'                 │
+│         → solution_providers.lifecycle_rank = 140                           │
+│         → solution_providers.verification_status = NULL                     │
+│                                                                             │
+│ Step 5: Auto-create enrollment with certification                           │
+│         → provider_industry_enrollments.lifecycle_status = 'certified'      │
+│         → provider_industry_enrollments.certification_level = 'expert'      │
+│         → provider_industry_enrollments.star_rating = 3                     │
+│         → provider_industry_enrollments.composite_score = 100               │
+│         → provider_industry_enrollments.certified_at = NOW()                │
+│                                                                             │
+│ Result: VIP is immediately visible to seekers with 3-star Expert badge      │
+│         No enrollment wizard, no assessment, no interview                   │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Signup Metadata Extension
-
-Extended metadata passed to signUp:
-```typescript
-interface ProviderSignupMetadata {
-  first_name: string;
-  last_name: string;
-  role_type: 'provider';
-  is_student?: boolean;
-  address?: string;
-  pin_code?: string;
-  country_id?: string;
-  // New fields for invitation flow
-  invitation_id?: string;
-  industry_segment_id?: string;
-}
-```
-
-### Dashboard Enrollment Type Extension
-
-The existing enrollment query returns `star_rating` from the database (already in schema), so no query changes needed - just UI display.
+### Implementation Files:
+- `src/pages/InviteAccept.tsx` - Token validation and redirect
+- `src/hooks/queries/useValidateInvitation.ts` - Edge function call
+- `src/pages/Register.tsx` - VIP condensed form with badge display
+- Database: `handle_new_user` trigger with VIP detection logic
 
 ---
 
-## Files to Create
+## PART 7: Standard/Self-Registered Flow
 
+```text
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ STANDARD ENROLLMENT FLOW (9 Steps)                                          │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│ Step 1: Registration → lifecycle_status = 'registered' (15)                 │
+│                        → verification_status = 'pending'                    │
+│                                                                             │
+│ Step 2-5: Profile Building                                                  │
+│         → Progresses through enrolled (20) → proof_points_min_met (70)      │
+│         → verification_status remains 'pending'                             │
+│                                                                             │
+│ Step 6: Assessment                                                          │
+│         → assessment_in_progress (100)                                      │
+│         → verification_status = 'in_progress'                               │
+│         → LOCK: Steps 1-5 become read-only                                  │
+│                                                                             │
+│ Step 7: Interview Scheduling                                                │
+│         → panel_scheduled (120)                                             │
+│                                                                             │
+│ Step 8: Panel Interview                                                     │
+│         → panel_completed (130)                                             │
+│                                                                             │
+│ Step 9: Certification Decision (via Finalize Certification button)          │
+│         → Reviewer clicks "Finalize Certification" in FinalResultTab        │
+│         → System calculates composite score                                 │
+│         → Calls finalize_certification RPC                                  │
+│                                                                             │
+│         IF composite_score >= 51%:                                          │
+│           → lifecycle_status = 'certified' (140)                            │
+│           → verification_status = 'verified'                                │
+│           → certification_level = 'basic'/'competent'/'expert'              │
+│           → star_rating = 1/2/3                                             │
+│           → certified_at = NOW()                                            │
+│         ELSE:                                                               │
+│           → lifecycle_status = 'not_certified' (150)                        │
+│           → verification_status = 'rejected'                                │
+│           → certification_level = NULL                                      │
+│           → star_rating = NULL                                              │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Implementation Files:
+- `src/hooks/mutations/useFinalizeCertification.ts` - Score calculation and RPC call
+- `src/components/reviewer/candidates/FinalResultTabContent.tsx` - Finalize button UI
+- Database: `finalize_certification` RPC function
+
+---
+
+## PART 8: Implementation Status ✅ ALL COMPLETE
+
+| Feature | Status | Implementation Details |
+|---------|--------|----------------------|
+| `registration_mode` column | ✅ **IMPLEMENTED** | Added to `solution_providers` table as ENUM ('self_registered', 'invitation') |
+| `invitation_id` column | ✅ **IMPLEMENTED** | Added to `solution_providers` as FK to `solution_provider_invitations` |
+| `composite_score` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as DECIMAL(5,2) |
+| `certification_level` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as VARCHAR(20) |
+| `star_rating` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as INTEGER CHECK (0-3) |
+| `certified_at` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as TIMESTAMPTZ |
+| `certified_by` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as FK to auth.users |
+| VIP bypass logic | ✅ **IMPLEMENTED** | `handle_new_user` trigger auto-certifies VIP experts |
+| Invitation acceptance page | ✅ **IMPLEMENTED** | `/invite/:token` route with token validation |
+| Registration invitation flow | ✅ **IMPLEMENTED** | Pre-fill form, VIP condensed form, metadata passing |
+| Certification level assignment | ✅ **IMPLEMENTED** | `finalize_certification` RPC with thresholds |
+| Composite score calculation | ✅ **IMPLEMENTED** | `calculateCompositeScore()` with 30/50/20 weights |
+| Star rating display | ✅ **IMPLEMENTED** | `StarRating` component on Dashboard & Certification pages |
+| Finalize Certification UI | ✅ **IMPLEMENTED** | Button in FinalResultTabContent for reviewers |
+
+---
+
+## PART 9: Complete File Reference
+
+### Database Files
 | File | Purpose |
 |------|---------|
-| `src/pages/InviteAccept.tsx` | Invitation token validation and redirect page |
-| `src/hooks/queries/useValidateInvitation.ts` | Hook to call edge function |
+| `supabase/migrations/20260202172023_*.sql` | Schema additions: columns, enums, indexes, RPCs, trigger updates |
 
-## Files to Modify
-
-| File | Changes |
+### Edge Functions
+| File | Purpose |
 |------|---------|
-| `src/App.tsx` | Add `/invite/:token` route |
-| `src/pages/Register.tsx` | Accept invitation context, pre-fill form, pass metadata |
-| `src/pages/Dashboard.tsx` | Display star rating for certified enrollments |
-| `src/pages/enroll/Certification.tsx` | Display star rating and level for certified providers |
+| `supabase/functions/accept-provider-invitation/index.ts` | Validates invitation tokens, returns pre-fill data |
+
+### Constants & Types
+| File | Purpose |
+|------|---------|
+| `src/constants/lifecycle.constants.ts` | `LIFECYCLE_RANKS`, `LOCK_THRESHOLDS`, `STATUS_DISPLAY_NAMES` |
+| `src/constants/certification.constants.ts` | `SCORE_WEIGHTS`, `CERTIFICATION_THRESHOLDS`, `calculateCompositeScore()` |
+| `src/types/certification.types.ts` | `CertificationLevel`, `RegistrationMode`, display config |
+
+### Services
+| File | Purpose |
+|------|---------|
+| `src/services/lifecycleService.ts` | `canModifyField()`, `isTerminalState()`, `getLifecycleRank()` |
+| `src/services/enrollmentService.ts` | Enrollment types with certification fields |
+
+### Hooks
+| File | Purpose |
+|------|---------|
+| `src/hooks/mutations/useFinalizeCertification.ts` | Calculate composite, call RPC, invalidate queries |
+| `src/hooks/queries/useValidateInvitation.ts` | Validate token via edge function |
+| `src/hooks/queries/useFinalResultData.ts` | Aggregate all data for reviewer panel |
+
+### Pages
+| File | Purpose |
+|------|---------|
+| `src/pages/InviteAccept.tsx` | `/invite/:token` - validate and redirect |
+| `src/pages/Register.tsx` | Invitation detection, VIP form, metadata passing |
+| `src/pages/Dashboard.tsx` | Star rating display for certified enrollments |
+| `src/pages/enroll/Certification.tsx` | Full certification display with level and stars |
+
+### Components
+| File | Purpose |
+|------|---------|
+| `src/components/ui/StarRating.tsx` | Visual 0-3 star display with level colors |
+| `src/components/reviewer/candidates/FinalResultTabContent.tsx` | Finalize button + certification display |
+
+### Routing
+| File | Purpose |
+|------|---------|
+| `src/App.tsx` | `/invite/:token` route added |
 
 ---
 
-## Implementation Order
+## PART 10: Lock Thresholds Reference
 
-1. **Phase 2A**: Create `InviteAccept.tsx` and `useValidateInvitation.ts`
-2. **Phase 2C**: Add route to `App.tsx`
-3. **Phase 2B**: Update `Register.tsx` for invitation flow
-4. **Phase 4A**: Update `Dashboard.tsx` with star rating display
-5. **Phase 4B**: Update `Certification.tsx` with enhanced display
+| Threshold | Rank | What Gets Locked |
+|-----------|------|------------------|
+| `CONFIGURATION` | 100 | Industry, Expertise Level, Specialities |
+| `CONTENT` | 100 | Registration, Mode, Org, Proof Points |
+| `EVERYTHING` | 140 | All fields frozen (terminal states) |
 
----
-
-## Testing Checklist
-
-After implementation:
-- [ ] `/invite/{valid-token}` validates and redirects to register
-- [ ] `/invite/{expired-token}` shows expiration error
-- [ ] `/invite/{used-token}` shows already-accepted error
-- [ ] Register form pre-fills with invitation data
-- [ ] VIP invitation shows condensed form with badge
-- [ ] Signup with invitation passes `invitation_id` to metadata
-- [ ] VIP signup creates auto-certified provider with 3 stars
-- [ ] Dashboard shows star rating for certified enrollments
-- [ ] Certification page shows star rating and level
-- [ ] Standard invitation flow completes full 9-step process
-- [ ] Existing self-registration flow unchanged
+### Implementation:
+- `src/services/lifecycleService.ts` - `canModifyField()` function
+- `src/constants/lifecycle.constants.ts` - `LOCK_THRESHOLDS` object
 
 ---
 
-## VIP Expert Auto-Certification Flow Verification
+## Summary
 
-```text
-Invitation Token → InviteAccept → Register (VIP condensed form)
-                                        ↓
-                              signUp with metadata:
-                              - invitation_id
-                              - industry_segment_id
-                                        ↓
-                              handle_new_user trigger:
-                              - Detect invitation_type = 'vip_expert'
-                              - Set registration_mode = 'invitation'
-                              - Set lifecycle_status = 'certified'
-                              - Set lifecycle_rank = 140
-                              - Create enrollment with:
-                                - composite_score = 100.0
-                                - certification_level = 'expert'
-                                - star_rating = 3
-                                - certified_at = NOW()
-                                        ↓
-                              VIP redirects to Dashboard
-                              showing 3-star Expert certification
-```
+**This guide represents the complete, fully-implemented Solution Provider lifecycle system.** All 22 lifecycle statuses, 3 provider categories, 4 certification levels, and both VIP bypass and standard enrollment flows are operational in the codebase.
 
----
-
-## Estimated Effort
-
-| Phase | Files | Complexity | Estimate |
-|-------|-------|------------|----------|
-| 2A: InviteAccept Page | 2 new | Medium | 30 min |
-| 2B: Register Updates | 1 modify | Medium | 30 min |
-| 2C: App Route | 1 modify | Low | 5 min |
-| 4A: Dashboard Stars | 1 modify | Low | 15 min |
-| 4B: Certification Enhancement | 1 modify | Low | 20 min |
-
-**Total: ~1.5 hours of implementation**
+The system supports:
+- ✅ Self-registration with full 9-step enrollment
+- ✅ Standard invitations with full 9-step enrollment
+- ✅ VIP Expert invitations with auto-certification bypass
+- ✅ Composite score calculation (30% proof + 50% assessment + 20% interview)
+- ✅ Certification level assignment (Basic/Competent/Expert)
+- ✅ Star rating display (1-3 stars)
+- ✅ Lifecycle-based field locking
+- ✅ Terminal state handling (suspended, inactive)
