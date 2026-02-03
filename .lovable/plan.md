@@ -1,315 +1,561 @@
 
-# Complete Solution Provider Status Reference Guide (FINAL)
 
-## Document Status: ✅ FULLY IMPLEMENTED
+# Post-Interview Failure: Re-Attempt & Expertise Change Policy Implementation
 
-All features described in this guide have been implemented in the codebase. This document serves as the authoritative reference for the Solution Provider lifecycle, certification, and invitation systems.
-
----
-
-## PART 1: Provider Categories (Entry Points)
-
-| Category | System Value | How Provider Enters System | Verification Required? |
-|----------|--------------|---------------------------|----------------------|
-| **Self-Registered** | `registration_mode = 'self_registered'` | Signs up on their own via public signup page | YES - Full 9-step enrollment |
-| **Invited (Standard)** | `invitation_type = 'standard'` | Receives email invitation from Platform Admin, accepts and signs up | YES - Full 9-step enrollment |
-| **Invited (VIP Expert)** | `invitation_type = 'vip_expert'` | Receives VIP invitation from Platform Admin, accepts and signs up | NO - Bypasses enrollment, auto-certified |
-
-### Implementation Files:
-- `src/pages/Register.tsx` - Detects invitation context and passes metadata
-- `src/pages/InviteAccept.tsx` - Validates invitation tokens
-- `supabase/functions/accept-provider-invitation/index.ts` - Token validation edge function
+## Document Reference
+Based on **Requirements Document v1.1 (Revised)** - "Post-Interview Failure: Re-Attempt & Expertise Change Policy" (February 2026, Approved for Implementation)
 
 ---
 
-## PART 2: Complete Lifecycle Status Table (22 Statuses)
+## Executive Summary
 
-| # | Status Code | Rank | Display Name | Wizard Step | Trigger Condition |
-|---|-------------|------|--------------|-------------|-------------------|
-| 1 | `invited` | 10 | Invited | Pre-Step 1 | Platform Admin sends invitation email |
-| 2 | `registered` | 15 | Registered | Step 1 Start | User creates account (email + password verified) |
-| 3 | `enrolled` | 20 | Enrolled | Step 1 Complete | User submits Step 1 form (name, address, country, pin code) |
-| 4 | `mode_selected` | 30 | Mode Selected | Step 2 Complete | User selects participation mode (Independent or Company) |
-| 5 | `org_info_pending` | 35 | Org Info Pending | Step 3 Submitted | User submits organization details, awaiting validation |
-| 6 | `org_validated` | 40 | Org Validated | Step 3 Approved | Admin validates organization details |
-| 7 | `expertise_selected` | 50 | Expertise Selected | Step 4 Complete | User selects Industry + Expertise Level + Proficiency Areas + Specialities |
-| 8 | `profile_building` | 55 | Profile Building | Step 5 Started | User starts adding proof points (but hasn't added any yet) |
-| 9 | `proof_points_started` | 60 | Proof Points Started | Step 5 In Progress | User adds at least 1 proof point |
-| 10 | `proof_points_min_met` | 70 | Proof Points Min Met | Step 5 Complete | User meets minimum proof point requirements (e.g., 3 proof points) |
-| 11 | `assessment_pending` | 90 | Assessment Pending | Step 6 Ready | User is eligible to start assessment but hasn't started |
-| 12 | `assessment_in_progress` | 100 | Assessment In Progress | Step 6 Active | User clicks 'Start Assessment' - timer begins |
-| 13 | `assessment_completed` | 105 | Assessment Completed | Step 6 Submitted | User submits assessment (or timer expires) |
-| 14 | `assessment_passed` | 110 | Assessment Passed | Step 6 Passed | User scored >= 70% |
-| 15 | `panel_scheduled` | 120 | Panel Scheduled | Step 7 Complete | User books interview slot |
-| 16 | `panel_completed` | 130 | Panel Completed | Step 8 Complete | Interview is completed (interviewer marks as done) |
-| 17 | `active` | 135 | Active | Post-Verification | Provider is actively engaging on platform |
-| 18 | `certified` | 140 | Certified | Final Success | Full certification complete with star rating |
-| 19 | `not_certified` | 150 | Not Certified | Step 9 (Failed) | Composite score < 51% |
-| 20 | `suspended` | 200 | Suspended | Admin Action | Admin suspends account (policy violation, etc.) |
-| 21 | `inactive` | 210 | Inactive | Admin Action / Auto | Account deactivated by admin or auto-deactivated |
+This plan implements a **startup-friendly, self-service** post-interview failure policy with the following key decisions:
 
-### Implementation Files:
-- `src/constants/lifecycle.constants.ts` - `LIFECYCLE_RANKS` object with all status codes and ranks
-- `src/services/lifecycleService.ts` - Status checking functions (`isTerminalState`, `isHiddenState`, etc.)
+| Decision | Value |
+|----------|-------|
+| **Status Name** | `interview_unsuccessful` (replaces `not_certified`) |
+| **Attempts Limit** | **UNLIMITED** (no maximum) |
+| **Cooling-Off** | 30 days (1st) → 60 days (2nd) → 90 days (3rd+) |
+| **Industry Change** | **NEVER** allowed (must create new enrollment) |
+| **Expertise Change** | YES (triggers mandatory re-flow) |
+| **Admin Approval** | NOT required (self-service model) |
+| **Improvement Plan** | NOT required (reduces friction) |
 
 ---
 
-## PART 3: Verification Status (Separate Field)
+## Phase 1: Database Schema Updates
 
-| Status | System Value | When Applied | Who Applies |
-|--------|--------------|--------------|-------------|
-| Pending | `verification_status = 'pending'` | Default when provider first registers | System (automatic) |
-| In Progress | `verification_status = 'in_progress'` | When assessment starts (rank 100+) | System (automatic) |
-| Verified | `verification_status = 'verified'` | When certification is successful | System (automatic) |
-| Rejected | `verification_status = 'rejected'` | When certification fails | System (automatic) |
-| NULL | `verification_status = NULL` | VIP Expert providers (no verification needed) | System (automatic) |
+### 1.1 Add New Columns to `provider_industry_enrollments`
 
-### Implementation:
-- Updated by `finalize_certification` RPC when certification is processed
-
----
-
-## PART 4: Certification Levels (For Successfully Certified Providers)
-
-| Certification Level | Star Rating | Composite Score Range | Display Badge |
-|---------------------|-------------|----------------------|---------------|
-| Not Certified | 0 ⭐ | 0% - 50.9% | ❌ Not Certified |
-| Basic | 1 ⭐ | 51% - 65.9% | ⭐ Certified (Basic) |
-| Competent | 2 ⭐⭐ | 66% - 85.9% | ⭐⭐ Certified (Competent) |
-| Expert | 3 ⭐⭐⭐ | 86% - 100% | ⭐⭐⭐ Certified (Expert) |
-
-### Composite Score Formula:
-
-```text
-Composite = (Proof Points × 30%) + (Assessment Score × 50%) + (Interview Score × 20%)
-
-Where:
-- Proof Points: proof_points_final_score (0-10 scale, normalized to percentage)
-- Assessment Score: score_percentage from assessment_attempts (0-100)
-- Interview Score: interview_score_out_of_10 (normalized to percentage)
+```sql
+ALTER TABLE provider_industry_enrollments ADD COLUMN
+  interview_attempt_count INTEGER NOT NULL DEFAULT 0,
+  last_interview_failed_at TIMESTAMPTZ,
+  reattempt_eligible_after TIMESTAMPTZ;
 ```
 
-### Implementation Files:
-- `src/constants/certification.constants.ts` - `SCORE_WEIGHTS`, `CERTIFICATION_THRESHOLDS`, `calculateCompositeScore()`
-- `src/types/certification.types.ts` - `CertificationLevel` type, `CERTIFICATION_LEVEL_DISPLAY` config
-- `src/components/ui/StarRating.tsx` - Visual star display component
+### 1.2 Update Lifecycle Status Enum
+
+Rename `not_certified` to `interview_unsuccessful` in:
+- Database enum type (if exists)
+- All references in triggers/functions
+
+### 1.3 Update `finalize_certification` RPC
+
+Modify to:
+- Set `interview_unsuccessful` status when score < 51%
+- Increment `interview_attempt_count`
+- Set `last_interview_failed_at = NOW()`
+- Calculate `reattempt_eligible_after` based on attempt count
 
 ---
 
-## PART 5: Final Status Matrix by Provider Type
+## Phase 2: Constants & Types Updates
 
-| Registration Mode | Invitation Type | Enrollment Outcome | lifecycle_status | verification_status | certification_level | star_rating |
-|-------------------|-----------------|-------------------|------------------|---------------------|---------------------|-------------|
-| `invitation` | `vip_expert` | N/A (Bypassed) | `certified` (140) | `NULL` | `expert` | 3 |
-| `invitation` | `standard` | Success (51%+) | `certified` (140) | `verified` | Based on score | 1/2/3 |
-| `invitation` | `standard` | Failed (<51%) | `not_certified` (150) | `rejected` | `NULL` | `NULL` |
-| `invitation` | `standard` | Not Started | `registered` (15) to `proof_points_min_met` (70) | `pending` | `NULL` | `NULL` |
-| `invitation` | `standard` | In Progress | `assessment_in_progress` (100) to `panel_completed` (130) | `in_progress` | `NULL` | `NULL` |
-| `self_registered` | N/A | Success (51%+) | `certified` (140) | `verified` | Based on score | 1/2/3 |
-| `self_registered` | N/A | Failed (<51%) | `not_certified` (150) | `rejected` | `NULL` | `NULL` |
-| `self_registered` | N/A | Not Started | `registered` (15) to `proof_points_min_met` (70) | `pending` | `NULL` | `NULL` |
-| `self_registered` | N/A | In Progress | `assessment_in_progress` (100) to `panel_completed` (130) | `in_progress` | `NULL` | `NULL` |
+### 2.1 Update `src/constants/lifecycle.constants.ts`
 
----
+```typescript
+// Change status name
+export const LIFECYCLE_RANKS: Record<string, number> = {
+  // ... existing statuses ...
+  certified: 140,
+  interview_unsuccessful: 150,  // Renamed from not_certified
+  suspended: 200,
+  inactive: 210,
+};
 
-## PART 6: VIP Expert Flow (Special Case)
+// Update terminal states
+export const TERMINAL_STATES = ['certified', 'interview_unsuccessful', 'suspended', 'inactive'] as const;
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ VIP EXPERT BYPASS FLOW                                                      │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│ Step 1: Admin sends VIP invitation                                          │
-│         → solution_provider_invitations.invitation_type = 'vip_expert'      │
-│                                                                             │
-│ Step 2: VIP clicks invitation link                                          │
-│         → /invite/:token route validates token                              │
-│         → Stores invitation data in sessionStorage                          │
-│         → Redirects to /register?invitation=true                            │
-│                                                                             │
-│ Step 3: VIP completes condensed registration form                           │
-│         → Form shows VIP Expert badge                                       │
-│         → Only email (readonly) and password fields shown                   │
-│         → signUp metadata includes invitation_id + industry_segment_id      │
-│                                                                             │
-│ Step 4: Database trigger auto-certifies                                     │
-│         → handle_new_user trigger detects invitation_type = 'vip_expert'    │
-│         → solution_providers.registration_mode = 'invitation'               │
-│         → solution_providers.lifecycle_status = 'certified'                 │
-│         → solution_providers.lifecycle_rank = 140                           │
-│         → solution_providers.verification_status = NULL                     │
-│                                                                             │
-│ Step 5: Auto-create enrollment with certification                           │
-│         → provider_industry_enrollments.lifecycle_status = 'certified'      │
-│         → provider_industry_enrollments.certification_level = 'expert'      │
-│         → provider_industry_enrollments.star_rating = 3                     │
-│         → provider_industry_enrollments.composite_score = 100               │
-│         → provider_industry_enrollments.certified_at = NOW()                │
-│                                                                             │
-│ Result: VIP is immediately visible to seekers with 3-star Expert badge      │
-│         No enrollment wizard, no assessment, no interview                   │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+// Update view-only states
+export const VIEW_ONLY_STATES = ['certified', 'interview_unsuccessful'] as const;
+
+// Add re-interview eligible state
+export const REATTEMPT_ELIGIBLE_STATES = ['interview_unsuccessful'] as const;
+
+// Update display names
+export const STATUS_DISPLAY_NAMES: Record<string, string> = {
+  // ... existing ...
+  interview_unsuccessful: 'Interview Unsuccessful',
+};
 ```
 
-### Implementation Files:
-- `src/pages/InviteAccept.tsx` - Token validation and redirect
-- `src/hooks/queries/useValidateInvitation.ts` - Edge function call
-- `src/pages/Register.tsx` - VIP condensed form with badge display
-- Database: `handle_new_user` trigger with VIP detection logic
+### 2.2 Create `src/constants/interview-retake.constants.ts`
 
----
+```typescript
+export const INTERVIEW_RETAKE_POLICY = {
+  /** Cooling-off periods by attempt number (in days) */
+  COOLING_OFF_PERIODS: {
+    FIRST_FAILURE: 30,
+    SECOND_FAILURE: 60,
+    THIRD_PLUS_FAILURE: 90,
+  },
+  
+  /** NO maximum limit - unlimited attempts */
+  MAX_INTERVIEW_ATTEMPTS: null, // Explicit null = unlimited
+  
+  /** What can be changed after interview failure */
+  CHANGEABLE_FIELDS: {
+    industry_segment_id: false,    // NEVER changeable
+    expertise_level_id: true,      // Can change → triggers re-flow
+    proficiency_areas: true,       // Can change → triggers re-flow
+    specialities: true,            // Can change → triggers re-flow
+  },
+  
+  /** Status reset target when expertise is modified */
+  EXPERTISE_CHANGE_RESET_TO: 'expertise_selected',
+  EXPERTISE_CHANGE_RESET_RANK: 50,
+} as const;
 
-## PART 7: Standard/Self-Registered Flow
+/**
+ * Calculate cooling-off days based on attempt number
+ */
+export function getCoolingOffDays(attemptCount: number): number {
+  const { COOLING_OFF_PERIODS } = INTERVIEW_RETAKE_POLICY;
+  
+  if (attemptCount === 1) return COOLING_OFF_PERIODS.FIRST_FAILURE;
+  if (attemptCount === 2) return COOLING_OFF_PERIODS.SECOND_FAILURE;
+  return COOLING_OFF_PERIODS.THIRD_PLUS_FAILURE; // 3rd and all subsequent
+}
 
-```text
-┌─────────────────────────────────────────────────────────────────────────────┐
-│ STANDARD ENROLLMENT FLOW (9 Steps)                                          │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                                                                             │
-│ Step 1: Registration → lifecycle_status = 'registered' (15)                 │
-│                        → verification_status = 'pending'                    │
-│                                                                             │
-│ Step 2-5: Profile Building                                                  │
-│         → Progresses through enrolled (20) → proof_points_min_met (70)      │
-│         → verification_status remains 'pending'                             │
-│                                                                             │
-│ Step 6: Assessment                                                          │
-│         → assessment_in_progress (100)                                      │
-│         → verification_status = 'in_progress'                               │
-│         → LOCK: Steps 1-5 become read-only                                  │
-│                                                                             │
-│ Step 7: Interview Scheduling                                                │
-│         → panel_scheduled (120)                                             │
-│                                                                             │
-│ Step 8: Panel Interview                                                     │
-│         → panel_completed (130)                                             │
-│                                                                             │
-│ Step 9: Certification Decision (via Finalize Certification button)          │
-│         → Reviewer clicks "Finalize Certification" in FinalResultTab        │
-│         → System calculates composite score                                 │
-│         → Calls finalize_certification RPC                                  │
-│                                                                             │
-│         IF composite_score >= 51%:                                          │
-│           → lifecycle_status = 'certified' (140)                            │
-│           → verification_status = 'verified'                                │
-│           → certification_level = 'basic'/'competent'/'expert'              │
-│           → star_rating = 1/2/3                                             │
-│           → certified_at = NOW()                                            │
-│         ELSE:                                                               │
-│           → lifecycle_status = 'not_certified' (150)                        │
-│           → verification_status = 'rejected'                                │
-│           → certification_level = NULL                                      │
-│           → star_rating = NULL                                              │
-│                                                                             │
-└─────────────────────────────────────────────────────────────────────────────┘
+/**
+ * Check if provider can schedule re-interview (cooling-off elapsed)
+ */
+export function canScheduleReinterview(
+  reattemptEligibleAfter: Date | null,
+  currentDate: Date = new Date()
+): boolean {
+  if (!reattemptEligibleAfter) return false;
+  return currentDate >= new Date(reattemptEligibleAfter);
+}
 ```
 
-### Implementation Files:
-- `src/hooks/mutations/useFinalizeCertification.ts` - Score calculation and RPC call
-- `src/components/reviewer/candidates/FinalResultTabContent.tsx` - Finalize button UI
-- Database: `finalize_certification` RPC function
+### 2.3 Update `src/constants/certification.constants.ts`
+
+Update outcome type and display:
+
+```typescript
+export type CertificationOutcome = 'interview_unsuccessful' | 'one_star' | 'two_star' | 'three_star';
+
+export const OUTCOME_DISPLAY: Record<CertificationOutcome, {...}> = {
+  interview_unsuccessful: {
+    label: 'Interview Unsuccessful',
+    stars: 0,
+    level: null,
+    colorClass: 'text-amber-600',  // Changed from destructive to encourage retry
+    bgClass: 'bg-amber-50',
+    textClass: 'text-amber-700',
+  },
+  // ... rest unchanged
+};
+```
 
 ---
 
-## PART 8: Implementation Status ✅ ALL COMPLETE
+## Phase 3: Service Layer Updates
 
-| Feature | Status | Implementation Details |
-|---------|--------|----------------------|
-| `registration_mode` column | ✅ **IMPLEMENTED** | Added to `solution_providers` table as ENUM ('self_registered', 'invitation') |
-| `invitation_id` column | ✅ **IMPLEMENTED** | Added to `solution_providers` as FK to `solution_provider_invitations` |
-| `composite_score` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as DECIMAL(5,2) |
-| `certification_level` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as VARCHAR(20) |
-| `star_rating` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as INTEGER CHECK (0-3) |
-| `certified_at` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as TIMESTAMPTZ |
-| `certified_by` column | ✅ **IMPLEMENTED** | Added to `provider_industry_enrollments` as FK to auth.users |
-| VIP bypass logic | ✅ **IMPLEMENTED** | `handle_new_user` trigger auto-certifies VIP experts |
-| Invitation acceptance page | ✅ **IMPLEMENTED** | `/invite/:token` route with token validation |
-| Registration invitation flow | ✅ **IMPLEMENTED** | Pre-fill form, VIP condensed form, metadata passing |
-| Certification level assignment | ✅ **IMPLEMENTED** | `finalize_certification` RPC with thresholds |
-| Composite score calculation | ✅ **IMPLEMENTED** | `calculateCompositeScore()` with 30/50/20 weights |
-| Star rating display | ✅ **IMPLEMENTED** | `StarRating` component on Dashboard & Certification pages |
-| Finalize Certification UI | ✅ **IMPLEMENTED** | Button in FinalResultTabContent for reviewers |
+### 3.1 Update `src/services/lifecycleService.ts`
+
+Add new functions for post-interview failure handling:
+
+```typescript
+/**
+ * Check if provider is in interview_unsuccessful state with re-attempt pathway
+ */
+export function canReattemptInterview(status: string): boolean {
+  return REATTEMPT_ELIGIBLE_STATES.includes(status as typeof REATTEMPT_ELIGIBLE_STATES[number]);
+}
+
+/**
+ * Check if expertise can be modified (only after interview failure)
+ * Industry segment NEVER changeable
+ */
+export function canModifyExpertiseAfterFailure(
+  status: string,
+  fieldName: string
+): { allowed: boolean; reason?: string } {
+  // Must be in interview_unsuccessful status
+  if (status !== 'interview_unsuccessful') {
+    return { 
+      allowed: false, 
+      reason: 'Expertise changes are only allowed after interview failure.' 
+    };
+  }
+  
+  // Industry segment NEVER changeable
+  if (fieldName === 'industry_segment_id') {
+    return { 
+      allowed: false, 
+      reason: 'Industry segment cannot be changed. Please create a new enrollment for a different industry.' 
+    };
+  }
+  
+  return { allowed: true };
+}
+
+/**
+ * Get cascade impact for expertise change after interview failure
+ * Triggers full re-flow: proof points → assessment → interview
+ */
+export function getExpertiseChangeReflowImpact(): CascadeImpact {
+  return {
+    type: 'HARD_RESET',
+    deletesProofPoints: true,           // All proof points cleared
+    deletesSpecialities: true,          // If specialities changed
+    resetsToStatus: 'expertise_selected',
+    resetsToRank: LIFECYCLE_RANKS.expertise_selected, // 50
+    warningLevel: 'critical',
+    message: 'Changing your expertise will clear all proof points and assessment. You will need to re-submit proof points and re-take the assessment before scheduling a new interview.',
+  };
+}
+```
+
+### 3.2 Create `src/services/interviewRetakeService.ts`
+
+```typescript
+import { supabase } from '@/integrations/supabase/client';
+import { getCoolingOffDays, INTERVIEW_RETAKE_POLICY } from '@/constants/interview-retake.constants';
+import { LIFECYCLE_RANKS } from '@/constants/lifecycle.constants';
+
+export interface ReinterviewEligibility {
+  isEligible: boolean;
+  daysRemaining: number;
+  eligibleAfter: Date | null;
+  attemptCount: number;
+  canModifyExpertise: boolean;
+}
+
+/**
+ * Check re-interview eligibility for an enrollment
+ */
+export async function checkReinterviewEligibility(
+  enrollmentId: string
+): Promise<ReinterviewEligibility> {
+  const { data, error } = await supabase
+    .from('provider_industry_enrollments')
+    .select('lifecycle_status, interview_attempt_count, reattempt_eligible_after')
+    .eq('id', enrollmentId)
+    .single();
+    
+  if (error || !data) {
+    throw new Error('Failed to check re-interview eligibility');
+  }
+  
+  const now = new Date();
+  const eligibleAfter = data.reattempt_eligible_after 
+    ? new Date(data.reattempt_eligible_after) 
+    : null;
+  
+  const daysRemaining = eligibleAfter 
+    ? Math.max(0, Math.ceil((eligibleAfter.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
+  
+  return {
+    isEligible: data.lifecycle_status === 'interview_unsuccessful' && 
+                eligibleAfter !== null && 
+                now >= eligibleAfter,
+    daysRemaining,
+    eligibleAfter,
+    attemptCount: data.interview_attempt_count || 0,
+    canModifyExpertise: data.lifecycle_status === 'interview_unsuccessful',
+  };
+}
+
+/**
+ * Reset enrollment for expertise change re-flow
+ * Called when provider modifies expertise after interview failure
+ */
+export async function resetForExpertiseChange(enrollmentId: string): Promise<void> {
+  const { error } = await supabase
+    .from('provider_industry_enrollments')
+    .update({
+      lifecycle_status: INTERVIEW_RETAKE_POLICY.EXPERTISE_CHANGE_RESET_TO,
+      lifecycle_rank: INTERVIEW_RETAKE_POLICY.EXPERTISE_CHANGE_RESET_RANK,
+      // Clear assessment data
+      latest_assessment_attempt_id: null,
+      // Keep interview_attempt_count (doesn't reset)
+      // Keep reattempt_eligible_after (still applies)
+    })
+    .eq('id', enrollmentId);
+    
+  if (error) throw error;
+  
+  // Delete all proof points for this enrollment
+  await supabase
+    .from('proof_points')
+    .delete()
+    .eq('enrollment_id', enrollmentId);
+}
+```
 
 ---
 
-## PART 9: Complete File Reference
+## Phase 4: Hook Updates
 
-### Database Files
-| File | Purpose |
-|------|---------|
-| `supabase/migrations/20260202172023_*.sql` | Schema additions: columns, enums, indexes, RPCs, trigger updates |
+### 4.1 Create `src/hooks/queries/useReinterviewEligibility.ts`
 
-### Edge Functions
-| File | Purpose |
-|------|---------|
-| `supabase/functions/accept-provider-invitation/index.ts` | Validates invitation tokens, returns pre-fill data |
+```typescript
+import { useQuery } from '@tanstack/react-query';
+import { checkReinterviewEligibility } from '@/services/interviewRetakeService';
 
-### Constants & Types
-| File | Purpose |
-|------|---------|
-| `src/constants/lifecycle.constants.ts` | `LIFECYCLE_RANKS`, `LOCK_THRESHOLDS`, `STATUS_DISPLAY_NAMES` |
-| `src/constants/certification.constants.ts` | `SCORE_WEIGHTS`, `CERTIFICATION_THRESHOLDS`, `calculateCompositeScore()` |
-| `src/types/certification.types.ts` | `CertificationLevel`, `RegistrationMode`, display config |
+export function useReinterviewEligibility(enrollmentId: string | undefined) {
+  return useQuery({
+    queryKey: ['reinterview-eligibility', enrollmentId],
+    queryFn: () => checkReinterviewEligibility(enrollmentId!),
+    enabled: !!enrollmentId,
+    staleTime: 60 * 1000, // 1 minute
+  });
+}
+```
 
-### Services
-| File | Purpose |
-|------|---------|
-| `src/services/lifecycleService.ts` | `canModifyField()`, `isTerminalState()`, `getLifecycleRank()` |
-| `src/services/enrollmentService.ts` | Enrollment types with certification fields |
+### 4.2 Create `src/hooks/mutations/useModifyExpertise.ts`
 
-### Hooks
-| File | Purpose |
-|------|---------|
-| `src/hooks/mutations/useFinalizeCertification.ts` | Calculate composite, call RPC, invalidate queries |
-| `src/hooks/queries/useValidateInvitation.ts` | Validate token via edge function |
-| `src/hooks/queries/useFinalResultData.ts` | Aggregate all data for reviewer panel |
+```typescript
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { resetForExpertiseChange } from '@/services/interviewRetakeService';
+import { toast } from 'sonner';
 
-### Pages
-| File | Purpose |
-|------|---------|
-| `src/pages/InviteAccept.tsx` | `/invite/:token` - validate and redirect |
-| `src/pages/Register.tsx` | Invitation detection, VIP form, metadata passing |
-| `src/pages/Dashboard.tsx` | Star rating display for certified enrollments |
-| `src/pages/enroll/Certification.tsx` | Full certification display with level and stars |
+interface ModifyExpertiseParams {
+  enrollmentId: string;
+  expertiseLevelId?: string;
+  proficiencyAreas?: string[];
+  specialities?: string[];
+}
 
-### Components
-| File | Purpose |
-|------|---------|
-| `src/components/ui/StarRating.tsx` | Visual 0-3 star display with level colors |
-| `src/components/reviewer/candidates/FinalResultTabContent.tsx` | Finalize button + certification display |
+export function useModifyExpertise() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async (params: ModifyExpertiseParams) => {
+      // 1. Reset enrollment to expertise_selected
+      await resetForExpertiseChange(params.enrollmentId);
+      
+      // 2. Update expertise configuration
+      const updates: Record<string, any> = {};
+      if (params.expertiseLevelId) updates.expertise_level_id = params.expertiseLevelId;
+      
+      const { error } = await supabase
+        .from('provider_industry_enrollments')
+        .update(updates)
+        .eq('id', params.enrollmentId);
+        
+      if (error) throw error;
+      
+      // 3. Update specialities if provided
+      if (params.specialities) {
+        // Clear existing and insert new specialities
+        // ... implementation
+      }
+      
+      return { success: true };
+    },
+    onSuccess: (_, { enrollmentId }) => {
+      queryClient.invalidateQueries({ queryKey: ['enrollment', enrollmentId] });
+      queryClient.invalidateQueries({ queryKey: ['provider-enrollments'] });
+      toast.success('Expertise updated. Please re-submit your proof points and assessment.');
+    },
+  });
+}
+```
 
-### Routing
-| File | Purpose |
-|------|---------|
-| `src/App.tsx` | `/invite/:token` route added |
+### 4.3 Update `src/hooks/mutations/useFinalizeCertification.ts`
+
+Update to use new status name and set cooling-off:
+
+```typescript
+// In the RPC call, ensure the database function:
+// - Uses 'interview_unsuccessful' instead of 'not_certified'
+// - Increments interview_attempt_count
+// - Calculates reattempt_eligible_after
+```
 
 ---
 
-## PART 10: Lock Thresholds Reference
+## Phase 5: UI Components
 
-| Threshold | Rank | What Gets Locked |
-|-----------|------|------------------|
-| `CONFIGURATION` | 100 | Industry, Expertise Level, Specialities |
-| `CONTENT` | 100 | Registration, Mode, Org, Proof Points |
-| `EVERYTHING` | 140 | All fields frozen (terminal states) |
+### 5.1 Create `src/components/enrollment/InterviewUnsuccessfulCard.tsx`
 
-### Implementation:
-- `src/services/lifecycleService.ts` - `canModifyField()` function
-- `src/constants/lifecycle.constants.ts` - `LOCK_THRESHOLDS` object
+Dashboard card shown when status = `interview_unsuccessful`:
+
+```typescript
+// Features:
+// - Status badge: "Interview Unsuccessful"
+// - Cooling-off countdown timer
+// - Attempt count display
+// - Two CTA buttons:
+//   1. "Schedule Re-Interview" (enabled after cooling-off, PATH A)
+//   2. "Modify Expertise" (always enabled, PATH B)
+// - Clear messaging about both paths
+```
+
+### 5.2 Create `src/components/enrollment/ModifyExpertiseDialog.tsx`
+
+Dialog for expertise modification (PATH B):
+
+```typescript
+// Features:
+// - Current expertise display
+// - Expertise level dropdown (changeable)
+// - Proficiency areas multi-select (changeable)
+// - Specialities selection (changeable)
+// - Industry segment display (READ-ONLY, with note: "Cannot be changed")
+// - Warning: "This will clear all proof points and assessment"
+// - Confirm button triggers re-flow
+```
+
+### 5.3 Update Dashboard Components
+
+Update `src/pages/Dashboard.tsx` to show `InterviewUnsuccessfulCard` when applicable.
 
 ---
 
-## Summary
+## Phase 6: Update Finalize Certification RPC
 
-**This guide represents the complete, fully-implemented Solution Provider lifecycle system.** All 22 lifecycle statuses, 3 provider categories, 4 certification levels, and both VIP bypass and standard enrollment flows are operational in the codebase.
+### 6.1 Modify Database Function
 
-The system supports:
-- ✅ Self-registration with full 9-step enrollment
-- ✅ Standard invitations with full 9-step enrollment
-- ✅ VIP Expert invitations with auto-certification bypass
-- ✅ Composite score calculation (30% proof + 50% assessment + 20% interview)
-- ✅ Certification level assignment (Basic/Competent/Expert)
-- ✅ Star rating display (1-3 stars)
-- ✅ Lifecycle-based field locking
-- ✅ Terminal state handling (suspended, inactive)
+```sql
+CREATE OR REPLACE FUNCTION finalize_certification(
+  p_enrollment_id UUID,
+  p_composite_score DECIMAL(5,2),
+  p_certifying_user_id UUID
+)
+RETURNS JSON
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_result JSON;
+  v_current_attempt_count INTEGER;
+  v_cooling_off_days INTEGER;
+BEGIN
+  -- Get current attempt count
+  SELECT COALESCE(interview_attempt_count, 0) + 1
+  INTO v_current_attempt_count
+  FROM provider_industry_enrollments
+  WHERE id = p_enrollment_id;
+  
+  -- Determine cooling-off period
+  IF v_current_attempt_count = 1 THEN
+    v_cooling_off_days := 30;
+  ELSIF v_current_attempt_count = 2 THEN
+    v_cooling_off_days := 60;
+  ELSE
+    v_cooling_off_days := 90;
+  END IF;
+  
+  IF p_composite_score < 51.0 THEN
+    -- FAILED: interview_unsuccessful
+    UPDATE provider_industry_enrollments SET
+      lifecycle_status = 'interview_unsuccessful',
+      lifecycle_rank = 150,
+      interview_attempt_count = v_current_attempt_count,
+      last_interview_failed_at = NOW(),
+      reattempt_eligible_after = NOW() + (v_cooling_off_days || ' days')::INTERVAL,
+      composite_score = p_composite_score,
+      certified_at = NULL,
+      certified_by = NULL,
+      certification_level = NULL,
+      star_rating = NULL
+    WHERE id = p_enrollment_id
+    RETURNING jsonb_build_object(
+      'success', true,
+      'lifecycle_status', 'interview_unsuccessful',
+      'interview_attempt_count', v_current_attempt_count,
+      'reattempt_eligible_after', reattempt_eligible_after,
+      'cooling_off_days', v_cooling_off_days
+    ) INTO v_result;
+  ELSE
+    -- PASSED: certified
+    -- ... existing certification logic ...
+  END IF;
+  
+  RETURN v_result;
+END;
+$$;
+```
+
+---
+
+## Phase 7: Two Workflow Paths
+
+### PATH A: Direct Re-Interview (No Expertise Changes)
+
+```text
+interview_unsuccessful → Wait cooling-off → Schedule Re-Interview → Interview
+```
+
+Implementation:
+1. Provider waits for cooling-off countdown to complete
+2. "Schedule Re-Interview" button becomes enabled
+3. Click navigates to interview scheduling (Step 7)
+4. Status changes to `panel_scheduled`
+5. `interview_attempt_count` remains (will increment on next finalize)
+
+### PATH B: Re-Flow with Expertise Changes
+
+```text
+interview_unsuccessful → Modify Expertise → proof_points_started → assessment → Interview
+```
+
+Implementation:
+1. Provider clicks "Modify Expertise" (available immediately)
+2. Dialog shows current config with editable fields (except industry)
+3. On confirm:
+   - All proof points deleted
+   - Assessment cleared
+   - Status reset to `expertise_selected` (rank 50)
+4. Provider continues from Step 5 (Proof Points)
+5. Must still wait for cooling-off before final interview scheduling
+
+---
+
+## Phase 8: What Is Explicitly NOT Implemented
+
+Per document Section 10 (Complexity Removed):
+
+| Feature | Status | Rationale |
+|---------|--------|-----------|
+| Mandatory improvement plans | ❌ NOT IMPLEMENTED | Adds friction; self-service model |
+| Activity tracking system | ❌ NOT IMPLEMENTED | Unnecessary complexity |
+| Performance-based cooling reduction | ❌ NOT IMPLEMENTED | Edge cases; minimal benefit |
+| Admin approval for changes | ❌ NOT IMPLEMENTED | Self-service is sufficient |
+| 14-day SLA reviews | ❌ NOT IMPLEMENTED | Operational overhead |
+| Appeals process | ❌ NOT IMPLEMENTED | Can add later when volume justifies |
+| Mentoring tracking | ❌ NOT IMPLEMENTED | Not essential for startup |
+| Maximum attempt limit | ❌ NOT IMPLEMENTED | Unlimited attempts allowed |
+
+---
+
+## Summary: Key Differences from Previous Plan
+
+| Aspect | Previous Plan | Revised Plan (Per Document) |
+|--------|---------------|----------------------------|
+| Status Name | `not_certified` | `interview_unsuccessful` |
+| Max Attempts | 3 total | **UNLIMITED** |
+| Cooling-Off | 90/180/365 days | **30/60/90 days** (capped at 90) |
+| Industry Change | Admin-approved request | **NEVER** (create new enrollment) |
+| Improvement Plan | Mandatory | **NOT required** |
+| Admin Approval | Required for changes | **NOT required** (self-service) |
+| Appeals Process | Implemented | **NOT implemented** (add later) |
+| Activity Tracking | Required | **NOT implemented** |
+
+---
+
+## Implementation Files Summary
+
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/constants/lifecycle.constants.ts` | UPDATE | Rename `not_certified` → `interview_unsuccessful` |
+| `src/constants/interview-retake.constants.ts` | CREATE | Cooling-off periods, policy rules |
+| `src/constants/certification.constants.ts` | UPDATE | Outcome type and display |
+| `src/services/lifecycleService.ts` | UPDATE | Add expertise change validation |
+| `src/services/interviewRetakeService.ts` | CREATE | Eligibility checks, reset functions |
+| `src/hooks/queries/useReinterviewEligibility.ts` | CREATE | Query hook for eligibility |
+| `src/hooks/mutations/useModifyExpertise.ts` | CREATE | Mutation for expertise changes |
+| `src/hooks/mutations/useFinalizeCertification.ts` | UPDATE | Use new status, set cooling-off |
+| `src/components/enrollment/InterviewUnsuccessfulCard.tsx` | CREATE | Dashboard card with countdown |
+| `src/components/enrollment/ModifyExpertiseDialog.tsx` | CREATE | Expertise modification UI |
+| `src/pages/Dashboard.tsx` | UPDATE | Show new card for failed providers |
+| Database migration | CREATE | Add columns, update RPC |
+
