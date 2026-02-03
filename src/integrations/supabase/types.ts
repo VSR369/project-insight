@@ -4403,6 +4403,7 @@ export type Database = {
         | "active"
         | "suspended"
         | "inactive"
+        | "interview_unsuccessful"
       onboarding_status: "not_started" | "in_progress" | "completed"
       proof_point_category: "general" | "specialty_specific"
       proof_point_type:
@@ -4623,6 +4624,7 @@ export const Constants = {
         "active",
         "suspended",
         "inactive",
+        "interview_unsuccessful",
       ],
       onboarding_status: ["not_started", "in_progress", "completed"],
       proof_point_category: ["general", "specialty_specific"],
