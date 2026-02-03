@@ -23,9 +23,9 @@ export function CandidateCard({ candidate, onOpenProfile }: CandidateCardProps) 
             {displayName}
           </Badge>
         );
-      case "not_certified":
+      case "interview_unsuccessful":
         return (
-          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200">
+          <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
             <XCircle className="h-3 w-3 mr-1" />
             {displayName}
           </Badge>

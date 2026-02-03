@@ -14,6 +14,7 @@ export {
   TERMINAL_STATES,
   HIDDEN_STATES,
   VIEW_ONLY_STATES,
+  REATTEMPT_ELIGIBLE_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
 
@@ -24,6 +25,7 @@ import {
   TERMINAL_STATES,
   HIDDEN_STATES,
   VIEW_ONLY_STATES,
+  REATTEMPT_ELIGIBLE_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
 

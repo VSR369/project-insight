@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { LifecycleProgressIndicator } from './LifecycleProgressIndicator';
 
-const TERMINAL_STATUSES = ['certified', 'not_certified'];
+const TERMINAL_STATUSES = ['certified', 'interview_unsuccessful'];
 
 interface EnrollmentSwitcherProps {
   variant?: 'header' | 'compact';

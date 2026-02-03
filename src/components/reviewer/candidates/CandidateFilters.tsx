@@ -28,7 +28,7 @@ const STATUS_OPTIONS: { value: LifecycleStatus; label: string }[] = [
   { value: "panel_scheduled", label: "Panel Scheduled" },
   { value: "panel_completed", label: "Panel Completed" },
   { value: "certified", label: "Certified" },
-  { value: "not_certified", label: "Not Certified" },
+  { value: "interview_unsuccessful", label: "Interview Unsuccessful" },
 ];
 
 export function CandidateFiltersPanel({ filters, onFiltersChange }: CandidateFiltersProps) {

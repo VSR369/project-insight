@@ -22,6 +22,9 @@ interface FinalizeCertificationResult {
   certification_level: string | null;
   star_rating: number | null;
   lifecycle_status: string;
+  interview_attempt_count?: number;
+  reattempt_eligible_after?: string;
+  cooling_off_days?: number;
 }
 
 /**
@@ -112,8 +115,10 @@ export function useFinalizeCertification() {
 
       if (result.lifecycle_status === 'certified') {
         toast.success(`Certification finalized: ${result.star_rating} star${result.star_rating !== 1 ? 's' : ''} (${result.certification_level})`);
+      } else if (result.lifecycle_status === 'interview_unsuccessful') {
+        toast.info(`Interview unsuccessful. Cooling-off period: ${result.cooling_off_days || 30} days.`);
       } else {
-        toast.info('Certification finalized: Not Certified');
+        toast.info('Certification finalized');
       }
     },
     onError: (error: Error) => {

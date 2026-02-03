@@ -1806,7 +1806,9 @@ export type Database = {
           expertise_reviewer_notes: string | null
           id: string
           industry_segment_id: string
+          interview_attempt_count: number
           is_primary: boolean
+          last_interview_failed_at: string | null
           lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status: string | null
@@ -1818,6 +1820,7 @@ export type Database = {
           proof_points_reviewed_by: string | null
           proof_points_reviewer_notes: string | null
           provider_id: string
+          reattempt_eligible_after: string | null
           star_rating: number | null
           updated_at: string | null
           updated_by: string | null
@@ -1837,7 +1840,9 @@ export type Database = {
           expertise_reviewer_notes?: string | null
           id?: string
           industry_segment_id: string
+          interview_attempt_count?: number
           is_primary?: boolean
+          last_interview_failed_at?: string | null
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
@@ -1849,6 +1854,7 @@ export type Database = {
           proof_points_reviewed_by?: string | null
           proof_points_reviewer_notes?: string | null
           provider_id: string
+          reattempt_eligible_after?: string | null
           star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -1868,7 +1874,9 @@ export type Database = {
           expertise_reviewer_notes?: string | null
           id?: string
           industry_segment_id?: string
+          interview_attempt_count?: number
           is_primary?: boolean
+          last_interview_failed_at?: string | null
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
@@ -1880,6 +1888,7 @@ export type Database = {
           proof_points_reviewed_by?: string | null
           proof_points_reviewer_notes?: string | null
           provider_id?: string
+          reattempt_eligible_after?: string | null
           star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
@@ -4358,6 +4367,10 @@ export type Database = {
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
         Returns: undefined
+      }
+      reset_enrollment_for_expertise_change: {
+        Args: { p_enrollment_id: string; p_user_id: string }
+        Returns: Json
       }
       select_reviewers_weighted: {
         Args: {

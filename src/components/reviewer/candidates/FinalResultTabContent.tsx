@@ -242,7 +242,7 @@ export function FinalResultTabContent({ enrollmentId }: FinalResultTabContentPro
       )}
 
       {/* Already Certified Display */}
-      {(data.lifecycleStatus === 'certified' || data.lifecycleStatus === 'not_certified') && certLevelDisplay && (
+      {(data.lifecycleStatus === 'certified' || data.lifecycleStatus === 'interview_unsuccessful') && certLevelDisplay && (
         <Card className="border-green-200 bg-green-50">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">

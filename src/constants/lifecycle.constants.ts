@@ -35,19 +35,22 @@ export const LIFECYCLE_RANKS: Record<string, number> = {
   panel_completed: 130,
   active: 135,
   certified: 140,
-  not_certified: 150,
+  interview_unsuccessful: 150, // Renamed from not_certified
   suspended: 200,
   inactive: 210,
 } as const;
 
 /** Terminal states - no further progression possible */
-export const TERMINAL_STATES = ['certified', 'not_certified', 'suspended', 'inactive'] as const;
+export const TERMINAL_STATES = ['certified', 'interview_unsuccessful', 'suspended', 'inactive'] as const;
 
 /** Hidden states - certification content should be hidden */
 export const HIDDEN_STATES = ['suspended', 'inactive'] as const;
 
 /** View-only terminal states - can view but not modify */
-export const VIEW_ONLY_STATES = ['certified', 'not_certified'] as const;
+export const VIEW_ONLY_STATES = ['certified', 'interview_unsuccessful'] as const;
+
+/** Re-attempt eligible states - provider can attempt re-interview pathway */
+export const REATTEMPT_ELIGIBLE_STATES = ['interview_unsuccessful'] as const;
 
 /** Field categories for lock checking */
 export type FieldCategory = 'registration' | 'configuration' | 'content';
@@ -78,7 +81,7 @@ export const STATUS_DISPLAY_NAMES: Record<string, string> = {
   panel_completed: 'Panel Completed',
   active: 'Active',
   certified: 'Certified',
-  not_certified: 'Not Certified',
+  interview_unsuccessful: 'Interview Unsuccessful', // Renamed from not_certified
   suspended: 'Suspended',
   inactive: 'Inactive',
 };
