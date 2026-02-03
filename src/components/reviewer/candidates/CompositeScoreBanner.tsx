@@ -56,7 +56,7 @@ export function CompositeScoreBanner({
               'flex items-center justify-center w-20 h-20 rounded-full',
               outcomeConfig.bgClass,
               'border-4',
-              certificationOutcome === 'not_certified' && 'border-destructive/30',
+              certificationOutcome === 'interview_unsuccessful' && 'border-amber-300',
               certificationOutcome === 'one_star' && 'border-amber-300',
               certificationOutcome === 'two_star' && 'border-blue-300',
               certificationOutcome === 'three_star' && 'border-green-300'

@@ -21,7 +21,7 @@ export const CERTIFICATION_THRESHOLDS = {
 } as const;
 
 /** Certification outcome types */
-export type CertificationOutcome = 'not_certified' | 'one_star' | 'two_star' | 'three_star';
+export type CertificationOutcome = 'interview_unsuccessful' | 'one_star' | 'two_star' | 'three_star';
 
 /** Stage status types */
 export type StageStatus = 'completed' | 'in_progress' | 'not_started';
@@ -38,13 +38,13 @@ export const OUTCOME_DISPLAY: Record<CertificationOutcome, {
   bgClass: string;
   textClass: string;
 }> = {
-  not_certified: {
-    label: 'Not Certified',
+  interview_unsuccessful: {
+    label: 'Interview Unsuccessful',
     stars: 0,
     level: null,
-    colorClass: 'text-destructive',
-    bgClass: 'bg-destructive/10',
-    textClass: 'text-destructive',
+    colorClass: 'text-amber-600',  // Changed from destructive to encourage retry
+    bgClass: 'bg-amber-50',
+    textClass: 'text-amber-700',
   },
   one_star: {
     label: 'Certified',
@@ -134,7 +134,7 @@ export const STAGE_STATUS_DISPLAY: Record<StageStatus, {
  * Calculate certification outcome based on composite score
  */
 export function getCertificationOutcome(compositeScore: number): CertificationOutcome {
-  if (compositeScore < CERTIFICATION_THRESHOLDS.notCertified) return 'not_certified';
+  if (compositeScore < CERTIFICATION_THRESHOLDS.notCertified) return 'interview_unsuccessful';
   if (compositeScore < CERTIFICATION_THRESHOLDS.oneStar) return 'one_star';
   if (compositeScore < CERTIFICATION_THRESHOLDS.twoStar) return 'two_star';
   return 'three_star';
