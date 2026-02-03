@@ -15,6 +15,7 @@ export {
   HIDDEN_STATES,
   VIEW_ONLY_STATES,
   REATTEMPT_ELIGIBLE_STATES,
+  EXPERTISE_UPGRADE_ELIGIBLE_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
 
@@ -26,6 +27,7 @@ import {
   HIDDEN_STATES,
   VIEW_ONLY_STATES,
   REATTEMPT_ELIGIBLE_STATES,
+  EXPERTISE_UPGRADE_ELIGIBLE_STATES,
   type FieldCategory,
 } from '@/constants/lifecycle.constants';
 
@@ -236,4 +238,38 @@ export function isWizardStepLocked(stepId: number, lifecycleRank: number): boole
  */
 export function getStatusDisplayName(status: string): string {
   return STATUS_DISPLAY_NAMES[status] || status;
+}
+
+/**
+ * Check if provider can initiate expertise upgrade (certified only)
+ */
+export function canUpgradeExpertise(status: string): boolean {
+  return EXPERTISE_UPGRADE_ELIGIBLE_STATES.includes(
+    status as typeof EXPERTISE_UPGRADE_ELIGIBLE_STATES[number]
+  );
+}
+
+/**
+ * Check if field can be modified for expertise upgrade
+ */
+export function canModifyFieldForUpgrade(
+  lifecycleStatus: string,
+  fieldName: string
+): { allowed: boolean; reason?: string } {
+  if (lifecycleStatus !== 'certified') {
+    return { 
+      allowed: false, 
+      reason: 'Expertise upgrade is only available for certified providers.' 
+    };
+  }
+  
+  // Industry NEVER changeable
+  if (fieldName === 'industry_segment_id') {
+    return { 
+      allowed: false, 
+      reason: 'Industry cannot be changed. Create a new enrollment for a different industry.' 
+    };
+  }
+  
+  return { allowed: true };
 }

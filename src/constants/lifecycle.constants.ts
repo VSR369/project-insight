@@ -52,6 +52,9 @@ export const VIEW_ONLY_STATES = ['certified', 'interview_unsuccessful'] as const
 /** Re-attempt eligible states - provider can attempt re-interview pathway */
 export const REATTEMPT_ELIGIBLE_STATES = ['interview_unsuccessful'] as const;
 
+/** States eligible for expertise upgrade pathway (post-certification) */
+export const EXPERTISE_UPGRADE_ELIGIBLE_STATES = ['certified'] as const;
+
 /** Field categories for lock checking */
 export type FieldCategory = 'registration' | 'configuration' | 'content';
 

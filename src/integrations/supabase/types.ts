@@ -1808,12 +1808,14 @@ export type Database = {
           industry_segment_id: string
           interview_attempt_count: number
           is_primary: boolean
+          last_certified_at: string | null
           last_interview_failed_at: string | null
           lifecycle_rank: number
           lifecycle_status: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status: string | null
           organization: Json | null
           participation_mode_id: string | null
+          previous_expertise_level_id: string | null
           proof_points_final_score: number | null
           proof_points_review_status: string | null
           proof_points_reviewed_at: string | null
@@ -1824,6 +1826,7 @@ export type Database = {
           star_rating: number | null
           updated_at: string | null
           updated_by: string | null
+          upgrade_attempt_count: number | null
         }
         Insert: {
           certification_level?: string | null
@@ -1842,12 +1845,14 @@ export type Database = {
           industry_segment_id: string
           interview_attempt_count?: number
           is_primary?: boolean
+          last_certified_at?: string | null
           last_interview_failed_at?: string | null
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
           organization?: Json | null
           participation_mode_id?: string | null
+          previous_expertise_level_id?: string | null
           proof_points_final_score?: number | null
           proof_points_review_status?: string | null
           proof_points_reviewed_at?: string | null
@@ -1858,6 +1863,7 @@ export type Database = {
           star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          upgrade_attempt_count?: number | null
         }
         Update: {
           certification_level?: string | null
@@ -1876,12 +1882,14 @@ export type Database = {
           industry_segment_id?: string
           interview_attempt_count?: number
           is_primary?: boolean
+          last_certified_at?: string | null
           last_interview_failed_at?: string | null
           lifecycle_rank?: number
           lifecycle_status?: Database["public"]["Enums"]["lifecycle_status"]
           org_approval_status?: string | null
           organization?: Json | null
           participation_mode_id?: string | null
+          previous_expertise_level_id?: string | null
           proof_points_final_score?: number | null
           proof_points_review_status?: string | null
           proof_points_reviewed_at?: string | null
@@ -1892,6 +1900,7 @@ export type Database = {
           star_rating?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          upgrade_attempt_count?: number | null
         }
         Relationships: [
           {
@@ -1913,6 +1922,13 @@ export type Database = {
             columns: ["participation_mode_id"]
             isOneToOne: false
             referencedRelation: "participation_modes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "provider_industry_enrollments_previous_expertise_level_id_fkey"
+            columns: ["previous_expertise_level_id"]
+            isOneToOne: false
+            referencedRelation: "expertise_levels"
             referencedColumns: ["id"]
           },
           {
@@ -4369,6 +4385,10 @@ export type Database = {
         Returns: undefined
       }
       reset_enrollment_for_expertise_change: {
+        Args: { p_enrollment_id: string; p_user_id: string }
+        Returns: Json
+      }
+      reset_enrollment_for_expertise_upgrade: {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: Json
       }
