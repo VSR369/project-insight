@@ -124,7 +124,7 @@ export function useSlotContext(enrollmentId?: string) {
             industry_segment_id,
             expertise_level_id,
             industry_segments(name),
-            expertise_levels(name)
+            expertise_levels!expertise_level_id(name)
           `)
           .eq('id', enrollmentId)
           .single(),

@@ -13,3 +13,4 @@ export * from './certification.constants';
 export * from './interview-retake.constants';
 export * from './pulse.constants';
 export * from './pulseCards.constants';
+export * from './expertise-upgrade.constants';

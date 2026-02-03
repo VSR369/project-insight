@@ -101,7 +101,7 @@ export function useFinalResultData(enrollmentId?: string) {
           star_rating,
           certified_at,
           industry_segment:industry_segments(id, name),
-          expertise_level:expertise_levels(id, name),
+          expertise_level:expertise_levels!expertise_level_id(id, name),
           participation_mode:participation_modes(id, code, requires_org_info),
           provider:solution_providers(id, first_name, last_name)
         `)
