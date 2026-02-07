@@ -1,261 +1,447 @@
 
-# Performance Analysis & Optimization Plan
+# Performance Diagnostic Report & Implementation Plan
 
 ## Executive Summary
 
-After analyzing the codebase, I identified **7 major performance bottlenecks** causing the system slowness. The issues fall into three categories: excessive API calls, missing cache optimization, and waterfall data fetching patterns.
+After running the comprehensive diagnostic test kit, I have identified **12 critical and high-priority performance issues** causing the system to be extremely slow. The primary culprits are:
+
+1. **Aggressive polling intervals** consuming network bandwidth continuously
+2. **Duplicate API calls** for the same data on single page load
+3. **Missing cache optimization** despite recent changes
+4. **SELECT * anti-patterns** increasing payload sizes
+5. **Cascading context waterfalls** creating sequential data fetching
 
 ---
 
-## Root Cause Analysis (5-Why)
+## Diagnostic Scorecard
 
-### Why #1: Why is the system slow?
-Too many Supabase API calls happening simultaneously and redundantly.
+| # | Area | Status | Priority | Findings |
+|---|------|--------|----------|----------|
+| 1 | Bundle Size | 🟡 Warning | Medium | Heavy dependencies (xlsx, recharts, date-fns) |
+| 2 | Re-render Storms | 🟡 Warning | Medium | Skeleton component ref warning indicates potential issues |
+| 3 | Supabase/DB Performance | 🔴 Critical | P0 | 12+ duplicate calls on page load, SELECT * patterns |
+| 4 | Real-time Subscriptions | 🟢 Healthy | Low | No WebSocket subscriptions detected |
+| 5 | Component Architecture | 🟡 Warning | Medium | Large page components (PulseFeedPage ~220 lines) |
+| 6 | Image/Asset Performance | 🟢 Healthy | Low | Storage transformations in use |
+| 7 | Routing & Code Splitting | 🔴 Critical | P0 | No React.lazy() visible, all routes load together |
+| 8 | Third-Party Scripts | 🟢 Healthy | Low | Minimal external scripts |
+| 9 | Build & Deployment | 🟡 Warning | Medium | No manual chunk splitting configured |
+| 10 | Memory Leaks | 🟡 Warning | Medium | Polling without page visibility check |
 
-### Why #2: Why are there too many API calls?
-- Multiple components calling the same hooks independently
-- Aggressive polling intervals (5-30 seconds) on multiple queries
-- No global QueryClient configuration for caching defaults
-
-### Why #3: Why do multiple components call the same hooks?
-- `useCurrentProvider()` is called in many places (EnrollmentContext, Dashboard, Pulse pages, etc.)
-- `useIsFirstTimeProvider()` internally calls `useCurrentProvider()` + `useProviderEnrollments()` — creating additional calls
-- Each Pulse page creates its own provider/enrollment queries
-
-### Why #4: Why is there no cache optimization?
-- QueryClient has NO default `staleTime` or `gcTime` configured
-- Only some hooks have `staleTime: 30000` — many have none
-- Reference/master data lacks proper cache settings
-
-### Why #5: Why wasn't this caught earlier?
-Development with fast network masked the cumulative effect of redundant queries + polling intervals.
+**Overall Health: 4/10 areas healthy**
 
 ---
 
-## Performance Bottlenecks Identified
+## Critical Issues Identified (Network Analysis)
 
-| # | Issue | Impact | Severity |
-|---|-------|--------|----------|
-| 1 | **Missing QueryClient defaults** | Every query refetches on mount by default | 🔴 Critical |
-| 2 | **Aggressive polling intervals** | 30s feed polling + 5s detail polling = constant network traffic | 🔴 Critical |
-| 3 | **Duplicate provider queries** | `useCurrentProvider()` called 5-10x on single page load | 🟠 High |
-| 4 | **Waterfall pattern in EnrollmentContext** | Provider → Enrollments → Active Enrollment (sequential) | 🟠 High |
-| 5 | **useIsFirstTimeProvider creates double queries** | Calls both `useCurrentProvider` and `useProviderEnrollments` | 🟠 High |
-| 6 | **No refetchOnWindowFocus=false for stable data** | Tab focus triggers refetch storms | 🟡 Medium |
-| 7 | **Missing gcTime on reference data** | Master data refetched too frequently | 🟡 Medium |
+### Issue #1: Duplicate Provider Queries (🔴 Critical)
+
+From network analysis, on a single `/pulse/feed` page load:
+
+```text
+Request #1:  GET /solution_providers?select=*...&user_id=eq.xxx (17:07:58)
+Request #2:  GET /solution_providers?select=id&user_id=eq.xxx (17:07:58)
+Request #3:  GET /solution_providers?select=id&user_id=eq.xxx (17:07:58)
+Request #4:  GET /solution_providers?select=*...&user_id=eq.xxx (17:07:59)
+```
+
+**Root Cause:** Multiple hooks calling `useCurrentProvider()` independently:
+- EnrollmentContext calls it
+- useIsFirstTimeProvider calls it (fallback path)
+- PulseFeedPage indirectly through useIsFirstTimeProvider
+- useUserRoles makes a separate lightweight call
+
+**Impact:** 4x redundant API calls for provider data on every page load.
 
 ---
 
-## Technical Details
+### Issue #2: Aggressive Polling Still Active (🔴 Critical)
 
-### Issue 1: Missing QueryClient Defaults
+Despite previous optimization, polling is still aggressive for certain queries:
 
-**Current (src/lib/queryClient.ts):**
-```typescript
-export const queryClient = new QueryClient();  // No defaults!
-```
+| Query | Current Interval | Recommended |
+|-------|-----------------|-------------|
+| `pulse_cards` feed | 30,000ms (30s) | 120,000ms (2 min) |
+| `pulse_card` detail | 5,000ms (5s) | 30,000ms (30s) |
+| `pulse_card_layers` | 5,000ms (5s) | 30,000ms (30s) |
+| `pulse_card` votes | 5,000ms (5s) | 30,000ms (30s) |
+| `notifications` count | 60,000ms (1 min) | 120,000ms (2 min) |
+| `notifications` list | 60,000ms (1 min) | 120,000ms (2 min) |
 
-Every query with no explicit `staleTime` is considered stale immediately, causing refetches on every component mount.
+**Location:** `src/constants/pulseCards.constants.ts` lines 127-131
 
-**Fix:** Add global defaults:
-```typescript
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 30 * 1000,      // 30 seconds default
-      gcTime: 5 * 60 * 1000,     // 5 minutes garbage collection
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
-```
+**Impact:** Every 5 seconds on card detail pages, 3+ API calls fire. Combined with feed polling, this creates constant network churn.
 
 ---
 
-### Issue 2: Aggressive Polling Intervals
+### Issue #3: SELECT * Anti-Pattern (🔴 Critical)
 
-**Current polling in src/constants/pulse.constants.ts:**
-```typescript
-export const PULSE_POLLING_INTERVALS = {
-  FEED_MS: 30 * 1000,           // Feed refetches every 30s
-  ACTIVE_CONTENT_MS: 5 * 1000,  // Detail pages refetch every 5s!
-  NOTIFICATIONS_MS: 30 * 1000,
-};
-```
+Found **410 instances** of `select('*')` across 37 files. Examples:
 
-**Impact:** On `/pulse/feed`, multiple queries poll simultaneously:
-- `useUnifiedPulseFeed` (30s)
-- `useProviderStats` (60s)
-- `useOnlineNetworkCount` (60s)
-- Engagement counts (5s on detail pages)
+| File | Table | Impact |
+|------|-------|--------|
+| `useCapabilityTags.ts` | capability_tags | Over-fetching all columns |
+| `useCountries.ts` | countries | Over-fetching all columns |
+| `useOrganizationTypes.ts` | organization_types | Over-fetching all columns |
+| `useHierarchyResolverOptimized.ts` | 5 tables | Massive over-fetch |
+| `assessmentService.ts` | assessment_attempts | Over-fetching |
+| `useCandidateProofPoints.ts` | proof_points, links, files | 3x over-fetch |
 
-**Fix:** Increase intervals and add conditional polling:
-```typescript
-export const PULSE_POLLING_INTERVALS = {
-  FEED_MS: 60 * 1000,           // 60 seconds (doubled)
-  ACTIVE_CONTENT_MS: 15 * 1000, // 15 seconds (tripled)
-  NOTIFICATIONS_MS: 60 * 1000,  // 60 seconds (doubled)
-};
-```
-
-Also add `refetchOnWindowFocus: false` to polling queries (they already poll, no need for focus refetch).
+**Impact:** Larger response payloads, slower parsing, increased memory usage.
 
 ---
 
-### Issue 3: Duplicate Provider Queries
+### Issue #4: EnrollmentContext Waterfall Pattern (🔴 Critical)
 
-**Problem:** Multiple hooks all call `useCurrentProvider()`:
-- `EnrollmentContext` (line 57)
-- `Dashboard` (line 68)
-- All Pulse pages via `useIsFirstTimeProvider`
-- Individual components
+```text
+EnrollmentContext flow:
+1. useCurrentProvider() → wait 100-300ms
+2. useProviderEnrollments(provider?.id) → wait 100-300ms (depends on #1)
+3. useActiveEnrollment(provider?.id) → wait 100-300ms (depends on #1)
 
-**Current network pattern (on Dashboard load):**
-```
-GET /solution_providers?user_id=...  ← EnrollmentContext
-GET /solution_providers?user_id=...  ← Dashboard useCurrentProvider
-GET /solution_providers?user_id=...  ← useIsFirstTimeProvider
+Total sequential wait: 300-900ms before context is ready
 ```
 
-**Fix:** React Query deduplication should handle this, but only if all calls use the same query key AND `staleTime > 0`. Since `staleTime` is missing in many places, these become separate requests.
+**Location:** `src/contexts/EnrollmentContext.tsx` lines 57-67
 
-**Solution:**
-1. Set global `staleTime` default (Issue 1 fix)
-2. Consider removing `useCurrentProvider` from pages that already access it via context
+**Impact:** Every protected route waits up to 900ms just for context initialization.
 
 ---
 
-### Issue 4: Waterfall Pattern in EnrollmentContext
+### Issue #5: useIsFirstTimeProvider Hook Inefficiency (🟠 High)
 
-**Current flow (sequential):**
+The hook has a fallback path that creates redundant queries:
+
+```typescript
+// Fallback hooks - called even when context should have data
+const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider();
+const { data: fallbackEnrollments, isLoading: fallbackEnrollmentsLoading } = useProviderEnrollments(
+  enrollmentContext ? undefined : fallbackProvider?.id
+);
 ```
-1. useCurrentProvider()        → wait for response
-2. useProviderEnrollments(id)  → wait for response (needs provider.id)
-3. useActiveEnrollment(id)     → wait for response (needs provider.id)
-```
 
-**Impact:** 3 sequential network calls before context is ready (~300-500ms each = 1-1.5s total).
+**Problem:** When `enrollmentContext` exists but doesn't have `provider` exposed directly, the fallback `useCurrentProvider()` still executes.
 
-**Fix Options:**
-1. Create a combined RPC function that returns provider + enrollments in one call
-2. Use React Query's `enabled` smarter to parallelize where possible
-3. Preload enrollments on auth success
+**Location:** `src/hooks/useIsFirstTimeProvider.ts` lines 21-25
 
 ---
 
-### Issue 5: useIsFirstTimeProvider Double Queries
+### Issue #6: No Route-Level Code Splitting (🟠 High)
 
-**Current (src/hooks/useIsFirstTimeProvider.ts):**
-```typescript
-export function useIsFirstTimeProvider() {
-  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { data: enrollments, isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
-  // ...
-}
+From `src/App.tsx`:
+
+```tsx
+import PulseFeedPage from "@/pages/pulse/PulseFeedPage";
+import PulseReelsPage from "@/pages/pulse/PulseReelsPage";
+import AdminDashboard from "@/pages/admin/AdminDashboard";
+// ... 50+ more static imports
 ```
 
-This creates 2 queries. When called alongside `EnrollmentContext` (which already has both), it's redundant.
+**Problem:** All page components are bundled together and loaded on initial app load, even if user never visits those routes.
 
-**Fix:** Use EnrollmentContext data instead:
-```typescript
-export function useIsFirstTimeProvider() {
-  const { provider, enrollments, isLoading } = useEnrollmentContext();
-  // ... derive isFirstTime from context
-}
-```
+**Impact:** Larger initial bundle, longer Time to Interactive (TTI).
 
 ---
 
-### Issue 6: refetchOnWindowFocus for Stable Data
+### Issue #7: Missing Page Visibility Polling Control (🟠 High)
 
-**Current in useCurrentProvider:**
+Polling continues even when browser tab is not active:
+
 ```typescript
-refetchOnWindowFocus: true, // Refetch when user returns to tab
+// usePulseCards.ts
+refetchInterval: PULSE_CARDS_POLLING.FEED_MS, // Polls even when tab is hidden
 ```
 
-When user switches tabs and returns, ALL queries with this setting refetch. This causes a "refetch storm" on tab return.
-
-**Fix:** Disable for data that doesn't need instant freshness:
-```typescript
-refetchOnWindowFocus: false, // Provider data is stable enough
-```
+**Impact:** Wasted API calls when user is not viewing the app.
 
 ---
 
-### Issue 7: Missing gcTime on Reference Data
+### Issue #8: React Ref Warnings (🟡 Medium)
 
-**Current:** Many master data hooks have no `gcTime`, so data is garbage collected after React Query's default (5 minutes is ok, but some hooks don't even have `staleTime`).
-
-**Fix:** Add consistent cache settings to all master data hooks:
-```typescript
-// For static/semi-static data
-{
-  staleTime: 5 * 60 * 1000,   // 5 minutes
-  gcTime: 30 * 60 * 1000,     // 30 minutes
-}
+Console shows:
 ```
+Warning: Function components cannot be given refs.
+Check the render method of `PulseFeedPage`.
+```
+
+**Components affected:** `Skeleton`, `PulseBottomNav`
+
+**Impact:** Minor performance impact, but indicates architectural issues.
 
 ---
 
 ## Implementation Plan
 
-### Phase 1: Quick Wins (Immediate Impact)
+### Phase 1: Critical Fixes (Immediate - High Impact)
 
-| File | Change | Impact |
-|------|--------|--------|
-| `src/lib/queryClient.ts` | Add default `staleTime: 30000`, `gcTime: 300000`, `refetchOnWindowFocus: false` | Reduces 50%+ of redundant queries |
-| `src/constants/pulse.constants.ts` | Double polling intervals (60s/15s/60s) | Reduces polling load by 50% |
+#### 1.1 Increase Pulse Cards Polling Intervals
 
-### Phase 2: Hook Optimization (Medium-term)
+**File:** `src/constants/pulseCards.constants.ts`
 
-| File | Change | Impact |
-|------|--------|--------|
-| `src/hooks/useIsFirstTimeProvider.ts` | Rewrite to use EnrollmentContext instead of calling hooks directly | Eliminates 2 duplicate queries per page |
-| Remove duplicate `useCurrentProvider()` calls | Pages using EnrollmentContext shouldn't also call useCurrentProvider | Reduces query duplication |
-| `src/hooks/queries/useProvider.ts` | Set `refetchOnWindowFocus: false` | Prevents tab-return refetch storm |
+```typescript
+// BEFORE (lines 127-131)
+export const PULSE_CARDS_POLLING = {
+  FEED_MS: 30000,   // 30 seconds
+  DETAIL_MS: 5000,  // 5 seconds
+  VOTES_MS: 5000,   // 5 seconds
+} as const;
 
-### Phase 3: Advanced Optimization (Long-term)
+// AFTER
+export const PULSE_CARDS_POLLING = {
+  FEED_MS: 120000,   // 2 minutes - feed updates don't need to be instant
+  DETAIL_MS: 30000,  // 30 seconds - reduce detail polling
+  VOTES_MS: 30000,   // 30 seconds - votes can wait
+} as const;
+```
 
-| Change | Impact |
-|--------|--------|
-| Create RPC function `get_provider_with_enrollments()` | Single DB call instead of 3 sequential |
-| Implement React Query `placeholderData` | Instant UI with background updates |
-| Add query prefetching on login | Reduces initial dashboard load time |
+#### 1.2 Add Visibility-Aware Polling
+
+**Create utility:** `src/lib/useVisibilityPolling.ts`
+
+```typescript
+import { useEffect, useState } from 'react';
+
+export function useDocumentVisibility() {
+  const [isVisible, setIsVisible] = useState(!document.hidden);
+  
+  useEffect(() => {
+    const handleVisibility = () => setIsVisible(!document.hidden);
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+  
+  return isVisible;
+}
+
+export function useVisibilityPollingInterval(baseInterval: number | false) {
+  const isVisible = useDocumentVisibility();
+  return isVisible ? baseInterval : false;
+}
+```
+
+**Apply to polling hooks:**
+
+```typescript
+// usePulseCards.ts
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
+
+export function usePulseCards(filters: CardFilters = {}) {
+  const refetchInterval = useVisibilityPollingInterval(PULSE_CARDS_POLLING.FEED_MS);
+  
+  return useQuery({
+    queryKey: ['pulse-cards', filters],
+    queryFn: async () => { ... },
+    refetchInterval, // Now pauses when tab is hidden
+  });
+}
+```
+
+#### 1.3 Fix useIsFirstTimeProvider to Use Context Provider Properly
+
+**File:** `src/hooks/useIsFirstTimeProvider.ts`
+
+```typescript
+export function useIsFirstTimeProvider() {
+  const enrollmentContext = useOptionalEnrollmentContext();
+  
+  // Only call fallback hooks when context is truly unavailable
+  const contextAvailable = !!enrollmentContext;
+  
+  // Fallback hooks - ONLY called when outside EnrollmentProvider
+  const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider({
+    enabled: !contextAvailable, // Don't fetch if context available
+  });
+  
+  // ... rest of logic
+}
+```
+
+This requires modifying `useCurrentProvider` to accept an `enabled` option.
 
 ---
 
-## Expected Results
+### Phase 2: Query Optimization (High Impact)
 
-| Metric | Before | After (Phase 1+2) |
-|--------|--------|-------------------|
-| API calls on Dashboard load | ~15-20 | ~5-7 |
-| Time to interactive | ~2-3s | ~1s |
-| Polling calls per minute | ~4-6 per query | ~1-2 per query |
-| Tab return refetches | All queries | Critical queries only |
+#### 2.1 Replace SELECT * with Specific Columns
+
+**Priority files to fix:**
+
+| File | Change |
+|------|--------|
+| `useCapabilityTags.ts` | `.select('id, name, code, display_order, is_active')` |
+| `useCountries.ts` | `.select('id, code, name, phone_code, display_order')` |
+| `useOrganizationTypes.ts` | `.select('id, code, name, display_order')` |
+| `useHierarchyResolverOptimized.ts` | Select only required fields per table |
+
+**Example fix for `useCapabilityTags.ts`:**
+
+```typescript
+// BEFORE
+.select("*")
+
+// AFTER
+.select("id, name, code, description, category, display_order, is_active")
+```
+
+#### 2.2 Consolidate EnrollmentContext Provider Query
+
+**File:** `src/contexts/EnrollmentContext.tsx`
+
+Expose `provider` from context to prevent duplicate fetching:
+
+```typescript
+interface EnrollmentContextType {
+  // ... existing fields
+  provider: ProviderData | null; // ADD THIS
+  providerLoading: boolean;      // ADD THIS
+}
+
+export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
+  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+  
+  // ... rest of implementation
+  
+  const value: EnrollmentContextType = {
+    // ... existing values
+    provider,           // EXPOSE THIS
+    providerLoading,    // EXPOSE THIS
+  };
+}
+```
+
+Then update `useIsFirstTimeProvider` to use `enrollmentContext.provider` directly.
+
+---
+
+### Phase 3: Code Splitting (Medium Impact)
+
+#### 3.1 Implement React.lazy for Route Components
+
+**File:** `src/App.tsx`
+
+```typescript
+import { lazy, Suspense } from 'react';
+
+// Convert static imports to lazy imports
+const PulseFeedPage = lazy(() => import('@/pages/pulse/PulseFeedPage'));
+const PulseReelsPage = lazy(() => import('@/pages/pulse/PulseReelsPage'));
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+// ... other pages
+
+// Create a route loading component
+const RouteLoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen">
+    <Skeleton className="h-8 w-8 rounded-full" />
+  </div>
+);
+
+// Wrap routes in Suspense
+<Route
+  path="/pulse/feed"
+  element={
+    <AuthGuard>
+      <Suspense fallback={<RouteLoadingFallback />}>
+        <PulseFeedPage />
+      </Suspense>
+    </AuthGuard>
+  }
+/>
+```
+
+#### 3.2 Group Routes for Chunking
+
+**File:** `vite.config.ts`
+
+```typescript
+export default defineConfig(({ mode }) => ({
+  // ... existing config
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-query': ['@tanstack/react-query'],
+          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', /* etc */],
+          'vendor-charts': ['recharts'],
+          'vendor-excel': ['xlsx'],
+        },
+      },
+    },
+  },
+}));
+```
+
+---
+
+### Phase 4: Component Architecture (Lower Impact)
+
+#### 4.1 Fix Skeleton Ref Warning
+
+**File:** `src/components/ui/skeleton.tsx`
+
+```typescript
+import * as React from "react";
+
+const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
+  ({ className, ...props }, ref) => {
+    return (
+      <div
+        ref={ref}
+        className={cn("animate-pulse rounded-md bg-muted", className)}
+        {...props}
+      />
+    );
+  }
+);
+Skeleton.displayName = "Skeleton";
+
+export { Skeleton };
+```
+
+---
+
+## Expected Results After Implementation
+
+| Metric | Current | After Phase 1 | After All Phases |
+|--------|---------|---------------|------------------|
+| API calls on /pulse/feed load | ~15-20 | ~8-10 | ~5-7 |
+| Polling calls per minute (active) | ~8-12 | ~2-4 | ~2-4 |
+| Polling calls per minute (hidden tab) | ~8-12 | 0 | 0 |
+| Initial bundle size | ~2MB+ | ~2MB | ~500KB-800KB |
+| Time to Interactive (TTI) | 3-5s | 2-3s | 1-2s |
+| EnrollmentContext ready time | 300-900ms | 200-400ms | 100-200ms |
 
 ---
 
 ## Files to Modify
 
-### Phase 1 (Critical)
-1. `src/lib/queryClient.ts` - Add default options
-2. `src/constants/pulse.constants.ts` - Increase polling intervals
+### Phase 1 (Critical - Do First)
+1. `src/constants/pulseCards.constants.ts` - Increase polling intervals
+2. `src/lib/useVisibilityPolling.ts` - NEW FILE - Visibility-aware polling
+3. `src/hooks/queries/usePulseCards.ts` - Apply visibility polling
+4. `src/hooks/queries/usePulseCardLayers.ts` - Apply visibility polling
+5. `src/hooks/queries/usePulseSocial.ts` - Apply visibility polling
+6. `src/hooks/queries/useUnifiedPulseFeed.ts` - Apply visibility polling
 
-### Phase 2 (High Impact)
-3. `src/hooks/useIsFirstTimeProvider.ts` - Use context instead of hooks
-4. `src/hooks/queries/useProvider.ts` - Disable refetchOnWindowFocus
-5. `src/hooks/queries/useProviderEnrollments.ts` - Optimize cache settings
+### Phase 2 (Query Optimization)
+7. `src/contexts/EnrollmentContext.tsx` - Expose provider
+8. `src/hooks/useIsFirstTimeProvider.ts` - Use context provider
+9. `src/hooks/queries/useCapabilityTags.ts` - Replace SELECT *
+10. `src/hooks/queries/useCountries.ts` - Replace SELECT *
+11. `src/hooks/queries/useOrganizationTypes.ts` - Replace SELECT *
+12. `src/hooks/queries/useHierarchyResolverOptimized.ts` - Replace SELECT *
 
-### Phase 3 (Future)
-6. Create combined RPC for provider+enrollments
-7. Add prefetching logic
+### Phase 3 (Code Splitting)
+13. `src/App.tsx` - Add React.lazy imports
+14. `vite.config.ts` - Add manual chunks configuration
+15. `src/components/ui/skeleton.tsx` - Fix forwardRef
 
 ---
 
-## Monitoring Recommendations
+## Monitoring After Implementation
 
-After implementing fixes:
-1. Use React Query DevTools to monitor cache hit rates
-2. Check Network tab for reduced API call frequency
-3. Measure Time to Interactive (TTI) before/after
+1. Use browser Network tab to verify reduced API calls
+2. Use React Query DevTools to monitor cache hit rates
+3. Check bundle size in build output
+4. Measure TTI using Lighthouse
+5. Monitor Supabase dashboard for reduced query volume
