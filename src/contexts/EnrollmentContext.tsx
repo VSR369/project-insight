@@ -60,6 +60,7 @@ interface EnrollmentProviderProps {
 }
 
 export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
+  // Provider query with retry for transient network issues
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
   const { 
     data: enrollments = [], 

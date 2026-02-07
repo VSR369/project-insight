@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { RefreshCw, AlertCircle, Rss, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -23,6 +23,18 @@ export default function PulseFeedPage() {
   
   // Delete confirmation dialog state
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; type: 'content' | 'card' } | null>(null);
+  
+  // Safety timeout to prevent infinite loading states (15 second max wait)
+  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
+  
+  useEffect(() => {
+    if (firstTimeLoading && !loadingTimedOut) {
+      const timeout = setTimeout(() => {
+        setLoadingTimedOut(true);
+      }, 15000);
+      return () => clearTimeout(timeout);
+    }
+  }, [firstTimeLoading, loadingTimedOut]);
 
   const handleContentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}`);
@@ -50,8 +62,8 @@ export default function PulseFeedPage() {
     setDeleteTarget(null);
   };
 
-  // Loading state
-  if (firstTimeLoading) {
+  // Loading state (with timeout fallback to prevent infinite skeleton)
+  if (firstTimeLoading && !loadingTimedOut) {
     return (
       <PulseLayout showSidebars={false}>
         <div className="w-full px-2 sm:px-4 lg:px-0 lg:max-w-2xl lg:mx-auto space-y-4" aria-label="Loading feed">
