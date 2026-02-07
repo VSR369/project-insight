@@ -1,447 +1,327 @@
 
-# Performance Diagnostic Report & Implementation Plan
 
-## Executive Summary
+# Performance Optimization - Remaining Implementation Plan
 
-After running the comprehensive diagnostic test kit, I have identified **12 critical and high-priority performance issues** causing the system to be extremely slow. The primary culprits are:
+## Overview
 
-1. **Aggressive polling intervals** consuming network bandwidth continuously
-2. **Duplicate API calls** for the same data on single page load
-3. **Missing cache optimization** despite recent changes
-4. **SELECT * anti-patterns** increasing payload sizes
-5. **Cascading context waterfalls** creating sequential data fetching
+This plan completes the remaining 15% of performance optimizations while **preserving all current functionality**. The changes are surgical and focused on eliminating redundant queries and optimizing data fetching.
 
 ---
 
-## Diagnostic Scorecard
+## Remaining Issues to Address
 
-| # | Area | Status | Priority | Findings |
-|---|------|--------|----------|----------|
-| 1 | Bundle Size | 🟡 Warning | Medium | Heavy dependencies (xlsx, recharts, date-fns) |
-| 2 | Re-render Storms | 🟡 Warning | Medium | Skeleton component ref warning indicates potential issues |
-| 3 | Supabase/DB Performance | 🔴 Critical | P0 | 12+ duplicate calls on page load, SELECT * patterns |
-| 4 | Real-time Subscriptions | 🟢 Healthy | Low | No WebSocket subscriptions detected |
-| 5 | Component Architecture | 🟡 Warning | Medium | Large page components (PulseFeedPage ~220 lines) |
-| 6 | Image/Asset Performance | 🟢 Healthy | Low | Storage transformations in use |
-| 7 | Routing & Code Splitting | 🔴 Critical | P0 | No React.lazy() visible, all routes load together |
-| 8 | Third-Party Scripts | 🟢 Healthy | Low | Minimal external scripts |
-| 9 | Build & Deployment | 🟡 Warning | Medium | No manual chunk splitting configured |
-| 10 | Memory Leaks | 🟡 Warning | Medium | Polling without page visibility check |
-
-**Overall Health: 4/10 areas healthy**
+| Issue | Current State | Fix Required |
+|-------|---------------|--------------|
+| 1. useIsFirstTimeProvider still calls useCurrentProvider() | Line 23 calls hook unconditionally | Make it conditional with `enabled` flag |
+| 2. EnrollmentContext doesn't expose provider | Forces child hooks to re-fetch | Expose provider in context value |
+| 3. useHierarchyResolverOptimized uses SELECT * | 5 tables with full payload | Replace with specific columns |
+| 4. assessmentService uses SELECT * | 2 queries over-fetching | Replace with specific columns |
+| 5. No React.lazy() for routes | 50+ pages loaded upfront | Add code splitting for heavy routes |
 
 ---
 
-## Critical Issues Identified (Network Analysis)
+## Phase 1: Fix useIsFirstTimeProvider (Critical)
 
-### Issue #1: Duplicate Provider Queries (🔴 Critical)
+### Problem
+The hook calls `useCurrentProvider()` at line 23 **unconditionally**, even when `enrollmentContext` exists. This causes duplicate queries because:
+1. EnrollmentContext already calls `useCurrentProvider()`
+2. The hook calls it again independently
 
-From network analysis, on a single `/pulse/feed` page load:
+### Solution
+Modify `useCurrentProvider()` to accept an `enabled` option, then pass `enabled: !enrollmentContext` to prevent duplicate fetching.
 
-```text
-Request #1:  GET /solution_providers?select=*...&user_id=eq.xxx (17:07:58)
-Request #2:  GET /solution_providers?select=id&user_id=eq.xxx (17:07:58)
-Request #3:  GET /solution_providers?select=id&user_id=eq.xxx (17:07:58)
-Request #4:  GET /solution_providers?select=*...&user_id=eq.xxx (17:07:59)
-```
+### File: `src/hooks/queries/useProvider.ts`
 
-**Root Cause:** Multiple hooks calling `useCurrentProvider()` independently:
-- EnrollmentContext calls it
-- useIsFirstTimeProvider calls it (fallback path)
-- PulseFeedPage indirectly through useIsFirstTimeProvider
-- useUserRoles makes a separate lightweight call
-
-**Impact:** 4x redundant API calls for provider data on every page load.
-
----
-
-### Issue #2: Aggressive Polling Still Active (🔴 Critical)
-
-Despite previous optimization, polling is still aggressive for certain queries:
-
-| Query | Current Interval | Recommended |
-|-------|-----------------|-------------|
-| `pulse_cards` feed | 30,000ms (30s) | 120,000ms (2 min) |
-| `pulse_card` detail | 5,000ms (5s) | 30,000ms (30s) |
-| `pulse_card_layers` | 5,000ms (5s) | 30,000ms (30s) |
-| `pulse_card` votes | 5,000ms (5s) | 30,000ms (30s) |
-| `notifications` count | 60,000ms (1 min) | 120,000ms (2 min) |
-| `notifications` list | 60,000ms (1 min) | 120,000ms (2 min) |
-
-**Location:** `src/constants/pulseCards.constants.ts` lines 127-131
-
-**Impact:** Every 5 seconds on card detail pages, 3+ API calls fire. Combined with feed polling, this creates constant network churn.
-
----
-
-### Issue #3: SELECT * Anti-Pattern (🔴 Critical)
-
-Found **410 instances** of `select('*')` across 37 files. Examples:
-
-| File | Table | Impact |
-|------|-------|--------|
-| `useCapabilityTags.ts` | capability_tags | Over-fetching all columns |
-| `useCountries.ts` | countries | Over-fetching all columns |
-| `useOrganizationTypes.ts` | organization_types | Over-fetching all columns |
-| `useHierarchyResolverOptimized.ts` | 5 tables | Massive over-fetch |
-| `assessmentService.ts` | assessment_attempts | Over-fetching |
-| `useCandidateProofPoints.ts` | proof_points, links, files | 3x over-fetch |
-
-**Impact:** Larger response payloads, slower parsing, increased memory usage.
-
----
-
-### Issue #4: EnrollmentContext Waterfall Pattern (🔴 Critical)
-
-```text
-EnrollmentContext flow:
-1. useCurrentProvider() → wait 100-300ms
-2. useProviderEnrollments(provider?.id) → wait 100-300ms (depends on #1)
-3. useActiveEnrollment(provider?.id) → wait 100-300ms (depends on #1)
-
-Total sequential wait: 300-900ms before context is ready
-```
-
-**Location:** `src/contexts/EnrollmentContext.tsx` lines 57-67
-
-**Impact:** Every protected route waits up to 900ms just for context initialization.
-
----
-
-### Issue #5: useIsFirstTimeProvider Hook Inefficiency (🟠 High)
-
-The hook has a fallback path that creates redundant queries:
+**Change 1:** Add options parameter to `useCurrentProvider()`
 
 ```typescript
-// Fallback hooks - called even when context should have data
-const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider();
-const { data: fallbackEnrollments, isLoading: fallbackEnrollmentsLoading } = useProviderEnrollments(
-  enrollmentContext ? undefined : fallbackProvider?.id
-);
-```
-
-**Problem:** When `enrollmentContext` exists but doesn't have `provider` exposed directly, the fallback `useCurrentProvider()` still executes.
-
-**Location:** `src/hooks/useIsFirstTimeProvider.ts` lines 21-25
-
----
-
-### Issue #6: No Route-Level Code Splitting (🟠 High)
-
-From `src/App.tsx`:
-
-```tsx
-import PulseFeedPage from "@/pages/pulse/PulseFeedPage";
-import PulseReelsPage from "@/pages/pulse/PulseReelsPage";
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-// ... 50+ more static imports
-```
-
-**Problem:** All page components are bundled together and loaded on initial app load, even if user never visits those routes.
-
-**Impact:** Larger initial bundle, longer Time to Interactive (TTI).
-
----
-
-### Issue #7: Missing Page Visibility Polling Control (🟠 High)
-
-Polling continues even when browser tab is not active:
-
-```typescript
-// usePulseCards.ts
-refetchInterval: PULSE_CARDS_POLLING.FEED_MS, // Polls even when tab is hidden
-```
-
-**Impact:** Wasted API calls when user is not viewing the app.
-
----
-
-### Issue #8: React Ref Warnings (🟡 Medium)
-
-Console shows:
-```
-Warning: Function components cannot be given refs.
-Check the render method of `PulseFeedPage`.
-```
-
-**Components affected:** `Skeleton`, `PulseBottomNav`
-
-**Impact:** Minor performance impact, but indicates architectural issues.
-
----
-
-## Implementation Plan
-
-### Phase 1: Critical Fixes (Immediate - High Impact)
-
-#### 1.1 Increase Pulse Cards Polling Intervals
-
-**File:** `src/constants/pulseCards.constants.ts`
-
-```typescript
-// BEFORE (lines 127-131)
-export const PULSE_CARDS_POLLING = {
-  FEED_MS: 30000,   // 30 seconds
-  DETAIL_MS: 5000,  // 5 seconds
-  VOTES_MS: 5000,   // 5 seconds
-} as const;
-
-// AFTER
-export const PULSE_CARDS_POLLING = {
-  FEED_MS: 120000,   // 2 minutes - feed updates don't need to be instant
-  DETAIL_MS: 30000,  // 30 seconds - reduce detail polling
-  VOTES_MS: 30000,   // 30 seconds - votes can wait
-} as const;
-```
-
-#### 1.2 Add Visibility-Aware Polling
-
-**Create utility:** `src/lib/useVisibilityPolling.ts`
-
-```typescript
-import { useEffect, useState } from 'react';
-
-export function useDocumentVisibility() {
-  const [isVisible, setIsVisible] = useState(!document.hidden);
-  
-  useEffect(() => {
-    const handleVisibility = () => setIsVisible(!document.hidden);
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, []);
-  
-  return isVisible;
-}
-
-export function useVisibilityPollingInterval(baseInterval: number | false) {
-  const isVisible = useDocumentVisibility();
-  return isVisible ? baseInterval : false;
-}
-```
-
-**Apply to polling hooks:**
-
-```typescript
-// usePulseCards.ts
-import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
-
-export function usePulseCards(filters: CardFilters = {}) {
-  const refetchInterval = useVisibilityPollingInterval(PULSE_CARDS_POLLING.FEED_MS);
-  
+// Lines 22-30 - Add options parameter
+export function useCurrentProvider(options?: { enabled?: boolean }) {
   return useQuery({
-    queryKey: ['pulse-cards', filters],
-    queryFn: async () => { ... },
-    refetchInterval, // Now pauses when tab is hidden
+    queryKey: ['current-provider'],
+    queryFn: fetchCurrentProvider,
+    staleTime: 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    enabled: options?.enabled !== false, // Default to true if not specified
   });
 }
 ```
 
-#### 1.3 Fix useIsFirstTimeProvider to Use Context Provider Properly
+### File: `src/hooks/useIsFirstTimeProvider.ts`
 
-**File:** `src/hooks/useIsFirstTimeProvider.ts`
+**Change 2:** Pass `enabled: false` when context is available
 
 ```typescript
-export function useIsFirstTimeProvider() {
-  const enrollmentContext = useOptionalEnrollmentContext();
-  
-  // Only call fallback hooks when context is truly unavailable
-  const contextAvailable = !!enrollmentContext;
-  
-  // Fallback hooks - ONLY called when outside EnrollmentProvider
-  const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider({
-    enabled: !contextAvailable, // Don't fetch if context available
-  });
-  
-  // ... rest of logic
-}
+// Lines 21-26 - Make useCurrentProvider conditional
+const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider({
+  enabled: needsFallback, // Only fetch when outside EnrollmentProvider
+});
 ```
-
-This requires modifying `useCurrentProvider` to accept an `enabled` option.
 
 ---
 
-### Phase 2: Query Optimization (High Impact)
+## Phase 2: Expose Provider from EnrollmentContext
 
-#### 2.1 Replace SELECT * with Specific Columns
+### Problem
+`useIsFirstTimeProvider` needs provider data but context doesn't expose it, forcing duplicate queries.
 
-**Priority files to fix:**
+### Solution
+Expose `provider` and `providerLoading` from `EnrollmentContext` so child components can use context data directly.
 
-| File | Change |
-|------|--------|
-| `useCapabilityTags.ts` | `.select('id, name, code, display_order, is_active')` |
-| `useCountries.ts` | `.select('id, code, name, phone_code, display_order')` |
-| `useOrganizationTypes.ts` | `.select('id, code, name, display_order')` |
-| `useHierarchyResolverOptimized.ts` | Select only required fields per table |
+### File: `src/contexts/EnrollmentContext.tsx`
 
-**Example fix for `useCapabilityTags.ts`:**
-
-```typescript
-// BEFORE
-.select("*")
-
-// AFTER
-.select("id, name, code, description, category, display_order, is_active")
-```
-
-#### 2.2 Consolidate EnrollmentContext Provider Query
-
-**File:** `src/contexts/EnrollmentContext.tsx`
-
-Expose `provider` from context to prevent duplicate fetching:
+**Change 1:** Add to interface (lines 12-48)
 
 ```typescript
 interface EnrollmentContextType {
-  // ... existing fields
-  provider: ProviderData | null; // ADD THIS
-  providerLoading: boolean;      // ADD THIS
+  // ... existing fields ...
+  
+  /** The current provider data (exposed for child hooks) */
+  provider: ProviderData | null;
+  
+  /** Whether provider data is loading */
+  providerLoading: boolean;
 }
+```
 
-export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
-  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
+**Change 2:** Add provider type import (line 9)
+
+```typescript
+import { useCurrentProvider, type ProviderData } from '@/hooks/queries/useProvider';
+```
+
+Note: Need to export ProviderData type from useProvider.ts
+
+**Change 3:** Expose in context value (lines 234-247)
+
+```typescript
+const value: EnrollmentContextType = {
+  enrollments,
+  activeEnrollment,
+  activeEnrollmentId: activeEnrollment?.id ?? null,
+  activeIndustryId: activeEnrollment?.industry_segment_id ?? null,
+  setActiveEnrollment,
+  switchToIndustry,
+  isLoading,
+  hasMultipleIndustries,
+  activeLifecycleRank,
+  activeLifecycleStatus,
+  refreshEnrollments,
+  contextReady,
+  provider: provider ?? null,      // ADD THIS
+  providerLoading,                  // ADD THIS
+};
+```
+
+### File: `src/hooks/useIsFirstTimeProvider.ts`
+
+**Change 4:** Use context.provider instead of fallback
+
+```typescript
+// Updated logic when context is available
+if (enrollmentContext) {
+  const { enrollments, isLoading, provider, providerLoading } = enrollmentContext;
   
-  // ... rest of implementation
-  
-  const value: EnrollmentContextType = {
-    // ... existing values
-    provider,           // EXPOSE THIS
-    providerLoading,    // EXPOSE THIS
+  const combinedLoading = isLoading || providerLoading;
+  const isFirstTime = !combinedLoading && (!provider || !enrollments || enrollments.length === 0);
+
+  return {
+    isFirstTime,
+    isLoading: combinedLoading,
+    provider,
+    enrollments,
+    hasProvider: !!provider,
+    enrollmentCount: enrollments?.length || 0,
   };
 }
 ```
 
-Then update `useIsFirstTimeProvider` to use `enrollmentContext.provider` directly.
+---
+
+## Phase 3: Optimize useHierarchyResolverOptimized Selects
+
+### Problem
+The hook uses `SELECT *` for 5 tables, fetching unnecessary columns.
+
+### Solution
+Replace with specific column selects for each table.
+
+### File: `src/hooks/queries/useHierarchyResolverOptimized.ts`
+
+**Change lines 178-203:**
+
+```typescript
+const [
+  { data: industrySegments, error: isError },
+  { data: expertiseLevels, error: elError },
+  { data: proficiencyAreas, error: paError },
+  { data: subDomains, error: sdError },
+  { data: specialities, error: spError },
+] = await Promise.all([
+  supabase
+    .from("industry_segments")
+    .select("id, name, display_order, is_active")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true }),
+  supabase
+    .from("expertise_levels")
+    .select("id, name, level_number, display_order, is_active")
+    .eq("is_active", true)
+    .order("level_number", { ascending: true }),
+  supabase
+    .from("proficiency_areas")
+    .select("id, name, industry_segment_id, expertise_level_id, display_order, is_active")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true }),
+  supabase
+    .from("sub_domains")
+    .select("id, name, proficiency_area_id, display_order, is_active")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true }),
+  supabase
+    .from("specialities")
+    .select("id, name, sub_domain_id, display_order, is_active")
+    .eq("is_active", true)
+    .order("display_order", { ascending: true }),
+]);
+```
 
 ---
 
-### Phase 3: Code Splitting (Medium Impact)
+## Phase 4: Optimize assessmentService Selects
 
-#### 3.1 Implement React.lazy for Route Components
+### Problem
+Two functions use `SELECT *` when only specific columns are needed.
 
-**File:** `src/App.tsx`
+### File: `src/services/assessmentService.ts`
+
+**Change 1:** Lines 254-261 - `getActiveAssessmentAttempt()`
 
 ```typescript
-import { lazy, Suspense } from 'react';
+const { data, error } = await supabase
+  .from('assessment_attempts')
+  .select('id, provider_id, enrollment_id, total_questions, answered_questions, started_at, submitted_at, score_percentage, is_passed, time_limit_minutes, questions_data')
+  .eq('provider_id', providerId)
+  .is('submitted_at', null)
+  .order('started_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+```
 
-// Convert static imports to lazy imports
-const PulseFeedPage = lazy(() => import('@/pages/pulse/PulseFeedPage'));
-const PulseReelsPage = lazy(() => import('@/pages/pulse/PulseReelsPage'));
-const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
-// ... other pages
+**Change 2:** Lines 371-375 - `getAssessmentHistory()`
 
-// Create a route loading component
+```typescript
+const { data, error } = await supabase
+  .from('assessment_attempts')
+  .select('id, provider_id, enrollment_id, total_questions, answered_questions, started_at, submitted_at, score_percentage, is_passed')
+  .eq('provider_id', providerId)
+  .order('started_at', { ascending: false });
+```
+
+---
+
+## Phase 5: Add React.lazy() Code Splitting (Medium Priority)
+
+### Problem
+All 50+ page components are bundled together, increasing initial load time.
+
+### Solution
+Convert heavy/less-used pages to lazy imports. Keep frequently used pages (Login, Dashboard, PulseFeed) as regular imports for instant load.
+
+### File: `src/App.tsx`
+
+**Change 1:** Add imports at top of file
+
+```typescript
+import { Suspense, lazy } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+// Route loading fallback
 const RouteLoadingFallback = () => (
   <div className="flex items-center justify-center h-screen">
-    <Skeleton className="h-8 w-8 rounded-full" />
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-48 mx-auto" />
+      <Skeleton className="h-4 w-32 mx-auto" />
+    </div>
   </div>
 );
+```
 
-// Wrap routes in Suspense
+**Change 2:** Convert admin pages to lazy imports (lines 61-91)
+
+```typescript
+// Admin Pages (lazy loaded - less frequently used)
+const AdminDashboard = lazy(() => import('@/pages/admin/AdminDashboard'));
+const CountriesPage = lazy(() => import('@/pages/admin/countries').then(m => ({ default: m.CountriesPage })));
+const IndustrySegmentsPage = lazy(() => import('@/pages/admin/industry-segments').then(m => ({ default: m.IndustrySegmentsPage })));
+// ... similar for other admin pages
+
+// Reviewer Pages (lazy loaded)
+const ReviewerDashboard = lazy(() => import('@/pages/reviewer/ReviewerDashboard'));
+const InvitationResponsePage = lazy(() => import('@/pages/reviewer/InvitationResponsePage'));
+// ... similar for other reviewer pages
+```
+
+**Change 3:** Wrap lazy-loaded routes in Suspense
+
+```typescript
 <Route
-  path="/pulse/feed"
+  path="/admin"
   element={
-    <AuthGuard>
+    <AdminGuard>
       <Suspense fallback={<RouteLoadingFallback />}>
-        <PulseFeedPage />
+        <AdminDashboard />
       </Suspense>
-    </AuthGuard>
+    </AdminGuard>
   }
 />
 ```
 
-#### 3.2 Group Routes for Chunking
-
-**File:** `vite.config.ts`
-
-```typescript
-export default defineConfig(({ mode }) => ({
-  // ... existing config
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', /* etc */],
-          'vendor-charts': ['recharts'],
-          'vendor-excel': ['xlsx'],
-        },
-      },
-    },
-  },
-}));
-```
-
 ---
 
-### Phase 4: Component Architecture (Lower Impact)
+## Implementation Order
 
-#### 4.1 Fix Skeleton Ref Warning
-
-**File:** `src/components/ui/skeleton.tsx`
-
-```typescript
-import * as React from "react";
-
-const Skeleton = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => {
-    return (
-      <div
-        ref={ref}
-        className={cn("animate-pulse rounded-md bg-muted", className)}
-        {...props}
-      />
-    );
-  }
-);
-Skeleton.displayName = "Skeleton";
-
-export { Skeleton };
-```
-
----
-
-## Expected Results After Implementation
-
-| Metric | Current | After Phase 1 | After All Phases |
-|--------|---------|---------------|------------------|
-| API calls on /pulse/feed load | ~15-20 | ~8-10 | ~5-7 |
-| Polling calls per minute (active) | ~8-12 | ~2-4 | ~2-4 |
-| Polling calls per minute (hidden tab) | ~8-12 | 0 | 0 |
-| Initial bundle size | ~2MB+ | ~2MB | ~500KB-800KB |
-| Time to Interactive (TTI) | 3-5s | 2-3s | 1-2s |
-| EnrollmentContext ready time | 300-900ms | 200-400ms | 100-200ms |
+| Step | File | Change | Risk |
+|------|------|--------|------|
+| 1 | `src/hooks/queries/useProvider.ts` | Add `enabled` option | Low - backward compatible |
+| 2 | `src/hooks/useIsFirstTimeProvider.ts` | Use `enabled: needsFallback` | Low - conditional logic |
+| 3 | `src/contexts/EnrollmentContext.tsx` | Expose `provider` and `providerLoading` | Low - additive change |
+| 4 | `src/hooks/useIsFirstTimeProvider.ts` | Use context.provider | Low - uses existing data |
+| 5 | `src/hooks/queries/useHierarchyResolverOptimized.ts` | Replace SELECT * | Medium - verify columns used |
+| 6 | `src/services/assessmentService.ts` | Replace SELECT * | Medium - verify columns used |
+| 7 | `src/App.tsx` | Add React.lazy() for admin/reviewer routes | Medium - test navigation |
 
 ---
 
 ## Files to Modify
 
-### Phase 1 (Critical - Do First)
-1. `src/constants/pulseCards.constants.ts` - Increase polling intervals
-2. `src/lib/useVisibilityPolling.ts` - NEW FILE - Visibility-aware polling
-3. `src/hooks/queries/usePulseCards.ts` - Apply visibility polling
-4. `src/hooks/queries/usePulseCardLayers.ts` - Apply visibility polling
-5. `src/hooks/queries/usePulseSocial.ts` - Apply visibility polling
-6. `src/hooks/queries/useUnifiedPulseFeed.ts` - Apply visibility polling
-
-### Phase 2 (Query Optimization)
-7. `src/contexts/EnrollmentContext.tsx` - Expose provider
-8. `src/hooks/useIsFirstTimeProvider.ts` - Use context provider
-9. `src/hooks/queries/useCapabilityTags.ts` - Replace SELECT *
-10. `src/hooks/queries/useCountries.ts` - Replace SELECT *
-11. `src/hooks/queries/useOrganizationTypes.ts` - Replace SELECT *
-12. `src/hooks/queries/useHierarchyResolverOptimized.ts` - Replace SELECT *
-
-### Phase 3 (Code Splitting)
-13. `src/App.tsx` - Add React.lazy imports
-14. `vite.config.ts` - Add manual chunks configuration
-15. `src/components/ui/skeleton.tsx` - Fix forwardRef
+1. `src/hooks/queries/useProvider.ts` - Add enabled option + export ProviderData type
+2. `src/hooks/useIsFirstTimeProvider.ts` - Use enabled flag and context.provider
+3. `src/contexts/EnrollmentContext.tsx` - Expose provider in context value
+4. `src/hooks/queries/useHierarchyResolverOptimized.ts` - Replace SELECT * with specific columns
+5. `src/services/assessmentService.ts` - Replace SELECT * with specific columns
+6. `src/App.tsx` - Add React.lazy() for heavy routes (admin, reviewer)
 
 ---
 
-## Monitoring After Implementation
+## Preservation Guarantees
 
-1. Use browser Network tab to verify reduced API calls
-2. Use React Query DevTools to monitor cache hit rates
-3. Check bundle size in build output
-4. Measure TTI using Lighthouse
-5. Monitor Supabase dashboard for reduced query volume
+All changes are:
+1. **Backward compatible** - existing code paths continue to work
+2. **Additive** - new parameters have defaults that preserve current behavior
+3. **Non-destructive** - no deletion of existing functionality
+4. **Tested incrementally** - each phase can be verified independently
+
+---
+
+## Expected Results After Full Implementation
+
+| Metric | Current | After This Phase |
+|--------|---------|------------------|
+| Provider queries on /pulse/feed | 2-4 | 1 |
+| Hierarchy data payload size | ~50KB | ~15KB |
+| Assessment data payload size | ~10KB | ~3KB |
+| Initial bundle size | ~2MB | ~800KB |
+| Admin route chunk | In main bundle | Separate lazy chunk |
+
