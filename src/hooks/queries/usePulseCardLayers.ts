@@ -1,6 +1,7 @@
 /**
  * PulsePages - Card Layer Hooks
  * Layer operations for building on cards
+ * PERFORMANCE: Uses visibility-aware polling to pause when tab is hidden
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { getCurrentUserId } from '@/lib/auditFields';
 import { PULSE_CARDS_POLLING, CARD_LIMITS } from '@/constants/pulseCards.constants';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 import type { CreateLayerInput } from '@/lib/validations/pulseCard';
 
 // ===========================================
@@ -46,6 +48,9 @@ export interface PulseCardLayer {
 // ===========================================
 
 export function usePulseCardLayers(cardId: string | undefined) {
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_CARDS_POLLING.DETAIL_MS);
+
   return useQuery({
     queryKey: ['pulse-card-layers', cardId],
     queryFn: async () => {
@@ -67,7 +72,7 @@ export function usePulseCardLayers(cardId: string | undefined) {
       return data as PulseCardLayer[];
     },
     enabled: !!cardId,
-    refetchInterval: PULSE_CARDS_POLLING.DETAIL_MS,
+    refetchInterval,
   });
 }
 

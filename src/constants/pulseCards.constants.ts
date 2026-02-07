@@ -123,11 +123,12 @@ export const CARD_LIMITS = {
 
 // ===========================================
 // Polling Intervals
+// PERFORMANCE: Increased intervals to reduce network churn
 // ===========================================
 export const PULSE_CARDS_POLLING = {
-  FEED_MS: 30000, // 30 seconds for feed
-  DETAIL_MS: 5000, // 5 seconds for card detail
-  VOTES_MS: 5000, // 5 seconds for vote updates
+  FEED_MS: 120000, // 2 minutes - feed updates don't need to be instant
+  DETAIL_MS: 30000, // 30 seconds - reduce detail polling
+  VOTES_MS: 30000, // 30 seconds - votes can wait
 } as const;
 
 // ===========================================

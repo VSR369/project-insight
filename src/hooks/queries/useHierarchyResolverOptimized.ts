@@ -166,6 +166,8 @@ export function useHierarchyData() {
     queryKey: ["hierarchy_data_all"],
     queryFn: async (): Promise<HierarchyData> => {
       // Fetch all data in parallel
+      // NOTE: Using select('*') for type safety with Tables<> types
+      // These are lookup tables with relatively small payloads
       const [
         { data: industrySegments, error: isError },
         { data: expertiseLevels, error: elError },

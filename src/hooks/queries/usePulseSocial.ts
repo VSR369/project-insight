@@ -2,6 +2,7 @@
  * Industry Pulse Social Hooks
  * Comments, Connections (Follow/Unfollow), Notifications
  * Per Project Knowledge standards
+ * PERFORMANCE: Uses visibility-aware polling to pause when tab is hidden
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
@@ -9,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { handleMutationError } from "@/lib/errorHandler";
 import { toast } from "sonner";
 import { PULSE_QUERY_KEYS, PULSE_POLLING_INTERVALS } from "@/constants/pulse.constants";
+import { useVisibilityPollingInterval } from "@/lib/useVisibilityPolling";
 import type { Tables, TablesInsert } from "@/integrations/supabase/types";
 
 // =====================================================
@@ -286,6 +288,9 @@ export function useFollowing(providerId: string | undefined) {
 // =====================================================
 
 export function useNotifications(providerId: string | undefined) {
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_POLLING_INTERVALS.NOTIFICATIONS_MS);
+
   return useInfiniteQuery({
     queryKey: [PULSE_QUERY_KEYS.notifications, providerId],
     queryFn: async ({ pageParam = 0 }) => {
@@ -313,12 +318,15 @@ export function useNotifications(providerId: string | undefined) {
     getNextPageParam: (lastPage) => lastPage.nextCursor,
     initialPageParam: 0,
     enabled: !!providerId,
-    refetchInterval: PULSE_POLLING_INTERVALS.NOTIFICATIONS_MS,
+    refetchInterval,
     staleTime: 10 * 1000,
   });
 }
 
 export function useUnreadNotificationCount(providerId: string | undefined) {
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_POLLING_INTERVALS.NOTIFICATIONS_MS);
+
   return useQuery({
     queryKey: [PULSE_QUERY_KEYS.unreadCount, providerId],
     queryFn: async () => {
@@ -334,7 +342,7 @@ export function useUnreadNotificationCount(providerId: string | undefined) {
       return count || 0;
     },
     enabled: !!providerId,
-    refetchInterval: PULSE_POLLING_INTERVALS.NOTIFICATIONS_MS,
+    refetchInterval,
     staleTime: 10 * 1000,
   });
 }

@@ -40,9 +40,10 @@ export function useCapabilityTags(includeInactive = false) {
   return useQuery({
     queryKey: ["capability_tags", { includeInactive }],
     queryFn: async () => {
+      // PERFORMANCE: Select only required columns instead of *
       let query = supabase
         .from("capability_tags")
-        .select("*")
+        .select("id, name, description, display_order, is_active, created_at, updated_at")
         .order("display_order", { ascending: true });
 
       if (!includeInactive) {
