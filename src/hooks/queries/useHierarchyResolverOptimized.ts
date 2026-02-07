@@ -1,32 +1,65 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Tables } from "@/integrations/supabase/types";
 
-// Types
-type IndustrySegment = Tables<"industry_segments">;
-type ExpertiseLevel = Tables<"expertise_levels">;
-type ProficiencyArea = Tables<"proficiency_areas">;
-type SubDomain = Tables<"sub_domains">;
-type Speciality = Tables<"specialities">;
+// Optimized types with only columns needed for hierarchy resolution
+interface IndustrySegmentLookup {
+  id: string;
+  name: string;
+  code: string;
+  display_order: number | null;
+  is_active: boolean;
+}
+
+interface ExpertiseLevelLookup {
+  id: string;
+  name: string;
+  level_number: number;
+  is_active: boolean;
+}
+
+interface ProficiencyAreaLookup {
+  id: string;
+  name: string;
+  industry_segment_id: string;
+  expertise_level_id: string;
+  display_order: number | null;
+  is_active: boolean;
+}
+
+interface SubDomainLookup {
+  id: string;
+  name: string;
+  proficiency_area_id: string;
+  display_order: number | null;
+  is_active: boolean;
+}
+
+interface SpecialityLookup {
+  id: string;
+  name: string;
+  sub_domain_id: string;
+  display_order: number | null;
+  is_active: boolean;
+}
 
 export interface HierarchyData {
-  industrySegments: IndustrySegment[];
-  expertiseLevels: ExpertiseLevel[];
-  proficiencyAreas: ProficiencyArea[];
-  subDomains: SubDomain[];
-  specialities: Speciality[];
+  industrySegments: IndustrySegmentLookup[];
+  expertiseLevels: ExpertiseLevelLookup[];
+  proficiencyAreas: ProficiencyAreaLookup[];
+  subDomains: SubDomainLookup[];
+  specialities: SpecialityLookup[];
 }
 
 export interface ResolvedHierarchy {
   specialityId: string | null;
   errors: string[];
   resolvedPath: {
-    industrySegment?: IndustrySegment;
-    expertiseLevel?: ExpertiseLevel;
-    proficiencyArea?: ProficiencyArea;
-    subDomain?: SubDomain;
-    speciality?: Speciality;
+    industrySegment?: IndustrySegmentLookup;
+    expertiseLevel?: ExpertiseLevelLookup;
+    proficiencyArea?: ProficiencyAreaLookup;
+    subDomain?: SubDomainLookup;
+    speciality?: SpecialityLookup;
   };
 }
 
@@ -35,14 +68,14 @@ export interface ResolvedHierarchy {
  * This is critical for parsing 11,000+ rows efficiently
  */
 export interface HierarchyLookupMaps {
-  industryMap: Map<string, IndustrySegment>;
-  levelMap: Map<string, ExpertiseLevel>;
+  industryMap: Map<string, IndustrySegmentLookup>;
+  levelMap: Map<string, ExpertiseLevelLookup>;
   // Composite key: `${industryId}|${levelId}|${normalizedName}`
-  areaMap: Map<string, ProficiencyArea>;
+  areaMap: Map<string, ProficiencyAreaLookup>;
   // Composite key: `${areaId}|${normalizedName}`
-  subDomainMap: Map<string, SubDomain>;
+  subDomainMap: Map<string, SubDomainLookup>;
   // Composite key: `${subDomainId}|${normalizedName}`
-  specialityMap: Map<string, Speciality>;
+  specialityMap: Map<string, SpecialityLookup>;
 }
 
 const normalize = (s: string): string => s.trim().toLowerCase();
@@ -51,11 +84,11 @@ const normalize = (s: string): string => s.trim().toLowerCase();
  * Build pre-computed lookup maps for O(1) resolution during import
  */
 export function buildLookupMaps(data: HierarchyData): HierarchyLookupMaps {
-  const industryMap = new Map<string, IndustrySegment>();
-  const levelMap = new Map<string, ExpertiseLevel>();
-  const areaMap = new Map<string, ProficiencyArea>();
-  const subDomainMap = new Map<string, SubDomain>();
-  const specialityMap = new Map<string, Speciality>();
+  const industryMap = new Map<string, IndustrySegmentLookup>();
+  const levelMap = new Map<string, ExpertiseLevelLookup>();
+  const areaMap = new Map<string, ProficiencyAreaLookup>();
+  const subDomainMap = new Map<string, SubDomainLookup>();
+  const specialityMap = new Map<string, SpecialityLookup>();
 
   // Industry segments by normalized name
   for (const seg of data.industrySegments) {
@@ -165,10 +198,7 @@ export function useHierarchyData() {
   return useQuery({
     queryKey: ["hierarchy_data_all"],
     queryFn: async (): Promise<HierarchyData> => {
-      // Fetch all data in parallel
-      // NOTE: Using select('*') for type safety with Tables<> types
-      // These are lookup tables with relatively small payloads
-      // The main performance gains come from caching (staleTime/gcTime) not column reduction
+      // Fetch all data in parallel with specific columns for performance
       const [
         { data: industrySegments, error: isError },
         { data: expertiseLevels, error: elError },
@@ -178,27 +208,27 @@ export function useHierarchyData() {
       ] = await Promise.all([
         supabase
           .from("industry_segments")
-          .select("*")
+          .select("id, name, code, display_order, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("expertise_levels")
-          .select("*")
+          .select("id, name, level_number, is_active")
           .eq("is_active", true)
           .order("level_number", { ascending: true }),
         supabase
           .from("proficiency_areas")
-          .select("*")
+          .select("id, name, industry_segment_id, expertise_level_id, display_order, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("sub_domains")
-          .select("*")
+          .select("id, name, proficiency_area_id, display_order, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("specialities")
-          .select("*")
+          .select("id, name, sub_domain_id, display_order, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
       ]);
