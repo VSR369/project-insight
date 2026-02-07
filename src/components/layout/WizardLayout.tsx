@@ -29,7 +29,7 @@ import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { HierarchyBreadcrumb } from '@/components/provider/HierarchyBreadcrumb';
 import { BlockedModeChangeDialog } from '@/components/enrollment';
 import { useCancelOrgApprovalAndResetMode } from '@/hooks/queries/useCancelOrgApproval';
-import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { isWizardStepLocked, LOCK_THRESHOLDS, LIFECYCLE_RANKS } from '@/services/lifecycleService';
 import { 
   getNextStep, 
@@ -101,7 +101,11 @@ export function WizardLayout({
   const { isAdmin } = useUserRoles();
   const { data: provider } = useCurrentProvider();
   const { data: participationModes } = useParticipationModes();
-  const { hasMultipleIndustries, activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
+  // Use optional hook with safe defaults to prevent crashes during ErrorBoundary recovery
+  const enrollmentContext = useOptionalEnrollmentContext();
+  const hasMultipleIndustries = enrollmentContext?.hasMultipleIndustries ?? false;
+  const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
+  const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
   const cancelOrgApproval = useCancelOrgApprovalAndResetMode();
   
   const [showBlockedDialog, setShowBlockedDialog] = useState(false);

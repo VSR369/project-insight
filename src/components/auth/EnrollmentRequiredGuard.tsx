@@ -8,7 +8,7 @@
 import { ReactNode, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
-import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { toast } from 'sonner';
 
 interface EnrollmentRequiredGuardProps {
@@ -17,7 +17,14 @@ interface EnrollmentRequiredGuardProps {
 
 export function EnrollmentRequiredGuard({ children }: EnrollmentRequiredGuardProps) {
   const navigate = useNavigate();
-  const { activeEnrollmentId, isLoading, contextReady } = useEnrollmentContext();
+  
+  // Use optional hook to prevent crashes during ErrorBoundary recovery
+  const enrollmentContext = useOptionalEnrollmentContext();
+  
+  // Extract values with safe defaults for hook dependencies
+  const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
+  const isLoading = enrollmentContext?.isLoading ?? true;
+  const contextReady = enrollmentContext?.contextReady ?? false;
 
   useEffect(() => {
     // PHASE D: Only redirect when context is fully ready (not during intermediate states)
@@ -26,6 +33,15 @@ export function EnrollmentRequiredGuard({ children }: EnrollmentRequiredGuardPro
       navigate('/dashboard', { replace: true });
     }
   }, [contextReady, activeEnrollmentId, navigate]);
+
+  // If context isn't ready yet (ErrorBoundary recovery, initial render), show loading
+  if (!enrollmentContext) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   // Show loading while checking enrollment OR while context is stabilizing
   // This prevents wizard from rendering with stale data during portal switches
