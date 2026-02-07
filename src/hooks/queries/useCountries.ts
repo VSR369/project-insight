@@ -13,9 +13,10 @@ export function useCountries(includeInactive = false) {
   return useQuery({
     queryKey: ["countries", { includeInactive }],
     queryFn: async () => {
+      // PERFORMANCE: Select only required columns instead of *
       let query = supabase
         .from("countries")
-        .select("*")
+        .select("id, code, name, phone_code, display_order, is_active")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 

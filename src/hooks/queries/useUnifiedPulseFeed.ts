@@ -1,11 +1,13 @@
 /**
  * Unified Pulse Feed Hook
  * Combines pulse_content and pulse_cards for the main feed
+ * PERFORMANCE: Uses visibility-aware polling to pause when tab is hidden
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { PULSE_QUERY_KEYS, PULSE_POLLING_INTERVALS } from '@/constants/pulse.constants';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 
 // ===========================================
 // Types
@@ -98,6 +100,9 @@ export interface UnifiedFeedFilters {
 
 export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) {
   const { limit = 20, offset = 0 } = filters;
+  
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_POLLING_INTERVALS.FEED_MS);
 
   return useQuery({
     queryKey: [PULSE_QUERY_KEYS.feed, 'unified', filters],
@@ -167,7 +172,7 @@ export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) {
       // Apply pagination (after merge)
       return unified.slice(offset, offset + limit);
     },
-    refetchInterval: PULSE_POLLING_INTERVALS.FEED_MS,
+    refetchInterval,
     staleTime: 10 * 1000,
   });
 }

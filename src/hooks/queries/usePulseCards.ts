@@ -1,6 +1,7 @@
 /**
  * PulsePages - Card CRUD Hooks
  * Following project standards with audit fields, error handling, and polling
+ * PERFORMANCE: Uses visibility-aware polling to pause when tab is hidden
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -9,6 +10,7 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withCreatedBy, withUpdatedBy, getCurrentUserId } from '@/lib/auditFields';
 import { PULSE_CARDS_POLLING } from '@/constants/pulseCards.constants';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 import type { CreateCardInput } from '@/lib/validations/pulseCard';
 
 // ===========================================
@@ -71,6 +73,9 @@ export interface CardFilters {
 // ===========================================
 
 export function usePulseCards(filters: CardFilters = {}) {
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_CARDS_POLLING.FEED_MS);
+
   return useQuery({
     queryKey: ['pulse-cards', filters],
     queryFn: async () => {
@@ -101,7 +106,7 @@ export function usePulseCards(filters: CardFilters = {}) {
       if (error) throw new Error(error.message);
       return data as PulseCard[];
     },
-    refetchInterval: PULSE_CARDS_POLLING.FEED_MS,
+    refetchInterval,
   });
 }
 
@@ -110,6 +115,9 @@ export function usePulseCards(filters: CardFilters = {}) {
 // ===========================================
 
 export function usePulseCard(cardId: string | undefined) {
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_CARDS_POLLING.DETAIL_MS);
+
   return useQuery({
     queryKey: ['pulse-card', cardId],
     queryFn: async () => {
@@ -129,7 +137,7 @@ export function usePulseCard(cardId: string | undefined) {
       return data as PulseCard;
     },
     enabled: !!cardId,
-    refetchInterval: PULSE_CARDS_POLLING.DETAIL_MS,
+    refetchInterval,
   });
 }
 
