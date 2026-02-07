@@ -31,9 +31,10 @@ export function useCurrentProvider(options?: UseCurrentProviderOptions) {
   return useQuery({
     queryKey: ['current-provider'],
     queryFn: fetchCurrentProvider,
-    staleTime: 60 * 1000,           // 60 seconds - provider data is stable
+    staleTime: 30 * 1000,           // 30 seconds - faster freshness for navigation
     gcTime: 10 * 60 * 1000,         // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false,    // Prevent tab-return refetch storms
+    retry: 2,                        // Retry up to 2 times on transient failures
     enabled: options?.enabled !== false, // Default to true if not specified
   });
 }
