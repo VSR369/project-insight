@@ -34,9 +34,9 @@ export function useProviderEnrollments(providerId?: string) {
     queryKey: ['provider-enrollments', providerId],
     queryFn: () => fetchProviderEnrollments(providerId!),
     enabled: !!providerId,
-    staleTime: 30000,
-    refetchOnMount: 'always', // Always refetch on mount to avoid stale data on refresh
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    staleTime: 60 * 1000,           // 60 seconds - enrollment data is relatively stable
+    gcTime: 10 * 60 * 1000,         // 10 minutes - keep in cache longer
+    refetchOnWindowFocus: false,    // Prevent tab-return refetch storms
   });
 }
 

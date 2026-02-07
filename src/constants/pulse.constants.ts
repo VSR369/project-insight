@@ -216,12 +216,12 @@ export const PULSE_RATE_LIMITS = {
 // =====================================================
 
 export const PULSE_POLLING_INTERVALS = {
-  /** Feed polling interval in ms */
-  FEED_MS: 30 * 1000,
-  /** Active content details polling in ms */
-  ACTIVE_CONTENT_MS: 5 * 1000,
-  /** Notifications polling in ms */
-  NOTIFICATIONS_MS: 30 * 1000,
+  /** Feed polling interval in ms (doubled for performance) */
+  FEED_MS: 60 * 1000,
+  /** Active content details polling in ms (tripled for performance) */
+  ACTIVE_CONTENT_MS: 15 * 1000,
+  /** Notifications polling in ms (doubled for performance) */
+  NOTIFICATIONS_MS: 60 * 1000,
 } as const;
 
 // =====================================================

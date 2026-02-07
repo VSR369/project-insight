@@ -23,8 +23,9 @@ export function useCurrentProvider() {
   return useQuery({
     queryKey: ['current-provider'],
     queryFn: fetchCurrentProvider,
-    staleTime: 30000, // 30 seconds
-    refetchOnWindowFocus: true, // Refetch when user returns to tab
+    staleTime: 60 * 1000,           // 60 seconds - provider data is stable
+    gcTime: 10 * 60 * 1000,         // 10 minutes - keep in cache longer
+    refetchOnWindowFocus: false,    // Prevent tab-return refetch storms
   });
 }
 
