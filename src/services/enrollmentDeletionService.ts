@@ -88,7 +88,7 @@ export async function validateEnrollmentDeletion(
       org_approval_status,
       organization,
       industry_segment:industry_segments(name),
-      expertise_level:expertise_levels(name)
+      expertise_level:expertise_levels!expertise_level_id(name)
     `)
     .eq('id', enrollmentId)
     .single();

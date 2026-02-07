@@ -93,7 +93,7 @@ export async function fetchProviderEnrollments(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number),
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number),
       participation_mode:participation_modes(id, name, code, requires_org_info)
     `)
     .eq('provider_id', providerId)
@@ -115,7 +115,7 @@ export async function fetchEnrollment(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number)
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number)
     `)
     .eq('id', enrollmentId)
     .single();
@@ -139,7 +139,7 @@ export async function fetchActiveEnrollment(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number)
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number)
     `)
     .eq('provider_id', providerId)
     .eq('is_primary', true)
@@ -154,7 +154,7 @@ export async function fetchActiveEnrollment(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number)
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number)
     `)
     .eq('provider_id', providerId)
     .order('created_at', { ascending: false })
@@ -211,7 +211,7 @@ export async function createEnrollment(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number)
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number)
     `)
     .single();
 
@@ -347,7 +347,7 @@ export async function getEnrollmentByIndustry(
     .select(`
       *,
       industry_segment:industry_segments(id, name, code),
-      expertise_level:expertise_levels(id, name, level_number)
+      expertise_level:expertise_levels!expertise_level_id(id, name, level_number)
     `)
     .eq('provider_id', providerId)
     .eq('industry_segment_id', industrySegmentId)
