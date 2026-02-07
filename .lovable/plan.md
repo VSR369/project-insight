@@ -1,113 +1,89 @@
 
-# Fix: EnrollmentContext Error on Wizard Pages
+# Fix: Registration Page Context Crash
 
 ## Problem Statement
 
-The error `useEnrollmentContext must be used within an EnrollmentProvider` occurs on `/enroll/panel-discussion` and potentially all other enrollment wizard pages. This happens despite the `EnrollmentProvider` being correctly mounted in `App.tsx`.
+The "Continue" button from Dashboard navigates to `/enroll/registration`, which crashes with:
+```
+useEnrollmentContext must be used within an EnrollmentProvider
+```
+
+This happens because `RegistrationContent` (line 62 in `Registration.tsx`) calls `useEnrollmentContext()` directly - which **throws an error** when context is temporarily `undefined` during ErrorBoundary recovery cycles.
 
 ## Root Cause Analysis
 
 ```text
-App.tsx Component Tree:
-└─ QueryClientProvider
-   └─ TooltipProvider
-      └─ BrowserRouter
-         └─ AuthProvider
-            └─ EnrollmentProvider  ← Context IS provided here
-               └─ ErrorBoundary    ← Error recovery can cause issues
-                  └─ Routes
-                     └─ AuthGuard
-                        └─ EnrollmentRequiredGuard  ← Calls useEnrollmentContext()
-                           └─ PanelDiscussion       ← Also calls useEnrollmentContext()
+App.tsx Route Structure:
+
+/enroll/registration  ← NO EnrollmentRequiredGuard
+  └─ AuthGuard
+     └─ EnrollRegistration
+        └─ FeatureErrorBoundary
+           └─ RegistrationContent  ← Calls useEnrollmentContext() ❌ THROWS
+
+/enroll/participation-mode  ← HAS EnrollmentRequiredGuard ✅
+  └─ AuthGuard
+     └─ EnrollmentRequiredGuard  ← Now uses useOptionalEnrollmentContext()
+        └─ EnrollParticipationMode
 ```
 
-**Why it fails:**
-1. When `ErrorBoundary` catches an error and re-renders, there's a brief moment where React's context reconciliation may return `undefined`
-2. The `useEnrollmentContext()` hook throws immediately when context is `undefined`
-3. This creates a cascading failure - ErrorBoundary catches → context undefined → throw → ErrorBoundary catches again
+**Key Finding:** The `/enroll/registration` route is intentionally NOT wrapped in `EnrollmentRequiredGuard` because registration is where users START (before they have an enrollment). However, `RegistrationContent` still uses the throwing version of the hook.
 
 ## Solution
 
-**Two-Part Fix:**
+**Simple Fix:** Replace `useEnrollmentContext()` with `useOptionalEnrollmentContext()` in `Registration.tsx` and provide safe fallbacks.
 
-### Part 1: Make EnrollmentRequiredGuard Resilient (Primary Fix)
+### Changes to `src/pages/enroll/Registration.tsx`
 
-Update `EnrollmentRequiredGuard` to use `useOptionalEnrollmentContext()` and handle the null case gracefully. Since this guard wraps ALL enrollment wizard pages, fixing it once protects all 16 enrollment pages.
-
-**Current Code:**
+**Line 10 - Change Import:**
 ```typescript
-const { activeEnrollmentId, isLoading, contextReady } = useEnrollmentContext();
+// FROM:
+import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+
+// TO:
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 ```
 
-**Fixed Code:**
+**Line 62 - Use Optional Hook with Safe Defaults:**
 ```typescript
+// FROM:
+const { activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
+
+// TO:
 const enrollmentContext = useOptionalEnrollmentContext();
-
-// If context isn't ready yet (ErrorBoundary recovery, initial render), show loading
-if (!enrollmentContext) {
-  return <LoadingSpinner />;
-}
-
-const { activeEnrollmentId, isLoading, contextReady } = enrollmentContext;
-```
-
-### Part 2: Make WizardLayout Resilient (Secondary Fix)
-
-Since `WizardLayout` also uses `useEnrollmentContext()` directly, update it to use the optional hook with safe defaults.
-
-**Current Code:**
-```typescript
-const { hasMultipleIndustries, activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
-```
-
-**Fixed Code:**
-```typescript
-const enrollmentContext = useOptionalEnrollmentContext();
-const hasMultipleIndustries = enrollmentContext?.hasMultipleIndustries ?? false;
 const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
 const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
 ```
+
+## Why This is Safe for Registration
+
+The Registration page already handles the case when `activeEnrollmentId` is `null`:
+
+1. **Line 79-83:** Lock logic uses `hasEnrollment = !!activeEnrollmentId` - already handles null
+2. **Line 157-162:** Falls back to `provider.industry_segment_id` if no active enrollment
+3. **Line 239-252:** The `activeEnrollment && (...)` pattern already guards against null
+
+No other logic changes needed - the page is already written to work without an active enrollment.
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `src/components/auth/EnrollmentRequiredGuard.tsx` | Use optional hook + null check |
-| `src/components/layout/WizardLayout.tsx` | Use optional hook + safe defaults |
+| `src/pages/enroll/Registration.tsx` | Use `useOptionalEnrollmentContext()` with safe defaults |
 
-## Why This Fixes All 16 Enrollment Pages
-
-Since all enrollment pages are wrapped by `EnrollmentRequiredGuard`:
-- The guard will show a loading spinner when context is undefined
-- By the time the child page component renders, context is guaranteed to exist
-- No changes needed to individual page files (ParticipationMode, ProofPoints, Assessment, etc.)
-
-## End-to-End Enrollment Flow Verification
-
-After this fix, the complete enrollment flow should work without errors:
-
-| Step | Route | Status |
-|------|-------|--------|
-| 1 | `/enroll/registration` | ✅ Will work (guard handles context) |
-| 2 | `/enroll/participation-mode` | ✅ Will work |
-| 3 | `/enroll/organization` | ✅ Will work |
-| 4 | `/enroll/expertise` | ✅ Will work |
-| 5 | `/enroll/proof-points` | ✅ Will work |
-| 6 | `/enroll/assessment` | ✅ Will work |
-| 7 | `/enroll/interview-slot` | ✅ Will work |
-| 8 | `/enroll/panel-discussion` | ✅ Will work (current error page) |
-| 9 | `/enroll/certification` | ✅ Will work |
-
-## Risk Assessment
+## Impact Assessment
 
 | Risk | Level | Mitigation |
 |------|-------|------------|
-| Breaking enrollment flow | Very Low | Only adding defensive null checks |
-| Changing UX | None | Same loading spinner already shown |
-| Performance impact | None | No additional queries or state |
+| Breaking registration flow | None | Page already handles null enrollment |
+| Changing UX | None | Same behavior, just no crash |
+| Affecting other enrollment pages | None | Only Registration.tsx is changed |
 
-## Technical Details
+## End-to-End Flow After Fix
 
-The optional hook pattern is already used successfully in:
-- `Dashboard.tsx` (fixed in previous update)
-- `useIsFirstTimeProvider.ts` (existing pattern)
+| Action | Result |
+|--------|--------|
+| Click "Continue Setup" on Dashboard | Navigates to `/enroll/registration` ✅ |
+| Registration page loads | Uses optional context, no crash ✅ |
+| Fill form, click Continue | Navigates to `/enroll/participation-mode` ✅ |
+| All subsequent steps | Protected by `EnrollmentRequiredGuard` ✅ |
