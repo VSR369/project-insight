@@ -24,17 +24,7 @@ export default function PulseFeedPage() {
   // Delete confirmation dialog state
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string; type: 'content' | 'card' } | null>(null);
   
-  // Safety timeout to prevent infinite loading states (15 second max wait)
-  const [loadingTimedOut, setLoadingTimedOut] = useState(false);
-  
-  useEffect(() => {
-    if (firstTimeLoading && !loadingTimedOut) {
-      const timeout = setTimeout(() => {
-        setLoadingTimedOut(true);
-      }, 15000);
-      return () => clearTimeout(timeout);
-    }
-  }, [firstTimeLoading, loadingTimedOut]);
+  // Provider loading state - used for inline skeleton, not blocking
 
   const handleContentClick = (contentId: string) => {
     navigate(`/pulse/content/${contentId}`);
@@ -62,29 +52,7 @@ export default function PulseFeedPage() {
     setDeleteTarget(null);
   };
 
-  // Loading state (with timeout fallback to prevent infinite skeleton)
-  if (firstTimeLoading && !loadingTimedOut) {
-    return (
-      <PulseLayout showSidebars={false}>
-        <div className="w-full px-2 sm:px-4 lg:px-0 lg:max-w-2xl lg:mx-auto space-y-4" aria-label="Loading feed">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="space-y-3 p-3 sm:p-4 border-b">
-              <div className="flex gap-2 sm:gap-3">
-                <Skeleton className="h-8 w-8 sm:h-10 sm:w-10 rounded-full flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-24 sm:w-32" />
-                  <Skeleton className="h-3 w-16 sm:w-20" />
-                </div>
-              </div>
-              <Skeleton className="h-32 sm:h-40 w-full rounded-lg" />
-            </div>
-          ))}
-        </div>
-      </PulseLayout>
-    );
-  }
-
-  // Error state with retry
+  // Error state with retry - still render layout so header is visible
   if (error) {
     return (
       <PulseLayout 
@@ -131,26 +99,30 @@ export default function PulseFeedPage() {
       showSidebars={true}
     >
       <div className="w-full">
-        {/* Profile Banner - always visible, content changes based on completion */}
-        {provider && (
-          <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
+        {/* Profile Banner - show skeleton while loading, content when ready */}
+        <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
+          {firstTimeLoading ? (
+            <Skeleton className="h-16 w-full rounded-lg" />
+          ) : provider ? (
             <ProfileBuildBanner 
               profileProgress={profileProgress}
               isProfileComplete={isProfileComplete}
             />
-          </div>
-        )}
+          ) : null}
+        </div>
 
-        {/* Start a Post widget - all users with provider */}
-        {provider && (
-          <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
+        {/* Start a Post widget - show skeleton while loading */}
+        <div className="px-2 sm:px-4 py-3 sm:py-4 border-b">
+          {firstTimeLoading ? (
+            <Skeleton className="h-20 w-full rounded-lg" />
+          ) : provider ? (
             <StartPostWidget
               providerId={provider.id}
               providerName={providerName}
               isFirstTime={isFirstTime}
             />
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* Personalized Header - only show for returning users with provider */}
         {!isFirstTime && provider && (

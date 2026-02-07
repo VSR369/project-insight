@@ -99,13 +99,17 @@ export interface UnifiedFeedFilters {
 // ===========================================
 
 export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) {
-  const { limit = 20, offset = 0 } = filters;
+  // PERFORMANCE: Extract primitives to ensure stable query key
+  // Using default object reference would cause key instability on every render
+  const limit = filters.limit ?? 20;
+  const offset = filters.offset ?? 0;
   
   // PERFORMANCE: Pause polling when tab is hidden
   const refetchInterval = useVisibilityPollingInterval(PULSE_POLLING_INTERVALS.FEED_MS);
 
   return useQuery({
-    queryKey: [PULSE_QUERY_KEYS.feed, 'unified', filters],
+    // CRITICAL: Use primitives in query key, NOT the filters object reference
+    queryKey: [PULSE_QUERY_KEYS.feed, 'unified', limit, offset],
     queryFn: async () => {
       // Fetch pulse_content
       const { data: contentData, error: contentError } = await supabase
