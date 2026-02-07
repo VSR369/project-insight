@@ -145,6 +145,8 @@ export default function PulseFeedPage() {
           <PersonalizedFeedHeader
             providerId={provider.id}
             providerName={providerName}
+            profileProgress={profileProgress}
+            isProfileComplete={isProfileComplete}
           />
         )}
 

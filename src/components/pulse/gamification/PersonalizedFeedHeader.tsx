@@ -4,8 +4,10 @@
  */
 
 import { format } from 'date-fns';
-import { Sparkles, Star, Flame, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Sparkles, Star, Flame, Users, ArrowRight, Eye } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useProviderStats, useOnlineNetworkCount } from '@/hooks/queries/usePulseStats';
 import { cn } from '@/lib/utils';
@@ -15,6 +17,8 @@ interface PersonalizedFeedHeaderProps {
   providerName: string;
   providerAvatar?: string | null;
   primaryIndustry?: string | null;
+  profileProgress?: number;
+  isProfileComplete?: boolean;
   className?: string;
 }
 
@@ -23,8 +27,11 @@ export function PersonalizedFeedHeader({
   providerName,
   providerAvatar,
   primaryIndustry,
+  profileProgress,
+  isProfileComplete,
   className,
 }: PersonalizedFeedHeaderProps) {
+  const navigate = useNavigate();
   const { data: stats } = useProviderStats(providerId);
   const { data: onlineCount } = useOnlineNetworkCount(providerId);
   
@@ -55,7 +62,7 @@ export function PersonalizedFeedHeader({
 
       <div className="flex items-start gap-2 sm:gap-3">
         {/* Avatar with level badge */}
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-shrink-0 self-center">
           <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-primary/20">
             {providerAvatar ? (
               <AvatarImage src={providerAvatar} alt={providerName} />
@@ -118,6 +125,26 @@ export function PersonalizedFeedHeader({
             </div>
           )}
         </div>
+
+        {/* Profile Action Button - same rules as ProfileBuildBanner */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => navigate(isProfileComplete ? '/pulse/profile' : '/dashboard')}
+          className="flex-shrink-0 h-8 sm:h-9 self-center"
+        >
+          {isProfileComplete ? (
+            <>
+              <Eye className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1.5">View Profile</span>
+            </>
+          ) : (
+            <>
+              <ArrowRight className="h-4 w-4" />
+              <span className="hidden sm:inline ml-1.5">Build Profile</span>
+            </>
+          )}
+        </Button>
       </div>
     </div>
   );
