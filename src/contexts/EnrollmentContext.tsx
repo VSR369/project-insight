@@ -6,7 +6,7 @@
  */
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useCurrentProvider, type ProviderData } from '@/hooks/queries/useProvider';
 import { useProviderEnrollments, useActiveEnrollment, type EnrollmentWithDetails } from '@/hooks/queries/useProviderEnrollments';
 
 interface EnrollmentContextType {
@@ -45,6 +45,12 @@ interface EnrollmentContextType {
   
   /** PHASE D: Whether context is fully loaded and consistent (safe to render wizard) */
   contextReady: boolean;
+  
+  /** The current provider data (exposed for child hooks to avoid duplicate queries) */
+  provider: ProviderData | null;
+  
+  /** Whether provider data is loading */
+  providerLoading: boolean;
 }
 
 const EnrollmentContext = createContext<EnrollmentContextType | undefined>(undefined);
@@ -244,6 +250,8 @@ export function EnrollmentProvider({ children }: EnrollmentProviderProps) {
     activeLifecycleStatus,
     refreshEnrollments,
     contextReady,
+    provider: provider ?? null,
+    providerLoading,
   };
 
   return (
