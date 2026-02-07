@@ -4,27 +4,25 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PulseLayout } from '@/components/pulse/layout';
+import { PulseLayout, ProfileBuildBanner } from '@/components/pulse/layout';
 import { usePulseFeed } from '@/hooks/queries/usePulseContent';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
 import { PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PulseGalleryPage() {
   const navigate = useNavigate();
-  const { data: provider } = useCurrentProvider();
   const { data: feedContent, isLoading, refetch, isRefetching } = usePulseFeed({ contentType: 'gallery' });
-  const { isFirstTime, provider: firstTimeProvider } = useIsFirstTimeProvider();
+  const { isFirstTime, provider, isLoading: providerLoading } = useIsFirstTimeProvider();
 
   // Profile progress calculation
-  const providerName = firstTimeProvider 
-    ? `${firstTimeProvider.first_name || ''} ${firstTimeProvider.last_name || ''}`.trim() || 'there'
+  const providerName = provider 
+    ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
     : 'there';
-  const profileProgress = firstTimeProvider?.profile_completion_percentage ?? 0;
+  const profileProgress = provider?.profile_completion_percentage ?? 0;
   const isProfileComplete = profileProgress >= 100;
 
-  if (isLoading) {
+  if (isLoading || providerLoading) {
     return (
       <PulseLayout title="Gallery" providerId={provider?.id} showSidebars>
         <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4">
@@ -41,10 +39,20 @@ export default function PulseGalleryPage() {
   return (
     <PulseLayout title="Gallery" providerId={provider?.id} showSidebars>
       <div className="max-w-lg mx-auto lg:max-w-none">
-        {/* Personalized Header with Build/View Profile button */}
-        {!isFirstTime && firstTimeProvider && (
+        {/* Profile Build Banner - Always visible when provider exists */}
+        {provider && (
+          <div className="px-4 py-3 sm:py-4 border-b">
+            <ProfileBuildBanner
+              profileProgress={profileProgress}
+              isProfileComplete={isProfileComplete}
+            />
+          </div>
+        )}
+
+        {/* Personalized Header - Only for returning users */}
+        {!isFirstTime && provider && (
           <PersonalizedFeedHeader
-            providerId={firstTimeProvider.id}
+            providerId={provider.id}
             providerName={providerName}
             profileProgress={profileProgress}
             isProfileComplete={isProfileComplete}
