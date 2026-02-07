@@ -7,7 +7,7 @@ import { WizardLayout } from '@/components/layout';
 import { useAuth } from '@/hooks/useAuth';
 import { useCountries } from '@/hooks/queries/useCountries';
 import { useCurrentProvider, useUpdateProviderBasicProfile } from '@/hooks/queries/useProvider';
-import { useEnrollmentContext } from '@/contexts/EnrollmentContext';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { useEnrollmentCanModifyField, useEnrollmentIsTerminal } from '@/hooks/queries/useEnrollmentExpertise';
 import { LockedFieldBanner } from '@/components/enrollment';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -59,7 +59,9 @@ function RegistrationContent() {
   const { user } = useAuth();
   const { data: countries, isLoading: countriesLoading } = useCountries();
   const { data: provider, isLoading: providerLoading } = useCurrentProvider();
-  const { activeEnrollment, activeEnrollmentId } = useEnrollmentContext();
+  const enrollmentContext = useOptionalEnrollmentContext();
+  const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
+  const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
   const updateProfile = useUpdateProviderBasicProfile();
   
   const [activeTab, setActiveTab] = useState<'experienced' | 'student'>('experienced');
