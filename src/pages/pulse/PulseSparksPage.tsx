@@ -7,12 +7,22 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PulseLayout } from '@/components/pulse/layout';
 import { usePulseFeed } from '@/hooks/queries/usePulseContent';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
+import { PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { formatDistanceToNow } from 'date-fns';
 
 export default function PulseSparksPage() {
   const navigate = useNavigate();
   const { data: provider } = useCurrentProvider();
   const { data: feedContent, isLoading, refetch, isRefetching } = usePulseFeed({ contentType: 'spark' });
+  const { isFirstTime, provider: firstTimeProvider } = useIsFirstTimeProvider();
+
+  // Profile progress calculation
+  const providerName = firstTimeProvider 
+    ? `${firstTimeProvider.first_name || ''} ${firstTimeProvider.last_name || ''}`.trim() || 'there'
+    : 'there';
+  const profileProgress = firstTimeProvider?.profile_completion_percentage ?? 0;
+  const isProfileComplete = profileProgress >= 100;
 
   if (isLoading) {
     return (
@@ -31,6 +41,16 @@ export default function PulseSparksPage() {
   return (
     <PulseLayout title="Sparks" providerId={provider?.id} showSidebars>
       <div className="max-w-lg mx-auto lg:max-w-none">
+        {/* Personalized Header with Build/View Profile button */}
+        {!isFirstTime && firstTimeProvider && (
+          <PersonalizedFeedHeader
+            providerId={firstTimeProvider.id}
+            providerName={providerName}
+            profileProgress={profileProgress}
+            isProfileComplete={isProfileComplete}
+          />
+        )}
+
         <div className="p-4 border-b">
           <div className="flex items-center justify-between mb-3">
             <div>
