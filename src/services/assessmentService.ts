@@ -251,9 +251,10 @@ export async function startAssessment(
 export async function getActiveAssessmentAttempt(
   providerId: string
 ): Promise<AssessmentAttempt | null> {
+  // Performance: Select only required columns instead of SELECT *
   const { data, error } = await supabase
     .from('assessment_attempts')
-    .select('*')
+    .select('id, provider_id, enrollment_id, total_questions, answered_questions, started_at, submitted_at, score_percentage, is_passed, time_limit_minutes')
     .eq('provider_id', providerId)
     .is('submitted_at', null)
     .order('started_at', { ascending: false })
@@ -368,9 +369,10 @@ export async function submitAssessment(
 export async function getAssessmentHistory(
   providerId: string
 ): Promise<AssessmentAttempt[]> {
+  // Performance: Select only required columns instead of SELECT *
   const { data, error } = await supabase
     .from('assessment_attempts')
-    .select('*')
+    .select('id, provider_id, enrollment_id, total_questions, answered_questions, started_at, submitted_at, score_percentage, is_passed, time_limit_minutes')
     .eq('provider_id', providerId)
     .order('started_at', { ascending: false });
 

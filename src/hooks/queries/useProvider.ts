@@ -19,13 +19,22 @@ import {
 } from '@/services/cascadeResetService';
 import { canModifyField } from '@/services/lifecycleService';
 
-export function useCurrentProvider() {
+// Re-export ProviderData type for use in contexts
+export type { ProviderData };
+
+export interface UseCurrentProviderOptions {
+  /** Whether to enable the query. Defaults to true. */
+  enabled?: boolean;
+}
+
+export function useCurrentProvider(options?: UseCurrentProviderOptions) {
   return useQuery({
     queryKey: ['current-provider'],
     queryFn: fetchCurrentProvider,
     staleTime: 60 * 1000,           // 60 seconds - provider data is stable
     gcTime: 10 * 60 * 1000,         // 10 minutes - keep in cache longer
     refetchOnWindowFocus: false,    // Prevent tab-return refetch storms
+    enabled: options?.enabled !== false, // Default to true if not specified
   });
 }
 

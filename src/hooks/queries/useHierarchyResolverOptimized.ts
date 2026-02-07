@@ -168,6 +168,7 @@ export function useHierarchyData() {
       // Fetch all data in parallel
       // NOTE: Using select('*') for type safety with Tables<> types
       // These are lookup tables with relatively small payloads
+      // The main performance gains come from caching (staleTime/gcTime) not column reduction
       const [
         { data: industrySegments, error: isError },
         { data: expertiseLevels, error: elError },

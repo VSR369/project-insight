@@ -20,21 +20,16 @@ export function useIsFirstTimeProvider() {
   
   // Fallback hooks - ONLY called when context is undefined
   // The `enabled: needsFallback` prevents these queries from running when context exists
-  const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider();
+  const { data: fallbackProvider, isLoading: fallbackProviderLoading } = useCurrentProvider({
+    enabled: needsFallback, // Only fetch when outside EnrollmentProvider
+  });
   const { data: fallbackEnrollments, isLoading: fallbackEnrollmentsLoading } = useProviderEnrollments(
     needsFallback ? fallbackProvider?.id : undefined
   );
 
-  // Use context data if available
+  // Use context data if available (prevents duplicate queries)
   if (enrollmentContext) {
-    const { enrollments, isLoading } = enrollmentContext;
-    
-    // Context already has provider data from useCurrentProvider, 
-    // but we need it for the return value
-    // Since context uses useCurrentProvider internally, we can safely use fallbackProvider
-    // which shares the same query key and won't create duplicate requests
-    const provider = fallbackProvider;
-    const providerLoading = fallbackProviderLoading;
+    const { enrollments, isLoading, provider, providerLoading } = enrollmentContext;
     
     const combinedLoading = isLoading || providerLoading;
     
