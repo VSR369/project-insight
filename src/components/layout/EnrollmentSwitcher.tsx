@@ -8,7 +8,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Building2, ChevronDown, Check, Plus, Crown, Factory } from 'lucide-react';
 import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -31,10 +30,9 @@ interface EnrollmentSwitcherProps {
 export function EnrollmentSwitcher({ variant = 'header' }: EnrollmentSwitcherProps) {
   const navigate = useNavigate();
   const context = useOptionalEnrollmentContext();
-  const { data: provider, isLoading: providerLoading } = useCurrentProvider();
 
-  // Don't render if no context or loading
-  if (!context || providerLoading) {
+  // Don't render if no context or loading (use context's providerLoading to avoid duplicate queries)
+  if (!context || context.providerLoading) {
     return variant === 'header' ? (
       <Skeleton className="h-9 w-40" />
     ) : null;

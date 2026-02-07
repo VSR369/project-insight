@@ -14,7 +14,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { useUnreadNotificationCount } from '@/hooks/queries/usePulseSocial';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useOptionalEnrollmentContext } from '@/contexts/EnrollmentContext';
 import { cn } from '@/lib/utils';
 
 interface BreadcrumbConfig {
@@ -49,8 +49,10 @@ export function PulseHeader({
 }: PulseHeaderProps) {
   const navigate = useNavigate();
   const { user, signOut } = useAuth();
-  const { data: provider } = useCurrentProvider();
-  const { data: unreadCount = 0 } = useUnreadNotificationCount(provider?.id);
+  // Use context provider to avoid duplicate queries (EnrollmentContext already fetches this)
+  const enrollmentContext = useOptionalEnrollmentContext();
+  const providerId = enrollmentContext?.provider?.id;
+  const { data: unreadCount = 0 } = useUnreadNotificationCount(providerId);
 
   // User initials for avatar
   const firstName = user?.user_metadata?.first_name || '';
