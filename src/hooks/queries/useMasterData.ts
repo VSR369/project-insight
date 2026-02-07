@@ -1,6 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
+/**
+ * Master Data Cache Settings
+ * 
+ * Reference/lookup data is semi-static and rarely changes.
+ * Use aggressive caching to minimize API calls.
+ */
+const MASTER_DATA_CACHE = {
+  staleTime: 5 * 60 * 1000,   // 5 minutes - consider fresh
+  gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache
+};
+
 export function useCountries() {
   return useQuery({
     queryKey: ['countries'],
@@ -13,6 +24,7 @@ export function useCountries() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -28,6 +40,7 @@ export function useIndustrySegments() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -43,6 +56,7 @@ export function useAcademicDisciplines() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -62,6 +76,7 @@ export function useAcademicStreams(disciplineId?: string) {
       return data;
     },
     enabled: !!disciplineId,
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -81,6 +96,7 @@ export function useAcademicSubjects(streamId?: string) {
       return data;
     },
     enabled: !!streamId,
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -96,6 +112,7 @@ export function useExpertiseLevels() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -111,6 +128,7 @@ export function useParticipationModes() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
 
@@ -126,5 +144,6 @@ export function useOrganizationTypes() {
       if (error) throw error;
       return data;
     },
+    ...MASTER_DATA_CACHE,
   });
 }
