@@ -1,3 +1,4 @@
+import { Suspense, lazy } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -11,20 +12,40 @@ import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";
+import { Skeleton } from "@/components/ui/skeleton";
 
-// Auth Pages
+// ============================================================================
+// ROUTE LOADING FALLBACK
+// Shown while lazy-loaded route components are being fetched
+// ============================================================================
+const RouteLoadingFallback = () => (
+  <div className="flex items-center justify-center h-screen bg-background">
+    <div className="space-y-4 text-center">
+      <Skeleton className="h-8 w-48 mx-auto" />
+      <Skeleton className="h-4 w-32 mx-auto" />
+      <p className="text-sm text-muted-foreground mt-4">Loading...</p>
+    </div>
+  </div>
+);
+
+// ============================================================================
+// EAGER IMPORTS - Core pages loaded immediately for best UX
+// (Auth, Dashboard, Enrollment, Pulse - frequently accessed)
+// ============================================================================
+
+// Auth Pages (instant load required)
 import Login from "@/pages/Login";
 import Register from "@/pages/Register";
 import ForgotPassword from "@/pages/ForgotPassword";
 import ResetPassword from "@/pages/ResetPassword";
 import InviteAccept from "@/pages/InviteAccept";
 
-// Main Pages
+// Main Pages (instant load required)
 import Dashboard from "@/pages/Dashboard";
 import Welcome from "@/pages/Welcome";
 import NotFound from "@/pages/NotFound";
 
-// Enrollment Wizard Pages (new 9-step flow)
+// Enrollment Wizard Pages (critical path - instant load)
 import {
   EnrollRegistration,
   EnrollParticipationMode,
@@ -44,11 +65,11 @@ import {
   Certification,
 } from "@/pages/enroll";
 
-// Manager Portal (public pages)
+// Manager Portal (public pages - instant load)
 import ManagerPortal from "@/pages/public/ManagerPortal";
 import ManagerApprovalDashboard from "@/pages/public/ManagerApprovalDashboard";
 
-// Placeholder Pages
+// Placeholder Pages (instant load)
 import { 
   ProfilePage, 
   InvitationsPage as UserInvitationsPage, 
@@ -57,46 +78,64 @@ import {
   SettingsPage 
 } from "@/pages/PlaceholderPages";
 
-// Admin Pages
-import AdminDashboard from "@/pages/admin/AdminDashboard";
-import { CountriesPage } from "@/pages/admin/countries";
-import { IndustrySegmentsPage } from "@/pages/admin/industry-segments";
-import { OrganizationTypesPage } from "@/pages/admin/organization-types";
-import { ParticipationModesPage } from "@/pages/admin/participation-modes";
-import { ExpertiseLevelsPage } from "@/pages/admin/expertise-levels";
-import { AcademicTaxonomyPage } from "@/pages/admin/academic-taxonomy";
-import { ProficiencyTaxonomyPage } from "@/pages/admin/proficiency-taxonomy";
-import { QuestionBankPage } from "@/pages/admin/question-bank";
-import { CapabilityTagsPage } from "@/pages/admin/capability-tags";
-import { LevelSpecialityMapPage } from "@/pages/admin/level-speciality-map";
-import { InvitationsPage, PanelReviewerInvitationsPage } from "@/pages/admin/invitations";
-import { AdminSettingsPage } from "@/pages/admin/MasterDataPlaceholder";
-import SmokeTestPage from "@/pages/admin/SmokeTestPage";
-import { InterviewRequirementsPage } from "@/pages/admin/interview-requirements";
-import { ReviewerApprovalsPage } from "@/pages/admin/reviewer-approvals";
-import { ReviewerAvailabilityPage } from "@/pages/admin/reviewer-availability";
-import { InterviewKitPage, InterviewKitQuestionsPage } from "@/pages/admin/interview-kit";
-import RegressionTestPage from "@/pages/provider/RegressionTestPage";
-import LifecycleRulesPage from "@/pages/provider/LifecycleRulesPage";
-import PulseSocialTestPage from "@/pages/admin/PulseSocialTestPage";
-
-// Reviewer Pages
-import ReviewerDashboard from "@/pages/reviewer/ReviewerDashboard";
-import InvitationResponsePage from "@/pages/reviewer/InvitationResponsePage";
-import ReviewerAvailability from "@/pages/reviewer/ReviewerAvailability";
-import ReviewerInterviews from "@/pages/reviewer/ReviewerInterviews";
-import ReviewerCandidates from "@/pages/reviewer/ReviewerCandidates";
-import ReviewerSettings from "@/pages/reviewer/ReviewerSettings";
-import CandidateDetailPage from "@/pages/reviewer/CandidateDetailPage";
-import ReviewerPendingApproval from "@/pages/reviewer/ReviewerPendingApproval";
-
-// Pulse Pages
+// Pulse Pages (primary user experience - instant load)
 import { PulseFeedPage, PulseSparksPage, PulseCreatePage, PulseRanksPage, PulseProfilePage, PulseContentDetailPage, PulsePublicProfilePage, PulseCardsPage, PulseCardDetailPage, PulseModerationPage, PulseStandupPage, PulseReelsPage, PulsePodcastsPage, PulseArticlesPage, PulseGalleryPage } from "@/pages/pulse";
+
+// ============================================================================
+// LAZY IMPORTS - Admin & Reviewer pages (loaded on demand)
+// These pages are accessed less frequently, reducing initial bundle size
+// ============================================================================
+
+// Admin Pages (lazy loaded)
+const AdminDashboard = lazy(() => import("@/pages/admin/AdminDashboard"));
+const CountriesPage = lazy(() => import("@/pages/admin/countries").then(m => ({ default: m.CountriesPage })));
+const IndustrySegmentsPage = lazy(() => import("@/pages/admin/industry-segments").then(m => ({ default: m.IndustrySegmentsPage })));
+const OrganizationTypesPage = lazy(() => import("@/pages/admin/organization-types").then(m => ({ default: m.OrganizationTypesPage })));
+const ParticipationModesPage = lazy(() => import("@/pages/admin/participation-modes").then(m => ({ default: m.ParticipationModesPage })));
+const ExpertiseLevelsPage = lazy(() => import("@/pages/admin/expertise-levels").then(m => ({ default: m.ExpertiseLevelsPage })));
+const AcademicTaxonomyPage = lazy(() => import("@/pages/admin/academic-taxonomy").then(m => ({ default: m.AcademicTaxonomyPage })));
+const ProficiencyTaxonomyPage = lazy(() => import("@/pages/admin/proficiency-taxonomy").then(m => ({ default: m.ProficiencyTaxonomyPage })));
+const QuestionBankPage = lazy(() => import("@/pages/admin/question-bank").then(m => ({ default: m.QuestionBankPage })));
+const CapabilityTagsPage = lazy(() => import("@/pages/admin/capability-tags").then(m => ({ default: m.CapabilityTagsPage })));
+const LevelSpecialityMapPage = lazy(() => import("@/pages/admin/level-speciality-map").then(m => ({ default: m.LevelSpecialityMapPage })));
+const InvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.InvitationsPage })));
+const PanelReviewerInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.PanelReviewerInvitationsPage })));
+const AdminSettingsPage = lazy(() => import("@/pages/admin/MasterDataPlaceholder").then(m => ({ default: m.AdminSettingsPage })));
+const SmokeTestPage = lazy(() => import("@/pages/admin/SmokeTestPage"));
+const InterviewRequirementsPage = lazy(() => import("@/pages/admin/interview-requirements").then(m => ({ default: m.InterviewRequirementsPage })));
+const ReviewerApprovalsPage = lazy(() => import("@/pages/admin/reviewer-approvals").then(m => ({ default: m.ReviewerApprovalsPage })));
+const ReviewerAvailabilityPage = lazy(() => import("@/pages/admin/reviewer-availability").then(m => ({ default: m.ReviewerAvailabilityPage })));
+const InterviewKitPage = lazy(() => import("@/pages/admin/interview-kit").then(m => ({ default: m.InterviewKitPage })));
+const InterviewKitQuestionsPage = lazy(() => import("@/pages/admin/interview-kit").then(m => ({ default: m.InterviewKitQuestionsPage })));
+const PulseSocialTestPage = lazy(() => import("@/pages/admin/PulseSocialTestPage"));
+
+// Tools Pages (lazy loaded)
+const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
+const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
+
+// Reviewer Pages (lazy loaded)
+const ReviewerDashboard = lazy(() => import("@/pages/reviewer/ReviewerDashboard"));
+const InvitationResponsePage = lazy(() => import("@/pages/reviewer/InvitationResponsePage"));
+const ReviewerAvailability = lazy(() => import("@/pages/reviewer/ReviewerAvailability"));
+const ReviewerInterviews = lazy(() => import("@/pages/reviewer/ReviewerInterviews"));
+const ReviewerCandidates = lazy(() => import("@/pages/reviewer/ReviewerCandidates"));
+const ReviewerSettings = lazy(() => import("@/pages/reviewer/ReviewerSettings"));
+const CandidateDetailPage = lazy(() => import("@/pages/reviewer/CandidateDetailPage"));
+const ReviewerPendingApproval = lazy(() => import("@/pages/reviewer/ReviewerPendingApproval"));
 
 import { queryClient } from "@/lib/queryClient";
 
 // Export queryClient for shared access (auth state changes, portal switching)
 export { queryClient };
+
+// ============================================================================
+// HELPER: Wrap lazy component with Suspense
+// ============================================================================
+const LazyRoute = ({ children }: { children: React.ReactNode }) => (
+  <Suspense fallback={<RouteLoadingFallback />}>
+    {children}
+  </Suspense>
+);
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -122,7 +161,7 @@ const App = () => (
               path="/reviewer/pending-approval" 
               element={
                 <AuthGuard>
-                  <ReviewerPendingApproval />
+                  <LazyRoute><ReviewerPendingApproval /></LazyRoute>
                 </AuthGuard>
               } 
             />
@@ -353,12 +392,12 @@ const App = () => (
               }
             />
 
-            {/* Tools Routes */}
+            {/* Tools Routes (lazy loaded) */}
             <Route
               path="/tools/regression-test"
               element={
                 <AuthGuard>
-                  <RegressionTestPage />
+                  <LazyRoute><RegressionTestPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -366,17 +405,17 @@ const App = () => (
               path="/tools/lifecycle-rules"
               element={
                 <AuthGuard>
-                  <LifecycleRulesPage />
+                  <LazyRoute><LifecycleRulesPage /></LazyRoute>
                 </AuthGuard>
               }
             />
 
-            {/* Admin Routes */}
+            {/* Admin Routes (all lazy loaded) */}
             <Route
               path="/admin"
               element={
                 <AdminGuard>
-                  <AdminDashboard />
+                  <LazyRoute><AdminDashboard /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -384,7 +423,7 @@ const App = () => (
               path="/admin/master-data/countries"
               element={
                 <AdminGuard>
-                  <CountriesPage />
+                  <LazyRoute><CountriesPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -392,7 +431,7 @@ const App = () => (
               path="/admin/master-data/industry-segments"
               element={
                 <AdminGuard>
-                  <IndustrySegmentsPage />
+                  <LazyRoute><IndustrySegmentsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -400,7 +439,7 @@ const App = () => (
               path="/admin/master-data/organization-types"
               element={
                 <AdminGuard>
-                  <OrganizationTypesPage />
+                  <LazyRoute><OrganizationTypesPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -408,7 +447,7 @@ const App = () => (
               path="/admin/master-data/participation-modes"
               element={
                 <AdminGuard>
-                  <ParticipationModesPage />
+                  <LazyRoute><ParticipationModesPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -416,7 +455,7 @@ const App = () => (
               path="/admin/master-data/expertise-levels"
               element={
                 <AdminGuard>
-                  <ExpertiseLevelsPage />
+                  <LazyRoute><ExpertiseLevelsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -424,7 +463,7 @@ const App = () => (
               path="/admin/master-data/academic-taxonomy"
               element={
                 <AdminGuard>
-                  <AcademicTaxonomyPage />
+                  <LazyRoute><AcademicTaxonomyPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -432,7 +471,7 @@ const App = () => (
               path="/admin/master-data/proficiency-taxonomy"
               element={
                 <AdminGuard>
-                  <ProficiencyTaxonomyPage />
+                  <LazyRoute><ProficiencyTaxonomyPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -440,7 +479,7 @@ const App = () => (
               path="/admin/questions"
               element={
                 <AdminGuard>
-                  <QuestionBankPage />
+                  <LazyRoute><QuestionBankPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -448,7 +487,7 @@ const App = () => (
               path="/admin/capability-tags"
               element={
                 <AdminGuard>
-                  <CapabilityTagsPage />
+                  <LazyRoute><CapabilityTagsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -456,7 +495,7 @@ const App = () => (
               path="/admin/level-speciality-map"
               element={
                 <AdminGuard>
-                  <LevelSpecialityMapPage />
+                  <LazyRoute><LevelSpecialityMapPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -464,7 +503,7 @@ const App = () => (
               path="/admin/invitations"
               element={
                 <AdminGuard>
-                  <InvitationsPage />
+                  <LazyRoute><InvitationsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -472,7 +511,7 @@ const App = () => (
               path="/admin/invitations/panel-reviewers"
               element={
                 <AdminGuard>
-                  <PanelReviewerInvitationsPage />
+                  <LazyRoute><PanelReviewerInvitationsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -480,7 +519,7 @@ const App = () => (
               path="/admin/smoke-test"
               element={
                 <AdminGuard>
-                  <SmokeTestPage />
+                  <LazyRoute><SmokeTestPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -488,7 +527,7 @@ const App = () => (
               path="/admin/settings"
               element={
                 <AdminGuard>
-                  <AdminSettingsPage />
+                  <LazyRoute><AdminSettingsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -496,7 +535,7 @@ const App = () => (
               path="/admin/interview/kit"
               element={
                 <AdminGuard>
-                  <InterviewKitPage />
+                  <LazyRoute><InterviewKitPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -504,7 +543,7 @@ const App = () => (
               path="/admin/interview/kit/questions"
               element={
                 <AdminGuard>
-                  <InterviewKitQuestionsPage />
+                  <LazyRoute><InterviewKitQuestionsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -512,7 +551,7 @@ const App = () => (
               path="/admin/interview/quorum-requirements"
               element={
                 <AdminGuard>
-                  <InterviewRequirementsPage />
+                  <LazyRoute><InterviewRequirementsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -520,7 +559,7 @@ const App = () => (
               path="/admin/reviewer-approvals"
               element={
                 <AdminGuard>
-                  <ReviewerApprovalsPage />
+                  <LazyRoute><ReviewerApprovalsPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -528,7 +567,7 @@ const App = () => (
               path="/admin/interview/reviewer-availability"
               element={
                 <AdminGuard>
-                  <ReviewerAvailabilityPage />
+                  <LazyRoute><ReviewerAvailabilityPage /></LazyRoute>
                 </AdminGuard>
               }
             />
@@ -536,17 +575,17 @@ const App = () => (
               path="/admin/pulse-social-test"
               element={
                 <AdminGuard>
-                  <PulseSocialTestPage />
+                  <LazyRoute><PulseSocialTestPage /></LazyRoute>
                 </AdminGuard>
               }
             />
 
-            {/* Reviewer Routes */}
+            {/* Reviewer Routes (all lazy loaded) */}
             <Route
               path="/reviewer/invitation-response"
               element={
                 <AuthGuard>
-                  <InvitationResponsePage />
+                  <LazyRoute><InvitationResponsePage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -554,7 +593,7 @@ const App = () => (
               path="/reviewer/dashboard"
               element={
                 <ReviewerGuard>
-                  <ReviewerDashboard />
+                  <LazyRoute><ReviewerDashboard /></LazyRoute>
                 </ReviewerGuard>
               }
             />
@@ -562,7 +601,7 @@ const App = () => (
               path="/reviewer/availability"
               element={
                 <ReviewerGuard>
-                  <ReviewerAvailability />
+                  <LazyRoute><ReviewerAvailability /></LazyRoute>
                 </ReviewerGuard>
               }
             />
@@ -570,7 +609,7 @@ const App = () => (
               path="/reviewer/interviews"
               element={
                 <ReviewerGuard>
-                  <ReviewerInterviews />
+                  <LazyRoute><ReviewerInterviews /></LazyRoute>
                 </ReviewerGuard>
               }
             />
@@ -578,7 +617,7 @@ const App = () => (
               path="/reviewer/candidates"
               element={
                 <ReviewerGuard>
-                  <ReviewerCandidates />
+                  <LazyRoute><ReviewerCandidates /></LazyRoute>
                 </ReviewerGuard>
               }
             />
@@ -586,7 +625,7 @@ const App = () => (
               path="/reviewer/candidates/:enrollmentId"
               element={
                 <ReviewerGuard>
-                  <CandidateDetailPage />
+                  <LazyRoute><CandidateDetailPage /></LazyRoute>
                 </ReviewerGuard>
               }
             />
@@ -594,7 +633,7 @@ const App = () => (
               path="/reviewer/settings"
               element={
                 <ReviewerGuard>
-                  <ReviewerSettings />
+                  <LazyRoute><ReviewerSettings /></LazyRoute>
                 </ReviewerGuard>
               }
             />
