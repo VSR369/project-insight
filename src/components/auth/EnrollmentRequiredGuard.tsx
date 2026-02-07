@@ -27,14 +27,22 @@ export function EnrollmentRequiredGuard({ children }: EnrollmentRequiredGuardPro
   const contextReady = enrollmentContext?.contextReady ?? false;
 
   useEffect(() => {
+    // Safety net: If context is completely unavailable (outside provider), redirect to dashboard
+    if (!enrollmentContext) {
+      console.warn('[EnrollmentRequiredGuard] Context unavailable, redirecting to dashboard');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    
     // PHASE D: Only redirect when context is fully ready (not during intermediate states)
     if (contextReady && !activeEnrollmentId) {
       toast.info('Please select or add an industry to begin enrollment.');
       navigate('/dashboard', { replace: true });
     }
-  }, [contextReady, activeEnrollmentId, navigate]);
+  }, [enrollmentContext, contextReady, activeEnrollmentId, navigate]);
 
-  // If context isn't ready yet (ErrorBoundary recovery, initial render), show loading
+  // If context isn't ready yet (ErrorBoundary recovery, initial render), show loading briefly
+  // The useEffect above will redirect if context remains unavailable
   if (!enrollmentContext) {
     return (
       <div className="flex items-center justify-center min-h-screen">
