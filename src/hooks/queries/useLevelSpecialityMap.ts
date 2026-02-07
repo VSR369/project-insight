@@ -17,7 +17,7 @@ export function useLevelSpecialityMappings(specialityId?: string) {
 
       const { data, error } = await supabase
         .from("level_speciality_map")
-        .select("*, expertise_levels(*)")
+        .select("*, expertise_levels!expertise_level_id(id, name, level_number)")
         .eq("speciality_id", specialityId)
         .order("created_at", { ascending: true });
 

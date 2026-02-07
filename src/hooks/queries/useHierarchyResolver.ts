@@ -2,30 +2,71 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables } from "@/integrations/supabase/types";
 
-// Types
-type IndustrySegment = Tables<"industry_segments">;
-type ExpertiseLevel = Tables<"expertise_levels">;
-type ProficiencyArea = Tables<"proficiency_areas">;
-type SubDomain = Tables<"sub_domains">;
-type Speciality = Tables<"specialities">;
+// Lightweight types for hierarchy resolution - only fields needed for matching
+interface HierarchyIndustrySegment {
+  id: string;
+  name: string;
+  code: string;
+  description: string | null;
+  display_order: number | null;
+  is_active: boolean;
+}
+
+interface HierarchyExpertiseLevel {
+  id: string;
+  name: string;
+  level_number: number;
+  description: string | null;
+  min_years: number;
+  max_years: number | null;
+  is_active: boolean;
+}
+
+interface HierarchyProficiencyArea {
+  id: string;
+  name: string;
+  description: string | null;
+  display_order: number | null;
+  industry_segment_id: string;
+  expertise_level_id: string;
+  is_active: boolean;
+}
+
+interface HierarchySubDomain {
+  id: string;
+  name: string;
+  description: string | null;
+  display_order: number | null;
+  proficiency_area_id: string;
+  is_active: boolean;
+}
+
+interface HierarchySpeciality {
+  id: string;
+  name: string;
+  description: string | null;
+  display_order: number | null;
+  sub_domain_id: string;
+  is_active: boolean;
+}
 
 export interface HierarchyData {
-  industrySegments: IndustrySegment[];
-  expertiseLevels: ExpertiseLevel[];
-  proficiencyAreas: ProficiencyArea[];
-  subDomains: SubDomain[];
-  specialities: Speciality[];
+  industrySegments: HierarchyIndustrySegment[];
+  expertiseLevels: HierarchyExpertiseLevel[];
+  proficiencyAreas: HierarchyProficiencyArea[];
+  subDomains: HierarchySubDomain[];
+  specialities: HierarchySpeciality[];
 }
 
 export interface ResolvedHierarchy {
   specialityId: string | null;
   errors: string[];
   resolvedPath: {
-    industrySegment?: IndustrySegment;
-    expertiseLevel?: ExpertiseLevel;
-    proficiencyArea?: ProficiencyArea;
-    subDomain?: SubDomain;
-    speciality?: Speciality;
+    industrySegment?: HierarchyIndustrySegment;
+    expertiseLevel?: HierarchyExpertiseLevel;
+    proficiencyArea?: HierarchyProficiencyArea;
+    subDomain?: HierarchySubDomain;
+    speciality?: HierarchySpeciality;
   };
 }
 
@@ -46,27 +87,27 @@ export function useHierarchyData() {
       ] = await Promise.all([
         supabase
           .from("industry_segments")
-          .select("*")
+          .select("id, name, code, description, display_order, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("expertise_levels")
-          .select("*")
+          .select("id, name, level_number, description, min_years, max_years, is_active")
           .eq("is_active", true)
           .order("level_number", { ascending: true }),
         supabase
           .from("proficiency_areas")
-          .select("*")
+          .select("id, name, description, display_order, industry_segment_id, expertise_level_id, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("sub_domains")
-          .select("*")
+          .select("id, name, description, display_order, proficiency_area_id, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
         supabase
           .from("specialities")
-          .select("*")
+          .select("id, name, description, display_order, sub_domain_id, is_active")
           .eq("is_active", true)
           .order("display_order", { ascending: true }),
       ]);

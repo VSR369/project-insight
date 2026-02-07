@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 // Import types for bulk import
 import type { ParsedTaxonomyRow } from "@/pages/admin/proficiency-taxonomy/ProficiencyExcelExport";
@@ -38,7 +39,7 @@ export function useProficiencyAreasAdmin(
     queryFn: async () => {
       let query = supabase
         .from("proficiency_areas")
-        .select("*")
+        .select("id, name, description, display_order, industry_segment_id, expertise_level_id, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -83,7 +84,7 @@ export function useCreateProficiencyArea() {
       toast.success("Proficiency area created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create proficiency area: ${error.message}`);
+      handleMutationError(error, { operation: 'create_proficiency_area' });
     },
   });
 }
@@ -109,7 +110,7 @@ export function useUpdateProficiencyArea() {
       toast.success("Proficiency area updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update proficiency area: ${error.message}`);
+      handleMutationError(error, { operation: 'update_proficiency_area' });
     },
   });
 }
@@ -131,7 +132,7 @@ export function useDeleteProficiencyArea() {
       toast.success("Proficiency area deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate proficiency area: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_proficiency_area' });
     },
   });
 }
@@ -154,7 +155,7 @@ export function useRestoreProficiencyArea() {
       toast.success("Proficiency area restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore proficiency area: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_proficiency_area' });
     },
   });
 }
@@ -176,7 +177,7 @@ export function useHardDeleteProficiencyArea() {
       toast.success("Proficiency area permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete proficiency area: ${error.message}`);
+      handleMutationError(error, { operation: 'hard_delete_proficiency_area' });
     },
   });
 }
@@ -205,7 +206,7 @@ export function useSubDomainsAdmin(proficiencyAreaId?: string, includeInactive =
     queryFn: async () => {
       let query = supabase
         .from("sub_domains")
-        .select("*")
+        .select("id, name, description, display_order, proficiency_area_id, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -246,7 +247,7 @@ export function useCreateSubDomain() {
       toast.success("Sub-domain created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create sub-domain: ${error.message}`);
+      handleMutationError(error, { operation: 'create_sub_domain' });
     },
   });
 }
@@ -272,7 +273,7 @@ export function useUpdateSubDomain() {
       toast.success("Sub-domain updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update sub-domain: ${error.message}`);
+      handleMutationError(error, { operation: 'update_sub_domain' });
     },
   });
 }
@@ -294,7 +295,7 @@ export function useDeleteSubDomain() {
       toast.success("Sub-domain deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate sub-domain: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_sub_domain' });
     },
   });
 }
@@ -317,7 +318,7 @@ export function useRestoreSubDomain() {
       toast.success("Sub-domain restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore sub-domain: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_sub_domain' });
     },
   });
 }
@@ -339,7 +340,7 @@ export function useHardDeleteSubDomain() {
       toast.success("Sub-domain permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete sub-domain: ${error.message}`);
+      handleMutationError(error, { operation: 'hard_delete_sub_domain' });
     },
   });
 }
@@ -368,7 +369,7 @@ export function useSpecialitiesAdmin(subDomainId?: string, includeInactive = fal
     queryFn: async () => {
       let query = supabase
         .from("specialities")
-        .select("*")
+        .select("id, name, description, display_order, sub_domain_id, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -409,7 +410,7 @@ export function useCreateSpeciality() {
       toast.success("Speciality created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create speciality: ${error.message}`);
+      handleMutationError(error, { operation: 'create_speciality' });
     },
   });
 }
@@ -435,7 +436,7 @@ export function useUpdateSpeciality() {
       toast.success("Speciality updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update speciality: ${error.message}`);
+      handleMutationError(error, { operation: 'update_speciality' });
     },
   });
 }
@@ -457,7 +458,7 @@ export function useDeleteSpeciality() {
       toast.success("Speciality deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate speciality: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_speciality' });
     },
   });
 }
@@ -480,7 +481,7 @@ export function useRestoreSpeciality() {
       toast.success("Speciality restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore speciality: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_speciality' });
     },
   });
 }
@@ -502,7 +503,7 @@ export function useHardDeleteSpeciality() {
       toast.success("Speciality permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete speciality: ${error.message}`);
+      handleMutationError(error, { operation: 'hard_delete_speciality' });
     },
   });
 }

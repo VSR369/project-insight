@@ -93,7 +93,7 @@ export function useCandidateExpertise(enrollmentId: string | undefined) {
       // Separate fetch for review columns (until types are updated)
       const { data: reviewData } = await supabase
         .from("provider_industry_enrollments")
-        .select("*")
+        .select("expertise_review_status, expertise_reviewed_by, expertise_reviewed_at, expertise_flag_for_clarification, expertise_reviewer_notes")
         .eq("id", enrollmentId)
         .single() as { data: any; error: any };
 

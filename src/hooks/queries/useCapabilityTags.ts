@@ -79,7 +79,7 @@ export function useCreateCapabilityTag() {
       toast.success("Capability tag created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create capability tag: ${error.message}`);
+      handleMutationError(error, { operation: 'create_capability_tag' });
     },
   });
 }
@@ -105,7 +105,7 @@ export function useUpdateCapabilityTag() {
       toast.success("Capability tag updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update capability tag: ${error.message}`);
+      handleMutationError(error, { operation: 'update_capability_tag' });
     },
   });
 }
@@ -127,7 +127,7 @@ export function useDeleteCapabilityTag() {
       toast.success("Capability tag deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate capability tag: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_capability_tag' });
     },
   });
 }
@@ -149,7 +149,7 @@ export function useRestoreCapabilityTag() {
       toast.success("Capability tag restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore capability tag: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_capability_tag' });
     },
   });
 }
@@ -212,7 +212,7 @@ export function useUpdateQuestionCapabilityTags() {
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update capability tags: ${error.message}`);
+      handleMutationError(error, { operation: 'update_question_capability_tags' });
     },
   });
 }

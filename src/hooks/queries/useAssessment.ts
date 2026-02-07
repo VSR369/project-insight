@@ -6,6 +6,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import {
   canStartAssessment,
   startAssessment,
@@ -76,7 +77,7 @@ export function useStartAssessment() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to start assessment: ${error.message}`);
+      handleMutationError(error, { operation: 'start_assessment' });
     },
   });
 }
@@ -106,7 +107,7 @@ export function useSubmitAssessment() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to submit assessment: ${error.message}`);
+      handleMutationError(error, { operation: 'submit_assessment' });
     },
   });
 }

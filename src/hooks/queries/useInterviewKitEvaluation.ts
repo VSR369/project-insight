@@ -101,7 +101,7 @@ export function useInterviewKitEvaluation(bookingId: string | null) {
       // Check if evaluation exists
       const { data: existingEval, error: evalError } = await supabase
         .from("interview_evaluations")
-        .select("*")
+        .select("id, booking_id, reviewer_id, overall_score, outcome, notes, evaluated_at, created_at, updated_at")
         .eq("booking_id", bookingId)
         .eq("reviewer_id", reviewer.id)
         .maybeSingle();
@@ -149,7 +149,7 @@ export function useInterviewKitEvaluation(bookingId: string | null) {
       // Fetch question responses
       const { data: responses, error: responsesError } = await supabase
         .from("interview_question_responses")
-        .select("*")
+        .select("id, evaluation_id, question_source, question_bank_id, interview_kit_question_id, proof_point_id, question_text, expected_answer, rating, score, comments, section_name, section_type, section_label, display_order, is_deleted")
         .eq("evaluation_id", evaluation.id)
         .eq("is_deleted", false)
         .order("section_type")
