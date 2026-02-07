@@ -22,35 +22,31 @@ export default function PulsePodcastsPage() {
   const profileProgress = provider?.profile_completion_percentage ?? 0;
   const isProfileComplete = profileProgress >= 100;
 
-  if (isLoading || providerLoading) {
-    return (
-      <PulseLayout title="Podcasts" providerId={provider?.id} showSidebars>
-        <div className="max-w-lg mx-auto lg:max-w-none p-4 space-y-4">
-          {[1, 2, 3, 4].map(i => (
-            <Skeleton key={i} className="h-32 w-full rounded-lg" />
-          ))}
-        </div>
-      </PulseLayout>
-    );
-  }
-
   const podcasts = feedContent ?? [];
 
+  // Always render PulseLayout immediately (shell-first pattern)
   return (
-    <PulseLayout title="Podcasts" providerId={provider?.id} showSidebars>
+    <PulseLayout 
+      isPrimaryPage 
+      breadcrumb={{ parentLabel: 'Pulse', parentPath: '/pulse/feed', currentLabel: 'Podcasts' }}
+      providerId={provider?.id} 
+      showSidebars
+    >
       <div className="max-w-lg mx-auto lg:max-w-none">
-        {/* Profile Build Banner - Always visible when provider exists */}
-        {provider && (
-          <div className="px-4 py-3 sm:py-4 border-b">
+        {/* Profile Build Banner - show skeleton while loading */}
+        <div className="px-4 py-3 sm:py-4 border-b">
+          {providerLoading ? (
+            <Skeleton className="h-16 w-full rounded-lg" />
+          ) : provider ? (
             <ProfileBuildBanner
               profileProgress={profileProgress}
               isProfileComplete={isProfileComplete}
             />
-          </div>
-        )}
+          ) : null}
+        </div>
 
         {/* Personalized Header - Only for returning users */}
-        {!isFirstTime && provider && (
+        {!providerLoading && !isFirstTime && provider && (
           <PersonalizedFeedHeader
             providerId={provider.id}
             providerName={providerName}
@@ -78,7 +74,14 @@ export default function PulsePodcastsPage() {
           </Button>
         </div>
 
-        {podcasts.length === 0 ? (
+        {/* Content area - show skeletons while loading, then content or empty state */}
+        {isLoading ? (
+          <div className="p-4 space-y-3">
+            {[1, 2, 3, 4].map(i => (
+              <Skeleton key={i} className="h-32 w-full rounded-lg" />
+            ))}
+          </div>
+        ) : podcasts.length === 0 ? (
           <div className="text-center py-16 px-4">
             <Mic className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-lg font-medium mb-2">No Podcasts Yet</p>

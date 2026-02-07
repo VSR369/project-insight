@@ -52,10 +52,17 @@ export interface FeedFilters {
 // =====================================================
 
 export function usePulseFeed(filters: FeedFilters = {}) {
-  const { contentType, industrySegmentId, tagId, providerId, limit = 20, offset = 0 } = filters;
+  // Extract primitives for stable query key (prevents refetch storms)
+  const contentType = filters.contentType;
+  const industrySegmentId = filters.industrySegmentId;
+  const tagId = filters.tagId;
+  const providerId = filters.providerId;
+  const limit = filters.limit ?? 20;
+  const offset = filters.offset ?? 0;
 
   return useQuery({
-    queryKey: [PULSE_QUERY_KEYS.feed, filters],
+    // Use primitives only - never pass object reference to queryKey
+    queryKey: [PULSE_QUERY_KEYS.feed, contentType ?? 'all', limit, offset],
     queryFn: async () => {
       let query = supabase
         .from("pulse_content")
