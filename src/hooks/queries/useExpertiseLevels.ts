@@ -15,7 +15,7 @@ export function useExpertiseLevels(includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("expertise_levels")
-        .select("*")
+        .select("id, name, description, level_number, min_years, max_years, default_quorum_count, is_active, created_at, updated_at, created_by, updated_by")
         .order("level_number", { ascending: true });
 
       if (!includeInactive) {

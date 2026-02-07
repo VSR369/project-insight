@@ -158,7 +158,7 @@ export function useCreateQuestion() {
       toast.success("Question created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create question: ${error.message}`);
+      handleMutationError(error, { operation: 'create_question' });
     },
   });
 }
@@ -206,7 +206,7 @@ export function useUpdateQuestion() {
       toast.success("Question updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update question: ${error.message}`);
+      handleMutationError(error, { operation: 'update_question' });
     },
   });
 }
@@ -228,7 +228,7 @@ export function useDeleteQuestion() {
       toast.success("Question deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate question: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_question' });
     },
   });
 }
@@ -251,7 +251,7 @@ export function useRestoreQuestion() {
       toast.success("Question restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore question: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_question' });
     },
   });
 }
@@ -273,7 +273,7 @@ export function useHardDeleteQuestion() {
       toast.success("Question permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete question: ${error.message}`);
+      handleMutationError(error, { operation: 'hard_delete_question' });
     },
   });
 }
@@ -359,7 +359,7 @@ export function useDeleteQuestionsBySpecialities() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete existing questions: ${error.message}`);
+      handleMutationError(error, { operation: 'bulk_delete_questions' });
     },
   });
 }

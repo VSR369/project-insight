@@ -9,6 +9,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import { supabase } from '@/integrations/supabase/client';
 import type { Database } from '@/integrations/supabase/types';
 import { getCurrentUserId } from '@/lib/auditFields';
@@ -620,7 +621,7 @@ export function useDeleteExpiredAttempt() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to clear expired assessment: ${error.message}`);
+      handleMutationError(error, { operation: 'clear_expired_assessment' });
     },
   });
 }
@@ -809,7 +810,7 @@ export function useStartEnrollmentAssessment() {
       }
     },
     onError: (error: Error) => {
-      toast.error(`Failed to start assessment: ${error.message}`);
+      handleMutationError(error, { operation: 'start_enrollment_assessment' });
     },
   });
 }

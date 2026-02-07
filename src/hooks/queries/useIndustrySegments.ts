@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type IndustrySegment = Tables<"industry_segments">;
 export type IndustrySegmentInsert = TablesInsert<"industry_segments">;
@@ -58,7 +59,7 @@ export function useCreateIndustrySegment() {
       toast.success("Industry segment created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create industry segment: ${error.message}`);
+      handleMutationError(error, { operation: 'create_industry_segment' });
     },
   });
 }
@@ -87,7 +88,7 @@ export function useUpdateIndustrySegment() {
       toast.success("Industry segment updated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update industry segment: ${error.message}`);
+      handleMutationError(error, { operation: 'update_industry_segment' });
     },
   });
 }
@@ -112,7 +113,7 @@ export function useDeleteIndustrySegment() {
       toast.success("Industry segment deactivated successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to deactivate industry segment: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_industry_segment' });
     },
   });
 }
@@ -137,7 +138,7 @@ export function useRestoreIndustrySegment() {
       toast.success("Industry segment restored successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to restore industry segment: ${error.message}`);
+      handleMutationError(error, { operation: 'restore_industry_segment' });
     },
   });
 }
@@ -161,7 +162,7 @@ export function useHardDeleteIndustrySegment() {
       toast.success("Industry segment permanently deleted");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete industry segment: ${error.message}`);
+      handleMutationError(error, { operation: 'hard_delete_industry_segment' });
     },
   });
 }

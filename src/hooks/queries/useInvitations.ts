@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export type Invitation = Tables<"solution_provider_invitations">;
 export type InvitationInsert = TablesInsert<"solution_provider_invitations">;
@@ -86,7 +87,7 @@ export function useCreateInvitation() {
       toast.success("Invitation created successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create invitation: ${error.message}`);
+      handleMutationError(error, { operation: 'create_invitation' });
     },
   });
 }
@@ -122,7 +123,7 @@ export function useResendInvitation() {
       toast.success("Invitation resent successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to resend invitation: ${error.message}`);
+      handleMutationError(error, { operation: 'resend_invitation' });
     },
   });
 }
@@ -145,7 +146,7 @@ export function useDeleteInvitation() {
       toast.success("Invitation deleted successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to delete invitation: ${error.message}`);
+      handleMutationError(error, { operation: 'delete_invitation' });
     },
   });
 }

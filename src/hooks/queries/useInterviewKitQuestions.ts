@@ -91,7 +91,7 @@ export function useInterviewKitCompetencies(includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("interview_kit_competencies")
-        .select("*")
+        .select("id, name, code, description, icon, color, display_order, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true });
 
       if (!includeInactive) {
@@ -130,7 +130,7 @@ export function useInterviewKitQuestions(filters: InterviewKitQuestionsFilter = 
             *,
             interview_kit_competencies(id, name, code, color, icon),
             industry_segments(id, name),
-            expertise_levels(id, name)
+            expertise_levels!expertise_level_id(id, name)
           `)
           .order("display_order", { ascending: true })
           .order("created_at", { ascending: false })

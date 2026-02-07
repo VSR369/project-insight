@@ -28,7 +28,7 @@ export function usePanelReviewers(options?: {
     queryFn: async () => {
       let query = supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, created_at, updated_at")
         .order("created_at", { ascending: false });
 
       if (!includeInactive) {
@@ -58,7 +58,7 @@ export function usePanelReviewer(id: string | null) {
 
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, approved_at, approved_by, approval_notes, why_join_statement, created_at, updated_at, created_by, updated_by")
         .eq("id", id)
         .single();
 
@@ -80,7 +80,7 @@ export function useReviewerByUserId(userId: string | undefined) {
 
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, created_at, updated_at")
         .eq("user_id", userId)
         .single();
 
@@ -333,7 +333,7 @@ export function useInvitedReviewers(statusFilter?: string) {
     queryFn: async () => {
       let query = supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, invitation_sent_at, invitation_accepted_at, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, created_at, updated_at")
         .eq("enrollment_source", "invitation")
         .order("created_at", { ascending: false });
 
@@ -582,7 +582,7 @@ export function useApproveReviewer() {
       toast.success("Reviewer approved successfully");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to approve: ${error.message}`);
+      handleMutationError(error, { operation: 'approve_reviewer' });
     },
   });
 }
@@ -623,7 +623,7 @@ export function useRejectReviewer() {
       toast.success("Application rejected");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to reject: ${error.message}`);
+      handleMutationError(error, { operation: 'reject_reviewer' });
     },
   });
 }
