@@ -1,142 +1,112 @@
 
+# Add PersonalizedFeedHeader to All Individual Feed Pages
 
-# Add Profile Builder Navigation to PersonalizedFeedHeader
+## Problem Confirmed
 
-## Problem Statement
+The `PersonalizedFeedHeader` with the "Build Profile" / "View Profile" button was only added to the main `PulseFeedPage` (`/pulse/feed`), but the 5 individual content-type feed pages are missing it:
 
-The `PersonalizedFeedHeader` component (visible to returning users) lacks a navigation option to the profile builder module. Users can see the `ProfileBuildBanner` above, but the personalized header area doesn't have a corresponding action button with the same logic.
+| Page | Route | Status |
+|------|-------|--------|
+| PulseReelsPage | `/pulse/reels` | Missing header |
+| PulsePodcastsPage | `/pulse/podcasts` | Missing header |
+| PulseSparksPage | `/pulse/sparks` | Missing header |
+| PulseArticlesPage | `/pulse/articles` | Missing header |
+| PulseGalleryPage | `/pulse/gallery` | Missing header |
 
-## Requirement
-
-Apply the **exact same rules** from `ProfileBuildBanner`:
-- **Profile Incomplete (<100%):** Show "Let's Build Your Profile" button → navigates to `/dashboard`
-- **Profile Complete (100%):** Show "View Profile" button → navigates to `/pulse/profile`
-
----
-
-## Solution Overview
-
-Modify `PersonalizedFeedHeader` to:
-1. Accept `profileProgress` and `isProfileComplete` as props
-2. Add a compact action button with conditional text/navigation
-3. Update the parent `PulseFeedPage` to pass these props
+Users navigating to these filtered feeds have no visible path to the profile builder module.
 
 ---
 
-## Technical Details
+## Solution
 
-### File 1: `src/components/pulse/gamification/PersonalizedFeedHeader.tsx`
+Add the `PersonalizedFeedHeader` component to all 5 individual feed pages, using the exact same logic as the main feed:
 
-**Changes:**
-1. Add new props: `profileProgress?: number` and `isProfileComplete?: boolean`
-2. Import `useNavigate` from react-router-dom
-3. Import `Button` component
-4. Import `ArrowRight`, `Eye`, `ChevronRight` icons
-5. Add conditional button in the header layout
-
-**Button Logic (matching ProfileBuildBanner):**
-
-| State | Button Text | Icon | Destination |
-|-------|------------|------|-------------|
-| Incomplete | "Build Profile" (mobile: icon only) | ArrowRight | `/dashboard` |
-| Complete | "View Profile" (mobile: icon only) | Eye | `/pulse/profile` |
-
-**Layout Position:** Button placed to the right of the greeting section, aligned with the avatar row.
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Friday, February 7                                           │
-├─────────────────────────────────────────────────────────────┤
-│ [Avatar] Good morning, John! ✨        [Build Profile →]    │
-│   L2     Ready to dominate Healthcare?                       │
-│          ┌─────┐ ┌───────┐ ┌──────────┐                     │
-│          │Lv 2 │ │1,500XP│ │3 day stk │                     │
-│          └─────┘ └───────┘ └──────────┘                     │
-└─────────────────────────────────────────────────────────────┘
-```
+- **Profile Incomplete:** Show "Build Profile" button → navigates to `/dashboard`
+- **Profile Complete:** Show "View Profile" button → navigates to `/pulse/profile`
 
 ---
 
-### File 2: `src/pages/pulse/PulseFeedPage.tsx`
+## Technical Implementation
 
-**Changes:**
-Pass the existing `profileProgress` and `isProfileComplete` variables to `PersonalizedFeedHeader`:
+For each of the 5 pages, the changes are identical:
+
+### 1. Add Imports
 
 ```tsx
-<PersonalizedFeedHeader
-  providerId={provider.id}
-  providerName={providerName}
-  profileProgress={profileProgress}
-  isProfileComplete={isProfileComplete}
-/>
+import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
+import { PersonalizedFeedHeader } from '@/components/pulse/gamification';
 ```
 
----
-
-## Code Changes Summary
-
-### PersonalizedFeedHeader.tsx - Props Interface
+### 2. Add Hook Call (after existing hooks)
 
 ```tsx
-interface PersonalizedFeedHeaderProps {
-  providerId: string;
-  providerName: string;
-  providerAvatar?: string | null;
-  primaryIndustry?: string | null;
-  profileProgress?: number;        // NEW
-  isProfileComplete?: boolean;     // NEW
-  className?: string;
-}
+const { isFirstTime, provider } = useIsFirstTimeProvider();
 ```
 
-### PersonalizedFeedHeader.tsx - Button Component
+### 3. Calculate Profile Progress
 
 ```tsx
-{/* Profile Action Button - same rules as ProfileBuildBanner */}
-<Button
-  variant="outline"
-  size="sm"
-  onClick={() => navigate(isProfileComplete ? '/pulse/profile' : '/dashboard')}
-  className="flex-shrink-0 h-8 sm:h-9"
->
-  {isProfileComplete ? (
-    <>
-      <Eye className="h-4 w-4" />
-      <span className="hidden sm:inline ml-1.5">View Profile</span>
-    </>
-  ) : (
-    <>
-      <ArrowRight className="h-4 w-4" />
-      <span className="hidden sm:inline ml-1.5">Build Profile</span>
-    </>
-  )}
-</Button>
+const providerName = provider 
+  ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
+  : 'there';
+const profileProgress = provider?.profile_completion_percentage ?? 0;
+const isProfileComplete = profileProgress >= 100;
 ```
 
----
+### 4. Add PersonalizedFeedHeader (inside main content div, before page header)
 
-## Responsive Behavior
-
-| Screen Size | Button Appearance |
-|-------------|-------------------|
-| Mobile (< 640px) | Icon only (compact) |
-| Tablet+ (≥ 640px) | Icon + text label |
+```tsx
+{/* Personalized Header with Build/View Profile button */}
+{!isFirstTime && provider && (
+  <PersonalizedFeedHeader
+    providerId={provider.id}
+    providerName={providerName}
+    profileProgress={profileProgress}
+    isProfileComplete={isProfileComplete}
+  />
+)}
+```
 
 ---
 
 ## Files to Modify
 
-| File | Action |
-|------|--------|
-| `src/components/pulse/gamification/PersonalizedFeedHeader.tsx` | Add props and conditional button |
-| `src/pages/pulse/PulseFeedPage.tsx` | Pass profileProgress and isProfileComplete props |
+| File | Changes |
+|------|---------|
+| `src/pages/pulse/PulseReelsPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+| `src/pages/pulse/PulsePodcastsPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+| `src/pages/pulse/PulseSparksPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+| `src/pages/pulse/PulseArticlesPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+| `src/pages/pulse/PulseGalleryPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+
+---
+
+## Layout Position
+
+The `PersonalizedFeedHeader` will appear at the top of the content area, before the existing page-specific header (title, description, share button):
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│ [PulseQuickNav - tabs for Feed, Reels, etc.]            │
+├─────────────────────────────────────────────────────────┤
+│ [Avatar] Good morning, John! ✨     [Build Profile →]   │  ← NEW
+│   L2     Ready to dominate Healthcare?                   │
+│          [Lv 2] [1,500 XP] [3 day streak]               │
+├─────────────────────────────────────────────────────────┤
+│ 🎬 Reels                                    [Refresh]   │  ← Existing
+│ Short-form video content                                 │
+│ ┌─────────────────────────────────────────────────────┐ │
+│ │              Share a Reel                            │ │
+│ └─────────────────────────────────────────────────────┘ │
+├─────────────────────────────────────────────────────────┤
+│                     [Content list...]                    │
+└─────────────────────────────────────────────────────────┘
+```
 
 ---
 
 ## Expected Outcome
 
-1. **Consistency:** Same navigation rules as the ProfileBuildBanner
-2. **Discoverability:** Users always see a clear path to profile management
-3. **Context-Aware:** Button text and destination change based on profile completion status
-4. **Mobile-Friendly:** Compact icon-only display on small screens
-
+1. **Consistent UX:** All 5 individual feed pages now show the same personalized header as the main feed
+2. **Discoverability:** Users always have a clear path to profile builder regardless of which feed they're viewing
+3. **Same Rules:** Button logic matches exactly: incomplete → "Build Profile" to `/dashboard`, complete → "View Profile" to `/pulse/profile`
