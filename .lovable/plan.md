@@ -1,138 +1,109 @@
 
-# Fix: EnrollmentRequiredGuard Redirect Bug & Pulse Feed Issues
+## Goal
+Restore Pulse feed usability and performance:
+- Pulse header always visible on Pulse pages
+- Main feed renders quickly (no 15s+ stalls)
+- Stop unnecessary refetch/re-render loops that “screw up” the feed UI
 
-## Problem Statement
-
-The fixes I applied earlier to handle `EnrollmentContext` crashes have introduced **new bugs**:
-
-1. **Incorrect redirect logic in `EnrollmentRequiredGuard`** - The guard immediately redirects to `/dashboard` when `enrollmentContext` is `null` during initial render, but this null state is a NORMAL transient condition during React initialization
-2. **Slow feed loading** - This is likely caused by cascading redirects or the loading state getting stuck
-3. **Missing header on feed pages** - Need to verify this is actually occurring (my browser test showed header IS present)
-
-## Root Cause Analysis
-
-In `EnrollmentRequiredGuard.tsx` (lines 29-35):
-
-```typescript
-useEffect(() => {
-  if (!enrollmentContext) {
-    navigate('/dashboard', { replace: true }); // ← BUG: Fires on first render!
-    return;
-  }
-  ...
+## What I found (root causes)
+### 1) React Query key instability in `useUnifiedPulseFeed` (major performance bug)
+In `src/hooks/queries/useUnifiedPulseFeed.ts`, the hook signature uses a default object:
+```ts
+export function useUnifiedPulseFeed(filters: UnifiedFeedFilters = {}) { ... }
 ```
-
-**The Problem:**
-- During the first React render cycle, `useContext()` can momentarily return `undefined` while the component tree is being mounted
-- My code treats this as "context unavailable" and immediately redirects
-- This breaks the enrollment wizard flow
-
-**Why the loading spinner isn't helping:**
-- The spinner (lines 46-52) shows when context is null
-- But the `useEffect` runs BEFORE the component returns the spinner
-- So the redirect happens before the user sees anything
-
-## Solution
-
-### Part 1: Remove Premature Redirect in EnrollmentRequiredGuard
-
-Remove the redirect when `enrollmentContext` is null. The loading spinner already handles this case gracefully. The component should ONLY redirect when:
-- Context IS available (`enrollmentContext !== null`)
-- Context IS ready (`contextReady === true`)
-- But no enrollment is selected (`!activeEnrollmentId`)
-
-**Before (Current Buggy Code):**
-```typescript
-useEffect(() => {
-  if (!enrollmentContext) {
-    navigate('/dashboard', { replace: true }); // ← Remove this
-    return;
-  }
-  if (contextReady && !activeEnrollmentId) {
-    navigate('/dashboard', { replace: true });
-  }
-}, [enrollmentContext, contextReady, activeEnrollmentId, navigate]);
+And the query key includes that object:
+```ts
+queryKey: [PULSE_QUERY_KEYS.feed, 'unified', filters],
 ```
+When the caller does `useUnifiedPulseFeed()` (no argument), `filters` becomes a new `{}` on every render. That changes the query key every render, which can cause:
+- repeated refetching (network spam)
+- perpetual “loading/refetching” state
+- slow screens and UI instability
 
-**After (Fixed Code):**
-```typescript
-useEffect(() => {
-  // Don't redirect until context is available and ready
-  // The loading spinner handles the "context not ready" state
-  if (!enrollmentContext || !contextReady) {
-    return; // Just wait - spinner is showing
-  }
-  
-  // Only redirect when context is fully ready but no enrollment exists
-  if (!activeEnrollmentId) {
-    toast.info('Please select or add an industry to begin enrollment.');
-    navigate('/dashboard', { replace: true });
-  }
-}, [enrollmentContext, contextReady, activeEnrollmentId, navigate]);
+This aligns with “taking more than 15 seconds” and “feed completely messed up”.
+
+### 2) Pulse feed blocks UI on “first time provider” loading
+In `src/pages/pulse/PulseFeedPage.tsx`, there is an early return:
+```tsx
+if (firstTimeLoading && !loadingTimedOut) return (...) 
 ```
+Even though it returns a `PulseLayout`, it still delays the normal feed render until provider/enrollment context settles. If any enrollment/provider query is slow, the page feels “broken”.
 
-### Part 2: Verify Pulse Feed and Header (No Changes Expected)
+### 3) “Header missing” is consistent with long guard/loading states
+Your Pulse header (`src/components/pulse/layout/PulseHeader.tsx`) is fixed and should always display inside `PulseLayout`.
+If the UI is stuck in a long loading loop (AuthGuard loading, repeated feed query churn, or firstTimeLoading gate), users effectively experience “no header” because the main page never reaches stable render.
 
-Based on my browser inspection:
-- The Pulse feed IS loading (I saw content rendering)
-- The header IS present (Pulse branding, search, notifications, user avatar visible)
-- The user's issue might be specific to their browser state or a timing issue
+## Implementation approach (what I will change)
+### A) Fix query key stability in `useUnifiedPulseFeed` (primary fix)
+Update `useUnifiedPulseFeed` to ensure the query key is based only on stable primitives:
+- Use `limit` and `offset` in the key (not the raw object reference)
+- Optionally normalize filters into a stable object inside the hook
 
-The Pulse pages (Feed, Reels, Sparks, Cards) do NOT use `EnrollmentRequiredGuard`, so they should not be affected by the guard bug. They use:
-- `useIsFirstTimeProvider()` → Uses `useOptionalEnrollmentContext()` ✅
-- `PulseHeader` → Uses `useOptionalEnrollmentContext()` ✅
-- `PulseLayout` → Uses `useAuth()` ✅
+Concrete changes:
+1. Replace:
+   - `queryKey: [PULSE_QUERY_KEYS.feed, 'unified', filters]`
+2. With something stable like:
+   - `queryKey: [PULSE_QUERY_KEYS.feed, 'unified', { limit, offset }]`
+   or
+   - `queryKey: [PULSE_QUERY_KEYS.feed, 'unified', limit, offset]`
 
-## Files to Modify
+This alone should stop re-fetch loops and dramatically improve load time.
 
-| File | Change |
-|------|--------|
-| `src/components/auth/EnrollmentRequiredGuard.tsx` | Remove premature redirect when context is null |
+### B) Make PulseFeedPage render the layout + header immediately
+Refactor `PulseFeedPage.tsx` so it does not “return early” for `firstTimeLoading`.
+Instead:
+- Always render `<PulseLayout ...>`
+- Inside it, render a lightweight loading placeholder for the parts that depend on provider/enrollment context (banners, personalized header), while allowing the feed shell/header to appear immediately.
 
-## Technical Details
+Concrete changes:
+- Remove/replace the early return block:
+  ```tsx
+  if (firstTimeLoading && !loadingTimedOut) { return <PulseLayout ...>...</PulseLayout>; }
+  ```
+- Replace with “inline gating” inside the normal render:
+  - Show `ProfileBuildBanner` / `StartPostWidget` / `PersonalizedFeedHeader` only when provider is available
+  - Show a smaller skeleton section for those widgets while provider is loading
+  - Allow the feed list section to proceed based on `useUnifiedPulseFeed` loading state
 
-### The Fix (Single File Change)
+### C) Add lightweight performance diagnostics (dev-only) to confirm fix
+To prevent regressions, I will add guarded diagnostics (no noisy console in prod):
+- Use existing structured logging utilities if appropriate, or keep to minimal `logInfo/logWarning` style (per your standards)
+- Track:
+  - how many times `useUnifiedPulseFeed` fetch runs within 10 seconds
+  - whether query key changes unexpectedly
 
-```typescript
-// EnrollmentRequiredGuard.tsx - Updated useEffect
+(If you prefer zero logging changes, I’ll skip this and rely on network panel behavior + observable UI speed.)
 
-useEffect(() => {
-  // Don't take any action until context is available and fully ready
-  // The loading spinner (rendered below) handles the waiting state
-  if (!enrollmentContext || !contextReady) {
-    return;
-  }
-  
-  // Context is ready - now check if enrollment exists
-  if (!activeEnrollmentId) {
-    toast.info('Please select or add an industry to begin enrollment.');
-    navigate('/dashboard', { replace: true });
-  }
-}, [enrollmentContext, contextReady, activeEnrollmentId, navigate]);
-```
+## Files to edit
+1. `src/hooks/queries/useUnifiedPulseFeed.ts`
+   - Fix unstable query key
+   - Ensure pagination params drive caching correctly
+2. `src/pages/pulse/PulseFeedPage.tsx`
+   - Remove early “firstTimeLoading” blocking return
+   - Ensure Pulse header/layout always render immediately
+   - Keep loading/empty/error states, but without blocking the shell
 
-## Impact Assessment
+## Validation checklist (end-to-end)
+After implementation, we will verify:
+1. Navigate to `/pulse/feed`
+   - Header appears immediately (Pulse top bar)
+   - Feed shows skeletons briefly, then content
+2. Hard refresh `/pulse/feed` (Cmd/Ctrl+Shift+R)
+   - No 15s stall
+3. Switch between `/pulse/feed` → `/pulse/sparks` → back to `/pulse/feed`
+   - No repeated long stalls
+4. Check browser network:
+   - Feed requests should not spam repeatedly on every render
+   - Requests should follow the expected polling interval (visibility-aware polling)
+5. Confirm enrollment wizard pages still behave (sanity):
+   - `/enroll/participation-mode` redirects only when contextReady + no active enrollment
 
-| Risk | Level | Mitigation |
-|------|-------|------------|
-| Breaking enrollment flow | None | Restores correct behavior |
-| Infinite loading | None | Spinner shows while waiting, redirect happens when context confirms no enrollment |
-| Pulse feed affected | None | Pulse routes don't use this guard |
+## Risks / tradeoffs
+- Changing the query key will reset the cache key shape; this is expected and safe (it improves correctness).
+- Adjusting PulseFeedPage render flow could slightly change when onboarding widgets appear, but it should improve perceived performance and stability without changing business logic.
 
-## Why This Fixes the Issues
-
-| Issue | Resolution |
-|-------|------------|
-| Enrollment pages crash → redirect loop | Guard waits for context before deciding |
-| "Continue" button not working | Registration page already fixed with optional hook |
-| Slow feed loading | Not caused by guard (Pulse doesn't use it) |
-| Missing header | Header uses optional hook (already correct) |
-
-## End-to-End Flow After Fix
-
-| Action | Expected Result |
-|--------|-----------------|
-| Navigate to `/enroll/panel-discussion` | Shows loading → then content (if enrolled) OR redirects (if not) |
-| Navigate to `/pulse/feed` | Header + feed loads normally (unaffected by this fix) |
-| Click "Continue" from Dashboard | Goes to registration page |
-| Complete enrollment step | Navigates to next step |
+## If the issue persists after A+B
+If feed is still slow after stabilizing the query key and removing blocking returns, next likely culprits:
+- Over-fetching in provider/enrollment context (multiple dependent queries)
+- A heavy component in the feed items (media rendering) causing main-thread stalls
+In that case, I will profile which component is slow (feed item rendering vs data fetching) and propose targeted memoization/lazy loading.
