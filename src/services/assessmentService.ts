@@ -281,10 +281,10 @@ export async function submitAssessment(
   attemptId: string
 ): Promise<{ success: boolean; score?: number; passed?: boolean; error?: string }> {
   try {
-    // Get attempt details
+    // Get attempt details - select only required columns
     const { data: attempt, error: attemptError } = await supabase
       .from('assessment_attempts')
-      .select('*, provider_id')
+      .select('id, provider_id, enrollment_id, total_questions, answered_questions, started_at, submitted_at, time_limit_minutes')
       .eq('id', attemptId)
       .single();
 
