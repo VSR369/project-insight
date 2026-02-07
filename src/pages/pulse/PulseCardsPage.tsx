@@ -4,12 +4,13 @@
  */
 
 import { useState } from 'react';
-import { PulseLayout } from '@/components/pulse/layout';
+import { PulseLayout, ProfileBuildBanner } from '@/components/pulse/layout';
 import { PulseCardStack, CreateCardDialog } from '@/components/pulse/cards';
 import { usePulseCards } from '@/hooks/queries/usePulseCards';
 import { usePulseCardTopics } from '@/hooks/queries/usePulseCardTopics';
-import { useCurrentProvider } from '@/hooks/queries/useProvider';
+import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
 import { usePulseCardsReputation } from '@/hooks/queries/usePulseCardsReputation';
+import { PersonalizedFeedHeader } from '@/components/pulse/gamification';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, Layers, Filter } from 'lucide-react';
 import {
@@ -25,8 +26,15 @@ export default function PulseCardsPage() {
   const [selectedTopicId, setSelectedTopicId] = useState<string | undefined>();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const { data: provider } = useCurrentProvider();
+  const { isFirstTime, provider, isLoading: providerLoading } = useIsFirstTimeProvider();
   const { data: topics, isLoading: topicsLoading } = usePulseCardTopics();
+  
+  // Derived values for header components
+  const providerName = provider 
+    ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
+    : 'there';
+  const profileProgress = provider?.profile_completion_percentage ?? 0;
+  const isProfileComplete = profileProgress >= 100;
   const { data: cards, isLoading: cardsLoading } = usePulseCards({
     topicId: selectedTopicId,
     status: 'active',
@@ -45,6 +53,26 @@ export default function PulseCardsPage() {
   return (
     <PulseLayout isPrimaryPage providerId={provider?.id} showSidebars>
       <div className="flex flex-col h-full">
+        {/* Profile Build Banner - always visible when provider exists */}
+        {provider && (
+          <div className="px-4 py-3 sm:py-4 border-b">
+            <ProfileBuildBanner
+              profileProgress={profileProgress}
+              isProfileComplete={isProfileComplete}
+            />
+          </div>
+        )}
+
+        {/* Personalized Header - returning users only */}
+        {!isFirstTime && provider && (
+          <PersonalizedFeedHeader
+            providerId={provider.id}
+            providerName={providerName}
+            profileProgress={profileProgress}
+            isProfileComplete={isProfileComplete}
+          />
+        )}
+
         {/* Topic Filter */}
         <div className="px-4 py-3 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
           <div className="flex items-center justify-between gap-3">
