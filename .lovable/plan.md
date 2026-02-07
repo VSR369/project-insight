@@ -1,62 +1,93 @@
 
-# Add PersonalizedFeedHeader to All Individual Feed Pages
+## What I found (confirmed in code)
 
-## Problem Confirmed
+You are on `/pulse/reels`. In `src/pages/pulse/PulseReelsPage.tsx`, the “header” you expect (the block with the Build/View Profile action) is rendered like this:
 
-The `PersonalizedFeedHeader` with the "Build Profile" / "View Profile" button was only added to the main `PulseFeedPage` (`/pulse/feed`), but the 5 individual content-type feed pages are missing it:
+```tsx
+{!isFirstTime && firstTimeProvider && (
+  <PersonalizedFeedHeader ... />
+)}
+```
 
-| Page | Route | Status |
-|------|-------|--------|
-| PulseReelsPage | `/pulse/reels` | Missing header |
-| PulsePodcastsPage | `/pulse/podcasts` | Missing header |
-| PulseSparksPage | `/pulse/sparks` | Missing header |
-| PulseArticlesPage | `/pulse/articles` | Missing header |
-| PulseGalleryPage | `/pulse/gallery` | Missing header |
+So if the user is considered **first-time** (`isFirstTime === true`), the header is intentionally **not rendered at all**. This matches your screenshot symptom: “still I do not see the header in each individual feed page”.
 
-Users navigating to these filtered feeds have no visible path to the profile builder module.
+Also, the **main feed page** (`PulseFeedPage.tsx`) does **not** rely on `PersonalizedFeedHeader` to provide the Build/View Profile CTA for all users. Instead it uses:
+
+- `ProfileBuildBanner` (always visible when provider exists; CTA changes based on completion)
+- `PersonalizedFeedHeader` (only for returning users)
+
+Your requirement is: “same rules as main feed page, no new rules”. That means the individual feeds must also include `ProfileBuildBanner` (the “attached” feature), not only `PersonalizedFeedHeader`.
 
 ---
 
-## Solution
+## 5-Why Analysis (root cause)
 
-Add the `PersonalizedFeedHeader` component to all 5 individual feed pages, using the exact same logic as the main feed:
+### Why #1: Why don’t you see the header on `/pulse/reels`?
+Because the page only renders `PersonalizedFeedHeader` when `!isFirstTime`.
 
-- **Profile Incomplete:** Show "Build Profile" button → navigates to `/dashboard`
-- **Profile Complete:** Show "View Profile" button → navigates to `/pulse/profile`
+### Why #2: Why is `isFirstTime` true for you (or for many users)?
+`useIsFirstTimeProvider()` defines first-time as: **no provider record OR provider exists but enrollments are empty**.
+
+### Why #3: Why does that hide the “Build Profile” path?
+Because the individual feeds use `PersonalizedFeedHeader` as the only place to surface the CTA, and it is gated behind `!isFirstTime`.
+
+### Why #4: Why doesn’t this happen on the main feed page?
+Because the main feed page always shows `ProfileBuildBanner` (when provider exists), which contains the CTA with the correct rules:
+- Incomplete → Build Profile → `/dashboard`
+- Complete → View Profile → `/pulse/profile`
+
+### Why #5: Why was the individual feeds implementation incomplete?
+We copied only the “returning user header” pattern (`PersonalizedFeedHeader`) into those pages, but did **not** replicate the “always visible CTA banner” (`ProfileBuildBanner`) pattern that the main feed uses to prevent users from getting lost.
+
+**Root cause:** The individual feed pages do not include `ProfileBuildBanner`, and they gate `PersonalizedFeedHeader` behind `!isFirstTime`, so first-time users never see any CTA/header.
 
 ---
 
-## Technical Implementation
+## Resolution approach (apply the same rules as main feed)
 
-For each of the 5 pages, the changes are identical:
+### Goal
+On each individual feed page (Reels, Sparks, Articles, Podcasts, Gallery), implement the same top-of-page structure as `PulseFeedPage.tsx`:
 
-### 1. Add Imports
+1) **ProfileBuildBanner**: show whenever `provider` exists (first-time or returning)
+2) **PersonalizedFeedHeader**: show only when `!isFirstTime && provider` (same as main feed)
+
+This ensures:
+- First-time users still see the “Build Profile” CTA (not lost)
+- Returning users see the personalized header + button behavior
+- No new rules introduced; this is literally the main-feed pattern reused
+
+---
+
+## Implementation plan (exact files and edits)
+
+### 1) Update each individual feed page to render `ProfileBuildBanner`
+**Files:**
+- `src/pages/pulse/PulseReelsPage.tsx`
+- `src/pages/pulse/PulseSparksPage.tsx`
+- `src/pages/pulse/PulseArticlesPage.tsx`
+- `src/pages/pulse/PulsePodcastsPage.tsx`
+- `src/pages/pulse/PulseGalleryPage.tsx`
+
+**Changes per file (consistent):**
+- Import `ProfileBuildBanner` from `@/components/pulse/layout` (or from layout index if already exported)
+- Use `provider` from `useIsFirstTimeProvider()` as the source of truth for `profileProgress` + `isProfileComplete`
+- Render this block at the top of the page content (before the page-specific header like “Reels / Sparks / …”):
 
 ```tsx
-import { useIsFirstTimeProvider } from '@/hooks/useIsFirstTimeProvider';
-import { PersonalizedFeedHeader } from '@/components/pulse/gamification';
+{provider && (
+  <div className="px-4 py-3 sm:py-4 border-b">
+    <ProfileBuildBanner
+      profileProgress={profileProgress}
+      isProfileComplete={isProfileComplete}
+    />
+  </div>
+)}
 ```
 
-### 2. Add Hook Call (after existing hooks)
+### 2) Keep `PersonalizedFeedHeader` but ensure it uses the same provider source
+Still render:
 
 ```tsx
-const { isFirstTime, provider } = useIsFirstTimeProvider();
-```
-
-### 3. Calculate Profile Progress
-
-```tsx
-const providerName = provider 
-  ? `${provider.first_name || ''} ${provider.last_name || ''}`.trim() || 'there'
-  : 'there';
-const profileProgress = provider?.profile_completion_percentage ?? 0;
-const isProfileComplete = profileProgress >= 100;
-```
-
-### 4. Add PersonalizedFeedHeader (inside main content div, before page header)
-
-```tsx
-{/* Personalized Header with Build/View Profile button */}
 {!isFirstTime && provider && (
   <PersonalizedFeedHeader
     providerId={provider.id}
@@ -67,46 +98,42 @@ const isProfileComplete = profileProgress >= 100;
 )}
 ```
 
----
+### 3) Reduce confusion between `useCurrentProvider()` and `useIsFirstTimeProvider()`
+Right now each page uses both:
+- `useCurrentProvider()` (provider used for PulseLayout `providerId`)
+- `useIsFirstTimeProvider()` (provider used for header computations)
 
-## Files to Modify
+This can cause “provider A / provider B” mismatch bugs and makes behavior harder to reason about.
 
-| File | Changes |
-|------|---------|
-| `src/pages/pulse/PulseReelsPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
-| `src/pages/pulse/PulsePodcastsPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
-| `src/pages/pulse/PulseSparksPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
-| `src/pages/pulse/PulseArticlesPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
-| `src/pages/pulse/PulseGalleryPage.tsx` | Add imports, hooks, and PersonalizedFeedHeader |
+**Plan:**
+- Prefer `provider` from `useIsFirstTimeProvider()` everywhere in these pages (including `PulseLayout providerId`), and remove the extra `useCurrentProvider()` call unless it’s needed for something else specific.
+- This aligns with `PulseFeedPage.tsx` which uses `useIsFirstTimeProvider()` as its single source of truth.
 
----
+### 4) Loading behavior (avoid flicker/missing header)
+Currently these pages only show skeletons based on `isLoading` from `usePulseFeed`, not provider/enrollment loading.
 
-## Layout Position
-
-The `PersonalizedFeedHeader` will appear at the top of the content area, before the existing page-specific header (title, description, share button):
-
-```text
-┌─────────────────────────────────────────────────────────┐
-│ [PulseQuickNav - tabs for Feed, Reels, etc.]            │
-├─────────────────────────────────────────────────────────┤
-│ [Avatar] Good morning, John! ✨     [Build Profile →]   │  ← NEW
-│   L2     Ready to dominate Healthcare?                   │
-│          [Lv 2] [1,500 XP] [3 day streak]               │
-├─────────────────────────────────────────────────────────┤
-│ 🎬 Reels                                    [Refresh]   │  ← Existing
-│ Short-form video content                                 │
-│ ┌─────────────────────────────────────────────────────┐ │
-│ │              Share a Reel                            │ │
-│ └─────────────────────────────────────────────────────┘ │
-├─────────────────────────────────────────────────────────┤
-│                     [Content list...]                    │
-└─────────────────────────────────────────────────────────┘
-```
+**Plan:**
+- Use `useIsFirstTimeProvider().isLoading` (or the two loading flags it returns) to avoid rendering the “no header” state while provider/enrollments are still loading.
+- Minimal change: if provider loading is true, don’t decide `isFirstTime` gating yet; show a small skeleton/banner placeholder or simply render nothing until provider state resolves. This prevents “header never shows” perception due to timing.
 
 ---
 
-## Expected Outcome
+## Acceptance criteria (how we’ll verify)
 
-1. **Consistent UX:** All 5 individual feed pages now show the same personalized header as the main feed
-2. **Discoverability:** Users always have a clear path to profile builder regardless of which feed they're viewing
-3. **Same Rules:** Button logic matches exactly: incomplete → "Build Profile" to `/dashboard`, complete → "View Profile" to `/pulse/profile`
+1) On `/pulse/reels`, `/pulse/sparks`, `/pulse/articles`, `/pulse/podcasts`, `/pulse/gallery`:
+   - If provider exists and profile < 100%: the top banner shows Build Profile CTA (routes to `/dashboard`)
+   - If provider exists and profile = 100%: the banner shows View Profile CTA (routes to `/pulse/profile`)
+2) Returning user (`isFirstTime=false`) still sees `PersonalizedFeedHeader` exactly as on main feed
+3) First-time user now sees the Build Profile path even on individual feeds (no longer “lost”)
+4) Mobile + tablet + desktop: no layout break, no horizontal overflow, CTA visible
+
+---
+
+## Notes (non-breaking, “no new rules” guarantee)
+
+- We are not inventing any new logic.
+- We are copying the existing, already-approved main-feed rules:
+  - `ProfileBuildBanner` = always visible CTA (when provider exists)
+  - `PersonalizedFeedHeader` = returning users only
+
+That is the simplest way to make the individual feeds behave exactly like the main feed and ensure the CTA is always discoverable.
