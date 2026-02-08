@@ -1,79 +1,128 @@
 
-# Fix: Pulse Header Not Visible on Feed Pages
+## What’s actually happening (based on evidence we can see)
+- Your report is: Pulse header is **always missing** on `/pulse/*` pages, which blocks “Build Profile” / navigation back to dashboard.
+- Code inspection shows `PulseLayout` **does** always render `<PulseHeader />` and `PulseHeader` itself always renders a `<header …>`.
+- That means the failure is not “missing render call” in code. It’s either:
+  1) The header is being **clipped/hidden** by a layout/scrolling/overflow stacking-context issue in the real preview environment, or  
+  2) A **runtime render failure** occurs in `PulseHeader` (or its dependencies) in your environment (but without surfacing logs to us right now), or  
+  3) A **layout-level overlay** is covering the top region (header exists but is not visible/clickable).
 
-## Problem Identified
-From your screenshot, the **PulseQuickNav** (Feed, Reels, Podcast tabs) appears at the very top of the page, but the **PulseHeader** (with Dashboard icon, "Pulse" branding, search, notifications, and avatar) is completely missing.
+Given you’ve already tried both `fixed` and `sticky-in-flex`, and you still see “no header at all”, this is a classic “CSS containment / stacking context / overflow clipping” issue. The only truly robust approach is to decouple the header from the layout tree.
 
-## Root Cause Analysis
-After extensive code review and browser testing:
+---
 
-1. **Code is correct**: The `PulseLayout` component unconditionally renders `<PulseHeader>` on line 48
-2. **Fixed positioning may be breaking in iframe context**: The header uses `fixed top-0 left-0 right-0 h-14 z-50` which can break in certain iframe/containment contexts
-3. **The content wrapper has `pt-14`** (line 58) which should provide space for the header, but if the header isn't rendering/showing, the content appears flush to top
+## 5 Whys (root-cause analysis)
+1. **Why can’t you navigate to dashboard / build profile?**  
+   Because the Pulse header row (dashboard exit + actions) is not visible on Pulse pages.
 
-## Why My Browser Test Shows Header But Yours Doesn't
-When I tested in the browser tool, the header was visible. This suggests the issue may be:
-- Specific to the Lovable preview iframe environment
-- Related to how the preview is embedded in the editor
-- A CSS containment or transform context issue breaking fixed positioning
+2. **Why is the Pulse header not visible even though `PulseLayout` renders it?**  
+   Because the header is being **hidden at the browser rendering/layout level** (clipped/overlaid) or failing to paint due to stacking context behavior.
 
-## Solution Approach
+3. **Why would it be clipped/overlaid?**  
+   Pulse pages use nested scroll containers (`overflow-auto`, `overflow-y-auto`, sticky sidebars, sticky quick nav). In some embedded/preview contexts, these create stacking contexts that can cause “top-of-viewport” elements to not appear as expected or be covered.
 
-### Strategy: Convert Header from Fixed to Sticky-in-Flex
-Instead of relying on `fixed` positioning (which can break in iframe contexts), we'll use a **sticky header within a flex container** pattern that's more robust:
+4. **Why did switching `fixed` → `sticky` not solve it permanently?**  
+   `sticky` depends on scroll containers and their overflow behavior; `fixed` depends on the nearest containing block (which can be altered by transforms/containment). In complex nested layouts, either can fail across environments.
 
-### Changes Required
+5. **Why is this recurring across iterations?**  
+   Because the implementation still relies on header positioning **inside** the same layout subtree that is continuously changing (retrofit/performance/scroll changes). We need a solution that is **insulated** from those layout changes.
 
-**File 1: `src/components/pulse/layout/PulseLayout.tsx`**
-```tsx
-// BEFORE (current)
-<div className="min-h-screen bg-background flex flex-col">
-  <PulseHeader ... />
-  <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
-    ...
-  </div>
-</div>
+**Root cause:** The Pulse header is coupled to a complex nested scroll/overflow layout and therefore is not reliably paintable/clickable across your preview environment.
 
-// AFTER (fixed)
-<div className="min-h-screen bg-background flex flex-col overflow-hidden">
-  {/* Header - sticky within flex container, not fixed */}
-  <div className="flex-shrink-0">
-    <PulseHeader ... />
-  </div>
-  
-  <div className="flex-1 overflow-auto pb-20 lg:pb-0">
-    {/* Remove pt-14 since header is in document flow */}
-    ...
-  </div>
-</div>
-```
+---
 
-**File 2: `src/components/pulse/layout/PulseHeader.tsx`**
-```tsx
-// BEFORE
-<header className="fixed top-0 left-0 right-0 h-14 bg-background/95 backdrop-blur-sm border-b border-border z-50">
+## Permanent fix (fool-proof approach)
+### Core strategy: render PulseHeader via a Portal (fixed to `document.body`)
+Instead of relying on `sticky` or `fixed` within the Pulse layout tree, we will:
+- Render a **portal-based** Pulse header into `document.body` (or a dedicated `#pulse-header-root`).
+- Use `position: fixed; top: 0; left: 0; right: 0; z-index: very high`.
+- Add a **layout spacer** so page content starts below the header (e.g., `padding-top: var(--pulse-header-height)`).
 
-// AFTER - Use sticky positioning instead of fixed
-<header className="sticky top-0 h-14 bg-background/95 backdrop-blur-sm border-b border-border z-50">
-```
+This avoids all clipping/overflow/stacking-context issues inside the page layout and is the most stable solution for iframe/editor contexts.
 
-### Why This Fix Works
-1. **Sticky positioning within flex** works reliably in all iframe contexts
-2. The header becomes part of the document flow, so it always renders
-3. The `flex-shrink-0` ensures the header never collapses
-4. The scroll happens in the content area below, keeping header always visible
+### Defense-in-depth: add a “Build Profile / Dashboard” fallback action in QuickNav and/or bottom nav
+Even after portalizing the header, we’ll add redundancy so navigation is never blocked again:
+- Add a small “Dashboard” item to `PulseQuickNav` (desktop).
+- Add a “Dashboard” option in the bottom nav overflow / user menu (mobile/tablet).
+This ensures that even if the header ever fails again, you still have an exit.
 
-### Files to Modify
-1. `src/components/pulse/layout/PulseLayout.tsx` - Restructure to flex-with-sticky pattern
-2. `src/components/pulse/layout/PulseHeader.tsx` - Change from `fixed` to `sticky`
+---
 
-### Also Need to Update (consistency)
-3. `src/components/pulse/layout/PulseLayoutFirstTime.tsx` - Apply same pattern for first-time users
+## Implementation details (what I will change)
+### 1) Create a dedicated `PulseHeaderPortal` wrapper component
+- New file: `src/components/pulse/layout/PulseHeaderPortal.tsx`
+  - Uses `createPortal` to render `<PulseHeader … />` into `document.body`
+  - Sets `style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000 }}` (or Tailwind `fixed inset-x-0 top-0 z-[1000]`)
+  - Measures header height and sets CSS variable `--pulse-header-height` on `document.documentElement`
+  - Handles SSR safety (guard against `typeof window === 'undefined'`)
 
-### Testing Checklist
-After implementation:
-- [ ] `/pulse/feed` - Header visible immediately with Dashboard icon, Pulse branding, search, notifications, avatar
-- [ ] `/pulse/sparks`, `/pulse/reels`, etc. - Header visible on all filtered pages
-- [ ] Scroll down - Header stays visible at top
-- [ ] Mobile view - Header + bottom nav both visible
-- [ ] "Build Profile" navigation accessible from header/sidebars
+### 2) Update `PulseLayout.tsx` to use the portal header and a spacer
+- Replace the inline header render with:
+  - `<PulseHeaderPortal … />`
+  - a spacer div: `<div style={{ height: 'var(--pulse-header-height, 56px)' }} />`
+- Remove any header-related sticky logic that can conflict.
+- Keep the rest of layout unchanged.
+
+### 3) Update `PulseLayoutFirstTime.tsx` similarly
+- Use `PulseHeaderFirstTime` via a portal wrapper as well, or reuse the same portal wrapper with a prop.
+
+### 4) Ensure header actions always exist for “Build Profile”
+Right now PulseHeader provides “Exit to Dashboard” plus menu items.
+To satisfy “Build Profile in header” explicitly, we will:
+- Add a visible CTA button in PulseHeader (desktop + mobile) when profile is incomplete:
+  - Label: “Build Profile”
+  - Action: navigate `/dashboard` (or `/enroll/registration` depending on your product flow)
+- This CTA should be guarded by provider profile completion percent if available; if not available, show “Dashboard” CTA.
+
+### 5) Add redundant dashboard navigation (non-negotiable resilience)
+- `src/components/pulse/layout/PulseQuickNav.tsx`: add item `{ path: '/dashboard', label: 'Dashboard' }` (desktop)
+- `src/components/pulse/layout/PulseBottomNav.tsx`: add a 6th item only if design allows, or add an overflow menu / long-press to open dashboard (preferred: add to user avatar menu already exists in header; but redundancy requires at least one non-header control too).
+
+### 6) Add targeted diagnostics (short-term; removable later)
+To stop “silent failures”, we’ll add:
+- A `data-testid="pulse-header"` on the header container
+- A one-time `logWarning` via your structured logger if portal mounting fails (e.g., document not available)
+This is minimal and aligned with your “fail loudly” standard.
+
+---
+
+## Verification (end-to-end and measurable)
+### Must-pass checks (desktop + mobile + tablet)
+1) Login → navigate to `/pulse/feed`
+   - Header is visible within 200ms
+   - Dashboard exit + “Build Profile” CTA visible
+2) Navigate to:
+   - `/pulse/reels`, `/pulse/podcasts`, `/pulse/sparks`, `/pulse/articles`, `/pulse/gallery`, `/pulse/cards`
+   - Header remains visible and clickable
+3) Scroll:
+   - Content scrolls under header; header stays fixed
+   - No overlap with QuickNav; QuickNav sits below header
+4) Click “Build Profile”
+   - Goes to `/dashboard` (or correct onboarding route)
+5) Regression:
+   - Enrollment wizard pages unchanged (they do not use Pulse layout)
+   - No new layout shifts / no horizontal overflow at breakpoints
+
+---
+
+## Why this is “fool-proof”
+- Portal + fixed-to-body removes the header from the nested overflow/sticky stacking contexts that keep breaking it.
+- Spacer uses a measured height so content never sits behind the header.
+- Redundant dashboard navigation ensures a single UI component failure can’t block the core flow again.
+
+---
+
+## Files expected to be changed/added
+- Add: `src/components/pulse/layout/PulseHeaderPortal.tsx` (new)
+- Edit: `src/components/pulse/layout/PulseLayout.tsx`
+- Edit: `src/components/pulse/layout/PulseLayoutFirstTime.tsx`
+- Edit: `src/components/pulse/layout/PulseHeader.tsx` (add “Build Profile” CTA + testid)
+- Edit: `src/components/pulse/layout/PulseQuickNav.tsx` (redundant Dashboard link)
+- (Optional) Edit: `src/components/pulse/layout/PulseBottomNav.tsx` (additional redundancy)
+
+---
+
+## Rollback plan (if needed)
+- Portal wrapper is isolated. If anything unexpected happens, we can revert PulseLayout to inline header rendering in one commit.
+- Redundant Dashboard link can remain regardless (it’s additive and safe).
+
