@@ -1,128 +1,179 @@
 
-## What’s actually happening (based on evidence we can see)
-- Your report is: Pulse header is **always missing** on `/pulse/*` pages, which blocks “Build Profile” / navigation back to dashboard.
-- Code inspection shows `PulseLayout` **does** always render `<PulseHeader />` and `PulseHeader` itself always renders a `<header …>`.
-- That means the failure is not “missing render call” in code. It’s either:
-  1) The header is being **clipped/hidden** by a layout/scrolling/overflow stacking-context issue in the real preview environment, or  
-  2) A **runtime render failure** occurs in `PulseHeader` (or its dependencies) in your environment (but without surfacing logs to us right now), or  
-  3) A **layout-level overlay** is covering the top region (header exists but is not visible/clickable).
 
-Given you’ve already tried both `fixed` and `sticky-in-flex`, and you still see “no header at all”, this is a classic “CSS containment / stacking context / overflow clipping” issue. The only truly robust approach is to decouple the header from the layout tree.
+# Fix Plan: Card-Level Read/Contributors Toggle for Pulse Cards
 
----
+## Understanding the Requirement
 
-## 5 Whys (root-cause analysis)
-1. **Why can’t you navigate to dashboard / build profile?**  
-   Because the Pulse header row (dashboard exit + actions) is not visible on Pulse pages.
+**Current behavior:** `/pulse/cards` shows a card stack where each card is a simple preview linking to `/pulse/cards/:cardId` for the detail view with Read/Contributors tabs.
 
-2. **Why is the Pulse header not visible even though `PulseLayout` renders it?**  
-   Because the header is being **hidden at the browser rendering/layout level** (clipped/overlaid) or failing to paint due to stacking context behavior.
+**Required behavior:** `/pulse/cards` shows a **list of cards** where **each card has its own Read/Contributors toggle inline**. Users can expand any card to see either the AI-synthesized narrative (Read) or individual contributions (Contributors) without navigating away.
 
-3. **Why would it be clipped/overlaid?**  
-   Pulse pages use nested scroll containers (`overflow-auto`, `overflow-y-auto`, sticky sidebars, sticky quick nav). In some embedded/preview contexts, these create stacking contexts that can cause “top-of-viewport” elements to not appear as expected or be covered.
+## Architecture
 
-4. **Why did switching `fixed` → `sticky` not solve it permanently?**  
-   `sticky` depends on scroll containers and their overflow behavior; `fixed` depends on the nearest containing block (which can be altered by transforms/containment). In complex nested layouts, either can fail across environments.
+```text
+PulseCardsPage
+├── Header (topic filter, New Card button)
+└── Card List (scrollable)
+    ├── PulseCardListItem #1
+    │   ├── Card Header (topic badge, stats)
+    │   ├── ViewModeToggle (Read | Contributors)  ← CARD-LEVEL
+    │   ├── CompiledView OR ContributorsView      ← Based on toggle
+    │   └── Actions (Improve, Flag)
+    ├── PulseCardListItem #2
+    │   ├── ViewModeToggle (Read | Contributors)  ← EACH CARD HAS ITS OWN
+    │   ├── CompiledView OR ContributorsView
+    │   └── Actions
+    └── ... more cards
+```
 
-5. **Why is this recurring across iterations?**  
-   Because the implementation still relies on header positioning **inside** the same layout subtree that is continuously changing (retrofit/performance/scroll changes). We need a solution that is **insulated** from those layout changes.
+## Root Cause of Current Issue
 
-**Root cause:** The Pulse header is coupled to a complex nested scroll/overflow layout and therefore is not reliably paintable/clickable across your preview environment.
+| Why | Finding |
+|-----|---------|
+| **Why 1** | Read/Contributors toggle not visible on `/pulse/cards` list |
+| **Why 2** | Current `PulseCard.tsx` shows only a quote/preview, not the dual-view |
+| **Why 3** | Dual-view (Read/Contributors) only exists in `PulseCardDetailPage.tsx` |
+| **Why 4** | Architecture treats list items as previews, not full wiki entries |
+| **Why 5** | **Root cause:** Need a new card list item component that embeds the dual-view toggle and content inline |
 
----
+## Solution
 
-## Permanent fix (fool-proof approach)
-### Core strategy: render PulseHeader via a Portal (fixed to `document.body`)
-Instead of relying on `sticky` or `fixed` within the Pulse layout tree, we will:
-- Render a **portal-based** Pulse header into `document.body` (or a dedicated `#pulse-header-root`).
-- Use `position: fixed; top: 0; left: 0; right: 0; z-index: very high`.
-- Add a **layout spacer** so page content starts below the header (e.g., `padding-top: var(--pulse-header-height)`).
+### Approach
+Create a new **`PulseCardListItem`** component that renders each card with:
+1. Topic header with stats (views, builds, shares)
+2. **Card-level** Read/Contributors toggle
+3. Full `CompiledView` or `ContributorsView` based on toggle state
+4. Actions (Improve this Knowledge, Flag)
+5. Each card independently manages its own view mode state
 
-This avoids all clipping/overflow/stacking-context issues inside the page layout and is the most stable solution for iframe/editor contexts.
+### Technical Changes
 
-### Defense-in-depth: add a “Build Profile / Dashboard” fallback action in QuickNav and/or bottom nav
-Even after portalizing the header, we’ll add redundancy so navigation is never blocked again:
-- Add a small “Dashboard” item to `PulseQuickNav` (desktop).
-- Add a “Dashboard” option in the bottom nav overflow / user menu (mobile/tablet).
-This ensures that even if the header ever fails again, you still have an exit.
+#### File 1: NEW `src/components/pulse/cards/PulseCardListItem.tsx`
+A new component that wraps a single card with its own view mode toggle:
 
----
+```tsx
+interface PulseCardListItemProps {
+  card: PulseCardType;
+  providerId?: string;
+  reputation?: number;
+  canVote: boolean;
+  canFlag: boolean;
+  canBuild: boolean;
+  onImprove: (cardId: string) => void;
+  onFlag: (cardId: string) => void;
+}
 
-## Implementation details (what I will change)
-### 1) Create a dedicated `PulseHeaderPortal` wrapper component
-- New file: `src/components/pulse/layout/PulseHeaderPortal.tsx`
-  - Uses `createPortal` to render `<PulseHeader … />` into `document.body`
-  - Sets `style={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1000 }}` (or Tailwind `fixed inset-x-0 top-0 z-[1000]`)
-  - Measures header height and sets CSS variable `--pulse-header-height` on `document.documentElement`
-  - Handles SSR safety (guard against `typeof window === 'undefined'`)
+// Component manages its own viewMode state (defaults to 'compiled')
+const [viewMode, setViewMode] = useState<ViewMode>('compiled');
 
-### 2) Update `PulseLayout.tsx` to use the portal header and a spacer
-- Replace the inline header render with:
-  - `<PulseHeaderPortal … />`
-  - a spacer div: `<div style={{ height: 'var(--pulse-header-height, 56px)' }} />`
-- Remove any header-related sticky logic that can conflict.
-- Keep the rest of layout unchanged.
+// Fetches layers for this specific card
+const { data: layers } = usePulseCardLayers(card.id);
 
-### 3) Update `PulseLayoutFirstTime.tsx` similarly
-- Use `PulseHeaderFirstTime` via a portal wrapper as well, or reuse the same portal wrapper with a prop.
+// Renders:
+// - Topic header with stats
+// - ViewModeToggle (controls this card only)
+// - CompiledView or ContributorsView based on toggle
+// - Improve/Flag actions
+```
 
-### 4) Ensure header actions always exist for “Build Profile”
-Right now PulseHeader provides “Exit to Dashboard” plus menu items.
-To satisfy “Build Profile in header” explicitly, we will:
-- Add a visible CTA button in PulseHeader (desktop + mobile) when profile is incomplete:
-  - Label: “Build Profile”
-  - Action: navigate `/dashboard` (or `/enroll/registration` depending on your product flow)
-- This CTA should be guarded by provider profile completion percent if available; if not available, show “Dashboard” CTA.
+**Key features:**
+- Each card has its own `useState<ViewMode>` - toggling one doesn't affect others
+- Uses `usePulseCardLayers(card.id)` to fetch layers for that card
+- Uses `useCompileCardNarrative` for Read view compilation
+- Inline `CompiledView` and `ContributorsView` - no navigation
 
-### 5) Add redundant dashboard navigation (non-negotiable resilience)
-- `src/components/pulse/layout/PulseQuickNav.tsx`: add item `{ path: '/dashboard', label: 'Dashboard' }` (desktop)
-- `src/components/pulse/layout/PulseBottomNav.tsx`: add a 6th item only if design allows, or add an overflow menu / long-press to open dashboard (preferred: add to user avatar menu already exists in header; but redundancy requires at least one non-header control too).
+#### File 2: UPDATE `src/pages/pulse/PulseCardsPage.tsx`
+Replace `PulseCardStack` with a scrollable list of `PulseCardListItem`:
 
-### 6) Add targeted diagnostics (short-term; removable later)
-To stop “silent failures”, we’ll add:
-- A `data-testid="pulse-header"` on the header container
-- A one-time `logWarning` via your structured logger if portal mounting fails (e.g., document not available)
-This is minimal and aligned with your “fail loudly” standard.
+```tsx
+// Replace PulseCardStack with:
+<ScrollArea className="flex-1">
+  <div className="space-y-6 p-4">
+    {cards.map((card) => (
+      <PulseCardListItem
+        key={card.id}
+        card={card}
+        providerId={provider?.id}
+        reputation={reputation?.total || 0}
+        canVote={reputation?.canVote ?? false}
+        canFlag={reputation?.canFlag ?? false}
+        canBuild={reputation?.canBuild ?? false}
+        onImprove={handleImprove}
+        onFlag={handleFlag}
+      />
+    ))}
+  </div>
+</ScrollArea>
+```
 
----
+#### File 3: UPDATE `src/components/pulse/cards/index.ts`
+Add export for new component:
+```tsx
+export { PulseCardListItem } from './PulseCardListItem';
+```
 
-## Verification (end-to-end and measurable)
-### Must-pass checks (desktop + mobile + tablet)
-1) Login → navigate to `/pulse/feed`
-   - Header is visible within 200ms
-   - Dashboard exit + “Build Profile” CTA visible
-2) Navigate to:
-   - `/pulse/reels`, `/pulse/podcasts`, `/pulse/sparks`, `/pulse/articles`, `/pulse/gallery`, `/pulse/cards`
-   - Header remains visible and clickable
-3) Scroll:
-   - Content scrolls under header; header stays fixed
-   - No overlap with QuickNav; QuickNav sits below header
-4) Click “Build Profile”
-   - Goes to `/dashboard` (or correct onboarding route)
-5) Regression:
-   - Enrollment wizard pages unchanged (they do not use Pulse layout)
-   - No new layout shifts / no horizontal overflow at breakpoints
+## Component Structure (PulseCardListItem)
 
----
+```text
+PulseCardListItem
+├── Card Container (border, rounded, shadow)
+│   ├── Header Row
+│   │   ├── Topic Badge + Stats (views, builds, shares)
+│   │   └── Flag Button
+│   │
+│   ├── ViewModeToggle (Read | Contributors)
+│   │   └── Card-level state: viewMode = 'compiled' | 'contributors'
+│   │
+│   ├── Content Area (animated transition)
+│   │   ├── IF viewMode === 'compiled':
+│   │   │   └── CompiledView (AI narrative, contributors, "Improve" CTA)
+│   │   └── IF viewMode === 'contributors':
+│   │       └── ContributorsView (layer cards, voting, "Build" button)
+│   │
+│   └── Footer (seed creator info)
+```
 
-## Why this is “fool-proof”
-- Portal + fixed-to-body removes the header from the nested overflow/sticky stacking contexts that keep breaking it.
-- Spacer uses a measured height so content never sits behind the header.
-- Redundant dashboard navigation ensures a single UI component failure can’t block the core flow again.
+## What Stays the Same (No Changes)
+- `ViewModeToggle.tsx` - Reused as-is (just used per-card now)
+- `CompiledView.tsx` - Reused as-is
+- `ContributorsView.tsx` - Reused as-is
+- `PulseCardDetailPage.tsx` - Direct links still work
+- `PulseCard.tsx` - Can be deprecated or used elsewhere
+- `PulseCardStack.tsx` - Can be deprecated (swipe replaced by scroll list)
+- All hooks (usePulseCards, usePulseCardLayers, useCompileCardNarrative, etc.)
+- Routing in App.tsx
+- PulseLayout, header, QuickNav - all preserved
 
----
+## Files to Create/Modify
 
-## Files expected to be changed/added
-- Add: `src/components/pulse/layout/PulseHeaderPortal.tsx` (new)
-- Edit: `src/components/pulse/layout/PulseLayout.tsx`
-- Edit: `src/components/pulse/layout/PulseLayoutFirstTime.tsx`
-- Edit: `src/components/pulse/layout/PulseHeader.tsx` (add “Build Profile” CTA + testid)
-- Edit: `src/components/pulse/layout/PulseQuickNav.tsx` (redundant Dashboard link)
-- (Optional) Edit: `src/components/pulse/layout/PulseBottomNav.tsx` (additional redundancy)
+| File | Action | Purpose |
+|------|--------|---------|
+| `src/components/pulse/cards/PulseCardListItem.tsx` | **CREATE** | New card item with inline Read/Contributors toggle |
+| `src/pages/pulse/PulseCardsPage.tsx` | **EDIT** | Use PulseCardListItem list instead of PulseCardStack |
+| `src/components/pulse/cards/index.ts` | **EDIT** | Export new component |
 
----
+## Testing Checklist
 
-## Rollback plan (if needed)
-- Portal wrapper is isolated. If anything unexpected happens, we can revert PulseLayout to inline header rendering in one commit.
-- Redundant Dashboard link can remain regardless (it’s additive and safe).
+After implementation:
+- [ ] `/pulse/cards` shows list of cards (not swipe stack)
+- [ ] Each card has its own Read/Contributors toggle
+- [ ] Toggling one card's view mode doesn't affect other cards
+- [ ] Read view shows AI-synthesized narrative with contributors
+- [ ] Contributors view shows individual layers with voting
+- [ ] "Improve this Knowledge" button opens CreateLayerDialog
+- [ ] Topic filter still works
+- [ ] "New Card" button still works
+- [ ] Direct link `/pulse/cards/:cardId` still works
+- [ ] Header and navigation remain fully functional
+- [ ] Scrolling works smoothly with multiple cards
+
+## Reference Image Match
+
+Matching your reference screenshot:
+- ✅ Topic header with view/build/share stats
+- ✅ "Read" tab (AI-synthesized narrative)
+- ✅ "Contributors" tab (individual contributions)
+- ✅ Contributor avatars with "View build history"
+- ✅ "Improve this Knowledge" dashed CTA button
+- ✅ Each card is self-contained with its own toggle
 
