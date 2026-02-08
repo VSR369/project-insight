@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { queryClient } from '@/lib/queryClient';
@@ -19,14 +19,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
+  
+  // Track whether the initial session has been resolved to prevent race conditions
+  const initialSessionResolved = useRef(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setLoading(false);
+      (event, newSession) => {
+        // Only process auth state changes after initial session is resolved
+        // This prevents the race condition where onAuthStateChange fires with null
+        // before getSession() completes, causing intermittent redirects
+        if (!initialSessionResolved.current) {
+          // During initial load, only update state if we get a valid session
+          // (this handles cases where onAuthStateChange fires before getSession)
+          if (newSession) {
+            setSession(newSession);
+            setUser(newSession.user);
+          }
+          return;
+        }
+
+        // After initial resolution, process all auth state changes normally
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
 
         // CRITICAL: Clear all cached data when auth state changes
         // This ensures fresh data fetch for new user (login) or clean state (logout)
@@ -44,10 +60,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // THEN check for existing session - this is the authoritative initial state
+    supabase.auth.getSession().then(({ data: { session: existingSession } }) => {
+      setSession(existingSession);
+      setUser(existingSession?.user ?? null);
+      // Mark initial session as resolved BEFORE setting loading to false
+      // This ensures onAuthStateChange won't cause race conditions
+      initialSessionResolved.current = true;
       setLoading(false);
     });
 
