@@ -43,19 +43,21 @@ export function PulseLayout({
   const { user } = useAuth();
   
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header - fixed at top */}
-      <PulseHeader 
-        isPrimaryPage={isPrimaryPage}
-        breadcrumb={breadcrumb}
-        hideActions={hideActions}
-        title={title} 
-        showBackButton={showBackButton} 
-        parentRoute={parentRoute} 
-      />
+    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
+      {/* Header - sticky within flex container for reliable iframe rendering */}
+      <div className="flex-shrink-0">
+        <PulseHeader 
+          isPrimaryPage={isPrimaryPage}
+          breadcrumb={breadcrumb}
+          hideActions={hideActions}
+          title={title} 
+          showBackButton={showBackButton} 
+          parentRoute={parentRoute} 
+        />
+      </div>
       
       {/* Main content wrapper - responsive three-column layout */}
-      <div className="flex-1 overflow-hidden pt-14 pb-20 lg:pb-0">
+      <div className="flex-1 overflow-auto pb-20 lg:pb-0">
         <div className="flex h-full">
           {/* Left Sidebar - hidden on mobile/tablet, visible on lg desktop */}
           {showSidebars && (
