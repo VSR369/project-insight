@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 import { PulseHeaderFirstTime } from './PulseHeaderFirstTime';
+import { PulseHeaderPortal, PulseHeaderSpacer } from './PulseHeaderPortal';
 
 interface PulseLayoutFirstTimeProps {
   children: ReactNode;
@@ -14,11 +15,14 @@ interface PulseLayoutFirstTimeProps {
  */
 export function PulseLayoutFirstTime({ children }: PulseLayoutFirstTimeProps) {
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
-      {/* Header - sticky within flex container for reliable iframe rendering */}
-      <div className="flex-shrink-0">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header - rendered via portal to document.body for reliable visibility */}
+      <PulseHeaderPortal>
         <PulseHeaderFirstTime />
-      </div>
+      </PulseHeaderPortal>
+      
+      {/* Spacer to reserve space for the fixed portal header */}
+      <PulseHeaderSpacer />
       
       {/* Main content - scrollable */}
       <main className="flex-1 overflow-auto">

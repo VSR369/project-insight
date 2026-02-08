@@ -1,8 +1,9 @@
-import { Flame, Video, Mic, Zap, FileText, Images, Layers } from 'lucide-react';
+import { Flame, Video, Mic, Zap, FileText, Images, Layers, LayoutDashboard } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
+  { path: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, isExternal: true },
   { path: '/pulse/feed', label: 'Feed', icon: Flame },
   { path: '/pulse/reels', label: 'Reels', icon: Video },
   { path: '/pulse/podcasts', label: 'Podcast', icon: Mic },
@@ -22,7 +23,8 @@ export function PulseQuickNav() {
       role="navigation"
     >
       {NAV_ITEMS.map((item) => {
-        const isActive = location.pathname.startsWith(item.path);
+        // For dashboard link, never show as "active" since it's external to Pulse
+        const isActive = item.isExternal ? false : location.pathname.startsWith(item.path);
         const Icon = item.icon;
 
         return (

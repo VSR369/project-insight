@@ -4,6 +4,7 @@ import { PulseHeader } from './PulseHeader';
 import { PulseQuickNav } from './PulseQuickNav';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
+import { PulseHeaderPortal, PulseHeaderSpacer } from './PulseHeaderPortal';
 import { useAuth } from '@/hooks/useAuth';
 
 interface BreadcrumbConfig {
@@ -43,9 +44,9 @@ export function PulseLayout({
   const { user } = useAuth();
   
   return (
-    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
-      {/* Header - sticky within flex container for reliable iframe rendering */}
-      <div className="flex-shrink-0">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header - rendered via portal to document.body for reliable visibility */}
+      <PulseHeaderPortal>
         <PulseHeader 
           isPrimaryPage={isPrimaryPage}
           breadcrumb={breadcrumb}
@@ -54,14 +55,17 @@ export function PulseLayout({
           showBackButton={showBackButton} 
           parentRoute={parentRoute} 
         />
-      </div>
+      </PulseHeaderPortal>
+      
+      {/* Spacer to reserve space for the fixed portal header */}
+      <PulseHeaderSpacer />
       
       {/* Main content wrapper - responsive three-column layout */}
       <div className="flex-1 overflow-auto pb-20 lg:pb-0">
         <div className="flex h-full">
           {/* Left Sidebar - hidden on mobile/tablet, visible on lg desktop */}
           {showSidebars && (
-            <aside className="hidden lg:flex flex-col w-56 xl:w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
+            <aside className="hidden lg:flex flex-col w-56 xl:w-64 2xl:w-72 flex-shrink-0 border-r overflow-y-auto h-[calc(100vh-56px)] sticky top-0">
               <LeftSidebar providerId={providerId} userId={user?.id} isFirstTime={isFirstTime} />
             </aside>
           )}
@@ -79,7 +83,7 @@ export function PulseLayout({
           
           {/* Right Sidebar - hidden on mobile/tablet, visible on lg desktop */}
           {showSidebars && (
-            <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 border-l overflow-y-auto h-[calc(100vh-56px)] sticky top-14">
+            <aside className="hidden lg:flex flex-col w-72 xl:w-80 flex-shrink-0 border-l overflow-y-auto h-[calc(100vh-56px)] sticky top-0">
               <RightSidebar providerId={providerId} isFirstTime={isFirstTime} />
             </aside>
           )}

@@ -11,7 +11,7 @@ export function PulseHeaderFirstTime() {
   const navigate = useNavigate();
 
   return (
-    <header className="sticky top-0 h-14 bg-background/95 backdrop-blur-sm border-b border-border z-50">
+    <header className="h-14 bg-background/95 backdrop-blur-sm border-b border-border" data-testid="pulse-header-first-time">
       <div className="h-full max-w-lg mx-auto px-4 flex items-center justify-between">
         {/* Left section - Pulse branding */}
         <div className="flex items-center gap-2">
