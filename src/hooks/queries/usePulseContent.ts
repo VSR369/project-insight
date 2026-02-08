@@ -2,6 +2,7 @@
  * Industry Pulse Content Hooks
  * CRUD operations for pulse_content table with React Query
  * Per Project Knowledge standards
+ * PERFORMANCE: Uses visibility-aware polling to pause when tab is hidden
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,6 +11,7 @@ import { handleMutationError } from "@/lib/errorHandler";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { toast } from "sonner";
 import { PULSE_QUERY_KEYS, PULSE_POLLING_INTERVALS } from "@/constants/pulse.constants";
+import { useVisibilityPollingInterval } from "@/lib/useVisibilityPolling";
 import type { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 
 // =====================================================
@@ -60,14 +62,30 @@ export function usePulseFeed(filters: FeedFilters = {}) {
   const limit = filters.limit ?? 20;
   const offset = filters.offset ?? 0;
 
+  // PERFORMANCE: Pause polling when tab is hidden
+  const refetchInterval = useVisibilityPollingInterval(PULSE_POLLING_INTERVALS.FEED_MS);
+
   return useQuery({
-    // Use primitives only - never pass object reference to queryKey
-    queryKey: [PULSE_QUERY_KEYS.feed, contentType ?? 'all', limit, offset],
+    // Use ALL filter primitives to prevent cache collisions across different pages
+    queryKey: [
+      PULSE_QUERY_KEYS.feed,
+      contentType ?? 'all',
+      providerId ?? 'all',
+      industrySegmentId ?? 'all',
+      tagId ?? 'all',
+      limit,
+      offset,
+    ],
     queryFn: async () => {
+      // Explicit column selection (per project knowledge: "Never SELECT *")
       let query = supabase
         .from("pulse_content")
         .select(`
-          *,
+          id, provider_id, content_type, content_status, created_at, updated_at,
+          caption, title, headline, key_insight, body_text,
+          media_urls, cover_image_url, duration_seconds,
+          fire_count, comment_count, gold_count, save_count,
+          industry_segment_id,
           provider:solution_providers!pulse_content_provider_id_fkey(id, first_name, last_name),
           industry_segment:industry_segments!pulse_content_industry_segment_id_fkey(id, name),
           tags:pulse_content_tags(tag:pulse_tags(id, name))
@@ -91,7 +109,7 @@ export function usePulseFeed(filters: FeedFilters = {}) {
       if (error) throw new Error(error.message);
       return data as PulseContentWithProvider[];
     },
-    refetchInterval: PULSE_POLLING_INTERVALS.FEED_MS,
+    refetchInterval,
     staleTime: 10 * 1000, // 10 seconds
   });
 }

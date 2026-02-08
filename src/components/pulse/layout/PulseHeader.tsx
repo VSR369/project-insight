@@ -52,7 +52,8 @@ export function PulseHeader({
   // Use context provider to avoid duplicate queries (EnrollmentContext already fetches this)
   const enrollmentContext = useOptionalEnrollmentContext();
   const providerId = enrollmentContext?.provider?.id;
-  const { data: unreadCount = 0 } = useUnreadNotificationCount(providerId);
+  // PERFORMANCE: Only fetch notifications if provider exists (prevents wasted queries)
+  const { data: unreadCount = 0 } = useUnreadNotificationCount(providerId ?? undefined);
 
   // User initials for avatar
   const firstName = user?.user_metadata?.first_name || '';
