@@ -5,6 +5,7 @@
 // Core components
 export { PulseCard } from './PulseCard';
 export { PulseCardStack } from './PulseCardStack';
+export { PulseCardListItem } from './PulseCardListItem';
 export { PulseCardLayer } from './PulseCardLayer';
 export { CardVoteButton } from './CardVoteButton';
 export { ReputationBadge } from './ReputationBadge';
