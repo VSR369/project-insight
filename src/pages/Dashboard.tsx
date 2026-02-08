@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -68,9 +69,13 @@ export default function Dashboard() {
   const { data: provider, isLoading } = useCurrentProvider();
   const { data: enrollments = [], isLoading: enrollmentsLoading } = useProviderEnrollments(provider?.id);
   const enrollmentContext = useOptionalEnrollmentContext();
+  
+  // CRITICAL: Check if context is fully available before using setters
+  // This prevents no-op navigation when context is temporarily unavailable
+  const isContextAvailable = !!enrollmentContext && !!enrollmentContext.setActiveEnrollment;
   const activeEnrollment = enrollmentContext?.activeEnrollment ?? null;
   const activeEnrollmentId = enrollmentContext?.activeEnrollmentId ?? null;
-  const setActiveEnrollment = enrollmentContext?.setActiveEnrollment ?? (() => {});
+  
   const { data: enrollmentProficiencyAreas } = useEnrollmentProficiencyAreas(activeEnrollmentId ?? undefined);
   const { data: proofPoints = [] } = useProofPoints(provider?.id);
   const { data: participationModes = [] } = useParticipationModes();
@@ -206,9 +211,14 @@ export default function Dashboard() {
   // NOTE: Removed auto-redirect - Dashboard now shows for all users
   // Users can see their enrollment status and manually continue enrollment
 
-  // Handle enrollment switch
+  // Handle enrollment switch - with context availability check
   const handleEnrollmentSwitch = (enrollmentId: string) => {
-    setActiveEnrollment(enrollmentId);
+    if (!isContextAvailable) {
+      // Context not ready - log warning and let user retry
+      console.warn('[Dashboard] EnrollmentContext unavailable during switch');
+      return;
+    }
+    enrollmentContext.setActiveEnrollment(enrollmentId);
   };
 
 
@@ -217,7 +227,14 @@ export default function Dashboard() {
     const enrollment = enrollments.find(e => e.id === enrollmentId);
     if (!enrollment) return;
     
-    setActiveEnrollment(enrollmentId);
+    // CRITICAL: Ensure context is available before navigation
+    // Prevents routing to wizard without properly set enrollment
+    if (!isContextAvailable) {
+      toast.error('Please wait for the page to fully load, then try again.');
+      return;
+    }
+    
+    enrollmentContext.setActiveEnrollment(enrollmentId);
     
     // UI Guard: Check if registration is incomplete (force Step 1)
     // Registration is considered incomplete if key profile fields are missing
@@ -251,7 +268,11 @@ export default function Dashboard() {
 
   // Navigate to first step for reviewing enrollment (always starts at step 1)
   const handleReviewEnrollment = (enrollmentId: string) => {
-    setActiveEnrollment(enrollmentId);
+    if (!isContextAvailable) {
+      toast.error('Please wait for the page to fully load, then try again.');
+      return;
+    }
+    enrollmentContext.setActiveEnrollment(enrollmentId);
     navigate('/enroll/registration');
   };
 

@@ -40,14 +40,19 @@ export function RoleBasedRedirect() {
       // Check sessionStorage for cached portal preference
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
 
-      // Fetch roles and records to validate cached portal or determine new one
-      const [rolesResult, providerResult, reviewerResult, enrollmentsResult] = await Promise.all([
+      // Fetch roles and provider/reviewer records in parallel
+      // NOTE: Enrollments fetched separately to reuse provider ID (avoids double-fetch)
+      const [rolesResult, providerResult, reviewerResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
-        // Also fetch enrollments to determine first-time provider status
-        supabase.from('provider_industry_enrollments').select('id').eq('provider_id', (await supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle()).data?.id || '').limit(1),
       ]);
+
+      // Fetch enrollments only if provider exists (reuse provider ID, no duplicate query)
+      const providerId = providerResult.data?.id;
+      const enrollmentsResult = providerId
+        ? await supabase.from('provider_industry_enrollments').select('id').eq('provider_id', providerId).limit(1)
+        : { data: [] };
 
       const roles = rolesResult.data;
       const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
