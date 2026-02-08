@@ -126,3 +126,12 @@ export function useAuth() {
   }
   return context;
 }
+
+/**
+ * Optional variant of useAuth that returns null instead of throwing
+ * when used outside AuthProvider context. Use this in components that
+ * may render during ErrorBoundary recovery or other edge cases.
+ */
+export function useOptionalAuth(): AuthContextType | null {
+  return useContext(AuthContext) ?? null;
+}

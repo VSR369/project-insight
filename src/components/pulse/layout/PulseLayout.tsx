@@ -5,7 +5,7 @@ import { PulseQuickNav } from './PulseQuickNav';
 import { LeftSidebar } from './LeftSidebar';
 import { RightSidebar } from './RightSidebar';
 import { PulseHeaderPortal, PulseHeaderSpacer } from './PulseHeaderPortal';
-import { useAuth } from '@/hooks/useAuth';
+import { useOptionalAuth } from '@/hooks/useAuth';
 
 interface BreadcrumbConfig {
   parentLabel: string;
@@ -41,7 +41,9 @@ export function PulseLayout({
   isFirstTime = false,
   showSidebars = true
 }: PulseLayoutProps) {
-  const { user } = useAuth();
+  // Use optional auth to prevent crashes during ErrorBoundary recovery
+  const auth = useOptionalAuth();
+  const user = auth?.user ?? null;
   
   // Track whether the portal is active to enable fallback rendering
   const [portalActive, setPortalActive] = useState(true);
