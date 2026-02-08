@@ -1,179 +1,125 @@
 
+Goal: Make the Pulse header reliably visible on all Pulse feed screens (/pulse/feed, /pulse/reels, /pulse/podcasts, /pulse/sparks, /pulse/articles, /pulse/gallery, /pulse/cards) without breaking any other navigation, headers, or functionality.
 
-# Fix Plan: Card-Level Read/Contributors Toggle for Pulse Cards
+What we now know (from direct inspection)
+- When the issue is reproduced, you sometimes see Pulse content but no header (“Pulse content (no header)”).
+- Auth persistence is inconsistent (“Sometimes” stays signed in across refresh).
+- In the agent’s browser run:
+  - When not authenticated, /pulse/sparks shows the Login screen (expected due to AuthGuard).
+  - After Quick Login, /pulse/feed shows a visible Pulse top bar (Exit to Dashboard, Pulse, Search, Notifications, initials button).
+  - But DOM checks for data-testid="pulse-header-portal" and "pulse-header" returned null even while a header-like UI was visible.
+    - This strongly suggests we sometimes end up in a state where the visible “top bar” is not the portal header we expect (or the portal header is being mounted/unmounted in a way that makes it unreliable).
+    - Combined with “auth sometimes persists, sometimes not”, the most likely root cause is an auth initialization race that intermittently causes route-level remounts and/or redirects, which can prevent the header portal from stabilizing.
 
-## Understanding the Requirement
+Root cause analysis (5 whys)
+1) Why is the header missing on Pulse feed pages?
+   - Because the component responsible for rendering it (PulseLayout → PulseHeaderPortal → PulseHeader) is intermittently not present/visible in the final rendered state.
 
-**Current behavior:** `/pulse/cards` shows a card stack where each card is a simple preview linking to `/pulse/cards/:cardId` for the detail view with Read/Contributors tabs.
+2) Why would PulseLayout be present (content visible) but header not?
+   - Because the header is rendered through a portal and depends on correct mount timing + stable DOM target. If the app briefly redirects/remounts due to auth state, the portal can fail to attach or can be removed during cleanup. Also, route-level nested scrolling/stacking contexts can still interfere if the portal target is not consistently used.
 
-**Required behavior:** `/pulse/cards` shows a **list of cards** where **each card has its own Read/Contributors toggle inline**. Users can expand any card to see either the AI-synthesized narrative (Read) or individual contributions (Contributors) without navigating away.
+3) Why would auth state cause remount/redirect loops intermittently?
+   - Current AuthProvider sets loading=false in the onAuthStateChange callback immediately, while also calling getSession asynchronously. In some environments, the initial auth event can be “INITIAL_SESSION” with null, causing AuthGuard to think auth is “done and unauthenticated” and redirect, then shortly after getSession returns a valid session and the app flips back. This produces non-deterministic UI results (especially across refresh/deep links).
 
-## Architecture
+4) Why does this show up “sometimes” across refresh?
+   - Storage/cookie policies and timing differ per browser/tab/refresh, especially in preview environments and when users switch between Preview URL vs Published URL origins.
 
-```text
-PulseCardsPage
-├── Header (topic filter, New Card button)
-└── Card List (scrollable)
-    ├── PulseCardListItem #1
-    │   ├── Card Header (topic badge, stats)
-    │   ├── ViewModeToggle (Read | Contributors)  ← CARD-LEVEL
-    │   ├── CompiledView OR ContributorsView      ← Based on toggle
-    │   └── Actions (Improve, Flag)
-    ├── PulseCardListItem #2
-    │   ├── ViewModeToggle (Read | Contributors)  ← EACH CARD HAS ITS OWN
-    │   ├── CompiledView OR ContributorsView
-    │   └── Actions
-    └── ... more cards
-```
+5) Root cause
+   - The Pulse header visibility bug is driven by a combination of (A) auth initialization race / inconsistent session persistence causing intermittent remount/redirect cycles, and (B) header portal attachment not being anchored to a stable, dedicated DOM node, making it vulnerable during those cycles.
 
-## Root Cause of Current Issue
+Non-negotiable constraints
+- Do not break any existing Pulse navigation (QuickNav, BottomNav), enrollment flows, or other headers/layouts.
+- Keep portal-based approach (it’s still the correct strategy), but make it resilient to auth/state and DOM target issues.
 
-| Why | Finding |
-|-----|---------|
-| **Why 1** | Read/Contributors toggle not visible on `/pulse/cards` list |
-| **Why 2** | Current `PulseCard.tsx` shows only a quote/preview, not the dual-view |
-| **Why 3** | Dual-view (Read/Contributors) only exists in `PulseCardDetailPage.tsx` |
-| **Why 4** | Architecture treats list items as previews, not full wiki entries |
-| **Why 5** | **Root cause:** Need a new card list item component that embeds the dual-view toggle and content inline |
+Implementation plan (safe, incremental, defense-in-depth)
 
-## Solution
+Phase 1 — Make auth initialization deterministic (prevents intermittent remount/redirect)
+1) Update src/hooks/useAuth.tsx to eliminate the “initial session race”:
+   - Introduce an internal “initialSessionResolved” flag/ref.
+   - On mount:
+     a) Call supabase.auth.getSession() first (or concurrently) and ONLY set loading=false after it resolves.
+     b) Register onAuthStateChange, but do not allow it to flip loading=false before initial session resolution is complete.
+   - Ensure we do not briefly set loading=false with user=null in the middle of startup if a session exists.
+   - Preserve current behavior for queryClient.clear() on SIGNED_IN / SIGNED_OUT (keep), but ensure it doesn’t run for INITIAL_SESSION unless truly appropriate.
 
-### Approach
-Create a new **`PulseCardListItem`** component that renders each card with:
-1. Topic header with stats (views, builds, shares)
-2. **Card-level** Read/Contributors toggle
-3. Full `CompiledView` or `ContributorsView` based on toggle state
-4. Actions (Improve this Knowledge, Flag)
-5. Each card independently manages its own view mode state
+Expected outcome:
+- AuthGuard won’t intermittently redirect away from /pulse/* during startup when a valid session exists.
+- PulseLayout mount becomes stable, which is foundational for stable portal header behavior.
 
-### Technical Changes
+Phase 2 — Make the header portal anchor stable and idempotent
+2) Update src/components/pulse/layout/PulseHeaderPortal.tsx:
+   - Create/use a dedicated portal root element:
+     - Ensure a single <div id="pulse-header-root" /> is appended to document.body (create if missing).
+     - Render the portal into that node instead of document.body directly.
+   - Make portal mounting idempotent across remounts:
+     - Do not remove the root element on unmount (or only remove it if created by this instance and no other instance is using it; simplest safe approach: keep it).
+   - Use useLayoutEffect for measurement/variable setting so header height is established before paint as much as possible.
+   - Add lightweight structured logging (logWarning) only when:
+     - window/document unavailable
+     - portal root cannot be created
+     - ResizeObserver not available (fallback to window resize)
 
-#### File 1: NEW `src/components/pulse/cards/PulseCardListItem.tsx`
-A new component that wraps a single card with its own view mode toggle:
+Expected outcome:
+- Even if the Pulse route tree remounts, the portal has a stable target and will reattach reliably.
 
-```tsx
-interface PulseCardListItemProps {
-  card: PulseCardType;
-  providerId?: string;
-  reputation?: number;
-  canVote: boolean;
-  canFlag: boolean;
-  canBuild: boolean;
-  onImprove: (cardId: string) => void;
-  onFlag: (cardId: string) => void;
-}
+Phase 3 — Add an inline “last resort” fallback without duplicating UX
+3) Enhance PulseLayout to provide an inline header fallback when portal is not present:
+   - Keep the portal header (primary).
+   - Add a tiny runtime check that confirms the portal root contains content after mount; if not, render PulseHeader inline at the top of the layout (as a safety net).
+   - This fallback must:
+     - be visually identical
+     - not render twice (portal + inline simultaneously)
+     - be constrained to Pulse routes only (PulseLayout / PulseLayoutFirstTime)
 
-// Component manages its own viewMode state (defaults to 'compiled')
-const [viewMode, setViewMode] = useState<ViewMode>('compiled');
+Implementation detail:
+- In PulseHeaderPortal, expose a boolean callback/prop like onPortalStatusChange(isActive).
+- In PulseLayout, track portalActive state:
+  - portalActive=true → render spacer only
+  - portalActive=false → render inline header + spacer (or render inline header in-flow and skip spacer)
+This avoids duplicate headers and ensures “header always visible” even if portal fails.
 
-// Fetches layers for this specific card
-const { data: layers } = usePulseCardLayers(card.id);
+Phase 4 — Verify all Pulse feed pages are using PulseLayout and not bypassing it
+4) Audit each Pulse feed page (Feed/Reels/Podcasts/Sparks/Articles/Gallery/Cards) for early returns that bypass PulseLayout:
+   - Ensure “shell-first pattern” is preserved: PulseLayout should render even on loading/error states.
+   - PulseFeedPage already follows this for error; verify others too.
+   - Ensure no conditional returns happen before rendering PulseLayout in any of those pages.
 
-// Renders:
-// - Topic header with stats
-// - ViewModeToggle (controls this card only)
-// - CompiledView or ContributorsView based on toggle
-// - Improve/Flag actions
-```
+Phase 5 — Reproduce + validate across the exact failure modes you described
+5) Test scenarios (must pass):
+   - While signed in:
+     - Navigate across all Pulse tabs repeatedly (Feed → Sparks → Cards → Feed…)
+     - Header visible every time; actions work
+   - Refresh (F5) on each Pulse route:
+     - /pulse/feed, /pulse/sparks, /pulse/cards, etc.
+     - If session exists, do not show login and do not lose header
+   - Deep link open in a new tab:
+     - /pulse/cards directly
+   - Sign out from header, then sign back in:
+     - Header returns reliably
+   - Mobile/tablet breakpoints:
+     - header fixed and bottom nav both visible and not overlapping content
 
-**Key features:**
-- Each card has its own `useState<ViewMode>` - toggling one doesn't affect others
-- Uses `usePulseCardLayers(card.id)` to fetch layers for that card
-- Uses `useCompileCardNarrative` for Read view compilation
-- Inline `CompiledView` and `ContributorsView` - no navigation
+Risk controls / “do not break other features”
+- All changes are localized to:
+  - AuthProvider initialization behavior (useAuth.tsx) — affects entire app but in a controlled way (reduces flicker/redirect races).
+  - PulseHeaderPortal and PulseLayout fallback logic — scoped to Pulse module.
+- No changes to routing table in App.tsx.
+- No changes to QuickNav/BottomNav behavior (they remain redundancy paths).
+- No changes to Supabase policies or backend.
 
-#### File 2: UPDATE `src/pages/pulse/PulseCardsPage.tsx`
-Replace `PulseCardStack` with a scrollable list of `PulseCardListItem`:
+Deliverables (files to change)
+- src/hooks/useAuth.tsx
+  - Deterministic initial session resolution; prevent loading=false too early.
+- src/components/pulse/layout/PulseHeaderPortal.tsx
+  - Dedicated portal root (#pulse-header-root), idempotent mounting, useLayoutEffect height measurement, robust fallbacks/logging.
+- src/components/pulse/layout/PulseLayout.tsx
+  - Portal-active detection and inline fallback header rendering (no duplicates).
+- src/components/pulse/layout/PulseLayoutFirstTime.tsx
+  - Same portal-active + fallback logic for the first-time layout.
+- (Audit-only) Pulse feed pages:
+  - Confirm no early returns bypass PulseLayout; adjust only if found.
 
-```tsx
-// Replace PulseCardStack with:
-<ScrollArea className="flex-1">
-  <div className="space-y-6 p-4">
-    {cards.map((card) => (
-      <PulseCardListItem
-        key={card.id}
-        card={card}
-        providerId={provider?.id}
-        reputation={reputation?.total || 0}
-        canVote={reputation?.canVote ?? false}
-        canFlag={reputation?.canFlag ?? false}
-        canBuild={reputation?.canBuild ?? false}
-        onImprove={handleImprove}
-        onFlag={handleFlag}
-      />
-    ))}
-  </div>
-</ScrollArea>
-```
-
-#### File 3: UPDATE `src/components/pulse/cards/index.ts`
-Add export for new component:
-```tsx
-export { PulseCardListItem } from './PulseCardListItem';
-```
-
-## Component Structure (PulseCardListItem)
-
-```text
-PulseCardListItem
-├── Card Container (border, rounded, shadow)
-│   ├── Header Row
-│   │   ├── Topic Badge + Stats (views, builds, shares)
-│   │   └── Flag Button
-│   │
-│   ├── ViewModeToggle (Read | Contributors)
-│   │   └── Card-level state: viewMode = 'compiled' | 'contributors'
-│   │
-│   ├── Content Area (animated transition)
-│   │   ├── IF viewMode === 'compiled':
-│   │   │   └── CompiledView (AI narrative, contributors, "Improve" CTA)
-│   │   └── IF viewMode === 'contributors':
-│   │       └── ContributorsView (layer cards, voting, "Build" button)
-│   │
-│   └── Footer (seed creator info)
-```
-
-## What Stays the Same (No Changes)
-- `ViewModeToggle.tsx` - Reused as-is (just used per-card now)
-- `CompiledView.tsx` - Reused as-is
-- `ContributorsView.tsx` - Reused as-is
-- `PulseCardDetailPage.tsx` - Direct links still work
-- `PulseCard.tsx` - Can be deprecated or used elsewhere
-- `PulseCardStack.tsx` - Can be deprecated (swipe replaced by scroll list)
-- All hooks (usePulseCards, usePulseCardLayers, useCompileCardNarrative, etc.)
-- Routing in App.tsx
-- PulseLayout, header, QuickNav - all preserved
-
-## Files to Create/Modify
-
-| File | Action | Purpose |
-|------|--------|---------|
-| `src/components/pulse/cards/PulseCardListItem.tsx` | **CREATE** | New card item with inline Read/Contributors toggle |
-| `src/pages/pulse/PulseCardsPage.tsx` | **EDIT** | Use PulseCardListItem list instead of PulseCardStack |
-| `src/components/pulse/cards/index.ts` | **EDIT** | Export new component |
-
-## Testing Checklist
-
-After implementation:
-- [ ] `/pulse/cards` shows list of cards (not swipe stack)
-- [ ] Each card has its own Read/Contributors toggle
-- [ ] Toggling one card's view mode doesn't affect other cards
-- [ ] Read view shows AI-synthesized narrative with contributors
-- [ ] Contributors view shows individual layers with voting
-- [ ] "Improve this Knowledge" button opens CreateLayerDialog
-- [ ] Topic filter still works
-- [ ] "New Card" button still works
-- [ ] Direct link `/pulse/cards/:cardId` still works
-- [ ] Header and navigation remain fully functional
-- [ ] Scrolling works smoothly with multiple cards
-
-## Reference Image Match
-
-Matching your reference screenshot:
-- ✅ Topic header with view/build/share stats
-- ✅ "Read" tab (AI-synthesized narrative)
-- ✅ "Contributors" tab (individual contributions)
-- ✅ Contributor avatars with "View build history"
-- ✅ "Improve this Knowledge" dashed CTA button
-- ✅ Each card is self-contained with its own toggle
-
+Success criteria (what “fixed” means)
+- Header is visible on all Pulse feed screens 100% of the time after navigation and after refresh, as long as the user is authenticated.
+- When authentication is lost/expired, the user is redirected to login (expected), and once logged in again, the header appears reliably.
+- No double-header rendering; no broken spacing; no new horizontal scroll; no regression in Pulse navigation or enrollment flows.
