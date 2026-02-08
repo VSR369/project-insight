@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState, useCallback } from 'react';
 import { PulseBottomNav } from './PulseBottomNav';
 import { PulseHeader } from './PulseHeader';
 import { PulseQuickNav } from './PulseQuickNav';
@@ -43,21 +43,40 @@ export function PulseLayout({
 }: PulseLayoutProps) {
   const { user } = useAuth();
   
+  // Track whether the portal is active to enable fallback rendering
+  const [portalActive, setPortalActive] = useState(true);
+  
+  const handlePortalStatusChange = useCallback((isActive: boolean) => {
+    setPortalActive(isActive);
+  }, []);
+
+  // Header component (reused for both portal and fallback)
+  const headerContent = (
+    <PulseHeader 
+      isPrimaryPage={isPrimaryPage}
+      breadcrumb={breadcrumb}
+      hideActions={hideActions}
+      title={title} 
+      showBackButton={showBackButton} 
+      parentRoute={parentRoute} 
+    />
+  );
+  
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header - rendered via portal to document.body for reliable visibility */}
-      <PulseHeaderPortal>
-        <PulseHeader 
-          isPrimaryPage={isPrimaryPage}
-          breadcrumb={breadcrumb}
-          hideActions={hideActions}
-          title={title} 
-          showBackButton={showBackButton} 
-          parentRoute={parentRoute} 
-        />
+      {/* Header - rendered via portal to dedicated root for reliable visibility */}
+      <PulseHeaderPortal onPortalStatusChange={handlePortalStatusChange}>
+        {headerContent}
       </PulseHeaderPortal>
       
-      {/* Spacer to reserve space for the fixed portal header */}
+      {/* Fallback: If portal is not active, render header inline */}
+      {!portalActive && (
+        <div className="fixed inset-x-0 top-0 z-[1000]" data-testid="pulse-header-fallback">
+          {headerContent}
+        </div>
+      )}
+      
+      {/* Spacer to reserve space for the fixed header (portal or fallback) */}
       <PulseHeaderSpacer />
       
       {/* Main content wrapper - responsive three-column layout */}
