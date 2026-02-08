@@ -14,12 +14,14 @@ interface PulseLayoutFirstTimeProps {
  */
 export function PulseLayoutFirstTime({ children }: PulseLayoutFirstTimeProps) {
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header - fixed at top, simplified for first-time users */}
-      <PulseHeaderFirstTime />
+    <div className="min-h-screen bg-background flex flex-col overflow-hidden">
+      {/* Header - sticky within flex container for reliable iframe rendering */}
+      <div className="flex-shrink-0">
+        <PulseHeaderFirstTime />
+      </div>
       
-      {/* Main content - scrollable, with padding for header only (no bottom nav) */}
-      <main className="flex-1 overflow-auto pt-14">
+      {/* Main content - scrollable */}
+      <main className="flex-1 overflow-auto">
         {children}
       </main>
     </div>
