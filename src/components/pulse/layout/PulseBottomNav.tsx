@@ -1,14 +1,14 @@
-import { Home, Zap, Layers, PlusCircle, Trophy, User } from 'lucide-react';
+import { Home, Zap, Layers, PlusCircle, Trophy, LayoutDashboard } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navItems = [
   { path: '/pulse/feed', label: 'Feed', icon: Home },
   { path: '/pulse/sparks', label: 'Sparks', icon: Zap },
-  { path: '/pulse/cards', label: 'Cards', icon: Layers },
   { path: '/pulse/create', label: 'Create', icon: PlusCircle },
+  { path: '/pulse/cards', label: 'Cards', icon: Layers },
   { path: '/pulse/ranks', label: 'Ranks', icon: Trophy },
-  { path: '/pulse/profile', label: 'Profile', icon: User },
+  { path: '/dashboard', label: 'Exit', icon: LayoutDashboard, isExternal: true },
 ];
 
 export function PulseBottomNav() {
@@ -22,7 +22,8 @@ export function PulseBottomNav() {
     >
       <div className="h-full w-full max-w-lg mx-auto flex items-center justify-around px-1 sm:px-2">
         {navItems.map((item) => {
-          const isActive = location.pathname.startsWith(item.path);
+          // For dashboard link, never show as "active" since it's external to Pulse
+          const isActive = item.isExternal ? false : location.pathname.startsWith(item.path);
           const Icon = item.icon;
           
           // Special styling for Create button
