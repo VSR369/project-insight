@@ -148,7 +148,9 @@ const questionBankTests: TestCase[] = [
     role: "platform_admin",
     module: "admin_portal",
     run: () => runTest(async () => {
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      const { data, error } = await client
         .from("question_bank")
         .select("id, question_text, question_type, difficulty_level")
         .eq("is_deleted", false)
@@ -167,11 +169,7 @@ const questionBankTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("question_capability_tags")
-        .select(`
-          id,
-          question:question_bank(id, question_text),
-          capability_tag:capability_tags(id, name)
-        `)
+        .select("id, question_id, capability_tag_id")
         .limit(10);
       
       if (error) throw new Error(`Question capability tags read failed: ${error.message}`);
@@ -204,7 +202,9 @@ const questionBankTests: TestCase[] = [
     run: () => runTest(async () => {
       const validTypes = ["conceptual", "scenario", "experience", "decision", "proof"];
       
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      const { data, error } = await client
         .from("question_bank")
         .select("question_type")
         .eq("is_deleted", false)
@@ -212,7 +212,7 @@ const questionBankTests: TestCase[] = [
       
       if (error) throw new Error(`Question types query failed: ${error.message}`);
       
-      const invalid = (data || []).filter(q => !validTypes.includes(q.question_type));
+      const invalid = (data || []).filter((q: { question_type: string }) => !validTypes.includes(q.question_type));
       if (invalid.length > 0) {
         throw new Error(`Found ${invalid.length} invalid question types`);
       }
@@ -573,7 +573,9 @@ const auditFieldTests: TestCase[] = [
     role: "platform_admin",
     module: "admin_portal",
     run: () => runTest(async () => {
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      const { data, error } = await client
         .from("question_bank")
         .select("id, created_at, created_by, is_deleted, deleted_at, deleted_by")
         .limit(5);

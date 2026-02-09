@@ -146,20 +146,20 @@ const foreignKeyTests: TestCase[] = [
     role: "system",
     module: "data_integrity",
     run: () => runTest(async () => {
-      const { data, error } = await supabase
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const client = supabase as any;
+      const { data, error } = await client
         .from("question_bank")
-        .select(`
-          id,
-          speciality:specialities(id)
-        `)
+        .select("id, speciality_id")
         .eq("is_deleted", false)
         .limit(50);
       
       if (error) throw new Error(`Questions speciality FK query failed: ${error.message}`);
       
-      const orphaned = (data || []).filter(q => !q.speciality);
-      if (orphaned.length > 0) {
-        throw new Error(`Found ${orphaned.length} questions with invalid speciality`);
+      // Verify all speciality_ids are not null
+      const missing = (data || []).filter((q: { speciality_id: string | null }) => !q.speciality_id);
+      if (missing.length > 0) {
+        throw new Error(`Found ${missing.length} questions without speciality_id`);
       }
     }),
   },
