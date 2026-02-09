@@ -108,6 +108,7 @@ const ReviewerAvailabilityPage = lazy(() => import("@/pages/admin/reviewer-avail
 const InterviewKitPage = lazy(() => import("@/pages/admin/interview-kit").then(m => ({ default: m.InterviewKitPage })));
 const InterviewKitQuestionsPage = lazy(() => import("@/pages/admin/interview-kit").then(m => ({ default: m.InterviewKitQuestionsPage })));
 const PulseSocialTestPage = lazy(() => import("@/pages/admin/PulseSocialTestPage"));
+const RegressionTestKitPage = lazy(() => import("@/pages/admin/RegressionTestKitPage"));
 
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -576,6 +577,14 @@ const App = () => (
               element={
                 <AdminGuard>
                   <LazyRoute><PulseSocialTestPage /></LazyRoute>
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/admin/regression-test-kit"
+              element={
+                <AdminGuard>
+                  <LazyRoute><RegressionTestKitPage /></LazyRoute>
                 </AdminGuard>
               }
             />

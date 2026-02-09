@@ -14,6 +14,7 @@ import {
   Mail,
   ArrowRight,
   UserCheck,
+  TestTube2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -97,6 +98,13 @@ const sections = [
     path: '/admin/reviewer-approvals',
     color: 'text-amber-500',
     hasBadge: true,
+  },
+  {
+    title: 'Regression Test Kit',
+    description: 'Comprehensive system regression tests',
+    icon: TestTube2,
+    path: '/admin/regression-test-kit',
+    color: 'text-emerald-500',
   },
 ];
 
