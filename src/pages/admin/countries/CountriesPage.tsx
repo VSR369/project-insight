@@ -23,11 +23,18 @@ import {
   CountryInsert,
 } from "@/hooks/queries/useCountries";
 
-// Zod schema for form validation
 const countrySchema = z.object({
   code: z.string().min(2, "Code must be at least 2 characters").max(3, "Code must be at most 3 characters").toUpperCase(),
   name: z.string().min(2, "Name must be at least 2 characters").max(100, "Name must be at most 100 characters"),
-  phone_code: z.string().max(10, "Phone code must be at most 10 characters").nullable().optional(),
+  iso_alpha3: z.string().max(3).nullable().optional(),
+  phone_code: z.string().max(10).nullable().optional(),
+  phone_code_display: z.string().max(20).nullable().optional(),
+  currency_code: z.string().max(3).nullable().optional(),
+  currency_symbol: z.string().max(5).default("$"),
+  date_format: z.string().max(20).default("MM/DD/YYYY"),
+  number_format: z.string().max(20).default("en-US"),
+  is_ofac_restricted: z.boolean().default(false),
+  description: z.string().max(500).nullable().optional(),
   display_order: z.number().int().min(0).nullable().optional(),
   is_active: z.boolean().default(true),
 });
@@ -35,10 +42,18 @@ const countrySchema = z.object({
 type CountryFormData = z.infer<typeof countrySchema>;
 
 const formFields: FormFieldConfig<CountryFormData>[] = [
-  { name: "code", label: "Country Code", type: "text", placeholder: "e.g., US, GB, IN", description: "ISO 3166-1 alpha-2 or alpha-3 code", required: true },
+  { name: "code", label: "Country Code (Alpha-2)", type: "text", placeholder: "e.g., US, GB, IN", description: "ISO 3166-1 alpha-2 code", required: true },
+  { name: "iso_alpha3", label: "Alpha-3 Code", type: "text", placeholder: "e.g., USA, GBR, IND", description: "ISO 3166-1 alpha-3 code" },
   { name: "name", label: "Country Name", type: "text", placeholder: "e.g., United States", required: true },
   { name: "phone_code", label: "Phone Code", type: "text", placeholder: "e.g., +1, +44, +91", description: "International dialing code" },
-  { name: "display_order", label: "Display Order", type: "number", placeholder: "0", description: "Lower numbers appear first", min: 0 },
+  { name: "phone_code_display", label: "Phone Code Display", type: "text", placeholder: "e.g., +1 (US)", description: "Formatted display for UI" },
+  { name: "currency_code", label: "Currency Code", type: "text", placeholder: "e.g., USD, GBP, INR", description: "ISO 4217 currency code" },
+  { name: "currency_symbol", label: "Currency Symbol", type: "text", placeholder: "e.g., $, £, ₹" },
+  { name: "date_format", label: "Date Format", type: "text", placeholder: "e.g., MM/DD/YYYY", description: "Locale date format" },
+  { name: "number_format", label: "Number Format", type: "text", placeholder: "e.g., en-US", description: "Locale number format" },
+  { name: "is_ofac_restricted", label: "OFAC Restricted", type: "switch", description: "Country is under OFAC sanctions" },
+  { name: "description", label: "Description", type: "textarea", placeholder: "Optional notes" },
+  { name: "display_order", label: "Display Order", type: "number", placeholder: "0", min: 0 },
   { name: "is_active", label: "Active", type: "switch", description: "Inactive countries are hidden from users" },
 ];
 
@@ -58,17 +73,20 @@ export default function CountriesPage() {
   const columns: DataTableColumn<Country>[] = [
     { accessorKey: "code", header: "Code" },
     { accessorKey: "name", header: "Name" },
-    { accessorKey: "phone_code", header: "Phone Code", cell: (value) => (value as string) || "—" },
+    { accessorKey: "iso_alpha3", header: "Alpha-3", cell: (value) => (value as string) || "—" },
+    { accessorKey: "currency_code", header: "Currency", cell: (value) => (value as string) || "—" },
+    { accessorKey: "phone_code", header: "Phone", cell: (value) => (value as string) || "—" },
+    { accessorKey: "is_ofac_restricted", header: "OFAC", cell: (value) => (value as boolean) ? "⚠️ Yes" : "No" },
     { accessorKey: "display_order", header: "Order", cell: (value) => (value as number) ?? "—" },
     { accessorKey: "is_active", header: "Status", cell: (value) => <StatusBadge isActive={value as boolean} /> },
   ];
 
   const actions: DataTableAction<Country>[] = [
-    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsViewOpen(true); } },
-    { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (country) => { setSelectedCountry(country); setIsFormOpen(true); } },
-    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (country) => { restoreMutation.mutate(country.id); }, show: (country) => !country.is_active },
-    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => !country.is_active },
-    { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (country) => { setSelectedCountry(country); setIsDeleteOpen(true); }, show: (country) => country.is_active },
+    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (c) => { setSelectedCountry(c); setIsViewOpen(true); } },
+    { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (c) => { setSelectedCountry(c); setIsFormOpen(true); } },
+    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (c) => restoreMutation.mutate(c.id), show: (c) => !c.is_active },
+    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (c) => { setSelectedCountry(c); setIsDeleteOpen(true); }, show: (c) => !c.is_active },
+    { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (c) => { setSelectedCountry(c); setIsDeleteOpen(true); }, show: (c) => c.is_active },
   ];
 
   const handleSubmit = async (data: CountryFormData) => {
@@ -88,14 +106,36 @@ export default function CountriesPage() {
   };
 
   const defaultValues: Partial<CountryFormData> = selectedCountry
-    ? { code: selectedCountry.code, name: selectedCountry.name, phone_code: selectedCountry.phone_code, display_order: selectedCountry.display_order, is_active: selectedCountry.is_active }
-    : { code: "", name: "", phone_code: "", display_order: 0, is_active: true };
+    ? {
+        code: selectedCountry.code,
+        name: selectedCountry.name,
+        iso_alpha3: selectedCountry.iso_alpha3,
+        phone_code: selectedCountry.phone_code,
+        phone_code_display: selectedCountry.phone_code_display,
+        currency_code: selectedCountry.currency_code,
+        currency_symbol: selectedCountry.currency_symbol,
+        date_format: selectedCountry.date_format,
+        number_format: selectedCountry.number_format,
+        is_ofac_restricted: selectedCountry.is_ofac_restricted,
+        description: selectedCountry.description,
+        display_order: selectedCountry.display_order,
+        is_active: selectedCountry.is_active,
+      }
+    : { code: "", name: "", currency_symbol: "$", date_format: "MM/DD/YYYY", number_format: "en-US", is_ofac_restricted: false, display_order: 0, is_active: true };
 
   const viewFields: ViewField[] = selectedCountry
     ? [
         { label: "Country Code", value: selectedCountry.code },
+        { label: "Alpha-3", value: selectedCountry.iso_alpha3 },
         { label: "Country Name", value: selectedCountry.name },
         { label: "Phone Code", value: selectedCountry.phone_code },
+        { label: "Phone Display", value: selectedCountry.phone_code_display },
+        { label: "Currency Code", value: selectedCountry.currency_code },
+        { label: "Currency Symbol", value: selectedCountry.currency_symbol },
+        { label: "Date Format", value: selectedCountry.date_format },
+        { label: "Number Format", value: selectedCountry.number_format },
+        { label: "OFAC Restricted", value: selectedCountry.is_ofac_restricted, type: "boolean" },
+        { label: "Description", value: selectedCountry.description },
         { label: "Display Order", value: selectedCountry.display_order, type: "number" },
         { label: "Status", value: selectedCountry.is_active, type: "boolean" },
         { label: "Created At", value: selectedCountry.created_at, type: "date" },
