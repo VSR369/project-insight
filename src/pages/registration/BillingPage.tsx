@@ -13,9 +13,9 @@ export default function BillingPage() {
     <RegistrationWizardLayout currentStep={5} completedSteps={[1, 2, 3, 4]}>
       <div className="space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Billing & Payment</h1>
+          <h1 className="text-2xl font-bold text-foreground">Billing Setup</h1>
           <p className="text-muted-foreground mt-1">
-            Set up your billing information to complete registration.
+            Complete your billing details and review your order summary.
           </p>
         </div>
         <BillingForm />
