@@ -42,6 +42,7 @@ import {
   ChevronRight,
   Activity,
   TestTube2,
+  CreditCard,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -69,6 +70,8 @@ const interviewItems = [
 
 const seekerItems = [
   { title: 'SaaS Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
+  { title: 'Team Management', icon: Users, path: '/org/team' },
+  { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
 ];
 
 const otherItems = [

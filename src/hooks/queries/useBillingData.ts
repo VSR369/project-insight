@@ -158,7 +158,6 @@ export function useCreateSubscription() {
 
       if (error) throw new Error(error.message);
 
-      // Update registration step to 5
       await supabase
         .from('seeker_organizations')
         .update({ registration_step: 5 })
@@ -172,6 +171,125 @@ export function useCreateSubscription() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to create subscription: ${error.message}`);
+    },
+  });
+}
+
+// ============================================================
+// Organization Subscription (Phase 7)
+// ============================================================
+export function useOrgSubscription(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['org-subscription', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return null;
+      const { data, error } = await supabase
+        .from('seeker_subscriptions')
+        .select(`
+          id, tier_id, billing_cycle_id, engagement_model_id, status,
+          payment_type, monthly_base_price, discount_percentage, effective_monthly_cost,
+          starts_at, ends_at, auto_renew, challenges_used, challenge_limit_snapshot,
+          current_period_start, current_period_end, per_challenge_fee_snapshot,
+          max_solutions_snapshot, shadow_charge_per_challenge, shadow_currency_code,
+          md_subscription_tiers!seeker_subscriptions_tier_id_fkey(code, name, max_users, max_challenges, is_enterprise)
+        `)
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!organizationId,
+    staleTime: 30 * 1000,
+  });
+}
+
+// ============================================================
+// Organization Invoices (Phase 7)
+// ============================================================
+export function useOrgInvoices(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['org-invoices', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('seeker_invoices')
+        .select('id, invoice_number, invoice_type, status, currency_code, subtotal, tax_amount, discount_amount, total_amount, billing_period_start, billing_period_end, issued_at, due_at, paid_at, is_shadow, created_at')
+        .eq('organization_id', organizationId)
+        .eq('is_active', true)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!organizationId,
+    staleTime: 30 * 1000,
+  });
+}
+
+// ============================================================
+// Organization Top-Ups (Phase 7)
+// ============================================================
+export function useOrgTopUps(organizationId: string | undefined) {
+  return useQuery({
+    queryKey: ['org-topups', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('seeker_challenge_topups')
+        .select('id, quantity, per_challenge_fee, total_amount, currency_code, billing_period_start, billing_period_end, payment_status, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: false });
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!organizationId,
+    staleTime: 30 * 1000,
+  });
+}
+
+// ============================================================
+// Purchase Challenge Top-Up (Phase 7)
+// ============================================================
+export function usePurchaseTopUp() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (params: {
+      organizationId: string;
+      tenantId: string;
+      quantity: number;
+      perChallengeFee: number;
+      currencyCode: string;
+      billingPeriodStart: string;
+      billingPeriodEnd: string;
+    }) => {
+      const totalAmount = Math.round(params.quantity * params.perChallengeFee * 100) / 100;
+      const { data, error } = await supabase
+        .from('seeker_challenge_topups')
+        .insert({
+          organization_id: params.organizationId,
+          tenant_id: params.tenantId,
+          quantity: params.quantity,
+          per_challenge_fee: params.perChallengeFee,
+          total_amount: totalAmount,
+          currency_code: params.currencyCode,
+          billing_period_start: params.billingPeriodStart,
+          billing_period_end: params.billingPeriodEnd,
+          payment_status: 'pending',
+        })
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['org-topups', vars.organizationId] });
+      queryClient.invalidateQueries({ queryKey: ['org-subscription', vars.organizationId] });
+      toast.success('Top-up purchased successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to purchase top-up: ${error.message}`);
     },
   });
 }
