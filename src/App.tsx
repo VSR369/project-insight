@@ -128,6 +128,9 @@ const ReviewerPendingApproval = lazy(() => import("@/pages/reviewer/ReviewerPend
 // Seeker Registration Pages (lazy loaded - public, pre-auth)
 const OrganizationIdentityPage = lazy(() => import("@/pages/registration/OrganizationIdentityPage"));
 const PrimaryContactPage = lazy(() => import("@/pages/registration/PrimaryContactPage"));
+const CompliancePage = lazy(() => import("@/pages/registration/CompliancePage"));
+const PlanSelectionPage = lazy(() => import("@/pages/registration/PlanSelectionPage"));
+const BillingPage = lazy(() => import("@/pages/registration/BillingPage"));
 
 import { queryClient } from "@/lib/queryClient";
 
@@ -171,6 +174,21 @@ const App = () => (
             <Route path="/registration/primary-contact" element={
               <RegistrationProvider>
                 <LazyRoute><PrimaryContactPage /></LazyRoute>
+              </RegistrationProvider>
+            } />
+            <Route path="/registration/compliance" element={
+              <RegistrationProvider>
+                <LazyRoute><CompliancePage /></LazyRoute>
+              </RegistrationProvider>
+            } />
+            <Route path="/registration/plan-selection" element={
+              <RegistrationProvider>
+                <LazyRoute><PlanSelectionPage /></LazyRoute>
+              </RegistrationProvider>
+            } />
+            <Route path="/registration/billing" element={
+              <RegistrationProvider>
+                <LazyRoute><BillingPage /></LazyRoute>
               </RegistrationProvider>
             } />
             
