@@ -633,6 +633,7 @@ export type Database = {
           organization_id: string | null
           otp_hash: string
           tenant_id: string
+          total_failed_attempts: number
           verified_at: string | null
         }
         Insert: {
@@ -647,6 +648,7 @@ export type Database = {
           organization_id?: string | null
           otp_hash: string
           tenant_id: string
+          total_failed_attempts?: number
           verified_at?: string | null
         }
         Update: {
@@ -661,6 +663,7 @@ export type Database = {
           organization_id?: string | null
           otp_hash?: string
           tenant_id?: string
+          total_failed_attempts?: number
           verified_at?: string | null
         }
         Relationships: [
@@ -4968,6 +4971,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           deleted_by: string | null
+          department: string | null
           email: string
           email_verified: boolean
           email_verified_at: string | null
@@ -4985,6 +4989,7 @@ export type Database = {
           phone_number: string | null
           preferred_language_id: string | null
           tenant_id: string
+          timezone: string | null
           updated_at: string | null
           updated_by: string | null
         }
@@ -4994,6 +4999,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          department?: string | null
           email: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -5011,6 +5017,7 @@ export type Database = {
           phone_number?: string | null
           preferred_language_id?: string | null
           tenant_id: string
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -5020,6 +5027,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
+          department?: string | null
           email?: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -5037,6 +5045,7 @@ export type Database = {
           phone_number?: string | null
           preferred_language_id?: string | null
           tenant_id?: string
+          timezone?: string | null
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -5333,6 +5342,7 @@ export type Database = {
       }
       seeker_organizations: {
         Row: {
+          address_format_template: Json | null
           annual_revenue_range: string | null
           created_at: string
           created_by: string | null
@@ -5368,18 +5378,21 @@ export type Database = {
           preferred_language_id: string | null
           registration_number: string | null
           registration_step: number
+          subsidized_discount_pct: number
           tax_id: string | null
           tenant_id: string
           timezone: string | null
           trade_brand_name: string | null
           updated_at: string | null
           updated_by: string | null
+          verification_expiry_date: string | null
           verification_status: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at: string | null
           verified_by: string | null
           website_url: string | null
         }
         Insert: {
+          address_format_template?: Json | null
           annual_revenue_range?: string | null
           created_at?: string
           created_by?: string | null
@@ -5415,18 +5428,21 @@ export type Database = {
           preferred_language_id?: string | null
           registration_number?: string | null
           registration_step?: number
+          subsidized_discount_pct?: number
           tax_id?: string | null
           tenant_id: string
           timezone?: string | null
           trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          verification_expiry_date?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at?: string | null
           verified_by?: string | null
           website_url?: string | null
         }
         Update: {
+          address_format_template?: Json | null
           annual_revenue_range?: string | null
           created_at?: string
           created_by?: string | null
@@ -5462,12 +5478,14 @@ export type Database = {
           preferred_language_id?: string | null
           registration_number?: string | null
           registration_step?: number
+          subsidized_discount_pct?: number
           tax_id?: string | null
           tenant_id?: string
           timezone?: string | null
           trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          verification_expiry_date?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at?: string | null
           verified_by?: string | null
