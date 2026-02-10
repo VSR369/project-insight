@@ -436,54 +436,101 @@ export type Database = {
       }
       challenges: {
         Row: {
+          complexity_id: string | null
+          consulting_fee: number | null
           created_at: string
           created_by: string | null
+          currency_code: string | null
           deleted_at: string | null
           deleted_by: string | null
           description: string | null
+          engagement_model_id: string | null
           id: string
           is_active: boolean
           is_deleted: boolean
+          management_fee: number | null
+          max_solutions: number | null
           organization_id: string
+          payment_status: string | null
+          shadow_fee_amount: number | null
+          solutions_awarded: number
           status: string
           tenant_id: string
           title: string
+          total_fee: number | null
           updated_at: string | null
           updated_by: string | null
+          visibility: string | null
         }
         Insert: {
+          complexity_id?: string | null
+          consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
+          currency_code?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          engagement_model_id?: string | null
           id?: string
           is_active?: boolean
           is_deleted?: boolean
+          management_fee?: number | null
+          max_solutions?: number | null
           organization_id: string
+          payment_status?: string | null
+          shadow_fee_amount?: number | null
+          solutions_awarded?: number
           status?: string
           tenant_id: string
           title: string
+          total_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          visibility?: string | null
         }
         Update: {
+          complexity_id?: string | null
+          consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
+          currency_code?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           description?: string | null
+          engagement_model_id?: string | null
           id?: string
           is_active?: boolean
           is_deleted?: boolean
+          management_fee?: number | null
+          max_solutions?: number | null
           organization_id?: string
+          payment_status?: string | null
+          shadow_fee_amount?: number | null
+          solutions_awarded?: number
           status?: string
           tenant_id?: string
           title?: string
+          total_fee?: number | null
           updated_at?: string | null
           updated_by?: string | null
+          visibility?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "challenges_complexity_id_fkey"
+            columns: ["complexity_id"]
+            isOneToOne: false
+            referencedRelation: "md_challenge_complexity"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_engagement_model_id_fkey"
+            columns: ["engagement_model_id"]
+            isOneToOne: false
+            referencedRelation: "md_engagement_models"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "challenges_organization_id_fkey"
             columns: ["organization_id"]
@@ -1561,6 +1608,141 @@ export type Database = {
         }
         Relationships: []
       }
+      md_challenge_active_statuses: {
+        Row: {
+          blocks_model_switch: boolean
+          created_at: string
+          display_order: number
+          id: string
+          is_active: boolean
+          status_code: string
+          status_label: string
+        }
+        Insert: {
+          blocks_model_switch?: boolean
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          status_code: string
+          status_label: string
+        }
+        Update: {
+          blocks_model_switch?: boolean
+          created_at?: string
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          status_code?: string
+          status_label?: string
+        }
+        Relationships: []
+      }
+      md_challenge_base_fees: {
+        Row: {
+          consulting_base_fee: number
+          country_id: string
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          id: string
+          is_active: boolean
+          management_base_fee: number
+          tier_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          consulting_base_fee: number
+          country_id: string
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          id?: string
+          is_active?: boolean
+          management_base_fee: number
+          tier_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          consulting_base_fee?: number
+          country_id?: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          id?: string
+          is_active?: boolean
+          management_base_fee?: number
+          tier_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_challenge_base_fees_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "md_challenge_base_fees_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_challenge_complexity: {
+        Row: {
+          complexity_code: string
+          complexity_label: string
+          complexity_level: number
+          consulting_fee_multiplier: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          management_fee_multiplier: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          complexity_code: string
+          complexity_label: string
+          complexity_level: number
+          consulting_fee_multiplier?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          management_fee_multiplier?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          complexity_code?: string
+          complexity_label?: string
+          complexity_level?: number
+          consulting_fee_multiplier?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          management_fee_multiplier?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_data_residency: {
         Row: {
           code: string
@@ -1720,6 +1902,45 @@ export type Database = {
         }
         Relationships: []
       }
+      md_industries: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_languages: {
         Row: {
           code: string
@@ -1754,6 +1975,54 @@ export type Database = {
           is_active?: boolean
           name?: string
           native_name?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      md_membership_tiers: {
+        Row: {
+          code: string
+          commission_rate_pct: number
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          duration_months: number
+          fee_discount_pct: number
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          commission_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          duration_months: number
+          fee_discount_pct?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          commission_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          duration_months?: number
+          fee_discount_pct?: number
+          id?: string
+          is_active?: boolean
+          name?: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -1853,6 +2122,56 @@ export type Database = {
             columns: ["country_id"]
             isOneToOne: true
             referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_shadow_pricing: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          currency_symbol: string
+          description: string | null
+          id: string
+          is_active: boolean
+          shadow_charge_per_challenge: number
+          tier_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          currency_symbol?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          shadow_charge_per_challenge: number
+          tier_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          currency_symbol?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          shadow_charge_per_challenge?: number
+          tier_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_shadow_pricing_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
             referencedColumns: ["id"]
           },
         ]
@@ -4866,6 +5185,62 @@ export type Database = {
           },
         ]
       }
+      seeker_challenge_topups: {
+        Row: {
+          billing_period_end: string
+          billing_period_start: string
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          id: string
+          organization_id: string
+          payment_status: string
+          per_challenge_fee: number
+          quantity: number
+          stripe_payment_intent_id: string | null
+          tenant_id: string
+          total_amount: number
+        }
+        Insert: {
+          billing_period_end: string
+          billing_period_start: string
+          created_at?: string
+          created_by?: string | null
+          currency_code: string
+          id?: string
+          organization_id: string
+          payment_status?: string
+          per_challenge_fee: number
+          quantity: number
+          stripe_payment_intent_id?: string | null
+          tenant_id: string
+          total_amount: number
+        }
+        Update: {
+          billing_period_end?: string
+          billing_period_start?: string
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          id?: string
+          organization_id?: string
+          payment_status?: string
+          per_challenge_fee?: number
+          quantity?: number
+          stripe_payment_intent_id?: string | null
+          tenant_id?: string
+          total_amount?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_challenge_topups_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeker_compliance: {
         Row: {
           additional_certifications: Json | null
@@ -5340,6 +5715,53 @@ export type Database = {
           },
         ]
       }
+      seeker_organization_audit: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by: string
+          field_name: string
+          id: string
+          ip_address: unknown
+          new_value: string | null
+          old_value: string | null
+          organization_id: string
+          tenant_id: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by: string
+          field_name: string
+          id?: string
+          ip_address?: unknown
+          new_value?: string | null
+          old_value?: string | null
+          organization_id: string
+          tenant_id: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by?: string
+          field_name?: string
+          id?: string
+          ip_address?: unknown
+          new_value?: string | null
+          old_value?: string | null
+          organization_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_organization_audit_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeker_organizations: {
         Row: {
           address_format_template: Json | null
@@ -5533,17 +5955,27 @@ export type Database = {
         Row: {
           auto_renew: boolean
           billing_cycle_id: string
+          challenge_limit_snapshot: number
+          challenges_used: number
           created_at: string
           created_by: string | null
+          current_period_end: string | null
+          current_period_start: string | null
           discount_percentage: number | null
           effective_monthly_cost: number | null
           ends_at: string | null
           engagement_model_id: string | null
           id: string
           is_active: boolean
+          max_solutions_snapshot: number
           monthly_base_price: number | null
           organization_id: string
           payment_type: Database["public"]["Enums"]["payment_type_enum"]
+          pending_downgrade_date: string | null
+          pending_downgrade_tier_id: string | null
+          per_challenge_fee_snapshot: number | null
+          shadow_charge_per_challenge: number | null
+          shadow_currency_code: string | null
           starts_at: string | null
           status: Database["public"]["Enums"]["subscription_status_enum"]
           tenant_id: string
@@ -5558,17 +5990,27 @@ export type Database = {
         Insert: {
           auto_renew?: boolean
           billing_cycle_id: string
+          challenge_limit_snapshot?: number
+          challenges_used?: number
           created_at?: string
           created_by?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
           discount_percentage?: number | null
           effective_monthly_cost?: number | null
           ends_at?: string | null
           engagement_model_id?: string | null
           id?: string
           is_active?: boolean
+          max_solutions_snapshot?: number
           monthly_base_price?: number | null
           organization_id: string
           payment_type?: Database["public"]["Enums"]["payment_type_enum"]
+          pending_downgrade_date?: string | null
+          pending_downgrade_tier_id?: string | null
+          per_challenge_fee_snapshot?: number | null
+          shadow_charge_per_challenge?: number | null
+          shadow_currency_code?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["subscription_status_enum"]
           tenant_id: string
@@ -5583,17 +6025,27 @@ export type Database = {
         Update: {
           auto_renew?: boolean
           billing_cycle_id?: string
+          challenge_limit_snapshot?: number
+          challenges_used?: number
           created_at?: string
           created_by?: string | null
+          current_period_end?: string | null
+          current_period_start?: string | null
           discount_percentage?: number | null
           effective_monthly_cost?: number | null
           ends_at?: string | null
           engagement_model_id?: string | null
           id?: string
           is_active?: boolean
+          max_solutions_snapshot?: number
           monthly_base_price?: number | null
           organization_id?: string
           payment_type?: Database["public"]["Enums"]["payment_type_enum"]
+          pending_downgrade_date?: string | null
+          pending_downgrade_tier_id?: string | null
+          per_challenge_fee_snapshot?: number | null
+          shadow_charge_per_challenge?: number | null
+          shadow_currency_code?: string | null
           starts_at?: string | null
           status?: Database["public"]["Enums"]["subscription_status_enum"]
           tenant_id?: string
@@ -5625,6 +6077,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_subscriptions_pending_downgrade_tier_id_fkey"
+            columns: ["pending_downgrade_tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
             referencedColumns: ["id"]
           },
           {

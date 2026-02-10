@@ -6,6 +6,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "@/hooks/useAuth";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
+import { RegistrationProvider } from "@/contexts/RegistrationContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
@@ -124,6 +125,9 @@ const ReviewerSettings = lazy(() => import("@/pages/reviewer/ReviewerSettings"))
 const CandidateDetailPage = lazy(() => import("@/pages/reviewer/CandidateDetailPage"));
 const ReviewerPendingApproval = lazy(() => import("@/pages/reviewer/ReviewerPendingApproval"));
 
+// Seeker Registration Pages (lazy loaded - public, pre-auth)
+const OrganizationIdentityPage = lazy(() => import("@/pages/registration/OrganizationIdentityPage"));
+
 import { queryClient } from "@/lib/queryClient";
 
 // Export queryClient for shared access (auth state changes, portal switching)
@@ -156,6 +160,13 @@ const App = () => (
             <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/manager-portal" element={<ManagerPortal />} />
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
+
+            {/* Seeker Registration Wizard (public, pre-auth) */}
+            <Route path="/registration/organization-identity" element={
+              <RegistrationProvider>
+                <LazyRoute><OrganizationIdentityPage /></LazyRoute>
+              </RegistrationProvider>
+            } />
             
             {/* Reviewer Pending Approval (accessible without role) */}
             <Route 
