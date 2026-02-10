@@ -59,11 +59,19 @@ export const primaryContactSchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  department_functional_area_id: z.string()
+    .optional()
+    .or(z.literal('')),
+
   timezone: z.string()
     .min(1, 'Timezone is required'),
 
   preferred_language_id: z.string()
     .min(1, 'Please select a preferred language'),
+
+  is_email_verified: z.literal(true, {
+    errorMap: () => ({ message: 'Email must be verified before proceeding' }),
+  }),
 });
 
 export type PrimaryContactFormValues = z.infer<typeof primaryContactSchema>;

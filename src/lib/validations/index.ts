@@ -8,3 +8,6 @@ export * from './auth';
 export * from './organization';
 export * from './registration';
 export * from './media';
+export * from './organizationIdentity';
+export * from './primaryContact';
+export * from './challenge';

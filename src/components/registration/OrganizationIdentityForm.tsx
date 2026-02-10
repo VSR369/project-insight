@@ -23,13 +23,14 @@ import {
   useCountryLocale,
   useCheckDuplicateOrg,
   useCreateOrganization,
+  useTierCountryPricing,
 } from '@/hooks/queries/useRegistrationData';
 import { isStartupEligible } from '@/services/registrationService';
 import {
   organizationIdentitySchema,
   type OrganizationIdentityFormValues,
 } from '@/lib/validations/organizationIdentity';
-import { COMPANY_SIZE_OPTIONS, ANNUAL_REVENUE_OPTIONS } from '@/config/registration';
+import { COMPANY_SIZE_OPTIONS, ANNUAL_REVENUE_OPTIONS, FILE_LIMITS } from '@/config/registration';
 
 import {
   Form,
@@ -49,7 +50,8 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Loader2, ShieldCheck, AlertTriangle } from 'lucide-react';
 
 import { CountrySelector } from './CountrySelector';
 import { IndustryTagSelector } from './IndustryTagSelector';
@@ -57,6 +59,7 @@ import { GeographyTagSelector } from './GeographyTagSelector';
 import { VerificationDocuments } from './VerificationDocuments';
 import { DuplicateOrgModal } from './DuplicateOrgModal';
 import { OrgTypeInfoBanner } from './OrgTypeInfoBanner';
+import { FileUploadZone } from '@/components/shared/FileUploadZone';
 
 export function OrganizationIdentityForm() {
   // ══════════════════════════════════════
@@ -66,6 +69,8 @@ export function OrganizationIdentityForm() {
   const [duplicateOrgName, setDuplicateOrgName] = useState<string>();
   const [verificationFiles, setVerificationFiles] = useState<File[]>([]);
   const [skipDuplicateCheck, setSkipDuplicateCheck] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [profileDocument, setProfileDocument] = useState<File | null>(null);
 
   // ══════════════════════════════════════
   // SECTION 2: Context and navigation
@@ -108,6 +113,7 @@ export function OrganizationIdentityForm() {
   const { data: countryLocale } = useCountryLocale(watchedCountryId);
   const duplicateCheck = useCheckDuplicateOrg();
   const createOrg = useCreateOrganization();
+  const { data: countryPricingSupported } = useTierCountryPricing(watchedCountryId);
 
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
@@ -151,6 +157,7 @@ export function OrganizationIdentityForm() {
   // ══════════════════════════════════════
   const showVerification = orgTypeFlags?.verification_required ?? false;
   const selectedOrgType = orgTypes?.find((t) => t.id === watchedOrgTypeId);
+  const showCountryWarning = watchedCountryId && countryPricingSupported === false;
 
   // ══════════════════════════════════════
   // SECTION 7: Event handlers
@@ -257,6 +264,26 @@ export function OrganizationIdentityForm() {
               </FormItem>
             )}
           />
+
+          {/* Organization Logo */}
+          <div className="space-y-2">
+            <FormLabel>Organization Logo</FormLabel>
+            <FileUploadZone
+              config={FILE_LIMITS.LOGO}
+              value={logoFile}
+              onChange={setLogoFile}
+            />
+          </div>
+
+          {/* Organization Profile Document */}
+          <div className="space-y-2">
+            <FormLabel>Organization Profile Document</FormLabel>
+            <FileUploadZone
+              config={FILE_LIMITS.PROFILE_DOCUMENT}
+              value={profileDocument}
+              onChange={setProfileDocument}
+            />
+          </div>
 
           {/* Organization Type */}
           <FormField
@@ -400,6 +427,17 @@ export function OrganizationIdentityForm() {
             )}
           />
 
+          {/* BR-TCP-001: Country Pricing Support Warning */}
+          {showCountryWarning && (
+            <Alert className="border-destructive/50 bg-destructive/5">
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              <AlertDescription className="text-sm text-destructive">
+                The selected country is not currently supported for tier pricing.
+                Please contact support or select a different headquarters country.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* State/Province — dependent on country */}
           <FormField
             control={form.control}
@@ -480,12 +518,27 @@ export function OrganizationIdentityForm() {
             />
           )}
 
+          {/* Data Privacy Notice */}
+          <Alert className="border-primary/30 bg-primary/5">
+            <ShieldCheck className="h-4 w-4 text-primary" />
+            <AlertDescription className="text-sm text-muted-foreground">
+              Your data is stored securely and used solely for platform operations.
+              By proceeding, you agree to our{' '}
+              <a href="/privacy" className="text-primary underline">Privacy Policy</a> and{' '}
+              <a href="/terms" className="text-primary underline">Terms of Service</a>.
+            </AlertDescription>
+          </Alert>
+
           {/* Submit */}
-          <div className="flex justify-end pt-4">
+          <div className="flex items-center justify-between pt-4">
+            <p className="text-sm text-muted-foreground">
+              Already have an account?{' '}
+              <a href="/auth" className="text-primary font-medium underline">Sign in</a>
+            </p>
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting}
+              disabled={isSubmitting || showCountryWarning === true}
               className="min-w-[180px]"
             >
               {isSubmitting ? (

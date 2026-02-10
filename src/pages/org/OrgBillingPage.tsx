@@ -12,11 +12,13 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrgSubscription, useOrgInvoices, useOrgTopUps, usePurchaseTopUp } from '@/hooks/queries/useBillingData';
 import { computeUsageSummary, validateTopUp } from '@/services/billingService';
+import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
 const DEMO_ORG_ID = 'demo-org-id';
 const DEMO_TENANT_ID = 'demo-tenant-id';
+const IS_INTERNAL_DEPT = false; // TODO: derive from org context (saas_agreements check)
 
 export default function OrgBillingPage() {
   const [topUpOpen, setTopUpOpen] = useState(false);
@@ -56,11 +58,23 @@ export default function OrgBillingPage() {
           <h1 className="text-2xl font-bold text-foreground">Billing & Usage</h1>
           <p className="text-muted-foreground">Monitor challenge usage, invoices, and purchase top-ups</p>
         </div>
-        <Button onClick={() => setTopUpOpen(true)}>
-          <Package className="h-4 w-4 mr-2" />
-          Buy Top-Up
-        </Button>
+        {!IS_INTERNAL_DEPT && (
+          <Button onClick={() => setTopUpOpen(true)}>
+            <Package className="h-4 w-4 mr-2" />
+            Buy Top-Up
+          </Button>
+        )}
       </div>
+
+      {/* BR-SAAS-003: Internal Department Billing Gate */}
+      {IS_INTERNAL_DEPT && (
+        <InternalBillingNotice
+          parentOrgName="Parent Organization"
+          shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
+          shadowCurrencyCode={subscription?.shadow_currency_code ?? 'USD'}
+          challengesUsed={subscription?.challenges_used ?? 0}
+        />
+      )}
 
       {/* Usage Summary */}
       {subLoading ? (
