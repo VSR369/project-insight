@@ -13,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useOrgSubscription, useOrgInvoices, useOrgTopUps, usePurchaseTopUp } from '@/hooks/queries/useBillingData';
 import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
+import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -68,12 +69,22 @@ export default function OrgBillingPage() {
 
       {/* BR-SAAS-003: Internal Department Billing Gate */}
       {IS_INTERNAL_DEPT && (
-        <InternalBillingNotice
-          parentOrgName="Parent Organization"
-          shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
-          shadowCurrencyCode={subscription?.shadow_currency_code ?? 'USD'}
-          challengesUsed={subscription?.challenges_used ?? 0}
-        />
+        <>
+          <InternalBillingNotice
+            parentOrgName="Parent Organization"
+            shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
+            shadowCurrencyCode={subscription?.shadow_currency_code ?? 'USD'}
+            challengesUsed={subscription?.challenges_used ?? 0}
+          />
+          <ShadowUsageSummary
+            challengesUsed={subscription?.challenges_used ?? 0}
+            challengeLimit={subscription?.challenge_limit_snapshot ?? null}
+            shadowChargePerChallenge={subscription?.per_challenge_fee_snapshot ?? 0}
+            currencyCode={subscription?.shadow_currency_code ?? 'USD'}
+            periodStart={subscription?.current_period_start ?? undefined}
+            periodEnd={subscription?.current_period_end ?? undefined}
+          />
+        </>
       )}
 
       {/* Usage Summary */}
