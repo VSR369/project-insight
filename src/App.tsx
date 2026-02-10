@@ -137,6 +137,9 @@ const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
 const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
 const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
 const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
+const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
+const ChallengeCreatePage = lazy(() => import("@/pages/org/ChallengeCreatePage"));
+const OrgBillingPage = lazy(() => import("@/pages/org/OrgBillingPage"));
 
 import { queryClient } from "@/lib/queryClient";
 
@@ -834,11 +837,33 @@ const App = () => (
               element={
                 <AuthGuard>
                   <LazyRoute><ParentDashboardPage /></LazyRoute>
+              </AuthGuard>
+              }
+            />
+            <Route
+              path="/org/team"
+              element={
+                <AuthGuard>
+                  <LazyRoute><TeamPage /></LazyRoute>
                 </AuthGuard>
               }
             />
-
-            {/* Admin SaaS Agreement Management */}
+            <Route
+              path="/org/challenges/create"
+              element={
+                <AuthGuard>
+                  <LazyRoute><ChallengeCreatePage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/org/billing"
+              element={
+                <AuthGuard>
+                  <LazyRoute><OrgBillingPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
             <Route
               path="/admin/saas-agreements"
               element={

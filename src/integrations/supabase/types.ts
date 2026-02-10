@@ -2535,6 +2535,62 @@ export type Database = {
           },
         ]
       }
+      org_roles: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          is_system_role: boolean
+          name: string
+          permissions: Json
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_system_role?: boolean
+          name: string
+          permissions?: Json
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          is_system_role?: boolean
+          name?: string
+          permissions?: Json
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_roles_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_type_seeker_rules: {
         Row: {
           compliance_required: boolean
@@ -2596,10 +2652,15 @@ export type Database = {
           created_at: string
           created_by: string | null
           id: string
+          invitation_status: string | null
+          invited_at: string | null
+          invited_by: string | null
           is_active: boolean
           joined_at: string
+          org_role_id: string | null
           organization_id: string
           role: string
+          subsidiary_org_id: string | null
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
@@ -2609,10 +2670,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          invitation_status?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           is_active?: boolean
           joined_at?: string
+          org_role_id?: string | null
           organization_id: string
           role?: string
+          subsidiary_org_id?: string | null
           tenant_id: string
           updated_at?: string | null
           updated_by?: string | null
@@ -2622,10 +2688,15 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           id?: string
+          invitation_status?: string | null
+          invited_at?: string | null
+          invited_by?: string | null
           is_active?: boolean
           joined_at?: string
+          org_role_id?: string | null
           organization_id?: string
           role?: string
+          subsidiary_org_id?: string | null
           tenant_id?: string
           updated_at?: string | null
           updated_by?: string | null
@@ -2633,8 +2704,22 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "org_users_org_role_id_fkey"
+            columns: ["org_role_id"]
+            isOneToOne: false
+            referencedRelation: "org_roles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "org_users_organization_id_fkey"
             columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_users_subsidiary_org_id_fkey"
+            columns: ["subsidiary_org_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
             referencedColumns: ["id"]
@@ -5542,6 +5627,172 @@ export type Database = {
           },
           {
             foreignKeyName: "seeker_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seeker_invoice_line_items: {
+        Row: {
+          amount: number
+          challenge_id: string | null
+          created_at: string
+          description: string
+          display_order: number
+          id: string
+          invoice_id: string
+          line_type: string
+          metadata: Json | null
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          amount?: number
+          challenge_id?: string | null
+          created_at?: string
+          description: string
+          display_order?: number
+          id?: string
+          invoice_id: string
+          line_type?: string
+          metadata?: Json | null
+          quantity?: number
+          unit_price?: number
+        }
+        Update: {
+          amount?: number
+          challenge_id?: string | null
+          created_at?: string
+          description?: string
+          display_order?: number
+          id?: string
+          invoice_id?: string
+          line_type?: string
+          metadata?: Json | null
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_invoice_line_items_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_invoice_line_items_invoice_id_fkey"
+            columns: ["invoice_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_invoices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seeker_invoices: {
+        Row: {
+          billing_period_end: string | null
+          billing_period_start: string | null
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          discount_amount: number
+          due_at: string | null
+          id: string
+          invoice_number: string
+          invoice_type: string
+          is_active: boolean
+          is_shadow: boolean
+          issued_at: string | null
+          notes: string | null
+          organization_id: string
+          paid_at: string | null
+          payment_method: string | null
+          status: string
+          stripe_invoice_id: string | null
+          subscription_id: string | null
+          subtotal: number
+          tax_amount: number
+          tenant_id: string
+          total_amount: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          discount_amount?: number
+          due_at?: string | null
+          id?: string
+          invoice_number: string
+          invoice_type?: string
+          is_active?: boolean
+          is_shadow?: boolean
+          issued_at?: string | null
+          notes?: string | null
+          organization_id: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tenant_id: string
+          total_amount?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          billing_period_end?: string | null
+          billing_period_start?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          discount_amount?: number
+          due_at?: string | null
+          id?: string
+          invoice_number?: string
+          invoice_type?: string
+          is_active?: boolean
+          is_shadow?: boolean
+          issued_at?: string | null
+          notes?: string | null
+          organization_id?: string
+          paid_at?: string | null
+          payment_method?: string | null
+          status?: string
+          stripe_invoice_id?: string | null
+          subscription_id?: string | null
+          subtotal?: number
+          tax_amount?: number
+          tenant_id?: string
+          total_amount?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_invoices_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_invoices_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_subscriptions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_invoices_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
