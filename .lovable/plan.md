@@ -1,117 +1,148 @@
 
-# Regression Test Kit: Complete Integration + Sidebar Navigation
 
-## Problems Found
+# Fix 35 Failed Regression Test Cases
 
-1. **Missing Sidebar Menu Entry**: "Regression Test Kit" exists on the AdminDashboard card grid but is NOT in `AdminSidebar.tsx` (the persistent left navigation). Users logged in as Platform Admin cannot navigate to it from the sidebar.
+## Root Cause Analysis
 
-2. **~420 Existing Tests Not Integrated**: The orchestrator `index.ts` mentions importing from three existing test runners in comments only -- they were never actually wired in:
-   - `smokeTestRunner.ts` (1,178 lines) -- ~45 Master Data CRUD tests with a DIFFERENT type system (`TestCase` with `operation`/`label` fields vs the kit's `TestCase` with `role`/`module`/`run`)
-   - `enrollmentTestRunner.ts` (large file, ~300+ tests) -- LL, CR, ED, LR, EN, MI, PP, OA, AS, IS, AT, SR, MD, TS, EH, SS, LP, MA, IR, CE, RE, ME, ES prefixes
-   - `pulseSocialTestRunner.ts` (~80+ tests) -- CC, EN, CM, FL, XP, LB, SR prefixes
+After thorough schema verification against all 6 native test files (181 tests), I identified the following categories of failures:
 
-3. **Target**: ~181 (current) + ~300 (enrollment) + ~80 (pulse) = **~560+ tests** once integrated. The smoke tests need adapter wrappers due to their different type system.
+### Category 1: `question_bank` Schema Mismatch (7 tests)
 
-## Implementation Plan
+The `question_bank` table does NOT have `is_deleted`, `deleted_at`, `deleted_by`, or `difficulty_level` columns. It uses `is_active` for soft delete and `difficulty` instead of `difficulty_level`.
 
-### Step 1: Add Sidebar Menu Entry to `AdminSidebar.tsx`
+| Test ID | Issue | Fix |
+|---------|-------|-----|
+| AP-007 | Queries `.eq("is_deleted", false)` | Change to `.eq("is_active", true)` |
+| AP-010 | Queries `.eq("is_deleted", false)` | Change to `.eq("is_active", true)` |
+| AP-026 | Selects `is_deleted, deleted_at, deleted_by` | Change to `is_active, updated_at, updated_by` |
+| DI-006 | Queries `.eq("is_deleted", false)` and checks `speciality_id` | Change filter to `.eq("is_active", true)` |
+| DI-009 | Queries `question_bank` with `is_deleted` assumption | Remove `is_deleted` filter, use `is_active` |
 
-Add "Regression Test Kit" to the `otherItems` array (or create a new "Quality Assurance" group) with the `TestTube2` icon, pointing to `/admin/regression-test-kit`.
+### Category 2: `reviewer_workload_distribution` View Column Mismatch (2 tests)
 
-**File**: `src/components/admin/AdminSidebar.tsx`
-- Add `TestTube2` to lucide-react imports
-- Add entry to `otherItems` array (before Settings):
+The view has columns: `id, name, email, expertise_level_ids, industry_segment_ids, interviews_30d, interviews_7d, days_since_last, workload_status, load_bucket`. Tests query non-existent `pending_count` and `completed_count`.
+
+| Test ID | Issue | Fix |
+|---------|-------|-----|
+| RP-021 | Selects `pending_count, completed_count` | Change to `interviews_30d, interviews_7d, workload_status` |
+| EF-015 | May fail due to `.select("*")` if RLS restricts | Already handles errors gracefully, likely passes |
+
+### Category 3: `question_bank` Column Name Mismatch (1 test)
+
+| Test ID | Issue | Fix |
+|---------|-------|-----|
+| AP-007 | Selects `difficulty_level` | Change to `difficulty` |
+
+### Category 4: Duplicate Category Key (1 UI bug causing console warning)
+
+Both `reviewerPortalTests.ts` and `roleAccessTests.ts` define a category with `id: "reviewer-rls"`. This causes React key collision in the Accordion.
+
+| File | Fix |
+|------|-----|
+| `roleAccessTests.ts` line 755 | Change category id to `"ra-reviewer-rls"` |
+
+### Category 5: Adapted Test Runners May Have Schema Issues
+
+The adapter tests (`enrollmentAdapterTests.ts`, `pulseSocialAdapterTests.ts`, `smokeAdapterTests.ts`) wrap existing runners that were already validated. If those runners pass on their own pages, they should pass here too. However, the skips (52) are expected -- those are tests that require specific roles (e.g., `solution_provider`, `panel_reviewer`) that the logged-in platform admin user doesn't have.
+
+### Category 6: Additional Potential Failures from Column Analysis
+
+| Test ID | Issue | Fix |
+|---------|-------|-----|
+| CI-022 | Joins `question:question_bank(id)` -- FK exists but column `question_id` in `assessment_attempt_responses` references `question_bank`, so the Supabase auto-named relationship should work. Verify no issue. | No change needed |
+
+## Summary of Failing Tests (Estimated 8-12 from native tests)
+
+The 35 failures likely include:
+- ~7 from `question_bank` schema mismatch (`is_deleted` vs `is_active`, `difficulty_level` vs `difficulty`)
+- ~2 from `reviewer_workload_distribution` view column names
+- ~1 from duplicate key causing rendering issues
+- Remaining ~25 likely from the **adapted test runners** (enrollment/pulse/smoke) which may have their own schema issues when run through the adapter layer
+
+## Files to Modify
+
+| File | Changes |
+|------|---------|
+| `src/services/regressionTestKit/adminPortalTests.ts` | Fix AP-007, AP-010, AP-026: replace `is_deleted` with `is_active`, `difficulty_level` with `difficulty` |
+| `src/services/regressionTestKit/dataIntegrityTests.ts` | Fix DI-006, DI-009: replace `is_deleted` with `is_active` for `question_bank` queries |
+| `src/services/regressionTestKit/reviewerPortalTests.ts` | Fix RP-021: update workload view column names |
+| `src/services/regressionTestKit/roleAccessTests.ts` | Fix duplicate category id `"reviewer-rls"` to `"ra-reviewer-rls"` |
+
+## Technical Details
+
+### adminPortalTests.ts Changes
+
+**AP-007** (line ~153-160):
 ```typescript
-{ title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
+// Before: .eq("is_deleted", false) and selects "difficulty_level"
+// After:  .eq("is_active", true) and selects "difficulty"
+const { data, error } = await client
+  .from("question_bank")
+  .select("id, question_text, question_type, difficulty")
+  .eq("is_active", true)
+  .limit(20);
 ```
 
-### Step 2: Create Enrollment Test Adapter
+**AP-010** (line ~206-211):
+```typescript
+// Before: .eq("is_deleted", false)
+// After:  .eq("is_active", true)
+.eq("is_active", true)
+```
 
-The `enrollmentTestRunner.ts` uses a compatible `TestCase` type (has `id`, `category`, `name`, `run()` returning `TestResult`). It needs thin adapter wrappers to add the missing `role`, `module`, and `description` fields.
+**AP-026** (line ~578-583):
+```typescript
+// Before: selects "is_deleted, deleted_at, deleted_by"
+// After:  selects "is_active, updated_at, updated_by"
+.select("id, created_at, created_by, is_active, updated_at, updated_by")
+```
 
-**New file**: `src/services/regressionTestKit/enrollmentTests.ts`
-- Import all test arrays from `enrollmentTestRunner.ts`
-- Wrap each into the regression kit `TestCase` format with appropriate `role`/`module` mapping:
-  - LL (Lifecycle Locks) -- 12 tests, role: `solution_provider`, module: `enrollment`
-  - CR (Cascade Reset) -- 4 tests, role: `solution_provider`, module: `enrollment`
-  - ED (Deletion Rules) -- 5 tests, role: `solution_provider`, module: `enrollment`
-  - LR (Lifecycle Ranks) -- 6+ tests, role: `system`, module: `enrollment`
-  - EN (Enrollment Data) -- 5+ tests, role: `solution_provider`, module: `enrollment`
-  - MI (Multi-Industry) -- tests, role: `solution_provider`, module: `enrollment`
-  - PP (Proof Points) -- tests, role: `solution_provider`, module: `enrollment`
-  - OA (Org Approval) -- tests, role: `platform_admin`, module: `enrollment`
-  - AS (Assessment) -- tests, role: `solution_provider`, module: `assessment`
-  - IS (Interview Scheduling) -- tests, role: `cross_portal`, module: `interview`
-  - AT (Audit Trail) -- tests, role: `system`, module: `data_integrity`
-  - SR (Security & RLS) -- tests, role: `system`, module: `role_access`
-  - MD (Master Data) -- tests, role: `platform_admin`, module: `master_data`
-  - TS (Terminal States) -- tests, role: `system`, module: `enrollment`
-  - EH (Error Handling) -- tests, role: `system`, module: `enrollment`
-  - SS (System Settings) -- tests, role: `platform_admin`, module: `admin_portal`
-  - LP (Lifecycle Progression) -- tests, role: `solution_provider`, module: `enrollment`
-  - MA (Manager Approval) -- tests, role: `platform_admin`, module: `enrollment`
-  - IR (Interview Rescheduling) -- tests, role: `cross_portal`, module: `interview`
-  - CE (Cross-Enrollment) -- tests, role: `solution_provider`, module: `enrollment`
-  - RE (Reviewer Enrollment) -- tests, role: `panel_reviewer`, module: `reviewer_portal`
-  - ME (Multi-Enrollment) -- tests, role: `solution_provider`, module: `enrollment`
-  - ES (Enrollment-Scoped) -- tests, role: `solution_provider`, module: `enrollment`
+### dataIntegrityTests.ts Changes
 
-### Step 3: Create Pulse Social Test Adapter
+**DI-006** (line ~148-164):
+```typescript
+// Before: .eq("is_deleted", false)
+// After:  .eq("is_active", true)
+.eq("is_active", true)
+```
 
-**New file**: `src/services/regressionTestKit/pulseSocialTests.ts`
-- Import all test arrays from `pulseSocialTestRunner.ts`
-- Wrap with `role`/`module` mappings:
-  - CC (Content Creation) -- 10 tests, role: `solution_provider`, module: `pulse_social`
-  - EN (Engagements) -- 10 tests, role: `solution_provider`, module: `pulse_social`
-  - CM (Comments) -- 4 tests, role: `solution_provider`, module: `pulse_social`
-  - FL (Connections) -- 4 tests, role: `solution_provider`, module: `pulse_social`
-  - XP (Gamification) -- 8 tests, role: `system`, module: `pulse_social`
-  - LB (Leaderboards) -- tests, role: `system`, module: `pulse_social`
-  - SR (Security) -- 8 tests, role: `system`, module: `role_access`
+**DI-009** (line ~228-241):
+```typescript
+// Before: queries question_bank assuming is_deleted
+// After:  no filter needed or use is_active
+const { data, error } = await supabase
+  .from("question_bank")
+  .select("id, question_text")
+  .eq("is_active", true)
+  .limit(10);
+```
 
-### Step 4: Create Smoke Test Adapter
+### reviewerPortalTests.ts Changes
 
-The `smokeTestRunner.ts` has a DIFFERENT type system (uses `operation`/`label` instead of `name`/`description`/`run`). Needs a conversion wrapper.
+**RP-021** (line ~588-593):
+```typescript
+// Before: .select("id, name, pending_count, completed_count")
+// After:  .select("id, name, interviews_30d, interviews_7d, workload_status")
+```
 
-**New file**: `src/services/regressionTestKit/smokeTests.ts`
-- Import `moduleTestConfigs` from `smokeTestRunner.ts`
-- Create adapter functions that convert each module's CRUD operations into regression kit `TestCase` format
-- Map all to role: `platform_admin`, module: `master_data`
-- Generate IDs like `SM-001`, `SM-002`, etc.
+### roleAccessTests.ts Changes
 
-### Step 5: Wire All Adapters into Orchestrator
+**Duplicate key fix** (line 755):
+```typescript
+// Before: id: "reviewer-rls"
+// After:  id: "ra-reviewer-rls"
+```
 
-**Modify**: `src/services/regressionTestKit/index.ts`
-- Import the three new adapter files
-- Add their tests/categories to `getAllTestCategories()`, `getAllTests()`, `getTotalTestCount()`, `getTestCountsByCategory()`
-- Update category count map
+## What This Will NOT Change
+- No database schema changes
+- No RLS policy changes
+- No UI/UX changes
+- No navigation changes
+- No existing test runner modifications (smoke, enrollment, pulse runners untouched)
+- No business logic changes
 
-### Expected Final Test Count
+## Expected Outcome After Fix
+- The 7-12 tests with schema mismatches will pass
+- The 52 skipped tests remain skipped (expected -- role-specific tests run under platform_admin)
+- Remaining failures from adapted runners need separate investigation if they persist
 
-| Category | Source | Estimated Tests |
-|----------|--------|-----------------|
-| Admin Portal (AP) | regressionTestKit | 40 |
-| Role Access (RA) | regressionTestKit | 35 |
-| Reviewer Portal (RP) | regressionTestKit | 35 |
-| Data Integrity (DI) | regressionTestKit | 25 |
-| Integration (CI) | regressionTestKit | 30 |
-| Edge Functions (EF) | regressionTestKit | 16 |
-| Enrollment Lifecycle | enrollmentTestRunner adapter | ~300 |
-| Pulse Social | pulseSocialTestRunner adapter | ~80 |
-| Smoke/Master Data | smokeTestRunner adapter | ~45 |
-| **Total** | | **~600+** |
-
-### Files Changed Summary
-
-| File | Action |
-|------|--------|
-| `src/components/admin/AdminSidebar.tsx` | Add menu entry |
-| `src/services/regressionTestKit/enrollmentTests.ts` | Create (adapter) |
-| `src/services/regressionTestKit/pulseSocialTests.ts` | Create (adapter) |
-| `src/services/regressionTestKit/smokeTests.ts` | Create (adapter) |
-| `src/services/regressionTestKit/index.ts` | Wire in 3 adapters |
-
-### Technical Notes
-- Adapter pattern preserves existing runners untouched (no breaking changes to Smoke Test page or Enrollment Test page)
-- Type incompatibility in `smokeTestRunner.ts` handled via wrapper functions that call the existing CRUD functions and return the unified `TestResult` format
-- Re-prefixing avoided where possible; original test IDs preserved with namespace prefix (e.g., enrollment `LL-001` stays as `LL-001`)
