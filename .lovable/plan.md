@@ -1,205 +1,240 @@
 
-# Gap Analysis: Tech Specs vs. Current Implementation
 
-This document identifies what is implemented, partially implemented, and missing across both spec documents.
+# Seeker Organization Module -- Complete UX Implementation Plan
 
----
+## Scope Summary
 
-## Summary
+Two deliverables in this plan:
 
-| Category | Fully Implemented | Partially Implemented | Not Implemented |
-|----------|------------------|-----------------------|-----------------|
-| Database Tables & Migrations | 18 | 3 | 2 |
-| Business Rules (38 total) | ~20 | ~10 | ~8 |
-| UI Components | 14 | 5 | 6 |
-| Service Layer Logic | 6 | 3 | 3 |
+1. **Integrate Seeker-specific master data** into the existing Admin Master Data portal (single portal, no separate module)
+2. **Build the complete Seeker Portal** with layout, navigation, auth guards, and all pages
+3. **Refine Registration Wizard Screens 1-3** to match the mockup designs pixel-for-pixel
+
+Screens 4, 5, 6 will be added later per your instruction.
 
 ---
 
-## DOCUMENT 1: REG-001 Organization Identity (Tech Specs v3.0)
+## Part 1: Admin Master Data -- Seeker Extensions
 
-### REG-001 -- Organization Identity (Step 1)
+The following seeker-specific master data tables need CRUD admin pages. They will be added as new items under the existing "Master Data" and a new "Seeker Config" group in the Admin Sidebar.
 
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| 14 form fields with Zod validation | PARTIAL | Zod schema exists but is missing `regex` validation on `legal_entity_name` (spec requires `/^[a-zA-Z0-9\s.,&'-]+$/`) and `logo_file`, `profile_document`, `verification_documents` fields in schema |
-| Organization Logo upload (FileUploadZone) | MISSING | FileUploadZone component exists, but the OrganizationIdentityForm does NOT include logo or profile document upload fields -- only verification docs are rendered |
-| Organization Profile Document upload | MISSING | Same as above -- no profile document upload zone in the form |
-| BR-REG-001: Country auto-populates locale | DONE | CountryLocale hook populates currency, phone code, date/number format |
-| BR-REG-002: Org Type drives workflows | DONE | OrgTypeInfoBanner + orgTypeFlags context |
-| BR-REG-004: Sanctioned countries excluded | DONE | Countries filtered by `is_active = true` |
-| BR-REG-007: Duplicate org detection | DONE | DuplicateOrgModal with pre-insert check |
-| BR-CTY-001: Locale formatting | PARTIAL | Locale data captured but no `LocaleContext` provider for global formatting across all screens |
-| BR-SUB-001: Subsidized pricing | PARTIAL | Discount percentage captured but no `verification_expiry_date` set (spec requires 1-year annual re-verification) |
-| BR-SUB-002: Annual re-verification | MISSING | No background job or expiry date logic |
-| BR-TCP-001: Country pricing support check | MISSING | No pre-insert validation checking if `MD_TIER_COUNTRY_PRICING` has rows for selected country |
-| Shell-first rendering | DONE | Layout wraps content correctly |
-| Hook ordering | DONE | Follows correct section pattern |
-| Data Privacy Notice banner | MISSING | Spec requires persistent info banner at bottom of form |
-| "Already have an account? Sign in" link | MISSING | Not visible in OrganizationIdentityPage |
-| Accessibility (WCAG 2.1 AA) | PARTIAL | Labels present, but no `aria-describedby`, `aria-live` regions, skip links, or focus management on error |
+### New Admin Master Data Pages (8 pages)
 
-### REG-002 -- Primary Contact & Access (Step 2)
+| Table | Admin Page | Sidebar Group |
+|-------|-----------|---------------|
+| `md_tiers` | Subscription Tiers | Seeker Config |
+| `md_engagement_models` | Engagement Models | Seeker Config |
+| `md_challenge_complexity` | Challenge Complexity | Seeker Config |
+| `md_challenge_active_statuses` | Challenge Statuses | Seeker Config |
+| `md_membership_tiers` | Membership Tiers | Seeker Config |
+| `md_shadow_pricing` | Shadow Pricing | Seeker Config |
+| `md_functional_areas` | Functional Areas | Master Data |
+| `md_blocked_email_domains` | Blocked Email Domains | Seeker Config |
 
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| Form fields (9 fields + OTP) | PARTIAL | `department_functional_area_id` field is missing from the form (spec requires dropdown from `MD_FUNCTIONAL_AREAS`). `full_name` is split into `first_name`/`last_name` (acceptable deviation). Spec requires `is_email_verified` as `z.literal(true)` in Zod -- not in current schema |
-| BR-REG-005: Blocked email domains | DONE | EmailDomainBlocker component + blockedDomains query |
-| BR-REG-006: OTP verification | DONE | OtpVerification component with send/verify |
-| BR-CTY-001: Phone code auto-populated | DONE | From locale context |
-| BR-TZ-001: Timezone auto-detected | DONE | Uses `Intl.DateTimeFormat().resolvedOptions().timeZone` |
-| BR-LANG-001: Preferred language | DONE | Language dropdown from `MD_LANGUAGES` |
-| OTP rate limiting (5/hour) | PARTIAL | Client sends request; server-side enforcement depends on edge function (not verified) |
-| OTP lockout (5 failures, 24h) | PARTIAL | Same -- depends on server-side implementation |
-| Zod schema: `is_email_verified: z.literal(true)` | MISSING | Not in `primaryContactSchema` -- verification enforced in handler only |
+Additional admin pages (under Seeker Config):
+- `export_control_statuses` -- Export Control Statuses
+- `data_residency_options` -- Data Residency Options
+- `platform_terms` -- Platform Terms & Conditions
 
----
+### Admin Sidebar Changes
 
-## DOCUMENT 2: Addendum -- Gap-Filling Supplement
+Add two new groups to `AdminSidebar.tsx`:
 
-### Patch 1: MD_SHADOW_PRICING (A1)
+```text
+Master Data (existing)
+  Countries
+  Industry Segments
+  Organization Types
+  Participation Modes
+  Expertise Levels
+  Functional Areas       <-- NEW
 
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `md_shadow_pricing` table created | DONE | Table exists with seed data |
-| `useShadowPricing(tierId)` hook | DONE | In `usePlanSelectionData.ts` |
-| RLS policy for shadow pricing | DONE | Anyone can read active |
-| Index `idx_shadow_pricing_tier` | DONE | Created |
-| Cost calculator integration | PARTIAL | Hook exists but shadow cost display in plan selection cost calculator not verified |
+Seeker Config            <-- NEW GROUP
+  Subscription Tiers
+  Engagement Models
+  Challenge Complexity
+  Challenge Statuses
+  Membership Tiers
+  Shadow Pricing
+  Export Control
+  Data Residency
+  Blocked Domains
+  Platform Terms
+```
 
-### Patch 2: Shadow Billing Integration (A2)
+### Implementation Pattern
 
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `shadow_charge_per_challenge` on SEEKER_SUBSCRIPTIONS | DONE | Column added via migration |
-| `shadow_currency_code` on SEEKER_SUBSCRIPTIONS | NEEDS VERIFICATION | May be present in migration |
-| BR-ZFE-001 amended: Use shadow amounts from MD_SHADOW_PRICING | PARTIAL | `calculateShadowFee` in service exists but registration completion flow not verified |
-
-### ORG-001: Organization Settings & Profile Management
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| ProfileTab with editable/locked fields | DONE | Component exists |
-| SubscriptionTab with upgrade/downgrade | DONE | Component exists |
-| EngagementModelTab with BR-MSL-001 | DONE | Component exists |
-| AuditTrailTable | DONE | Component exists |
-| `seeker_organization_audit` table | DONE | Created |
-| `md_challenge_active_statuses` table | DONE | Created with seed data |
-| FieldChangeModal (cascading changes) | MISSING | Spec requires confirmation modal for country/org-type changes |
-| TierComparisonModal | MISSING | Spec requires side-by-side tier comparison for upgrade/downgrade |
-| ActiveChallengesBlocker | MISSING | Spec requires list of active challenges preventing model switch |
-| Country change cascading recalculation | PARTIAL | Service has field-locking but no confirmation modal or cascading currency/pricing recalculation |
-| Downgrade: pending_downgrade_tier_id / date | DONE | Columns added to `seeker_subscriptions` |
-| Prorated upgrade charge calculation | MISSING | No proration logic in service or UI |
-
-### CHG-001: Challenge Creation & Pricing
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `md_challenge_complexity` table | DONE | 3-level complexity with multipliers |
-| `md_challenge_base_fees` table | DONE | Country+tier base fees |
-| Pricing calculation formula | DONE | `calculateChallengeFees` in service |
-| `challenges` table (full schema per spec) | PARTIAL | Table exists as stub; columns added (engagement_model_id, complexity_id, fees) but spec-defined columns like `shadow_fee_amount`, `payment_status`, `max_solutions`, `solutions_awarded`, `visibility` need verification |
-| Engagement model lock trigger | DONE | DB trigger `enforce_engagement_model_lock` exists |
-| BR-MSL-002: Model locked after Draft | DONE | Trigger enforced at DB level |
-| BR-EMF-002/003: Marketplace vs Aggregator runtime | MISSING | No runtime enforcement UI (messaging disabled/enabled, provider contact visibility) |
-| BR-TFR-004: Max solutions enforcement | PARTIAL | `getMaxSolutions` in service, but no award-time enforcement UI |
-| BR-TFR-002: Challenge limit enforcement | DONE | `validateChallengeLimit` in service + UI blocker |
-| Internal dept zero-fee flow (BR-ZFE-001) | PARTIAL | Service logic exists but no UI path for internal depts to skip payment |
-| `seeker_challenge_topups` table | DONE | Created with RLS |
-| Challenge creation form uses Zod | MISSING | ChallengeCreatePage uses `useState` instead of React Hook Form + Zod (violates architecture standard) |
-
-### MEM-001: Membership Management
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `seeker_memberships` table | DONE | Created |
-| `md_membership_tiers` table | DONE | Pre-existing with seed data |
-| BR-MEM-001: Membership lifecycle | DONE | Service + hooks exist |
-| BR-MEM-002: Fee + commission discounts | DONE | `calculateMembershipDiscount` in service |
-| BR-MEM-003: Discount exclusions | PARTIAL | Service mentions discountable items but no full exclusion list implementation |
-| BR-MEM-004: Internal dept bypass | DONE | In service |
-| Auto-renewal + pg_cron job | MISSING | No pg_cron scheduled job for membership expiry/renewal |
-| Renewal notification 30 days before expiry | MISSING | No notification trigger |
-
-### SAS-001: Parent Org & SaaS Administration
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `saas_agreements` table (full schema) | PARTIAL | Table created but missing several spec columns: `base_platform_fee`, `per_department_fee`, `support_tier_fee`, `custom_fee_1/2_label/amount`, `msa_reference_number`, `msa_document_url`, `billing_frequency` |
-| Parent org dashboard (6 widgets) | DONE | ParentDashboardPage exists |
-| RLS: Platform Admin full access | PARTIAL | RLS exists but uses `seeker_contacts` join rather than `is_platform_admin()` function |
-| SaaS agreement CRUD form (admin) | DONE | SaasAgreementPage exists |
-| `get_visible_org_ids` function | MISSING | Spec requires this DB function for subsidiary data visibility |
-
-### TEM-001: Team & User Management
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `org_roles` table with system + custom | DONE | Created with RLS |
-| `org_users` enhancements | DONE | subsidiary_org_id, org_role_id, invitation fields |
-| BR-REG-017: Tier-based user limits | DONE | `validateUserInvite` in service |
-| Custom role builder (Premium) | MISSING | No UI for creating custom roles with granular permissions |
-| Subsidiary hierarchy support | PARTIAL | Column exists but no `get_visible_org_ids` DB function and no UI for subsidiary assignment |
-
-### BIL-001: Billing & Subscription Lifecycle
-
-| Spec Item | Status | Gap Description |
-|-----------|--------|-----------------|
-| `seeker_invoices` table | DONE | Created |
-| `seeker_invoice_line_items` table | DONE | Created |
-| Challenge counter display | DONE | OrgBillingPage shows usage |
-| Counter reset pg_cron job | MISSING | No pg_cron job for monthly reset |
-| Top-up purchase flow | DONE | UI + hook exists |
-| Invoice generation logic | PARTIAL | Schema exists but no automated invoice generation on subscription/topup |
-| Internal dept billing gate (BR-SAAS-003) | MISSING | No `InternalBillingNotice` component or gate in billing page |
-| Shadow usage summary for internal depts | MISSING | Not implemented on billing page |
+Each page follows the existing admin CRUD pattern:
+- Reuse `DataTable`, `MasterDataForm`, `DeleteConfirmDialog`, `StatusBadge` from `src/components/admin/`
+- Each page in `src/pages/admin/[entity-name]/` folder with barrel export
+- React Query hook in `src/hooks/queries/` for each entity
+- Lazy-loaded route in `App.tsx` under `AdminGuard`
 
 ---
 
-## Critical Gaps Summary (Priority Order)
+## Part 2: Seeker Portal Shell
 
-### HIGH Priority (Core Functionality Missing)
+### New Components
 
-1. **Logo + Profile Document uploads** on REG-001 form
-2. **BR-TCP-001**: Country pricing support validation (blocks registration if country unsupported)
-3. **ChallengeCreatePage**: Should use React Hook Form + Zod (currently raw useState)
-4. **BR-SAAS-003**: Internal department billing gate not implemented
-5. **Challenges table**: Missing several spec columns (`shadow_fee_amount`, `payment_status`, `visibility`, etc.)
-6. **`get_visible_org_ids` DB function** for subsidiary data scoping
+| File | Purpose |
+|------|---------|
+| `src/components/org/OrgLayout.tsx` | Layout wrapper: SidebarProvider + OrgSidebar + SidebarInset + OrgHeader + content |
+| `src/components/org/OrgSidebar.tsx` | Sidebar with: Dashboard, Challenges, Settings, Team, Billing, Membership |
+| `src/components/org/OrgHeader.tsx` | Header with breadcrumbs, org name, tier badge, user dropdown |
+| `src/contexts/OrgContext.tsx` | Resolves current user's org via `org_users` table. Provides `organizationId`, `tenantId`, `orgRole` |
+| `src/hooks/queries/useCurrentOrg.ts` | Hook to fetch user's org from `org_users` |
+| `src/components/auth/SeekerGuard.tsx` | Auth guard verifying user has `org_users` record |
 
-### MEDIUM Priority (Business Logic Gaps)
+### New Pages
 
-7. **FieldChangeModal**: Confirmation dialog for cascading country/org-type changes on ORG-001
-8. **TierComparisonModal**: Side-by-side comparison for upgrade/downgrade
-9. **ActiveChallengesBlocker**: Show blocking challenges list
-10. **pg_cron jobs**: Counter reset (BIL-001) and membership expiry (MEM-001)
-11. **Prorated upgrade charge** calculation
-12. **Custom Role Builder UI** (Premium tier)
-13. **BR-EMF-002/003**: Marketplace vs Aggregator runtime rules (messaging/contact visibility)
-14. **SaaS agreement** schema completeness (missing fee breakdown columns)
-15. **`is_email_verified: z.literal(true)`** in Zod schema for REG-002
+| File | Route | Purpose |
+|------|-------|---------|
+| `src/pages/org/OrgDashboardPage.tsx` | `/org/dashboard` | Dashboard hub with usage gauges, tier info, quick actions |
+| `src/pages/org/ChallengeListPage.tsx` | `/org/challenges` | DataTable of challenges with filters |
+| `src/pages/registration/OnboardingCompletePage.tsx` | `/registration/complete` | Post-billing welcome page |
 
-### LOW Priority (Polish / Enhancement)
+### Auth and Routing Updates
 
-16. **LocaleContext provider** for global currency/date formatting
-17. **Data Privacy Notice** banner on REG-001
-18. **"Sign in" link** on registration pages
-19. **Accessibility**: aria-describedby, aria-live, skip links, focus management
-20. **BR-SUB-002**: Annual re-verification of subsidized pricing
-21. **Department Functional Area** dropdown on REG-002
-22. **Invoice auto-generation** on billing events
-23. **Shadow usage summary** component for internal depts
-24. **Notification/email triggers** for membership renewal reminders
+**Login.tsx changes:**
+- Add 4th tab: "Organization" with `Building2` icon, color teal/cyan
+- Add `PortalType = 'admin' | 'provider' | 'reviewer' | 'organization'`
+- Add `PORTAL_ROUTES.organization = '/org/dashboard'`
+- Add registration CTA: "Registering an organization? Start here" linking to `/registration/organization-identity`
+
+**App.tsx changes:**
+- Add all new admin master data routes (11 routes under AdminGuard)
+- Wrap all `/org/*` routes with `SeekerGuard` + `OrgContext`
+- Add `/org/dashboard`, `/org/challenges`, `/registration/complete` routes
+
+**RoleBasedRedirect changes:**
+- Add seeker portal priority: Admin > Reviewer > Seeker > Provider
+- Check `org_users` table for seeker role
+
+### Existing Page Refactors
+
+All existing `/org/*` pages will be refactored to:
+1. Use `OrgLayout` instead of bare content or `AdminLayout`
+2. Use `OrgContext` instead of `DEMO_ORG_ID` / `DEMO_TENANT_ID` hardcoded values
+
+| Page | Changes |
+|------|---------|
+| `OrgSettingsPage` | Wrap with OrgLayout, use OrgContext for orgId |
+| `OrgBillingPage` | Wrap with OrgLayout, use OrgContext for orgId |
+| `TeamPage` | Wrap with OrgLayout, use OrgContext for orgId |
+| `MembershipPage` | Wrap with OrgLayout, use OrgContext for orgId |
+| `ChallengeCreatePage` | Wrap with OrgLayout, use OrgContext for orgId |
+| `ParentDashboardPage` | Wrap with OrgLayout, use OrgContext for orgId |
 
 ---
 
-## Recommendation
+## Part 3: Registration Wizard Screens 1-3 Refinements
 
-Approximately **60-65%** of the combined specs are implemented. The core database schema, service layer logic, and primary UI components are in place. The main gaps fall into three categories:
+Based on the mockup screenshots, the following refinements are needed:
 
-1. **Missing UI sub-components** (modals, blockers, upload zones, internal dept gates)
-2. **Missing background jobs** (pg_cron for counter reset, membership expiry)
-3. **Incomplete business rule enforcement** at runtime (marketplace/aggregator rules, subsidiary visibility, prorated charges)
+### Screen 1: Organization Identity (REG-001)
 
-To reach full spec coverage, I recommend tackling the HIGH priority items first, followed by MEDIUM items in a subsequent phase.
+Current form has all fields but UI needs alignment with mockups:
+
+- **Header area**: Add platform logo icon (layered chevrons icon) centered above the stepper
+- **Step indicator**: Step labels always visible (currently `hidden lg:block` -- needs `sm:block`)
+- **Form title**: "Tell us about your organization" with subtitle "This helps us personalize your experience and recommend the right plan."
+- **Industries**: Display as togglable chip/pill tags (currently uses IndustryTagSelector -- verify matches mockup style with `+` prefix)
+- **Country selector**: Show flag emoji + country name (mockup shows "us United States")
+- **Country hint text**: "Currency, date format, and phone code will be set automatically" (matches spec)
+- **Operating Geographies**: Tags with country code + flag (mockup: "US US", "GB UK", etc.)
+- **Logo upload**: Show thumbnail preview with green checkmark, filename, size, "Remove logo" link (match mockup exactly)
+- **Profile Document**: Show file icon, green checkmark, filename, size, date, "Remove document" link
+- **Verification Documents**: Info banner "Document Verification Required" in blue/light blue. "+ Add Document" full-width cyan button. Listed docs with title, filename, size, date, "Remove" link
+- **Privacy notice**: Blue info banner with lock icon: "Your data is encrypted and never shared with other organizations."
+- **Footer**: "Already have an account? Sign in" on left, "Step 1 of 5" center-right, "Continue" button (dark blue, not full-width) on right
+- **Back button**: Disabled/hidden on Step 1
+
+### Screen 2: Primary Contact (REG-002)
+
+Refinements per mockups:
+
+- **Full Name**: Single "Full Name" input instead of separate first/last name fields (mockup shows one field). Helper text: "Unicode characters supported for international names"
+- **Job Title**: Label just "Job Title" (currently "Designation / Job Title")
+- **Department**: Shows "Optional" hint below
+- **Department Functional Area**: Dropdown with "Technology" etc. Shows "Optional" hint
+- **Business Email**: Input with mail icon, green checkmark when verified, green border. "Must be a corporate email." hint. "Verify Email" cyan button to the right
+- **Phone Number**: Country code prefix box ("+1 us") with flag, phone icon in the number field
+- **Preferred Language**: Dropdown
+- **Timezone**: Shows full format "America/New_York (EST, UTC-5)". Hint: "Auto-detected with override option"
+- **Footer**: "Back" outlined button (left), "Step 2 of 5", "Continue" dark blue button (right)
+
+### Screen 3: Compliance & Legal Setup (REG-003)
+
+Major refinement -- current form differs significantly from mockup:
+
+- **Title**: "Compliance & Legal Setup" with subtitle "Required for regulatory compliance and platform security."
+- **Tax ID section** (NEW -- missing from current form):
+  - "EIN (Employer Identification Number)" -- label changes based on country (e.g., EIN for US, GST for India)
+  - Format hint below: "Format: XX-XXXXXXX"
+  - Driven by `md_tax_formats` table (country-specific)
+- **DUNS Number** (NEW): Optional text input
+- **Platform Terms & Conditions**:
+  - Scrollable terms viewer showing versioned terms from `platform_terms` table
+  - Checkbox: "I accept the Platform Terms & Conditions (Version X.X, dated [date])" with "Read Full Terms" link
+  - Green checkmark + "Accepted on [date/time] UTC" confirmation after acceptance
+- **NDA Preference** (NEW):
+  - Radio group: "Standard Platform NDA" (recommended badge) vs "Custom NDA"
+  - Standard: "Use our pre-approved mutual NDA for all engagements"
+  - Custom: "Upload your organization's NDA template for review"
+- **Export Control Status**: Dropdown (existing, keep)
+- **Data Residency Requirements**: Dropdown (existing, keep). Hint: "Specifies where your organization's data will be stored and processed"
+- **Remove**: Compliance certifications grid (GDPR, HIPAA, SOC2, ISO27001) and additional notes -- not in the mockups for Screen 3
+- **Footer**: "Back" + "Step 3 of 5" + "Continue"
+
+### Compliance Validation Schema Update
+
+Update `complianceSchema` to include:
+- `tax_id`: string, conditional format validation based on country
+- `duns_number`: string, optional, 9 digits
+- `terms_accepted`: boolean, must be true
+- `terms_version`: string
+- `terms_accepted_at`: string (timestamp)
+- `nda_preference`: enum ('standard' | 'custom')
+- `custom_nda_file`: File, optional (required if nda_preference = 'custom')
+
+### RegistrationWizardLayout Updates
+
+- Add centered platform logo icon above stepper
+- Step labels visible on `sm:` breakpoint (not just `lg:`)
+- Footer: left = privacy notice with lock icon, right = step counter
+
+---
+
+## Technical Details
+
+### File Count Summary
+
+| Category | New Files | Modified Files |
+|----------|-----------|----------------|
+| Admin Master Data Pages | ~22 (11 pages + 11 hooks) | 2 (AdminSidebar, App.tsx) |
+| Seeker Portal Shell | 6 | 8 (existing org pages + App.tsx + Login.tsx) |
+| Registration Refinements | 0 | 6 (layout, forms, validation, step indicator) |
+| **Total** | **~28** | **~16** |
+
+### Execution Order
+
+1. Admin Sidebar + master data CRUD pages (extend existing pattern)
+2. OrgContext + SeekerGuard + OrgLayout shell
+3. Login.tsx 4th tab + routing updates
+4. OrgDashboard + ChallengeListPage
+5. Refactor existing org pages to use OrgLayout
+6. Registration Screen 1 UI refinements
+7. Registration Screen 2 UI refinements
+8. Registration Screen 3 major refactor (Tax ID, Terms, NDA)
+9. OnboardingCompletePage
+
+### Patterns Followed
+
+- Shell-first rendering per Runtime Stability v4.0
+- Hook ordering: State > Context > Form > Query > Effect > Conditional > Handlers > Render
+- `lg:` breakpoint for layout transitions (not `md:`)
+- React Query for all server data, RHF + Zod for forms
+- Reuse existing `DataTable`, `MasterDataForm` admin components
+- `withCreatedBy` / `withUpdatedBy` for all mutations
+- Structured error handling via `handleMutationError`
+
