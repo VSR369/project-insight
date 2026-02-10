@@ -134,6 +134,9 @@ const BillingPage = lazy(() => import("@/pages/registration/BillingPage"));
 
 // Seeker Organization Pages (lazy loaded - post-auth)
 const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
+const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
+const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
+const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
 
 import { queryClient } from "@/lib/queryClient";
 
@@ -816,6 +819,32 @@ const App = () => (
                 <AuthGuard>
                   <LazyRoute><OrgSettingsPage /></LazyRoute>
                 </AuthGuard>
+              }
+            />
+            <Route
+              path="/org/membership"
+              element={
+                <AuthGuard>
+                  <LazyRoute><MembershipPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+            <Route
+              path="/org/parent-dashboard"
+              element={
+                <AuthGuard>
+                  <LazyRoute><ParentDashboardPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+
+            {/* Admin SaaS Agreement Management */}
+            <Route
+              path="/admin/saas-agreements"
+              element={
+                <AdminGuard>
+                  <LazyRoute><SaasAgreementPage /></LazyRoute>
+                </AdminGuard>
               }
             />
 

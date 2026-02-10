@@ -67,6 +67,10 @@ const interviewItems = [
   { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
 ];
 
+const seekerItems = [
+  { title: 'SaaS Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
+];
+
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
@@ -170,6 +174,25 @@ export function AdminSidebar() {
                         {pendingCount}
                       </Badge>
                     )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Seeker Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {seekerItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.path)}
+                    isActive={isActive(item.path)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
