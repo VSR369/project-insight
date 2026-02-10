@@ -157,7 +157,8 @@ export function OrganizationIdentityForm() {
   // ══════════════════════════════════════
   const showVerification = orgTypeFlags?.verification_required ?? false;
   const selectedOrgType = orgTypes?.find((t) => t.id === watchedOrgTypeId);
-  const showCountryWarning = watchedCountryId && countryPricingSupported === false;
+  // Country pricing warning bypassed for testing — all countries accepted
+  const showCountryWarning = false;
 
   // ══════════════════════════════════════
   // SECTION 7: Event handlers
@@ -538,7 +539,7 @@ export function OrganizationIdentityForm() {
             <Button
               type="submit"
               size="lg"
-              disabled={isSubmitting || showCountryWarning === true}
+              disabled={isSubmitting}
               className="min-w-[180px]"
             >
               {isSubmitting ? (
