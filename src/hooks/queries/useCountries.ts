@@ -16,7 +16,7 @@ export function useCountries(includeInactive = false) {
       // PERFORMANCE: Select only required columns instead of *
       let query = supabase
         .from("countries")
-        .select("id, code, name, phone_code, display_order, is_active")
+        .select("id, code, name, iso_alpha3, phone_code, phone_code_display, currency_code, currency_symbol, date_format, number_format, is_ofac_restricted, address_format_template, display_order, is_active, description")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 

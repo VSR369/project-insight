@@ -112,6 +112,17 @@ const InterviewKitQuestionsPage = lazy(() => import("@/pages/admin/interview-kit
 const PulseSocialTestPage = lazy(() => import("@/pages/admin/PulseSocialTestPage"));
 const RegressionTestKitPage = lazy(() => import("@/pages/admin/RegressionTestKitPage"));
 
+// Seeker Config Admin Pages (lazy loaded)
+const FunctionalAreasPage = lazy(() => import("@/pages/admin/functional-areas").then(m => ({ default: m.FunctionalAreasPage })));
+const SubscriptionTiersPage = lazy(() => import("@/pages/admin/subscription-tiers").then(m => ({ default: m.SubscriptionTiersPage })));
+const EngagementModelsPage = lazy(() => import("@/pages/admin/engagement-models").then(m => ({ default: m.EngagementModelsPage })));
+const ChallengeComplexityPage = lazy(() => import("@/pages/admin/challenge-complexity").then(m => ({ default: m.ChallengeComplexityPage })));
+const ChallengeStatusesPage = lazy(() => import("@/pages/admin/challenge-statuses").then(m => ({ default: m.ChallengeStatusesPage })));
+const ExportControlPage = lazy(() => import("@/pages/admin/export-control").then(m => ({ default: m.ExportControlPage })));
+const DataResidencyPage = lazy(() => import("@/pages/admin/data-residency").then(m => ({ default: m.DataResidencyPage })));
+const BlockedDomainsPage = lazy(() => import("@/pages/admin/blocked-domains").then(m => ({ default: m.BlockedDomainsPage })));
+const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -637,6 +648,16 @@ const App = () => (
               }
             />
 
+            {/* Seeker Config Admin Routes */}
+            <Route path="/admin/master-data/functional-areas" element={<AdminGuard><LazyRoute><FunctionalAreasPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/subscription-tiers" element={<AdminGuard><LazyRoute><SubscriptionTiersPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/engagement-models" element={<AdminGuard><LazyRoute><EngagementModelsPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/challenge-complexity" element={<AdminGuard><LazyRoute><ChallengeComplexityPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/challenge-statuses" element={<AdminGuard><LazyRoute><ChallengeStatusesPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/export-control" element={<AdminGuard><LazyRoute><ExportControlPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/data-residency" element={<AdminGuard><LazyRoute><DataResidencyPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/blocked-domains" element={<AdminGuard><LazyRoute><BlockedDomainsPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/platform-terms" element={<AdminGuard><LazyRoute><PlatformTermsPage /></LazyRoute></AdminGuard>} />
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
               path="/reviewer/invitation-response"
