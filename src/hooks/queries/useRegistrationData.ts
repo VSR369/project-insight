@@ -166,10 +166,16 @@ export function useCreateOrganization() {
     }) => {
       const { industry_ids, operating_geography_ids, locale, ...orgData } = payload;
 
+      // Generate IDs client-side to avoid needing SELECT after INSERT
+      // (SELECT policy requires tenant membership which doesn't exist yet during registration)
+      const orgId = crypto.randomUUID();
+      const tenantId = crypto.randomUUID();
+
       // 1. Insert the organization record
-      const { data: org, error: orgError } = await supabase
+      const { error: orgError } = await supabase
         .from('seeker_organizations')
         .insert({
+          id: orgId,
           organization_name: orgData.legal_entity_name,
           legal_entity_name: orgData.legal_entity_name,
           trade_brand_name: orgData.trade_brand_name || null,
@@ -180,18 +186,18 @@ export function useCreateOrganization() {
           hq_country_id: orgData.hq_country_id,
           hq_state_province_id: orgData.hq_state_province_id,
           hq_city: orgData.hq_city,
-          tenant_id: crypto.randomUUID(), // Self-tenant for new org
+          tenant_id: tenantId,
           registration_step: 1,
           preferred_currency: locale.currency_code?.substring(0, 3) || 'USD',
           date_format: locale.date_format || 'MM/DD/YYYY',
           number_format: locale.number_format || '1,234.56',
           address_format_template: locale.address_format_template as any,
           subsidized_discount_pct: orgData.subsidized_discount_pct ?? 0,
-        })
-        .select('id, tenant_id')
-        .single();
+        });
 
       if (orgError) throw new Error(orgError.message);
+
+      const org = { id: orgId, tenant_id: tenantId };
 
       // 2. Batch insert industries (seeker_org_industries requires tenant_id)
       if (industry_ids.length > 0) {
