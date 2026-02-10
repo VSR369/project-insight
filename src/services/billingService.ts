@@ -56,6 +56,30 @@ export function computeInvoiceStatus(
 }
 
 /**
+ * Calculate prorated upgrade charge
+ * Charges the difference between new and old tier for remaining days in period.
+ */
+export function calculateProratedCharge(params: {
+  oldMonthlyFee: number;
+  newMonthlyFee: number;
+  periodStart: string;
+  periodEnd: string;
+}): { proratedAmount: number; remainingDays: number; totalDays: number } {
+  const start = new Date(params.periodStart);
+  const end = new Date(params.periodEnd);
+  const now = new Date();
+
+  const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
+  const remainingDays = Math.max(0, Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+
+  const feeDifference = Math.max(0, params.newMonthlyFee - params.oldMonthlyFee);
+  const dailyRate = feeDifference / totalDays;
+  const proratedAmount = Math.round(dailyRate * remainingDays * 100) / 100;
+
+  return { proratedAmount, remainingDays, totalDays };
+}
+
+/**
  * Calculate billing period usage summary
  */
 export function computeUsageSummary(
