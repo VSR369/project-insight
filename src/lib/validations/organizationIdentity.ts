@@ -11,13 +11,15 @@ import type { CompanySizeRange, AnnualRevenueRange } from '@/types/registration'
 const COMPANY_SIZE_VALUES: CompanySizeRange[] = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5001+'];
 const REVENUE_VALUES: AnnualRevenueRange[] = ['<1M', '1M-10M', '10M-50M', '50M-250M', '250M-1B', '>1B'];
 
+const LEGAL_NAME_REGEX = /^[a-zA-Z0-9\s.,&'\-]+$/;
 const currentYear = new Date().getFullYear();
 
 export const organizationIdentitySchema = z.object({
   legal_entity_name: z.string()
     .trim()
     .min(2, 'Legal entity name must be at least 2 characters')
-    .max(200, 'Legal entity name must be 200 characters or less'),
+    .max(200, 'Legal entity name must be 200 characters or less')
+    .regex(LEGAL_NAME_REGEX, 'Legal entity name contains invalid characters'),
 
   trade_brand_name: z.string()
     .trim()

@@ -5157,22 +5157,32 @@ export type Database = {
         Row: {
           agreement_type: string
           auto_renew: boolean
+          base_platform_fee: number | null
+          billing_frequency: string | null
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           child_organization_id: string
           created_at: string
           created_by: string | null
+          custom_fee_1_amount: number | null
+          custom_fee_1_label: string | null
+          custom_fee_2_amount: number | null
+          custom_fee_2_label: string | null
           ends_at: string | null
           fee_amount: number
           fee_currency: string
           fee_frequency: string
           id: string
           lifecycle_status: string
+          msa_document_url: string | null
+          msa_reference_number: string | null
           notes: string | null
           parent_organization_id: string
+          per_department_fee: number | null
           shadow_charge_rate: number | null
           starts_at: string
+          support_tier_fee: number | null
           tenant_id: string
           updated_at: string | null
           updated_by: string | null
@@ -5180,22 +5190,32 @@ export type Database = {
         Insert: {
           agreement_type?: string
           auto_renew?: boolean
+          base_platform_fee?: number | null
+          billing_frequency?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           child_organization_id: string
           created_at?: string
           created_by?: string | null
+          custom_fee_1_amount?: number | null
+          custom_fee_1_label?: string | null
+          custom_fee_2_amount?: number | null
+          custom_fee_2_label?: string | null
           ends_at?: string | null
           fee_amount?: number
           fee_currency?: string
           fee_frequency?: string
           id?: string
           lifecycle_status?: string
+          msa_document_url?: string | null
+          msa_reference_number?: string | null
           notes?: string | null
           parent_organization_id: string
+          per_department_fee?: number | null
           shadow_charge_rate?: number | null
           starts_at?: string
+          support_tier_fee?: number | null
           tenant_id: string
           updated_at?: string | null
           updated_by?: string | null
@@ -5203,22 +5223,32 @@ export type Database = {
         Update: {
           agreement_type?: string
           auto_renew?: boolean
+          base_platform_fee?: number | null
+          billing_frequency?: string | null
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           child_organization_id?: string
           created_at?: string
           created_by?: string | null
+          custom_fee_1_amount?: number | null
+          custom_fee_1_label?: string | null
+          custom_fee_2_amount?: number | null
+          custom_fee_2_label?: string | null
           ends_at?: string | null
           fee_amount?: number
           fee_currency?: string
           fee_frequency?: string
           id?: string
           lifecycle_status?: string
+          msa_document_url?: string | null
+          msa_reference_number?: string | null
           notes?: string | null
           parent_organization_id?: string
+          per_department_fee?: number | null
           shadow_charge_rate?: number | null
           starts_at?: string
+          support_tier_fee?: number | null
           tenant_id?: string
           updated_at?: string | null
           updated_by?: string | null
@@ -5526,6 +5556,7 @@ export type Database = {
           deleted_at: string | null
           deleted_by: string | null
           department: string | null
+          department_functional_area_id: string | null
           email: string
           email_verified: boolean
           email_verified_at: string | null
@@ -5554,6 +5585,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department?: string | null
+          department_functional_area_id?: string | null
           email: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -5582,6 +5614,7 @@ export type Database = {
           deleted_at?: string | null
           deleted_by?: string | null
           department?: string | null
+          department_functional_area_id?: string | null
           email?: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -5604,6 +5637,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "seeker_contacts_department_functional_area_id_fkey"
+            columns: ["department_functional_area_id"]
+            isOneToOne: false
+            referencedRelation: "md_functional_areas"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "seeker_contacts_functional_area_id_fkey"
             columns: ["functional_area_id"]
@@ -7395,6 +7435,10 @@ export type Database = {
         Returns: number
       }
       get_user_tenant_id: { Args: never; Returns: string }
+      get_visible_org_ids: {
+        Args: { p_parent_org_id: string }
+        Returns: string[]
+      }
       handle_orphaned_proof_points: {
         Args: { p_provider_id: string; p_removed_area_ids: string[] }
         Returns: number
