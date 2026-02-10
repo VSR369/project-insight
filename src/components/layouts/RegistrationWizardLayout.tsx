@@ -7,8 +7,11 @@
  */
 
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
 import { StepIndicator } from '@/components/shared/StepIndicator';
+import { useOptionalAuth } from '@/hooks/useAuth';
+import { Separator } from '@/components/ui/separator';
 
 interface RegistrationWizardLayoutProps {
   currentStep: number;
@@ -21,6 +24,14 @@ export function RegistrationWizardLayout({
   completedSteps = [],
   children,
 }: RegistrationWizardLayoutProps) {
+  const auth = useOptionalAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    await auth?.signOut();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
@@ -29,12 +40,26 @@ export function RegistrationWizardLayout({
           <Link to="/" className="text-xl font-bold text-primary">
             Registration
           </Link>
-          <Link
-            to="/login"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Already have an account? Sign in
-          </Link>
+          <div className="flex items-center gap-3">
+            {auth?.session && (
+              <>
+                <button
+                  onClick={handleLogout}
+                  className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <LogOut className="h-3.5 w-3.5" />
+                  Log out
+                </button>
+                <Separator orientation="vertical" className="h-4" />
+              </>
+            )}
+            <Link
+              to="/login"
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Already have an account? Sign in
+            </Link>
+          </div>
         </div>
       </header>
 
