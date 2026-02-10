@@ -102,6 +102,15 @@ const DEV_ACCOUNTS: Array<{
     color: 'text-green-600',
     portal: 'reviewer',
   },
+  {
+    role: 'Seeking Org',
+    email: 'seeker@test.local',
+    password: 'Seeker123!',
+    icon: Building2,
+    description: 'Organization portal access',
+    color: 'text-teal-600',
+    portal: 'organization',
+  },
 ];
 
 // Portal home routes
@@ -507,7 +516,7 @@ export default function Login() {
           </CardHeader>
           {showDevAccounts && (
             <CardContent className="pt-2">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {DEV_ACCOUNTS.map((account) => {
                   const Icon = account.icon;
                   return (
