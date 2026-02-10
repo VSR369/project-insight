@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase, Building2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, LoginFormData } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 // Portal type for routing
-type PortalType = 'admin' | 'provider' | 'reviewer';
+type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
 
 // Tab configuration with icons and descriptions
 const LOGIN_TABS: Array<{
@@ -53,6 +53,15 @@ const LOGIN_TABS: Array<{
     color: 'text-destructive',
     borderColor: 'border-destructive/30',
     description: 'System administration, master data, user management',
+  },
+  {
+    id: 'organization',
+    label: 'Organization',
+    shortLabel: 'Org',
+    icon: Building2,
+    color: 'text-teal-600',
+    borderColor: 'border-teal-600/30',
+    description: 'Manage challenges, team, and billing for your organization',
   },
 ];
 
@@ -98,8 +107,9 @@ const DEV_ACCOUNTS: Array<{
 // Portal home routes
 const PORTAL_ROUTES: Record<PortalType, string> = {
   admin: '/admin',
-  provider: '/pulse/feed',  // Industry Pulse is the gateway for all providers
+  provider: '/pulse/feed',
   reviewer: '/reviewer/dashboard',
+  organization: '/org/dashboard',
 };
 
 export default function Login() {
@@ -333,7 +343,7 @@ export default function Login() {
           onValueChange={(v) => setSelectedRole(v as PortalType)}
           className="mb-4"
         >
-          <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
             {LOGIN_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -442,8 +452,9 @@ export default function Login() {
                   type="submit" 
                   className={cn(
                     "w-full",
-                    selectedRole === 'admin' && "bg-destructive hover:bg-destructive/90",
-                    selectedRole === 'reviewer' && "bg-green-600 hover:bg-green-700"
+                  selectedRole === 'admin' && "bg-destructive hover:bg-destructive/90",
+                    selectedRole === 'reviewer' && "bg-green-600 hover:bg-green-700",
+                    selectedRole === 'organization' && "bg-teal-600 hover:bg-teal-700"
                   )} 
                   disabled={isLoading}
                 >
@@ -459,6 +470,11 @@ export default function Login() {
                   Don't have an account?{' '}
                   <Link to="/register" className="text-primary hover:underline font-medium">
                     Sign up
+                  </Link>
+                </p>
+                <p className="text-sm text-center text-muted-foreground">
+                  <Link to="/registration/organization-identity" className="text-teal-600 hover:underline font-medium">
+                    Registering an organization? Start here →
                   </Link>
                 </p>
               </CardFooter>
