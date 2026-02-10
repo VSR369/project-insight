@@ -1,177 +1,117 @@
 
-# Phase 2: Regression Test Kit UI & Navigation Implementation
+# Regression Test Kit: Complete Integration + Sidebar Navigation
 
-## Overview
-Complete the Regression Test Kit by building the UI page, runner hook, and integrating into admin navigation. This builds on the Phase 1 infrastructure (types, orchestrator, and ~200 tests already created).
+## Problems Found
 
-## Current Status
-| Component | Status |
-|-----------|--------|
-| `types.ts` | Done |
-| `index.ts` (orchestrator) | Done |
-| `adminPortalTests.ts` | Done (40 tests) |
-| `roleAccessTests.ts` | Done (35 tests) |
-| `reviewerPortalTests.ts` | Done (35 tests) |
-| `dataIntegrityTests.ts` | Done (25 tests) |
-| `integrationTests.ts` | Done (30 tests) |
-| `edgeFunctionTests.ts` | Done (20 tests) |
-| `useRegressionTestKit.ts` | **To Build** |
-| `RegressionTestKitPage.tsx` | **To Build** |
-| `App.tsx` route | **To Add** |
-| `AdminDashboard.tsx` menu | **To Add** |
+1. **Missing Sidebar Menu Entry**: "Regression Test Kit" exists on the AdminDashboard card grid but is NOT in `AdminSidebar.tsx` (the persistent left navigation). Users logged in as Platform Admin cannot navigate to it from the sidebar.
 
-## Files to Create/Modify
+2. **~420 Existing Tests Not Integrated**: The orchestrator `index.ts` mentions importing from three existing test runners in comments only -- they were never actually wired in:
+   - `smokeTestRunner.ts` (1,178 lines) -- ~45 Master Data CRUD tests with a DIFFERENT type system (`TestCase` with `operation`/`label` fields vs the kit's `TestCase` with `role`/`module`/`run`)
+   - `enrollmentTestRunner.ts` (large file, ~300+ tests) -- LL, CR, ED, LR, EN, MI, PP, OA, AS, IS, AT, SR, MD, TS, EH, SS, LP, MA, IR, CE, RE, ME, ES prefixes
+   - `pulseSocialTestRunner.ts` (~80+ tests) -- CC, EN, CM, FL, XP, LB, SR prefixes
 
-### 1. Create: `src/hooks/useRegressionTestKit.ts`
-Runner hook following the pattern from `useEnrollmentTestRunner.ts`:
-- State management for running tests
-- Progress tracking (current test, percentage, counts)
-- Execution log with timestamps
-- Filtering by role/module/category
-- Abort/cancel support via `AbortController`
-- Export to JSON/CSV functionality
-- Integration with `runTests()` from orchestrator
+3. **Target**: ~181 (current) + ~300 (enrollment) + ~80 (pulse) = **~560+ tests** once integrated. The smoke tests need adapter wrappers due to their different type system.
 
-### 2. Create: `src/pages/admin/RegressionTestKitPage.tsx`
-Full-featured UI following `SmokeTestPage.tsx` patterns:
-- **Summary Cards**: Total, Passed, Failed, Skipped, Duration
-- **Controls**: Run All, Stop, Reset, Export, Filter buttons
-- **Progress Bar**: Real-time progress with current test display
-- **Filter Panel**: Filter by role/module with search
-- **Category Accordion**: Expandable test categories with run buttons
-- **Results Table**: Per-test results with status, duration, error
-- **Execution Log**: Scrollable log panel with color-coded entries
+## Implementation Plan
 
-### 3. Modify: `src/App.tsx`
-Add lazy-loaded route:
+### Step 1: Add Sidebar Menu Entry to `AdminSidebar.tsx`
+
+Add "Regression Test Kit" to the `otherItems` array (or create a new "Quality Assurance" group) with the `TestTube2` icon, pointing to `/admin/regression-test-kit`.
+
+**File**: `src/components/admin/AdminSidebar.tsx`
+- Add `TestTube2` to lucide-react imports
+- Add entry to `otherItems` array (before Settings):
 ```typescript
-const RegressionTestKitPage = lazy(() => import("@/pages/admin/RegressionTestKitPage"));
-
-// Route (around line 580)
-<Route
-  path="/admin/regression-test-kit"
-  element={
-    <AdminGuard>
-      <LazyRoute><RegressionTestKitPage /></LazyRoute>
-    </AdminGuard>
-  }
-/>
+{ title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
 ```
 
-### 4. Modify: `src/pages/admin/AdminDashboard.tsx`
-Add new menu entry with TestTube2 icon:
-```typescript
-{
-  title: 'Regression Test Kit',
-  description: 'Comprehensive system regression tests',
-  icon: TestTube2,
-  path: '/admin/regression-test-kit',
-  color: 'text-emerald-500',
-}
-```
+### Step 2: Create Enrollment Test Adapter
 
-## UI Layout Design
+The `enrollmentTestRunner.ts` uses a compatible `TestCase` type (has `id`, `category`, `name`, `run()` returning `TestResult`). It needs thin adapter wrappers to add the missing `role`, `module`, and `description` fields.
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│  Regression Test Kit                        [AdminLayout with nav]  │
-│  Comprehensive baseline verification for all system features        │
-├─────────────────────────────────────────────────────────────────────┤
-│                                                                     │
-│  ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ ┌────────┐ │
-│  │ Total  │ │ Passed │ │ Failed │ │Skipped │ │Pending │ │Duration│ │
-│  │  185   │ │   0    │ │   0    │ │   0    │ │  185   │ │  --    │ │
-│  └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ └────────┘ │
-│                                                                     │
-│  [▶ Run All] [⏹ Stop] [↻ Reset] [📥 Export ▾] [🔍 Filter]          │
-│                                                                     │
-│  ════════════════════════════════════════════════════════════      │
-│  ████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░  45%              │
-│  Running: AP-007 - Question Bank Import Validation                  │
-│  ════════════════════════════════════════════════════════════      │
-│                                                                     │
-│  ┌─ Filter by Role ───────────────────────────────────────────────┐│
-│  │ [x] Platform Admin (75)  [x] Provider (45)  [x] Reviewer (35)  ││
-│  │ [x] Cross-Portal (20)    [x] System (10)                       ││
-│  └────────────────────────────────────────────────────────────────┘│
-│                                                                     │
-│  ┌─ Test Categories (6) ──────────────────────────────────────────┐│
-│  │ ▼ Admin Portal (40 tests)                    [▶] Not Started   ││
-│  │   ┌──────────────────────────────────────────────────────────┐ ││
-│  │   │ ID       │ Name                │ Status │ Time │ Error   │ ││
-│  │   │ AP-001   │ Dashboard Loads     │   ○    │  -   │         │ ││
-│  │   │ AP-002   │ Countries CRUD      │   ○    │  -   │         │ ││
-│  │   └──────────────────────────────────────────────────────────┘ ││
-│  │ ▶ Role Access (35 tests)                     [▶] Not Started   ││
-│  │ ▶ Reviewer Portal (35 tests)                 [▶] Not Started   ││
-│  │ ▶ Data Integrity (25 tests)                  [▶] Not Started   ││
-│  │ ▶ Integration (30 tests)                     [▶] Not Started   ││
-│  │ ▶ Edge Functions (20 tests)                  [▶] Not Started   ││
-│  └────────────────────────────────────────────────────────────────┘│
-│                                                                     │
-│  ┌─ Execution Log ────────────────────────────────────────────────┐│
-│  │ [12:34:56] === Starting Regression Test Suite ===              ││
-│  │ [12:34:57] Running: AP-001 - Admin Dashboard Loads             ││
-│  │ [12:34:58] ✓ AP-001 passed (45ms)                              ││
-│  │ [12:34:59] Running: AP-002 - Countries CRUD Cycle              ││
-│  └────────────────────────────────────────────────────────────────┘│
-└─────────────────────────────────────────────────────────────────────┘
-```
+**New file**: `src/services/regressionTestKit/enrollmentTests.ts`
+- Import all test arrays from `enrollmentTestRunner.ts`
+- Wrap each into the regression kit `TestCase` format with appropriate `role`/`module` mapping:
+  - LL (Lifecycle Locks) -- 12 tests, role: `solution_provider`, module: `enrollment`
+  - CR (Cascade Reset) -- 4 tests, role: `solution_provider`, module: `enrollment`
+  - ED (Deletion Rules) -- 5 tests, role: `solution_provider`, module: `enrollment`
+  - LR (Lifecycle Ranks) -- 6+ tests, role: `system`, module: `enrollment`
+  - EN (Enrollment Data) -- 5+ tests, role: `solution_provider`, module: `enrollment`
+  - MI (Multi-Industry) -- tests, role: `solution_provider`, module: `enrollment`
+  - PP (Proof Points) -- tests, role: `solution_provider`, module: `enrollment`
+  - OA (Org Approval) -- tests, role: `platform_admin`, module: `enrollment`
+  - AS (Assessment) -- tests, role: `solution_provider`, module: `assessment`
+  - IS (Interview Scheduling) -- tests, role: `cross_portal`, module: `interview`
+  - AT (Audit Trail) -- tests, role: `system`, module: `data_integrity`
+  - SR (Security & RLS) -- tests, role: `system`, module: `role_access`
+  - MD (Master Data) -- tests, role: `platform_admin`, module: `master_data`
+  - TS (Terminal States) -- tests, role: `system`, module: `enrollment`
+  - EH (Error Handling) -- tests, role: `system`, module: `enrollment`
+  - SS (System Settings) -- tests, role: `platform_admin`, module: `admin_portal`
+  - LP (Lifecycle Progression) -- tests, role: `solution_provider`, module: `enrollment`
+  - MA (Manager Approval) -- tests, role: `platform_admin`, module: `enrollment`
+  - IR (Interview Rescheduling) -- tests, role: `cross_portal`, module: `interview`
+  - CE (Cross-Enrollment) -- tests, role: `solution_provider`, module: `enrollment`
+  - RE (Reviewer Enrollment) -- tests, role: `panel_reviewer`, module: `reviewer_portal`
+  - ME (Multi-Enrollment) -- tests, role: `solution_provider`, module: `enrollment`
+  - ES (Enrollment-Scoped) -- tests, role: `solution_provider`, module: `enrollment`
 
-## Technical Implementation Details
+### Step 3: Create Pulse Social Test Adapter
 
-### Hook State Interface
-```typescript
-interface RegressionTestKitState {
-  isRunning: boolean;
-  isPaused: boolean;
-  progress: number;
-  totalTests: number;
-  completedTests: number;
-  passedTests: number;
-  failedTests: number;
-  skippedTests: number;
-  pendingTests: number;
-  duration: number;
-  currentCategory: string | null;
-  currentTest: string | null;
-  results: TestCaseResult[];
-  logs: TestLogEntry[];
-  filters: Partial<TestFilters>;
-}
-```
+**New file**: `src/services/regressionTestKit/pulseSocialTests.ts`
+- Import all test arrays from `pulseSocialTestRunner.ts`
+- Wrap with `role`/`module` mappings:
+  - CC (Content Creation) -- 10 tests, role: `solution_provider`, module: `pulse_social`
+  - EN (Engagements) -- 10 tests, role: `solution_provider`, module: `pulse_social`
+  - CM (Comments) -- 4 tests, role: `solution_provider`, module: `pulse_social`
+  - FL (Connections) -- 4 tests, role: `solution_provider`, module: `pulse_social`
+  - XP (Gamification) -- 8 tests, role: `system`, module: `pulse_social`
+  - LB (Leaderboards) -- tests, role: `system`, module: `pulse_social`
+  - SR (Security) -- 8 tests, role: `system`, module: `role_access`
 
-### Export Formats
-- **JSON**: Full report with `runId`, `timestamp`, `summary`, `byRole`, `byModule`, `results`, `failures`
-- **CSV**: Flattened results table with columns: ID, Category, Name, Role, Module, Status, Duration, Error, Tested At
+### Step 4: Create Smoke Test Adapter
 
-### Filter Implementation
-- Checkbox groups for roles (5 options)
-- Checkbox groups for modules (11 options)
-- Search input for test ID/name matching
-- Apply filters to `getAllTests()` via `filterTests()`
+The `smokeTestRunner.ts` has a DIFFERENT type system (uses `operation`/`label` instead of `name`/`description`/`run`). Needs a conversion wrapper.
 
-## Estimated Test Counts by Category
+**New file**: `src/services/regressionTestKit/smokeTests.ts`
+- Import `moduleTestConfigs` from `smokeTestRunner.ts`
+- Create adapter functions that convert each module's CRUD operations into regression kit `TestCase` format
+- Map all to role: `platform_admin`, module: `master_data`
+- Generate IDs like `SM-001`, `SM-002`, etc.
 
-| Category | Tests | Description |
-|----------|-------|-------------|
-| Admin Portal (AP) | 40 | CRUD, taxonomy, questions, invitations |
-| Role Access (RA) | 35 | RBAC, RLS, auth redirects, permissions |
-| Reviewer Portal (RP) | 35 | Candidates, interviews, evaluations |
-| Data Integrity (DI) | 25 | FKs, soft delete, audit fields |
-| Integration (CI) | 30 | Cross-portal workflows |
-| Edge Functions (EF) | 20 | RPC, edge function invocations |
-| **Total** | **185** | New tests in regression kit |
+### Step 5: Wire All Adapters into Orchestrator
 
-## Implementation Order
-1. Create `useRegressionTestKit.ts` hook
-2. Create `RegressionTestKitPage.tsx` UI
-3. Add lazy import and route to `App.tsx`
-4. Add menu entry to `AdminDashboard.tsx`
-5. Test end-to-end from admin dashboard
+**Modify**: `src/services/regressionTestKit/index.ts`
+- Import the three new adapter files
+- Add their tests/categories to `getAllTestCategories()`, `getAllTests()`, `getTotalTestCount()`, `getTestCountsByCategory()`
+- Update category count map
 
-## Dependencies
-- Uses existing `AdminLayout` component
-- Uses UI components: Card, Button, Badge, Progress, Accordion, Table, Checkbox, ScrollArea
-- Imports from `src/services/regressionTestKit/index.ts`
-- Follows patterns from `SmokeTestPage.tsx` and `RegressionTestPage.tsx`
+### Expected Final Test Count
+
+| Category | Source | Estimated Tests |
+|----------|--------|-----------------|
+| Admin Portal (AP) | regressionTestKit | 40 |
+| Role Access (RA) | regressionTestKit | 35 |
+| Reviewer Portal (RP) | regressionTestKit | 35 |
+| Data Integrity (DI) | regressionTestKit | 25 |
+| Integration (CI) | regressionTestKit | 30 |
+| Edge Functions (EF) | regressionTestKit | 16 |
+| Enrollment Lifecycle | enrollmentTestRunner adapter | ~300 |
+| Pulse Social | pulseSocialTestRunner adapter | ~80 |
+| Smoke/Master Data | smokeTestRunner adapter | ~45 |
+| **Total** | | **~600+** |
+
+### Files Changed Summary
+
+| File | Action |
+|------|--------|
+| `src/components/admin/AdminSidebar.tsx` | Add menu entry |
+| `src/services/regressionTestKit/enrollmentTests.ts` | Create (adapter) |
+| `src/services/regressionTestKit/pulseSocialTests.ts` | Create (adapter) |
+| `src/services/regressionTestKit/smokeTests.ts` | Create (adapter) |
+| `src/services/regressionTestKit/index.ts` | Wire in 3 adapters |
+
+### Technical Notes
+- Adapter pattern preserves existing runners untouched (no breaking changes to Smoke Test page or Enrollment Test page)
+- Type incompatibility in `smokeTestRunner.ts` handled via wrapper functions that call the existing CRUD functions and return the unified `TestResult` format
+- Re-prefixing avoided where possible; original test IDs preserved with namespace prefix (e.g., enrollment `LL-001` stays as `LL-001`)
