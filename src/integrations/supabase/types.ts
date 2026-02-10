@@ -5068,6 +5068,100 @@ export type Database = {
           },
         ]
       }
+      saas_agreements: {
+        Row: {
+          agreement_type: string
+          auto_renew: boolean
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          child_organization_id: string
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          fee_amount: number
+          fee_currency: string
+          fee_frequency: string
+          id: string
+          lifecycle_status: string
+          notes: string | null
+          parent_organization_id: string
+          shadow_charge_rate: number | null
+          starts_at: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          agreement_type?: string
+          auto_renew?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          child_organization_id: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          fee_amount?: number
+          fee_currency?: string
+          fee_frequency?: string
+          id?: string
+          lifecycle_status?: string
+          notes?: string | null
+          parent_organization_id: string
+          shadow_charge_rate?: number | null
+          starts_at?: string
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          agreement_type?: string
+          auto_renew?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          child_organization_id?: string
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          fee_amount?: number
+          fee_currency?: string
+          fee_frequency?: string
+          id?: string
+          lifecycle_status?: string
+          notes?: string | null
+          parent_organization_id?: string
+          shadow_charge_rate?: number | null
+          starts_at?: string
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saas_agreements_child_organization_id_fkey"
+            columns: ["child_organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saas_agreements_parent_organization_id_fkey"
+            columns: ["parent_organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saas_agreements_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeker_billing_info: {
         Row: {
           billing_address_line1: string | null
@@ -5448,6 +5542,98 @@ export type Database = {
           },
           {
             foreignKeyName: "seeker_contacts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seeker_memberships: {
+        Row: {
+          auto_renew: boolean
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          commission_rate_pct: number
+          created_at: string
+          created_by: string | null
+          ends_at: string | null
+          fee_discount_pct: number
+          id: string
+          lifecycle_status: string
+          membership_tier_id: string
+          organization_id: string
+          renewed_from_id: string | null
+          starts_at: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          auto_renew?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          commission_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          fee_discount_pct?: number
+          id?: string
+          lifecycle_status?: string
+          membership_tier_id: string
+          organization_id: string
+          renewed_from_id?: string | null
+          starts_at?: string
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          auto_renew?: boolean
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          commission_rate_pct?: number
+          created_at?: string
+          created_by?: string | null
+          ends_at?: string | null
+          fee_discount_pct?: number
+          id?: string
+          lifecycle_status?: string
+          membership_tier_id?: string
+          organization_id?: string
+          renewed_from_id?: string | null
+          starts_at?: string
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_memberships_membership_tier_id_fkey"
+            columns: ["membership_tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_membership_tiers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_memberships_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_memberships_renewed_from_id_fkey"
+            columns: ["renewed_from_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_memberships"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_memberships_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"

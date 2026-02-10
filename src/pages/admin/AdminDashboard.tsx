@@ -13,6 +13,7 @@ import {
   Link2,
   Mail,
   ArrowRight,
+  Handshake,
   UserCheck,
   TestTube2,
 } from 'lucide-react';
@@ -98,6 +99,13 @@ const sections = [
     path: '/admin/reviewer-approvals',
     color: 'text-amber-500',
     hasBadge: true,
+  },
+  {
+    title: 'SaaS Agreements',
+    description: 'Manage parent-child SaaS agreements',
+    icon: Handshake,
+    path: '/admin/saas-agreements',
+    color: 'text-violet-500',
   },
   {
     title: 'Regression Test Kit',
