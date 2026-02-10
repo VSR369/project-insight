@@ -10,6 +10,7 @@ import { RegistrationProvider } from "@/contexts/RegistrationContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
+import { SeekerGuard } from "@/components/auth/SeekerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";
@@ -133,6 +134,8 @@ const PlanSelectionPage = lazy(() => import("@/pages/registration/PlanSelectionP
 const BillingPage = lazy(() => import("@/pages/registration/BillingPage"));
 
 // Seeker Organization Pages (lazy loaded - post-auth)
+const OrgDashboardPage = lazy(() => import("@/pages/org/OrgDashboardPage"));
+const ChallengeListPage = lazy(() => import("@/pages/org/ChallengeListPage"));
 const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
 const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
 const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
@@ -140,6 +143,7 @@ const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
 const ChallengeCreatePage = lazy(() => import("@/pages/org/ChallengeCreatePage"));
 const OrgBillingPage = lazy(() => import("@/pages/org/OrgBillingPage"));
+const OnboardingCompletePage = lazy(() => import("@/pages/registration/OnboardingCompletePage"));
 
 import { queryClient } from "@/lib/queryClient";
 
@@ -815,53 +819,75 @@ const App = () => (
               }
             />
 
-            {/* Seeker Organization Routes */}
+            {/* Seeker Organization Routes (wrapped in SeekerGuard) */}
+            <Route
+              path="/org/dashboard"
+              element={
+                <SeekerGuard>
+                  <LazyRoute><OrgDashboardPage /></LazyRoute>
+                </SeekerGuard>
+              }
+            />
+            <Route
+              path="/org/challenges"
+              element={
+                <SeekerGuard>
+                  <LazyRoute><ChallengeListPage /></LazyRoute>
+                </SeekerGuard>
+              }
+            />
             <Route
               path="/org/settings"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><OrgSettingsPage /></LazyRoute>
-                </AuthGuard>
+                </SeekerGuard>
               }
             />
             <Route
               path="/org/membership"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><MembershipPage /></LazyRoute>
-                </AuthGuard>
+                </SeekerGuard>
               }
             />
             <Route
               path="/org/parent-dashboard"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><ParentDashboardPage /></LazyRoute>
-              </AuthGuard>
+                </SeekerGuard>
               }
             />
             <Route
               path="/org/team"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><TeamPage /></LazyRoute>
-                </AuthGuard>
+                </SeekerGuard>
               }
             />
             <Route
               path="/org/challenges/create"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><ChallengeCreatePage /></LazyRoute>
-                </AuthGuard>
+                </SeekerGuard>
               }
             />
             <Route
               path="/org/billing"
               element={
-                <AuthGuard>
+                <SeekerGuard>
                   <LazyRoute><OrgBillingPage /></LazyRoute>
-                </AuthGuard>
+                </SeekerGuard>
+              }
+            />
+            <Route
+              path="/registration/complete"
+              element={
+                <LazyRoute><OnboardingCompletePage /></LazyRoute>
               }
             />
             <Route

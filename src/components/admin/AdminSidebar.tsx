@@ -54,6 +54,18 @@ const masterDataItems = [
   { title: 'Organization Types', icon: Building2, path: '/admin/master-data/organization-types' },
   { title: 'Participation Modes', icon: Users, path: '/admin/master-data/participation-modes' },
   { title: 'Expertise Levels', icon: Award, path: '/admin/master-data/expertise-levels' },
+  { title: 'Functional Areas', icon: Briefcase, path: '/admin/master-data/functional-areas' },
+];
+
+const seekerConfigItems = [
+  { title: 'Subscription Tiers', icon: CreditCard, path: '/admin/seeker-config/subscription-tiers' },
+  { title: 'Engagement Models', icon: Network, path: '/admin/seeker-config/engagement-models' },
+  { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
+  { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
+  { title: 'Export Control', icon: Shield, path: '/admin/seeker-config/export-control' },
+  { title: 'Data Residency', icon: Globe, path: '/admin/seeker-config/data-residency' },
+  { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
+  { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
 ];
 
 const taxonomyItems = [
@@ -189,6 +201,25 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {seekerItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.path)}
+                    isActive={isActive(item.path)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {seekerConfigItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
