@@ -16,6 +16,7 @@ import { useRegistrationContext } from '@/contexts/RegistrationContext';
 import {
   useBlockedDomains,
   useLanguages,
+  useDepartments,
   useSendOtp,
   useVerifyOtp,
   useUpsertContact,
@@ -109,6 +110,7 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   const { data: blockedDomains = [], isLoading: domainsLoading } = useBlockedDomains();
   const { data: languages, isLoading: languagesLoading } = useLanguages();
+  const { data: departments, isLoading: departmentsLoading } = useDepartments();
   const { data: functionalAreas, isLoading: areasLoading } = useFunctionalAreas();
   const sendOtp = useSendOtp();
   const verifyOtp = useVerifyOtp();
@@ -340,9 +342,24 @@ export function PrimaryContactForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Department</FormLabel>
-              <FormControl>
-                <Input {...field} placeholder="e.g. Engineering, Operations" className="text-base" />
-              </FormControl>
+              {departmentsLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Select department" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {departments?.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <FormMessage />
             </FormItem>
           )}

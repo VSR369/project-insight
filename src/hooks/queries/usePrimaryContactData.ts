@@ -11,6 +11,25 @@ import { toast } from 'sonner';
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
 // ============================================================
+// Departments
+// ============================================================
+export function useDepartments() {
+  return useQuery({
+    queryKey: ['md_departments'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('md_departments')
+        .select('id, code, name')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    ...MASTER_CACHE,
+  });
+}
+
+// ============================================================
 // Blocked Email Domains (BR-REG-005)
 // ============================================================
 export function useBlockedDomains() {
