@@ -132,6 +132,9 @@ const CompliancePage = lazy(() => import("@/pages/registration/CompliancePage"))
 const PlanSelectionPage = lazy(() => import("@/pages/registration/PlanSelectionPage"));
 const BillingPage = lazy(() => import("@/pages/registration/BillingPage"));
 
+// Seeker Organization Pages (lazy loaded - post-auth)
+const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
+
 import { queryClient } from "@/lib/queryClient";
 
 // Export queryClient for shared access (auth state changes, portal switching)
@@ -802,6 +805,16 @@ const App = () => (
               element={
                 <AuthGuard>
                   <PulseStandupPage />
+                </AuthGuard>
+              }
+            />
+
+            {/* Seeker Organization Routes */}
+            <Route
+              path="/org/settings"
+              element={
+                <AuthGuard>
+                  <LazyRoute><OrgSettingsPage /></LazyRoute>
                 </AuthGuard>
               }
             />
