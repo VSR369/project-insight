@@ -1,51 +1,79 @@
 
-# Fix: Registration Save Hanging and Fields Disappearing
 
-## Root Cause
+# Add Departments Master Data Table and Dropdown
 
-The **FK constraint** on `seeker_org_industries.tenant_id` references `seeker_organizations.id` (not a separate tenants table). The current code generates two separate UUIDs:
+## Overview
+Convert the "Department" field on the Primary Contact form from a free-text input to a dropdown populated from a new `md_departments` master data table, consistent with how Functional Areas already works.
 
-- `orgId` -- inserted as `seeker_organizations.id`
-- `tenantId` -- inserted as `seeker_organizations.tenant_id` AND used as `tenant_id` in child tables
+## Changes
 
-But the FK requires `seeker_org_industries.tenant_id` to match an existing `seeker_organizations.id`. Since `tenantId` is a different UUID from `orgId`, the FK check fails with a 409 error.
+### 1. Database: Create `md_departments` table and seed data
 
-Similarly, `seeker_organizations.tenant_id` itself has a self-referencing FK (`REFERENCES seeker_organizations(id) DEFERRABLE INITIALLY DEFERRED`), meaning `tenant_id` on the org must also equal the org's own `id`.
+Create a new master data table following the existing `md_functional_areas` pattern:
 
-The "fields disappearing" and "hanging" are side effects: the mutation throws an error, the form gets stuck in `isPending` state, and on retry the duplicate check finds the already-inserted org.
+```sql
+CREATE TABLE public.md_departments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT NOT NULL UNIQUE,
+  name TEXT NOT NULL,
+  description TEXT,
+  display_order INTEGER NOT NULL DEFAULT 0,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ,
+  created_by UUID REFERENCES auth.users(id),
+  updated_by UUID REFERENCES auth.users(id)
+);
 
-## Fix (1 file)
+ALTER TABLE public.md_departments ENABLE ROW LEVEL SECURITY;
 
-### `src/hooks/queries/useRegistrationData.ts`
-
-1. Use a **single UUID** for both `id` and `tenant_id` on `seeker_organizations` (self-referencing FK requires this).
-2. Use that same ID as `tenant_id` on `seeker_org_industries`.
-3. Wrap the child inserts in proper error handling so a partial failure on industries/geographies does not leave the form hanging.
-4. Delete the partially created org if child inserts fail (cleanup on error).
-
-```text
-Before:  orgId = randomUUID(), tenantId = randomUUID()  (two different IDs)
-After:   orgId = randomUUID(), tenantId = orgId          (same ID, satisfies FK)
+CREATE POLICY "Anyone can read active departments"
+  ON public.md_departments FOR SELECT
+  USING (is_active = true);
 ```
+
+Seed with standard department names:
+
+| Code | Name | Order |
+|------|------|-------|
+| ENG | Engineering | 1 |
+| OPS | Operations | 2 |
+| FIN | Finance & Accounting | 3 |
+| HR | Human Resources | 4 |
+| MKT | Marketing | 5 |
+| SALES | Sales | 6 |
+| IT | Information Technology | 7 |
+| LEGAL | Legal & Compliance | 8 |
+| RND | Research & Development | 9 |
+| PM | Product Management | 10 |
+| CS | Customer Success | 11 |
+| SCM | Supply Chain & Logistics | 12 |
+| ADMIN | Administration | 13 |
+| EXEC | Executive / Leadership | 14 |
+| DESIGN | Design & UX | 15 |
+| QA | Quality Assurance | 16 |
+| DATA | Data & Analytics | 17 |
+| PROC | Procurement | 18 |
+| COMMS | Communications & PR | 19 |
+| OTHER | Other | 99 |
+
+### 2. Frontend: Add `useDepartments` hook
+
+Add a new query hook in `src/hooks/queries/usePrimaryContactData.ts` to fetch departments from the new table, following the same pattern as `useFunctionalAreas`.
+
+### 3. Frontend: Update `PrimaryContactForm.tsx`
+
+Replace the free-text `<Input>` for "Department" with a `<Select>` dropdown populated from `useDepartments()`, matching the Functional Area dropdown pattern.
+
+### 4. Validation Schema Update
+
+Update `src/lib/validations/primaryContact.ts` to change the `department` field from a free-text string to a UUID (department ID) if the DB column should reference the new table, or keep it as the department name string if the `seeker_contacts.department` column stays as `TEXT`.
+
+Since `seeker_contacts.department` is already a `TEXT` column and changing it to a FK would require a migration affecting existing data, the simplest approach is to keep it as `TEXT` but populate it from the dropdown's selected name value.
 
 ## Technical Details
 
-The key change in the mutation function:
-
-```typescript
-const orgId = crypto.randomUUID();
-const tenantId = orgId; // Self-referencing FK requires tenant_id = id
-```
-
-For cleanup on partial failure, wrap the child inserts in a try/catch that deletes the org record if industries or geographies fail:
-
-```typescript
-try {
-  // insert industries...
-  // insert geographies...
-} catch (childError) {
-  // Cleanup: delete the org we just created
-  await supabase.from('seeker_organizations').delete().eq('id', orgId);
-  throw childError;
-}
-```
+- The `md_departments` table follows the exact same structure as `md_functional_areas`
+- RLS policy allows anonymous read access (needed for unauthenticated registration flow)
+- The "Other" option (code `OTHER`) allows users who don't find their department in the list to still proceed
+- The `seeker_contacts.department` column remains `TEXT` -- the selected department name is stored as the value
