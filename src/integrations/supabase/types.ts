@@ -7471,6 +7471,8 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      process_membership_expiry: { Args: never; Returns: undefined }
+      process_pending_downgrades: { Args: never; Returns: undefined }
       pulse_award_xp: {
         Args: {
           p_action_type: string
@@ -7534,6 +7536,7 @@ export type Database = {
         Args: { p_end_at: string; p_start_at: string }
         Returns: undefined
       }
+      reset_challenge_counters: { Args: never; Returns: undefined }
       reset_enrollment_for_expertise_change: {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: Json
