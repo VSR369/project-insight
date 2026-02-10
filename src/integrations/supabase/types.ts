@@ -628,7 +628,9 @@ export type Database = {
           expires_at: string
           id: string
           is_used: boolean
+          locked_until: string | null
           max_attempts: number
+          organization_id: string | null
           otp_hash: string
           tenant_id: string
           verified_at: string | null
@@ -640,7 +642,9 @@ export type Database = {
           expires_at: string
           id?: string
           is_used?: boolean
+          locked_until?: string | null
           max_attempts?: number
+          organization_id?: string | null
           otp_hash: string
           tenant_id: string
           verified_at?: string | null
@@ -652,12 +656,21 @@ export type Database = {
           expires_at?: string
           id?: string
           is_used?: boolean
+          locked_until?: string | null
           max_attempts?: number
+          organization_id?: string | null
           otp_hash?: string
           tenant_id?: string
           verified_at?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "email_otp_verifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "email_otp_verifications_tenant_id_fkey"
             columns: ["tenant_id"]
@@ -4953,6 +4966,8 @@ export type Database = {
           contact_type: Database["public"]["Enums"]["contact_type_enum"]
           created_at: string
           created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
           email: string
           email_verified: boolean
           email_verified_at: string | null
@@ -4961,6 +4976,7 @@ export type Database = {
           id: string
           is_active: boolean
           is_decision_maker: boolean
+          is_deleted: boolean
           is_primary: boolean
           job_title: string | null
           last_name: string
@@ -4976,6 +4992,8 @@ export type Database = {
           contact_type?: Database["public"]["Enums"]["contact_type_enum"]
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -4984,6 +5002,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_decision_maker?: boolean
+          is_deleted?: boolean
           is_primary?: boolean
           job_title?: string | null
           last_name: string
@@ -4999,6 +5018,8 @@ export type Database = {
           contact_type?: Database["public"]["Enums"]["contact_type_enum"]
           created_at?: string
           created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
           email?: string
           email_verified?: boolean
           email_verified_at?: string | null
@@ -5007,6 +5028,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           is_decision_maker?: boolean
+          is_deleted?: boolean
           is_primary?: boolean
           job_title?: string | null
           last_name?: string
@@ -5345,9 +5367,11 @@ export type Database = {
           preferred_currency: string | null
           preferred_language_id: string | null
           registration_number: string | null
+          registration_step: number
           tax_id: string | null
           tenant_id: string
           timezone: string | null
+          trade_brand_name: string | null
           updated_at: string | null
           updated_by: string | null
           verification_status: Database["public"]["Enums"]["org_verification_status_enum"]
@@ -5390,9 +5414,11 @@ export type Database = {
           preferred_currency?: string | null
           preferred_language_id?: string | null
           registration_number?: string | null
+          registration_step?: number
           tax_id?: string | null
           tenant_id: string
           timezone?: string | null
+          trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
@@ -5435,9 +5461,11 @@ export type Database = {
           preferred_currency?: string | null
           preferred_language_id?: string | null
           registration_number?: string | null
+          registration_step?: number
           tax_id?: string | null
           tenant_id?: string
           timezone?: string | null
+          trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
