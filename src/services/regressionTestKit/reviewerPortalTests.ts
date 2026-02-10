@@ -586,7 +586,7 @@ const workloadTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase
         .from("reviewer_workload_distribution")
-        .select("id, name, pending_count, completed_count")
+        .select("id, name, interviews_30d, interviews_7d, workload_status")
         .limit(10);
       
       if (error) throw new Error(`Workload view query failed: ${error.message}`);

@@ -151,7 +151,7 @@ const foreignKeyTests: TestCase[] = [
       const { data, error } = await client
         .from("question_bank")
         .select("id, speciality_id")
-        .eq("is_deleted", false)
+        .eq("is_active", true)
         .limit(50);
       
       if (error) throw new Error(`Questions speciality FK query failed: ${error.message}`);

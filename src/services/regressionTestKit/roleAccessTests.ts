@@ -752,7 +752,7 @@ export const roleAccessTestCategories: TestCategory[] = [
     tests: providerRlsTests,
   },
   {
-    id: "reviewer-rls",
+    id: "ra-reviewer-rls",
     name: "Reviewer RLS Isolation",
     description: "Reviewer data isolation via RLS tests",
     role: "panel_reviewer",

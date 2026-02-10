@@ -152,8 +152,8 @@ const questionBankTests: TestCase[] = [
       const client = supabase as any;
       const { data, error } = await client
         .from("question_bank")
-        .select("id, question_text, question_type, difficulty_level")
-        .eq("is_deleted", false)
+        .select("id, question_text, question_type, difficulty")
+        .eq("is_active", true)
         .limit(20);
       
       if (error) throw new Error(`Question bank read failed: ${error.message}`);
@@ -207,7 +207,7 @@ const questionBankTests: TestCase[] = [
       const { data, error } = await client
         .from("question_bank")
         .select("question_type")
-        .eq("is_deleted", false)
+        .eq("is_active", true)
         .limit(100);
       
       if (error) throw new Error(`Question types query failed: ${error.message}`);
@@ -577,7 +577,7 @@ const auditFieldTests: TestCase[] = [
       const client = supabase as any;
       const { data, error } = await client
         .from("question_bank")
-        .select("id, created_at, created_by, is_deleted, deleted_at, deleted_by")
+        .select("id, created_at, created_by, is_active, updated_at, updated_by")
         .limit(5);
       
       if (error) throw new Error(`Question bank audit fields query failed: ${error.message}`);
