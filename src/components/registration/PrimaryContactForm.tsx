@@ -20,6 +20,7 @@ import {
   useVerifyOtp,
   useUpsertContact,
 } from '@/hooks/queries/usePrimaryContactData';
+import { useFunctionalAreas } from '@/hooks/queries/useFunctionalAreas';
 import {
   primaryContactSchema,
   type PrimaryContactFormValues,
@@ -94,8 +95,10 @@ export function PrimaryContactForm() {
       phone_country_code: state.localeInfo?.phone_code ?? '',
       phone_number: '',
       department: '',
+      department_functional_area_id: '',
       timezone: detectedTimezone || '',
       preferred_language_id: '',
+      is_email_verified: undefined as unknown as true,
     },
   });
 
@@ -106,6 +109,7 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   const { data: blockedDomains = [], isLoading: domainsLoading } = useBlockedDomains();
   const { data: languages, isLoading: languagesLoading } = useLanguages();
+  const { data: functionalAreas, isLoading: areasLoading } = useFunctionalAreas();
   const sendOtp = useSendOtp();
   const verifyOtp = useVerifyOtp();
   const upsertContact = useUpsertContact();
@@ -150,6 +154,7 @@ export function PrimaryContactForm() {
       {
         onSuccess: () => {
           setEmailVerified(true);
+          form.setValue('is_email_verified', true as unknown as never);
         },
       },
     );
@@ -338,6 +343,36 @@ export function PrimaryContactForm() {
               <FormControl>
                 <Input {...field} placeholder="e.g. Engineering, Operations" className="text-base" />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Department Functional Area */}
+        <FormField
+          control={form.control}
+          name="department_functional_area_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Functional Area</FormLabel>
+              {areasLoading ? (
+                <Skeleton className="h-10 w-full" />
+              ) : (
+                <Select value={field.value} onValueChange={field.onChange}>
+                  <FormControl>
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Select functional area" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {functionalAreas?.map((area) => (
+                      <SelectItem key={area.id} value={area.id}>
+                        {area.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
               <FormMessage />
             </FormItem>
           )}
