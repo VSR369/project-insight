@@ -2940,6 +2940,22 @@ const stateMachineValidationTests: TestCase[] = [
 ];
 
 // ============================================================================
+// HELPER: Detect actual deployment errors vs business-logic errors
+// A 400/404 with a JSON body means the function IS deployed and responded.
+// Only match patterns that indicate the function truly doesn't exist.
+// ============================================================================
+function isDeploymentError(message?: string): boolean {
+  if (!message) return false;
+  return (
+    message.includes("Function not found") ||
+    message.includes("function_not_found") ||
+    message.includes("Failed to send") ||
+    message.includes("non-2xx status code: 502") ||
+    message.includes("non-2xx status code: 503")
+  );
+}
+
+// ============================================================================
 // NEW TEST CATEGORIES v2.0 - EDGE FUNCTION SMOKE TESTS
 // ============================================================================
 const edgeFunctionSmokeTests: TestCase[] = [
@@ -2954,8 +2970,8 @@ const edgeFunctionSmokeTests: TestCase[] = [
         body: { test: true },
       });
       // Even a 401/400 error means the function exists
-      // A "function not found" would be a different error
-      if (error && error.message?.includes("not found")) {
+      // Only specific deployment errors indicate the function isn't deployed
+      if (error && isDeploymentError(error.message)) {
         throw new Error("send-manager-reminder function not deployed");
       }
     }),
@@ -2969,7 +2985,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("auto-decline-expired-approvals", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("auto-decline-expired-approvals function not deployed");
       }
     }),
@@ -2983,7 +2999,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("send-manager-credentials", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("send-manager-credentials function not deployed");
       }
     }),
@@ -2997,7 +3013,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
       const { error } = await supabase.functions.invoke("process-manager-decision", {
         body: { test: true },
       });
-      if (error && error.message?.includes("not found")) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("process-manager-decision function not deployed");
       }
     }),
@@ -3012,8 +3028,8 @@ const edgeFunctionSmokeTests: TestCase[] = [
         body: { test: true },
       });
       // 400/403 errors mean function IS deployed (validation/auth errors)
-      // Only "not found" or "Failed to send" indicate deployment issues
-      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
+      // Only specific deployment errors indicate the function isn't deployed
+      if (error && isDeploymentError(error.message)) {
         throw new Error("verify-manager-login function not deployed");
       }
     }),
@@ -3028,7 +3044,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
         body: { test: true },
       });
       // 400/403 errors mean function IS deployed (validation/auth errors)
-      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("withdraw-approval-request function not deployed");
       }
     }),
@@ -3043,7 +3059,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
         body: { test: true },
       });
       // 400/403 errors mean function IS deployed (validation/auth errors)
-      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("notify-booking-cancelled function not deployed");
       }
     }),
@@ -3058,7 +3074,7 @@ const edgeFunctionSmokeTests: TestCase[] = [
         body: { test: true },
       });
       // 400/403 errors mean function IS deployed (validation/auth errors)
-      if (error && (error.message?.includes("not found") || error.message?.includes("Failed to send"))) {
+      if (error && isDeploymentError(error.message)) {
         throw new Error("send-reviewer-invitation function not deployed");
       }
     }),
