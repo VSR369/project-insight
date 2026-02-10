@@ -166,10 +166,9 @@ export function useCreateOrganization() {
     }) => {
       const { industry_ids, operating_geography_ids, locale, ...orgData } = payload;
 
-      // Generate IDs client-side to avoid needing SELECT after INSERT
-      // (SELECT policy requires tenant membership which doesn't exist yet during registration)
+      // Self-referencing FK requires tenant_id = id
       const orgId = crypto.randomUUID();
-      const tenantId = crypto.randomUUID();
+      const tenantId = orgId;
 
       // 1. Insert the organization record
       const { error: orgError } = await supabase
@@ -197,34 +196,37 @@ export function useCreateOrganization() {
 
       if (orgError) throw new Error(orgError.message);
 
-      const org = { id: orgId, tenant_id: tenantId };
+      // 2. Insert child records; cleanup org on failure
+      try {
+        if (industry_ids.length > 0) {
+          const industryRows = industry_ids.map((industry_id) => ({
+            organization_id: orgId,
+            tenant_id: tenantId,
+            industry_id,
+          }));
+          const { error: indError } = await supabase
+            .from('seeker_org_industries')
+            .insert(industryRows);
+          if (indError) throw new Error(indError.message);
+        }
 
-      // 2. Batch insert industries (seeker_org_industries requires tenant_id)
-      if (industry_ids.length > 0) {
-        const industryRows = industry_ids.map((industry_id) => ({
-          organization_id: org.id,
-          tenant_id: org.tenant_id,
-          industry_id,
-        }));
-        const { error: indError } = await supabase
-          .from('seeker_org_industries')
-          .insert(industryRows);
-        if (indError) throw new Error(indError.message);
+        if (operating_geography_ids.length > 0) {
+          const geoRows = operating_geography_ids.map((country_id) => ({
+            organization_id: orgId,
+            country_id,
+          }));
+          const { error: geoError } = await supabase
+            .from('seeker_org_operating_geographies')
+            .insert(geoRows);
+          if (geoError) throw new Error(geoError.message);
+        }
+      } catch (childError) {
+        // Cleanup partially created org to allow clean retry
+        await supabase.from('seeker_organizations').delete().eq('id', orgId);
+        throw childError;
       }
 
-      // 3. Batch insert operating geographies
-      if (operating_geography_ids.length > 0) {
-        const geoRows = operating_geography_ids.map((country_id) => ({
-          organization_id: org.id,
-          country_id,
-        }));
-        const { error: geoError } = await supabase
-          .from('seeker_org_operating_geographies')
-          .insert(geoRows);
-        if (geoError) throw new Error(geoError.message);
-      }
-
-      return { organizationId: org.id, tenantId: org.tenant_id };
+      return { organizationId: orgId, tenantId };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker_organizations'] });
