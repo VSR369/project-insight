@@ -5715,6 +5715,42 @@ export type Database = {
           },
         ]
       }
+      seeker_org_operating_geographies: {
+        Row: {
+          country_id: string
+          created_at: string
+          id: string
+          organization_id: string
+        }
+        Insert: {
+          country_id: string
+          created_at?: string
+          id?: string
+          organization_id: string
+        }
+        Update: {
+          country_id?: string
+          created_at?: string
+          id?: string
+          organization_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeker_org_operating_geographies_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "seeker_org_operating_geographies_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       seeker_organization_audit: {
         Row: {
           change_reason: string | null

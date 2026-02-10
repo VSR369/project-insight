@@ -3,11 +3,11 @@
  * 
  * Route: /registration/organization-identity
  * Shell-first rendering: layout always renders first.
- * Placeholder until Phase 2 builds the full form.
+ * Implements REG-001 with full form, business rules, and validation.
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
-import { Skeleton } from '@/components/ui/skeleton';
+import { OrganizationIdentityForm } from '@/components/registration/OrganizationIdentityForm';
 
 export default function OrganizationIdentityPage() {
   return (
@@ -19,15 +19,7 @@ export default function OrganizationIdentityPage() {
             Tell us about your organization to personalize your experience.
           </p>
         </div>
-        {/* Phase 2 will replace this with OrganizationIdentityForm */}
-        <div className="space-y-4">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-2/3" />
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-1/2" />
-          <Skeleton className="h-32 w-full" />
-        </div>
+        <OrganizationIdentityForm />
       </div>
     </RegistrationWizardLayout>
   );
