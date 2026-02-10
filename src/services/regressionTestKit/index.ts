@@ -32,6 +32,11 @@ import { dataIntegrityTestCategories, getDataIntegrityTests, getDataIntegrityTes
 import { integrationTestCategories, getIntegrationTests, getIntegrationTestCount } from "./integrationTests";
 import { edgeFunctionTestCategories, getEdgeFunctionTests, getEdgeFunctionTestCount } from "./edgeFunctionTests";
 
+// Import adapter test categories
+import { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount } from "./enrollmentAdapterTests";
+import { pulseSocialAdapterCategories, getPulseSocialAdapterTests, getPulseSocialAdapterTestCount } from "./pulseSocialAdapterTests";
+import { smokeAdapterCategories, getSmokeAdapterTests, getSmokeAdapterTestCount } from "./smokeAdapterTests";
+
 import {
   TestCase,
   TestCategory,
@@ -64,6 +69,10 @@ export function getAllTestCategories(): TestCategory[] {
     ...dataIntegrityTestCategories,
     ...integrationTestCategories,
     ...edgeFunctionTestCategories,
+    // Adapted from existing runners
+    ...enrollmentAdapterCategories,
+    ...pulseSocialAdapterCategories,
+    ...smokeAdapterCategories,
   ];
 }
 
@@ -78,6 +87,9 @@ export function getAllTests(): TestCase[] {
     ...getDataIntegrityTests(),
     ...getIntegrationTests(),
     ...getEdgeFunctionTests(),
+    ...getEnrollmentAdapterTests(),
+    ...getPulseSocialAdapterTests(),
+    ...getSmokeAdapterTests(),
   ];
 }
 
@@ -91,7 +103,10 @@ export function getTotalTestCount(): number {
     getReviewerPortalTestCount() +
     getDataIntegrityTestCount() +
     getIntegrationTestCount() +
-    getEdgeFunctionTestCount()
+    getEdgeFunctionTestCount() +
+    getEnrollmentAdapterTestCount() +
+    getPulseSocialAdapterTestCount() +
+    getSmokeAdapterTestCount()
   );
 }
 
@@ -106,6 +121,9 @@ export function getTestCountsByCategory(): Record<string, number> {
     "Data Integrity": getDataIntegrityTestCount(),
     "Integration": getIntegrationTestCount(),
     "Edge Functions": getEdgeFunctionTestCount(),
+    "Enrollment Lifecycle": getEnrollmentAdapterTestCount(),
+    "Pulse Social": getPulseSocialAdapterTestCount(),
+    "Smoke/Master Data": getSmokeAdapterTestCount(),
   };
 }
 
@@ -406,6 +424,9 @@ export { reviewerPortalTestCategories, getReviewerPortalTests, getReviewerPortal
 export { dataIntegrityTestCategories, getDataIntegrityTests, getDataIntegrityTestCount };
 export { integrationTestCategories, getIntegrationTests, getIntegrationTestCount };
 export { edgeFunctionTestCategories, getEdgeFunctionTests, getEdgeFunctionTestCount };
+export { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount };
+export { pulseSocialAdapterCategories, getPulseSocialAdapterTests, getPulseSocialAdapterTestCount };
+export { smokeAdapterCategories, getSmokeAdapterTests, getSmokeAdapterTestCount };
 
 // Re-export display names
 export { ROLE_DISPLAY_NAMES, MODULE_DISPLAY_NAMES };
