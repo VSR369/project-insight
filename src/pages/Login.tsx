@@ -151,10 +151,11 @@ export default function Login() {
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
       
       // Fetch roles and records to validate or determine portal
-      const [rolesResult, providerResult, reviewerResult] = await Promise.all([
+      const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
-        supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle()
+        supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
+        supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).maybeSingle()
       ]);
 
       const roles = rolesResult.data;
@@ -162,13 +163,15 @@ export default function Login() {
       const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerResult.data;
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
+      const hasOrgUserRecord = !!orgUserResult.data;
 
       // Validate cached portal
       if (cachedPortal) {
         const canAccessCached =
           (cachedPortal === 'admin' && isPlatformAdmin) ||
           (cachedPortal === 'provider' && hasProviderRecord) ||
-          (cachedPortal === 'reviewer' && isPanelReviewer);
+          (cachedPortal === 'reviewer' && isPanelReviewer) ||
+          (cachedPortal === 'organization' && hasOrgUserRecord);
 
         if (canAccessCached) {
           if (cachedPortal === 'reviewer' && isPendingReviewer) {
@@ -181,10 +184,11 @@ export default function Login() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine by role priority: Admin > Reviewer > Provider
+      // Determine by role priority: Admin > Reviewer > Organization > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) targetPortal = 'admin';
       else if (isPanelReviewer) targetPortal = 'reviewer';
+      else if (hasOrgUserRecord) targetPortal = 'organization';
       else if (hasProviderRecord) targetPortal = 'provider';
 
       sessionStorage.setItem('activePortal', targetPortal);
@@ -231,7 +235,7 @@ export default function Login() {
         const userId = session.session.user.id;
         
         // Fetch roles, provider record, reviewer record, and enrollments in parallel
-        const [rolesResult, providerResult, reviewerResult] = await Promise.all([
+        const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
           supabase
             .from('user_roles')
             .select('role')
@@ -245,17 +249,25 @@ export default function Login() {
             .from('panel_reviewers')
             .select('id, approval_status, is_active')
             .eq('user_id', userId)
+            .maybeSingle(),
+          supabase
+            .from('org_users')
+            .select('id')
+            .eq('user_id', userId)
+            .eq('is_active', true)
             .maybeSingle()
         ]);
         
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
         const reviewerRecord = reviewerResult.data;
+        const orgUserRecord = orgUserResult.data;
         
         const isPlatformAdmin = roles?.some(r => r.role === 'platform_admin');
         const isPanelReviewer = roles?.some(r => r.role === 'panel_reviewer') || !!reviewerRecord;
         const isPendingReviewer = reviewerRecord?.approval_status === 'pending';
         const hasProviderRecord = !!providerRecord;
+        const hasOrgUserRecord = !!orgUserRecord;
         
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
@@ -283,7 +295,8 @@ export default function Login() {
         const canAccessSelected = 
           (selectedRole === 'admin' && isPlatformAdmin) ||
           (selectedRole === 'provider' && hasProviderRecord) ||
-          (selectedRole === 'reviewer' && isPanelReviewer);
+          (selectedRole === 'reviewer' && isPanelReviewer) ||
+          (selectedRole === 'organization' && hasOrgUserRecord);
         
         let targetPortal: PortalType = selectedRole;
         
@@ -295,13 +308,16 @@ export default function Login() {
             toast.error(`You don't have ${roleLabel} access. Contact your administrator.`);
           } else if (selectedRole === 'reviewer' && !isPanelReviewer) {
             toast.error(`No reviewer account found. Would you like to register as a reviewer?`);
+          } else if (selectedRole === 'organization' && !hasOrgUserRecord) {
+            toast.error(`No organization account found. Please register your organization first.`);
           } else if (selectedRole === 'provider' && !hasProviderRecord) {
             toast.error(`No provider account found. Would you like to register as a provider?`);
           }
           
-          // Fallback to available portal
+          // Fallback to available portal: Admin > Reviewer > Organization > Provider
           if (isPlatformAdmin) targetPortal = 'admin';
           else if (isPanelReviewer) targetPortal = 'reviewer';
+          else if (hasOrgUserRecord) targetPortal = 'organization';
           else if (hasProviderRecord) targetPortal = 'provider';
           else {
             toast.error('No valid account found. Please register first.');
