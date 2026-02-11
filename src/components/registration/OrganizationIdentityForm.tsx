@@ -23,6 +23,7 @@ import {
   useCountryLocale,
   useCheckDuplicateOrg,
   useCreateOrganization,
+  useUpdateOrganization,
   useTierCountryPricing,
 } from '@/hooks/queries/useRegistrationData';
 import { isStartupEligible } from '@/services/registrationService';
@@ -75,7 +76,7 @@ export function OrganizationIdentityForm() {
   // ══════════════════════════════════════
   // SECTION 2: Context and navigation
   // ══════════════════════════════════════
-  const { setStep1Data, setOrgId, setLocale, setOrgTypeFlags, setStep } = useRegistrationContext();
+  const { state, setStep1Data, setOrgId, setLocale, setOrgTypeFlags, setStep } = useRegistrationContext();
   const navigate = useNavigate();
 
   // ══════════════════════════════════════
@@ -84,17 +85,17 @@ export function OrganizationIdentityForm() {
   const form = useForm<OrganizationIdentityFormValues>({
     resolver: zodResolver(organizationIdentitySchema),
     defaultValues: {
-      legal_entity_name: '',
-      trade_brand_name: '',
-      organization_type_id: '',
-      industry_ids: [],
-      company_size_range: undefined,
-      annual_revenue_range: undefined,
-      year_founded: undefined as unknown as number,
-      hq_country_id: '',
-      state_province_id: '',
-      city: '',
-      operating_geography_ids: [],
+      legal_entity_name: state.step1?.legal_entity_name ?? '',
+      trade_brand_name: state.step1?.trade_brand_name ?? '',
+      organization_type_id: state.step1?.organization_type_id ?? '',
+      industry_ids: state.step1?.industry_ids ?? [],
+      company_size_range: state.step1?.company_size_range ?? undefined,
+      annual_revenue_range: state.step1?.annual_revenue_range ?? undefined,
+      year_founded: state.step1?.year_founded ?? (undefined as unknown as number),
+      hq_country_id: state.step1?.hq_country_id ?? '',
+      state_province_id: state.step1?.state_province_id ?? '',
+      city: state.step1?.city ?? '',
+      operating_geography_ids: state.step1?.operating_geography_ids ?? [],
     },
   });
 
@@ -113,6 +114,7 @@ export function OrganizationIdentityForm() {
   const { data: countryLocale } = useCountryLocale(watchedCountryId);
   const duplicateCheck = useCheckDuplicateOrg();
   const createOrg = useCreateOrganization();
+  const updateOrg = useUpdateOrganization();
   const { data: countryPricingSupported } = useTierCountryPricing(watchedCountryId);
 
   // ══════════════════════════════════════
@@ -164,8 +166,10 @@ export function OrganizationIdentityForm() {
   // SECTION 7: Event handlers
   // ══════════════════════════════════════
   const handleSubmit = async (data: OrganizationIdentityFormValues) => {
-    // BR-REG-007: Duplicate check
-    if (!skipDuplicateCheck) {
+    const isUpdate = !!state.organizationId;
+
+    // BR-REG-007: Duplicate check — skip when updating existing org
+    if (!isUpdate && !skipDuplicateCheck) {
       const result = await duplicateCheck.mutateAsync({
         legalEntityName: data.legal_entity_name,
         hqCountryId: data.hq_country_id,
@@ -177,8 +181,7 @@ export function OrganizationIdentityForm() {
       }
     }
 
-    // Create organization
-    const result = await createOrg.mutateAsync({
+    const payload = {
       legal_entity_name: data.legal_entity_name,
       trade_brand_name: data.trade_brand_name || undefined,
       organization_type_id: data.organization_type_id,
@@ -198,10 +201,20 @@ export function OrganizationIdentityForm() {
         number_format: countryLocale?.number_format,
         address_format_template: countryLocale?.address_format_template as Record<string, unknown> | null,
       },
-    });
+    };
 
-    // Update context
-    setOrgId(result.organizationId, result.tenantId);
+    if (isUpdate) {
+      // UPDATE existing organization
+      await updateOrg.mutateAsync({
+        id: state.organizationId!,
+        tenantId: state.tenantId!,
+        ...payload,
+      });
+    } else {
+      // CREATE new organization
+      const result = await createOrg.mutateAsync(payload);
+      setOrgId(result.organizationId, result.tenantId);
+    }
     setStep1Data({
       legal_entity_name: data.legal_entity_name,
       trade_brand_name: data.trade_brand_name || undefined,
@@ -227,7 +240,7 @@ export function OrganizationIdentityForm() {
     form.handleSubmit(handleSubmit)();
   };
 
-  const isSubmitting = createOrg.isPending || duplicateCheck.isPending;
+  const isSubmitting = createOrg.isPending || updateOrg.isPending || duplicateCheck.isPending;
 
   // ══════════════════════════════════════
   // SECTION 8: Render
