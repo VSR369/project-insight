@@ -1,33 +1,39 @@
 
 
-# Step-by-Step: Make Seeker Org Test Login Work
+# Fix: Seeker Org Test Button Race Condition
 
-You don't need to write any code yourself. Just approve this plan and I will do everything for you:
+## Problem
 
-## What I Will Do (Automatically)
+When clicking the "Seeking Org" quick login button, two things happen simultaneously:
+1. `setSelectedRole('organization')` is called (but React hasn't applied it yet)
+2. `form.handleSubmit(onSubmit)()` runs immediately
 
-### Step 1: Insert the database record
-I will add a record to the database that connects the test user `seeker@test.local` to the "VSR" organization. This is like giving that user a membership card to the organization.
+Since React state updates are asynchronous, `selectedRole` is still `'provider'` when `onSubmit` executes. The seeker user also has a provider record, so the system thinks they want the Provider portal and sends them to `/pulse/feed`.
 
-### Step 2: Update the Login page code
-I will update the login page so that when someone clicks "Seeking Org", it:
-- Checks if the user belongs to an organization
-- Redirects them to the Organization dashboard (`/org/dashboard`) instead of the Provider screens
+## Solution
 
-## What You Need To Do
+Pass the intended portal directly to `onSubmit` instead of relying on React state. This ensures the correct portal is used even when state hasn't updated yet.
 
-**Nothing!** Just click the **Approve** button below. I will handle both the database insert and the code changes.
+## Changes
 
-## After It's Done
+### File: `src/pages/Login.tsx`
 
-1. Go to the login page
-2. Click the "Seeking Org" test account button
-3. You should land on the Organization dashboard instead of Provider screens
+1. **Update `onSubmit` signature** to accept an optional `portalOverride` parameter:
+   - `const onSubmit = async (data: LoginFormData, portalOverride?: PortalType)`
+   - Use `portalOverride ?? selectedRole` wherever `selectedRole` is referenced inside `onSubmit`
 
-## Technical Details
+2. **Update test account click handler** (line ~550) to pass the portal directly:
+   - Change from: `form.handleSubmit(onSubmit)()`
+   - Change to: `form.handleSubmit((data) => onSubmit(data, account.portal))()`
 
-| Change | Detail |
-|--------|--------|
-| Database | Insert 1 row into `org_users` linking user `50845a43-...` to org `48c85c00-...` with role `owner` |
-| Code file | `src/pages/Login.tsx` -- add `org_users` query to login flow, update redirect logic |
+No other files change. No database changes needed.
+
+## Technical Detail
+
+The `onSubmit` function currently reads `selectedRole` from component state in 3 places:
+- Line 277: `selectedRole === 'provider'` (first-time provider check)
+- Line 295-299: `canAccessSelected` validation
+- Line 301: `let targetPortal = selectedRole`
+
+All three will use `portalOverride ?? selectedRole` instead, guaranteeing the correct portal is used when clicking quick-login buttons.
 
