@@ -213,7 +213,8 @@ export default function Login() {
     );
   }
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData, portalOverride?: PortalType) => {
+    const effectiveRole = portalOverride ?? selectedRole;
     setIsLoading(true);
     try {
       const { error } = await signIn(data.email, data.password);
@@ -274,7 +275,7 @@ export default function Login() {
         
         // Check if first-time provider (has provider record but no enrollments)
         let isFirstTimeProvider = false;
-        if (hasProviderRecord && selectedRole === 'provider' && !isPlatformAdmin && !isPanelReviewer) {
+        if (hasProviderRecord && effectiveRole === 'provider' && !isPlatformAdmin && !isPanelReviewer) {
           const { data: enrollments } = await supabase
             .from('provider_industry_enrollments')
             .select('id')
@@ -293,24 +294,24 @@ export default function Login() {
         
         // Validate user has access to selected portal
         const canAccessSelected = 
-          (selectedRole === 'admin' && isPlatformAdmin) ||
-          (selectedRole === 'provider' && hasProviderRecord) ||
-          (selectedRole === 'reviewer' && isPanelReviewer) ||
-          (selectedRole === 'organization' && hasOrgUserRecord);
+          (effectiveRole === 'admin' && isPlatformAdmin) ||
+          (effectiveRole === 'provider' && hasProviderRecord) ||
+          (effectiveRole === 'reviewer' && isPanelReviewer) ||
+          (effectiveRole === 'organization' && hasOrgUserRecord);
         
-        let targetPortal: PortalType = selectedRole;
+        let targetPortal: PortalType = effectiveRole;
         
         if (!canAccessSelected) {
           // Show specific error based on selected role
-          const roleLabel = LOGIN_TABS.find(t => t.id === selectedRole)?.label || selectedRole;
+          const roleLabel = LOGIN_TABS.find(t => t.id === effectiveRole)?.label || effectiveRole;
           
-          if (selectedRole === 'admin' && !isPlatformAdmin) {
+          if (effectiveRole === 'admin' && !isPlatformAdmin) {
             toast.error(`You don't have ${roleLabel} access. Contact your administrator.`);
-          } else if (selectedRole === 'reviewer' && !isPanelReviewer) {
+          } else if (effectiveRole === 'reviewer' && !isPanelReviewer) {
             toast.error(`No reviewer account found. Would you like to register as a reviewer?`);
-          } else if (selectedRole === 'organization' && !hasOrgUserRecord) {
+          } else if (effectiveRole === 'organization' && !hasOrgUserRecord) {
             toast.error(`No organization account found. Please register your organization first.`);
-          } else if (selectedRole === 'provider' && !hasProviderRecord) {
+          } else if (effectiveRole === 'provider' && !hasProviderRecord) {
             toast.error(`No provider account found. Would you like to register as a provider?`);
           }
           
@@ -405,7 +406,7 @@ export default function Login() {
           </CardHeader>
 
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)}>
+            <form onSubmit={form.handleSubmit((data) => onSubmit(data))}>
               <CardContent className="space-y-4">
                 <FormField
                   control={form.control}
@@ -547,7 +548,7 @@ export default function Login() {
                         form.setValue('email', account.email);
                         form.setValue('password', account.password);
                         // Auto-submit the form for instant login
-                        form.handleSubmit(onSubmit)();
+                        form.handleSubmit((data) => onSubmit(data, account.portal))();
                       }}
                       className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
                     >
