@@ -71,15 +71,15 @@ const TIMEZONE_OPTIONS = (() => {
 
 export function PrimaryContactForm() {
   // ══════════════════════════════════════
-  // SECTION 1: useState hooks
-  // ══════════════════════════════════════
-  const [emailVerified, setEmailVerified] = useState(false);
-
-  // ══════════════════════════════════════
-  // SECTION 2: Context and navigation
+  // SECTION 1: Context and navigation
   // ══════════════════════════════════════
   const { state, setStep2Data, setStep } = useRegistrationContext();
   const navigate = useNavigate();
+
+  // ══════════════════════════════════════
+  // SECTION 2: useState hooks
+  // ══════════════════════════════════════
+  const [emailVerified, setEmailVerified] = useState(() => !!state.step2?.email_verified);
 
   // ══════════════════════════════════════
   // SECTION 3: Form hook
@@ -89,17 +89,17 @@ export function PrimaryContactForm() {
   const form = useForm<PrimaryContactFormValues>({
     resolver: zodResolver(primaryContactSchema),
     defaultValues: {
-      first_name: '',
-      last_name: '',
-      job_title: '',
-      email: '',
-      phone_country_code: state.localeInfo?.phone_code ?? '',
-      phone_number: '',
-      department: '',
+      first_name: state.step2?.first_name ?? '',
+      last_name: state.step2?.last_name ?? '',
+      job_title: state.step2?.designation ?? '',
+      email: state.step2?.email ?? '',
+      phone_country_code: state.step2?.phone_country_code ?? state.localeInfo?.phone_code ?? '',
+      phone_number: state.step2?.phone ?? '',
+      department: state.step2?.department ?? '',
       department_functional_area_id: '',
-      timezone: detectedTimezone || '',
-      preferred_language_id: '',
-      is_email_verified: undefined as unknown as true,
+      timezone: state.step2?.timezone ?? detectedTimezone ?? '',
+      preferred_language_id: state.step2?.preferred_language_id ?? '',
+      is_email_verified: state.step2?.email_verified ? true : undefined as unknown as true,
     },
   });
 
@@ -190,6 +190,8 @@ export function PrimaryContactForm() {
 
     setStep2Data({
       full_name: `${data.first_name} ${data.last_name}`,
+      first_name: data.first_name,
+      last_name: data.last_name,
       designation: data.job_title,
       email: data.email,
       phone: data.phone_number,
@@ -210,6 +212,14 @@ export function PrimaryContactForm() {
   };
 
   const isSubmitting = upsertContact.isPending;
+  const isReturning = !!state.organizationId && !!state.step2;
+  const { isDirty } = form.formState;
+  const showContinueOnly = isReturning && !isDirty;
+
+  const handleContinueOnly = () => {
+    setStep(3);
+    navigate('/registration/compliance');
+  };
 
   // ══════════════════════════════════════
   // SECTION 8: Render
@@ -457,19 +467,26 @@ export function PrimaryContactForm() {
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back
           </Button>
-          <Button type="submit" disabled={isSubmitting || !emailVerified}>
-            {isSubmitting ? (
-              <>
-                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Saving…
-              </>
-            ) : (
-              <>
-                Continue
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </>
-            )}
-          </Button>
+          {showContinueOnly ? (
+            <Button type="button" onClick={handleContinueOnly}>
+              Continue
+              <ArrowRight className="h-4 w-4 ml-2" />
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitting || !emailVerified}>
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  Save & Continue
+                  <ArrowRight className="h-4 w-4 ml-2" />
+                </>
+              )}
+            </Button>
+          )}
         </div>
       </form>
     </Form>

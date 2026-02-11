@@ -33,6 +33,8 @@ export type AnnualRevenueRange = '<1M' | '1M-10M' | '10M-50M' | '50M-250M' | '25
 // ============================================================
 export interface PrimaryContactData {
   full_name: string;
+  first_name?: string;
+  last_name?: string;
   designation: string;
   email: string;
   phone: string;
@@ -71,6 +73,16 @@ export interface BillingData {
   payment_method: string;
   stripe_payment_intent_id?: string;
   is_internal_department: boolean;
+  billing_entity_name?: string;
+  billing_email?: string;
+  billing_address_line1?: string;
+  billing_address_line2?: string;
+  billing_city?: string;
+  billing_state_province_id?: string;
+  billing_country_id?: string;
+  billing_postal_code?: string;
+  po_number?: string;
+  tax_id?: string;
 }
 
 // ============================================================

@@ -95,17 +95,17 @@ export function BillingForm() {
   const form = useForm<BillingFormValues>({
     resolver: zodResolver(billingSchema),
     defaultValues: {
-      billing_entity_name: state.step1?.legal_entity_name ?? '',
-      billing_email: state.step2?.email ?? '',
-      billing_address_line1: '',
-      billing_address_line2: '',
-      billing_city: state.step1?.city ?? '',
-      billing_state_province_id: state.step1?.state_province_id ?? '',
-      billing_country_id: countryId ?? '',
-      billing_postal_code: '',
-      payment_method: isInternalDept ? 'shadow' : 'credit_card',
-      po_number: '',
-      tax_id: '',
+      billing_entity_name: state.step5?.billing_entity_name ?? state.step1?.legal_entity_name ?? '',
+      billing_email: state.step5?.billing_email ?? state.step2?.email ?? '',
+      billing_address_line1: state.step5?.billing_address_line1 ?? '',
+      billing_address_line2: state.step5?.billing_address_line2 ?? '',
+      billing_city: state.step5?.billing_city ?? state.step1?.city ?? '',
+      billing_state_province_id: state.step5?.billing_state_province_id ?? state.step1?.state_province_id ?? '',
+      billing_country_id: state.step5?.billing_country_id ?? countryId ?? '',
+      billing_postal_code: state.step5?.billing_postal_code ?? '',
+      payment_method: (state.step5?.payment_method as BillingFormValues['payment_method']) ?? (isInternalDept ? 'shadow' : 'credit_card'),
+      po_number: state.step5?.po_number ?? '',
+      tax_id: state.step5?.tax_id ?? '',
       terms_accepted: false,
     },
   });
@@ -186,6 +186,16 @@ export function BillingForm() {
     setStep5Data({
       payment_method: data.payment_method,
       is_internal_department: isInternalDept,
+      billing_entity_name: data.billing_entity_name,
+      billing_email: data.billing_email,
+      billing_address_line1: data.billing_address_line1,
+      billing_address_line2: data.billing_address_line2,
+      billing_city: data.billing_city,
+      billing_state_province_id: data.billing_state_province_id,
+      billing_country_id: data.billing_country_id,
+      billing_postal_code: data.billing_postal_code,
+      po_number: data.po_number,
+      tax_id: data.tax_id,
     });
 
     setStep(6);
