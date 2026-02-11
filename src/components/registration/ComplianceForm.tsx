@@ -7,7 +7,7 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Shield } from 'lucide-react';
 
@@ -59,10 +59,10 @@ export function ComplianceForm() {
   const form = useForm<ComplianceFormValues>({
     resolver: zodResolver(complianceSchema),
     defaultValues: {
-      export_control_status_id: '',
-      itar_certified: false,
+      export_control_status_id: state.step3?.export_control_status_id ?? '',
+      itar_certified: state.step3?.is_itar_restricted ?? false,
       itar_certification_expiry: '',
-      data_residency_id: '',
+      data_residency_id: state.step3?.data_residency_id ?? '',
       gdpr_compliant: false,
       hipaa_compliant: false,
       soc2_compliant: false,
@@ -90,8 +90,15 @@ export function ComplianceForm() {
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
   // ══════════════════════════════════════
-  // Clear ITAR fields when export control changes
+  // Guard against ITAR reset on initial mount when restoring context
+  const isInitialMount = useRef(true);
+
+  // Clear ITAR fields when export control changes (skip initial mount)
   useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
     if (!requiresItar) {
       form.setValue('itar_certified', false);
       form.setValue('itar_certification_expiry', '');
@@ -133,6 +140,14 @@ export function ComplianceForm() {
   };
 
   const isSubmitting = upsertCompliance.isPending;
+  const isReturning = !!state.organizationId && !!state.step3;
+  const { isDirty } = form.formState;
+  const showContinueOnly = isReturning && !isDirty;
+
+  const handleContinueOnly = () => {
+    setStep(4);
+    navigate('/registration/plan-selection');
+  };
 
   // ══════════════════════════════════════
   // SECTION 7: Render
@@ -333,10 +348,16 @@ export function ComplianceForm() {
           >
             Back
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Continue to Plan Selection
-          </Button>
+          {showContinueOnly ? (
+            <Button type="button" onClick={handleContinueOnly}>
+              Continue to Plan Selection
+            </Button>
+          ) : (
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Save & Continue
+            </Button>
+          )}
         </div>
       </form>
     </Form>

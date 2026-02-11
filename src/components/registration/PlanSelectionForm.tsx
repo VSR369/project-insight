@@ -219,6 +219,15 @@ export function PlanSelectionForm() {
     navigate('/registration/billing');
   };
 
+  const isReturning = !!state.organizationId && !!state.step4;
+  const { isDirty } = form.formState;
+  const showContinueOnly = isReturning && !isDirty;
+
+  const handleContinueOnly = () => {
+    setStep(5);
+    navigate('/registration/billing');
+  };
+
   // ══════════════════════════════════════
   // SECTION 7: Render
   // ══════════════════════════════════════
@@ -507,10 +516,17 @@ export function PlanSelectionForm() {
           </Button>
           <div className="flex items-center gap-3">
             <span className="text-sm text-muted-foreground hidden lg:inline">Step 4 of 5</span>
-            <Button type="submit" disabled={!watchedTierId || isEnterpriseTier}>
-              Continue
-              <ArrowRight className="h-4 w-4 ml-1" />
-            </Button>
+            {showContinueOnly ? (
+              <Button type="button" onClick={handleContinueOnly}>
+                Continue
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            ) : (
+              <Button type="submit" disabled={!watchedTierId || isEnterpriseTier}>
+                Save & Continue
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </Button>
+            )}
           </div>
         </div>
       </form>
