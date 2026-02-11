@@ -11,7 +11,7 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
@@ -120,8 +120,15 @@ export function OrganizationIdentityForm() {
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
   // ══════════════════════════════════════
-  // Reset state when country changes
+  // Track initial country to avoid wiping state/province on mount
+  const initialCountryRef = useRef(state.step1?.hq_country_id ?? '');
+
+  // Reset state only when user actively changes country, not on initial mount
   useEffect(() => {
+    if (initialCountryRef.current && watchedCountryId === initialCountryRef.current) {
+      initialCountryRef.current = ''; // Allow future changes to reset
+      return;
+    }
     form.setValue('state_province_id', '');
   }, [watchedCountryId, form]);
 
@@ -241,6 +248,14 @@ export function OrganizationIdentityForm() {
   };
 
   const isSubmitting = createOrg.isPending || updateOrg.isPending || duplicateCheck.isPending;
+  const isReturning = !!state.organizationId;
+  const { isDirty } = form.formState;
+  const showContinueOnly = isReturning && !isDirty;
+
+  const handleContinueOnly = () => {
+    setStep(2);
+    navigate('/registration/primary-contact');
+  };
 
   // ══════════════════════════════════════
   // SECTION 8: Render
@@ -549,21 +564,32 @@ export function OrganizationIdentityForm() {
               Already have an account?{' '}
               <a href="/auth" className="text-primary font-medium underline">Sign in</a>
             </p>
-            <Button
-              type="submit"
-              size="lg"
-              disabled={isSubmitting}
-              className="min-w-[180px]"
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
-                </>
-              ) : (
-                'Save & Continue'
-              )}
-            </Button>
+            {showContinueOnly ? (
+              <Button
+                type="button"
+                size="lg"
+                onClick={handleContinueOnly}
+                className="min-w-[180px]"
+              >
+                Continue
+              </Button>
+            ) : (
+              <Button
+                type="submit"
+                size="lg"
+                disabled={isSubmitting}
+                className="min-w-[180px]"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save & Continue'
+                )}
+              </Button>
+            )}
           </div>
         </form>
       </Form>
