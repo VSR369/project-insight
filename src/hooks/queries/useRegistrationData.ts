@@ -137,6 +137,102 @@ export function useCheckDuplicateOrg() {
 }
 
 // ============================================================
+// Update Organization (Step 1 re-save on back navigation)
+// ============================================================
+export function useUpdateOrganization() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      id: string;
+      tenantId: string;
+      legal_entity_name: string;
+      trade_brand_name?: string;
+      organization_type_id: string;
+      employee_count_range: string;
+      annual_revenue_range: string;
+      founding_year: number;
+      hq_country_id: string;
+      hq_state_province_id: string;
+      hq_city: string;
+      industry_ids: string[];
+      operating_geography_ids: string[];
+      subsidized_discount_pct?: number;
+      locale: {
+        currency_code?: string | null;
+        currency_symbol?: string;
+        date_format?: string;
+        number_format?: string;
+        address_format_template?: Record<string, unknown> | null;
+      };
+    }) => {
+      const { id, tenantId, industry_ids, operating_geography_ids, locale, ...orgData } = payload;
+
+      // 1. Update the organization record
+      const { error: orgError } = await supabase
+        .from('seeker_organizations')
+        .update({
+          organization_name: orgData.legal_entity_name,
+          legal_entity_name: orgData.legal_entity_name,
+          trade_brand_name: orgData.trade_brand_name || null,
+          organization_type_id: orgData.organization_type_id,
+          employee_count_range: orgData.employee_count_range,
+          annual_revenue_range: orgData.annual_revenue_range,
+          founding_year: orgData.founding_year,
+          hq_country_id: orgData.hq_country_id,
+          hq_state_province_id: orgData.hq_state_province_id,
+          hq_city: orgData.hq_city,
+          preferred_currency: locale.currency_code?.substring(0, 3) || 'USD',
+          date_format: locale.date_format || 'MM/DD/YYYY',
+          number_format: locale.number_format || '1,234.56',
+          address_format_template: locale.address_format_template as any,
+          subsidized_discount_pct: orgData.subsidized_discount_pct ?? 0,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+
+      if (orgError) throw new Error(orgError.message);
+
+      // 2. Replace industries: delete then re-insert
+      await supabase.from('seeker_org_industries').delete().eq('organization_id', id);
+      if (industry_ids.length > 0) {
+        const industryRows = industry_ids.map((industry_id) => ({
+          organization_id: id,
+          tenant_id: tenantId,
+          industry_id,
+        }));
+        const { error: indError } = await supabase
+          .from('seeker_org_industries')
+          .insert(industryRows);
+        if (indError) throw new Error(indError.message);
+      }
+
+      // 3. Replace operating geographies: delete then re-insert
+      await supabase.from('seeker_org_operating_geographies').delete().eq('organization_id', id);
+      if (operating_geography_ids.length > 0) {
+        const geoRows = operating_geography_ids.map((country_id) => ({
+          organization_id: id,
+          country_id,
+        }));
+        const { error: geoError } = await supabase
+          .from('seeker_org_operating_geographies')
+          .insert(geoRows);
+        if (geoError) throw new Error(geoError.message);
+      }
+
+      return { organizationId: id, tenantId };
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker_organizations'] });
+      toast.success('Organization details updated successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to update organization: ${error.message}`);
+    },
+  });
+}
+
+// ============================================================
 // Create Organization (Step 1 save)
 // ============================================================
 export function useCreateOrganization() {
