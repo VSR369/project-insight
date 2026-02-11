@@ -1,79 +1,79 @@
 
 
-# Add Departments Master Data Table and Dropdown
+# Fix: Registration Data Loss on Back Navigation
 
-## Overview
-Convert the "Department" field on the Primary Contact form from a free-text input to a dropdown populated from a new `md_departments` master data table, consistent with how Functional Areas already works.
+## Root Cause Analysis
 
-## Changes
+Two bugs cause data to disappear when navigating back to Step 1:
 
-### 1. Database: Create `md_departments` table and seed data
+### Bug 1: Form never loads saved data
+`OrganizationIdentityForm` always initializes `useForm` with empty `defaultValues`. When the user navigates back from Step 2, the component remounts and all fields are blank. The context already stores the data in `state.step1`, but nobody reads it.
 
-Create a new master data table following the existing `md_functional_areas` pattern:
+### Bug 2: No update path -- only INSERT
+`handleSubmit` always calls `useCreateOrganization()` which does an INSERT. When re-saving after navigating back:
+- The duplicate check may flag the existing org
+- Even if bypassed, a second org record would be created
+- The old `organizationId` in context becomes orphaned
 
-```sql
-CREATE TABLE public.md_departments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code TEXT NOT NULL UNIQUE,
-  name TEXT NOT NULL,
-  description TEXT,
-  display_order INTEGER NOT NULL DEFAULT 0,
-  is_active BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ,
-  created_by UUID REFERENCES auth.users(id),
-  updated_by UUID REFERENCES auth.users(id)
-);
+## Fix Plan
 
-ALTER TABLE public.md_departments ENABLE ROW LEVEL SECURITY;
+### 1. Pre-populate form from context (`OrganizationIdentityForm.tsx`)
 
-CREATE POLICY "Anyone can read active departments"
-  ON public.md_departments FOR SELECT
-  USING (is_active = true);
+Change the `useForm` `defaultValues` to read from `state.step1` if it exists:
+
+```typescript
+const form = useForm<OrganizationIdentityFormValues>({
+  resolver: zodResolver(organizationIdentitySchema),
+  defaultValues: {
+    legal_entity_name: state.step1?.legal_entity_name ?? '',
+    trade_brand_name: state.step1?.trade_brand_name ?? '',
+    organization_type_id: state.step1?.organization_type_id ?? '',
+    industry_ids: state.step1?.industry_ids ?? [],
+    company_size_range: state.step1?.company_size_range ?? undefined,
+    annual_revenue_range: state.step1?.annual_revenue_range ?? undefined,
+    year_founded: state.step1?.year_founded ?? (undefined as unknown as number),
+    hq_country_id: state.step1?.hq_country_id ?? '',
+    state_province_id: state.step1?.state_province_id ?? '',
+    city: state.step1?.city ?? '',
+    operating_geography_ids: state.step1?.operating_geography_ids ?? [],
+  },
+});
 ```
 
-Seed with standard department names:
+This requires reading `state` from `useRegistrationContext()` (already imported but only destructured for setters). Add `state` to the destructure.
 
-| Code | Name | Order |
-|------|------|-------|
-| ENG | Engineering | 1 |
-| OPS | Operations | 2 |
-| FIN | Finance & Accounting | 3 |
-| HR | Human Resources | 4 |
-| MKT | Marketing | 5 |
-| SALES | Sales | 6 |
-| IT | Information Technology | 7 |
-| LEGAL | Legal & Compliance | 8 |
-| RND | Research & Development | 9 |
-| PM | Product Management | 10 |
-| CS | Customer Success | 11 |
-| SCM | Supply Chain & Logistics | 12 |
-| ADMIN | Administration | 13 |
-| EXEC | Executive / Leadership | 14 |
-| DESIGN | Design & UX | 15 |
-| QA | Quality Assurance | 16 |
-| DATA | Data & Analytics | 17 |
-| PROC | Procurement | 18 |
-| COMMS | Communications & PR | 19 |
-| OTHER | Other | 99 |
+### 2. Add an `useUpdateOrganization` mutation (`useRegistrationData.ts`)
 
-### 2. Frontend: Add `useDepartments` hook
+Create a new mutation that does an UPDATE + upsert of child records (industries, geographies) when `organizationId` already exists:
 
-Add a new query hook in `src/hooks/queries/usePrimaryContactData.ts` to fetch departments from the new table, following the same pattern as `useFunctionalAreas`.
+- UPDATE `seeker_organizations` with the changed fields
+- DELETE + re-INSERT `seeker_org_industries` for the org
+- DELETE + re-INSERT `seeker_org_operating_geographies` for the org
 
-### 3. Frontend: Update `PrimaryContactForm.tsx`
+### 3. Conditional create vs update in `handleSubmit` (`OrganizationIdentityForm.tsx`)
 
-Replace the free-text `<Input>` for "Department" with a `<Select>` dropdown populated from `useDepartments()`, matching the Functional Area dropdown pattern.
+```text
+if (state.organizationId) {
+  // UPDATE existing org
+  await updateOrg.mutateAsync({ id: state.organizationId, ...data });
+} else {
+  // CREATE new org
+  const result = await createOrg.mutateAsync(data);
+  setOrgId(result.organizationId, result.tenantId);
+}
+```
 
-### 4. Validation Schema Update
+Skip the duplicate check when updating an existing org (the user already confirmed it).
 
-Update `src/lib/validations/primaryContact.ts` to change the `department` field from a free-text string to a UUID (department ID) if the DB column should reference the new table, or keep it as the department name string if the `seeker_contacts.department` column stays as `TEXT`.
+## Files Changed
 
-Since `seeker_contacts.department` is already a `TEXT` column and changing it to a FK would require a migration affecting existing data, the simplest approach is to keep it as `TEXT` but populate it from the dropdown's selected name value.
+| File | Change |
+|------|--------|
+| `src/components/registration/OrganizationIdentityForm.tsx` | Read `state` from context; pre-populate `defaultValues` from `state.step1`; branch create vs update in submit handler |
+| `src/hooks/queries/useRegistrationData.ts` | Add `useUpdateOrganization` mutation (UPDATE org + replace child records) |
 
-## Technical Details
+## Technical Notes
 
-- The `md_departments` table follows the exact same structure as `md_functional_areas`
-- RLS policy allows anonymous read access (needed for unauthenticated registration flow)
-- The "Other" option (code `OTHER`) allows users who don't find their department in the list to still proceed
-- The `seeker_contacts.department` column remains `TEXT` -- the selected department name is stored as the value
+- The `state.step1` data is stored in the RegistrationContext's in-memory reducer. This persists across route changes within the same browser session since the `RegistrationProvider` wraps all registration routes.
+- For the update mutation, child records (industries, geographies) are replaced using delete-then-insert to keep the logic simple and idempotent.
+- The duplicate check is skipped when `state.organizationId` exists, since the org was already created by this user.
