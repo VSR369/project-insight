@@ -13,7 +13,11 @@ import { useNavigate } from 'react-router-dom';
 import { challengeSchema, type ChallengeFormValues } from '@/lib/validations/challenge';
 import { useComplexityLevels, useEngagementModels, useBaseFees, useCreateChallenge } from '@/hooks/queries/useChallengeData';
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
-import { calculateChallengeFees, validateChallengeLimit, getMaxSolutions } from '@/services/challengePricingService';
+import { useOrgMembership } from '@/hooks/queries/useMembershipData';
+import { calculateChallengeFees, validateChallengeLimit, getMaxSolutions, applyMembershipDiscount } from '@/services/challengePricingService';
+import { calculateMembershipDiscount } from '@/services/membershipService';
+import { useOrgContext } from '@/contexts/OrgContext';
+import { EngagementModelSelector } from '@/components/org/EngagementModelSelector';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,16 +35,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Zap, DollarSign, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
-
-const DEMO_ORG_ID = 'demo-org-id';
-const DEMO_TENANT_ID = 'demo-tenant-id';
-const DEMO_COUNTRY_ID = 'demo-country-id';
+import { Zap, DollarSign, AlertTriangle, CheckCircle, Loader2, Percent } from 'lucide-react';
 
 export default function ChallengeCreatePage() {
   // ══════════════════════════════════════
-  // SECTION 1: Navigation
+  // SECTION 1: Context & Navigation
   // ══════════════════════════════════════
+  const { organizationId, tenantId, hqCountryId, isInternalDepartment } = useOrgContext();
   const navigate = useNavigate();
 
   // ══════════════════════════════════════
@@ -64,10 +65,11 @@ export default function ChallengeCreatePage() {
   // ══════════════════════════════════════
   const { data: complexityLevels, isLoading: complexityLoading } = useComplexityLevels();
   const { data: engagementModels, isLoading: modelsLoading } = useEngagementModels();
-  const { data: subscription } = useOrgSubscription(DEMO_ORG_ID);
+  const { data: subscription } = useOrgSubscription(organizationId);
+  const { data: membership } = useOrgMembership(organizationId);
 
   const tierId = subscription?.tier_id;
-  const { data: baseFees } = useBaseFees(DEMO_COUNTRY_ID, tierId);
+  const { data: baseFees } = useBaseFees(hqCountryId ?? '', tierId);
   const createChallenge = useCreateChallenge();
 
   // ══════════════════════════════════════
@@ -78,13 +80,30 @@ export default function ChallengeCreatePage() {
     [complexityLevels, watchedComplexity]
   );
 
-  const pricing = useMemo(() => {
+  const basePricing = useMemo(() => {
     if (!baseFees || !selectedComplexityData) return null;
     return calculateChallengeFees(
       { consultingBaseFee: baseFees.consulting_base_fee, managementBaseFee: baseFees.management_base_fee, currencyCode: baseFees.currency_code },
       { consultingFeeMultiplier: selectedComplexityData.consulting_fee_multiplier, managementFeeMultiplier: selectedComplexityData.management_fee_multiplier }
     );
   }, [baseFees, selectedComplexityData]);
+
+  // Apply membership discount if available
+  const membershipDiscount = useMemo(() => {
+    if (!membership?.md_membership_tiers) return null;
+    return calculateMembershipDiscount(
+      (membership.md_membership_tiers as { code: string }).code,
+      isInternalDepartment,
+    );
+  }, [membership, isInternalDepartment]);
+
+  const pricing = useMemo(() => {
+    if (!basePricing) return null;
+    if (membershipDiscount?.isEligible && membershipDiscount.feeDiscountPct > 0) {
+      return applyMembershipDiscount(basePricing, membershipDiscount.feeDiscountPct);
+    }
+    return applyMembershipDiscount(basePricing, 0);
+  }, [basePricing, membershipDiscount]);
 
   const challengeValidation = validateChallengeLimit(
     subscription?.challenges_used ?? 0,
@@ -100,15 +119,15 @@ export default function ChallengeCreatePage() {
   const handleSubmit = (data: ChallengeFormValues) => {
     if (!challengeValidation.canCreate || !pricing) return;
     createChallenge.mutate({
-      tenantId: DEMO_TENANT_ID,
-      organizationId: DEMO_ORG_ID,
+      tenantId,
+      organizationId,
       title: data.title,
       description: data.description || undefined,
       engagementModelId: data.engagement_model_id,
       complexityId: data.complexity_id,
-      consultingFee: pricing.consultingFee,
-      managementFee: pricing.managementFee,
-      totalFee: pricing.totalFee,
+      consultingFee: pricing.hasDiscount ? pricing.discountedConsultingFee : pricing.consultingFee,
+      managementFee: pricing.hasDiscount ? pricing.discountedManagementFee : pricing.managementFee,
+      totalFee: pricing.hasDiscount ? pricing.discountedTotalFee : pricing.totalFee,
       currencyCode: pricing.currencyCode,
       maxSolutions,
       visibility: data.visibility,
@@ -194,46 +213,41 @@ export default function ChallengeCreatePage() {
             </CardContent>
           </Card>
 
-          {/* Engagement Model */}
+          {/* Engagement Model — Card Selector */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Zap className="h-5 w-5 text-primary" /> Engagement Model
               </CardTitle>
-              <CardDescription>BR-MSL-002: Model is locked after draft stage</CardDescription>
+              <CardDescription>Choose how you'll interact with solution providers. Model is locked after draft stage.</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
-                <Skeleton className="h-10 w-full" />
-              ) : (
+                <Skeleton className="h-40 w-full" />
+              ) : engagementModels?.length ? (
                 <FormField
                   control={form.control}
                   name="engagement_model_id"
                   render={({ field }) => (
                     <FormItem>
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <FormControl>
-                          <SelectTrigger className="text-base">
-                            <SelectValue placeholder="Select engagement model" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {engagementModels?.map((model) => (
-                            <SelectItem key={model.id} value={model.id}>
-                              <div className="flex flex-col">
-                                <span>{model.name}</span>
-                                {model.description && (
-                                  <span className="text-xs text-muted-foreground">{model.description}</span>
-                                )}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                      <FormControl>
+                        <EngagementModelSelector
+                          models={engagementModels.map(m => ({
+                            id: m.id,
+                            name: m.name,
+                            code: m.code,
+                            description: m.description,
+                          }))}
+                          selectedId={field.value}
+                          onSelect={field.onChange}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+              ) : (
+                <p className="text-sm text-muted-foreground">No engagement models available.</p>
               )}
             </CardContent>
           </Card>
@@ -278,24 +292,68 @@ export default function ChallengeCreatePage() {
               {pricing && (
                 <>
                   <Separator />
+
+                  {/* Membership Discount Badge */}
+                  {pricing.hasDiscount && (
+                    <div className="flex items-center gap-2">
+                      <Badge className="bg-primary/10 text-primary border-primary/20 gap-1">
+                        <Percent className="h-3 w-3" />
+                        {pricing.discountPct}% Membership Discount Applied
+                      </Badge>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="text-center p-3 bg-muted rounded-lg">
                       <p className="text-xs text-muted-foreground">Consulting Fee</p>
-                      <p className="text-lg font-semibold text-foreground">
-                        {pricing.currencyCode} {pricing.consultingFee.toLocaleString()}
-                      </p>
+                      {pricing.hasDiscount ? (
+                        <>
+                          <p className="text-sm text-muted-foreground line-through">
+                            {pricing.currencyCode} {pricing.consultingFee.toLocaleString()}
+                          </p>
+                          <p className="text-lg font-semibold text-foreground">
+                            {pricing.currencyCode} {pricing.discountedConsultingFee.toLocaleString()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-lg font-semibold text-foreground">
+                          {pricing.currencyCode} {pricing.consultingFee.toLocaleString()}
+                        </p>
+                      )}
                     </div>
                     <div className="text-center p-3 bg-muted rounded-lg">
                       <p className="text-xs text-muted-foreground">Management Fee</p>
-                      <p className="text-lg font-semibold text-foreground">
-                        {pricing.currencyCode} {pricing.managementFee.toLocaleString()}
-                      </p>
+                      {pricing.hasDiscount ? (
+                        <>
+                          <p className="text-sm text-muted-foreground line-through">
+                            {pricing.currencyCode} {pricing.managementFee.toLocaleString()}
+                          </p>
+                          <p className="text-lg font-semibold text-foreground">
+                            {pricing.currencyCode} {pricing.discountedManagementFee.toLocaleString()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-lg font-semibold text-foreground">
+                          {pricing.currencyCode} {pricing.managementFee.toLocaleString()}
+                        </p>
+                      )}
                     </div>
                     <div className="text-center p-3 bg-primary/10 rounded-lg border border-primary/20">
                       <p className="text-xs text-primary">Total Fee</p>
-                      <p className="text-lg font-bold text-primary">
-                        {pricing.currencyCode} {pricing.totalFee.toLocaleString()}
-                      </p>
+                      {pricing.hasDiscount ? (
+                        <>
+                          <p className="text-sm text-muted-foreground line-through">
+                            {pricing.currencyCode} {pricing.totalFee.toLocaleString()}
+                          </p>
+                          <p className="text-lg font-bold text-primary">
+                            {pricing.currencyCode} {pricing.discountedTotalFee.toLocaleString()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-lg font-bold text-primary">
+                          {pricing.currencyCode} {pricing.totalFee.toLocaleString()}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">

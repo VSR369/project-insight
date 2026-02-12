@@ -14,20 +14,19 @@ import { useOrgSubscription, useOrgInvoices, useOrgTopUps, usePurchaseTopUp } fr
 import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
+import { useOrgContext } from '@/contexts/OrgContext';
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
-const DEMO_ORG_ID = 'demo-org-id';
-const DEMO_TENANT_ID = 'demo-tenant-id';
-const IS_INTERNAL_DEPT = false; // TODO: derive from org context (saas_agreements check)
-
 export default function OrgBillingPage() {
+  const { organizationId, tenantId, isInternalDepartment } = useOrgContext();
+
   const [topUpOpen, setTopUpOpen] = useState(false);
   const [topUpQty, setTopUpQty] = useState(5);
 
-  const { data: subscription, isLoading: subLoading } = useOrgSubscription(DEMO_ORG_ID);
-  const { data: invoices, isLoading: invLoading } = useOrgInvoices(DEMO_ORG_ID);
-  const { data: topUps } = useOrgTopUps(DEMO_ORG_ID);
+  const { data: subscription, isLoading: subLoading } = useOrgSubscription(organizationId);
+  const { data: invoices, isLoading: invLoading } = useOrgInvoices(organizationId);
+  const { data: topUps } = useOrgTopUps(organizationId);
   const purchaseTopUp = usePurchaseTopUp();
 
   const usage = subscription ? computeUsageSummary(
@@ -59,7 +58,7 @@ export default function OrgBillingPage() {
           <h1 className="text-2xl font-bold text-foreground">Billing & Usage</h1>
           <p className="text-muted-foreground">Monitor challenge usage, invoices, and purchase top-ups</p>
         </div>
-        {!IS_INTERNAL_DEPT && (
+        {!isInternalDepartment && (
           <Button onClick={() => setTopUpOpen(true)}>
             <Package className="h-4 w-4 mr-2" />
             Buy Top-Up
@@ -68,7 +67,7 @@ export default function OrgBillingPage() {
       </div>
 
       {/* BR-SAAS-003: Internal Department Billing Gate */}
-      {IS_INTERNAL_DEPT && (
+      {isInternalDepartment && (
         <>
           <InternalBillingNotice
             parentOrgName="Parent Organization"
@@ -265,8 +264,8 @@ export default function OrgBillingPage() {
             <Button
               onClick={() => {
                 purchaseTopUp.mutate({
-                  organizationId: DEMO_ORG_ID,
-                  tenantId: DEMO_TENANT_ID,
+                  organizationId,
+                  tenantId,
                   quantity: topUpQty,
                   perChallengeFee: subscription?.per_challenge_fee_snapshot ?? 0,
                   currencyCode: subscription?.shadow_currency_code ?? 'USD',
