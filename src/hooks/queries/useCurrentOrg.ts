@@ -13,6 +13,8 @@ export interface CurrentOrg {
   orgRole: string;
   orgName: string;
   tierCode: string | null;
+  hqCountryId: string | null;
+  isInternalDepartment: boolean;
 }
 
 export function useCurrentOrg() {
@@ -32,6 +34,7 @@ export function useCurrentOrg() {
             id,
             legal_entity_name,
             tenant_id,
+            hq_country_id,
             org_subscriptions (
               md_subscription_tiers ( code )
             )
@@ -47,13 +50,25 @@ export function useCurrentOrg() {
 
       const org = data.seeker_organizations as any;
       const tierCode = org?.org_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
+      const orgId = data.organization_id;
+
+      // Check if org is a child in an active saas_agreements record (internal department)
+      const { data: saasData } = await supabase
+        .from('saas_agreements')
+        .select('id')
+        .eq('child_organization_id', orgId)
+        .eq('lifecycle_status', 'active')
+        .limit(1)
+        .maybeSingle();
 
       return {
-        organizationId: data.organization_id,
-        tenantId: org?.tenant_id ?? data.organization_id,
+        organizationId: orgId,
+        tenantId: org?.tenant_id ?? orgId,
         orgRole: data.role,
         orgName: org?.legal_entity_name ?? 'Organization',
         tierCode,
+        hqCountryId: org?.hq_country_id ?? null,
+        isInternalDepartment: !!saasData,
       };
     },
     enabled: !!user?.id,

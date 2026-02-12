@@ -89,3 +89,48 @@ export function calculateShadowFee(
 ): number {
   return shadowChargePerChallenge ?? 0;
 }
+
+// ============================================================
+// Membership Discount Application (BR-MEM-001)
+// ============================================================
+
+export interface DiscountedPricing extends ChallengePricing {
+  discountPct: number;
+  discountedConsultingFee: number;
+  discountedManagementFee: number;
+  discountedTotalFee: number;
+  hasDiscount: boolean;
+}
+
+/**
+ * Apply membership discount to calculated challenge fees.
+ * Returns both original and discounted amounts for display.
+ */
+export function applyMembershipDiscount(
+  pricing: ChallengePricing,
+  feeDiscountPct: number
+): DiscountedPricing {
+  if (feeDiscountPct <= 0) {
+    return {
+      ...pricing,
+      discountPct: 0,
+      discountedConsultingFee: pricing.consultingFee,
+      discountedManagementFee: pricing.managementFee,
+      discountedTotalFee: pricing.totalFee,
+      hasDiscount: false,
+    };
+  }
+
+  const multiplier = 1 - feeDiscountPct / 100;
+  const discountedConsultingFee = Math.round(pricing.consultingFee * multiplier * 100) / 100;
+  const discountedManagementFee = Math.round(pricing.managementFee * multiplier * 100) / 100;
+
+  return {
+    ...pricing,
+    discountPct: feeDiscountPct,
+    discountedConsultingFee,
+    discountedManagementFee,
+    discountedTotalFee: Math.round((discountedConsultingFee + discountedManagementFee) * 100) / 100,
+    hasDiscount: true,
+  };
+}

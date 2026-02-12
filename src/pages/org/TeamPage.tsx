@@ -11,21 +11,20 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUser, useOrgRoles } from '@/hooks/queries/useTeamData';
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
 import { validateUserInvite } from '@/services/teamService';
+import { useOrgContext } from '@/contexts/OrgContext';
 import { Users, UserPlus, Shield, Crown, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
-// Placeholder org context — in production, derive from auth/context
-const DEMO_ORG_ID = 'demo-org-id';
-const DEMO_TENANT_ID = 'demo-tenant-id';
-
 export default function TeamPage() {
+  const { organizationId, tenantId } = useOrgContext();
+
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('member');
 
-  const { data: users, isLoading: usersLoading } = useOrgUsers(DEMO_ORG_ID);
-  const { data: roles } = useOrgRoles(DEMO_TENANT_ID);
-  const { data: subscription } = useOrgSubscription(DEMO_ORG_ID);
+  const { data: users, isLoading: usersLoading } = useOrgUsers(organizationId);
+  const { data: roles } = useOrgRoles(tenantId);
+  const { data: subscription } = useOrgSubscription(organizationId);
   const inviteMutation = useInviteOrgUser();
   const updateRoleMutation = useUpdateOrgUserRole();
   const deactivateMutation = useDeactivateOrgUser();
@@ -138,7 +137,7 @@ export default function TeamPage() {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deactivateMutation.mutate({ id: user.id, organizationId: DEMO_ORG_ID })}
+                              onClick={() => deactivateMutation.mutate({ id: user.id, organizationId })}
                             >
                               Remove
                             </Button>
@@ -190,8 +189,8 @@ export default function TeamPage() {
             <Button
               onClick={() => {
                 inviteMutation.mutate({
-                  tenantId: DEMO_TENANT_ID,
-                  organizationId: DEMO_ORG_ID,
+                  tenantId,
+                  organizationId,
                   userId: inviteEmail,
                   role: inviteRole,
                 });

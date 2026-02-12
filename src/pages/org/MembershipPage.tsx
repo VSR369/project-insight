@@ -4,7 +4,8 @@
  */
 
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin';
+import { OrgLayout } from '@/components/org/OrgLayout';
+import { useOrgContext } from '@/contexts/OrgContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Crown, Calendar, Percent, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Loader2, Crown, Calendar, Percent, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import {
   useMembershipTiers,
@@ -26,10 +27,6 @@ import {
 } from '@/hooks/queries/useMembershipData';
 import { validateMembershipRenewal, calculateMembershipDiscount } from '@/services/membershipService';
 
-// Placeholder org ID — in production, derived from auth context
-const DEMO_ORG_ID = 'demo-org-placeholder';
-const DEMO_TENANT_ID = 'demo-tenant-placeholder';
-
 const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
   active: 'default',
   expired: 'secondary',
@@ -38,14 +35,16 @@ const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 
 };
 
 export default function MembershipPage() {
+  const { organizationId, tenantId, isInternalDepartment } = useOrgContext();
+
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [enrollDialogOpen, setEnrollDialogOpen] = useState(false);
   const [selectedTierId, setSelectedTierId] = useState<string | null>(null);
 
   const { data: tiers, isLoading: tiersLoading } = useMembershipTiers();
-  const { data: membership, isLoading: membershipLoading } = useOrgMembership(DEMO_ORG_ID);
-  const { data: history, isLoading: historyLoading } = useMembershipHistory(DEMO_ORG_ID);
+  const { data: membership, isLoading: membershipLoading } = useOrgMembership(organizationId);
+  const { data: history, isLoading: historyLoading } = useMembershipHistory(organizationId);
 
   const createMembership = useCreateMembership();
   const toggleAutoRenew = useToggleAutoRenew();
@@ -60,7 +59,7 @@ export default function MembershipPage() {
   const discountInfo = membership?.md_membership_tiers
     ? calculateMembershipDiscount(
         (membership.md_membership_tiers as { code: string }).code,
-        false,
+        isInternalDepartment,
       )
     : null;
 
@@ -70,8 +69,8 @@ export default function MembershipPage() {
     if (!tier) return;
 
     createMembership.mutate({
-      organization_id: DEMO_ORG_ID,
-      tenant_id: DEMO_TENANT_ID,
+      organization_id: organizationId,
+      tenant_id: tenantId,
       membership_tier_id: selectedTierId,
       fee_discount_pct: tier.fee_discount_pct,
       commission_rate_pct: tier.commission_rate_pct,
@@ -83,7 +82,7 @@ export default function MembershipPage() {
     if (!membership) return;
     cancelMembership.mutate({
       membershipId: membership.id,
-      organizationId: DEMO_ORG_ID,
+      organizationId,
       reason: cancelReason,
     });
     setCancelDialogOpen(false);
@@ -91,7 +90,7 @@ export default function MembershipPage() {
   };
 
   return (
-    <AdminLayout
+    <OrgLayout
       title="Membership Management"
       description="Manage your organization's membership tier, discounts, and renewal settings"
       breadcrumbs={[{ label: 'Membership' }]}
@@ -160,7 +159,7 @@ export default function MembershipPage() {
                         toggleAutoRenew.mutate({
                           membershipId: membership.id,
                           autoRenew: checked,
-                          organizationId: DEMO_ORG_ID,
+                          organizationId,
                         })
                       }
                       disabled={toggleAutoRenew.isPending}
@@ -338,6 +337,6 @@ export default function MembershipPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </OrgLayout>
   );
 }

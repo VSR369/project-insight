@@ -15,6 +15,8 @@ interface OrgContextValue {
   orgRole: string;
   orgName: string;
   tierCode: string | null;
+  hqCountryId: string | null;
+  isInternalDepartment: boolean;
 }
 
 const OrgContext = createContext<OrgContextValue | null>(null);
