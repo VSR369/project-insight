@@ -107,17 +107,22 @@ interface TierCardProps {
   shadowPricing: any[];
   features: any[];
   allTiers: any[];
+  engagementModels: any[];
 }
 
 function TierCard({
   tier, modelCode, accessType, platformFeePct, platformFeeDesc,
   countryPricing, baseFees, complexity, billingCycles,
-  membershipTiers, shadowPricing, features, allTiers,
+  membershipTiers, shadowPricing, features, allTiers, engagementModels,
 }: TierCardProps) {
   const colorClass = TIER_COLORS[tier.code?.toLowerCase()] ?? "border-l-muted";
   const isAggregator = modelCode === AGGREGATOR_CODE;
   const tierPricing = countryPricing.filter(p => p.tier_id === tier.id);
-  const tierBaseFees = baseFees.filter((bf: any) => bf.tier_id === tier.id);
+  const marketplaceModel = engagementModels?.find((m: any) => m.code?.toLowerCase() === 'marketplace');
+  const tierBaseFees = baseFees.filter((bf: any) =>
+    bf.tier_id === tier.id &&
+    (!isAggregator ? bf.engagement_model_id === marketplaceModel?.id : false)
+  );
   const tierShadow = shadowPricing.filter((sp: any) => sp.tier_id === tier.id);
   const tierFeatures = features.filter((f: any) => f.tier_id === tier.id);
 
@@ -375,8 +380,10 @@ function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billing
     return acc;
   }, {} as Record<string, any>);
 
-  // Group base fees by country for cross-tier comparison
-  const baseFeesByCountry = baseFees.reduce((acc: Record<string, any>, bf: any) => {
+  // Group base fees by country for cross-tier comparison (Marketplace only)
+  const marketplaceModel = engagementModels.find((m: any) => m.code?.toLowerCase() === 'marketplace');
+  const marketplaceBaseFees = baseFees.filter((bf: any) => bf.engagement_model_id === marketplaceModel?.id);
+  const baseFeesByCountry = marketplaceBaseFees.reduce((acc: Record<string, any>, bf: any) => {
     const countryName = bf.countries?.name ?? "Unknown";
     const countryId = bf.country_id;
     if (!acc[countryId]) acc[countryId] = { country_name: countryName, currency_code: bf.currency_code, tiers: {} };
@@ -813,6 +820,7 @@ export default function PricingOverviewPage() {
                   platformFeeDesc={fee?.description ?? null}
                   countryPricing={countryPricing}
                   baseFees={baseFees}
+                  engagementModels={engagementModels}
                   complexity={complexity}
                   billingCycles={billingCycles}
                   membershipTiers={membershipTiers}
