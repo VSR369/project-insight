@@ -211,15 +211,17 @@ export function MasterDataForm<TData extends FieldValues>({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-[500px] max-h-[90vh] flex flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{mode === "create" ? `Add ${title}` : `Edit ${title}`}</DialogTitle>
           {description && <DialogDescription>{description}</DialogDescription>}
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            {fields.map(renderField)}
-            <DialogFooter className="pt-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="flex flex-col flex-1 min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2 pr-1">
+              {fields.map(renderField)}
+            </div>
+            <DialogFooter className="shrink-0 pt-4">
               <Button
                 type="button"
                 variant="outline"
