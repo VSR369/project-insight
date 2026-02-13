@@ -5299,7 +5299,7 @@ export type Database = {
           cancellation_reason: string | null
           cancelled_at: string | null
           cancelled_by: string | null
-          child_organization_id: string
+          child_organization_id: string | null
           created_at: string
           created_by: string | null
           custom_fee_1_amount: number | null
@@ -5334,7 +5334,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
-          child_organization_id: string
+          child_organization_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fee_1_amount?: number | null
@@ -5369,7 +5369,7 @@ export type Database = {
           cancellation_reason?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
-          child_organization_id?: string
+          child_organization_id?: string | null
           created_at?: string
           created_by?: string | null
           custom_fee_1_amount?: number | null

@@ -12,6 +12,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 import { ChevronDown, Info, Plus } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 import {
   Dialog,
@@ -56,6 +58,7 @@ import {
   FEE_FREQUENCIES,
   BILLING_FREQUENCIES,
   AGREEMENT_TYPE_HELP,
+  AGREEMENT_SCOPES,
 } from "@/pages/admin/saas/saasAgreement.schema";
 
 import { useDepartments } from "@/hooks/queries/usePrimaryContactData";
@@ -76,6 +79,7 @@ interface SaasAgreementFormDialogProps {
   }>;
   editingAgreementId?: string | null;
   parentOrgId: string;
+  parentOrgName?: string;
   isLoading: boolean;
   onSubmit: (data: SaasAgreementFormValues) => Promise<void>;
 }
@@ -89,6 +93,7 @@ export function SaasAgreementFormDialog({
   existingAgreements,
   editingAgreementId,
   parentOrgId,
+  parentOrgName,
   isLoading,
   onSubmit,
 }: SaasAgreementFormDialogProps) {
@@ -114,6 +119,8 @@ export function SaasAgreementFormDialog({
 
   const agreementType = form.watch("agreement_type");
   const selectedDepartmentId = form.watch("department_id");
+  const agreementScope = form.watch("agreement_scope");
+  const isInternal = agreementScope === "internal";
 
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
@@ -199,7 +206,7 @@ export function SaasAgreementFormDialog({
             </DialogTitle>
             <DialogDescription>
               {mode === "create"
-                ? "Set up a new fee agreement with a child organization"
+                ? "Set up a new fee agreement"
                 : "Update the agreement details"}
             </DialogDescription>
           </DialogHeader>
@@ -215,42 +222,90 @@ export function SaasAgreementFormDialog({
                   Core Agreement
                 </h3>
 
-                {/* Child Organization with "+" button */}
+                {/* Agreement Scope Radio */}
                 <FormField
                   control={form.control}
-                  name="child_organization_id"
+                  name="agreement_scope"
                   render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Child Organization *</FormLabel>
-                      <div className="flex gap-2">
-                        <Select onValueChange={field.onChange} value={field.value}>
-                          <FormControl>
-                            <SelectTrigger className="flex-1">
-                              <SelectValue placeholder="Select organization..." />
-                            </SelectTrigger>
-                          </FormControl>
-                          <SelectContent>
-                            {childOrgOptions.map((opt) => (
-                              <SelectItem key={opt.value} value={opt.value}>
-                                {opt.label}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setChildOrgDialogOpen(true)}
-                          title="Create new child organization"
+                    <FormItem className="space-y-3">
+                      <FormLabel>Agreement Scope</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={(val) => {
+                            field.onChange(val);
+                            if (val === "internal") {
+                              form.setValue("child_organization_id", null);
+                            } else {
+                              form.setValue("department_id", null);
+                              form.setValue("functional_area_id", null);
+                            }
+                          }}
+                          value={field.value}
+                          className="flex flex-col gap-2"
                         >
-                          <Plus className="h-4 w-4" />
-                        </Button>
-                      </div>
+                          {AGREEMENT_SCOPES.map((scope) => (
+                            <div key={scope.value} className="flex items-start gap-2">
+                              <RadioGroupItem value={scope.value} id={`scope-${scope.value}`} className="mt-0.5" />
+                              <Label htmlFor={`scope-${scope.value}`} className="font-normal cursor-pointer">
+                                <span className="font-medium">{scope.label}</span>
+                                <span className="text-muted-foreground text-xs block">
+                                  {scope.description}
+                                </span>
+                              </Label>
+                            </div>
+                          ))}
+                        </RadioGroup>
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                {/* Contextual hint */}
+                <p className="text-xs text-muted-foreground italic">
+                  {isInternal
+                    ? `Allocate fees to an internal department of ${parentOrgName ?? "the parent organization"}`
+                    : "Define fee terms with a child organization"}
+                </p>
+
+                {/* Child Organization — only in child_org mode */}
+                {!isInternal && (
+                  <FormField
+                    control={form.control}
+                    name="child_organization_id"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Child Organization *</FormLabel>
+                        <div className="flex gap-2">
+                          <Select onValueChange={field.onChange} value={field.value ?? ""}>
+                            <FormControl>
+                              <SelectTrigger className="flex-1">
+                                <SelectValue placeholder="Select organization..." />
+                              </SelectTrigger>
+                            </FormControl>
+                            <SelectContent>
+                              {childOrgOptions.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>
+                                  {opt.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            onClick={() => setChildOrgDialogOpen(true)}
+                            title="Create new child organization"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 {/* Department & Functional Area */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -259,7 +314,7 @@ export function SaasAgreementFormDialog({
                     name="department_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Department</FormLabel>
+                        <FormLabel>{isInternal ? "Department" : "Department (Child Org)"}</FormLabel>
                         <Select
                           onValueChange={(val) => {
                             field.onChange(val === "__none__" ? null : val);
@@ -290,7 +345,7 @@ export function SaasAgreementFormDialog({
                     name="functional_area_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Functional Area</FormLabel>
+                        <FormLabel>{isInternal ? "Functional Area" : "Functional Area (Child Org)"}</FormLabel>
                         <Select
                           onValueChange={(val) =>
                             field.onChange(val === "__none__" ? null : val)
