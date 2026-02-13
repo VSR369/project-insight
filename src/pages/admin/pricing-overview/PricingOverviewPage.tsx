@@ -363,10 +363,49 @@ function TierCard({
 // ============================================================
 // Summary Tab
 // ============================================================
-function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billingCycles, complexity }: {
+function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billingCycles, complexity, countryPricing, baseFees, shadowPricing, membershipTiers, features }: {
   tiers: any[]; engagementModels: any[]; tierAccess: any[]; platformFees: any[];
-  billingCycles: any[]; complexity: any[];
+  billingCycles: any[]; complexity: any[]; countryPricing: any[]; baseFees: any[];
+  shadowPricing: any[]; membershipTiers: any[]; features: any[];
 }) {
+  // Group country pricing by country for cross-tier comparison
+  const pricingByCountry = countryPricing.reduce((acc: Record<string, any>, p: any) => {
+    if (!acc[p.country_id]) acc[p.country_id] = { country_name: p.country_name, currency_code: p.currency_code, tiers: {} };
+    acc[p.country_id].tiers[p.tier_id] = p.monthly_price_usd;
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Group base fees by country for cross-tier comparison
+  const baseFeesByCountry = baseFees.reduce((acc: Record<string, any>, bf: any) => {
+    const countryName = bf.countries?.name ?? "Unknown";
+    const countryId = bf.country_id;
+    if (!acc[countryId]) acc[countryId] = { country_name: countryName, currency_code: bf.currency_code, tiers: {} };
+    acc[countryId].tiers[bf.tier_id] = { consulting: bf.consulting_base_fee, management: bf.management_base_fee };
+    return acc;
+  }, {} as Record<string, any>);
+
+  // Collect unique feature names across all tiers, preserving order
+  const featureNames: string[] = [];
+  const featureMap: Record<string, Record<string, { access_type: string; description: string | null }>> = {};
+  features.forEach((f: any) => {
+    if (!featureMap[f.feature_name]) {
+      featureMap[f.feature_name] = {};
+      featureNames.push(f.feature_name);
+    }
+    featureMap[f.feature_name][f.tier_id] = { access_type: f.access_type, description: f.description };
+  });
+
+  // Collect per-tier description notes for features footer
+  const tierDescriptionNotes: Record<string, string[]> = {};
+  features.forEach((f: any) => {
+    if (f.description) {
+      if (!tierDescriptionNotes[f.tier_id]) tierDescriptionNotes[f.tier_id] = [];
+      if (!tierDescriptionNotes[f.tier_id].includes(f.description)) {
+        tierDescriptionNotes[f.tier_id].push(f.description);
+      }
+    }
+  });
+
   return (
     <div className="space-y-6">
       {/* Access Matrix */}
@@ -436,6 +475,152 @@ function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billing
         </CardContent>
       </Card>
 
+      {/* Subscription Pricing */}
+      <Card>
+        <CardHeader><CardTitle>Subscription Pricing by Country</CardTitle></CardHeader>
+        <CardContent>
+          {Object.keys(pricingByCountry).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No subscription pricing configured.</p>
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Country</TableHead>
+                    {tiers.map(t => <TableHead key={t.id} className="text-right">{t.name} (USD/mo)</TableHead>)}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Object.entries(pricingByCountry).map(([countryId, info]: [string, any]) => (
+                    <TableRow key={countryId}>
+                      <TableCell className="font-medium">{info.country_name}</TableCell>
+                      {tiers.map(tier => (
+                        <TableCell key={tier.id} className="text-right font-mono">
+                          {info.tiers[tier.id] != null ? `$${info.tiers[tier.id]}` : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Challenge Base Fees */}
+      <Card>
+        <CardHeader><CardTitle>Challenge Base Fees</CardTitle></CardHeader>
+        <CardContent>
+          {Object.keys(baseFeesByCountry).length === 0 ? (
+            <p className="text-sm text-muted-foreground">No base fees configured.</p>
+          ) : (
+            <div className="space-y-2">
+              <div className="relative w-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[140px]">Country</TableHead>
+                      {tiers.map(t => (
+                        <React.Fragment key={t.id}>
+                          <TableHead className="text-right">{t.name} Consulting</TableHead>
+                          <TableHead className="text-right">{t.name} Mgmt</TableHead>
+                        </React.Fragment>
+                      ))}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {Object.entries(baseFeesByCountry).map(([countryId, info]: [string, any]) => (
+                      <TableRow key={countryId}>
+                        <TableCell className="font-medium">{info.country_name}</TableCell>
+                        {tiers.map(tier => (
+                          <React.Fragment key={tier.id}>
+                            <TableCell className="text-right font-mono">
+                              {info.tiers[tier.id]?.consulting != null ? info.tiers[tier.id].consulting : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {info.tiers[tier.id]?.management != null ? info.tiers[tier.id].management : <span className="text-muted-foreground">—</span>}
+                            </TableCell>
+                          </React.Fragment>
+                        ))}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              <p className="text-xs text-muted-foreground italic">Applicable to Marketplace model only. Aggregator model does not use consulting/management fees.</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Shadow Pricing */}
+      <Card>
+        <CardHeader><CardTitle>Shadow Pricing (Internal Departments)</CardTitle></CardHeader>
+        <CardContent>
+          {shadowPricing.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No shadow pricing configured.</p>
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[200px]">Metric</TableHead>
+                    {tiers.map(t => <TableHead key={t.id} className="text-right">{t.name}</TableHead>)}
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow>
+                    <TableCell className="font-medium">Charge per Challenge</TableCell>
+                    {tiers.map(tier => {
+                      const sp = shadowPricing.find((s: any) => s.tier_id === tier.id);
+                      return (
+                        <TableCell key={tier.id} className="text-right font-mono">
+                          {sp ? `${sp.currency_symbol}${sp.shadow_charge_per_challenge.toLocaleString()} ${sp.currency_code}` : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Membership Discounts */}
+      <Card>
+        <CardHeader><CardTitle>Membership Discounts</CardTitle></CardHeader>
+        <CardContent>
+          {membershipTiers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No membership tiers configured.</p>
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tier</TableHead>
+                    <TableHead className="text-center">Duration</TableHead>
+                    <TableHead className="text-right">Fee Discount</TableHead>
+                    <TableHead className="text-right">Commission</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {membershipTiers.map((mt: any) => (
+                    <TableRow key={mt.id}>
+                      <TableCell className="font-medium">{mt.name}</TableCell>
+                      <TableCell className="text-center">{mt.duration_months} mo</TableCell>
+                      <TableCell className="text-right"><Badge variant="default">{mt.fee_discount_pct}%</Badge></TableCell>
+                      <TableCell className="text-right">{mt.commission_rate_pct}%</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Billing Discounts */}
       <Card>
         <CardHeader><CardTitle>Billing Cycle Discounts</CardTitle></CardHeader>
@@ -469,28 +654,89 @@ function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billing
       <Card>
         <CardHeader><CardTitle>Challenge Fee Multipliers</CardTitle></CardHeader>
         <CardContent>
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Complexity</TableHead>
-                  <TableHead className="text-center">Level</TableHead>
-                  <TableHead className="text-right">Consulting ×</TableHead>
-                  <TableHead className="text-right">Management ×</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {complexity.map(c => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium">{c.complexity_label}</TableCell>
-                    <TableCell className="text-center">{c.complexity_level}</TableCell>
-                    <TableCell className="text-right font-mono">{c.consulting_fee_multiplier}×</TableCell>
-                    <TableCell className="text-right font-mono">{c.management_fee_multiplier}×</TableCell>
+          <div className="space-y-2">
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Complexity</TableHead>
+                    <TableHead className="text-center">Level</TableHead>
+                    <TableHead className="text-right">Consulting ×</TableHead>
+                    <TableHead className="text-right">Management ×</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {complexity.map(c => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.complexity_label}</TableCell>
+                      <TableCell className="text-center">{c.complexity_level}</TableCell>
+                      <TableCell className="text-right font-mono">{c.consulting_fee_multiplier}×</TableCell>
+                      <TableCell className="text-right font-mono">{c.management_fee_multiplier}×</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <p className="text-xs text-muted-foreground italic">Applicable to Marketplace model only.</p>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Tier Features Comparison */}
+      <Card>
+        <CardHeader><CardTitle>Tier Features Comparison</CardTitle></CardHeader>
+        <CardContent>
+          {featureNames.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No features configured.</p>
+          ) : (
+            <div className="space-y-2">
+              <div className="relative w-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="w-[300px]">Feature</TableHead>
+                      {tiers.map(t => <TableHead key={t.id} className="text-center">{t.name}</TableHead>)}
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {featureNames.map(name => (
+                      <TableRow key={name}>
+                        <TableCell className="font-medium text-sm">{name}</TableCell>
+                        {tiers.map(tier => {
+                          const f = featureMap[name]?.[tier.id];
+                          const included = f?.access_type === "included";
+                          return (
+                            <TableCell key={tier.id} className="text-center">
+                              {f ? (
+                                included
+                                  ? <Check className="h-4 w-4 text-primary mx-auto" />
+                                  : <X className="h-4 w-4 text-destructive mx-auto" />
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+              {/* Description notes per tier */}
+              {tiers.some(t => tierDescriptionNotes[t.id]?.length) && (
+                <div className="flex gap-6 pt-1 border-t border-border">
+                  {tiers.map(t => (
+                    tierDescriptionNotes[t.id]?.length ? (
+                      <div key={t.id} className="text-xs text-muted-foreground italic">
+                        <span className="font-medium not-italic">{t.name}:</span>{" "}
+                        {tierDescriptionNotes[t.id].map((d, i) => <span key={i}>+ {d}{i < tierDescriptionNotes[t.id].length - 1 ? "; " : ""}</span>)}
+                      </div>
+                    ) : null
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -587,6 +833,11 @@ export default function PricingOverviewPage() {
             platformFees={platformFees}
             billingCycles={billingCycles}
             complexity={complexity}
+            countryPricing={countryPricing}
+            baseFees={baseFees}
+            shadowPricing={shadowPricing}
+            membershipTiers={membershipTiers}
+            features={features}
           />
         </TabsContent>
       </Tabs>
