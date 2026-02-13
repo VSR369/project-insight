@@ -232,9 +232,6 @@ export function SaasAgreementFormDialog({
                             field.onChange(val);
                             if (val === "internal") {
                               form.setValue("child_organization_id", null);
-                            } else {
-                              form.setValue("department_id", null);
-                              form.setValue("functional_area_id", null);
                             }
                           }}
                           value={field.value}
@@ -311,13 +308,13 @@ export function SaasAgreementFormDialog({
                     name="department_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{isInternal ? "Department" : "Department (Child Org)"}</FormLabel>
+                        <FormLabel>{isInternal ? "Department *" : "Department (Child Org) *"}</FormLabel>
                         <Select
                           onValueChange={(val) => {
-                            field.onChange(val === "__none__" ? null : val);
-                            form.setValue("functional_area_id", null);
+                            field.onChange(val);
+                            form.setValue("functional_area_id", "");
                           }}
-                          value={field.value ?? "__none__"}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -325,7 +322,6 @@ export function SaasAgreementFormDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="__none__">— None —</SelectItem>
                             {departments.map((d) => (
                               <SelectItem key={d.id} value={d.id}>
                                 {d.name}
@@ -342,12 +338,10 @@ export function SaasAgreementFormDialog({
                     name="functional_area_id"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>{isInternal ? "Functional Area" : "Functional Area (Child Org)"}</FormLabel>
+                        <FormLabel>{isInternal ? "Functional Area *" : "Functional Area (Child Org) *"}</FormLabel>
                         <Select
-                          onValueChange={(val) =>
-                            field.onChange(val === "__none__" ? null : val)
-                          }
-                          value={field.value ?? "__none__"}
+                          onValueChange={field.onChange}
+                          value={field.value || ""}
                         >
                           <FormControl>
                             <SelectTrigger>
@@ -355,7 +349,6 @@ export function SaasAgreementFormDialog({
                             </SelectTrigger>
                           </FormControl>
                           <SelectContent>
-                            <SelectItem value="__none__">— None —</SelectItem>
                             {filteredFunctionalAreas.map((fa) => (
                               <SelectItem key={fa.id} value={fa.id}>
                                 {fa.name}
