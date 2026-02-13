@@ -59,7 +59,8 @@ export type TestModule =
   | "role_access"
   | "data_integrity"
   | "edge_functions"
-  | "integration";
+  | "integration"
+  | "performance";
 
 // ============================================================================
 // TEST SUITE ORGANIZATION
@@ -203,6 +204,7 @@ export const TEST_PREFIXES = {
   RE: { name: "Reviewer Enrollment", module: "reviewer_portal" as TestModule },
   ME: { name: "Multi-Enrollment", module: "enrollment" as TestModule },
   ES: { name: "Enrollment-Scoped", module: "enrollment" as TestModule },
+  PD: { name: "Performance Diagnostics", module: "performance" as TestModule },
 } as const;
 
 // ============================================================================
@@ -229,6 +231,7 @@ export const MODULE_DISPLAY_NAMES: Record<TestModule, string> = {
   data_integrity: "Data Integrity",
   edge_functions: "Edge Functions",
   integration: "Integration",
+  performance: "Performance",
 };
 
 // ============================================================================

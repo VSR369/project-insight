@@ -31,6 +31,7 @@ import { reviewerPortalTestCategories, getReviewerPortalTests, getReviewerPortal
 import { dataIntegrityTestCategories, getDataIntegrityTests, getDataIntegrityTestCount } from "./dataIntegrityTests";
 import { integrationTestCategories, getIntegrationTests, getIntegrationTestCount } from "./integrationTests";
 import { edgeFunctionTestCategories, getEdgeFunctionTests, getEdgeFunctionTestCount } from "./edgeFunctionTests";
+import { performanceDiagnosticCategories, getPerformanceDiagnosticTests, getPerformanceDiagnosticTestCount } from "./performanceDiagnosticTests";
 
 // Import adapter test categories
 import { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount } from "./enrollmentAdapterTests";
@@ -69,6 +70,7 @@ export function getAllTestCategories(): TestCategory[] {
     ...dataIntegrityTestCategories,
     ...integrationTestCategories,
     ...edgeFunctionTestCategories,
+    ...performanceDiagnosticCategories,
     // Adapted from existing runners
     ...enrollmentAdapterCategories,
     ...pulseSocialAdapterCategories,
@@ -87,6 +89,7 @@ export function getAllTests(): TestCase[] {
     ...getDataIntegrityTests(),
     ...getIntegrationTests(),
     ...getEdgeFunctionTests(),
+    ...getPerformanceDiagnosticTests(),
     ...getEnrollmentAdapterTests(),
     ...getPulseSocialAdapterTests(),
     ...getSmokeAdapterTests(),
@@ -104,6 +107,7 @@ export function getTotalTestCount(): number {
     getDataIntegrityTestCount() +
     getIntegrationTestCount() +
     getEdgeFunctionTestCount() +
+    getPerformanceDiagnosticTestCount() +
     getEnrollmentAdapterTestCount() +
     getPulseSocialAdapterTestCount() +
     getSmokeAdapterTestCount()
@@ -121,6 +125,7 @@ export function getTestCountsByCategory(): Record<string, number> {
     "Data Integrity": getDataIntegrityTestCount(),
     "Integration": getIntegrationTestCount(),
     "Edge Functions": getEdgeFunctionTestCount(),
+    "Performance Diagnostics": getPerformanceDiagnosticTestCount(),
     "Enrollment Lifecycle": getEnrollmentAdapterTestCount(),
     "Pulse Social": getPulseSocialAdapterTestCount(),
     "Smoke/Master Data": getSmokeAdapterTestCount(),
@@ -164,6 +169,7 @@ export function getTestCountsByModule(): Record<TestModule, number> {
     data_integrity: 0,
     edge_functions: 0,
     integration: 0,
+    performance: 0,
   };
   
   for (const test of tests) {
@@ -334,6 +340,7 @@ export function generateRunReport(results: TestCaseResult[], startTime: number):
     data_integrity: { passed: 0, failed: 0, skipped: 0, total: 0 },
     edge_functions: { passed: 0, failed: 0, skipped: 0, total: 0 },
     integration: { passed: 0, failed: 0, skipped: 0, total: 0 },
+    performance: { passed: 0, failed: 0, skipped: 0, total: 0 },
   };
   
   const failures: { id: string; name: string; category: string; role: TestRole; module: TestModule; error: string; duration: number }[] = [];
@@ -424,6 +431,7 @@ export { reviewerPortalTestCategories, getReviewerPortalTests, getReviewerPortal
 export { dataIntegrityTestCategories, getDataIntegrityTests, getDataIntegrityTestCount };
 export { integrationTestCategories, getIntegrationTests, getIntegrationTestCount };
 export { edgeFunctionTestCategories, getEdgeFunctionTests, getEdgeFunctionTestCount };
+export { performanceDiagnosticCategories, getPerformanceDiagnosticTests, getPerformanceDiagnosticTestCount };
 export { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount };
 export { pulseSocialAdapterCategories, getPulseSocialAdapterTests, getPulseSocialAdapterTestCount };
 export { smokeAdapterCategories, getSmokeAdapterTests, getSmokeAdapterTestCount };
