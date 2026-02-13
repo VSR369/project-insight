@@ -1,170 +1,85 @@
 
 
-# Redesign: Engagement Model-Centric Pricing Overview with Platform Fees
+# Update Tier Features to Match Plan Details
 
-## Summary of Changes
+## Current State
 
-Three things need to happen:
+The `md_tier_features` table currently has 8 generic features per tier (Marketplace Access, Aggregator Access, Dedicated Account Manager, Analytics Dashboard, API Access, Priority Support, Custom Integrations, White-label Reports). These don't reflect the actual plan offering shown in the reference image.
 
-1. **Database**: Create a new `md_platform_fees` table and add `engagement_model_id` to `md_challenge_base_fees`. Update Aggregator + Basic tier access to "included".
-2. **Admin UI**: Add a Platform Fees admin page for managing the new table.
-3. **Pricing Overview**: Rewrite the page with engagement-model tabs and self-contained tier cards.
+## What Changes
 
----
+### 1. Database: Replace Feature Rows
 
-## Part 1: Database Changes
+Delete existing feature records and insert new ones matching the reference image. The `md_tier_features` table already has the right schema (`feature_name`, `access_type` = included/not_available, `usage_limit`, `description`).
 
-### 1A. New table: `md_platform_fees`
+**Basic Tier features:**
 
-Stores the platform usage fee percentage per engagement model and tier combination.
+| # | Feature | Access | Description |
+|---|---------|--------|-------------|
+| 1 | 10 challenges per subscription period | included | |
+| 2 | 1 solution per challenge | included | |
+| 3 | Additional challenges available (fees apply) | included | |
+| 4 | Single workflow template | included | |
+| 5 | Basic uptime monitoring | included | |
+| 6 | Self-service help center | included | |
+| 7 | Analytics dashboards | not_available | |
+| 8 | Onboarding support | not_available | |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| id | UUID PK | |
-| engagement_model_id | UUID FK | References md_engagement_models |
-| tier_id | UUID FK | References md_subscription_tiers |
-| platform_fee_pct | NUMERIC(5,2) NOT NULL | % of award/fee paid to provider |
-| description | TEXT | Optional explanation |
-| is_active | BOOLEAN DEFAULT true | |
-| created_at, updated_at, created_by, updated_by | Standard audit fields | |
-| UNIQUE(engagement_model_id, tier_id) | | One fee per model+tier combo |
+Extra note stored in `description`: "$5 per additional challenge"
 
-RLS: Platform admin only (read/write).
+**Standard Tier features:**
 
-### 1B. Add `engagement_model_id` to `md_challenge_base_fees`
+| # | Feature | Access | Description |
+|---|---------|--------|-------------|
+| 1 | 20 challenges per subscription period | included | |
+| 2 | 2 solutions per challenge | included | |
+| 3 | Additional challenges available (fees apply) | included | |
+| 4 | Up to 3 standard workflow templates | included | |
+| 5 | Priority incident response | included | |
+| 6 | Advanced dashboards and analytics | included | |
+| 7 | Tutorials, FAQs and webinars | included | |
+| 8 | Email and chat support | included | |
 
-- Add nullable column `engagement_model_id UUID REFERENCES md_engagement_models(id)`
-- This allows base fees to be configured per engagement model
-- Marketplace rows will have consulting + management fees
-- Aggregator rows will have these as NULL or 0 (fees not applicable)
-- Update the existing UNIQUE constraint to include engagement_model_id
+Extra note: "$3 per additional challenge"
 
-### 1C. Update Aggregator + Basic access
+**Premium Tier features:**
 
-```sql
-UPDATE md_tier_engagement_access
-SET access_type = 'included'
-WHERE tier_id = 'e3338419-...' AND engagement_model_id = '4321dce0-...';
-```
+| # | Feature | Access | Description |
+|---|---------|--------|-------------|
+| 1 | Unlimited challenges | included | |
+| 2 | 3 solutions per challenge | included | |
+| 3 | No per-challenge fees | included | |
+| 4 | Configurable workflows with conditional logic, custom fields and routing | included | |
+| 5 | 24/7 dedicated support team | included | |
+| 6 | Advanced analytics with AI insights | included | |
+| 7 | Personalized onboarding and strategy sessions | included | |
+| 8 | Full API access and webhooks | included | |
 
----
+Extra note: "Included (no per-challenge fee)"
 
-## Part 2: Platform Fees Admin Page
+### 2. UI: Update Features Section in Pricing Overview
 
-A new CRUD admin page at `/admin/seeker-config/platform-fees` following the existing master data pattern (same as Base Fees page).
+Modify the Features section in `TierCard` within `PricingOverviewPage.tsx` to:
+- Show check marks for `included` features
+- Show X marks for `not_available` features (with muted/strikethrough text, matching the image style)
+- Display the tier description note (e.g., "+ $5 per additional challenge") below the feature list
 
-### Files
+### 3. Clarification on Scope
 
-| File | Action |
-|------|--------|
-| `src/hooks/queries/usePlatformFees.ts` | **New** -- CRUD hooks for md_platform_fees |
-| `src/pages/admin/platform-fees/PlatformFeesPage.tsx` | **New** -- Admin CRUD page |
-| `src/pages/admin/platform-fees/index.ts` | **New** -- Barrel export |
-| `src/components/admin/AdminSidebar.tsx` | **Modify** -- Add "Platform Fees" to Seeker Config group |
-| `src/App.tsx` | **Modify** -- Add lazy route |
+- These features are **the same for both engagement models** (Marketplace and Aggregator tabs show the same features per tier)
+- What varies by engagement model is the **fee structure** (consulting fee, management fee, platform fee) -- which is already handled correctly in the existing tier card sections
 
----
-
-## Part 3: Pricing Overview Rewrite
-
-### New Page Structure
-
-```text
-+--------------------------------------------------+
-| Pricing & Configuration Overview                  |
-+--------------------------------------------------+
-| [Marketplace]  [Aggregator]  [Summary]            |
-+--------------------------------------------------+
-
-Tab: Marketplace
-  +-- Basic Tier Card --------------------------+
-  | OVERVIEW: Name, limits, enterprise flag     |
-  | ACCESS: "Included" badge                    |
-  | PLATFORM FEE: X% of award (from new table) |
-  | SUBSCRIPTION: Country pricing table         |
-  | CHALLENGE FEES:                             |
-  |   Consulting Base Fee: per country          |
-  |   Management Base Fee: per country          |
-  | COMPLEXITY MULTIPLIERS: Simple/Mod/Complex  |
-  | BILLING DISCOUNTS: Monthly/Quarterly/Annual |
-  | MEMBERSHIP DISCOUNTS: Annual/Multi-Year     |
-  | SHADOW PRICING: internal charge             |
-  | FEATURES: checklist                         |
-  +---------------------------------------------+
-  +-- Standard Tier Card (same sections) -------+
-  +-- Premium Tier Card (same sections) --------+
-
-Tab: Aggregator
-  +-- Basic Tier Card --------------------------+
-  | OVERVIEW: Name, limits, enterprise flag     |
-  | ACCESS: "Included" badge                    |
-  | PLATFORM FEE: X% of award (from new table) |
-  | SUBSCRIPTION: Country pricing table         |
-  | CHALLENGE FEES: "Not Applicable"            |
-  |   (Aggregator has no consulting/mgmt fees)  |
-  | COMPLEXITY MULTIPLIERS: "Not Applicable"    |
-  | BILLING DISCOUNTS: table                    |
-  | MEMBERSHIP DISCOUNTS: table                 |
-  | SHADOW PRICING: value                       |
-  | FEATURES: checklist                         |
-  +---------------------------------------------+
-  +-- Standard Tier Card (same sections) -------+
-  +-- Premium Tier Card (same sections) --------+
-
-Tab: Summary
-  Cross-tier/cross-model comparison matrices
-```
-
-### Key Differences Between Tabs
-
-| Section | Marketplace | Aggregator |
-|---------|-------------|------------|
-| Platform Fee | Shown (% of award) | Shown (% of award) |
-| Consulting Base Fee | Shown per country | "Not Applicable" label |
-| Management Base Fee | Shown per country | "Not Applicable" label |
-| Complexity Multipliers | Shown with calculated examples | "Not Applicable" label |
-| Subscription Pricing | Shown per country | Shown per country |
-| Billing/Membership/Shadow/Features | Same for both | Same for both |
-
-### Visual Design
-
-- Each tier card has a colored left border (Basic=blue, Standard=purple, Premium=amber)
-- Cards are full-width and stacked vertically
-- Sections within cards use `Collapsible` components -- key summary visible, details expandable
-- "Not Applicable" sections show a muted badge with brief explanation
-- Empty/unconfigured data shows "Not configured yet" with a link to the relevant admin page
-
-### Files
+## Files Changed
 
 | File | Action |
 |------|--------|
-| `src/pages/admin/pricing-overview/PricingOverviewPage.tsx` | **Rewrite** -- Tab-based engagement model layout |
-| `src/hooks/queries/usePricingOverviewData.ts` | **Extend** -- Add hooks for platform fees and base fees with country joins |
+| Database migration | **New** -- DELETE old features, INSERT new features for all 3 tiers |
+| `src/pages/admin/pricing-overview/PricingOverviewPage.tsx` | **Modify** -- Update the Features `CollapsibleSection` to show X/strikethrough for not_available features and the description note |
 
-### Data Hooks Used
+## Technical Details
 
-All existing hooks reused plus:
-- `usePlatformFees` (new) -- fetches from `md_platform_fees`
-- `useBaseFees` (existing) -- already joins with countries and tiers
-- Existing: `useSubscriptionTiers`, `useTierFeatures`, `useBillingCycles`, `useEngagementModels`, `useTierEngagementAccess`, `useShadowPricing`, `useMembershipTiers`, `useChallengeComplexityList`, `useAllTierCountryPricing`
-
----
-
-## Part 4: Update Base Fees Admin Page
-
-The existing Base Fees page (`src/pages/admin/base-fees/BaseFeesPage.tsx`) needs a minor update to show/manage the new `engagement_model_id` column -- adding a dropdown to select which engagement model the fee applies to.
-
-| File | Action |
-|------|--------|
-| `src/pages/admin/base-fees/BaseFeesPage.tsx` | **Modify** -- Add engagement model selector |
-
----
-
-## Execution Order
-
-1. Database migration (new table + column + data update)
-2. Create Platform Fees hooks and admin page
-3. Update Base Fees page for engagement model column
-4. Rewrite Pricing Overview page
-5. Update sidebar and routes
+- The migration uses the existing tier IDs: Basic = `e3338419-...`, Standard = `f685fd94-...`, Premium = `41396207-...`
+- Feature codes will use snake_case identifiers (e.g., `challenges_per_period`, `solutions_per_challenge`)
+- The `description` column on `md_tier_features` will store the per-additional-challenge note
+- The UI change is minor -- the existing Features section already handles `access_type` but needs the X + strikethrough styling for `not_available` items and a footer note from the description field
 
