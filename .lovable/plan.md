@@ -1,109 +1,69 @@
 
+# Fix: Remove Remaining AdminLayout Wrappers from 14 Admin Pages
 
-# Add Pricing and Configuration Summary Page to Admin
+## Root Cause
 
-## Problem
+The previous refactor created `AdminShell` as a persistent layout for all `/admin/*` routes, but **14 pages were not updated** and still wrap themselves in `<AdminLayout>`. This component renders a **second** `SidebarProvider`, `AdminSidebar`, `AdminHeader`, and `<main>` — creating a nested double-layout inside the shell.
 
-There is currently no place in the admin panel where you can see a consolidated view of how subscription tiers, engagement models, pricing, fees, discounts, and features all connect together. Each configuration is managed on its own separate page, but there is no summary screen that shows the complete picture -- for example: "Basic tier gets Marketplace only at $199/month, with 10% membership discount for annual members, and Simple/Moderate/Complex fee multipliers of 1x/1.5x/2x."
+This causes:
+- **Empty space on the left**: The inner `AdminLayout` renders a second sidebar that competes with the shell's sidebar
+- **Sidebar scroll jumping to top**: The inner sidebar remounts on every navigation, resetting scroll position
+- **Slow/jumpy content display**: The browser has to render two complete layout trees, causing visible thrashing
 
-## What Will Be Built
+## Pages That Still Need Fixing (14 files)
 
-A new **"Pricing Overview"** page at `/admin/seeker-config/pricing-overview` that displays a read-only, consolidated summary of all pricing and configuration relationships across these 8 tables:
+| # | File | Current Wrapper |
+|---|------|----------------|
+| 1 | `src/pages/admin/capability-tags/CapabilityTagsPage.tsx` | `<AdminLayout title="Capability Tags" ...>` |
+| 2 | `src/pages/admin/invitations/InvitationsPage.tsx` | `<AdminLayout title="Solution Provider Invitations" ...>` |
+| 3 | `src/pages/admin/invitations/PanelReviewerInvitationsPage.tsx` | `<AdminLayout title="Panel Reviewer Invitations" ...>` |
+| 4 | `src/pages/admin/reviewer-approvals/ReviewerApprovalsPage.tsx` | `<AdminLayout title="Reviewer Management" ...>` |
+| 5 | `src/pages/admin/interview-requirements/InterviewRequirementsPage.tsx` | `<AdminLayout title="Quorum Requirements" ...>` |
+| 6 | `src/pages/admin/reviewer-availability/ReviewerAvailabilityPage.tsx` | `<AdminLayout>` (no title) |
+| 7 | `src/pages/admin/interview-kit/InterviewKitPage.tsx` | `<AdminLayout title=...>` |
+| 8 | `src/pages/admin/interview-kit/InterviewKitQuestionsPage.tsx` | `<AdminLayout title=...>` |
+| 9 | `src/pages/admin/question-bank/QuestionBankPage.tsx` | `<AdminLayout title=...>` |
+| 10 | `src/pages/admin/academic-taxonomy/AcademicTaxonomyPage.tsx` | `<AdminLayout title=...>` |
+| 11 | `src/pages/admin/proficiency-taxonomy/ProficiencyTaxonomyPage.tsx` | `<AdminLayout title=...>` |
+| 12 | `src/pages/admin/level-speciality-map/LevelSpecialityMapPage.tsx` | `<AdminLayout title=...>` |
+| 13 | `src/pages/admin/SaasAgreementPage.tsx` | `<AdminLayout title=...>` |
+| 14 | `src/pages/admin/RegressionTestKitPage.tsx` | `<AdminLayout title=...>` |
 
-### Section 1: Tier Comparison Matrix
+## What Changes for Each File
 
-A side-by-side card layout showing each subscription tier (Basic, Standard, Premium) with:
-- Tier name, code, description
-- Max challenges and max users limits
-- Enterprise flag
+Each page will have the same transformation applied:
 
-### Section 2: Engagement Model Access per Tier
-
-A matrix/grid showing which engagement models (Marketplace, Aggregator) are available for each tier:
-
-```
-                  | Basic      | Standard   | Premium    |
-Marketplace       | Included   | Included   | Included   |
-Aggregator        | Not Avail  | Included   | Included   |
-```
-
-### Section 3: Tier Pricing by Country
-
-A table showing subscription pricing per country per tier:
-
-```
-Country | Currency | Basic  | Standard | Premium |
-USA     | USD      | $199   | $299     | $399    |
-UK      | GBP      | £159   | £239     | £319    |
-India   | INR      | ₹9,999 | ₹14,999  | ₹19,999 |
-Brazil  | BRL      | R$999  | R$1,499  | R$1,999 |
-```
-
-### Section 4: Billing Cycle Discounts
-
-A simple table showing billing cycle options and their discounts:
-- Monthly: 0% discount
-- Quarterly: 8% discount
-- Annual: 17% discount
-
-### Section 5: Challenge Fee Multipliers (Complexity)
-
-A table showing how challenge complexity affects fees:
-- Simple: 1.0x consulting, 1.0x management
-- Moderate: 1.5x consulting, 1.25x management
-- Complex: 2.0x consulting, 1.5x management
-
-### Section 6: Membership Tier Discounts
-
-Shows membership tiers and their benefits:
-- Annual (12 months): 10% fee discount, 8% commission
-- Multi-Year (24 months): 15% fee discount, 7% commission
-
-### Section 7: Shadow Pricing (Internal)
-
-Shows per-tier internal shadow charges:
-- Basic: ₹100/challenge
-- Standard: ₹75/challenge
-- Premium: ₹0/challenge
-
-### Section 8: Tier Features Checklist
-
-A feature comparison matrix showing included/not-available features per tier (Marketplace Access, Aggregator Access, Account Manager, Analytics, API, etc.)
-
-## Files to Create/Modify
-
-| File | Action |
-|------|--------|
-| `src/pages/admin/pricing-overview/PricingOverviewPage.tsx` | **New** -- Read-only summary dashboard |
-| `src/pages/admin/pricing-overview/index.ts` | **New** -- Barrel export |
-| `src/components/admin/AdminSidebar.tsx` | **Modify** -- Add "Pricing Overview" as first item in Seeker Config group |
-| `src/App.tsx` | **Modify** -- Add lazy-loaded route |
-
-## Technical Details
-
-- This is a **read-only** page -- no create/edit/delete operations
-- Reuses existing query hooks from `usePlanSelectionData.ts` (`useSubscriptionTiers`, `useTierFeatures`, `useTierPricingForCountry`, `useBillingCycles`, `useEngagementModels`, `useTierEngagementAccess`, `useShadowPricing`) plus `useMembershipTiers` and a new hook for challenge complexity
-- Country names resolved by joining `md_tier_country_pricing` with `countries` table
-- Uses Card components for sections, Table components for matrices
-- Responsive: stacks vertically on mobile, grid layout on desktop
-- Icon: `BarChart3` or `LayoutGrid` from lucide-react
-- Positioned as the first item in the "Seeker Config" sidebar group for quick access
-
-## Sidebar Change
-
-```
-Seeker Config
-  - Pricing Overview            << NEW (first item)
-  - Subscription Tiers
-  - Membership Tiers
-  - Engagement Models
-  - Challenge Complexity
-  - Base Fee Config
-  - Shadow Pricing
-  - Challenge Statuses
-  - Export Control
-  - Data Residency
-  - Blocked Domains
-  - Platform Terms
+**Before:**
+```tsx
+import { AdminLayout } from "@/components/admin";
+// ...
+return (
+  <AdminLayout title="Page Title" description="..." breadcrumbs={[...]}>
+    {/* page content */}
+  </AdminLayout>
+);
 ```
 
+**After:**
+```tsx
+// AdminLayout import removed
+// ...
+return (
+  <>
+    <div className="mb-6">
+      <h1 className="text-2xl font-bold tracking-tight">Page Title</h1>
+      <p className="text-muted-foreground mt-1">Description text</p>
+    </div>
+    {/* page content */}
+  </>
+);
+```
+
+The `AdminLayout` import is removed, the wrapper is replaced with a fragment containing an inline page header (title + description). The sidebar, header, and main content area are already provided by `AdminShell`.
+
+## Expected Results
+
+- No more double sidebar or empty space on the left
+- Sidebar scroll position preserved when clicking any menu item
+- Instant content swap on navigation (no layout remounting)
+- All 30+ admin pages now render consistently inside the single `AdminShell`
