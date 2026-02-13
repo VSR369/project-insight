@@ -1,128 +1,109 @@
 
 
-# Fix: Slow Admin Page Loading and Sidebar Scroll Jumping
+# Add Pricing and Configuration Summary Page to Admin
 
-## Root Causes Identified
+## Problem
 
-### Problem 1: Full-Screen Flash on Every Navigation (Slow/Jumpy Loading)
+There is currently no place in the admin panel where you can see a consolidated view of how subscription tiers, engagement models, pricing, fees, discounts, and features all connect together. Each configuration is managed on its own separate page, but there is no summary screen that shows the complete picture -- for example: "Basic tier gets Marketplace only at $199/month, with 10% membership discount for annual members, and Simple/Moderate/Complex fee multipliers of 1x/1.5x/2x."
 
-Every admin page is lazy-loaded and wrapped with `LazyRoute`, which uses `Suspense` with `RouteLoadingFallback` -- a **full-screen centered skeleton** that replaces the entire viewport including the sidebar and header:
+## What Will Be Built
+
+A new **"Pricing Overview"** page at `/admin/seeker-config/pricing-overview` that displays a read-only, consolidated summary of all pricing and configuration relationships across these 8 tables:
+
+### Section 1: Tier Comparison Matrix
+
+A side-by-side card layout showing each subscription tier (Basic, Standard, Premium) with:
+- Tier name, code, description
+- Max challenges and max users limits
+- Enterprise flag
+
+### Section 2: Engagement Model Access per Tier
+
+A matrix/grid showing which engagement models (Marketplace, Aggregator) are available for each tier:
 
 ```
-RouteLoadingFallback = full h-screen div with centered skeleton
+                  | Basic      | Standard   | Premium    |
+Marketplace       | Included   | Included   | Included   |
+Aggregator        | Not Avail  | Included   | Included   |
 ```
 
-When you click a sidebar item, this sequence happens:
-1. The entire screen goes blank (sidebar disappears)
-2. The full-screen "Loading..." skeleton shows
-3. The lazy chunk loads
-4. The new page renders with its own `AdminLayout` (sidebar + header + content)
+### Section 3: Tier Pricing by Country
 
-This causes a visible **flash/jump** because the sidebar unmounts and remounts on every navigation. Even though the chunk loads in milliseconds, the user sees the layout disappear and reappear.
+A table showing subscription pricing per country per tier:
 
-### Problem 2: Sidebar Scroll Position Resets to Top
-
-Each admin page renders its own `<AdminLayout>` which creates a fresh `<SidebarProvider>` and `<AdminSidebar>`. On every route change, the sidebar component is fully unmounted and remounted, which resets its scroll position to the top. If you had scrolled down to "Shadow Pricing" in the Seeker Config section, clicking it navigates to a new route, remounts the sidebar, and you're back at the top.
-
-## Solution
-
-### Fix 1: Shared Admin Layout Route (Prevents Sidebar Remounting)
-
-Instead of each page independently rendering `AdminLayout`, create a **parent route layout** for all `/admin/*` routes. The sidebar and header render once and stay mounted; only the content area swaps via React Router's `<Outlet>`.
-
-**Architecture change:**
-
-```text
-BEFORE (current - broken):
-  /admin/countries  -> LazyRoute -> CountriesPage -> AdminLayout -> Sidebar + Content
-  /admin/base-fees  -> LazyRoute -> BaseFeesPage  -> AdminLayout -> Sidebar + Content
-  (sidebar remounts on every navigation)
-
-AFTER (fixed):
-  /admin/*  -> AdminGuard -> AdminShell (Sidebar + Header + Outlet)
-    /admin/countries  -> Suspense -> CountriesPage (content only)
-    /admin/base-fees  -> Suspense -> BaseFeesPage  (content only)
-  (sidebar stays mounted, only content area changes)
+```
+Country | Currency | Basic  | Standard | Premium |
+USA     | USD      | $199   | $299     | $399    |
+UK      | GBP      | £159   | £239     | £319    |
+India   | INR      | ₹9,999 | ₹14,999  | ₹19,999 |
+Brazil  | BRL      | R$999  | R$1,499  | R$1,999 |
 ```
 
-### Fix 2: Move Suspense Inside the Layout
+### Section 4: Billing Cycle Discounts
 
-Instead of wrapping the entire page with `Suspense` (which flashes the full-screen fallback), place the `Suspense` boundary inside the content area only. The fallback becomes a content-area skeleton, not a full-screen takeover.
+A simple table showing billing cycle options and their discounts:
+- Monthly: 0% discount
+- Quarterly: 8% discount
+- Annual: 17% discount
 
-### Fix 3: Remove AdminLayout from Individual Pages
+### Section 5: Challenge Fee Multipliers (Complexity)
 
-Each admin page currently wraps itself in `<AdminLayout>`. After the shared shell is in place, pages will just return their content directly (title, breadcrumbs passed as route metadata or kept inline without the layout wrapper).
+A table showing how challenge complexity affects fees:
+- Simple: 1.0x consulting, 1.0x management
+- Moderate: 1.5x consulting, 1.25x management
+- Complex: 2.0x consulting, 1.5x management
 
-## Files to Change
+### Section 6: Membership Tier Discounts
 
-| # | File | Action |
-|---|------|--------|
-| 1 | `src/components/admin/AdminShell.tsx` | **New** -- Shared layout with Sidebar + Header + `<Outlet>` with Suspense |
-| 2 | `src/App.tsx` | **Modify** -- Nest all `/admin/*` routes under a parent route using `AdminShell` |
-| 3 | All admin pages (~25 files) | **Modify** -- Remove `<AdminLayout>` wrapper, return content directly |
+Shows membership tiers and their benefits:
+- Annual (12 months): 10% fee discount, 8% commission
+- Multi-Year (24 months): 15% fee discount, 7% commission
+
+### Section 7: Shadow Pricing (Internal)
+
+Shows per-tier internal shadow charges:
+- Basic: ₹100/challenge
+- Standard: ₹75/challenge
+- Premium: ₹0/challenge
+
+### Section 8: Tier Features Checklist
+
+A feature comparison matrix showing included/not-available features per tier (Marketplace Access, Aggregator Access, Account Manager, Analytics, API, etc.)
+
+## Files to Create/Modify
+
+| File | Action |
+|------|--------|
+| `src/pages/admin/pricing-overview/PricingOverviewPage.tsx` | **New** -- Read-only summary dashboard |
+| `src/pages/admin/pricing-overview/index.ts` | **New** -- Barrel export |
+| `src/components/admin/AdminSidebar.tsx` | **Modify** -- Add "Pricing Overview" as first item in Seeker Config group |
+| `src/App.tsx` | **Modify** -- Add lazy-loaded route |
 
 ## Technical Details
 
-### New File: `AdminShell.tsx`
+- This is a **read-only** page -- no create/edit/delete operations
+- Reuses existing query hooks from `usePlanSelectionData.ts` (`useSubscriptionTiers`, `useTierFeatures`, `useTierPricingForCountry`, `useBillingCycles`, `useEngagementModels`, `useTierEngagementAccess`, `useShadowPricing`) plus `useMembershipTiers` and a new hook for challenge complexity
+- Country names resolved by joining `md_tier_country_pricing` with `countries` table
+- Uses Card components for sections, Table components for matrices
+- Responsive: stacks vertically on mobile, grid layout on desktop
+- Icon: `BarChart3` or `LayoutGrid` from lucide-react
+- Positioned as the first item in the "Seeker Config" sidebar group for quick access
 
-This component renders the sidebar and header once, with a `Suspense`-wrapped `<Outlet>` for the content area. The Suspense fallback is a **content-area skeleton** (not full-screen), so the sidebar stays visible during loading.
+## Sidebar Change
 
-```text
-AdminShell
-  +-- SidebarProvider (mounted once, never remounts)
-  |   +-- AdminSidebar (scroll position preserved)
-  |   +-- SidebarInset
-  |       +-- AdminHeader
-  |       +-- <main>
-  |           +-- Suspense fallback={ContentSkeleton}
-  |               +-- <Outlet /> (only this swaps on navigation)
 ```
-
-### App.tsx Route Structure Change
-
-```text
-BEFORE:
-  <Route path="/admin" element={<AdminGuard><LazyRoute><AdminDashboard /></LazyRoute></AdminGuard>} />
-  <Route path="/admin/master-data/countries" element={<AdminGuard><LazyRoute><CountriesPage /></LazyRoute></AdminGuard>} />
-  ... (30+ individual routes)
-
-AFTER:
-  <Route path="/admin" element={<AdminGuard><AdminShell /></AdminGuard>}>
-    <Route index element={<Suspense><AdminDashboard /></Suspense>} />
-    <Route path="master-data/countries" element={<Suspense><CountriesPage /></Suspense>} />
-    ... (nested under shared shell)
-  </Route>
+Seeker Config
+  - Pricing Overview            << NEW (first item)
+  - Subscription Tiers
+  - Membership Tiers
+  - Engagement Models
+  - Challenge Complexity
+  - Base Fee Config
+  - Shadow Pricing
+  - Challenge Statuses
+  - Export Control
+  - Data Residency
+  - Blocked Domains
+  - Platform Terms
 ```
-
-### Admin Page Changes (all ~25 pages)
-
-Each page changes from:
-```tsx
-return (
-  <AdminLayout title="Countries" breadcrumbs={[...]}>
-    <DataTable ... />
-  </AdminLayout>
-);
-```
-
-To:
-```tsx
-return (
-  <>
-    <div className="mb-6">
-      <h1 className="text-2xl font-bold">Countries</h1>
-    </div>
-    <DataTable ... />
-  </>
-);
-```
-
-Or alternatively, keep a lightweight `AdminPageHeader` component for title/breadcrumbs without the layout wrapper.
-
-## Expected Results
-
-- Clicking any admin sidebar item will instantly show the new page content without the sidebar/header disappearing
-- Sidebar scroll position will be preserved across navigations
-- The loading skeleton (if any) will only appear in the content area, not full-screen
-- Overall perceived performance will be significantly faster since no layout remounting occurs
 
