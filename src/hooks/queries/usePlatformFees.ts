@@ -49,6 +49,7 @@ export function usePlatformFees(includeInactive = false) {
       return data as PlatformFeeWithJoins[];
     },
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 

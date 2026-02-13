@@ -45,7 +45,7 @@ export function useCountry(id: string | null) {
 
       const { data, error } = await supabase
         .from("countries")
-        .select("*")
+        .select("id, code, name, iso_alpha3, phone_code, phone_code_display, currency_code, currency_symbol, date_format, number_format, is_ofac_restricted, address_format_template, display_order, is_active, description, created_at, updated_at, created_by, updated_by")
         .eq("id", id)
         .single();
 

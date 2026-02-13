@@ -165,7 +165,7 @@ export function useAcademicStreams(disciplineId?: string | null, includeInactive
     queryFn: async () => {
       let query = supabase
         .from("academic_streams")
-        .select("*, academic_disciplines(name)")
+        .select("id, name, description, discipline_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_disciplines(name)")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -181,6 +181,8 @@ export function useAcademicStreams(disciplineId?: string | null, includeInactive
       if (error) throw new Error(error.message);
       return data;
     },
+    staleTime: 300000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -304,7 +306,7 @@ export function useAcademicSubjects(streamId?: string | null, includeInactive = 
     queryFn: async () => {
       let query = supabase
         .from("academic_subjects")
-        .select("*, academic_streams(name, academic_disciplines(name))")
+        .select("id, name, description, stream_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_streams(name, academic_disciplines(name))")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -320,6 +322,8 @@ export function useAcademicSubjects(streamId?: string | null, includeInactive = 
       if (error) throw new Error(error.message);
       return data;
     },
+    staleTime: 300000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
