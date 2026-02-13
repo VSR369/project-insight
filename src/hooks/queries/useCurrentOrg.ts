@@ -30,7 +30,7 @@ export function useCurrentOrg() {
         .select(`
           organization_id,
           role,
-          seeker_organizations!inner (
+          seeker_organizations!org_users_organization_id_fkey (
             id,
             legal_entity_name,
             tenant_id,

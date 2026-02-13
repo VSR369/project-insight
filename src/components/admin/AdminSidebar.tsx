@@ -43,7 +43,7 @@ import {
   Activity,
   TestTube2,
   CreditCard,
-  Crown,
+  
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,9 +83,6 @@ const interviewItems = [
 
 const seekerItems = [
   { title: 'SaaS Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
-  { title: 'Membership', icon: Crown, path: '/org/membership' },
-  { title: 'Team Management', icon: Users, path: '/org/team' },
-  { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
 ];
 
 const otherItems = [
