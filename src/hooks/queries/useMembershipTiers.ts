@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { handleMutationError } from "@/lib/errorHandler";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import type { Database } from "@/integrations/supabase/types";
 
 export type MembershipTier = Database["public"]["Tables"]["md_membership_tiers"]["Row"];
@@ -14,7 +15,7 @@ export function useMembershipTiers(includeInactive = false) {
   return useQuery({
     queryKey: [...KEY, { includeInactive }],
     queryFn: async () => {
-      let q = supabase.from(TABLE).select("*").order("display_order").order("name");
+      let q = supabase.from(TABLE).select("id, code, name, description, display_order, is_active, created_at, updated_at, created_by, updated_by").order("display_order").order("name");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
@@ -29,7 +30,8 @@ export function useCreateMembershipTier() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (item: MembershipTierInsert) => {
-      const { data, error } = await supabase.from(TABLE).insert(item).select().single();
+      const itemWithAudit = await withCreatedBy(item);
+      const { data, error } = await supabase.from(TABLE).insert(itemWithAudit).select().single();
       if (error) throw new Error(error.message);
       return data;
     },
@@ -42,7 +44,8 @@ export function useUpdateMembershipTier() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: Partial<MembershipTier> & { id: string }) => {
-      const { data, error } = await supabase.from(TABLE).update(updates).eq("id", id).select().single();
+      const updatesWithAudit = await withUpdatedBy(updates);
+      const { data, error } = await supabase.from(TABLE).update(updatesWithAudit).eq("id", id).select().single();
       if (error) throw new Error(error.message);
       return data;
     },

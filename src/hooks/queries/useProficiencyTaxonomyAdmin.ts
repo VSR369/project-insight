@@ -151,7 +151,6 @@ export function useRestoreProficiencyArea() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["proficiency_areas_admin"] });
-      queryClient.refetchQueries({ queryKey: ["proficiency_areas_admin"] });
       toast.success("Proficiency area restored successfully");
     },
     onError: (error: Error) => {
@@ -314,7 +313,6 @@ export function useRestoreSubDomain() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["sub_domains_admin"] });
-      queryClient.refetchQueries({ queryKey: ["sub_domains_admin"] });
       toast.success("Sub-domain restored successfully");
     },
     onError: (error: Error) => {
@@ -477,7 +475,6 @@ export function useRestoreSpeciality() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["specialities_admin"] });
-      queryClient.refetchQueries({ queryKey: ["specialities_admin"] });
       toast.success("Speciality restored successfully");
     },
     onError: (error: Error) => {

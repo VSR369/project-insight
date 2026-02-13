@@ -15,7 +15,7 @@ export function useIndustrySegments(includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("industry_segments")
-        .select("*")
+        .select("id, code, name, description, parent_id, display_order, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -134,7 +134,6 @@ export function useRestoreIndustrySegment() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["industry_segments"] });
-      queryClient.refetchQueries({ queryKey: ["industry_segments"] });
       toast.success("Industry segment restored successfully");
     },
     onError: (error: Error) => {
