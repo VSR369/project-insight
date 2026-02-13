@@ -1,75 +1,66 @@
 
 
-# Duplicate Prevention and Unique Identification for Organizations
+# Unique Organization Identification -- Country Required + Composite Unique Constraint
 
-## Current State
+## Summary
 
-| Check | Status |
-|---|---|
-| Parent org excluded from child org dropdown | Already implemented (line 96 of SaasAgreementPage) |
-| Duplicate detection DB function | Exists: `check_duplicate_organization()` with trigram similarity > 0.4 |
-| Duplicate check on child org creation | Missing -- form submits directly without checking |
-| Duplicate check on parent org selection | Not applicable -- parent is selected from existing orgs, not created here |
-| Unique constraint on `organization_name` | None -- only a GIN trigram index for search |
+Add a hard unique constraint on `(LOWER(organization_name), hq_country_id)` in the database and make Country a required field in the child org creation form. This prevents exact-name duplicates within the same country at the database level, while the existing trigram fuzzy check catches near-matches as an advisory warning.
 
-## What Needs to Be Done
+## Changes
 
-### 1. Add Duplicate Check Before Child Org Creation
+### 1. Database Migration
 
-When the user submits the "Add Child Organization" form, call the existing `check_duplicate_organization()` RPC before inserting. If similar names are found, show the existing `DuplicateOrgModal` warning dialog, letting the user either go back or proceed anyway.
+Add a composite unique index on `seeker_organizations`:
 
-**Flow:**
+```sql
+CREATE UNIQUE INDEX idx_seeker_orgs_unique_name_country
+  ON public.seeker_organizations (LOWER(organization_name::text), hq_country_id)
+  WHERE is_deleted = false;
+```
+
+This is a **partial unique index** -- it only enforces uniqueness among non-deleted records, allowing soft-deleted orgs to share names.
+
+### 2. Schema Update (`saasAgreement.schema.ts`)
+
+Make `hq_country_id` required in `childOrgSchema`:
 
 ```text
-User fills child org form --> Submit
-  --> Call check_duplicate_organization(name, country_id)
-  --> If matches found:
-      --> Show DuplicateOrgModal with closest match name
-      --> "Go Back" = return to form
-      --> "Proceed Anyway" = insert the org
-  --> If no matches:
-      --> Insert directly
+Before:  hq_country_id: z.string().uuid().optional().nullable()
+After:   hq_country_id: z.string().uuid("Please select a country")
 ```
 
-### 2. Add a Duplicate-Check Hook
+### 3. UI Update (`CreateChildOrgDialog.tsx`)
 
-Create a reusable hook `useCheckDuplicateOrg` in `useSaasData.ts` that calls the RPC:
+- Mark the Country field label with `*` (required indicator)
+- No other UI changes needed -- the form already renders a country selector
 
-```typescript
-const { data } = await supabase.rpc('check_duplicate_organization', {
-  p_org_name: orgName,
-  p_country_id: countryId ?? null,
-  p_exclude_id: null
-});
-```
+### 4. Error Handling
 
-Returns an array of matches with `id`, `organization_name`, and `similarity_score`.
-
-### 3. Integrate DuplicateOrgModal into CreateChildOrgDialog
-
-- Import the existing `DuplicateOrgModal` component (already built for registration)
-- Add state for `duplicateCheckResult` and `showDuplicateWarning`
-- On form submit: run duplicate check first, show modal if matches found, insert on "Proceed Anyway"
-
-### 4. No Database Changes Needed
-
-- The `check_duplicate_organization` function already exists
-- No new unique constraints needed (exact duplicates in different countries/tenants are valid business scenarios; the trigram fuzzy check is the right approach)
-- Parent org is already excluded from the child org dropdown
-
----
+- If the unique constraint is violated (exact duplicate name + country), the mutation's `onError` handler already shows a toast. The error message from Postgres will mention the constraint -- we can intercept it and show a friendlier message like "An organization with this name already exists in the selected country."
 
 ## Files Changed
 
 | File | Change |
 |---|---|
-| `src/hooks/queries/useSaasData.ts` | Add `useCheckDuplicateOrg` mutation hook that calls `check_duplicate_organization` RPC |
-| `src/components/admin/CreateChildOrgDialog.tsx` | Import `DuplicateOrgModal`, add duplicate check on submit, show warning modal before insert |
+| New migration SQL | Add partial unique index `idx_seeker_orgs_unique_name_country` |
+| `src/pages/admin/saas/saasAgreement.schema.ts` | Make `hq_country_id` required (non-nullable) in `childOrgSchema` |
+| `src/components/admin/CreateChildOrgDialog.tsx` | Add required indicator `*` to Country label |
+| `src/hooks/queries/useSaasData.ts` | Add friendly duplicate error message handling in `useCreateChildOrg` `onError` |
 
-## Technical Details
+## How It Works Together
 
-- The `check_duplicate_organization(p_org_name, p_country_id, p_exclude_id)` function returns rows where `similarity > 0.4` (already tuned)
-- The existing `DuplicateOrgModal` component accepts `open`, `onOpenChange`, `existingOrgName`, `onProceed`, `onCancel` props -- a perfect fit
-- No schema or migration changes required
-- Parent org filtering in the child dropdown is already working correctly
+```text
+User submits "ACME Corp" + "United States"
+  --> Step 1: Trigram fuzzy check (advisory)
+      - Finds "Acme Corporation" at 0.65 similarity
+      - Shows DuplicateOrgModal warning
+      - User clicks "Proceed Anyway"
+  --> Step 2: INSERT hits DB
+      - If exact "acme corp" + US already exists (non-deleted):
+        DB rejects with unique constraint violation
+        Toast: "An organization with this name already exists in the selected country"
+      - Otherwise: inserted successfully
+```
+
+Two layers of protection: fuzzy warning (soft) + exact constraint (hard).
 
