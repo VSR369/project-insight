@@ -2,7 +2,7 @@ import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -81,11 +81,15 @@ export default function IndustrySegmentsPage() {
     : [];
 
   return (
-    <AdminLayout title="Industry Segments" description="Manage industry sectors for categorizing providers and challenges" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Industry Segments" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Industry Segments</h1>
+        <p className="text-muted-foreground mt-1">Manage industry sectors for categorizing providers and challenges</p>
+      </div>
       <DataTable data={segments} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search industry segments..." isLoading={isLoading} onAdd={() => { setSelectedSegment(null); setIsFormOpen(true); }} addButtonLabel="Add Industry Segment" emptyMessage="No industry segments found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Industry Segment" description="Industry segments categorize providers and challenges by sector." fields={formFields} schema={industrySegmentSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedSegment ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Industry Segment Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedSegment?.is_active ? "Deactivate Industry Segment" : "Delete Industry Segment"} itemName={selectedSegment?.name} onConfirm={selectedSegment?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedSegment?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedSegment?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

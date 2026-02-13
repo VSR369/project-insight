@@ -3,7 +3,7 @@ import { Check, X, CircleDashed, RotateCcw, ExternalLink, ClipboardCheck, Play, 
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -134,11 +134,7 @@ export default function SmokeTestPage() {
   };
 
   return (
-    <AdminLayout
-      title="Automated Smoke Test"
-      description="Automated CRUD test suite for master data modules"
-      breadcrumbs={[{ label: "Smoke Test" }]}
-    >
+    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Automated Smoke Test</h1><p className="text-muted-foreground mt-1">Automated CRUD test suite for master data modules</p></div>
       {/* Test Data Seeder Card */}
       <Card className="mb-6 border-dashed">
         <CardHeader className="pb-2">
@@ -396,6 +392,6 @@ export default function SmokeTestPage() {
           </Card>
         ))}
       </div>
-    </AdminLayout>
+    </>
   );
 }

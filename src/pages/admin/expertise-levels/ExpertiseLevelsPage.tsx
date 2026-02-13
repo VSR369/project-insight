@@ -2,7 +2,7 @@ import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -88,11 +88,15 @@ export default function ExpertiseLevelsPage() {
     : [];
 
   return (
-    <AdminLayout title="Expertise Levels" description="Define experience tiers and requirements for solution providers" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Expertise Levels" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Expertise Levels</h1>
+        <p className="text-muted-foreground mt-1">Define experience tiers and requirements for solution providers</p>
+      </div>
       <DataTable data={levels} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search expertise levels..." isLoading={isLoading} onAdd={() => { setSelectedLevel(null); setIsFormOpen(true); }} addButtonLabel="Add Expertise Level" emptyMessage="No expertise levels found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Expertise Level" description="Expertise levels categorize providers by their years of experience." fields={formFields} schema={expertiseLevelSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedLevel ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Expertise Level Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedLevel?.is_active ? "Deactivate Expertise Level" : "Delete Expertise Level"} itemName={selectedLevel?.name} onConfirm={selectedLevel?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedLevel?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedLevel?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }
