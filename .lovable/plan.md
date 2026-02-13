@@ -1,87 +1,109 @@
 
+# Fix 7 Compliance Violations
 
-# Performance and Quality Fix Plan -- Master Data Portal
+## Overview
 
-## Issues Found
-
-### Issue 1: StatusBadge Missing forwardRef (Console Error on Every Screen)
-The `StatusBadge` component triggers a React warning on every admin table page: "Function components cannot be given refs." The `DataTable` component passes refs via `flexRender`, but `StatusBadge` is a plain function component without `React.forwardRef`.
-
-**Impact**: Console error spam on every master data screen that shows a Status column (all of them).
-
-**Fix**: Wrap `StatusBadge` with `React.forwardRef` (same pattern already used for `Skeleton`).
-
-**File**: `src/components/admin/StatusBadge.tsx`
+Seven targeted edits across 4 files. All changes are non-breaking -- they tighten column selections, add cache config, and add audit field helpers.
 
 ---
 
-### Issue 2: select("*") in 4 Master Data Hooks (Performance Violation)
-Per the project's performance standards, `select("*")` fetches unnecessary columns and increases payload size. Four admin hooks still use it:
+## Fix 1: useCountry -- Replace select("*") with Explicit Columns
 
-| Hook File | Table |
-|-----------|-------|
-| `useMembershipTiers.ts` | `md_membership_tiers` |
-| `useIndustrySegments.ts` | `industry_segments` |
-| `useParticipationModes.ts` | `participation_modes` |
-| `useAcademicTaxonomy.ts` | `academic_disciplines` |
+**File**: `src/hooks/queries/useCountries.ts` (line 48)
 
-**Fix**: Replace `select("*")` with explicit column lists matching what each page actually renders.
+**Change**: Replace `.select("*")` with the same column list used in `useCountries()`:
+```
+.select("id, code, name, iso_alpha3, phone_code, phone_code_display, currency_code, currency_symbol, date_format, number_format, is_ofac_restricted, address_format_template, display_order, is_active, description, created_at, updated_at, created_by, updated_by")
+```
 
 ---
 
-### Issue 3: Redundant refetchQueries After invalidateQueries (8 Hooks)
-`invalidateQueries()` already triggers a refetch for active queries. Calling `refetchQueries()` immediately after causes a **duplicate network request** on every restore operation, doubling the load time for that action.
+## Fix 2: useAcademicStreams -- Replace select("*") and Add Cache Config
 
-**Affected hooks** (restore mutations only):
-- `useIndustrySegments.ts`
-- `useOrganizationTypes.ts`
-- `useCountries.ts`
-- `useParticipationModes.ts`
-- `useAcademicTaxonomy.ts` (3 restore functions)
-- `useExpertiseLevels.ts`
-- `useProficiencyTaxonomyAdmin.ts` (3 restore functions)
-- `useQuestionBank.ts`
+**File**: `src/hooks/queries/useAcademicTaxonomy.ts` (lines 168, 183-184)
 
-**Fix**: Remove all `refetchQueries` calls -- `invalidateQueries` is sufficient.
+**Change 1** (line 168): Replace `.select("*, academic_disciplines(name)")` with:
+```
+.select("id, name, description, discipline_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_disciplines(name)")
+```
 
----
-
-### Issue 4: Missing Audit Fields in useMembershipTiers Mutations
-The `useMembershipTiers` hook does not call `withCreatedBy()` or `withUpdatedBy()` on create/update mutations. This violates the audit trail standard and leaves `created_by`/`updated_by` as NULL.
-
-**Fix**: Add `withCreatedBy` to the create mutation and `withUpdatedBy` to the update mutation.
+**Change 2** (lines 183-184): Add cache config after `return data;`:
+```typescript
+    staleTime: 300000,
+    gcTime: 30 * 60 * 1000,
+```
 
 ---
 
-## Technical Details
+## Fix 3: useAcademicSubjects -- Replace select("*") and Add Cache Config
 
-### Files Modified
+**File**: `src/hooks/queries/useAcademicTaxonomy.ts` (lines 307, 322-323)
 
-| File | Changes |
-|------|---------|
-| `src/components/admin/StatusBadge.tsx` | Add `React.forwardRef` wrapper |
-| `src/hooks/queries/useMembershipTiers.ts` | Replace `select("*")` with explicit columns; add audit field helpers |
-| `src/hooks/queries/useIndustrySegments.ts` | Replace `select("*")`; remove redundant `refetchQueries` |
-| `src/hooks/queries/useParticipationModes.ts` | Replace `select("*")`; remove redundant `refetchQueries` |
-| `src/hooks/queries/useAcademicTaxonomy.ts` | Replace `select("*")` for disciplines; remove 3 redundant `refetchQueries` |
-| `src/hooks/queries/useOrganizationTypes.ts` | Remove redundant `refetchQueries` |
-| `src/hooks/queries/useCountries.ts` | Remove redundant `refetchQueries` |
-| `src/hooks/queries/useExpertiseLevels.ts` | Remove redundant `refetchQueries` |
-| `src/hooks/queries/useProficiencyTaxonomyAdmin.ts` | Remove 3 redundant `refetchQueries` |
-| `src/hooks/queries/useQuestionBank.ts` | Remove redundant `refetchQueries` |
+**Change 1** (line 307): Replace `.select("*, academic_streams(name, academic_disciplines(name))")` with:
+```
+.select("id, name, description, stream_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_streams(name, academic_disciplines(name))")
+```
 
-### Risk Assessment
+**Change 2** (lines 322-323): Add cache config:
+```typescript
+    staleTime: 300000,
+    gcTime: 30 * 60 * 1000,
+```
 
-| Change | Risk |
-|--------|------|
-| StatusBadge forwardRef | Zero -- additive wrapper, no behavior change |
-| select("*") to explicit columns | Zero -- same data, smaller payload |
-| Remove refetchQueries | Zero -- invalidateQueries already refetches active queries |
-| Add audit helpers | Zero -- adds missing data, no schema change |
+---
 
-### Execution Order
-1. Fix StatusBadge (eliminates console errors across all screens)
-2. Fix all 4 `select("*")` hooks (reduces payload size)
-3. Remove all redundant `refetchQueries` (eliminates duplicate network calls)
-4. Add audit fields to useMembershipTiers (data correctness)
+## Fix 4: useChallengeStatuses -- Add withCreatedBy to Create Mutation
 
+**File**: `src/hooks/queries/useChallengeStatuses.ts` (lines 1-2, 31-32)
+
+**Change 1**: Add import for audit helpers (line 5):
+```typescript
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
+```
+
+**Change 2** (line 31-32): Wrap insert with audit:
+```typescript
+    mutationFn: async (item: ChallengeStatusInsert) => {
+      const itemWithAudit = await withCreatedBy(item);
+      const { data, error } = await supabase.from("md_challenge_active_statuses").insert(itemWithAudit).select().single();
+```
+
+---
+
+## Fix 5: useChallengeStatuses -- Add withUpdatedBy to Update Mutation
+
+**File**: `src/hooks/queries/useChallengeStatuses.ts` (lines 44-45)
+
+**Change**: Wrap update with audit:
+```typescript
+    mutationFn: async ({ id, ...updates }: ChallengeStatusUpdate & { id: string }) => {
+      const updatesWithAudit = await withUpdatedBy(updates);
+      const { data, error } = await supabase.from("md_challenge_active_statuses").update(updatesWithAudit).eq("id", id).select().single();
+```
+
+---
+
+## Fix 6: usePlatformFees -- Add Missing gcTime
+
+**File**: `src/hooks/queries/usePlatformFees.ts` (lines 51-52)
+
+**Change**: Add `gcTime` after `staleTime`:
+```typescript
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+```
+
+---
+
+## Files Modified Summary
+
+| File | Fixes Applied |
+|------|--------------|
+| `src/hooks/queries/useCountries.ts` | Fix 1: explicit columns in `useCountry` |
+| `src/hooks/queries/useAcademicTaxonomy.ts` | Fixes 2-3: explicit columns + cache for streams and subjects |
+| `src/hooks/queries/useChallengeStatuses.ts` | Fixes 4-5: add `withCreatedBy` and `withUpdatedBy` |
+| `src/hooks/queries/usePlatformFees.ts` | Fix 6: add missing `gcTime` |
+
+## Risk: Zero
+
+All changes are additive refinements -- tighter column lists, cache settings matching existing patterns, and audit helpers already proven across all other hooks.
