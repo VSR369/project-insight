@@ -5,6 +5,11 @@
 
 import { z } from "zod";
 
+export const AGREEMENT_SCOPES = [
+  { value: "internal", label: "Internal Department", description: "Assign fees to a department within the parent organization" },
+  { value: "child_org", label: "Child Organization", description: "Create an agreement with a child/subsidiary organization" },
+] as const;
+
 export const AGREEMENT_TYPES = [
   { value: "saas_fee", label: "SaaS Fee" },
   { value: "shadow_billing", label: "Shadow Billing" },
@@ -60,10 +65,13 @@ export type ChildOrgFormValues = z.infer<typeof childOrgSchema>;
 
 export const saasAgreementSchema = z
   .object({
+    agreement_scope: z.enum(["internal", "child_org"]).default("child_org"),
     child_organization_id: z
       .string()
-      .min(1, "Child organization is required")
-      .uuid("Invalid organization selection"),
+      .uuid("Invalid organization selection")
+      .optional()
+      .nullable()
+      .or(z.literal("")),
     department_id: z.string().uuid().optional().nullable(),
     functional_area_id: z.string().uuid().optional().nullable(),
     agreement_type: z.enum(["saas_fee", "shadow_billing", "cost_sharing"], {
@@ -147,6 +155,18 @@ export const saasAgreementSchema = z
   })
   .refine(
     (data) => {
+      if (data.agreement_scope === "child_org") {
+        return !!data.child_organization_id;
+      }
+      return true;
+    },
+    {
+      message: "Child organization is required for this agreement scope",
+      path: ["child_organization_id"],
+    }
+  )
+  .refine(
+    (data) => {
       if (data.starts_at && data.ends_at) {
         return new Date(data.ends_at) > new Date(data.starts_at);
       }
@@ -162,6 +182,7 @@ export type SaasAgreementFormValues = z.infer<typeof saasAgreementSchema>;
 
 /** Default values for create mode */
 export const SAAS_AGREEMENT_DEFAULTS: SaasAgreementFormValues = {
+  agreement_scope: "child_org",
   child_organization_id: "",
   department_id: null,
   functional_area_id: null,

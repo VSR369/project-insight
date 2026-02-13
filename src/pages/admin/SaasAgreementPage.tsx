@@ -100,6 +100,10 @@ export default function SaasAgreementPage() {
 
   const dialogMode = editingAgreement ? "edit" : "create";
   const isMutating = createAgreement.isPending || updateAgreement.isPending;
+  const parentOrgName = useMemo(
+    () => orgOptions.find((o) => o.value === selectedParentOrgId)?.label ?? "",
+    [orgOptions, selectedParentOrgId]
+  );
 
   // ══════════════════════════════════════
   // SECTION 7: Handlers
@@ -124,6 +128,7 @@ export default function SaasAgreementPage() {
     );
     if (!found) return SAAS_AGREEMENT_DEFAULTS;
     return {
+      agreement_scope: found.child_organization_id ? "child_org" : "internal",
       child_organization_id: found.child_organization_id,
       agreement_type: found.agreement_type as SaasAgreementFormValues["agreement_type"],
       fee_amount: Number(found.fee_amount),
@@ -150,8 +155,9 @@ export default function SaasAgreementPage() {
   };
 
   const handleSubmit = async (data: SaasAgreementFormValues) => {
+    const childOrgId = data.agreement_scope === "internal" ? null : (data.child_organization_id || null);
     const allFields = {
-      child_organization_id: data.child_organization_id,
+      child_organization_id: childOrgId,
       agreement_type: data.agreement_type,
       fee_amount: data.fee_amount,
       fee_currency: data.fee_currency,
@@ -310,13 +316,17 @@ export default function SaasAgreementPage() {
                       const childOrg = agreement.seeker_organizations as {
                         organization_name: string;
                       } | null;
+                      const isInternal = !agreement.child_organization_id;
                       return (
                         <TableRow key={agreement.id}>
                           <TableCell className="font-medium">
                             <div className="flex items-center gap-2">
                               <Building2 className="h-4 w-4 text-muted-foreground" />
-                              {childOrg?.organization_name ??
-                                agreement.child_organization_id}
+                              {isInternal ? (
+                                <Badge variant="secondary" className="text-xs">Internal</Badge>
+                              ) : (
+                                childOrg?.organization_name ?? agreement.child_organization_id
+                              )}
                             </div>
                           </TableCell>
                           <TableCell>
@@ -434,6 +444,7 @@ export default function SaasAgreementPage() {
         }
         editingAgreementId={editingAgreement?.id}
         parentOrgId={selectedParentOrgId}
+        parentOrgName={parentOrgName}
         isLoading={isMutating}
         onSubmit={handleSubmit}
       />

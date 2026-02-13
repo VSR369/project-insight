@@ -58,7 +58,7 @@ export function useSaasAgreements(parentOrgId: string | undefined) {
 interface CreateSaasAgreementParams {
   tenant_id: string;
   parent_organization_id: string;
-  child_organization_id: string;
+  child_organization_id?: string | null;
   agreement_type: string;
   fee_amount: number;
   fee_currency: string;
