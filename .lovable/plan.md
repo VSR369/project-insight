@@ -1,127 +1,61 @@
 
 
-# Dynamic Agreement Scope: Parent-Only vs Parent-Child with Context-Aware Departments
+# Fix: Child Org Creation, SaaS Agreement Insert Errors, and RLS Policies
 
-## Problem Analysis
+## Issues Found
 
-The current form always requires a child organization. The user needs two distinct scenarios:
+### Issue 1: Non-Existent Columns on `seeker_organizations`
 
-| Scenario | Child Org | Dept/FA Context | Use Case |
-|---|---|---|---|
-| **Parent Internal** | None (skipped) | Parent org's own departments | Parent org allocating costs across its own internal departments |
-| **Parent to Child** | Required | Child org's departments | Parent org defining agreements with subsidiary/child orgs |
+The `useCreateChildOrg` mutation tries to insert `contact_email`, `contact_phone`, and `contact_person_name` into `seeker_organizations`, but these columns do **not** exist on that table. This causes the "Could not find the 'contact_email' column" error.
 
-### Key Constraint
+**Fix options (choosing Option A):**
 
-`child_organization_id` is currently `NOT NULL` in the database. A migration is needed to make it nullable.
+**Option A -- Remove unsupported fields from the mutation and form.** Since the `seeker_organizations` table doesn't have contact fields, strip them from `CreateChildOrgParams`, `childOrgSchema`, and `CreateChildOrgDialog.tsx`.
 
----
+**Option B (not recommended now)** -- Add the columns via migration. This would require a schema change that may not align with the existing data model where contacts are stored in a separate `seeker_contacts` table.
 
-## UX Design
+### Issue 2: `starts_at` NOT NULL Constraint
 
-### Agreement Scope Toggle
+The `starts_at` column on `saas_agreements` is `NOT NULL` with a default of `now()`. However, the form schema allows `starts_at` to be `null` and the mutation passes it explicitly, overriding the DB default. When the user submits without a start date, `null` is sent, violating the constraint.
 
-A radio group at the top of the Core Agreement section determines the mode:
+**Fix:** In the mutation, strip `starts_at` from the payload if it is null/empty so the database default (`now()`) applies. Alternatively, set a client-side default of today's date.
 
-```text
-Agreement Scope:
-  ( ) Internal Department — Assign fees to a department within the parent organization
-  ( ) Child Organization  — Create an agreement with a child/subsidiary organization
-```
+### Issue 3: Missing INSERT RLS Policy on `saas_agreements`
 
-### Behavior by Mode
+The only write policy on `saas_agreements` is the admin ALL policy (`has_role(auth.uid(), 'platform_admin')`). If the logged-in user is a platform admin, this should work. However, if they aren't being recognized as a platform admin, inserts will fail silently due to RLS.
 
-**Internal Department mode:**
-- Child Organization field: hidden
-- Department label: "Department"
-- Functional Area label: "Functional Area"
-- Section header hint: "Allocate fees to an internal department of [Parent Org Name]"
-
-**Child Organization mode:**
-- Child Organization field: visible (with "+" create button)
-- Department label: "Department (Child Org)"
-- Functional Area label: "Functional Area (Child Org)"
-- Section header hint: "Define fee terms with a child organization"
-
-### Visual Flow
-
-```text
-+-----------------------------------------------+
-| Agreement Scope                                |
-|  (o) Internal Department                       |
-|  ( ) Child Organization                        |
-|                                                |
-| "Allocate fees to an internal department       |
-|  of Acme Corp"                                 |
-|                                                |
-| [Department v]  [Functional Area v]            |
-| [Agreement Type v]  (help text)                |
-| ...remaining fields...                         |
-+-----------------------------------------------+
-```
-
-vs.
-
-```text
-+-----------------------------------------------+
-| Agreement Scope                                |
-|  ( ) Internal Department                       |
-|  (o) Child Organization                        |
-|                                                |
-| [Child Organization v] [+]                     |
-|                                                |
-| [Dept (Child Org) v]  [FA (Child Org) v]       |
-| [Agreement Type v]  (help text)                |
-| ...remaining fields...                         |
-+-----------------------------------------------+
-```
+**Fix:** Verify the current user has the `platform_admin` role. Since this is an admin page, the existing admin ALL policy should be sufficient, but we should confirm it covers INSERT with a WITH CHECK clause. The current policy uses USING only (no WITH CHECK), which for ALL policies means the USING clause is applied to both -- this should work for admins. No RLS change needed if the user is indeed a platform admin.
 
 ---
 
-## Implementation Steps
+## Implementation Plan
 
-### 1. Database Migration
+### Step 1: Fix `useCreateChildOrg` -- Remove Non-Existent Columns
 
-Make `child_organization_id` nullable:
+**File: `src/hooks/queries/useSaasData.ts`**
+- Remove `contact_person_name`, `contact_email`, `contact_phone` from `CreateChildOrgParams` interface
+- These fields won't be sent to the database
 
-```sql
-ALTER TABLE public.saas_agreements
-  ALTER COLUMN child_organization_id DROP NOT NULL;
-```
+### Step 2: Fix `childOrgSchema` -- Remove Non-Existent Fields
 
-### 2. Update Zod Schema (`saasAgreement.schema.ts`)
+**File: `src/pages/admin/saas/saasAgreement.schema.ts`**
+- Remove `contact_person_name`, `contact_email`, `contact_phone` from `childOrgSchema`
 
-- Add `agreement_scope` field: `z.enum(["internal", "child_org"])`, default `"child_org"`
-- Change `child_organization_id` from required UUID to optional/nullable UUID
-- Add a `.refine()`: if `agreement_scope === "child_org"` then `child_organization_id` is required
-- Add `AGREEMENT_SCOPES` constant for the radio options
-- Update `SAAS_AGREEMENT_DEFAULTS` with `agreement_scope: "child_org"`
+### Step 3: Fix `CreateChildOrgDialog.tsx` -- Remove Non-Existent Fields
 
-### 3. Update Form Dialog (`SaasAgreementFormDialog.tsx`)
+**File: `src/components/admin/CreateChildOrgDialog.tsx`**
+- Remove the Contact Person, Contact Phone, and Contact Email form fields from the dialog UI
+- Keep: Organization Name, Legal Entity Name, Country, State, City, Postal Code, Address
 
-- Add `RadioGroup` for agreement scope at the top of Core Agreement
-- Show contextual hint text below the radio based on selected scope (include parent org name)
-- Conditionally show/hide the Child Organization selector based on scope
-- Update Department and Functional Area labels dynamically based on scope
-- Accept `parentOrgName` as a new prop for contextual hint text
-- When scope changes from "child_org" to "internal", clear `child_organization_id` to null
-- When scope changes from "internal" to "child_org", clear `department_id` and `functional_area_id` (different context)
+### Step 4: Fix `starts_at` NULL Issue
 
-### 4. Update Query Hook (`useSaasData.ts`)
+**File: `src/hooks/queries/useSaasData.ts`**
+- In `useCreateSaasAgreement` mutationFn, default `starts_at` to `new Date().toISOString()` when it is null/empty/undefined, so the NOT NULL constraint is never violated.
 
-- Make `child_organization_id` optional in `CreateSaasAgreementParams`
-- Handle null `child_organization_id` in query results gracefully
+### Step 5: Fix null field stripping in mutations
 
-### 5. Update Page (`SaasAgreementPage.tsx`)
-
-- Pass `parentOrgName` to the form dialog (resolve from `orgOptions` using `selectedParentOrgId`)
-- Update `getDefaultValues` to derive `agreement_scope` from whether `child_organization_id` is present
-- Update table: show "Internal" badge when `child_organization_id` is null instead of org name
-
-### 6. Update Types (`useSaasData.ts`)
-
-- `child_organization_id` becomes optional in `CreateSaasAgreementParams`
-- Handle nullable child org in table rendering
+**File: `src/hooks/queries/useSaasData.ts`**
+- Strip null/undefined optional fields from the child org insert payload so PostgREST doesn't try to write non-existent columns.
 
 ---
 
@@ -129,16 +63,7 @@ ALTER TABLE public.saas_agreements
 
 | File | Change |
 |---|---|
-| **Migration** | `ALTER COLUMN child_organization_id DROP NOT NULL` |
-| `src/pages/admin/saas/saasAgreement.schema.ts` | Add `agreement_scope`, make `child_organization_id` optional, add conditional refinement |
-| `src/components/admin/SaasAgreementFormDialog.tsx` | Add scope radio, conditional child org visibility, dynamic labels, accept `parentOrgName` prop |
-| `src/hooks/queries/useSaasData.ts` | Make `child_organization_id` optional in create params |
-| `src/pages/admin/SaasAgreementPage.tsx` | Pass `parentOrgName`, derive `agreement_scope` in defaults, update table display |
-
-## Technical Notes
-
-- `agreement_scope` is a UI-only field (not stored in DB) — it is derived from `child_organization_id` being null or not
-- The `RadioGroup` component from `@radix-ui/react-radio-group` is already installed
-- Department and Functional Area master data is shared (not org-specific), so the same `useDepartments` and `useFunctionalAreas` hooks work for both scenarios
-- Clearing fields on scope change prevents stale cross-context references
+| `src/pages/admin/saas/saasAgreement.schema.ts` | Remove `contact_person_name`, `contact_email`, `contact_phone` from `childOrgSchema` |
+| `src/components/admin/CreateChildOrgDialog.tsx` | Remove Contact Person, Phone, and Email form fields from the dialog |
+| `src/hooks/queries/useSaasData.ts` | Remove non-existent columns from `CreateChildOrgParams`; default `starts_at` to `now()` when null |
 
