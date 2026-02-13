@@ -32,12 +32,40 @@ export const AGREEMENT_TYPE_HELP: Record<string, string> = {
     "Parent pays the platform. Child departments transfer their allocated share to the parent externally. The fee amount here defines the child's internal allocation.",
 };
 
+export const childOrgSchema = z.object({
+  organization_name: z
+    .string()
+    .min(1, "Organization name is required")
+    .max(200, "Name must be 200 characters or less")
+    .trim(),
+  legal_entity_name: z.string().max(200).optional().nullable(),
+  contact_person_name: z.string().max(100).optional().nullable(),
+  contact_email: z
+    .string()
+    .email("Invalid email address")
+    .max(255)
+    .optional()
+    .nullable()
+    .or(z.literal(""))
+    .transform((v) => (v === "" ? null : v)),
+  contact_phone: z.string().max(20).optional().nullable(),
+  hq_country_id: z.string().uuid().optional().nullable(),
+  hq_state_province_id: z.string().uuid().optional().nullable(),
+  hq_city: z.string().max(100).optional().nullable(),
+  hq_postal_code: z.string().max(20).optional().nullable(),
+  hq_address_line1: z.string().max(200).optional().nullable(),
+});
+
+export type ChildOrgFormValues = z.infer<typeof childOrgSchema>;
+
 export const saasAgreementSchema = z
   .object({
     child_organization_id: z
       .string()
       .min(1, "Child organization is required")
       .uuid("Invalid organization selection"),
+    department_id: z.string().uuid().optional().nullable(),
+    functional_area_id: z.string().uuid().optional().nullable(),
     agreement_type: z.enum(["saas_fee", "shadow_billing", "cost_sharing"], {
       errorMap: () => ({ message: "Please select an agreement type" }),
     }),
@@ -135,6 +163,8 @@ export type SaasAgreementFormValues = z.infer<typeof saasAgreementSchema>;
 /** Default values for create mode */
 export const SAAS_AGREEMENT_DEFAULTS: SaasAgreementFormValues = {
   child_organization_id: "",
+  department_id: null,
+  functional_area_id: null,
   agreement_type: "saas_fee",
   fee_amount: 0,
   fee_currency: "USD",

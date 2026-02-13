@@ -130,6 +130,8 @@ export default function SaasAgreementPage() {
       fee_currency: found.fee_currency,
       fee_frequency: found.fee_frequency as SaasAgreementFormValues["fee_frequency"],
       shadow_charge_rate: found.shadow_charge_rate,
+      department_id: found.department_id,
+      functional_area_id: found.functional_area_id,
       billing_frequency: (found.billing_frequency ?? "monthly") as SaasAgreementFormValues["billing_frequency"],
       base_platform_fee: found.base_platform_fee,
       per_department_fee: found.per_department_fee,
@@ -155,6 +157,8 @@ export default function SaasAgreementPage() {
       fee_currency: data.fee_currency,
       fee_frequency: data.fee_frequency,
       shadow_charge_rate: data.shadow_charge_rate,
+      department_id: data.department_id,
+      functional_area_id: data.functional_area_id,
       billing_frequency: data.billing_frequency,
       base_platform_fee: data.base_platform_fee,
       per_department_fee: data.per_department_fee,
@@ -429,6 +433,7 @@ export default function SaasAgreementPage() {
           }))
         }
         editingAgreementId={editingAgreement?.id}
+        parentOrgId={selectedParentOrgId}
         isLoading={isMutating}
         onSubmit={handleSubmit}
       />
