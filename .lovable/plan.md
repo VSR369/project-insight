@@ -1,123 +1,127 @@
 
 
-# Add Department/Functional Area and Inline Child Org Creation to SaaS Agreements
+# Dynamic Agreement Scope: Parent-Only vs Parent-Child with Context-Aware Departments
 
-## Overview
+## Problem Analysis
 
-Two enhancements to the SaaS Agreement form:
-1. Add **Department** and **Functional Area** dropdown selectors (from existing master data) to each agreement
-2. Replace the child org "select-only" dropdown with a **select-or-create** pattern, where a small inline popup captures minimal child org details
+The current form always requires a child organization. The user needs two distinct scenarios:
+
+| Scenario | Child Org | Dept/FA Context | Use Case |
+|---|---|---|---|
+| **Parent Internal** | None (skipped) | Parent org's own departments | Parent org allocating costs across its own internal departments |
+| **Parent to Child** | Required | Child org's departments | Parent org defining agreements with subsidiary/child orgs |
+
+### Key Constraint
+
+`child_organization_id` is currently `NOT NULL` in the database. A migration is needed to make it nullable.
 
 ---
 
-## 1. Database Migration
+## UX Design
 
-The `saas_agreements` table currently lacks `department_id` and `functional_area_id` columns. A migration will add them.
+### Agreement Scope Toggle
+
+A radio group at the top of the Core Agreement section determines the mode:
+
+```text
+Agreement Scope:
+  ( ) Internal Department — Assign fees to a department within the parent organization
+  ( ) Child Organization  — Create an agreement with a child/subsidiary organization
+```
+
+### Behavior by Mode
+
+**Internal Department mode:**
+- Child Organization field: hidden
+- Department label: "Department"
+- Functional Area label: "Functional Area"
+- Section header hint: "Allocate fees to an internal department of [Parent Org Name]"
+
+**Child Organization mode:**
+- Child Organization field: visible (with "+" create button)
+- Department label: "Department (Child Org)"
+- Functional Area label: "Functional Area (Child Org)"
+- Section header hint: "Define fee terms with a child organization"
+
+### Visual Flow
+
+```text
++-----------------------------------------------+
+| Agreement Scope                                |
+|  (o) Internal Department                       |
+|  ( ) Child Organization                        |
+|                                                |
+| "Allocate fees to an internal department       |
+|  of Acme Corp"                                 |
+|                                                |
+| [Department v]  [Functional Area v]            |
+| [Agreement Type v]  (help text)                |
+| ...remaining fields...                         |
++-----------------------------------------------+
+```
+
+vs.
+
+```text
++-----------------------------------------------+
+| Agreement Scope                                |
+|  ( ) Internal Department                       |
+|  (o) Child Organization                        |
+|                                                |
+| [Child Organization v] [+]                     |
+|                                                |
+| [Dept (Child Org) v]  [FA (Child Org) v]       |
+| [Agreement Type v]  (help text)                |
+| ...remaining fields...                         |
++-----------------------------------------------+
+```
+
+---
+
+## Implementation Steps
+
+### 1. Database Migration
+
+Make `child_organization_id` nullable:
 
 ```sql
 ALTER TABLE public.saas_agreements
-  ADD COLUMN department_id UUID REFERENCES md_departments(id),
-  ADD COLUMN functional_area_id UUID REFERENCES md_functional_areas(id);
-
-CREATE INDEX idx_saas_agreements_department ON public.saas_agreements(department_id);
-CREATE INDEX idx_saas_agreements_functional_area ON public.saas_agreements(functional_area_id);
+  ALTER COLUMN child_organization_id DROP NOT NULL;
 ```
 
-No migration is needed for child org creation — child orgs are inserted into the existing `seeker_organizations` table with `tenant_id` pointing to the parent org.
+### 2. Update Zod Schema (`saasAgreement.schema.ts`)
 
----
+- Add `agreement_scope` field: `z.enum(["internal", "child_org"])`, default `"child_org"`
+- Change `child_organization_id` from required UUID to optional/nullable UUID
+- Add a `.refine()`: if `agreement_scope === "child_org"` then `child_organization_id` is required
+- Add `AGREEMENT_SCOPES` constant for the radio options
+- Update `SAAS_AGREEMENT_DEFAULTS` with `agreement_scope: "child_org"`
 
-## 2. Update Zod Schema (`saasAgreement.schema.ts`)
+### 3. Update Form Dialog (`SaasAgreementFormDialog.tsx`)
 
-Add two new optional fields:
-- `department_id` — UUID string, optional/nullable
-- `functional_area_id` — UUID string, optional/nullable
+- Add `RadioGroup` for agreement scope at the top of Core Agreement
+- Show contextual hint text below the radio based on selected scope (include parent org name)
+- Conditionally show/hide the Child Organization selector based on scope
+- Update Department and Functional Area labels dynamically based on scope
+- Accept `parentOrgName` as a new prop for contextual hint text
+- When scope changes from "child_org" to "internal", clear `child_organization_id` to null
+- When scope changes from "internal" to "child_org", clear `department_id` and `functional_area_id` (different context)
 
-Add a new schema for the inline child org creation popup:
+### 4. Update Query Hook (`useSaasData.ts`)
 
-```text
-childOrgSchema:
-  - organization_name (required, max 200)
-  - legal_entity_name (optional, max 200)
-  - contact_person_name (optional, max 100)
-  - contact_email (optional, email validation)
-  - contact_phone (optional, max 20)
-  - hq_country_id (optional, UUID)
-  - hq_state_province_id (optional, UUID)
-  - hq_city (optional, max 100)
-  - hq_postal_code (optional, max 20)
-  - hq_address_line1 (optional, max 200)
-```
+- Make `child_organization_id` optional in `CreateSaasAgreementParams`
+- Handle null `child_organization_id` in query results gracefully
 
----
+### 5. Update Page (`SaasAgreementPage.tsx`)
 
-## 3. New Component: `CreateChildOrgDialog.tsx`
+- Pass `parentOrgName` to the form dialog (resolve from `orgOptions` using `selectedParentOrgId`)
+- Update `getDefaultValues` to derive `agreement_scope` from whether `child_organization_id` is present
+- Update table: show "Internal" badge when `child_organization_id` is null instead of org name
 
-A lightweight dialog for creating a child organization with limited fields:
+### 6. Update Types (`useSaasData.ts`)
 
-```text
-Dialog Title: "Add Child Organization"
-
-Fields:
-  - Organization Name * (text input)
-  - Legal Entity Name (text input)
-  - Contact Person Name (text input)
-  - Contact Email (text input)
-  - Contact Phone (text input)
-  - Country (select from countries master data)
-  - State/Province (select, filtered by country)
-  - City (text input)
-  - Postal Code (text input)
-  - Address Line 1 (text input)
-
-Buttons: Cancel | Create
-```
-
-On successful creation:
-- Inserts into `seeker_organizations` with `tenant_id = selectedParentOrgId` and `is_active = true`
-- Returns the new org's `id`
-- Invalidates the org picker query
-- Auto-selects the newly created org in the agreement form
-
----
-
-## 4. New Hook: `useCreateChildOrg` (in `useSaasData.ts`)
-
-A mutation hook that inserts a new `seeker_organizations` row with the limited fields, uses `withCreatedBy`, and invalidates `org-picker-options`.
-
----
-
-## 5. Update `SaasAgreementFormDialog.tsx`
-
-Changes to the Core Agreement section:
-
-**Child Organization field**: Add a "+" button next to the select dropdown. Clicking it opens the `CreateChildOrgDialog`. After creation, the new org appears in the dropdown and is auto-selected.
-
-**New fields after Child Organization**:
-
-```text
-Department (select from md_departments, optional)
-Functional Area (select from md_functional_areas filtered by department_id, optional)
-```
-
-The Functional Area dropdown is filtered: if a department is selected, only show functional areas belonging to that department. If no department is selected, show all.
-
----
-
-## 6. Update Query Hook (`useSaasData.ts`)
-
-- Add `department_id`, `functional_area_id` to the `useSaasAgreements` select query
-- Add `department_id`, `functional_area_id` to `CreateSaasAgreementParams` and `UpdateSaasAgreementUpdates`
-- Join `md_departments(name)` and `md_functional_areas(name)` in the query for display in the table
-- Add `useCreateChildOrg` mutation
-
----
-
-## 7. Update `SaasAgreementPage.tsx`
-
-- Wire `department_id` and `functional_area_id` through `getDefaultValues` and `handleSubmit`
-- Pass department/functional area data to the form dialog
-- Optionally add Department column to the table (keep table manageable)
+- `child_organization_id` becomes optional in `CreateSaasAgreementParams`
+- Handle nullable child org in table rendering
 
 ---
 
@@ -125,17 +129,16 @@ The Functional Area dropdown is filtered: if a department is selected, only show
 
 | File | Change |
 |---|---|
-| **Migration** | Add `department_id` and `functional_area_id` columns to `saas_agreements` |
-| `src/pages/admin/saas/saasAgreement.schema.ts` | Add `department_id`, `functional_area_id` fields + `childOrgSchema` |
-| `src/components/admin/CreateChildOrgDialog.tsx` | **New** — lightweight child org creation dialog |
-| `src/components/admin/SaasAgreementFormDialog.tsx` | Add Department/Functional Area selects + "+" button for inline child org creation |
-| `src/hooks/queries/useSaasData.ts` | Expand queries/mutations for new columns + `useCreateChildOrg` |
-| `src/pages/admin/SaasAgreementPage.tsx` | Wire new fields, pass department/FA data to dialog |
+| **Migration** | `ALTER COLUMN child_organization_id DROP NOT NULL` |
+| `src/pages/admin/saas/saasAgreement.schema.ts` | Add `agreement_scope`, make `child_organization_id` optional, add conditional refinement |
+| `src/components/admin/SaasAgreementFormDialog.tsx` | Add scope radio, conditional child org visibility, dynamic labels, accept `parentOrgName` prop |
+| `src/hooks/queries/useSaasData.ts` | Make `child_organization_id` optional in create params |
+| `src/pages/admin/SaasAgreementPage.tsx` | Pass `parentOrgName`, derive `agreement_scope` in defaults, update table display |
 
 ## Technical Notes
 
-- Existing hooks `useDepartments` (from `usePrimaryContactData.ts`) and `useFunctionalAreas` already fetch the master data needed for the dropdowns
-- Countries and states hooks (`useCountries`, `useStatesProvinces` from `useRegistrationData.ts`) are reused in the child org creation dialog
-- Child orgs are created with `tenant_id = parentOrgId`, inheriting the parent's tenant scope for RLS compliance
-- The Functional Area dropdown cascades from Department selection using the `department_id` FK on `md_functional_areas`
+- `agreement_scope` is a UI-only field (not stored in DB) — it is derived from `child_organization_id` being null or not
+- The `RadioGroup` component from `@radix-ui/react-radio-group` is already installed
+- Department and Functional Area master data is shared (not org-specific), so the same `useDepartments` and `useFunctionalAreas` hooks work for both scenarios
+- Clearing fields on scope change prevents stale cross-context references
 
