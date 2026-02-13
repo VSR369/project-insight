@@ -1,85 +1,41 @@
 
 
-# Update Tier Features to Match Plan Details
+# Update Summary Tab to Match Marketplace/Aggregator Tabs
 
-## Current State
+The Summary tab currently only shows 4 cards (Access Matrix, Platform Fees, Billing Discounts, Complexity Multipliers). It is missing several sections that appear in the model-specific tabs. This update adds the missing comparison matrices and passes the required data.
 
-The `md_tier_features` table currently has 8 generic features per tier (Marketplace Access, Aggregator Access, Dedicated Account Manager, Analytics Dashboard, API Access, Priority Support, Custom Integrations, White-label Reports). These don't reflect the actual plan offering shown in the reference image.
+## Changes (single file: `PricingOverviewPage.tsx`)
 
-## What Changes
+### 1. Pass missing data to SummaryTab
 
-### 1. Database: Replace Feature Rows
+Add these props: `countryPricing`, `baseFees`, `shadowPricing`, `membershipTiers`, `features`
 
-Delete existing feature records and insert new ones matching the reference image. The `md_tier_features` table already has the right schema (`feature_name`, `access_type` = included/not_available, `usage_limit`, `description`).
+### 2. Add missing comparison cards to SummaryTab
 
-**Basic Tier features:**
+The following cards will be added after the existing ones, in this order:
 
-| # | Feature | Access | Description |
-|---|---------|--------|-------------|
-| 1 | 10 challenges per subscription period | included | |
-| 2 | 1 solution per challenge | included | |
-| 3 | Additional challenges available (fees apply) | included | |
-| 4 | Single workflow template | included | |
-| 5 | Basic uptime monitoring | included | |
-| 6 | Self-service help center | included | |
-| 7 | Analytics dashboards | not_available | |
-| 8 | Onboarding support | not_available | |
+| Card | Content |
+|------|---------|
+| **Subscription Pricing** | Table with columns: Country, then each tier's monthly USD price. Grouped from `countryPricing` data. |
+| **Challenge Base Fees** | Table per country showing Consulting Fee and Management Fee columns for each tier. Note at bottom: "Applicable to Marketplace model only. Aggregator model does not use consulting/management fees." |
+| **Shadow Pricing** | Matrix: Tier columns, single row showing shadow charge per challenge. |
+| **Membership Discounts** | Table: Tier name, Duration, Fee Discount %, Commission %. Same as the per-tier section but consolidated. |
+| **Tier Features Comparison** | Matrix: Feature name rows, tier columns with Check/X icons matching the included/not_available styling (checkmark for included, X with strikethrough for not available). Description notes shown as footer per tier. |
 
-Extra note stored in `description`: "$5 per additional challenge"
+### 3. Update Complexity Multipliers card
 
-**Standard Tier features:**
+Add a note: "Applicable to Marketplace model only" to match the Aggregator tab behavior.
 
-| # | Feature | Access | Description |
-|---|---------|--------|-------------|
-| 1 | 20 challenges per subscription period | included | |
-| 2 | 2 solutions per challenge | included | |
-| 3 | Additional challenges available (fees apply) | included | |
-| 4 | Up to 3 standard workflow templates | included | |
-| 5 | Priority incident response | included | |
-| 6 | Advanced dashboards and analytics | included | |
-| 7 | Tutorials, FAQs and webinars | included | |
-| 8 | Email and chat support | included | |
+### 4. Visual consistency
 
-Extra note: "$3 per additional challenge"
-
-**Premium Tier features:**
-
-| # | Feature | Access | Description |
-|---|---------|--------|-------------|
-| 1 | Unlimited challenges | included | |
-| 2 | 3 solutions per challenge | included | |
-| 3 | No per-challenge fees | included | |
-| 4 | Configurable workflows with conditional logic, custom fields and routing | included | |
-| 5 | 24/7 dedicated support team | included | |
-| 6 | Advanced analytics with AI insights | included | |
-| 7 | Personalized onboarding and strategy sessions | included | |
-| 8 | Full API access and webhooks | included | |
-
-Extra note: "Included (no per-challenge fee)"
-
-### 2. UI: Update Features Section in Pricing Overview
-
-Modify the Features section in `TierCard` within `PricingOverviewPage.tsx` to:
-- Show check marks for `included` features
-- Show X marks for `not_available` features (with muted/strikethrough text, matching the image style)
-- Display the tier description note (e.g., "+ $5 per additional challenge") below the feature list
-
-### 3. Clarification on Scope
-
-- These features are **the same for both engagement models** (Marketplace and Aggregator tabs show the same features per tier)
-- What varies by engagement model is the **fee structure** (consulting fee, management fee, platform fee) -- which is already handled correctly in the existing tier card sections
-
-## Files Changed
-
-| File | Action |
-|------|--------|
-| Database migration | **New** -- DELETE old features, INSERT new features for all 3 tiers |
-| `src/pages/admin/pricing-overview/PricingOverviewPage.tsx` | **Modify** -- Update the Features `CollapsibleSection` to show X/strikethrough for not_available features and the description note |
+- All tables use the existing `Table` component wrapped in `overflow-auto`
+- Badges, Check/X icons, and styling match exactly what the Marketplace and Aggregator tabs display
+- Feature comparison uses the same two-tone (green check / red X with strikethrough) pattern
 
 ## Technical Details
 
-- The migration uses the existing tier IDs: Basic = `e3338419-...`, Standard = `f685fd94-...`, Premium = `41396207-...`
-- Feature codes will use snake_case identifiers (e.g., `challenges_per_period`, `solutions_per_challenge`)
-- The `description` column on `md_tier_features` will store the per-additional-challenge note
-- The UI change is minor -- the existing Features section already handles `access_type` but needs the X + strikethrough styling for `not_available` items and a footer note from the description field
+- `SummaryTab` props interface expands to include `countryPricing`, `baseFees`, `shadowPricing`, `membershipTiers`, `features`
+- Country pricing grouped by country using a reduce/map pattern, with tier prices as columns
+- Features grouped by `feature_name` across tiers for side-by-side comparison
+- No new hooks or files needed -- all data is already fetched in the parent component
 
