@@ -122,6 +122,9 @@ const ExportControlPage = lazy(() => import("@/pages/admin/export-control").then
 const DataResidencyPage = lazy(() => import("@/pages/admin/data-residency").then(m => ({ default: m.DataResidencyPage })));
 const BlockedDomainsPage = lazy(() => import("@/pages/admin/blocked-domains").then(m => ({ default: m.BlockedDomainsPage })));
 const PlatformTermsPage = lazy(() => import("@/pages/admin/platform-terms").then(m => ({ default: m.PlatformTermsPage })));
+const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").then(m => ({ default: m.MembershipTiersPage })));
+const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
+const ShadowPricingPage = lazy(() => import("@/pages/admin/shadow-pricing").then(m => ({ default: m.ShadowPricingPage })));
 
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -658,6 +661,9 @@ const App = () => (
             <Route path="/admin/seeker-config/data-residency" element={<AdminGuard><LazyRoute><DataResidencyPage /></LazyRoute></AdminGuard>} />
             <Route path="/admin/seeker-config/blocked-domains" element={<AdminGuard><LazyRoute><BlockedDomainsPage /></LazyRoute></AdminGuard>} />
             <Route path="/admin/seeker-config/platform-terms" element={<AdminGuard><LazyRoute><PlatformTermsPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/membership-tiers" element={<AdminGuard><LazyRoute><MembershipTiersPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/base-fees" element={<AdminGuard><LazyRoute><BaseFeesPage /></LazyRoute></AdminGuard>} />
+            <Route path="/admin/seeker-config/shadow-pricing" element={<AdminGuard><LazyRoute><ShadowPricingPage /></LazyRoute></AdminGuard>} />
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
               path="/reviewer/invitation-response"
