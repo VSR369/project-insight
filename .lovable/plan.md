@@ -1,76 +1,93 @@
 
 
-# Fix: Challenge Base Fees -- Filter by Engagement Model
+# Performance Fix: Slow Admin Page Navigation (5-10s to <1s)
 
-## Problem
+## Root Cause Analysis (5 Whys)
 
-The Challenge Base Fees summary table shows management fees as 0 because the code doesn't filter base fees by engagement model. The database has two rows per country+tier combination:
-- **Marketplace**: has both consulting AND management fees (e.g., India Basic: consulting 20,000 / management 8,000)
-- **Aggregator**: has consulting fees only, management = 0 (e.g., India Basic: consulting 14,000 / management 0)
+**Symptom:** Clicking any admin sidebar menu item takes 5-10 seconds to display the page.
 
-When the `baseFeesByCountry` reducer processes both rows for the same country+tier, whichever is processed last wins. Depending on data order, the Aggregator row (management=0) can overwrite the Marketplace row.
+1. **Why is the page slow to appear?** Because the browser must download, parse, and execute the JavaScript chunk for each lazy-loaded page before React can render it.
 
-## Solution
+2. **Why are the chunks slow to download?** Because the initial bundle is bloated. 15 Pulse pages are **eagerly imported** (not lazy-loaded) in App.tsx line 85, pulling their entire dependency tree into the main bundle. This means every page load -- including admin pages -- pays the cost of parsing Pulse code.
 
-Two fixes in `PricingOverviewPage.tsx`:
+3. **Why does the chunk download not start sooner?** Because there is no **prefetching** of admin route chunks. The chunk only begins downloading after the user clicks a sidebar item. The browser must complete: click -> React Router match -> Suspense triggers -> dynamic import starts -> network fetch -> parse -> render. All of this is sequential.
 
-### Fix 1: TierCard -- Filter base fees by engagement model
+4. **Why is there no prefetching?** The sidebar items use plain `navigate()` calls with no preloading strategy. When a user hovers or the admin shell mounts, no chunks are fetched ahead of time.
 
-In the `TierCard` component (around line 120), the `tierBaseFees` filter currently only matches by `tier_id`. It needs to also match the engagement model being viewed.
+5. **Why does back-navigation also feel slow?** Because while React Query caches the API data (staleTime 5min), the JavaScript chunks are re-evaluated by the module system on each navigation. Additionally, the `AdminSidebar` instantiates 5 mutation hooks (`usePendingReviewerCount`) on every render cycle.
 
-**Current:**
+## Solution: Three Targeted Fixes
+
+### Fix 1: Convert Pulse Pages from Eager to Lazy Imports (BIGGEST IMPACT)
+
+Currently, 15 Pulse pages are eagerly imported in App.tsx. They are pulled into the main bundle even when visiting admin pages, inflating parse time for every single route.
+
+**Change in `src/App.tsx`:**
+- Move the Pulse barrel import from eager (line 85) to lazy loading, just like admin pages
+- Each Pulse page becomes a `lazy(() => import(...))` call
+- This reduces the initial bundle size significantly, speeding up all routes
+
+### Fix 2: Add Route Chunk Prefetching to AdminSidebar
+
+When the AdminShell mounts, preload the chunks for the most likely admin pages. When a user hovers on any sidebar item, preload that specific chunk.
+
+**Changes:**
+- Create a `src/lib/routePrefetch.ts` utility that maps sidebar paths to their dynamic import functions
+- In `AdminSidebar`, call `prefetchAdminRoutes()` once on mount (via useEffect) to preload the top 5-6 most-used pages
+- Add `onMouseEnter` handlers to sidebar menu items to prefetch the hovered route's chunk
+
+**Prefetch utility pattern:**
 ```typescript
-const tierBaseFees = baseFees.filter((bf: any) => bf.tier_id === tier.id);
+const ADMIN_ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
+  '/admin/master-data/countries': () => import('@/pages/admin/countries'),
+  '/admin/master-data/industry-segments': () => import('@/pages/admin/industry-segments'),
+  // ... all admin routes
+};
+
+export function prefetchRoute(path: string) {
+  ADMIN_ROUTE_IMPORTS[path]?.();
+}
+
+export function prefetchAdminRoutes() {
+  // Preload top routes after a short idle delay
+  requestIdleCallback(() => {
+    ['/admin/master-data/countries', '/admin/master-data/industry-segments', ...]
+      .forEach(path => prefetchRoute(path));
+  });
+}
 ```
 
-**New:**
-```typescript
-const marketplaceModel = engagementModels?.find((m: any) => m.code?.toLowerCase() === 'marketplace');
-const tierBaseFees = baseFees.filter((bf: any) => 
-  bf.tier_id === tier.id && 
-  (isAggregator ? false : bf.engagement_model_id === marketplaceModel?.id)
-);
-```
+### Fix 3: Eager-Load AdminDashboard (Already Done) and Deduplicate Sidebar Queries
 
-This requires passing `engagementModels` into TierCard (it's already available via the `allTiers`-style pattern -- we'll pass it through).
+The `AdminSidebar` calls `usePendingReviewerCount()` which fires a HEAD request to `panel_reviewers` on every sidebar render. This is fine, but ensure it uses aggressive caching.
 
-Wait -- actually TierCard already receives the model code via `modelCode` prop, but not the models list. We need a simpler approach: pass the filtered baseFees from the parent. The parent (line 815) passes ALL baseFees to every TierCard. Instead, filter at the parent level or pass the model ID.
-
-**Simpler approach -- add engagementModels prop to TierCard:**
-
-Add `engagementModels` to `TierCardProps` and use it to find the Marketplace model ID for filtering. For Aggregator tabs, the existing `isAggregator` check already shows "Not Applicable", so the filter only matters for Marketplace.
-
-### Fix 2: SummaryTab -- Filter to Marketplace fees only
-
-In the `SummaryTab` component (lines 379-385), the `baseFeesByCountry` reducer processes all base fees. It should filter to Marketplace model only, since the summary note already states "Applicable to Marketplace model only."
-
-**Current:**
-```typescript
-const baseFeesByCountry = baseFees.reduce((acc, bf) => { ... }, {});
-```
-
-**New:**
-```typescript
-const marketplaceModel = engagementModels.find((m: any) => m.code?.toLowerCase() === 'marketplace');
-const marketplaceBaseFees = baseFees.filter((bf: any) => bf.engagement_model_id === marketplaceModel?.id);
-const baseFeesByCountry = marketplaceBaseFees.reduce((acc, bf) => { ... }, {});
-```
+**Changes in `AdminSidebar.tsx`:**
+- Add `onMouseEnter` prefetch handlers to each sidebar menu item
+- Call `prefetchAdminRoutes()` on mount
 
 ## Files Changed
 
-Only one file: `src/pages/admin/pricing-overview/PricingOverviewPage.tsx`
+| File | Change |
+|---|---|
+| `src/App.tsx` | Convert 15 Pulse page imports from eager to lazy |
+| `src/lib/routePrefetch.ts` | New file: admin route prefetch registry |
+| `src/components/admin/AdminSidebar.tsx` | Add onMouseEnter prefetch + mount-time preload |
 
-- **TierCard** (line ~120): Add engagement model filtering to `tierBaseFees`
-- **TierCardProps** (line ~96): Add `engagementModels` prop
-- **TierCard invocation** (line ~807): Pass `engagementModels` prop
-- **SummaryTab** (line ~379): Filter base fees to Marketplace only before grouping
+## What We Are NOT Changing
 
-## Expected Result
+| Item | Reason |
+|---|---|
+| React Query config | Already optimized (staleTime 30s, gcTime 5min) |
+| DataTable component | Already has skeletons, pagination, memoized columns |
+| Hook patterns | Already use React Query with explicit columns |
+| Server-side pagination | Datasets are 10-200 rows; client-side is faster |
+| Database indexes | Already added in previous migration |
+| Lazy loading of admin pages | Already implemented |
 
-After fix:
-- **Marketplace tab tier cards**: Show only Marketplace base fees (consulting + management, both non-zero)
-- **Aggregator tab tier cards**: Continue showing "Not Applicable" (unchanged)
-- **Summary tab "Challenge Base Fees" table**: Shows Marketplace fees only with correct management fee values (e.g., India Basic: consulting 20,000 / management 8,000)
+## Expected Results
 
-No database changes, no hook changes, no navigation or UX disruptions.
+- **First admin page load:** <1s (chunk prefetched during idle or hover)
+- **Subsequent navigation:** Near-instant (chunk already cached by browser)
+- **Main bundle size reduction:** ~30-50% smaller from removing eager Pulse imports
+- **Zero functional changes:** No database, hook, UX, or navigation modifications
 
