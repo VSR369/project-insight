@@ -25,6 +25,30 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Plus,
@@ -33,6 +57,9 @@ import {
   Pencil,
   AlertCircle,
   RefreshCw,
+  MoreHorizontal,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
@@ -68,6 +95,8 @@ export default function SaasAgreementPage() {
     parentOrgId: string;
   } | null>(null);
   const [selectedParentOrgId, setSelectedParentOrgId] = useState<string>("");
+  const [viewingAgreementId, setViewingAgreementId] = useState<string | null>(null);
+  const [deletingAgreementId, setDeletingAgreementId] = useState<string | null>(null);
 
   // ══════════════════════════════════════
   // SECTION 2: Custom hooks
@@ -212,6 +241,24 @@ export default function SaasAgreementPage() {
       updates: { lifecycle_status: "active" },
     });
   };
+
+  const handleDelete = (agreementId: string) => {
+    updateAgreement.mutate({
+      agreementId,
+      parentOrgId: selectedParentOrgId,
+      updates: {
+        lifecycle_status: "cancelled",
+        cancellation_reason: "Deleted by admin",
+        cancelled_at: new Date().toISOString(),
+      },
+    });
+    setDeletingAgreementId(null);
+  };
+
+  const viewingAgreement = useMemo(() => {
+    if (!viewingAgreementId || !agreements) return null;
+    return agreements.find((a: { id: string }) => a.id === viewingAgreementId) ?? null;
+  }, [viewingAgreementId, agreements]);
 
   // ══════════════════════════════════════
   // SECTION 8: Render
@@ -365,33 +412,45 @@ export default function SaasAgreementPage() {
                             )}
                           </TableCell>
                           <TableCell className="text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleOpenEdit(agreement.id)}
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                              {agreement.lifecycle_status === "active" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleSuspend(agreement.id)}
-                                >
-                                  Suspend
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" size="sm">
+                                  <MoreHorizontal className="h-4 w-4" />
                                 </Button>
-                              )}
-                              {agreement.lifecycle_status === "suspended" && (
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleActivate(agreement.id)}
-                                >
-                                  Reactivate
-                                </Button>
-                              )}
-                            </div>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => setViewingAgreementId(agreement.id)}>
+                                  <Eye className="mr-2 h-4 w-4" />
+                                  View
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleOpenEdit(agreement.id)}>
+                                  <Pencil className="mr-2 h-4 w-4" />
+                                  Edit
+                                </DropdownMenuItem>
+                                {agreement.lifecycle_status === "active" && (
+                                  <DropdownMenuItem onClick={() => handleSuspend(agreement.id)}>
+                                    Suspend
+                                  </DropdownMenuItem>
+                                )}
+                                {agreement.lifecycle_status === "suspended" && (
+                                  <DropdownMenuItem onClick={() => handleActivate(agreement.id)}>
+                                    Reactivate
+                                  </DropdownMenuItem>
+                                )}
+                                {agreement.lifecycle_status !== "cancelled" && (
+                                  <>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem
+                                      className="text-destructive focus:text-destructive"
+                                      onClick={() => setDeletingAgreementId(agreement.id)}
+                                    >
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                    </DropdownMenuItem>
+                                  </>
+                                )}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
                           </TableCell>
                         </TableRow>
                       );
@@ -448,6 +507,84 @@ export default function SaasAgreementPage() {
         isLoading={isMutating}
         onSubmit={handleSubmit}
       />
+
+      {/* View Agreement Dialog */}
+      <Dialog open={!!viewingAgreementId} onOpenChange={(open) => !open && setViewingAgreementId(null)}>
+        <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle>Agreement Details</DialogTitle>
+            <DialogDescription>Read-only view of the agreement</DialogDescription>
+          </DialogHeader>
+          {viewingAgreement && (
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-3 py-4 text-sm">
+              <DetailRow label="Child Organization" value={
+                (viewingAgreement.seeker_organizations as { organization_name: string } | null)?.organization_name
+                  ?? (viewingAgreement.child_organization_id ? viewingAgreement.child_organization_id : "Internal")
+              } />
+              <DetailRow label="Type" value={viewingAgreement.agreement_type.replace("_", " ")} />
+              <DetailRow label="Status" value={viewingAgreement.lifecycle_status} />
+              <DetailRow label="Fee" value={`${viewingAgreement.fee_currency} ${Number(viewingAgreement.fee_amount).toLocaleString()}`} />
+              <DetailRow label="Fee Frequency" value={viewingAgreement.fee_frequency} />
+              <DetailRow label="Billing Frequency" value={viewingAgreement.billing_frequency ?? "—"} />
+              {viewingAgreement.shadow_charge_rate != null && (
+                <DetailRow label="Shadow Charge Rate" value={`${viewingAgreement.shadow_charge_rate}%`} />
+              )}
+              {viewingAgreement.base_platform_fee != null && (
+                <DetailRow label="Base Platform Fee" value={Number(viewingAgreement.base_platform_fee).toLocaleString()} />
+              )}
+              {viewingAgreement.per_department_fee != null && (
+                <DetailRow label="Per Department Fee" value={Number(viewingAgreement.per_department_fee).toLocaleString()} />
+              )}
+              {viewingAgreement.support_tier_fee != null && (
+                <DetailRow label="Support Tier Fee" value={Number(viewingAgreement.support_tier_fee).toLocaleString()} />
+              )}
+              {viewingAgreement.custom_fee_1_label && (
+                <DetailRow label={viewingAgreement.custom_fee_1_label} value={Number(viewingAgreement.custom_fee_1_amount ?? 0).toLocaleString()} />
+              )}
+              {viewingAgreement.custom_fee_2_label && (
+                <DetailRow label={viewingAgreement.custom_fee_2_label} value={Number(viewingAgreement.custom_fee_2_amount ?? 0).toLocaleString()} />
+              )}
+              <DetailRow label="MSA Reference" value={viewingAgreement.msa_reference_number ?? "—"} />
+              <DetailRow label="MSA Document" value={viewingAgreement.msa_document_url ?? "—"} />
+              <DetailRow label="Starts At" value={viewingAgreement.starts_at ? format(new Date(viewingAgreement.starts_at), "MMM dd, yyyy") : "—"} />
+              <DetailRow label="Ends At" value={viewingAgreement.ends_at ? format(new Date(viewingAgreement.ends_at), "MMM dd, yyyy") : "—"} />
+              <DetailRow label="Auto Renew" value={viewingAgreement.auto_renew ? "Yes" : "No"} />
+              <DetailRow label="Notes" value={viewingAgreement.notes ?? "—"} />
+              <DetailRow label="Created" value={format(new Date(viewingAgreement.created_at), "MMM dd, yyyy")} />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingAgreementId} onOpenChange={(open) => !open && setDeletingAgreementId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Agreement</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will cancel the agreement. This action cannot be undone. Are you sure?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deletingAgreementId && handleDelete(deletingAgreementId)}
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
+  );
+}
+
+function DetailRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex justify-between gap-4">
+      <span className="text-muted-foreground shrink-0">{label}</span>
+      <span className="font-medium text-right capitalize">{value}</span>
+    </div>
   );
 }
