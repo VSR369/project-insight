@@ -87,14 +87,20 @@ export function useCreateSaasAgreement() {
 
   return useMutation({
     mutationFn: async (params: CreateSaasAgreementParams) => {
-      const withAudit = await withCreatedBy({
-        ...params,
+      // Strip null starts_at so DB default (now()) applies
+      const { starts_at, ends_at, ...rest } = params;
+      const payload: Record<string, unknown> = {
+        ...rest,
         lifecycle_status: 'active',
         auto_renew: params.auto_renew ?? true,
-      });
+      };
+      if (starts_at) payload.starts_at = starts_at;
+      if (ends_at) payload.ends_at = ends_at;
+
+      const withAudit = await withCreatedBy(payload);
       const { data, error } = await supabase
         .from('saas_agreements')
-        .insert(withAudit)
+        .insert(withAudit as any)
         .select()
         .single();
 
@@ -183,9 +189,6 @@ interface CreateChildOrgParams {
   tenant_id: string;
   organization_name: string;
   legal_entity_name?: string | null;
-  contact_person_name?: string | null;
-  contact_email?: string | null;
-  contact_phone?: string | null;
   hq_country_id?: string | null;
   hq_state_province_id?: string | null;
   hq_city?: string | null;

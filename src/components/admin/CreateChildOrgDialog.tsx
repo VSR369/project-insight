@@ -1,6 +1,6 @@
 /**
  * CreateChildOrgDialog — Lightweight popup for creating a child organization
- * with minimal details (name, contact, location).
+ * with minimal details (name, location).
  *
  * Standards: Section 7.3 (dialog), 8.1 (Zod+RHF), 23 (hook order)
  */
@@ -59,9 +59,6 @@ export function CreateChildOrgDialog({
     defaultValues: {
       organization_name: "",
       legal_entity_name: null,
-      contact_person_name: null,
-      contact_email: null,
-      contact_phone: null,
       hq_country_id: null,
       hq_state_province_id: null,
       hq_city: null,
@@ -119,62 +116,6 @@ export function CreateChildOrgDialog({
                   <FormControl>
                     <Input
                       placeholder="Legal name (if different)"
-                      {...field}
-                      value={field.value ?? ""}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="contact_person_name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Person</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="Full name"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="contact_phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Contact Phone</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder="+1 555-0100"
-                        {...field}
-                        value={field.value ?? ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="contact_email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Contact Email</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      placeholder="contact@org.com"
                       {...field}
                       value={field.value ?? ""}
                     />
