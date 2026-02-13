@@ -226,6 +226,25 @@ export function useCreateChildOrg() {
 }
 
 // ============================================================
+// Duplicate Organization Check
+// ============================================================
+
+export function useCheckDuplicateOrg() {
+  return useMutation({
+    mutationFn: async (params: { orgName: string; countryId?: string | null }) => {
+      const { data, error } = await supabase.rpc('check_duplicate_organization', {
+        p_org_name: params.orgName,
+        p_country_id: params.countryId ?? null,
+        p_exclude_id: null,
+      });
+
+      if (error) throw new Error(error.message);
+      return (data ?? []) as Array<{ id: string; organization_name: string; similarity_score: number }>;
+    },
+  });
+}
+
+// ============================================================
 // Parent Dashboard Metrics
 // ============================================================
 
