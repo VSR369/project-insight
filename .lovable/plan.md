@@ -1,120 +1,143 @@
 
 
-## SaaS Agreement Admin Page -- Compliance Overhaul
+# Complete SaaS Agreement Form — All DB Fields + Validation
 
-### Current State (Problems Found)
+## Overview
 
-The existing `SaasAgreementPage.tsx` has **14 violations** against the project's Enterprise Architecture standards:
+The `saas_agreements` table has 10 fields that exist in the database but are not exposed in the form, query hooks, or schema. This plan adds every missing field, organizes them into logical collapsible sections, adds agreement-type-specific contextual help, and implements shadow billing cross-validation.
 
-| # | Issue | Standard Violated |
-|---|-------|-------------------|
-| 1 | Raw UUID text input for child org | UX / usability |
-| 2 | No Zod validation schema | Section 8.1 (mandatory Zod + RHF) |
-| 3 | No React Hook Form usage | Section 8.1 |
-| 4 | No `withCreatedBy` / `withUpdatedBy` audit fields | Section 24.1 |
-| 5 | Hardcoded `DEMO_PARENT_ORG_ID` / `DEMO_TENANT_ID` | Should use auth context |
-| 6 | Manual `useState` for form state | Section 6.2 (forms must use RHF) |
-| 7 | No inline validation or error messages | Section 8.1 |
-| 8 | No loading/empty/error states on dialog | Section 7.2 |
-| 9 | Missing table overflow wrapper | Section 9.3 |
-| 10 | No edit dialog -- only create | Section 7.4 (CRUD incomplete) |
-| 11 | Missing `starts_at` / `ends_at` date fields in form | Schema columns exist but are unused |
-| 12 | Missing `auto_renew` toggle | Schema column exists but is hardcoded to `true` |
-| 13 | `useSaasData.ts` hook uses `select('*')` pattern | Section 16.2 (no `SELECT *`) |
-| 14 | Multiple additional schema columns ignored (MSA ref, custom fees, etc.) | Incomplete feature coverage |
+## Current State vs Target
 
----
+| DB Column | Currently in Form? | Action |
+|---|---|---|
+| `base_platform_fee` | No | Add to Advanced Fees section |
+| `per_department_fee` | No | Add to Advanced Fees section |
+| `support_tier_fee` | No | Add to Advanced Fees section |
+| `custom_fee_1_label` | No | Add to Custom Fees section |
+| `custom_fee_1_amount` | No | Add to Custom Fees section |
+| `custom_fee_2_label` | No | Add to Custom Fees section |
+| `custom_fee_2_amount` | No | Add to Custom Fees section |
+| `msa_reference_number` | No | Add to Contract Details section |
+| `msa_document_url` | No | Add to Contract Details section |
+| `billing_frequency` | No | Add to Contract Details section |
+| Shadow % validation | No | Add cross-agreement sum check |
 
-### Implementation Plan
+## Implementation Steps
 
-#### Task 1: Create Zod Validation Schema
+### 1. Update Zod Schema (`saasAgreement.schema.ts`)
 
-Create a new file `src/pages/admin/saas/saasAgreement.schema.ts`:
+Add all missing fields to the schema:
 
-- `saasAgreementSchema` with all form fields validated:
-  - `child_organization_id` -- required UUID
-  - `agreement_type` -- enum: `saas_fee | shadow_billing | cost_sharing`
-  - `fee_amount` -- coerced number, min 0
-  - `fee_currency` -- 3-char uppercase string
-  - `fee_frequency` -- enum: `monthly | quarterly | annually`
-  - `shadow_charge_rate` -- optional number, 0-100
-  - `starts_at` -- optional date string
-  - `ends_at` -- optional date string, must be after `starts_at` via `.refine()`
-  - `auto_renew` -- boolean, default `true`
-  - `notes` -- optional string, max 500 chars
-- Export `SaasAgreementFormValues` type inferred from schema
+- `base_platform_fee` — coerce number, min 0, optional/nullable, default 0
+- `per_department_fee` — coerce number, min 0, optional/nullable, default 0
+- `support_tier_fee` — coerce number, min 0, optional/nullable, default 0
+- `custom_fee_1_label` — string, max 100, optional/nullable
+- `custom_fee_1_amount` — coerce number, min 0, optional/nullable, default 0
+- `custom_fee_2_label` — string, max 100, optional/nullable
+- `custom_fee_2_amount` — coerce number, min 0, optional/nullable, default 0
+- `msa_reference_number` — string, max 100, optional/nullable
+- `msa_document_url` — string, url validation, max 500, optional/nullable
+- `billing_frequency` — enum `["monthly", "quarterly", "annually"]`, default "monthly"
 
-#### Task 2: Create Org Picker Hook
+Add a `BILLING_FREQUENCIES` constant (separate from `FEE_FREQUENCIES` for clarity, or reuse if identical).
 
-Create `src/hooks/queries/useOrgPicker.ts`:
+Update `SAAS_AGREEMENT_DEFAULTS` with all new field defaults.
 
-- `useOrgPickerOptions(tenantId)` -- fetches `seeker_organizations` with explicit columns: `id, organization_name, legal_entity_name`
-- Returns `{ value: id, label: organization_name }` array for use in select dropdowns
-- Filters to active orgs only
-- Used for both parent and child org selection
+### 2. Refactor Page to Custom Form (`SaasAgreementPage.tsx`)
 
-#### Task 3: Fix `useSaasData.ts` Hook -- Remove `select('*')`
+The generic `MasterDataForm` dialog does not support collapsible sections or conditional field visibility. Replace it with a dedicated `SaasAgreementFormDialog` component that:
 
-Update `useSaasAgreements`:
-- Replace the existing select with explicit columns: `id, agreement_type, lifecycle_status, fee_amount, fee_currency, fee_frequency, shadow_charge_rate, starts_at, ends_at, auto_renew, notes, created_at, child_organization_id, parent_organization_id`
-- Keep the join: `seeker_organizations!saas_agreements_child_organization_id_fkey(id, organization_name)`
+- Uses `react-hook-form` + `zodResolver` directly (same pattern as `MasterDataForm` but with layout control)
+- Organizes fields into collapsible sections using `Collapsible` from Radix
 
-Update `useCreateSaasAgreement`:
-- Add `withCreatedBy()` call before insert
-- Expand accepted params to include `starts_at, ends_at, auto_renew`
+**Form Layout:**
 
-Update `useUpdateSaasAgreement`:
-- Add `withUpdatedBy()` call before update
+```text
+Section: Core Agreement (always visible)
+  - Child Organization (select)
+  - Agreement Type (select) + contextual help text
+  - Fee Amount + Currency + Fee Frequency (row)
+  - Shadow Charge Rate (shown only for shadow_billing / cost_sharing)
+  - Billing Frequency (select)
 
-#### Task 4: Rewrite `SaasAgreementPage.tsx`
+Section: Advanced Fees (collapsible, default collapsed)
+  - Base Platform Fee
+  - Per Department Fee
+  - Support Tier Fee
 
-Complete rewrite following project standards:
+Section: Custom Fees (collapsible, default collapsed)
+  - Custom Fee 1: Label + Amount (row)
+  - Custom Fee 2: Label + Amount (row)
 
-**Form Dialog (Create + Edit)**:
-- Use `MasterDataForm` pattern (React Hook Form + Zod resolver)
-- Replace raw UUID input with a searchable `Select` dropdown populated by `useOrgPickerOptions`
-- Add `starts_at` and `ends_at` date inputs
-- Add `auto_renew` switch toggle
-- Disable submit during mutation, show spinner
-- Inline validation error messages under each field
+Section: Contract Details (collapsible, default collapsed)
+  - MSA Reference Number
+  - MSA Document URL
+  - Start Date + End Date (row)
+  - Auto Renew (switch)
 
-**Data Table**:
-- Wrap table in `<div className="relative w-full overflow-auto">`
-- Add edit button per row (opens dialog pre-filled with row data)
-- Show `starts_at` / `ends_at` columns
-- Show `auto_renew` as a badge
+Section: Notes (always visible)
+  - Notes (textarea)
+```
 
-**Page Structure**:
-- Replace hardcoded `DEMO_PARENT_ORG_ID` with a parent org selector at top of page (using `useOrgPickerOptions`)
-- Loading skeleton while data fetches
-- Empty state with icon and CTA
-- Error state with retry
+**Agreement Type Help Text:**
+- `saas_fee`: "Parent pays a negotiated flat fee to the platform. No internal shadow tracking."
+- `shadow_billing`: "Parent pays the platform. Internal department costs are tracked using shadow pricing rates for budgeting (no real money between parent/child)."
+- `cost_sharing`: "Parent pays the platform. Child departments transfer their allocated share to the parent externally. The fee amount here defines the child's internal allocation."
 
-**Hook Order Compliance** (Section 23):
-1. `useState` (dialog open, selected agreement)
-2. Custom hooks (`useOrgPickerOptions`)
-3. Form hook (`useForm`)
-4. Query/Mutation hooks
-5. `useEffect` (if needed)
-6. Conditional returns (loading/error)
-7. Handlers
-8. Render
+**Conditional Visibility:**
+- `shadow_charge_rate` field: visible only when `agreement_type` is `shadow_billing` or `cost_sharing`
 
-#### Task 5: Responsive Design Compliance
+### 3. Shadow Billing Cross-Validation
 
-- Dialog: `max-w-lg max-h-[90vh] flex flex-col overflow-hidden`
-- Grid for fee amount + currency: `grid grid-cols-1 lg:grid-cols-2 gap-3`
-- Button text: icon-only on mobile, label visible at `lg:`
-- Table wrapped with overflow-auto
+When `agreement_type` is `shadow_billing`, validate on submit that the total `shadow_charge_rate` across all existing agreements for the same parent org (plus the current form value) does not exceed 100%.
 
----
+Implementation:
+- Pass existing agreements data to the form dialog as a prop
+- On submit, if type is `shadow_billing`, sum all sibling agreements' `shadow_charge_rate` values (excluding the current agreement if editing) + the new value
+- If sum > 100, show a toast error and prevent submission
+- Display the remaining available percentage as helper text under the `shadow_charge_rate` field
 
-### Files Changed
+### 4. Update Query Hook (`useSaasData.ts`)
 
-| File | Action |
-|------|--------|
-| `src/pages/admin/saas/saasAgreement.schema.ts` | **New** -- Zod schema |
-| `src/hooks/queries/useOrgPicker.ts` | **New** -- Org picker dropdown hook |
-| `src/hooks/queries/useSaasData.ts` | **Edit** -- Explicit columns, audit fields |
-| `src/pages/admin/SaasAgreementPage.tsx` | **Rewrite** -- Full compliance overhaul |
+Update `useSaasAgreements` query to select all fields:
+
+```
+base_platform_fee, per_department_fee, support_tier_fee,
+custom_fee_1_label, custom_fee_1_amount,
+custom_fee_2_label, custom_fee_2_amount,
+msa_reference_number, msa_document_url, billing_frequency
+```
+
+Update `useCreateSaasAgreement` mutation params type to include all new fields.
+
+Update `useUpdateSaasAgreement` mutation params type to include all new fields.
+
+### 5. Update Table Display (`SaasAgreementPage.tsx`)
+
+Add a few key new columns to the agreements table:
+- `Billing Freq.` column (the billing_frequency, distinct from fee_frequency)
+- `MSA Ref` column showing the msa_reference_number if present
+
+Keep the table manageable; the full details are visible via the Edit dialog.
+
+### 6. Wire Up Submit Handlers
+
+Update `handleSubmit` and `getDefaultValues` in `SaasAgreementPage.tsx` to pass through all new fields to the create/update mutations.
+
+## Files Changed
+
+| File | Change |
+|---|---|
+| `src/pages/admin/saas/saasAgreement.schema.ts` | Add 10 new fields, update defaults |
+| `src/pages/admin/SaasAgreementPage.tsx` | Replace `MasterDataForm` with custom dialog, add table columns, wire new fields, shadow validation |
+| `src/hooks/queries/useSaasData.ts` | Expand select, create, update types to include all fields |
+| `src/components/admin/SaasAgreementFormDialog.tsx` | **New file** — dedicated form dialog with collapsible sections |
+
+## Technical Notes
+
+- The `MasterDataForm` generic component remains unchanged for use by other admin pages
+- The new `SaasAgreementFormDialog` uses `Collapsible` (already installed via `@radix-ui/react-collapsible`)
+- Shadow % validation is client-side only (sufficient since RLS + DB constraints handle server-side safety)
+- No database migrations needed — all columns already exist
+- The `billing_frequency` field is independent from `fee_frequency` (billing_frequency = how often the platform invoices; fee_frequency = the contractual fee period)
 
