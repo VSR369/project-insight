@@ -62,14 +62,20 @@ export const saasAgreementSchema = z
       .optional()
       .nullable()
       .or(z.literal("")),
-    department_id: z.string().uuid().optional().nullable(),
-    functional_area_id: z.string().uuid().optional().nullable(),
+    department_id: z
+      .string()
+      .uuid("Please select a department")
+      .or(z.literal("")),
+    functional_area_id: z
+      .string()
+      .uuid("Please select a functional area")
+      .or(z.literal("")),
     agreement_type: z.enum(["saas_fee", "shadow_billing", "cost_sharing"], {
       errorMap: () => ({ message: "Please select an agreement type" }),
     }),
     fee_amount: z.coerce
       .number({ invalid_type_error: "Fee amount must be a number" })
-      .min(0, "Fee amount cannot be negative"),
+      .positive("Fee amount must be greater than zero"),
     fee_currency: z
       .string()
       .length(3, "Currency must be exactly 3 characters")
@@ -156,6 +162,20 @@ export const saasAgreementSchema = z
     }
   )
   .refine(
+    (data) => !!data.department_id,
+    {
+      message: "Please select a department",
+      path: ["department_id"],
+    }
+  )
+  .refine(
+    (data) => !!data.functional_area_id,
+    {
+      message: "Please select a functional area",
+      path: ["functional_area_id"],
+    }
+  )
+  .refine(
     (data) => {
       if (data.starts_at && data.ends_at) {
         return new Date(data.ends_at) > new Date(data.starts_at);
@@ -174,8 +194,8 @@ export type SaasAgreementFormValues = z.infer<typeof saasAgreementSchema>;
 export const SAAS_AGREEMENT_DEFAULTS: SaasAgreementFormValues = {
   agreement_scope: "child_org",
   child_organization_id: "",
-  department_id: null,
-  functional_area_id: null,
+  department_id: "",
+  functional_area_id: "",
   agreement_type: "saas_fee",
   fee_amount: 0,
   fee_currency: "USD",
