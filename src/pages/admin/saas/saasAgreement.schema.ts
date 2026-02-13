@@ -44,7 +44,7 @@ export const childOrgSchema = z.object({
     .max(200, "Name must be 200 characters or less")
     .trim(),
   legal_entity_name: z.string().max(200).optional().nullable(),
-  hq_country_id: z.string().uuid().optional().nullable(),
+  hq_country_id: z.string().uuid("Please select a country"),
   hq_state_province_id: z.string().uuid().optional().nullable(),
   hq_city: z.string().max(100).optional().nullable(),
   hq_postal_code: z.string().max(20).optional().nullable(),
