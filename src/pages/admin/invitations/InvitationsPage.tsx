@@ -14,7 +14,7 @@ import {
   Eye,
 } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
@@ -233,17 +233,12 @@ export function InvitationsPage() {
     await createMutation.mutateAsync(data);
   };
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Invitations" },
-  ];
-
   return (
-    <AdminLayout
-      title="Solution Provider Invitations"
-      description="Manage invitations sent to potential solution providers"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Solution Provider Invitations</h1>
+        <p className="text-muted-foreground mt-1">Manage invitations sent to potential solution providers</p>
+      </div>
       {/* Stats Cards */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
         <Card>
@@ -363,6 +358,6 @@ export function InvitationsPage() {
         isLoading={deleteMutation.isPending}
         isSoftDelete={false}
       />
-    </AdminLayout>
+    </>
   );
 }

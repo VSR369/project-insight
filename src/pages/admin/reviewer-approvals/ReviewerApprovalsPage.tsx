@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { AdminLayout } from "@/components/admin";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,14 +26,11 @@ export function ReviewerApprovalsPage() {
   const invitedCount = invitationStats?.totalInvited || 0;
 
   return (
-    <AdminLayout
-      title="Reviewer Management"
-      description="Manage reviewer applications, invitations, and approvals"
-      breadcrumbs={[
-        { label: "Admin", href: "/admin" },
-        { label: "Reviewer Management" },
-      ]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Reviewer Management</h1>
+        <p className="text-muted-foreground mt-1">Manage reviewer applications, invitations, and approvals</p>
+      </div>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList>
           <TabsTrigger value="pending" className="gap-2">
@@ -120,6 +117,6 @@ export function ReviewerApprovalsPage() {
           )}
         </TabsContent>
       </Tabs>
-    </AdminLayout>
+    </>
   );
 }

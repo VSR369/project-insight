@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { AdminLayout } from '@/components/admin';
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,11 +86,11 @@ export default function SaasAgreementPage() {
   };
 
   return (
-    <AdminLayout
-      title="SaaS Agreements"
-      description="Manage SaaS fee agreements between parent and child organizations"
-      breadcrumbs={[{ label: 'SaaS Agreements' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">SaaS Agreements</h1>
+        <p className="text-muted-foreground mt-1">Manage SaaS fee agreements between parent and child organizations</p>
+      </div>
       <div className="space-y-6">
         <div className="flex justify-end">
           <Button onClick={() => setCreateDialogOpen(true)}>
@@ -265,6 +265,6 @@ export default function SaasAgreementPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AdminLayout>
+    </>
   );
 }

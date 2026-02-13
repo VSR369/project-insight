@@ -3,7 +3,7 @@ import { z } from "zod";
 import { Pencil, Trash2, RotateCcw, GraduationCap, BookOpen, FileText, Eye, Download, Upload, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import {
   DataTable,
   DataTableColumn,
@@ -432,14 +432,11 @@ export default function AcademicTaxonomyPage() {
   };
 
   return (
-    <AdminLayout
-      title="Academic Taxonomy"
-      description="Manage the hierarchical structure of disciplines, streams, and subjects for students"
-      breadcrumbs={[
-        { label: "Master Data", href: "/admin" },
-        { label: "Academic Taxonomy" },
-      ]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Academic Taxonomy</h1>
+        <p className="text-muted-foreground mt-1">Manage the hierarchical structure of disciplines, streams, and subjects for students</p>
+      </div>
       {/* Header Actions */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-2">
@@ -771,6 +768,6 @@ export default function AcademicTaxonomyPage() {
         open={importDialogOpen}
         onOpenChange={setImportDialogOpen}
       />
-    </AdminLayout>
+    </>
   );
 }

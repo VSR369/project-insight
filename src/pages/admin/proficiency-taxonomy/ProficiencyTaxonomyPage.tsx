@@ -4,7 +4,7 @@ import { Layers, ChevronRight, Building2, Target, Boxes, Sparkles, Download, Upl
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-import { AdminLayout } from "@/components/admin";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
@@ -477,11 +477,11 @@ export function ProficiencyTaxonomyPage() {
   ];
 
   return (
-    <AdminLayout
-      title="Proficiency Taxonomy"
-      description="Manage the 4-level hierarchy: Industry Segments → Proficiency Areas → Sub-domains → Specialities"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Proficiency Taxonomy</h1>
+        <p className="text-muted-foreground mt-1">Manage the 4-level hierarchy: Industry Segments → Proficiency Areas → Sub-domains → Specialities</p>
+      </div>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -948,6 +948,6 @@ export function ProficiencyTaxonomyPage() {
         expertiseLevelId={selectedExpertiseLevelId || ""}
         expertiseLevelName={selectedLevel?.name || ""}
       />
-    </AdminLayout>
+    </>
   );
 }

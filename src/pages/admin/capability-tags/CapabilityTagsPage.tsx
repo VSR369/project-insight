@@ -2,7 +2,7 @@ import * as React from "react";
 import { Tags, RotateCcw } from "lucide-react";
 import { z } from "zod";
 
-import { AdminLayout } from "@/components/admin";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -163,11 +163,7 @@ export function CapabilityTagsPage() {
   ];
 
   return (
-    <AdminLayout
-      title="Capability Tags"
-      description="Define capability dimensions that questions can validate"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -234,6 +230,6 @@ export function CapabilityTagsPage() {
         }}
         isLoading={deleteMutation.isPending}
       />
-    </AdminLayout>
+    </>
   );
 }

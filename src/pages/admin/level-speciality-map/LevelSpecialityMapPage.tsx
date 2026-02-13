@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Link2, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Check, X } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin";
+
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -146,19 +146,14 @@ export function LevelSpecialityMapPage() {
   const selectedSubDomain = subDomains.find((sd) => sd.id === selectedSubDomainId);
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Level-Speciality Mapping" },
-  ];
-
   const isLoading = levelsLoading || mappingsLoading;
 
   return (
-    <AdminLayout
-      title="Level-Speciality Mapping"
-      description="Configure which expertise levels apply to each speciality for assessments"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Level-Speciality Mapping</h1>
+        <p className="text-muted-foreground mt-1">Configure which expertise levels apply to each speciality for assessments</p>
+      </div>
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -437,6 +432,6 @@ export function LevelSpecialityMapPage() {
           )}
         </CardContent>
       </Card>
-    </AdminLayout>
+    </>
   );
 }

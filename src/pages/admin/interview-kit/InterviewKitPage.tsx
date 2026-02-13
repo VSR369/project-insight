@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { AdminLayout } from '@/components/admin';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -55,7 +55,7 @@ export default function InterviewKitPage() {
   };
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* Header with navigation button */}
         <div className="flex items-center justify-between">
@@ -152,6 +152,6 @@ export default function InterviewKitPage() {
         open={importOpen}
         onOpenChange={setImportOpen}
       />
-    </AdminLayout>
+    </>
   );
 }
