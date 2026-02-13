@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
 
 // ============================================================
 // SaaS Agreements for a Parent Org
@@ -58,18 +59,20 @@ export function useCreateSaasAgreement() {
       fee_amount: number;
       fee_currency: string;
       fee_frequency: string;
-      shadow_charge_rate?: number;
-      starts_at?: string;
-      ends_at?: string;
-      notes?: string;
+      shadow_charge_rate?: number | null;
+      starts_at?: string | null;
+      ends_at?: string | null;
+      auto_renew?: boolean;
+      notes?: string | null;
     }) => {
+      const withAudit = await withCreatedBy({
+        ...params,
+        lifecycle_status: 'active',
+        auto_renew: params.auto_renew ?? true,
+      });
       const { data, error } = await supabase
         .from('saas_agreements')
-        .insert({
-          ...params,
-          lifecycle_status: 'active',
-          auto_renew: true,
-        })
+        .insert(withAudit)
         .select()
         .single();
 
@@ -101,16 +104,26 @@ export function useUpdateSaasAgreement() {
       updates: {
         lifecycle_status?: string;
         fee_amount?: number;
+        fee_currency?: string;
         fee_frequency?: string;
+        shadow_charge_rate?: number | null;
+        starts_at?: string | null;
+        ends_at?: string | null;
         auto_renew?: boolean;
         cancellation_reason?: string;
         cancelled_at?: string;
-        notes?: string;
+        notes?: string | null;
+        child_organization_id?: string;
+        agreement_type?: string;
       };
     }) => {
+      const withAudit = await withUpdatedBy({
+        ...params.updates,
+        updated_at: new Date().toISOString(),
+      });
       const { error } = await supabase
         .from('saas_agreements')
-        .update({ ...params.updates, updated_at: new Date().toISOString() })
+        .update(withAudit)
         .eq('id', params.agreementId);
 
       if (error) throw new Error(error.message);

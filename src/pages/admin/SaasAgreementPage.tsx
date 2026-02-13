@@ -1,270 +1,537 @@
 /**
  * SaasAgreementPage — Admin: Create/manage SaaS agreements between parent & child orgs
- * Phase 6: SAS-001
+ * Phase 6: SAS-001 — Compliance overhaul
+ *
+ * Standards: Section 7.2 (loading/empty/error), 7.4 (CRUD), 8.1 (Zod+RHF),
+ * 9.3 (responsive), 23 (hook order), 24.1 (audit fields)
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Loader2,
+  Plus,
+  FileText,
+  Building2,
+  Pencil,
+  AlertCircle,
+  RefreshCw,
+} from "lucide-react";
+import { format } from "date-fns";
+import { MasterDataForm, type FormFieldConfig } from "@/components/admin/MasterDataForm";
+import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
+import {
+  useSaasAgreements,
+  useCreateSaasAgreement,
+  useUpdateSaasAgreement,
+} from "@/hooks/queries/useSaasData";
+import {
+  saasAgreementSchema,
+  type SaasAgreementFormValues,
+  SAAS_AGREEMENT_DEFAULTS,
+  AGREEMENT_TYPES,
+  FEE_FREQUENCIES,
+} from "@/pages/admin/saas/saasAgreement.schema";
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Plus, FileText, Building2 } from 'lucide-react';
-import { format } from 'date-fns';
-import { useSaasAgreements, useCreateSaasAgreement, useUpdateSaasAgreement } from '@/hooks/queries/useSaasData';
-
-const DEMO_PARENT_ORG_ID = 'demo-parent-org';
-const DEMO_TENANT_ID = 'demo-tenant';
-
-const STATUS_VARIANTS: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
-  draft: 'outline',
-  active: 'default',
-  expired: 'secondary',
-  cancelled: 'destructive',
-  suspended: 'outline',
+const STATUS_VARIANTS: Record<
+  string,
+  "default" | "secondary" | "destructive" | "outline"
+> = {
+  draft: "outline",
+  active: "default",
+  expired: "secondary",
+  cancelled: "destructive",
+  suspended: "outline",
 };
 
 export default function SaasAgreementPage() {
-  const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    child_organization_id: '',
-    agreement_type: 'saas_fee',
-    fee_amount: '',
-    fee_currency: 'USD',
-    fee_frequency: 'monthly',
-    shadow_charge_rate: '',
-    notes: '',
-  });
+  // ══════════════════════════════════════
+  // SECTION 1: useState hooks
+  // ══════════════════════════════════════
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAgreement, setEditingAgreement] = useState<{
+    id: string;
+    parentOrgId: string;
+  } | null>(null);
+  const [selectedParentOrgId, setSelectedParentOrgId] = useState<string>("");
 
-  const { data: agreements, isLoading } = useSaasAgreements(DEMO_PARENT_ORG_ID);
+  // ══════════════════════════════════════
+  // SECTION 2: Custom hooks
+  // ══════════════════════════════════════
+  const { data: orgOptions = [], isLoading: orgsLoading } =
+    useOrgPickerOptions();
+
+  // ══════════════════════════════════════
+  // SECTION 4: Query/Mutation hooks
+  // ══════════════════════════════════════
+  const {
+    data: agreements,
+    isLoading,
+    isError,
+    refetch,
+  } = useSaasAgreements(selectedParentOrgId || undefined);
   const createAgreement = useCreateSaasAgreement();
   const updateAgreement = useUpdateSaasAgreement();
 
-  const handleCreate = () => {
-    createAgreement.mutate({
-      tenant_id: DEMO_TENANT_ID,
-      parent_organization_id: DEMO_PARENT_ORG_ID,
-      child_organization_id: formData.child_organization_id,
-      agreement_type: formData.agreement_type,
-      fee_amount: Number(formData.fee_amount) || 0,
-      fee_currency: formData.fee_currency,
-      fee_frequency: formData.fee_frequency,
-      shadow_charge_rate: Number(formData.shadow_charge_rate) || 0,
-      notes: formData.notes || undefined,
+  // ══════════════════════════════════════
+  // SECTION 5: Memos
+  // ══════════════════════════════════════
+  const childOrgOptions = useMemo(
+    () =>
+      orgOptions
+        .filter((o) => o.value !== selectedParentOrgId)
+        .map((o) => ({ value: o.value, label: o.label })),
+    [orgOptions, selectedParentOrgId]
+  );
+
+  const formFields: FormFieldConfig<SaasAgreementFormValues>[] = useMemo(
+    () => [
+      {
+        name: "child_organization_id",
+        label: "Child Organization",
+        type: "select" as const,
+        placeholder: "Select organization...",
+        required: true,
+        options: childOrgOptions,
+      },
+      {
+        name: "agreement_type",
+        label: "Agreement Type",
+        type: "select" as const,
+        required: true,
+        options: AGREEMENT_TYPES.map((t) => ({
+          value: t.value,
+          label: t.label,
+        })),
+      },
+      {
+        name: "fee_amount",
+        label: "Fee Amount",
+        type: "number" as const,
+        placeholder: "0.00",
+        required: true,
+        min: 0,
+      },
+      {
+        name: "fee_currency",
+        label: "Currency",
+        type: "text" as const,
+        placeholder: "USD",
+        required: true,
+      },
+      {
+        name: "fee_frequency",
+        label: "Frequency",
+        type: "select" as const,
+        required: true,
+        options: FEE_FREQUENCIES.map((f) => ({
+          value: f.value,
+          label: f.label,
+        })),
+      },
+      {
+        name: "shadow_charge_rate",
+        label: "Shadow Charge Rate (%)",
+        type: "number" as const,
+        placeholder: "0",
+        min: 0,
+        max: 100,
+      },
+      {
+        name: "starts_at",
+        label: "Start Date",
+        type: "text" as const,
+        placeholder: "YYYY-MM-DD",
+        description: "Optional contract start date",
+      },
+      {
+        name: "ends_at",
+        label: "End Date",
+        type: "text" as const,
+        placeholder: "YYYY-MM-DD",
+        description: "Optional contract end date (must be after start)",
+      },
+      {
+        name: "auto_renew",
+        label: "Auto Renew",
+        type: "switch" as const,
+        description: "Automatically renew when contract ends",
+      },
+      {
+        name: "notes",
+        label: "Notes",
+        type: "textarea" as const,
+        placeholder: "Optional notes...",
+      },
+    ],
+    [childOrgOptions]
+  );
+
+  const dialogMode = editingAgreement ? "edit" : "create";
+  const isMutating = createAgreement.isPending || updateAgreement.isPending;
+
+  // ══════════════════════════════════════
+  // SECTION 7: Handlers
+  // ══════════════════════════════════════
+  const handleOpenCreate = () => {
+    setEditingAgreement(null);
+    setDialogOpen(true);
+  };
+
+  const handleOpenEdit = (agreement: {
+    id: string;
+    child_organization_id: string;
+    agreement_type: string;
+    fee_amount: number;
+    fee_currency: string;
+    fee_frequency: string;
+    shadow_charge_rate: number | null;
+    starts_at: string | null;
+    ends_at: string | null;
+    auto_renew: boolean;
+    notes: string | null;
+  }) => {
+    setEditingAgreement({
+      id: agreement.id,
+      parentOrgId: selectedParentOrgId,
     });
-    setCreateDialogOpen(false);
-    setFormData({
-      child_organization_id: '',
-      agreement_type: 'saas_fee',
-      fee_amount: '',
-      fee_currency: 'USD',
-      fee_frequency: 'monthly',
-      shadow_charge_rate: '',
-      notes: '',
-    });
+    setDialogOpen(true);
+  };
+
+  const getDefaultValues = (): Partial<SaasAgreementFormValues> => {
+    if (!editingAgreement || !agreements) return SAAS_AGREEMENT_DEFAULTS;
+    const found = agreements.find(
+      (a: { id: string }) => a.id === editingAgreement.id
+    );
+    if (!found) return SAAS_AGREEMENT_DEFAULTS;
+    return {
+      child_organization_id: found.child_organization_id,
+      agreement_type: found.agreement_type as SaasAgreementFormValues["agreement_type"],
+      fee_amount: Number(found.fee_amount),
+      fee_currency: found.fee_currency,
+      fee_frequency: found.fee_frequency as SaasAgreementFormValues["fee_frequency"],
+      shadow_charge_rate: found.shadow_charge_rate,
+      starts_at: found.starts_at,
+      ends_at: found.ends_at,
+      auto_renew: found.auto_renew ?? true,
+      notes: found.notes,
+    };
+  };
+
+  const handleSubmit = async (data: SaasAgreementFormValues) => {
+    if (editingAgreement) {
+      await updateAgreement.mutateAsync({
+        agreementId: editingAgreement.id,
+        parentOrgId: editingAgreement.parentOrgId,
+        updates: {
+          child_organization_id: data.child_organization_id,
+          agreement_type: data.agreement_type,
+          fee_amount: data.fee_amount,
+          fee_currency: data.fee_currency,
+          fee_frequency: data.fee_frequency,
+          shadow_charge_rate: data.shadow_charge_rate,
+          starts_at: data.starts_at,
+          ends_at: data.ends_at,
+          auto_renew: data.auto_renew,
+          notes: data.notes,
+        },
+      });
+    } else {
+      if (!selectedParentOrgId) return;
+      await createAgreement.mutateAsync({
+        tenant_id: selectedParentOrgId,
+        parent_organization_id: selectedParentOrgId,
+        child_organization_id: data.child_organization_id,
+        agreement_type: data.agreement_type,
+        fee_amount: data.fee_amount,
+        fee_currency: data.fee_currency,
+        fee_frequency: data.fee_frequency,
+        shadow_charge_rate: data.shadow_charge_rate,
+        starts_at: data.starts_at,
+        ends_at: data.ends_at,
+        auto_renew: data.auto_renew,
+        notes: data.notes,
+      });
+    }
   };
 
   const handleSuspend = (agreementId: string) => {
     updateAgreement.mutate({
       agreementId,
-      parentOrgId: DEMO_PARENT_ORG_ID,
-      updates: { lifecycle_status: 'suspended' },
+      parentOrgId: selectedParentOrgId,
+      updates: { lifecycle_status: "suspended" },
     });
   };
 
   const handleActivate = (agreementId: string) => {
     updateAgreement.mutate({
       agreementId,
-      parentOrgId: DEMO_PARENT_ORG_ID,
-      updates: { lifecycle_status: 'active' },
+      parentOrgId: selectedParentOrgId,
+      updates: { lifecycle_status: "active" },
     });
   };
 
+  // ══════════════════════════════════════
+  // SECTION 8: Render
+  // ══════════════════════════════════════
   return (
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">SaaS Agreements</h1>
-        <p className="text-muted-foreground mt-1">Manage SaaS fee agreements between parent and child organizations</p>
+        <p className="text-muted-foreground mt-1">
+          Manage SaaS fee agreements between parent and child organizations
+        </p>
       </div>
-      <div className="space-y-6">
-        <div className="flex justify-end">
-          <Button onClick={() => setCreateDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Agreement
-          </Button>
-        </div>
 
+      <div className="space-y-6">
+        {/* Parent Org Selector */}
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-muted-foreground" />
-              Active Agreements
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          <CardContent className="pt-6">
+            <div className="flex flex-col lg:flex-row lg:items-end gap-4">
+              <div className="flex-1">
+                <label className="text-sm font-medium mb-1.5 block">
+                  Parent Organization
+                </label>
+                {orgsLoading ? (
+                  <Skeleton className="h-10 w-full" />
+                ) : (
+                  <Select
+                    value={selectedParentOrgId}
+                    onValueChange={setSelectedParentOrgId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select parent organization..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {orgOptions.map((org) => (
+                        <SelectItem key={org.value} value={org.value}>
+                          {org.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
-            ) : agreements && agreements.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Child Organization</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Fee</TableHead>
-                    <TableHead>Frequency</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {agreements.map((agreement) => {
-                    const childOrg = agreement.seeker_organizations as { organization_name: string } | null;
-                    return (
-                      <TableRow key={agreement.id}>
-                        <TableCell className="font-medium">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-muted-foreground" />
-                            {childOrg?.organization_name ?? agreement.child_organization_id}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {agreement.agreement_type.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          {agreement.fee_currency} {Number(agreement.fee_amount).toLocaleString()}
-                        </TableCell>
-                        <TableCell className="capitalize">{agreement.fee_frequency}</TableCell>
-                        <TableCell>
-                          <Badge variant={STATUS_VARIANTS[agreement.lifecycle_status] ?? 'secondary'} className="text-xs">
-                            {agreement.lifecycle_status}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {format(new Date(agreement.created_at), 'MMM dd, yyyy')}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          {agreement.lifecycle_status === 'active' && (
-                            <Button variant="outline" size="sm" onClick={() => handleSuspend(agreement.id)}>
-                              Suspend
-                            </Button>
-                          )}
-                          {agreement.lifecycle_status === 'suspended' && (
-                            <Button variant="outline" size="sm" onClick={() => handleActivate(agreement.id)}>
-                              Reactivate
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <p className="text-center text-muted-foreground py-8">No agreements found</p>
-            )}
+              <Button
+                onClick={handleOpenCreate}
+                disabled={!selectedParentOrgId}
+              >
+                <Plus className="h-4 w-4" />
+                <span className="hidden lg:inline ml-1">New Agreement</span>
+              </Button>
+            </div>
           </CardContent>
         </Card>
+
+        {/* Agreements Table */}
+        {selectedParentOrgId && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5 text-muted-foreground" />
+                Agreements
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Skeleton key={i} className="h-12 w-full" />
+                  ))}
+                </div>
+              ) : isError ? (
+                <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
+                  <AlertCircle className="h-8 w-8 text-destructive" />
+                  <p className="text-muted-foreground">
+                    Failed to load agreements
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => refetch()}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" />
+                    Retry
+                  </Button>
+                </div>
+              ) : agreements && agreements.length > 0 ? (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Child Organization</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Fee</TableHead>
+                      <TableHead>Frequency</TableHead>
+                      <TableHead>Starts</TableHead>
+                      <TableHead>Ends</TableHead>
+                      <TableHead>Auto Renew</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {agreements.map((agreement) => {
+                      const childOrg = agreement.seeker_organizations as {
+                        organization_name: string;
+                      } | null;
+                      return (
+                        <TableRow key={agreement.id}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="h-4 w-4 text-muted-foreground" />
+                              {childOrg?.organization_name ??
+                                agreement.child_organization_id}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="text-xs">
+                              {agreement.agreement_type.replace("_", " ")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            {agreement.fee_currency}{" "}
+                            {Number(agreement.fee_amount).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="capitalize">
+                            {agreement.fee_frequency}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {agreement.starts_at
+                              ? format(new Date(agreement.starts_at), "MMM dd, yyyy")
+                              : "—"}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {agreement.ends_at
+                              ? format(new Date(agreement.ends_at), "MMM dd, yyyy")
+                              : "—"}
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                agreement.auto_renew ? "default" : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {agreement.auto_renew ? "Yes" : "No"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                STATUS_VARIANTS[agreement.lifecycle_status] ??
+                                "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {agreement.lifecycle_status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {format(
+                              new Date(agreement.created_at),
+                              "MMM dd, yyyy"
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleOpenEdit(agreement)}
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              {agreement.lifecycle_status === "active" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleSuspend(agreement.id)}
+                                >
+                                  Suspend
+                                </Button>
+                              )}
+                              {agreement.lifecycle_status === "suspended" && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleActivate(agreement.id)}
+                                >
+                                  Reactivate
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center gap-3">
+                  <FileText className="h-10 w-10 text-muted-foreground/40" />
+                  <p className="text-muted-foreground">
+                    No agreements found for this organization
+                  </p>
+                  <Button size="sm" onClick={handleOpenCreate}>
+                    <Plus className="mr-2 h-4 w-4" />
+                    Create First Agreement
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {!selectedParentOrgId && (
+          <Card>
+            <CardContent className="py-12">
+              <div className="flex flex-col items-center justify-center text-center gap-3">
+                <Building2 className="h-10 w-10 text-muted-foreground/40" />
+                <p className="text-muted-foreground">
+                  Select a parent organization above to view agreements
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Create Agreement Dialog */}
-      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
-        <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>Create SaaS Agreement</DialogTitle>
-            <DialogDescription>Set up a new fee agreement with a child organization</DialogDescription>
-          </DialogHeader>
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
-            <div>
-              <Label>Child Organization ID</Label>
-              <Input
-                value={formData.child_organization_id}
-                onChange={(e) => setFormData(prev => ({ ...prev, child_organization_id: e.target.value }))}
-                placeholder="Enter child org UUID"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Agreement Type</Label>
-              <Select value={formData.agreement_type} onValueChange={(v) => setFormData(prev => ({ ...prev, agreement_type: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="saas_fee">SaaS Fee</SelectItem>
-                  <SelectItem value="shadow_billing">Shadow Billing</SelectItem>
-                  <SelectItem value="cost_sharing">Cost Sharing</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label>Fee Amount</Label>
-                <Input
-                  type="number"
-                  value={formData.fee_amount}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fee_amount: e.target.value }))}
-                  placeholder="0.00"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label>Currency</Label>
-                <Input
-                  value={formData.fee_currency}
-                  onChange={(e) => setFormData(prev => ({ ...prev, fee_currency: e.target.value.toUpperCase() }))}
-                  maxLength={3}
-                  className="mt-1"
-                />
-              </div>
-            </div>
-            <div>
-              <Label>Frequency</Label>
-              <Select value={formData.fee_frequency} onValueChange={(v) => setFormData(prev => ({ ...prev, fee_frequency: v }))}>
-                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="quarterly">Quarterly</SelectItem>
-                  <SelectItem value="annually">Annually</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Shadow Charge Rate (%)</Label>
-              <Input
-                type="number"
-                value={formData.shadow_charge_rate}
-                onChange={(e) => setFormData(prev => ({ ...prev, shadow_charge_rate: e.target.value }))}
-                placeholder="0"
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label>Notes</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Optional notes..."
-                className="mt-1"
-              />
-            </div>
-          </div>
-          <DialogFooter className="shrink-0">
-            <Button variant="outline" onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-            <Button onClick={handleCreate} disabled={!formData.child_organization_id || createAgreement.isPending}>
-              {createAgreement.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Agreement
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Create / Edit Dialog */}
+      <MasterDataForm<SaasAgreementFormValues>
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title="SaaS Agreement"
+        description={
+          dialogMode === "create"
+            ? "Set up a new fee agreement with a child organization"
+            : "Update the agreement details"
+        }
+        fields={formFields}
+        schema={saasAgreementSchema}
+        defaultValues={getDefaultValues()}
+        onSubmit={handleSubmit}
+        isLoading={isMutating}
+        mode={dialogMode}
+      />
     </>
   );
 }
