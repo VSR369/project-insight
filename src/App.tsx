@@ -81,8 +81,22 @@ import {
   SettingsPage 
 } from "@/pages/PlaceholderPages";
 
-// Pulse Pages (primary user experience - instant load)
-import { PulseFeedPage, PulseSparksPage, PulseCreatePage, PulseRanksPage, PulseProfilePage, PulseContentDetailPage, PulsePublicProfilePage, PulseCardsPage, PulseCardDetailPage, PulseModerationPage, PulseStandupPage, PulseReelsPage, PulsePodcastsPage, PulseArticlesPage, PulseGalleryPage } from "@/pages/pulse";
+// Pulse Pages (lazy loaded - reduces main bundle significantly)
+const PulseFeedPage = lazy(() => import("@/pages/pulse/PulseFeedPage"));
+const PulseSparksPage = lazy(() => import("@/pages/pulse/PulseSparksPage"));
+const PulseCreatePage = lazy(() => import("@/pages/pulse/PulseCreatePage"));
+const PulseRanksPage = lazy(() => import("@/pages/pulse/PulseRanksPage"));
+const PulseProfilePage = lazy(() => import("@/pages/pulse/PulseProfilePage"));
+const PulseContentDetailPage = lazy(() => import("@/pages/pulse/PulseContentDetailPage"));
+const PulsePublicProfilePage = lazy(() => import("@/pages/pulse/PulsePublicProfilePage"));
+const PulseCardsPage = lazy(() => import("@/pages/pulse/PulseCardsPage"));
+const PulseCardDetailPage = lazy(() => import("@/pages/pulse/PulseCardDetailPage"));
+const PulseModerationPage = lazy(() => import("@/pages/pulse/PulseModerationPage"));
+const PulseStandupPage = lazy(() => import("@/pages/pulse/PulseStandupPage"));
+const PulseReelsPage = lazy(() => import("@/pages/pulse/PulseReelsPage"));
+const PulsePodcastsPage = lazy(() => import("@/pages/pulse/PulsePodcastsPage"));
+const PulseArticlesPage = lazy(() => import("@/pages/pulse/PulseArticlesPage"));
+const PulseGalleryPage = lazy(() => import("@/pages/pulse/PulseGalleryPage"));
 
 // ============================================================================
 // LAZY IMPORTS - Admin & Reviewer pages (loaded on demand)
@@ -581,7 +595,7 @@ const App = () => (
               path="/pulse/feed"
               element={
                 <AuthGuard>
-                  <PulseFeedPage />
+                  <LazyRoute><PulseFeedPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -589,7 +603,7 @@ const App = () => (
               path="/pulse/sparks"
               element={
                 <AuthGuard>
-                  <PulseSparksPage />
+                  <LazyRoute><PulseSparksPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -597,7 +611,7 @@ const App = () => (
               path="/pulse/reels"
               element={
                 <AuthGuard>
-                  <PulseReelsPage />
+                  <LazyRoute><PulseReelsPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -605,7 +619,7 @@ const App = () => (
               path="/pulse/podcasts"
               element={
                 <AuthGuard>
-                  <PulsePodcastsPage />
+                  <LazyRoute><PulsePodcastsPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -613,7 +627,7 @@ const App = () => (
               path="/pulse/articles"
               element={
                 <AuthGuard>
-                  <PulseArticlesPage />
+                  <LazyRoute><PulseArticlesPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -621,7 +635,7 @@ const App = () => (
               path="/pulse/gallery"
               element={
                 <AuthGuard>
-                  <PulseGalleryPage />
+                  <LazyRoute><PulseGalleryPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -629,7 +643,7 @@ const App = () => (
               path="/pulse/create"
               element={
                 <AuthGuard>
-                  <PulseCreatePage />
+                  <LazyRoute><PulseCreatePage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -637,7 +651,7 @@ const App = () => (
               path="/pulse/ranks"
               element={
                 <AuthGuard>
-                  <PulseRanksPage />
+                  <LazyRoute><PulseRanksPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -645,7 +659,7 @@ const App = () => (
               path="/pulse/profile"
               element={
                 <AuthGuard>
-                  <PulseProfilePage />
+                  <LazyRoute><PulseProfilePage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -653,7 +667,7 @@ const App = () => (
               path="/pulse/profile/:providerId"
               element={
                 <AuthGuard>
-                  <PulsePublicProfilePage />
+                  <LazyRoute><PulsePublicProfilePage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -661,7 +675,7 @@ const App = () => (
               path="/pulse/content/:contentId"
               element={
                 <AuthGuard>
-                  <PulseContentDetailPage />
+                  <LazyRoute><PulseContentDetailPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -669,7 +683,7 @@ const App = () => (
               path="/pulse/cards"
               element={
                 <AuthGuard>
-                  <PulseCardsPage />
+                  <LazyRoute><PulseCardsPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -677,7 +691,7 @@ const App = () => (
               path="/pulse/cards/:cardId"
               element={
                 <AuthGuard>
-                  <PulseCardDetailPage />
+                  <LazyRoute><PulseCardDetailPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -685,7 +699,7 @@ const App = () => (
               path="/pulse/moderation"
               element={
                 <AuthGuard>
-                  <PulseModerationPage />
+                  <LazyRoute><PulseModerationPage /></LazyRoute>
                 </AuthGuard>
               }
             />
@@ -693,7 +707,7 @@ const App = () => (
               path="/pulse/standup"
               element={
                 <AuthGuard>
-                  <PulseStandupPage />
+                  <LazyRoute><PulseStandupPage /></LazyRoute>
                 </AuthGuard>
               }
             />

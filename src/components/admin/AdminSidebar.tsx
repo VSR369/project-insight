@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Sidebar,
@@ -48,6 +48,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
+import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
 const masterDataItems = [
   { title: 'Countries', icon: Globe, path: '/admin/master-data/countries' },
@@ -104,6 +105,11 @@ export function AdminSidebar() {
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
 
+  // Prefetch top admin routes on mount
+  useEffect(() => {
+    prefetchAdminRoutes();
+  }, []);
+
   // Auto-expand invitations submenu if on an invitations route
   const [invitationsOpen, setInvitationsOpen] = useState(
     location.pathname.startsWith('/admin/invitations')
@@ -111,6 +117,11 @@ export function AdminSidebar() {
 
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
+
+  // Prefetch on hover handler
+  const handleMouseEnter = useCallback((path: string) => {
+    prefetchRoute(path);
+  }, []);
 
   return (
     <Sidebar className="border-r">
@@ -146,6 +157,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -165,6 +177,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -184,6 +197,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -208,6 +222,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -227,6 +242,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
@@ -261,6 +277,7 @@ export function AdminSidebar() {
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
                           onClick={() => navigate('/admin/invitations')}
+                          onMouseEnter={() => handleMouseEnter('/admin/invitations')}
                           isActive={isActive('/admin/invitations')}
                           className="cursor-pointer"
                         >
@@ -271,6 +288,7 @@ export function AdminSidebar() {
                       <SidebarMenuSubItem>
                         <SidebarMenuSubButton
                           onClick={() => navigate('/admin/invitations/panel-reviewers')}
+                          onMouseEnter={() => handleMouseEnter('/admin/invitations/panel-reviewers')}
                           isActive={isActive('/admin/invitations/panel-reviewers')}
                           className="cursor-pointer"
                         >
@@ -288,6 +306,7 @@ export function AdminSidebar() {
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
