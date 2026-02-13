@@ -56,6 +56,7 @@ const masterDataItems = [
   { title: 'Organization Types', icon: Building2, path: '/admin/master-data/organization-types' },
   { title: 'Participation Modes', icon: Users, path: '/admin/master-data/participation-modes' },
   { title: 'Expertise Levels', icon: Award, path: '/admin/master-data/expertise-levels' },
+  { title: 'Departments', icon: Building2, path: '/admin/master-data/departments' },
   { title: 'Functional Areas', icon: Briefcase, path: '/admin/master-data/functional-areas' },
 ];
 

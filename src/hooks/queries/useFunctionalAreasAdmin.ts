@@ -5,7 +5,9 @@ import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
 
-export type FunctionalArea = Tables<"md_functional_areas">;
+export type FunctionalArea = Tables<"md_functional_areas"> & {
+  md_departments?: { name: string } | null;
+};
 export type FunctionalAreaInsert = TablesInsert<"md_functional_areas">;
 export type FunctionalAreaUpdate = TablesUpdate<"md_functional_areas">;
 
@@ -14,7 +16,7 @@ export function useFunctionalAreas(includeInactive = false) {
     queryKey: ["functional_areas", { includeInactive }],
     queryFn: async () => {
       let query = supabase.from("md_functional_areas")
-        .select("id, code, name, description, display_order, is_active")
+        .select("id, code, name, description, department_id, display_order, is_active, created_at, updated_at, md_departments(name)")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
       if (!includeInactive) query = query.eq("is_active", true);
@@ -34,7 +36,7 @@ export function useCreateFunctionalArea() {
       const d = await withCreatedBy(item);
       const { data, error } = await supabase.from("md_functional_areas").insert(d).select().single();
       if (error) throw new Error(error.message);
-      return data as FunctionalArea;
+      return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["functional_areas"] }); toast.success("Functional area created successfully"); },
     onError: (e: Error) => handleMutationError(e, { operation: "create_functional_area" }),
@@ -48,7 +50,7 @@ export function useUpdateFunctionalArea() {
       const d = await withUpdatedBy(updates);
       const { data, error } = await supabase.from("md_functional_areas").update(d).eq("id", id).select().single();
       if (error) throw new Error(error.message);
-      return data as FunctionalArea;
+      return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["functional_areas"] }); toast.success("Functional area updated successfully"); },
     onError: (e: Error) => handleMutationError(e, { operation: "update_functional_area" }),
