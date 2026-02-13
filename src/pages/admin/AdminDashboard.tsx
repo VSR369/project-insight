@@ -100,8 +100,8 @@ const sections = [
     hasBadge: true,
   },
   {
-    title: 'SaaS Agreements',
-    description: 'Manage parent-child SaaS agreements',
+    title: 'Enterprise Agreements',
+    description: 'Manage parent-child enterprise agreements',
     icon: Handshake,
     path: '/admin/saas-agreements',
     color: 'text-violet-500',

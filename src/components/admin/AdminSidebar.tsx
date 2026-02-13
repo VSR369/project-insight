@@ -94,7 +94,7 @@ const interviewItems = [
 ];
 
 const seekerItems = [
-  { title: 'SaaS Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
+  { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
 ];
 
 const otherItems = [
