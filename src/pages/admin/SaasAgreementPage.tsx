@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Loader2,
   Plus,
   FileText,
   Building2,
@@ -36,7 +35,6 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { format } from "date-fns";
-import { MasterDataForm, type FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
 import {
   useSaasAgreements,
@@ -44,12 +42,10 @@ import {
   useUpdateSaasAgreement,
 } from "@/hooks/queries/useSaasData";
 import {
-  saasAgreementSchema,
   type SaasAgreementFormValues,
   SAAS_AGREEMENT_DEFAULTS,
-  AGREEMENT_TYPES,
-  FEE_FREQUENCIES,
 } from "@/pages/admin/saas/saasAgreement.schema";
+import { SaasAgreementFormDialog } from "@/components/admin/SaasAgreementFormDialog";
 
 const STATUS_VARIANTS: Record<
   string,
@@ -102,89 +98,6 @@ export default function SaasAgreementPage() {
     [orgOptions, selectedParentOrgId]
   );
 
-  const formFields: FormFieldConfig<SaasAgreementFormValues>[] = useMemo(
-    () => [
-      {
-        name: "child_organization_id",
-        label: "Child Organization",
-        type: "select" as const,
-        placeholder: "Select organization...",
-        required: true,
-        options: childOrgOptions,
-      },
-      {
-        name: "agreement_type",
-        label: "Agreement Type",
-        type: "select" as const,
-        required: true,
-        options: AGREEMENT_TYPES.map((t) => ({
-          value: t.value,
-          label: t.label,
-        })),
-      },
-      {
-        name: "fee_amount",
-        label: "Fee Amount",
-        type: "number" as const,
-        placeholder: "0.00",
-        required: true,
-        min: 0,
-      },
-      {
-        name: "fee_currency",
-        label: "Currency",
-        type: "text" as const,
-        placeholder: "USD",
-        required: true,
-      },
-      {
-        name: "fee_frequency",
-        label: "Frequency",
-        type: "select" as const,
-        required: true,
-        options: FEE_FREQUENCIES.map((f) => ({
-          value: f.value,
-          label: f.label,
-        })),
-      },
-      {
-        name: "shadow_charge_rate",
-        label: "Shadow Charge Rate (%)",
-        type: "number" as const,
-        placeholder: "0",
-        min: 0,
-        max: 100,
-      },
-      {
-        name: "starts_at",
-        label: "Start Date",
-        type: "text" as const,
-        placeholder: "YYYY-MM-DD",
-        description: "Optional contract start date",
-      },
-      {
-        name: "ends_at",
-        label: "End Date",
-        type: "text" as const,
-        placeholder: "YYYY-MM-DD",
-        description: "Optional contract end date (must be after start)",
-      },
-      {
-        name: "auto_renew",
-        label: "Auto Renew",
-        type: "switch" as const,
-        description: "Automatically renew when contract ends",
-      },
-      {
-        name: "notes",
-        label: "Notes",
-        type: "textarea" as const,
-        placeholder: "Optional notes...",
-      },
-    ],
-    [childOrgOptions]
-  );
-
   const dialogMode = editingAgreement ? "edit" : "create";
   const isMutating = createAgreement.isPending || updateAgreement.isPending;
 
@@ -196,21 +109,9 @@ export default function SaasAgreementPage() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (agreement: {
-    id: string;
-    child_organization_id: string;
-    agreement_type: string;
-    fee_amount: number;
-    fee_currency: string;
-    fee_frequency: string;
-    shadow_charge_rate: number | null;
-    starts_at: string | null;
-    ends_at: string | null;
-    auto_renew: boolean;
-    notes: string | null;
-  }) => {
+  const handleOpenEdit = (agreementId: string) => {
     setEditingAgreement({
-      id: agreement.id,
+      id: agreementId,
       parentOrgId: selectedParentOrgId,
     });
     setDialogOpen(true);
@@ -229,6 +130,16 @@ export default function SaasAgreementPage() {
       fee_currency: found.fee_currency,
       fee_frequency: found.fee_frequency as SaasAgreementFormValues["fee_frequency"],
       shadow_charge_rate: found.shadow_charge_rate,
+      billing_frequency: (found.billing_frequency ?? "monthly") as SaasAgreementFormValues["billing_frequency"],
+      base_platform_fee: found.base_platform_fee,
+      per_department_fee: found.per_department_fee,
+      support_tier_fee: found.support_tier_fee,
+      custom_fee_1_label: found.custom_fee_1_label,
+      custom_fee_1_amount: found.custom_fee_1_amount,
+      custom_fee_2_label: found.custom_fee_2_label,
+      custom_fee_2_amount: found.custom_fee_2_amount,
+      msa_reference_number: found.msa_reference_number,
+      msa_document_url: found.msa_document_url,
       starts_at: found.starts_at,
       ends_at: found.ends_at,
       auto_renew: found.auto_renew ?? true,
@@ -237,38 +148,41 @@ export default function SaasAgreementPage() {
   };
 
   const handleSubmit = async (data: SaasAgreementFormValues) => {
+    const allFields = {
+      child_organization_id: data.child_organization_id,
+      agreement_type: data.agreement_type,
+      fee_amount: data.fee_amount,
+      fee_currency: data.fee_currency,
+      fee_frequency: data.fee_frequency,
+      shadow_charge_rate: data.shadow_charge_rate,
+      billing_frequency: data.billing_frequency,
+      base_platform_fee: data.base_platform_fee,
+      per_department_fee: data.per_department_fee,
+      support_tier_fee: data.support_tier_fee,
+      custom_fee_1_label: data.custom_fee_1_label,
+      custom_fee_1_amount: data.custom_fee_1_amount,
+      custom_fee_2_label: data.custom_fee_2_label,
+      custom_fee_2_amount: data.custom_fee_2_amount,
+      msa_reference_number: data.msa_reference_number,
+      msa_document_url: data.msa_document_url,
+      starts_at: data.starts_at,
+      ends_at: data.ends_at,
+      auto_renew: data.auto_renew,
+      notes: data.notes,
+    };
+
     if (editingAgreement) {
       await updateAgreement.mutateAsync({
         agreementId: editingAgreement.id,
         parentOrgId: editingAgreement.parentOrgId,
-        updates: {
-          child_organization_id: data.child_organization_id,
-          agreement_type: data.agreement_type,
-          fee_amount: data.fee_amount,
-          fee_currency: data.fee_currency,
-          fee_frequency: data.fee_frequency,
-          shadow_charge_rate: data.shadow_charge_rate,
-          starts_at: data.starts_at,
-          ends_at: data.ends_at,
-          auto_renew: data.auto_renew,
-          notes: data.notes,
-        },
+        updates: allFields,
       });
     } else {
       if (!selectedParentOrgId) return;
       await createAgreement.mutateAsync({
         tenant_id: selectedParentOrgId,
         parent_organization_id: selectedParentOrgId,
-        child_organization_id: data.child_organization_id,
-        agreement_type: data.agreement_type,
-        fee_amount: data.fee_amount,
-        fee_currency: data.fee_currency,
-        fee_frequency: data.fee_frequency,
-        shadow_charge_rate: data.shadow_charge_rate,
-        starts_at: data.starts_at,
-        ends_at: data.ends_at,
-        auto_renew: data.auto_renew,
-        notes: data.notes,
+        ...allFields,
       });
     }
   };
@@ -379,10 +293,9 @@ export default function SaasAgreementPage() {
                       <TableHead>Child Organization</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Fee</TableHead>
-                      <TableHead>Frequency</TableHead>
-                      <TableHead>Starts</TableHead>
-                      <TableHead>Ends</TableHead>
-                      <TableHead>Auto Renew</TableHead>
+                      <TableHead>Fee Freq.</TableHead>
+                      <TableHead>Billing Freq.</TableHead>
+                      <TableHead>MSA Ref</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Created</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
@@ -414,25 +327,11 @@ export default function SaasAgreementPage() {
                           <TableCell className="capitalize">
                             {agreement.fee_frequency}
                           </TableCell>
-                          <TableCell className="text-sm text-muted-foreground">
-                            {agreement.starts_at
-                              ? format(new Date(agreement.starts_at), "MMM dd, yyyy")
-                              : "—"}
+                          <TableCell className="capitalize">
+                            {agreement.billing_frequency ?? "—"}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {agreement.ends_at
-                              ? format(new Date(agreement.ends_at), "MMM dd, yyyy")
-                              : "—"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge
-                              variant={
-                                agreement.auto_renew ? "default" : "secondary"
-                              }
-                              className="text-xs"
-                            >
-                              {agreement.auto_renew ? "Yes" : "No"}
-                            </Badge>
+                            {agreement.msa_reference_number ?? "—"}
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -456,7 +355,7 @@ export default function SaasAgreementPage() {
                               <Button
                                 variant="ghost"
                                 size="sm"
-                                onClick={() => handleOpenEdit(agreement)}
+                                onClick={() => handleOpenEdit(agreement.id)}
                               >
                                 <Pencil className="h-4 w-4" />
                               </Button>
@@ -516,21 +415,22 @@ export default function SaasAgreementPage() {
       </div>
 
       {/* Create / Edit Dialog */}
-      <MasterDataForm<SaasAgreementFormValues>
+      <SaasAgreementFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        title="SaaS Agreement"
-        description={
-          dialogMode === "create"
-            ? "Set up a new fee agreement with a child organization"
-            : "Update the agreement details"
-        }
-        fields={formFields}
-        schema={saasAgreementSchema}
-        defaultValues={getDefaultValues()}
-        onSubmit={handleSubmit}
-        isLoading={isMutating}
         mode={dialogMode}
+        defaultValues={getDefaultValues()}
+        childOrgOptions={childOrgOptions}
+        existingAgreements={
+          (agreements ?? []).map((a) => ({
+            id: a.id,
+            agreement_type: a.agreement_type,
+            shadow_charge_rate: a.shadow_charge_rate,
+          }))
+        }
+        editingAgreementId={editingAgreement?.id}
+        isLoading={isMutating}
+        onSubmit={handleSubmit}
       />
     </>
   );
