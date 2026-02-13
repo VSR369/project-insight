@@ -151,14 +151,23 @@ export function MasterDataForm<TData extends FieldValues>({
             disabled={disabled || isLoading}
           />
         );
-      case "select":
+      case "select": {
+        // Radix Select forbids empty-string values on SelectItem.
+        // Use "__none__" sentinel for "no selection" / "all" options.
+        const NONE_SENTINEL = "__none__";
+        const currentValue = (field.value as string) ?? "";
+        const selectValue = currentValue === "" ? NONE_SENTINEL : currentValue;
+        const emptyOption = options?.find((o) => o.value === "");
+        const validOptions = options?.filter((o) => o.value !== "") ?? [];
+
         return (
           <Select
-            value={(field.value as string) ?? ""}
+            value={selectValue}
             onValueChange={(val) => {
-              field.onChange(val);
+              const realVal = val === NONE_SENTINEL ? "" : val;
+              field.onChange(realVal);
               if (onFieldChange) {
-                const derived = onFieldChange(String(fieldConfig.name), val);
+                const derived = onFieldChange(String(fieldConfig.name), realVal);
                 if (derived) {
                   Object.entries(derived).forEach(([key, value]) => {
                     form.setValue(key as Path<TData>, value as any);
@@ -172,7 +181,12 @@ export function MasterDataForm<TData extends FieldValues>({
               <SelectValue placeholder={placeholder || "Select..."} />
             </SelectTrigger>
             <SelectContent>
-              {options?.map((option) => (
+              {emptyOption && (
+                <SelectItem value={NONE_SENTINEL}>
+                  {emptyOption.label}
+                </SelectItem>
+              )}
+              {validOptions.map((option) => (
                 <SelectItem key={option.value} value={option.value}>
                   {option.label}
                 </SelectItem>
@@ -180,6 +194,7 @@ export function MasterDataForm<TData extends FieldValues>({
             </SelectContent>
           </Select>
         );
+      }
       default:
         return null;
     }
