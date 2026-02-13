@@ -134,7 +134,7 @@ export function useProofPoints(providerId?: string, options?: UseProofPointsOpti
       // Fetch proof points
       let query = supabase
         .from('proof_points')
-        .select('*')
+        .select('id, provider_id, enrollment_id, industry_segment_id, category, type, title, description, is_deleted, created_at, updated_at, created_by, updated_by')
         .eq('provider_id', providerId)
         .eq('is_deleted', false);
 
@@ -209,17 +209,17 @@ export function useProofPoint(proofPointId?: string) {
       const [proofPointResult, linksResult, filesResult, tagsResult] = await Promise.all([
         supabase
           .from('proof_points')
-          .select('*')
+          .select('id, provider_id, enrollment_id, industry_segment_id, category, type, title, description, is_deleted, created_at, updated_at, created_by, updated_by')
           .eq('id', proofPointId)
           .single(),
         supabase
           .from('proof_point_links')
-          .select('*')
+          .select('id, proof_point_id, url, title, description, display_order, created_at')
           .eq('proof_point_id', proofPointId)
           .order('display_order', { ascending: true }),
         supabase
           .from('proof_point_files')
-          .select('*')
+          .select('id, proof_point_id, file_name, mime_type, file_size, storage_path, created_at')
           .eq('proof_point_id', proofPointId),
         supabase
           .from('proof_point_speciality_tags')

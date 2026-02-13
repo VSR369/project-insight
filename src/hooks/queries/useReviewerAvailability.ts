@@ -74,7 +74,7 @@ export function useCurrentReviewer() {
       // Fetch full profile for active reviewer
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, invitation_sent_at, invitation_accepted_at, invitation_channel, invitation_message, invitation_token_hash, invitation_token_expires_at, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, approved_at, approved_by, approval_notes, why_join_statement, cancellation_reason, cancelled_at, cancelled_by, created_at, updated_at, created_by, updated_by")
         .eq("user_id", userId)
         .eq("is_active", true)
         .single();
@@ -98,7 +98,7 @@ export function useReviewerSlots(
 
       const { data, error } = await supabase
         .from("interview_slots")
-        .select("*")
+        .select("id, reviewer_id, start_at, end_at, status, slot_industry_ids, slot_expertise_ids, hold_expires_at, cancelled_at, cancelled_by, cancelled_reason, created_at, updated_at")
         .eq("reviewer_id", reviewerId)
         .gte("start_at", monthStart.toISOString())
         .lte("start_at", monthEnd.toISOString())

@@ -17,7 +17,7 @@ export function useLevelSpecialityMappings(specialityId?: string) {
 
       const { data, error } = await supabase
         .from("level_speciality_map")
-        .select("*, expertise_levels!expertise_level_id(id, name, level_number)")
+        .select("id, speciality_id, expertise_level_id, created_at, updated_at, created_by, updated_by, expertise_levels!expertise_level_id(id, name, level_number)")
         .eq("speciality_id", specialityId)
         .order("created_at", { ascending: true });
 
@@ -37,7 +37,7 @@ export function useMappingsByLevel(expertiseLevelId?: string) {
 
       const { data, error } = await supabase
         .from("level_speciality_map")
-        .select("*, specialities(*)")
+        .select("id, speciality_id, expertise_level_id, created_at, updated_at, created_by, updated_by, specialities(id, name, description, sub_domain_id, display_order, is_active)")
         .eq("expertise_level_id", expertiseLevelId);
 
       if (error) throw new Error(error.message);

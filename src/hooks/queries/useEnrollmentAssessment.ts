@@ -493,7 +493,7 @@ export function useActiveEnrollmentAssessmentAttempt(enrollmentId?: string) {
 
       const { data, error } = await supabase
         .from('assessment_attempts')
-        .select('*')
+        .select('id, provider_id, enrollment_id, total_questions, answered_questions, time_limit_minutes, started_at, submitted_at, score_percentage, is_passed')
         .eq('enrollment_id', enrollmentId)
         .is('submitted_at', null)
         .order('started_at', { ascending: false })

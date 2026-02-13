@@ -128,7 +128,7 @@ export function useCandidateProofPoints(enrollmentId: string) {
       // Fetch proof points for this enrollment
       const { data: proofPoints, error: ppError } = await supabase
         .from('proof_points')
-        .select('*')
+        .select('id, provider_id, enrollment_id, industry_segment_id, category, type, title, description, review_relevance_rating, review_score_rating, review_comments, reviewed_by, reviewed_at, is_deleted, created_at, updated_at')
         .eq('enrollment_id', enrollmentId)
         .eq('is_deleted', false)
         .order('updated_at', { ascending: false });
@@ -142,13 +142,13 @@ export function useCandidateProofPoints(enrollmentId: string) {
         proofPointIds.length > 0
           ? supabase
               .from('proof_point_links')
-              .select('*')
+              .select('id, proof_point_id, url, title')
               .in('proof_point_id', proofPointIds)
           : { data: [], error: null },
         proofPointIds.length > 0
           ? supabase
               .from('proof_point_files')
-              .select('*')
+              .select('id, proof_point_id, file_name, file_size, mime_type, storage_path')
               .in('proof_point_id', proofPointIds)
           : { data: [], error: null },
         proofPointIds.length > 0

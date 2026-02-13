@@ -61,7 +61,7 @@ export function useCompositeSlots(
       // Get composite slots from the static table
       const { data: compositeSlots, error: slotsError } = await supabase
         .from("composite_interview_slots")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, start_at, end_at, available_reviewer_count, backing_slot_ids, status")
         .eq("expertise_level_id", expertiseLevelId)
         .eq("industry_segment_id", industrySegmentId)
         .eq("status", "open")
@@ -120,7 +120,7 @@ export function useExistingBooking(enrollmentId?: string, providerId?: string) {
 
       const { data, error } = await supabase
         .from("interview_bookings")
-        .select("*")
+        .select("id, provider_id, enrollment_id, composite_slot_id, status, scheduled_at, reschedule_count, cancelled_at, cancelled_reason, notes, created_at")
         .eq("enrollment_id", enrollmentId)
         .eq("provider_id", providerId)
         .in("status", ["scheduled", "confirmed"])
@@ -146,7 +146,7 @@ export function useQuorumRequirement(
       // First try industry-specific, then fallback to global
       let query = supabase
         .from("interview_quorum_requirements")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, required_quorum_count, interview_duration_minutes, is_active")
         .eq("expertise_level_id", expertiseLevelId)
         .eq("is_active", true);
 
@@ -162,7 +162,7 @@ export function useQuorumRequirement(
       // Fallback to global (null industry)
       const { data: global } = await supabase
         .from("interview_quorum_requirements")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, required_quorum_count, interview_duration_minutes, is_active")
         .eq("expertise_level_id", expertiseLevelId)
         .is("industry_segment_id", null)
         .eq("is_active", true)
@@ -232,7 +232,7 @@ export function useCancelBooking() {
       if (!input.skipValidation) {
         const { data: booking, error: fetchError } = await supabase
           .from("interview_bookings")
-          .select("*")
+          .select("id, provider_id, enrollment_id, composite_slot_id, status, scheduled_at, reschedule_count, cancelled_at, cancelled_reason, notes, created_at")
           .eq("id", input.bookingId)
           .single();
 
@@ -304,7 +304,7 @@ export function useRescheduleBooking() {
       // Get current booking with all fields for validation
       const { data: currentBooking, error: fetchError } = await supabase
         .from("interview_bookings")
-        .select("*")
+        .select("id, provider_id, enrollment_id, composite_slot_id, status, scheduled_at, reschedule_count, cancelled_at, cancelled_reason, notes, created_at")
         .eq("id", input.currentBookingId)
         .single();
 
@@ -406,7 +406,7 @@ export function useBookingHistory(enrollmentId?: string, providerId?: string) {
 
       const { data, error } = await supabase
         .from("interview_bookings")
-        .select("*")
+        .select("id, provider_id, enrollment_id, composite_slot_id, status, scheduled_at, reschedule_count, cancelled_at, cancelled_reason, notes, created_at")
         .eq("enrollment_id", enrollmentId)
         .eq("provider_id", providerId)
         .order("created_at", { ascending: false });

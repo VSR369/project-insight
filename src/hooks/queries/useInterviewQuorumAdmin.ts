@@ -18,7 +18,7 @@ export function useAllQuorumConfigs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("interview_quorum_requirements")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, required_quorum_count, interview_duration_minutes, is_active, created_at, updated_at, created_by, updated_by")
         .eq("is_active", true);
 
       if (error) throw new Error(error.message);
@@ -37,7 +37,7 @@ export function useInterviewQuorumConfigs() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("interview_quorum_requirements")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, required_quorum_count, interview_duration_minutes, is_active, created_at, updated_at, created_by, updated_by")
         .is("industry_segment_id", null)
         .eq("is_active", true);
 
@@ -59,7 +59,7 @@ export function useInterviewQuorumByLevel(expertiseLevelId: string | null) {
 
       const { data, error } = await supabase
         .from("interview_quorum_requirements")
-        .select("*")
+        .select("id, expertise_level_id, industry_segment_id, required_quorum_count, interview_duration_minutes, is_active, created_at, updated_at, created_by, updated_by")
         .eq("expertise_level_id", expertiseLevelId)
         .is("industry_segment_id", null)
         .eq("is_active", true)

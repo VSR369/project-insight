@@ -52,7 +52,7 @@ export function useProviderStats(providerId: string | undefined) {
 
       const { data, error } = await supabase
         .from("pulse_provider_stats")
-        .select("*")
+        .select("id, provider_id, total_xp, current_level, current_streak, longest_streak, last_activity_date, total_posts, total_articles, total_reels, total_podcasts, total_galleries, total_sparks, total_cards, total_layers, total_contributions, total_fire_received, total_gold_received, total_saves_received, total_comments_received, total_card_fire_received, total_card_gold_received, total_card_saves_received, follower_count, following_count, gold_token_balance, visibility_boost_tokens, pulse_headline, timezone, created_at, updated_at")
         .eq("provider_id", providerId)
         .maybeSingle();
 
@@ -112,7 +112,7 @@ export function useTodayStandup(providerId: string | undefined) {
 
       const { data, error } = await supabase
         .from("pulse_daily_standups")
-        .select("*")
+        .select("id, provider_id, standup_date, completed_at, updates_viewed, xp_awarded, visibility_boost_earned, created_at")
         .eq("provider_id", providerId)
         .eq("standup_date", today)
         .maybeSingle();
@@ -187,7 +187,7 @@ export function useTodayLootBox(providerId: string | undefined) {
 
       const { data, error } = await supabase
         .from("pulse_loot_boxes")
-        .select("*")
+        .select("id, provider_id, claim_date, opened_at, rewards, created_at")
         .eq("provider_id", providerId)
         .eq("claim_date", today)
         .maybeSingle();
@@ -463,7 +463,7 @@ export function usePulseTags() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pulse_tags")
-        .select("*")
+        .select("id, name, display_name, is_active, is_featured, usage_count, created_at, updated_at")
         .eq("is_active", true)
         .order("usage_count", { ascending: false });
 
@@ -481,7 +481,7 @@ export function useTrendingTags(limit = 10) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("pulse_tags")
-        .select("*")
+        .select("id, name, display_name, is_active, is_featured, usage_count, created_at, updated_at")
         .eq("is_active", true)
         .order("usage_count", { ascending: false })
         .limit(limit);
@@ -756,7 +756,7 @@ export function useCreatePulseTag() {
       // Check if tag already exists (case-insensitive)
       const { data: existing } = await supabase
         .from("pulse_tags")
-        .select("*")
+        .select("id, name, display_name, is_active, is_featured, usage_count, created_at, updated_at")
         .ilike("name", name.trim())
         .maybeSingle();
 

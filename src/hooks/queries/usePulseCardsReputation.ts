@@ -105,7 +105,7 @@ export function usePulseCardsReputationHistory(providerId: string | undefined, l
 
       const { data, error } = await supabase
         .from('pulse_cards_reputation_log')
-        .select('*')
+        .select('id, provider_id, action_type, points_delta, reason, reference_type, reference_id, created_at')
         .eq('provider_id', providerId)
         .order('created_at', { ascending: false })
         .limit(limit);
