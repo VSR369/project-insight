@@ -18,7 +18,7 @@ const schema = z.object({
   code: z.string().min(2).max(20).toUpperCase(),
   name: z.string().min(2).max(100),
   description: z.string().max(500).nullable().optional(),
-  department_id: z.string().uuid().nullable().optional(),
+  department_id: z.string().uuid({ message: "Department is required" }),
   display_order: z.number().int().min(0).nullable().optional(),
   is_active: z.boolean().default(true),
 });
@@ -43,7 +43,7 @@ export default function FunctionalAreasPage() {
     { name: "name", label: "Name", type: "text" as const, placeholder: "e.g., Technology", required: true },
     { name: "description", label: "Description", type: "textarea" as const, placeholder: "Optional description" },
     {
-      name: "department_id", label: "Department", type: "select" as const, placeholder: "Select department (optional)",
+      name: "department_id", label: "Department", type: "select" as const, placeholder: "Select department", required: true,
       options: departments.map(d => ({ value: d.id, label: d.name })),
     },
     { name: "display_order", label: "Display Order", type: "number" as const, placeholder: "0", min: 0 },
