@@ -1645,6 +1645,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           currency_code: string
+          engagement_model_id: string | null
           id: string
           is_active: boolean
           management_base_fee: number
@@ -1658,6 +1659,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency_code: string
+          engagement_model_id?: string | null
           id?: string
           is_active?: boolean
           management_base_fee: number
@@ -1671,6 +1673,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           currency_code?: string
+          engagement_model_id?: string | null
           id?: string
           is_active?: boolean
           management_base_fee?: number
@@ -1684,6 +1687,13 @@ export type Database = {
             columns: ["country_id"]
             isOneToOne: false
             referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "md_challenge_base_fees_engagement_model_id_fkey"
+            columns: ["engagement_model_id"]
+            isOneToOne: false
+            referencedRelation: "md_engagement_models"
             referencedColumns: ["id"]
           },
           {
@@ -2111,6 +2121,60 @@ export type Database = {
           },
           {
             foreignKeyName: "md_payment_methods_availability_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_platform_fees: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          engagement_model_id: string
+          id: string
+          is_active: boolean
+          platform_fee_pct: number
+          tier_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          engagement_model_id: string
+          id?: string
+          is_active?: boolean
+          platform_fee_pct: number
+          tier_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          engagement_model_id?: string
+          id?: string
+          is_active?: boolean
+          platform_fee_pct?: number
+          tier_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_platform_fees_engagement_model_id_fkey"
+            columns: ["engagement_model_id"]
+            isOneToOne: false
+            referencedRelation: "md_engagement_models"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "md_platform_fees_tier_id_fkey"
             columns: ["tier_id"]
             isOneToOne: false
             referencedRelation: "md_subscription_tiers"

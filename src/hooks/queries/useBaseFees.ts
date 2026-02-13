@@ -13,7 +13,7 @@ export function useBaseFees(includeInactive = false) {
   return useQuery({
     queryKey: [...KEY, { includeInactive }],
     queryFn: async () => {
-      let q = supabase.from(TABLE).select(`*, countries(name), md_subscription_tiers(name)`).order("created_at");
+      let q = supabase.from(TABLE).select(`*, countries(name), md_subscription_tiers(name), md_engagement_models(name)`).order("created_at");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw new Error(error.message);

@@ -1,124 +1,372 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { LayoutGrid, Check, X, Crown, Users, Zap } from "lucide-react";
 import {
-  useSubscriptionTiers,
-  useTierFeatures,
-  useBillingCycles,
-  useEngagementModels,
-  useTierEngagementAccess,
-  useShadowPricing,
+  Collapsible, CollapsibleContent, CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { LayoutGrid, Check, X, Crown, ChevronDown, AlertCircle, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  useSubscriptionTiers, useTierFeatures, useBillingCycles,
+  useEngagementModels, useTierEngagementAccess, useShadowPricing,
 } from "@/hooks/queries/usePlanSelectionData";
 import { useMembershipTiers } from "@/hooks/queries/useMembershipTiers";
 import { useChallengeComplexityList } from "@/hooks/queries/useChallengeComplexity";
-import { useAllTierCountryPricing } from "@/hooks/queries/usePricingOverviewData";
+import { useAllTierCountryPricing, useAllPlatformFees } from "@/hooks/queries/usePricingOverviewData";
+import { useBaseFees } from "@/hooks/queries/useBaseFees";
 
 // ============================================================
-// Section Skeleton
+// Constants
 // ============================================================
-const SectionSkeleton = () => (
-  <Card>
-    <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
-    <CardContent className="space-y-2">
-      <Skeleton className="h-4 w-full" />
-      <Skeleton className="h-4 w-3/4" />
-      <Skeleton className="h-4 w-1/2" />
-    </CardContent>
-  </Card>
-);
+const TIER_COLORS: Record<string, string> = {
+  basic: "border-l-blue-500",
+  standard: "border-l-purple-500",
+  premium: "border-l-amber-500",
+};
+
+const AGGREGATOR_CODE = "aggregator";
 
 // ============================================================
-// Main Page
+// Section Components
 // ============================================================
-export default function PricingOverviewPage() {
-  const { data: tiers = [], isLoading: tiersLoading } = useSubscriptionTiers();
-  const { data: features = [], isLoading: featuresLoading } = useTierFeatures();
-  const { data: billingCycles = [], isLoading: cyclesLoading } = useBillingCycles();
-  const { data: engagementModels = [], isLoading: modelsLoading } = useEngagementModels();
-  const { data: tierAccess = [], isLoading: accessLoading } = useTierEngagementAccess();
-  const { data: shadowPricing = [], isLoading: shadowLoading } = useShadowPricing();
-  const { data: membershipTiers = [], isLoading: membershipLoading } = useMembershipTiers();
-  const { data: complexity = [], isLoading: complexityLoading } = useChallengeComplexityList();
-  const { data: countryPricing = [], isLoading: pricingLoading } = useAllTierCountryPricing();
 
-  const isLoading = tiersLoading || featuresLoading || cyclesLoading || modelsLoading
-    || accessLoading || shadowLoading || membershipLoading || complexityLoading || pricingLoading;
+function SectionSkeleton() {
+  return (
+    <Card>
+      <CardHeader><Skeleton className="h-6 w-48" /></CardHeader>
+      <CardContent className="space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-3/4" />
+        <Skeleton className="h-4 w-1/2" />
+      </CardContent>
+    </Card>
+  );
+}
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-3">
-          <LayoutGrid className="h-7 w-7 text-primary" />
-          <h1 className="text-2xl font-bold tracking-tight">Pricing Overview</h1>
-        </div>
-        <div className="grid gap-6">
-          {Array.from({ length: 4 }).map((_, i) => <SectionSkeleton key={i} />)}
-        </div>
-      </div>
-    );
-  }
+function CollapsibleSection({ title, children, defaultOpen = false, badge }: {
+  title: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+  badge?: React.ReactNode;
+}) {
+  return (
+    <Collapsible defaultOpen={defaultOpen}>
+      <CollapsibleTrigger className="flex items-center gap-2 w-full py-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group">
+        <ChevronDown className="h-4 w-4 transition-transform group-data-[state=closed]:-rotate-90" />
+        <span>{title}</span>
+        {badge}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-1 pb-3">
+        {children}
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
 
-  // Build lookup maps
-  const tierMap = Object.fromEntries(tiers.map(t => [t.id, t]));
+function NotApplicableBadge({ label }: { label?: string }) {
+  return (
+    <div className="flex items-center gap-2 py-2">
+      <Badge variant="secondary" className="text-muted-foreground">
+        <AlertCircle className="h-3 w-3 mr-1" />Not Applicable
+      </Badge>
+      {label && <span className="text-xs text-muted-foreground">{label}</span>}
+    </div>
+  );
+}
+
+function NotConfiguredMessage({ link, label }: { link: string; label: string }) {
+  return (
+    <div className="flex items-center gap-2 py-2 text-sm text-muted-foreground">
+      <span>Not configured yet.</span>
+      <Link to={link} className="text-primary hover:underline inline-flex items-center gap-1">
+        Configure {label} <ExternalLink className="h-3 w-3" />
+      </Link>
+    </div>
+  );
+}
+
+// ============================================================
+// Tier Card
+// ============================================================
+interface TierCardProps {
+  tier: any;
+  modelCode: string;
+  accessType: string | null;
+  platformFeePct: number | null;
+  platformFeeDesc: string | null;
+  countryPricing: any[];
+  baseFees: any[];
+  complexity: any[];
+  billingCycles: any[];
+  membershipTiers: any[];
+  shadowPricing: any[];
+  features: any[];
+  allTiers: any[];
+}
+
+function TierCard({
+  tier, modelCode, accessType, platformFeePct, platformFeeDesc,
+  countryPricing, baseFees, complexity, billingCycles,
+  membershipTiers, shadowPricing, features, allTiers,
+}: TierCardProps) {
+  const colorClass = TIER_COLORS[tier.code?.toLowerCase()] ?? "border-l-muted";
+  const isAggregator = modelCode === AGGREGATOR_CODE;
+  const tierPricing = countryPricing.filter(p => p.tier_id === tier.id);
+  const tierBaseFees = baseFees.filter((bf: any) => bf.tier_id === tier.id);
+  const tierShadow = shadowPricing.filter((sp: any) => sp.tier_id === tier.id);
+  const tierFeatures = features.filter((f: any) => f.tier_id === tier.id);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center gap-3">
-        <LayoutGrid className="h-7 w-7 text-primary" />
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Pricing & Configuration Overview</h1>
-          <p className="text-sm text-muted-foreground">Consolidated view of all subscription, pricing, and feature configurations</p>
-        </div>
-      </div>
-
-      {/* Section 1: Tier Comparison */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Crown className="h-5 w-5" />Subscription Tiers</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {tiers.map(tier => (
-              <Card key={tier.id} className="border-2">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg flex items-center justify-between">
-                    {tier.name}
-                    {tier.is_enterprise && <Badge variant="secondary">Enterprise</Badge>}
-                  </CardTitle>
-                  <p className="text-xs text-muted-foreground font-mono">{tier.code}</p>
-                </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  {tier.description && <p className="text-muted-foreground">{tier.description}</p>}
-                  <div className="flex justify-between"><span>Max Challenges</span><Badge variant="outline">{tier.max_challenges ?? "Unlimited"}</Badge></div>
-                  <div className="flex justify-between"><span>Max Users</span><Badge variant="outline">{tier.max_users ?? "Unlimited"}</Badge></div>
-                </CardContent>
-              </Card>
-            ))}
+    <Card className={`border-l-4 ${colorClass}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            {tier.name}
+            {tier.is_enterprise && <Badge variant="secondary">Enterprise</Badge>}
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            {accessType === "included" ? (
+              <Badge variant="default" className="gap-1"><Check className="h-3 w-3" />Included</Badge>
+            ) : (
+              <Badge variant="destructive" className="gap-1"><X className="h-3 w-3" />Not Available</Badge>
+            )}
           </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="flex gap-4 text-xs text-muted-foreground mt-1">
+          <span>Max Challenges: <strong>{tier.max_challenges ?? "Unlimited"}</strong></span>
+          <span>Max Users: <strong>{tier.max_users ?? "Unlimited"}</strong></span>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-1 divide-y divide-border">
+        {/* Platform Fee */}
+        <CollapsibleSection title="Platform Fee" defaultOpen badge={
+          platformFeePct != null ? <Badge variant="outline">{platformFeePct}%</Badge> : null
+        }>
+          {platformFeePct != null ? (
+            <div className="text-sm">
+              <span className="font-medium">{platformFeePct}%</span> of award/fee paid to provider
+              {platformFeeDesc && <p className="text-muted-foreground text-xs mt-1">{platformFeeDesc}</p>}
+            </div>
+          ) : (
+            <NotConfiguredMessage link="/admin/seeker-config/platform-fees" label="Platform Fees" />
+          )}
+        </CollapsibleSection>
 
-      {/* Section 2: Engagement Model Access */}
+        {/* Subscription Pricing */}
+        <CollapsibleSection title="Subscription Pricing" badge={
+          <Badge variant="outline">{tierPricing.length} countries</Badge>
+        }>
+          {tierPricing.length === 0 ? (
+            <NotConfiguredMessage link="/admin/seeker-config/subscription-tiers" label="Pricing" />
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Currency</TableHead>
+                    <TableHead className="text-right">Monthly Price</TableHead>
+                    <TableHead className="text-right">Local Price</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tierPricing.map(p => (
+                    <TableRow key={p.id}>
+                      <TableCell className="font-medium">{p.country_name}</TableCell>
+                      <TableCell>{p.currency_code}</TableCell>
+                      <TableCell className="text-right">${p.monthly_price_usd}</TableCell>
+                      <TableCell className="text-right">
+                        {p.local_price != null ? `${p.currency_symbol}${p.local_price.toLocaleString()}` : "—"}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CollapsibleSection>
+
+        {/* Challenge Base Fees */}
+        <CollapsibleSection title="Challenge Base Fees">
+          {isAggregator ? (
+            <NotApplicableBadge label="Aggregator model does not have consulting or management fees" />
+          ) : tierBaseFees.length === 0 ? (
+            <NotConfiguredMessage link="/admin/seeker-config/base-fees" label="Base Fees" />
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Country</TableHead>
+                    <TableHead className="text-right">Consulting Fee</TableHead>
+                    <TableHead className="text-right">Management Fee</TableHead>
+                    <TableHead>Currency</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tierBaseFees.map((bf: any) => (
+                    <TableRow key={bf.id}>
+                      <TableCell className="font-medium">{bf.countries?.name ?? "—"}</TableCell>
+                      <TableCell className="text-right font-mono">{bf.consulting_base_fee}</TableCell>
+                      <TableCell className="text-right font-mono">{bf.management_base_fee}</TableCell>
+                      <TableCell>{bf.currency_code}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CollapsibleSection>
+
+        {/* Complexity Multipliers */}
+        <CollapsibleSection title="Complexity Multipliers">
+          {isAggregator ? (
+            <NotApplicableBadge label="Aggregator model does not use fee multipliers" />
+          ) : complexity.length === 0 ? (
+            <NotConfiguredMessage link="/admin/seeker-config/challenge-complexity" label="Complexity" />
+          ) : (
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Complexity</TableHead>
+                    <TableHead className="text-right">Consulting ×</TableHead>
+                    <TableHead className="text-right">Management ×</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {complexity.map(c => (
+                    <TableRow key={c.id}>
+                      <TableCell className="font-medium">{c.complexity_label}</TableCell>
+                      <TableCell className="text-right font-mono">{c.consulting_fee_multiplier}×</TableCell>
+                      <TableCell className="text-right font-mono">{c.management_fee_multiplier}×</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CollapsibleSection>
+
+        {/* Billing Discounts */}
+        <CollapsibleSection title="Billing Cycle Discounts">
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Cycle</TableHead>
+                  <TableHead className="text-center">Duration</TableHead>
+                  <TableHead className="text-right">Discount</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {billingCycles.map(cycle => (
+                  <TableRow key={cycle.id}>
+                    <TableCell className="font-medium">{cycle.name}</TableCell>
+                    <TableCell className="text-center">{cycle.months} mo</TableCell>
+                    <TableCell className="text-right">
+                      {cycle.discount_percentage > 0
+                        ? <Badge variant="default">{cycle.discount_percentage}%</Badge>
+                        : <span className="text-muted-foreground">—</span>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CollapsibleSection>
+
+        {/* Membership Discounts */}
+        <CollapsibleSection title="Membership Discounts">
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tier</TableHead>
+                  <TableHead className="text-center">Duration</TableHead>
+                  <TableHead className="text-right">Fee Discount</TableHead>
+                  <TableHead className="text-right">Commission</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {membershipTiers.map(mt => (
+                  <TableRow key={mt.id}>
+                    <TableCell className="font-medium">{mt.name}</TableCell>
+                    <TableCell className="text-center">{mt.duration_months} mo</TableCell>
+                    <TableCell className="text-right"><Badge variant="default">{mt.fee_discount_pct}%</Badge></TableCell>
+                    <TableCell className="text-right">{mt.commission_rate_pct}%</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </CollapsibleSection>
+
+        {/* Shadow Pricing */}
+        <CollapsibleSection title="Shadow Pricing">
+          {tierShadow.length === 0 ? (
+            <NotConfiguredMessage link="/admin/seeker-config/shadow-pricing" label="Shadow Pricing" />
+          ) : (
+            <div className="text-sm space-y-1">
+              {tierShadow.map((sp: any) => (
+                <div key={sp.id} className="flex items-center gap-2">
+                  <span className="font-mono font-medium">{sp.currency_symbol}{sp.shadow_charge_per_challenge.toLocaleString()}</span>
+                  <span className="text-muted-foreground">{sp.currency_code} per challenge</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CollapsibleSection>
+
+        {/* Features */}
+        <CollapsibleSection title="Features" badge={
+          <Badge variant="outline">{tierFeatures.length}</Badge>
+        }>
+          {tierFeatures.length === 0 ? (
+            <NotConfiguredMessage link="/admin/seeker-config/subscription-tiers" label="Features" />
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+              {tierFeatures.map((f: any) => (
+                <div key={f.id} className="flex items-center gap-2 text-sm py-0.5">
+                  {f.access_type === "included" ? (
+                    <Check className="h-4 w-4 text-primary shrink-0" />
+                  ) : (
+                    <Badge variant="outline" className="text-xs">{f.usage_limit ?? f.access_type}</Badge>
+                  )}
+                  <span>{f.feature_name}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CollapsibleSection>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ============================================================
+// Summary Tab
+// ============================================================
+function SummaryTab({ tiers, engagementModels, tierAccess, platformFees, billingCycles, complexity }: {
+  tiers: any[]; engagementModels: any[]; tierAccess: any[]; platformFees: any[];
+  billingCycles: any[]; complexity: any[];
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Access Matrix */}
       <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Zap className="h-5 w-5" />Engagement Model Access per Tier</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Engagement Model × Tier Access</CardTitle></CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[200px]">Engagement Model</TableHead>
+                  <TableHead className="w-[200px]">Model</TableHead>
                   {tiers.map(t => <TableHead key={t.id} className="text-center">{t.name}</TableHead>)}
                 </TableRow>
               </TableHeader>
@@ -127,14 +375,13 @@ export default function PricingOverviewPage() {
                   <TableRow key={model.id}>
                     <TableCell className="font-medium">{model.name}</TableCell>
                     {tiers.map(tier => {
-                      const access = tierAccess.find(a => a.tier_id === tier.id && a.engagement_model_id === model.id);
+                      const access = tierAccess.find((a: any) => a.tier_id === tier.id && a.engagement_model_id === model.id);
                       const included = access?.access_type === "included";
                       return (
                         <TableCell key={tier.id} className="text-center">
                           {included
                             ? <Badge variant="default" className="gap-1"><Check className="h-3 w-3" />Included</Badge>
-                            : <Badge variant="secondary" className="gap-1 text-muted-foreground"><X className="h-3 w-3" />Not Available</Badge>
-                          }
+                            : <Badge variant="secondary" className="gap-1"><X className="h-3 w-3" />N/A</Badge>}
                         </TableCell>
                       );
                     })}
@@ -146,61 +393,41 @@ export default function PricingOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Section 3: Tier Pricing by Country */}
+      {/* Platform Fees Matrix */}
       <Card>
-        <CardHeader>
-          <CardTitle>Tier Pricing by Country</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Platform Fees Matrix</CardTitle></CardHeader>
         <CardContent>
-          {countryPricing.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No country pricing configured yet.</p>
-          ) : (
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Country</TableHead>
-                    <TableHead>Currency</TableHead>
-                    {tiers.map(t => <TableHead key={t.id} className="text-right">{t.name}</TableHead>)}
+          <div className="relative w-full overflow-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[200px]">Model</TableHead>
+                  {tiers.map(t => <TableHead key={t.id} className="text-center">{t.name}</TableHead>)}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {engagementModels.map(model => (
+                  <TableRow key={model.id}>
+                    <TableCell className="font-medium">{model.name}</TableCell>
+                    {tiers.map(tier => {
+                      const fee = platformFees.find((f: any) => f.engagement_model_id === model.id && f.tier_id === tier.id);
+                      return (
+                        <TableCell key={tier.id} className="text-center">
+                          {fee ? <Badge variant="outline">{fee.platform_fee_pct}%</Badge> : <span className="text-muted-foreground">—</span>}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    // Group by country
-                    const grouped = new Map<string, { country_name: string; currency_code: string; currency_symbol: string; prices: Record<string, { local_price: number | null; monthly_price_usd: number }> }>();
-                    for (const p of countryPricing) {
-                      if (!grouped.has(p.country_id)) {
-                        grouped.set(p.country_id, { country_name: p.country_name, currency_code: p.currency_code, currency_symbol: p.currency_symbol, prices: {} });
-                      }
-                      grouped.get(p.country_id)!.prices[p.tier_id] = { local_price: p.local_price, monthly_price_usd: p.monthly_price_usd };
-                    }
-                    return Array.from(grouped.entries()).map(([countryId, info]) => (
-                      <TableRow key={countryId}>
-                        <TableCell className="font-medium">{info.country_name}</TableCell>
-                        <TableCell>{info.currency_code}</TableCell>
-                        {tiers.map(t => {
-                          const price = info.prices[t.id];
-                          if (!price) return <TableCell key={t.id} className="text-right text-muted-foreground">—</TableCell>;
-                          const display = price.local_price != null
-                            ? `${info.currency_symbol}${price.local_price.toLocaleString()}`
-                            : `$${price.monthly_price_usd.toLocaleString()}`;
-                          return <TableCell key={t.id} className="text-right font-medium">{display}/mo</TableCell>;
-                        })}
-                      </TableRow>
-                    ));
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Section 4: Billing Cycle Discounts */}
+      {/* Billing Discounts */}
       <Card>
-        <CardHeader>
-          <CardTitle>Billing Cycle Discounts</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Billing Cycle Discounts</CardTitle></CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
             <Table>
@@ -215,12 +442,9 @@ export default function PricingOverviewPage() {
                 {billingCycles.map(cycle => (
                   <TableRow key={cycle.id}>
                     <TableCell className="font-medium">{cycle.name}</TableCell>
-                    <TableCell className="text-center">{cycle.months} month{cycle.months > 1 ? "s" : ""}</TableCell>
+                    <TableCell className="text-center">{cycle.months} months</TableCell>
                     <TableCell className="text-right">
-                      {cycle.discount_percentage > 0
-                        ? <Badge variant="default">{cycle.discount_percentage}% off</Badge>
-                        : <span className="text-muted-foreground">—</span>
-                      }
+                      {cycle.discount_percentage > 0 ? <Badge variant="default">{cycle.discount_percentage}%</Badge> : "—"}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -230,11 +454,9 @@ export default function PricingOverviewPage() {
         </CardContent>
       </Card>
 
-      {/* Section 5: Challenge Fee Multipliers */}
+      {/* Complexity */}
       <Card>
-        <CardHeader>
-          <CardTitle>Challenge Fee Multipliers (Complexity)</CardTitle>
-        </CardHeader>
+        <CardHeader><CardTitle>Challenge Fee Multipliers</CardTitle></CardHeader>
         <CardContent>
           <div className="relative w-full overflow-auto">
             <Table>
@@ -242,8 +464,8 @@ export default function PricingOverviewPage() {
                 <TableRow>
                   <TableHead>Complexity</TableHead>
                   <TableHead className="text-center">Level</TableHead>
-                  <TableHead className="text-right">Consulting Fee Multiplier</TableHead>
-                  <TableHead className="text-right">Management Fee Multiplier</TableHead>
+                  <TableHead className="text-right">Consulting ×</TableHead>
+                  <TableHead className="text-right">Management ×</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -260,119 +482,103 @@ export default function PricingOverviewPage() {
           </div>
         </CardContent>
       </Card>
+    </div>
+  );
+}
 
-      {/* Section 6: Membership Tier Discounts */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Users className="h-5 w-5" />Membership Tier Discounts</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Membership Tier</TableHead>
-                  <TableHead className="text-center">Duration</TableHead>
-                  <TableHead className="text-right">Fee Discount</TableHead>
-                  <TableHead className="text-right">Commission Rate</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {membershipTiers.map(mt => (
-                  <TableRow key={mt.id}>
-                    <TableCell className="font-medium">{mt.name}</TableCell>
-                    <TableCell className="text-center">{mt.duration_months} months</TableCell>
-                    <TableCell className="text-right"><Badge variant="default">{mt.fee_discount_pct}%</Badge></TableCell>
-                    <TableCell className="text-right">{mt.commission_rate_pct}%</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+// ============================================================
+// Main Page
+// ============================================================
+export default function PricingOverviewPage() {
+  const { data: tiers = [], isLoading: tiersLoading } = useSubscriptionTiers();
+  const { data: features = [], isLoading: featuresLoading } = useTierFeatures();
+  const { data: billingCycles = [], isLoading: cyclesLoading } = useBillingCycles();
+  const { data: engagementModels = [], isLoading: modelsLoading } = useEngagementModels();
+  const { data: tierAccess = [], isLoading: accessLoading } = useTierEngagementAccess();
+  const { data: shadowPricing = [], isLoading: shadowLoading } = useShadowPricing();
+  const { data: membershipTiers = [], isLoading: membershipLoading } = useMembershipTiers();
+  const { data: complexity = [], isLoading: complexityLoading } = useChallengeComplexityList();
+  const { data: countryPricing = [], isLoading: pricingLoading } = useAllTierCountryPricing();
+  const { data: platformFees = [], isLoading: platformFeesLoading } = useAllPlatformFees();
+  const { data: baseFees = [], isLoading: baseFeesLoading } = useBaseFees();
 
-      {/* Section 7: Shadow Pricing */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Shadow Pricing (Internal)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="relative w-full overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tier</TableHead>
-                  <TableHead className="text-right">Shadow Charge per Challenge</TableHead>
-                  <TableHead>Currency</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shadowPricing.map(sp => (
-                  <TableRow key={sp.id}>
-                    <TableCell className="font-medium">{tierMap[sp.tier_id]?.name ?? sp.tier_id}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {sp.currency_symbol}{sp.shadow_charge_per_challenge.toLocaleString()}
-                    </TableCell>
-                    <TableCell>{sp.currency_code}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </CardContent>
-      </Card>
+  const isLoading = tiersLoading || featuresLoading || cyclesLoading || modelsLoading
+    || accessLoading || shadowLoading || membershipLoading || complexityLoading
+    || pricingLoading || platformFeesLoading || baseFeesLoading;
 
-      {/* Section 8: Tier Features Checklist */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Tier Features Checklist</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {features.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No tier features configured yet.</p>
-          ) : (
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[250px]">Feature</TableHead>
-                    {tiers.map(t => <TableHead key={t.id} className="text-center">{t.name}</TableHead>)}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {(() => {
-                    // Get unique feature codes
-                    const featureCodes = [...new Set(features.map(f => f.feature_code))];
-                    return featureCodes.map(code => {
-                      const featureInstances = features.filter(f => f.feature_code === code);
-                      const featureName = featureInstances[0]?.feature_name ?? code;
-                      return (
-                        <TableRow key={code}>
-                          <TableCell className="font-medium">{featureName}</TableCell>
-                          {tiers.map(tier => {
-                            const feature = featureInstances.find(f => f.tier_id === tier.id);
-                            if (!feature) {
-                              return <TableCell key={tier.id} className="text-center"><X className="h-4 w-4 text-muted-foreground mx-auto" /></TableCell>;
-                            }
-                            if (feature.access_type === "included") {
-                              return <TableCell key={tier.id} className="text-center"><Check className="h-4 w-4 text-primary mx-auto" /></TableCell>;
-                            }
-                            if (feature.usage_limit) {
-                              return <TableCell key={tier.id} className="text-center"><Badge variant="outline">{feature.usage_limit}</Badge></TableCell>;
-                            }
-                            return <TableCell key={tier.id} className="text-center"><Badge variant="secondary">{feature.access_type}</Badge></TableCell>;
-                          })}
-                        </TableRow>
-                      );
-                    });
-                  })()}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <LayoutGrid className="h-7 w-7 text-primary" />
+          <h1 className="text-2xl font-bold tracking-tight">Pricing Overview</h1>
+        </div>
+        <div className="grid gap-6">
+          {Array.from({ length: 4 }).map((_, i) => <SectionSkeleton key={i} />)}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-3">
+        <LayoutGrid className="h-7 w-7 text-primary" />
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Pricing & Configuration Overview</h1>
+          <p className="text-sm text-muted-foreground">Engagement model-centric view of all pricing, fees, and feature configurations</p>
+        </div>
+      </div>
+
+      <Tabs defaultValue={engagementModels[0]?.code?.toLowerCase() ?? "marketplace"} className="w-full">
+        <TabsList>
+          {engagementModels.map(model => (
+            <TabsTrigger key={model.id} value={model.code.toLowerCase()}>
+              {model.name}
+            </TabsTrigger>
+          ))}
+          <TabsTrigger value="summary">Summary</TabsTrigger>
+        </TabsList>
+
+        {engagementModels.map(model => (
+          <TabsContent key={model.id} value={model.code.toLowerCase()} className="space-y-4 mt-4">
+            {tiers.map(tier => {
+              const access = tierAccess.find((a: any) => a.tier_id === tier.id && a.engagement_model_id === model.id);
+              const fee = platformFees.find((f: any) => f.engagement_model_id === model.id && f.tier_id === tier.id);
+
+              return (
+                <TierCard
+                  key={tier.id}
+                  tier={tier}
+                  modelCode={model.code.toLowerCase()}
+                  accessType={access?.access_type ?? null}
+                  platformFeePct={fee?.platform_fee_pct ?? null}
+                  platformFeeDesc={fee?.description ?? null}
+                  countryPricing={countryPricing}
+                  baseFees={baseFees}
+                  complexity={complexity}
+                  billingCycles={billingCycles}
+                  membershipTiers={membershipTiers}
+                  shadowPricing={shadowPricing}
+                  features={features}
+                  allTiers={tiers}
+                />
+              );
+            })}
+          </TabsContent>
+        ))}
+
+        <TabsContent value="summary" className="mt-4">
+          <SummaryTab
+            tiers={tiers}
+            engagementModels={engagementModels}
+            tierAccess={tierAccess}
+            platformFees={platformFees}
+            billingCycles={billingCycles}
+            complexity={complexity}
+          />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -65,6 +65,7 @@ const seekerConfigItems = [
   { title: 'Engagement Models', icon: Network, path: '/admin/seeker-config/engagement-models' },
   { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
   { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
+  { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
   { title: 'Shadow Pricing', icon: Activity, path: '/admin/seeker-config/shadow-pricing' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
   { title: 'Export Control', icon: Shield, path: '/admin/seeker-config/export-control' },

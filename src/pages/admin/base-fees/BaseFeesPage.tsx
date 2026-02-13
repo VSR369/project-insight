@@ -14,10 +14,12 @@ import {
 } from "@/hooks/queries/useBaseFees";
 import { useSubscriptionTiers } from "@/hooks/queries/useSubscriptionTiers";
 import { useCountries } from "@/hooks/queries/useCountries";
+import { useEngagementModels } from "@/hooks/queries/useEngagementModels";
 
 const schema = z.object({
   country_id: z.string().min(1, "Country is required"),
   tier_id: z.string().min(1, "Subscription tier is required"),
+  engagement_model_id: z.string().optional().nullable(),
   consulting_base_fee: z.coerce.number().min(0),
   management_base_fee: z.coerce.number().min(0),
   currency_code: z.string().min(2).max(5).default("USD"),
@@ -28,6 +30,7 @@ type FormData = z.infer<typeof schema>;
 type BaseFeeWithJoins = BaseFee & {
   countries?: { name: string } | null;
   md_subscription_tiers?: { name: string } | null;
+  md_engagement_models?: { name: string } | null;
 };
 
 export default function BaseFeesPage() {
@@ -39,6 +42,7 @@ export default function BaseFeesPage() {
   const { data: items = [], isLoading } = useBaseFees(true);
   const { data: tiers = [] } = useSubscriptionTiers();
   const { data: countries = [] } = useCountries();
+  const { data: models = [] } = useEngagementModels();
   const createM = useCreateBaseFee();
   const updateM = useUpdateBaseFee();
   const deleteM = useDeleteBaseFee();
@@ -47,10 +51,12 @@ export default function BaseFeesPage() {
 
   const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
   const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
+  const modelOptions = [{ value: "", label: "— All Models —" }, ...models.map((m) => ({ value: m.id, label: m.name }))];
 
   const formFields: FormFieldConfig<FormData>[] = [
     { name: "country_id", label: "Country", type: "select", options: countryOptions, required: true },
     { name: "tier_id", label: "Subscription Tier", type: "select", options: tierOptions, required: true },
+    { name: "engagement_model_id", label: "Engagement Model", type: "select", options: modelOptions },
     { name: "consulting_base_fee", label: "Consulting Base Fee", type: "number", min: 0, required: true },
     { name: "management_base_fee", label: "Management Base Fee", type: "number", min: 0, required: true },
     { name: "currency_code", label: "Currency Code", type: "text", placeholder: "e.g., USD", required: true },
@@ -60,6 +66,7 @@ export default function BaseFeesPage() {
   const columns: DataTableColumn<BaseFeeWithJoins>[] = [
     { accessorKey: "countries", header: "Country", cell: (v) => (v as { name: string } | null)?.name ?? "—" },
     { accessorKey: "md_subscription_tiers", header: "Tier", cell: (v) => (v as { name: string } | null)?.name ?? "—" },
+    { accessorKey: "md_engagement_models", header: "Eng. Model", cell: (v) => (v as { name: string } | null)?.name ?? "All" },
     { accessorKey: "consulting_base_fee", header: "Consulting Fee", cell: (v) => `${v as number}` },
     { accessorKey: "management_base_fee", header: "Management Fee", cell: (v) => `${v as number}` },
     { accessorKey: "currency_code", header: "Currency" },
@@ -75,17 +82,19 @@ export default function BaseFeesPage() {
   ];
 
   const handleSubmit = async (data: FormData) => {
-    if (selected) await updateM.mutateAsync({ id: selected.id, ...data });
-    else await createM.mutateAsync(data as BaseFeeInsert);
+    const payload = { ...data, engagement_model_id: data.engagement_model_id || null };
+    if (selected) await updateM.mutateAsync({ id: selected.id, ...payload });
+    else await createM.mutateAsync(payload as BaseFeeInsert);
   };
 
   const defaults: Partial<FormData> = selected
-    ? { country_id: selected.country_id, tier_id: selected.tier_id, consulting_base_fee: selected.consulting_base_fee, management_base_fee: selected.management_base_fee, currency_code: selected.currency_code, is_active: selected.is_active }
-    : { country_id: "", tier_id: "", consulting_base_fee: 0, management_base_fee: 0, currency_code: "USD", is_active: true };
+    ? { country_id: selected.country_id, tier_id: selected.tier_id, engagement_model_id: (selected as any).engagement_model_id ?? "", consulting_base_fee: selected.consulting_base_fee, management_base_fee: selected.management_base_fee, currency_code: selected.currency_code, is_active: selected.is_active }
+    : { country_id: "", tier_id: "", engagement_model_id: "", consulting_base_fee: 0, management_base_fee: 0, currency_code: "USD", is_active: true };
 
   const viewFields: ViewField[] = selected ? [
     { label: "Country", value: selected.countries?.name ?? selected.country_id },
     { label: "Subscription Tier", value: selected.md_subscription_tiers?.name ?? selected.tier_id },
+    { label: "Engagement Model", value: (selected as any).md_engagement_models?.name ?? "All Models" },
     { label: "Consulting Base Fee", value: selected.consulting_base_fee, type: "number" },
     { label: "Management Base Fee", value: selected.management_base_fee, type: "number" },
     { label: "Currency", value: selected.currency_code },
@@ -96,7 +105,7 @@ export default function BaseFeesPage() {
   const displayName = selected ? `${selected.countries?.name ?? ""} / ${selected.md_subscription_tiers?.name ?? ""}` : "";
 
   return (
-    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Base Fee Configuration</h1><p className="text-muted-foreground mt-1">Manage consulting and management base fees per country and subscription tier</p></div>
+    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Base Fee Configuration</h1><p className="text-muted-foreground mt-1">Manage consulting and management base fees per country, subscription tier, and engagement model</p></div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Base Fee" emptyMessage="No base fee configurations found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Base Fee Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
