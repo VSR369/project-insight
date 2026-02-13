@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Tables, TablesInsert, TablesUpdate } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { handleMutationError } from "@/lib/errorHandler";
+import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 
 export type ChallengeStatus = Tables<"md_challenge_active_statuses">;
 export type ChallengeStatusInsert = TablesInsert<"md_challenge_active_statuses">;
@@ -29,7 +30,8 @@ export function useCreateChallengeStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (item: ChallengeStatusInsert) => {
-      const { data, error } = await supabase.from("md_challenge_active_statuses").insert(item).select().single();
+      const itemWithAudit = await withCreatedBy(item);
+      const { data, error } = await supabase.from("md_challenge_active_statuses").insert(itemWithAudit).select().single();
       if (error) throw new Error(error.message);
       return data;
     },
@@ -42,7 +44,8 @@ export function useUpdateChallengeStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, ...updates }: ChallengeStatusUpdate & { id: string }) => {
-      const { data, error } = await supabase.from("md_challenge_active_statuses").update(updates).eq("id", id).select().single();
+      const updatesWithAudit = await withUpdatedBy(updates);
+      const { data, error } = await supabase.from("md_challenge_active_statuses").update(updatesWithAudit).eq("id", id).select().single();
       if (error) throw new Error(error.message);
       return data;
     },
