@@ -1,55 +1,84 @@
 
 
-# Fix: Admin Sidebar Links Crashing on `/org/*` Routes
+# Add Missing Admin Config Pages: Membership Tiers, Base Fees, Shadow Pricing
 
 ## Root Cause
 
-There are **two separate issues** causing the error:
+The database tables for membership, fee calculations, and discounts already exist (`md_membership_tiers`, `md_challenge_base_fees`, `md_shadow_pricing`), and services like `membershipService.ts` and `challengePricingService.ts` reference them. However, **no admin CRUD pages exist** to manage these configurations. They were never created -- only the org-facing consumption pages (MembershipPage, ChallengeCreatePage) were built.
 
-### Issue 1: Admin sidebar links point to `/org/*` routes
-The "Seeker Management" group in `AdminSidebar.tsx` contains three links that navigate to `/org/membership`, `/org/team`, and `/org/billing`. These routes are wrapped in `SeekerGuard` -> `OrgProvider`, which calls `useCurrentOrg()`. Since admin users don't have an `org_users` record, the hook returns `null` and the "No Organization Found" error screen appears.
+The Seeker Config section in the Admin sidebar currently has 8 items but is missing these 3 critical configuration screens.
 
-### Issue 2: `useCurrentOrg` query returns HTTP 300 (ambiguous FK)
-Even for users who DO have an `org_users` record, the query fails because PostgREST cannot determine which FK to use when joining `org_users` to `seeker_organizations`. The `org_users` table has three FKs to `seeker_organizations`: `organization_id`, `subsidiary_org_id`, and `tenant_id`. The query must specify the exact FK relationship.
+## What Will Be Built
 
-## Fix
+Three new admin CRUD pages following the exact same pattern as existing pages like `SubscriptionTiersPage`, `ChallengeComplexityPage`, etc.
 
-### 1. Change Admin sidebar `/org/*` links to `/admin/*` routes
+### 1. Membership Tiers Page (`/admin/seeker-config/membership-tiers`)
 
-Since Membership, Team Management, and Billing are generic platform configuration pages (not tied to a specific organization), they should be admin-scoped routes. Update the `seekerItems` array paths:
+Manages the `md_membership_tiers` table. Fields:
+- `code` (text, unique) -- e.g., "annual", "multi_year"
+- `name` (text) -- display name
+- `description` (text) -- tier description
+- `duration_months` (number) -- membership duration
+- `fee_discount_pct` (number) -- percentage discount on challenge fees
+- `commission_rate_pct` (number) -- commission rate percentage
+- `display_order` (number)
+- `is_active` (boolean toggle)
 
-**File: `src/components/admin/AdminSidebar.tsx`**
-- Change `/org/membership` to `/admin/membership-tiers` (admin view of membership tier configuration)
-- Change `/org/team` to `/admin/saas-agreements` (already exists -- or keep SaaS Agreements as the only item)
-- Change `/org/billing` to `/admin/billing-overview` (admin billing overview)
+### 2. Base Fee Configuration Page (`/admin/seeker-config/base-fees`)
 
-However, since these pages (Membership, Team, Billing) were designed as **org-specific management pages** (not generic config), the simplest correct fix is to **remove them from the Admin sidebar entirely**. They already exist in the Org sidebar for organization users. The Admin sidebar should only contain the SaaS Agreements link under "Seeker Management."
+Manages the `md_challenge_base_fees` table. Fields:
+- `country_id` (select from countries)
+- `tier_id` (select from subscription tiers)
+- `consulting_base_fee` (number) -- base consulting fee
+- `management_base_fee` (number) -- base management fee
+- `currency_code` (text) -- e.g., "USD"
+- `is_active` (boolean toggle)
 
-**Change:** Remove Membership, Team Management, and Billing from `seekerItems`, keeping only SaaS Agreements.
+### 3. Shadow Pricing Page (`/admin/seeker-config/shadow-pricing`)
 
-### 2. Fix the ambiguous FK in `useCurrentOrg` query
+Manages the `md_shadow_pricing` table. Fields:
+- `tier_id` (select from subscription tiers)
+- `shadow_charge_per_challenge` (number) -- charge per challenge
+- `currency_code` (text)
+- `currency_symbol` (text)
+- `is_active` (boolean toggle)
 
-**File: `src/hooks/queries/useCurrentOrg.ts`**
-- Change the join hint from `seeker_organizations!inner` to `seeker_organizations!org_users_organization_id_fkey` to explicitly specify which FK relationship to use.
+## Files to Create/Modify
 
-This fixes the HTTP 300 error for org users who do have valid `org_users` records.
+| # | File | Action |
+|---|------|--------|
+| 1 | `src/pages/admin/membership-tiers/MembershipTiersPage.tsx` | **New** -- CRUD page for `md_membership_tiers` |
+| 2 | `src/pages/admin/membership-tiers/index.ts` | **New** -- barrel export |
+| 3 | `src/pages/admin/base-fees/BaseFeesPage.tsx` | **New** -- CRUD page for `md_challenge_base_fees` |
+| 4 | `src/pages/admin/base-fees/index.ts` | **New** -- barrel export |
+| 5 | `src/pages/admin/shadow-pricing/ShadowPricingPage.tsx` | **New** -- CRUD page for `md_shadow_pricing` |
+| 6 | `src/pages/admin/shadow-pricing/index.ts` | **New** -- barrel export |
+| 7 | `src/components/admin/AdminSidebar.tsx` | **Modify** -- Add 3 new menu items to `seekerConfigItems` |
+| 8 | `src/App.tsx` | **Modify** -- Add 3 lazy-loaded routes under `/admin/seeker-config/*` |
 
-## Files Changed
+## Admin Sidebar Changes
 
-| File | Change |
-|------|--------|
-| `src/components/admin/AdminSidebar.tsx` | Remove `/org/*` links from `seekerItems`, keep only SaaS Agreements |
-| `src/hooks/queries/useCurrentOrg.ts` | Disambiguate FK join: use `seeker_organizations!org_users_organization_id_fkey` |
+The `seekerConfigItems` array will grow from 8 to 11 items, adding:
+
+```
+Seeker Config (existing group)
+  - Subscription Tiers        (existing)
+  - Membership Tiers           << NEW
+  - Engagement Models          (existing)
+  - Challenge Complexity       (existing)
+  - Base Fee Config            << NEW
+  - Shadow Pricing             << NEW
+  - Challenge Statuses         (existing)
+  - Export Control             (existing)
+  - Data Residency             (existing)
+  - Blocked Domains            (existing)
+  - Platform Terms             (existing)
+```
 
 ## Technical Details
 
-The `useCurrentOrg.ts` select statement changes from:
-```
-seeker_organizations!inner (...)
-```
-to:
-```
-seeker_organizations!org_users_organization_id_fkey (...)
-```
+- Each new page follows the exact CRUD pattern used by `SubscriptionTiersPage` and `ChallengeComplexityPage` (AdminLayout wrapper, data table, create/edit dialog with Zod validation)
+- Routes use `AdminGuard` + `LazyRoute` wrappers, consistent with all other admin routes
+- Icons: `Crown` for Membership Tiers, `DollarSign` for Base Fees, `Calculator` for Shadow Pricing
+- No database migrations needed -- all three tables already exist
 
-The `seekerItems` array in `AdminSidebar.tsx` changes from 4 items to 1 item (SaaS Agreements only). The `Crown` icon import can also be removed.
