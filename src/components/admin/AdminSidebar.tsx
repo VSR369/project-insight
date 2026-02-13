@@ -74,6 +74,11 @@ const seekerConfigItems = [
   { title: 'Data Residency', icon: Globe, path: '/admin/seeker-config/data-residency' },
   { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
   { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
+  { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
+  { title: 'Subsidized Pricing', icon: Activity, path: '/admin/seeker-config/subsidized-pricing' },
+  { title: 'Postal Formats', icon: Globe, path: '/admin/seeker-config/postal-formats' },
+  { title: 'Billing Cycles', icon: CreditCard, path: '/admin/seeker-config/billing-cycles' },
+  { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
 ];
 
 const taxonomyItems = [

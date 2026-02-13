@@ -43,6 +43,11 @@ const ADMIN_ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/admin/seeker-config/data-residency': () => import('@/pages/admin/data-residency'),
   '/admin/seeker-config/blocked-domains': () => import('@/pages/admin/blocked-domains'),
   '/admin/seeker-config/platform-terms': () => import('@/pages/admin/platform-terms'),
+  '/admin/seeker-config/tax-formats': () => import('@/pages/admin/tax-formats'),
+  '/admin/seeker-config/subsidized-pricing': () => import('@/pages/admin/subsidized-pricing'),
+  '/admin/seeker-config/postal-formats': () => import('@/pages/admin/postal-formats'),
+  '/admin/seeker-config/billing-cycles': () => import('@/pages/admin/billing-cycles'),
+  '/admin/seeker-config/payment-methods': () => import('@/pages/admin/payment-methods'),
 
   // Other
   '/admin/questions': () => import('@/pages/admin/question-bank'),
