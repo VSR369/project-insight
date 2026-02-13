@@ -220,7 +220,12 @@ export function useCreateChildOrg() {
       toast.success('Child organization created successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create organization: ${error.message}`);
+      const msg = error.message ?? '';
+      if (msg.includes('idx_seeker_orgs_unique_name_country')) {
+        toast.error('An organization with this name already exists in the selected country.');
+      } else {
+        toast.error(`Failed to create organization: ${msg}`);
+      }
     },
   });
 }

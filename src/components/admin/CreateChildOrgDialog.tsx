@@ -68,7 +68,7 @@ export function CreateChildOrgDialog({
     defaultValues: {
       organization_name: "",
       legal_entity_name: null,
-      hq_country_id: null,
+      hq_country_id: "",
       hq_state_province_id: null,
       hq_city: null,
       hq_postal_code: null,
@@ -179,7 +179,7 @@ export function CreateChildOrgDialog({
                   name="hq_country_id"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Country</FormLabel>
+                      <FormLabel>Country *</FormLabel>
                       <Select
                         onValueChange={(val) => {
                           field.onChange(val);
