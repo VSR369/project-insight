@@ -71,7 +71,16 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const body: SendCredentialsRequest = await req.json();
+    const body = await req.json();
+
+    // Health-check / smoke-test mode
+    if (body.test === true) {
+      return new Response(
+        JSON.stringify({ success: true, message: "Function is deployed and healthy" }),
+        { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
+      );
+    }
+
     const { 
       providerId, 
       providerName, 
