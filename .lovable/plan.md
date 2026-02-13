@@ -1,109 +1,120 @@
 
-# Fix 7 Compliance Violations
 
-## Overview
+## SaaS Agreement Admin Page -- Compliance Overhaul
 
-Seven targeted edits across 4 files. All changes are non-breaking -- they tighten column selections, add cache config, and add audit field helpers.
+### Current State (Problems Found)
 
----
+The existing `SaasAgreementPage.tsx` has **14 violations** against the project's Enterprise Architecture standards:
 
-## Fix 1: useCountry -- Replace select("*") with Explicit Columns
-
-**File**: `src/hooks/queries/useCountries.ts` (line 48)
-
-**Change**: Replace `.select("*")` with the same column list used in `useCountries()`:
-```
-.select("id, code, name, iso_alpha3, phone_code, phone_code_display, currency_code, currency_symbol, date_format, number_format, is_ofac_restricted, address_format_template, display_order, is_active, description, created_at, updated_at, created_by, updated_by")
-```
-
----
-
-## Fix 2: useAcademicStreams -- Replace select("*") and Add Cache Config
-
-**File**: `src/hooks/queries/useAcademicTaxonomy.ts` (lines 168, 183-184)
-
-**Change 1** (line 168): Replace `.select("*, academic_disciplines(name)")` with:
-```
-.select("id, name, description, discipline_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_disciplines(name)")
-```
-
-**Change 2** (lines 183-184): Add cache config after `return data;`:
-```typescript
-    staleTime: 300000,
-    gcTime: 30 * 60 * 1000,
-```
+| # | Issue | Standard Violated |
+|---|-------|-------------------|
+| 1 | Raw UUID text input for child org | UX / usability |
+| 2 | No Zod validation schema | Section 8.1 (mandatory Zod + RHF) |
+| 3 | No React Hook Form usage | Section 8.1 |
+| 4 | No `withCreatedBy` / `withUpdatedBy` audit fields | Section 24.1 |
+| 5 | Hardcoded `DEMO_PARENT_ORG_ID` / `DEMO_TENANT_ID` | Should use auth context |
+| 6 | Manual `useState` for form state | Section 6.2 (forms must use RHF) |
+| 7 | No inline validation or error messages | Section 8.1 |
+| 8 | No loading/empty/error states on dialog | Section 7.2 |
+| 9 | Missing table overflow wrapper | Section 9.3 |
+| 10 | No edit dialog -- only create | Section 7.4 (CRUD incomplete) |
+| 11 | Missing `starts_at` / `ends_at` date fields in form | Schema columns exist but are unused |
+| 12 | Missing `auto_renew` toggle | Schema column exists but is hardcoded to `true` |
+| 13 | `useSaasData.ts` hook uses `select('*')` pattern | Section 16.2 (no `SELECT *`) |
+| 14 | Multiple additional schema columns ignored (MSA ref, custom fees, etc.) | Incomplete feature coverage |
 
 ---
 
-## Fix 3: useAcademicSubjects -- Replace select("*") and Add Cache Config
+### Implementation Plan
 
-**File**: `src/hooks/queries/useAcademicTaxonomy.ts` (lines 307, 322-323)
+#### Task 1: Create Zod Validation Schema
 
-**Change 1** (line 307): Replace `.select("*, academic_streams(name, academic_disciplines(name))")` with:
-```
-.select("id, name, description, stream_id, display_order, is_active, created_at, updated_at, created_by, updated_by, academic_streams(name, academic_disciplines(name))")
-```
+Create a new file `src/pages/admin/saas/saasAgreement.schema.ts`:
 
-**Change 2** (lines 322-323): Add cache config:
-```typescript
-    staleTime: 300000,
-    gcTime: 30 * 60 * 1000,
-```
+- `saasAgreementSchema` with all form fields validated:
+  - `child_organization_id` -- required UUID
+  - `agreement_type` -- enum: `saas_fee | shadow_billing | cost_sharing`
+  - `fee_amount` -- coerced number, min 0
+  - `fee_currency` -- 3-char uppercase string
+  - `fee_frequency` -- enum: `monthly | quarterly | annually`
+  - `shadow_charge_rate` -- optional number, 0-100
+  - `starts_at` -- optional date string
+  - `ends_at` -- optional date string, must be after `starts_at` via `.refine()`
+  - `auto_renew` -- boolean, default `true`
+  - `notes` -- optional string, max 500 chars
+- Export `SaasAgreementFormValues` type inferred from schema
+
+#### Task 2: Create Org Picker Hook
+
+Create `src/hooks/queries/useOrgPicker.ts`:
+
+- `useOrgPickerOptions(tenantId)` -- fetches `seeker_organizations` with explicit columns: `id, organization_name, legal_entity_name`
+- Returns `{ value: id, label: organization_name }` array for use in select dropdowns
+- Filters to active orgs only
+- Used for both parent and child org selection
+
+#### Task 3: Fix `useSaasData.ts` Hook -- Remove `select('*')`
+
+Update `useSaasAgreements`:
+- Replace the existing select with explicit columns: `id, agreement_type, lifecycle_status, fee_amount, fee_currency, fee_frequency, shadow_charge_rate, starts_at, ends_at, auto_renew, notes, created_at, child_organization_id, parent_organization_id`
+- Keep the join: `seeker_organizations!saas_agreements_child_organization_id_fkey(id, organization_name)`
+
+Update `useCreateSaasAgreement`:
+- Add `withCreatedBy()` call before insert
+- Expand accepted params to include `starts_at, ends_at, auto_renew`
+
+Update `useUpdateSaasAgreement`:
+- Add `withUpdatedBy()` call before update
+
+#### Task 4: Rewrite `SaasAgreementPage.tsx`
+
+Complete rewrite following project standards:
+
+**Form Dialog (Create + Edit)**:
+- Use `MasterDataForm` pattern (React Hook Form + Zod resolver)
+- Replace raw UUID input with a searchable `Select` dropdown populated by `useOrgPickerOptions`
+- Add `starts_at` and `ends_at` date inputs
+- Add `auto_renew` switch toggle
+- Disable submit during mutation, show spinner
+- Inline validation error messages under each field
+
+**Data Table**:
+- Wrap table in `<div className="relative w-full overflow-auto">`
+- Add edit button per row (opens dialog pre-filled with row data)
+- Show `starts_at` / `ends_at` columns
+- Show `auto_renew` as a badge
+
+**Page Structure**:
+- Replace hardcoded `DEMO_PARENT_ORG_ID` with a parent org selector at top of page (using `useOrgPickerOptions`)
+- Loading skeleton while data fetches
+- Empty state with icon and CTA
+- Error state with retry
+
+**Hook Order Compliance** (Section 23):
+1. `useState` (dialog open, selected agreement)
+2. Custom hooks (`useOrgPickerOptions`)
+3. Form hook (`useForm`)
+4. Query/Mutation hooks
+5. `useEffect` (if needed)
+6. Conditional returns (loading/error)
+7. Handlers
+8. Render
+
+#### Task 5: Responsive Design Compliance
+
+- Dialog: `max-w-lg max-h-[90vh] flex flex-col overflow-hidden`
+- Grid for fee amount + currency: `grid grid-cols-1 lg:grid-cols-2 gap-3`
+- Button text: icon-only on mobile, label visible at `lg:`
+- Table wrapped with overflow-auto
 
 ---
 
-## Fix 4: useChallengeStatuses -- Add withCreatedBy to Create Mutation
+### Files Changed
 
-**File**: `src/hooks/queries/useChallengeStatuses.ts` (lines 1-2, 31-32)
+| File | Action |
+|------|--------|
+| `src/pages/admin/saas/saasAgreement.schema.ts` | **New** -- Zod schema |
+| `src/hooks/queries/useOrgPicker.ts` | **New** -- Org picker dropdown hook |
+| `src/hooks/queries/useSaasData.ts` | **Edit** -- Explicit columns, audit fields |
+| `src/pages/admin/SaasAgreementPage.tsx` | **Rewrite** -- Full compliance overhaul |
 
-**Change 1**: Add import for audit helpers (line 5):
-```typescript
-import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
-```
-
-**Change 2** (line 31-32): Wrap insert with audit:
-```typescript
-    mutationFn: async (item: ChallengeStatusInsert) => {
-      const itemWithAudit = await withCreatedBy(item);
-      const { data, error } = await supabase.from("md_challenge_active_statuses").insert(itemWithAudit).select().single();
-```
-
----
-
-## Fix 5: useChallengeStatuses -- Add withUpdatedBy to Update Mutation
-
-**File**: `src/hooks/queries/useChallengeStatuses.ts` (lines 44-45)
-
-**Change**: Wrap update with audit:
-```typescript
-    mutationFn: async ({ id, ...updates }: ChallengeStatusUpdate & { id: string }) => {
-      const updatesWithAudit = await withUpdatedBy(updates);
-      const { data, error } = await supabase.from("md_challenge_active_statuses").update(updatesWithAudit).eq("id", id).select().single();
-```
-
----
-
-## Fix 6: usePlatformFees -- Add Missing gcTime
-
-**File**: `src/hooks/queries/usePlatformFees.ts` (lines 51-52)
-
-**Change**: Add `gcTime` after `staleTime`:
-```typescript
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-```
-
----
-
-## Files Modified Summary
-
-| File | Fixes Applied |
-|------|--------------|
-| `src/hooks/queries/useCountries.ts` | Fix 1: explicit columns in `useCountry` |
-| `src/hooks/queries/useAcademicTaxonomy.ts` | Fixes 2-3: explicit columns + cache for streams and subjects |
-| `src/hooks/queries/useChallengeStatuses.ts` | Fixes 4-5: add `withCreatedBy` and `withUpdatedBy` |
-| `src/hooks/queries/usePlatformFees.ts` | Fix 6: add missing `gcTime` |
-
-## Risk: Zero
-
-All changes are additive refinements -- tighter column lists, cache settings matching existing patterns, and audit helpers already proven across all other hooks.
