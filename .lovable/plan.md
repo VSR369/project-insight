@@ -1,121 +1,143 @@
 
 
-# Seed Master Data for All Fee Categories (10 Countries x 3 Tiers x 2 Models)
+# Master Data Portal -- Targeted Performance Improvements
 
-## Reference Data Summary
+## Current State Assessment
 
-**10 Countries:**
+Your Master Data Portal is already well-architected. The Claude prompts you shared assume a poorly built app using `useState + useEffect` patterns -- but your codebase already has:
 
-| Country | Currency | Symbol |
-|---------|----------|--------|
-| United States | USD | $ |
-| United Kingdom | GBP | £ |
-| India | INR | ₹ |
-| Australia | AUD | A$ |
-| Canada | CAD | CA$ |
-| Germany | EUR | € |
-| Singapore | SGD | S$ |
-| United Arab Emirates | AED | د.إ |
-| Japan | JPY | ¥ |
-| Brazil | BRL | R$ |
+- React Query with `QueryClientProvider` and optimized defaults (staleTime, gcTime, no refetch on window focus)
+- Lazy loading (`React.lazy`) for all admin routes with `Suspense` boundaries
+- TanStack Table with built-in client-side pagination, sorting, filtering, and skeleton loading
+- Supabase foreign key joins in query hooks (shadow pricing, base fees, platform fees)
+- A reusable `useDebounce` hook
+- Centralized `handleMutationError` utility and `withCreatedBy`/`withUpdatedBy` audit helpers
 
-**3 Subscription Tiers:** Basic, Standard, Premium
-**2 Engagement Models:** Marketplace, Aggregator
+Most of Claude's 8 prompts would either duplicate existing functionality or break working patterns. Instead, here are the **genuine gaps** worth fixing.
 
-## Seed Data Design
+---
 
-### 1. Base Fees (`md_challenge_base_fees`) -- Consulting + Management Fees
+## Improvement 1: Standardize Error Handling in Fee Hooks
 
-Base fees apply per engagement model. Marketplace has both consulting and management fees; Aggregator has consulting fee only (management = 0).
+Several newer hooks (shadow pricing, base fees, membership tiers) use raw `toast.error()` instead of the centralized `handleMutationError`, and skip audit field helpers.
 
-| Country | Tier | Model | Consulting Fee | Management Fee | Currency |
-|---------|------|-------|---------------|----------------|----------|
-| US | Basic | Marketplace | 500 | 200 | USD |
-| US | Standard | Marketplace | 400 | 150 | USD |
-| US | Premium | Marketplace | 300 | 100 | USD |
-| US | Basic | Aggregator | 350 | 0 | USD |
-| US | Standard | Aggregator | 275 | 0 | USD |
-| US | Premium | Aggregator | 200 | 0 | USD |
-| UK | Basic | Marketplace | 400 | 160 | GBP |
-| UK | Standard | Marketplace | 320 | 120 | GBP |
-| UK | Premium | Marketplace | 240 | 80 | GBP |
-| ... | ... | ... | ... | ... | ... |
+**Files affected:**
+- `src/hooks/queries/useShadowPricing.ts` -- 5 mutations missing `handleMutationError` + `withCreatedBy`/`withUpdatedBy`
+- `src/hooks/queries/useBaseFees.ts` -- 5 mutations missing `handleMutationError` + `withCreatedBy`/`withUpdatedBy`
+- `src/hooks/queries/useMembershipTiers.ts` -- 5 mutations missing `handleMutationError`
 
-**Pattern for all countries:** Fees are scaled relative to USD using approximate purchasing power ratios:
-- USD: 1.0x
-- GBP: 0.8x
-- EUR: 0.85x
-- AUD: 1.5x
-- CAD: 1.35x
-- INR: 40x (e.g., USD 500 -> INR 20000)
-- SGD: 1.35x
-- AED: 3.67x
-- JPY: 150x (e.g., USD 500 -> JPY 75000)
-- BRL: 5x
+**Changes:**
+- Import and use `handleMutationError` for all `onError` callbacks
+- Import and use `withCreatedBy` in create mutations, `withUpdatedBy` in update mutations
+- Add `gcTime: 30 * 60 * 1000` where missing for consistency
 
-**Total rows: 10 countries x 3 tiers x 2 models = 60 rows**
+---
 
-### 2. Platform Fees (`md_platform_fees`) -- Platform Usage Percentage
+## Improvement 2: Explicit Column Selection in Fee Queries
 
-Platform fee is a percentage, so values are similar across countries but can vary slightly by market.
+The shadow pricing, base fees, and platform fees hooks use `select('*', ...)`. While they do use joins (good), the `*` fetches unnecessary columns like `created_by`, `updated_by`, `updated_at` that are never displayed in the table.
 
-| Country | Tier | Model | Fee % | Currency |
-|---------|------|-------|-------|----------|
-| US | Basic | Marketplace | 12% | USD |
-| US | Standard | Marketplace | 10% | USD |
-| US | Premium | Marketplace | 8% | USD |
-| US | Basic | Aggregator | 10% | USD |
-| US | Standard | Aggregator | 8% | USD |
-| US | Premium | Aggregator | 6% | USD |
-| India | Basic | Marketplace | 10% | INR |
-| India | Standard | Marketplace | 8% | INR |
-| India | Premium | Marketplace | 6% | INR |
-| ... | ... | ... | ... | ... |
+**Files affected:**
+- `src/hooks/queries/useShadowPricing.ts` -- replace `*` with specific columns
+- `src/hooks/queries/useBaseFees.ts` -- replace `*` with specific columns
+- `src/hooks/queries/usePlatformFees.ts` -- replace `*` with specific columns
 
-**Pattern:** Developing markets (India, Brazil) get 2% discount across tiers. Premium always gets the lowest rate.
+---
 
-**Total rows: 10 x 3 x 2 = 60 rows** (existing 1 row will be cleaned up)
+## Improvement 3: Add Database Indexes for Fee Tables
 
-### 3. Shadow Pricing (`md_shadow_pricing`) -- Internal Cost Allocation
+With 60-150 rows per fee table, indexes are not critical yet, but adding them now ensures performance as data grows. This is a one-time migration.
 
-Shadow pricing is per-challenge cost for internal departments. Scaled by country currency.
+**Tables to index:**
+- `md_challenge_base_fees`: composite index on `(country_id, tier_id, engagement_model_id)`, index on `is_active`
+- `md_platform_fees`: composite index on `(country_id, tier_id, engagement_model_id)`, index on `is_active`
+- `md_shadow_pricing`: composite index on `(country_id, tier_id)`, index on `is_active`
 
-| Country | Tier | Charge/Challenge | Currency | Symbol |
-|---------|------|-----------------|----------|--------|
-| US | Basic | 150 | USD | $ |
-| US | Standard | 100 | USD | $ |
-| US | Premium | 0 | USD | $ |
-| India | Basic | 6000 | INR | ₹ |
-| India | Standard | 4500 | INR | ₹ |
-| India | Premium | 0 | INR | ₹ |
-| Japan | Basic | 22500 | JPY | ¥ |
-| Japan | Standard | 15000 | JPY | ¥ |
-| Japan | Premium | 0 | JPY | ¥ |
-| ... | ... | ... | ... | ... |
+---
 
-**Pattern:** Premium tier always has 0 shadow charge (all-inclusive). Values scaled by currency ratio.
+## Improvement 4: Memoize Dropdown Options in Page Components
 
-**Total rows: 10 x 3 = 30 rows** (existing 3 rows will be cleaned up)
+In pages like `ShadowPricingPage`, `tierOptions` and `countryOptions` are recalculated on every render. Wrapping them in `useMemo` prevents unnecessary re-computation.
 
-## Execution Plan
+**Files affected:**
+- `src/pages/admin/shadow-pricing/ShadowPricingPage.tsx`
+- `src/pages/admin/base-fees/` (similar pattern)
+- `src/pages/admin/platform-fees/` (similar pattern)
 
-### Step 1: Clean up existing incomplete data
-- Delete the 1 existing platform fee row (no country_id)
-- Delete the 3 existing shadow pricing rows (no country_id)
-- Base fees table is empty, no cleanup needed
+---
 
-### Step 2: Insert Base Fees (60 rows)
-Insert via SQL using the actual UUIDs for countries, tiers, and engagement models.
+## What We Are NOT Changing (and Why)
 
-### Step 3: Insert Platform Fees (60 rows)
-Insert with `country_id` and `currency_code` populated from country reference data.
+| Claude Suggestion | Why It Is Already Done or Not Needed |
+|---|---|
+| Install React Query | Already installed and configured in `queryClient.ts` |
+| Replace `useState + useEffect` fetching | No such pattern exists in admin hooks -- all use `useQuery` |
+| Add server-side pagination | TanStack Table handles client-side pagination; master data tables have 30-150 rows max, making server-side pagination unnecessary overhead |
+| Eliminate N+1 queries with joins | Already using Supabase joins in fee hooks |
+| Add code splitting / lazy loading | All admin routes already use `React.lazy()` |
+| Add loading skeletons | `DataTable` already renders column-aware skeletons |
+| Debounce search | `useDebounce` hook already exists; DataTable search is client-side (instant) on small datasets |
+| `React.memo` on table rows | TanStack Table already handles row virtualization efficiently; master data tables are small |
+| Split context providers | No monolithic context exists for master data; each hook is independent |
 
-### Step 4: Insert Shadow Pricing (30 rows)
-Insert with `country_id`, `currency_code`, and `currency_symbol` populated from country reference data.
+---
 
-## Total Seed Data
-- **Base Fees:** 60 rows (10 countries x 3 tiers x 2 models)
-- **Platform Fees:** 60 rows (10 countries x 3 tiers x 2 models)
-- **Shadow Pricing:** 30 rows (10 countries x 3 tiers)
-- **Grand Total:** 150 rows
+## Technical Details
+
+### Hook Standardization Pattern (Improvement 1)
+
+For each affected hook file, the change follows this pattern:
+
+```typescript
+// BEFORE
+onError: (e: Error) => toast.error(`Failed to create: ${e.message}`)
+
+// AFTER
+onError: (e: Error) => handleMutationError(e, { operation: "create_shadow_pricing" })
+```
+
+```typescript
+// BEFORE (create mutation)
+mutationFn: async (item: ShadowPricingInsert) => {
+  const { data, error } = await supabase.from(TABLE).insert(item).select().single();
+
+// AFTER
+mutationFn: async (item: ShadowPricingInsert) => {
+  const d = await withCreatedBy(item);
+  const { data, error } = await supabase.from(TABLE).insert(d).select().single();
+```
+
+### Column Selection Pattern (Improvement 2)
+
+```typescript
+// BEFORE
+.select(`*, md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`)
+
+// AFTER
+.select(`id, tier_id, country_id, shadow_charge_per_challenge, currency_code, currency_symbol, description, is_active, created_at, md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`)
+```
+
+### Database Index Migration (Improvement 3)
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_base_fees_country_tier_model ON md_challenge_base_fees(country_id, tier_id, engagement_model_id);
+CREATE INDEX IF NOT EXISTS idx_base_fees_active ON md_challenge_base_fees(is_active);
+CREATE INDEX IF NOT EXISTS idx_platform_fees_country_tier_model ON md_platform_fees(country_id, tier_id, engagement_model_id);
+CREATE INDEX IF NOT EXISTS idx_platform_fees_active ON md_platform_fees(is_active);
+CREATE INDEX IF NOT EXISTS idx_shadow_pricing_country_tier ON md_shadow_pricing(country_id, tier_id);
+CREATE INDEX IF NOT EXISTS idx_shadow_pricing_active ON md_shadow_pricing(is_active);
+```
+
+### Memoization Pattern (Improvement 4)
+
+```typescript
+// BEFORE
+const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
+
+// AFTER
+const tierOptions = React.useMemo(
+  () => tiers.map((t) => ({ value: t.id, label: t.name })),
+  [tiers]
+);
+```
 
