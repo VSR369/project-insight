@@ -127,6 +127,7 @@ const MembershipTiersPage = lazy(() => import("@/pages/admin/membership-tiers").
 const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ default: m.BaseFeesPage })));
 const ShadowPricingPage = lazy(() => import("@/pages/admin/shadow-pricing").then(m => ({ default: m.ShadowPricingPage })));
 const PricingOverviewPage = lazy(() => import("@/pages/admin/pricing-overview").then(m => ({ default: m.PricingOverviewPage })));
+const PlatformFeesPage = lazy(() => import("@/pages/admin/platform-fees").then(m => ({ default: m.PlatformFeesPage })));
 
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -512,6 +513,7 @@ const App = () => (
               <Route path="seeker-config/membership-tiers" element={<MembershipTiersPage />} />
               <Route path="seeker-config/base-fees" element={<BaseFeesPage />} />
               <Route path="seeker-config/shadow-pricing" element={<ShadowPricingPage />} />
+              <Route path="seeker-config/platform-fees" element={<PlatformFeesPage />} />
               <Route path="saas-agreements" element={<SaasAgreementPage />} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
