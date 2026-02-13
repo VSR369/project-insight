@@ -1,143 +1,76 @@
 
 
-# Master Data Portal -- Targeted Performance Improvements
+# Fix: Challenge Base Fees -- Filter by Engagement Model
 
-## Current State Assessment
+## Problem
 
-Your Master Data Portal is already well-architected. The Claude prompts you shared assume a poorly built app using `useState + useEffect` patterns -- but your codebase already has:
+The Challenge Base Fees summary table shows management fees as 0 because the code doesn't filter base fees by engagement model. The database has two rows per country+tier combination:
+- **Marketplace**: has both consulting AND management fees (e.g., India Basic: consulting 20,000 / management 8,000)
+- **Aggregator**: has consulting fees only, management = 0 (e.g., India Basic: consulting 14,000 / management 0)
 
-- React Query with `QueryClientProvider` and optimized defaults (staleTime, gcTime, no refetch on window focus)
-- Lazy loading (`React.lazy`) for all admin routes with `Suspense` boundaries
-- TanStack Table with built-in client-side pagination, sorting, filtering, and skeleton loading
-- Supabase foreign key joins in query hooks (shadow pricing, base fees, platform fees)
-- A reusable `useDebounce` hook
-- Centralized `handleMutationError` utility and `withCreatedBy`/`withUpdatedBy` audit helpers
+When the `baseFeesByCountry` reducer processes both rows for the same country+tier, whichever is processed last wins. Depending on data order, the Aggregator row (management=0) can overwrite the Marketplace row.
 
-Most of Claude's 8 prompts would either duplicate existing functionality or break working patterns. Instead, here are the **genuine gaps** worth fixing.
+## Solution
 
----
+Two fixes in `PricingOverviewPage.tsx`:
 
-## Improvement 1: Standardize Error Handling in Fee Hooks
+### Fix 1: TierCard -- Filter base fees by engagement model
 
-Several newer hooks (shadow pricing, base fees, membership tiers) use raw `toast.error()` instead of the centralized `handleMutationError`, and skip audit field helpers.
+In the `TierCard` component (around line 120), the `tierBaseFees` filter currently only matches by `tier_id`. It needs to also match the engagement model being viewed.
 
-**Files affected:**
-- `src/hooks/queries/useShadowPricing.ts` -- 5 mutations missing `handleMutationError` + `withCreatedBy`/`withUpdatedBy`
-- `src/hooks/queries/useBaseFees.ts` -- 5 mutations missing `handleMutationError` + `withCreatedBy`/`withUpdatedBy`
-- `src/hooks/queries/useMembershipTiers.ts` -- 5 mutations missing `handleMutationError`
-
-**Changes:**
-- Import and use `handleMutationError` for all `onError` callbacks
-- Import and use `withCreatedBy` in create mutations, `withUpdatedBy` in update mutations
-- Add `gcTime: 30 * 60 * 1000` where missing for consistency
-
----
-
-## Improvement 2: Explicit Column Selection in Fee Queries
-
-The shadow pricing, base fees, and platform fees hooks use `select('*', ...)`. While they do use joins (good), the `*` fetches unnecessary columns like `created_by`, `updated_by`, `updated_at` that are never displayed in the table.
-
-**Files affected:**
-- `src/hooks/queries/useShadowPricing.ts` -- replace `*` with specific columns
-- `src/hooks/queries/useBaseFees.ts` -- replace `*` with specific columns
-- `src/hooks/queries/usePlatformFees.ts` -- replace `*` with specific columns
-
----
-
-## Improvement 3: Add Database Indexes for Fee Tables
-
-With 60-150 rows per fee table, indexes are not critical yet, but adding them now ensures performance as data grows. This is a one-time migration.
-
-**Tables to index:**
-- `md_challenge_base_fees`: composite index on `(country_id, tier_id, engagement_model_id)`, index on `is_active`
-- `md_platform_fees`: composite index on `(country_id, tier_id, engagement_model_id)`, index on `is_active`
-- `md_shadow_pricing`: composite index on `(country_id, tier_id)`, index on `is_active`
-
----
-
-## Improvement 4: Memoize Dropdown Options in Page Components
-
-In pages like `ShadowPricingPage`, `tierOptions` and `countryOptions` are recalculated on every render. Wrapping them in `useMemo` prevents unnecessary re-computation.
-
-**Files affected:**
-- `src/pages/admin/shadow-pricing/ShadowPricingPage.tsx`
-- `src/pages/admin/base-fees/` (similar pattern)
-- `src/pages/admin/platform-fees/` (similar pattern)
-
----
-
-## What We Are NOT Changing (and Why)
-
-| Claude Suggestion | Why It Is Already Done or Not Needed |
-|---|---|
-| Install React Query | Already installed and configured in `queryClient.ts` |
-| Replace `useState + useEffect` fetching | No such pattern exists in admin hooks -- all use `useQuery` |
-| Add server-side pagination | TanStack Table handles client-side pagination; master data tables have 30-150 rows max, making server-side pagination unnecessary overhead |
-| Eliminate N+1 queries with joins | Already using Supabase joins in fee hooks |
-| Add code splitting / lazy loading | All admin routes already use `React.lazy()` |
-| Add loading skeletons | `DataTable` already renders column-aware skeletons |
-| Debounce search | `useDebounce` hook already exists; DataTable search is client-side (instant) on small datasets |
-| `React.memo` on table rows | TanStack Table already handles row virtualization efficiently; master data tables are small |
-| Split context providers | No monolithic context exists for master data; each hook is independent |
-
----
-
-## Technical Details
-
-### Hook Standardization Pattern (Improvement 1)
-
-For each affected hook file, the change follows this pattern:
-
+**Current:**
 ```typescript
-// BEFORE
-onError: (e: Error) => toast.error(`Failed to create: ${e.message}`)
-
-// AFTER
-onError: (e: Error) => handleMutationError(e, { operation: "create_shadow_pricing" })
+const tierBaseFees = baseFees.filter((bf: any) => bf.tier_id === tier.id);
 ```
 
+**New:**
 ```typescript
-// BEFORE (create mutation)
-mutationFn: async (item: ShadowPricingInsert) => {
-  const { data, error } = await supabase.from(TABLE).insert(item).select().single();
-
-// AFTER
-mutationFn: async (item: ShadowPricingInsert) => {
-  const d = await withCreatedBy(item);
-  const { data, error } = await supabase.from(TABLE).insert(d).select().single();
-```
-
-### Column Selection Pattern (Improvement 2)
-
-```typescript
-// BEFORE
-.select(`*, md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`)
-
-// AFTER
-.select(`id, tier_id, country_id, shadow_charge_per_challenge, currency_code, currency_symbol, description, is_active, created_at, md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`)
-```
-
-### Database Index Migration (Improvement 3)
-
-```sql
-CREATE INDEX IF NOT EXISTS idx_base_fees_country_tier_model ON md_challenge_base_fees(country_id, tier_id, engagement_model_id);
-CREATE INDEX IF NOT EXISTS idx_base_fees_active ON md_challenge_base_fees(is_active);
-CREATE INDEX IF NOT EXISTS idx_platform_fees_country_tier_model ON md_platform_fees(country_id, tier_id, engagement_model_id);
-CREATE INDEX IF NOT EXISTS idx_platform_fees_active ON md_platform_fees(is_active);
-CREATE INDEX IF NOT EXISTS idx_shadow_pricing_country_tier ON md_shadow_pricing(country_id, tier_id);
-CREATE INDEX IF NOT EXISTS idx_shadow_pricing_active ON md_shadow_pricing(is_active);
-```
-
-### Memoization Pattern (Improvement 4)
-
-```typescript
-// BEFORE
-const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
-
-// AFTER
-const tierOptions = React.useMemo(
-  () => tiers.map((t) => ({ value: t.id, label: t.name })),
-  [tiers]
+const marketplaceModel = engagementModels?.find((m: any) => m.code?.toLowerCase() === 'marketplace');
+const tierBaseFees = baseFees.filter((bf: any) => 
+  bf.tier_id === tier.id && 
+  (isAggregator ? false : bf.engagement_model_id === marketplaceModel?.id)
 );
 ```
+
+This requires passing `engagementModels` into TierCard (it's already available via the `allTiers`-style pattern -- we'll pass it through).
+
+Wait -- actually TierCard already receives the model code via `modelCode` prop, but not the models list. We need a simpler approach: pass the filtered baseFees from the parent. The parent (line 815) passes ALL baseFees to every TierCard. Instead, filter at the parent level or pass the model ID.
+
+**Simpler approach -- add engagementModels prop to TierCard:**
+
+Add `engagementModels` to `TierCardProps` and use it to find the Marketplace model ID for filtering. For Aggregator tabs, the existing `isAggregator` check already shows "Not Applicable", so the filter only matters for Marketplace.
+
+### Fix 2: SummaryTab -- Filter to Marketplace fees only
+
+In the `SummaryTab` component (lines 379-385), the `baseFeesByCountry` reducer processes all base fees. It should filter to Marketplace model only, since the summary note already states "Applicable to Marketplace model only."
+
+**Current:**
+```typescript
+const baseFeesByCountry = baseFees.reduce((acc, bf) => { ... }, {});
+```
+
+**New:**
+```typescript
+const marketplaceModel = engagementModels.find((m: any) => m.code?.toLowerCase() === 'marketplace');
+const marketplaceBaseFees = baseFees.filter((bf: any) => bf.engagement_model_id === marketplaceModel?.id);
+const baseFeesByCountry = marketplaceBaseFees.reduce((acc, bf) => { ... }, {});
+```
+
+## Files Changed
+
+Only one file: `src/pages/admin/pricing-overview/PricingOverviewPage.tsx`
+
+- **TierCard** (line ~120): Add engagement model filtering to `tierBaseFees`
+- **TierCardProps** (line ~96): Add `engagementModels` prop
+- **TierCard invocation** (line ~807): Pass `engagementModels` prop
+- **SummaryTab** (line ~379): Filter base fees to Marketplace only before grouping
+
+## Expected Result
+
+After fix:
+- **Marketplace tab tier cards**: Show only Marketplace base fees (consulting + management, both non-zero)
+- **Aggregator tab tier cards**: Continue showing "Not Applicable" (unchanged)
+- **Summary tab "Challenge Base Fees" table**: Shows Marketplace fees only with correct management fee values (e.g., India Basic: consulting 20,000 / management 8,000)
+
+No database changes, no hook changes, no navigation or UX disruptions.
 
