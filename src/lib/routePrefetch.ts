@@ -13,6 +13,7 @@ const ADMIN_ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/admin/master-data/organization-types': () => import('@/pages/admin/organization-types'),
   '/admin/master-data/participation-modes': () => import('@/pages/admin/participation-modes'),
   '/admin/master-data/expertise-levels': () => import('@/pages/admin/expertise-levels'),
+  '/admin/master-data/departments': () => import('@/pages/admin/departments'),
   '/admin/master-data/functional-areas': () => import('@/pages/admin/functional-areas'),
 
   // Taxonomy

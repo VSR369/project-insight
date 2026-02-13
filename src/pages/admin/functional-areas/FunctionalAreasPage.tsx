@@ -12,23 +12,17 @@ import {
   useDeleteFunctionalArea, useRestoreFunctionalArea, useHardDeleteFunctionalArea,
   FunctionalArea, FunctionalAreaInsert,
 } from "@/hooks/queries/useFunctionalAreasAdmin";
+import { useDepartments } from "@/hooks/queries/useDepartmentsAdmin";
 
 const schema = z.object({
   code: z.string().min(2).max(20).toUpperCase(),
   name: z.string().min(2).max(100),
   description: z.string().max(500).nullable().optional(),
+  department_id: z.string().uuid().nullable().optional(),
   display_order: z.number().int().min(0).nullable().optional(),
   is_active: z.boolean().default(true),
 });
 type FormData = z.infer<typeof schema>;
-
-const formFields: FormFieldConfig<FormData>[] = [
-  { name: "code", label: "Code", type: "text", placeholder: "e.g., TECH, FIN", required: true },
-  { name: "name", label: "Name", type: "text", placeholder: "e.g., Technology", required: true },
-  { name: "description", label: "Description", type: "textarea", placeholder: "Optional description" },
-  { name: "display_order", label: "Display Order", type: "number", placeholder: "0", min: 0 },
-  { name: "is_active", label: "Active", type: "switch" },
-];
 
 export default function FunctionalAreasPage() {
   const [isFormOpen, setIsFormOpen] = React.useState(false);
@@ -37,15 +31,29 @@ export default function FunctionalAreasPage() {
   const [selected, setSelected] = React.useState<FunctionalArea | null>(null);
 
   const { data: items = [], isLoading } = useFunctionalAreas(true);
+  const { data: departments = [] } = useDepartments(false);
   const createM = useCreateFunctionalArea();
   const updateM = useUpdateFunctionalArea();
   const deleteM = useDeleteFunctionalArea();
   const restoreM = useRestoreFunctionalArea();
   const hardDeleteM = useHardDeleteFunctionalArea();
 
+  const formFields: FormFieldConfig<FormData>[] = React.useMemo(() => [
+    { name: "code", label: "Code", type: "text" as const, placeholder: "e.g., TECH, FIN", required: true },
+    { name: "name", label: "Name", type: "text" as const, placeholder: "e.g., Technology", required: true },
+    { name: "description", label: "Description", type: "textarea" as const, placeholder: "Optional description" },
+    {
+      name: "department_id", label: "Department", type: "select" as const, placeholder: "Select department (optional)",
+      options: departments.map(d => ({ value: d.id, label: d.name })),
+    },
+    { name: "display_order", label: "Display Order", type: "number" as const, placeholder: "0", min: 0 },
+    { name: "is_active", label: "Active", type: "switch" as const },
+  ], [departments]);
+
   const columns: DataTableColumn<FunctionalArea>[] = [
     { accessorKey: "code", header: "Code" },
     { accessorKey: "name", header: "Name" },
+    { accessorKey: "md_departments", header: "Department", cell: (v) => (v as any)?.name || "—" },
     { accessorKey: "description", header: "Description", cell: (v) => (v as string) || "—" },
     { accessorKey: "display_order", header: "Order", cell: (v) => (v as number) ?? "—" },
     { accessorKey: "is_active", header: "Status", cell: (v) => <StatusBadge isActive={v as boolean} /> },
@@ -60,17 +68,19 @@ export default function FunctionalAreasPage() {
   ];
 
   const handleSubmit = async (data: FormData) => {
-    if (selected) await updateM.mutateAsync({ id: selected.id, ...data });
-    else await createM.mutateAsync(data as FunctionalAreaInsert);
+    const payload = { ...data, department_id: data.department_id || null };
+    if (selected) await updateM.mutateAsync({ id: selected.id, ...payload });
+    else await createM.mutateAsync(payload as FunctionalAreaInsert);
   };
 
   const defaults: Partial<FormData> = selected
-    ? { code: selected.code, name: selected.name, description: selected.description, display_order: selected.display_order, is_active: selected.is_active }
+    ? { code: selected.code, name: selected.name, description: selected.description, department_id: selected.department_id, display_order: selected.display_order, is_active: selected.is_active }
     : { code: "", name: "", display_order: 0, is_active: true };
 
   const viewFields: ViewField[] = selected ? [
     { label: "Code", value: selected.code },
     { label: "Name", value: selected.name },
+    { label: "Department", value: selected.md_departments?.name || "—" },
     { label: "Description", value: selected.description },
     { label: "Display Order", value: selected.display_order, type: "number" },
     { label: "Status", value: selected.is_active, type: "boolean" },
@@ -82,7 +92,7 @@ export default function FunctionalAreasPage() {
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Functional Areas</h1>
-        <p className="text-muted-foreground mt-1">Manage functional area classifications</p>
+        <p className="text-muted-foreground mt-1">Manage functional area classifications linked to departments</p>
       </div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search functional areas..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Functional Area" emptyMessage="No functional areas found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Functional Area" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />

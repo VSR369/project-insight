@@ -7,7 +7,7 @@ export function useFunctionalAreas() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('md_functional_areas')
-        .select('id, code, name')
+        .select('id, code, name, department_id')
         .eq('is_active', true)
         .order('display_order', { ascending: true });
 

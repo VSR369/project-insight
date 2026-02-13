@@ -1917,6 +1917,7 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          department_id: string | null
           description: string | null
           display_order: number | null
           id: string
@@ -1929,6 +1930,7 @@ export type Database = {
           code: string
           created_at?: string
           created_by?: string | null
+          department_id?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1941,6 +1943,7 @@ export type Database = {
           code?: string
           created_at?: string
           created_by?: string | null
+          department_id?: string | null
           description?: string | null
           display_order?: number | null
           id?: string
@@ -1949,7 +1952,15 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "md_functional_areas_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "md_departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       md_industries: {
         Row: {

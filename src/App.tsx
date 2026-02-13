@@ -128,7 +128,8 @@ const PulseSocialTestPage = lazy(() => import("@/pages/admin/PulseSocialTestPage
 const RegressionTestKitPage = lazy(() => import("@/pages/admin/RegressionTestKitPage"));
 
 // Seeker Config Admin Pages (lazy loaded)
-const FunctionalAreasPage = lazy(() => import("@/pages/admin/functional-areas").then(m => ({ default: m.FunctionalAreasPage })));
+const DepartmentsPage = lazy(() => import("@/pages/admin/departments").then(m => ({ default: m.DepartmentsPage })));
+const FunctionalAreasPage = lazy(() => import("@/pages/admin/functional-areas/FunctionalAreasPage"));
 const SubscriptionTiersPage = lazy(() => import("@/pages/admin/subscription-tiers").then(m => ({ default: m.SubscriptionTiersPage })));
 const EngagementModelsPage = lazy(() => import("@/pages/admin/engagement-models").then(m => ({ default: m.EngagementModelsPage })));
 const ChallengeComplexityPage = lazy(() => import("@/pages/admin/challenge-complexity").then(m => ({ default: m.ChallengeComplexityPage })));
@@ -500,6 +501,7 @@ const App = () => (
               <Route path="master-data/expertise-levels" element={<ExpertiseLevelsPage />} />
               <Route path="master-data/academic-taxonomy" element={<AcademicTaxonomyPage />} />
               <Route path="master-data/proficiency-taxonomy" element={<ProficiencyTaxonomyPage />} />
+              <Route path="master-data/departments" element={<DepartmentsPage />} />
               <Route path="master-data/functional-areas" element={<FunctionalAreasPage />} />
               <Route path="questions" element={<QuestionBankPage />} />
               <Route path="capability-tags" element={<CapabilityTagsPage />} />
