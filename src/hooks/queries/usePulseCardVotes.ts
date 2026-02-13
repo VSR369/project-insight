@@ -35,7 +35,7 @@ export function useUserVote(layerId: string | undefined, voterId: string | undef
 
       const { data, error } = await supabase
         .from('pulse_card_votes')
-        .select('*')
+        .select('id, layer_id, voter_id, vote_type, vote_weight, created_at')
         .eq('layer_id', layerId)
         .eq('voter_id', voterId)
         .maybeSingle();
@@ -59,7 +59,7 @@ export function useLayerVotes(layerId: string | undefined) {
 
       const { data, error } = await supabase
         .from('pulse_card_votes')
-        .select('*')
+        .select('id, layer_id, voter_id, vote_type, vote_weight, created_at')
         .eq('layer_id', layerId);
 
       if (error) throw new Error(error.message);
@@ -91,7 +91,7 @@ export function useCastVote() {
       // Check if vote exists
       const { data: existingVote } = await supabase
         .from('pulse_card_votes')
-        .select('*')
+        .select('id, layer_id, voter_id, vote_type, vote_weight, created_at')
         .eq('layer_id', params.layerId)
         .eq('voter_id', params.voterId)
         .maybeSingle();

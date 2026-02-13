@@ -98,7 +98,7 @@ export function useUserFlags(providerId: string | undefined) {
 
       const { data, error } = await supabase
         .from('pulse_card_flags')
-        .select('*')
+        .select('id, target_type, target_id, reporter_id, flag_type, description, status, resolved_at, resolved_by, resolution_reason, created_at')
         .eq('reporter_id', providerId)
         .order('created_at', { ascending: false })
         .limit(50);
@@ -162,7 +162,7 @@ export function useModerationActions(limit = 20) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('pulse_moderation_actions')
-        .select('*')
+        .select('id, flag_id, target_type, target_id, action_type, council_votes, outcome, reasoning, created_at, created_by')
         .order('created_at', { ascending: false })
         .limit(limit);
 
@@ -247,7 +247,7 @@ export function useResolveFlag() {
       // Get the flag
       const { data: flag, error: flagError } = await supabase
         .from('pulse_card_flags')
-        .select('*')
+        .select('id, target_type, target_id, reporter_id, flag_type, description, status, resolved_at, resolved_by, resolution_reason, created_at')
         .eq('id', params.flagId)
         .single();
 

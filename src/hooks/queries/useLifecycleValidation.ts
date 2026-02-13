@@ -40,7 +40,7 @@ export function useLifecycleStages() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('lifecycle_stages')
-        .select('*')
+        .select('id, status_code, rank, display_name, description, locks_configuration, locks_content, locks_everything, is_active')
         .eq('is_active', true)
         .order('rank', { ascending: true });
 

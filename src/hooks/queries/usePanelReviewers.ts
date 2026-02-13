@@ -493,7 +493,7 @@ export function usePendingReviewers() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, why_join_statement, created_at, updated_at")
         .eq("enrollment_source", "self_signup")
         .eq("approval_status", "pending")
         .order("created_at", { ascending: true });
@@ -514,7 +514,7 @@ export function useReviewerApprovalHistory(status: "approved" | "rejected") {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, approved_at, approved_by, approval_notes, why_join_statement, created_at, updated_at")
         .eq("enrollment_source", "self_signup")
         .eq("approval_status", status)
         .order("approved_at", { ascending: false });
