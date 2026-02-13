@@ -333,7 +333,7 @@ export function DataTable<TData extends { id: string }>({
           </Button>
         )}
       </div>
-      <div className="rounded-md border">
+      <div className="relative w-full rounded-md border overflow-auto">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (

@@ -1,12 +1,14 @@
 import * as React from "react";
 import { z } from "zod";
-import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
-import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
+import { DataTable, DataTableColumn } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { MasterDataViewDialog, ViewField } from "@/components/admin/MasterDataViewDialog";
+import { PageHeader } from "@/components/admin/PageHeader";
+import { createMasterDataActions } from "@/components/admin/MasterDataActions";
+import { useMasterDataPage } from "@/hooks/useMasterDataPage";
 import {
   useBaseFees, useCreateBaseFee, useUpdateBaseFee,
   useDeleteBaseFee, useRestoreBaseFee, useHardDeleteBaseFee,
@@ -34,10 +36,8 @@ type BaseFeeWithJoins = Pick<BaseFee, 'id' | 'country_id' | 'tier_id' | 'engagem
 };
 
 export default function BaseFeesPage() {
-  const [isFormOpen, setIsFormOpen] = React.useState(false);
-  const [isViewOpen, setIsViewOpen] = React.useState(false);
-  const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
-  const [selected, setSelected] = React.useState<BaseFeeWithJoins | null>(null);
+  const page = useMasterDataPage<BaseFeeWithJoins>();
+  const { selected } = page;
 
   const { data: items = [], isLoading } = useBaseFees(true);
   const { data: tiers = [] } = useSubscriptionTiers();
@@ -80,13 +80,12 @@ export default function BaseFeesPage() {
     { accessorKey: "is_active", header: "Status", cell: (v) => <StatusBadge isActive={v as boolean} /> },
   ];
 
-  const actions: DataTableAction<BaseFeeWithJoins>[] = [
-    { label: "View", icon: <Eye className="h-4 w-4" />, onClick: (i) => { setSelected(i); setIsViewOpen(true); } },
-    { label: "Edit", icon: <Pencil className="h-4 w-4" />, onClick: (i) => { setSelected(i); setIsFormOpen(true); } },
-    { label: "Activate", icon: <RotateCcw className="h-4 w-4" />, onClick: (i) => restoreM.mutate(i.id), show: (i) => !i.is_active },
-    { label: "Delete", icon: <Trash className="h-4 w-4" />, variant: "destructive", onClick: (i) => { setSelected(i); setIsDeleteOpen(true); }, show: (i) => !i.is_active },
-    { label: "Deactivate", icon: <Trash2 className="h-4 w-4" />, variant: "destructive", onClick: (i) => { setSelected(i); setIsDeleteOpen(true); }, show: (i) => i.is_active },
-  ];
+  const actions = React.useMemo(() => createMasterDataActions<BaseFeeWithJoins>({
+    onView: page.openView,
+    onEdit: page.openEdit,
+    onRestore: (id) => restoreM.mutate(id),
+    onDelete: page.openDelete,
+  }), [page.openView, page.openEdit, page.openDelete, restoreM]);
 
   const handleSubmit = async (data: FormData) => {
     const country = countries.find((c) => c.id === data.country_id);
@@ -96,13 +95,13 @@ export default function BaseFeesPage() {
   };
 
   const defaults: Partial<FormData> = selected
-    ? { country_id: selected.country_id, tier_id: selected.tier_id, engagement_model_id: (selected as any).engagement_model_id ?? "", consulting_base_fee: selected.consulting_base_fee, management_base_fee: selected.management_base_fee, currency_code: selected.currency_code, is_active: selected.is_active }
+    ? { country_id: selected.country_id, tier_id: selected.tier_id, engagement_model_id: selected.engagement_model_id ?? "", consulting_base_fee: selected.consulting_base_fee, management_base_fee: selected.management_base_fee, currency_code: selected.currency_code, is_active: selected.is_active }
     : { country_id: "", tier_id: "", engagement_model_id: "", consulting_base_fee: 0, management_base_fee: 0, currency_code: "USD", is_active: true };
 
   const viewFields: ViewField[] = selected ? [
     { label: "Country", value: selected.countries?.name ?? selected.country_id },
     { label: "Subscription Tier", value: selected.md_subscription_tiers?.name ?? selected.tier_id },
-    { label: "Engagement Model", value: (selected as any).md_engagement_models?.name ?? "All Models" },
+    { label: "Engagement Model", value: selected.md_engagement_models?.name ?? "All Models" },
     { label: "Consulting Base Fee", value: selected.consulting_base_fee, type: "number" },
     { label: "Management Base Fee", value: selected.management_base_fee, type: "number" },
     { label: "Currency", value: selected.currency_code },
@@ -113,11 +112,12 @@ export default function BaseFeesPage() {
   const displayName = selected ? `${selected.countries?.name ?? ""} / ${selected.md_subscription_tiers?.name ?? ""}` : "";
 
   return (
-    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Base Fee Configuration</h1><p className="text-muted-foreground mt-1">Manage consulting and management base fees per country, subscription tier, and engagement model</p></div>
-      <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Base Fee" emptyMessage="No base fee configurations found." />
-      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} onFieldChange={handleFieldChange} />
-      <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Base Fee Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
-      <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Base Fee" : "Delete Base Fee"} itemName={displayName} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
+    <>
+      <PageHeader title="Base Fee Configuration" description="Manage consulting and management base fees per country, subscription tier, and engagement model" />
+      <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={page.openCreate} addButtonLabel="Add Base Fee" emptyMessage="No base fee configurations found." />
+      <MasterDataForm open={page.isFormOpen} onOpenChange={page.setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} onFieldChange={handleFieldChange} />
+      <MasterDataViewDialog open={page.isViewOpen} onOpenChange={page.setIsViewOpen} title="Base Fee Details" fields={viewFields} onEdit={page.switchToEdit} />
+      <DeleteConfirmDialog open={page.isDeleteOpen} onOpenChange={page.setIsDeleteOpen} title={selected?.is_active ? "Deactivate Base Fee" : "Delete Base Fee"} itemName={displayName} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
     </>
   );
 }
