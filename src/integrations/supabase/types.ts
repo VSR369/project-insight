@@ -5306,10 +5306,12 @@ export type Database = {
           custom_fee_1_label: string | null
           custom_fee_2_amount: number | null
           custom_fee_2_label: string | null
+          department_id: string | null
           ends_at: string | null
           fee_amount: number
           fee_currency: string
           fee_frequency: string
+          functional_area_id: string | null
           id: string
           lifecycle_status: string
           msa_document_url: string | null
@@ -5339,10 +5341,12 @@ export type Database = {
           custom_fee_1_label?: string | null
           custom_fee_2_amount?: number | null
           custom_fee_2_label?: string | null
+          department_id?: string | null
           ends_at?: string | null
           fee_amount?: number
           fee_currency?: string
           fee_frequency?: string
+          functional_area_id?: string | null
           id?: string
           lifecycle_status?: string
           msa_document_url?: string | null
@@ -5372,10 +5376,12 @@ export type Database = {
           custom_fee_1_label?: string | null
           custom_fee_2_amount?: number | null
           custom_fee_2_label?: string | null
+          department_id?: string | null
           ends_at?: string | null
           fee_amount?: number
           fee_currency?: string
           fee_frequency?: string
+          functional_area_id?: string | null
           id?: string
           lifecycle_status?: string
           msa_document_url?: string | null
@@ -5396,6 +5402,20 @@ export type Database = {
             columns: ["child_organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saas_agreements_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "md_departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saas_agreements_functional_area_id_fkey"
+            columns: ["functional_area_id"]
+            isOneToOne: false
+            referencedRelation: "md_functional_areas"
             referencedColumns: ["id"]
           },
           {

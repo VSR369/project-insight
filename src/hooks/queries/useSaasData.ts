@@ -27,6 +27,7 @@ export function useSaasAgreements(parentOrgId: string | undefined) {
           shadow_charge_rate, starts_at, ends_at, auto_renew,
           notes, created_at,
           child_organization_id,
+          department_id, functional_area_id,
           billing_frequency,
           base_platform_fee, per_department_fee, support_tier_fee,
           custom_fee_1_label, custom_fee_1_amount,
@@ -34,7 +35,9 @@ export function useSaasAgreements(parentOrgId: string | undefined) {
           msa_reference_number, msa_document_url,
           seeker_organizations!saas_agreements_child_organization_id_fkey (
             id, organization_name, legal_entity_name
-          )
+          ),
+          md_departments (name),
+          md_functional_areas (name)
         `)
         .eq('parent_organization_id', parentOrgId)
         .order('created_at', { ascending: false });
@@ -61,6 +64,8 @@ interface CreateSaasAgreementParams {
   fee_currency: string;
   fee_frequency: string;
   shadow_charge_rate?: number | null;
+  department_id?: string | null;
+  functional_area_id?: string | null;
   billing_frequency?: string;
   base_platform_fee?: number | null;
   per_department_fee?: number | null;
@@ -117,6 +122,8 @@ interface UpdateSaasAgreementUpdates {
   fee_currency?: string;
   fee_frequency?: string;
   shadow_charge_rate?: number | null;
+  department_id?: string | null;
+  functional_area_id?: string | null;
   billing_frequency?: string;
   base_platform_fee?: number | null;
   per_department_fee?: number | null;
@@ -164,6 +171,53 @@ export function useUpdateSaasAgreement() {
     },
     onError: (error: Error) => {
       toast.error(`Failed to update agreement: ${error.message}`);
+    },
+  });
+}
+
+// ============================================================
+// Create Child Organization (inline from SaaS Agreement form)
+// ============================================================
+
+interface CreateChildOrgParams {
+  tenant_id: string;
+  organization_name: string;
+  legal_entity_name?: string | null;
+  contact_person_name?: string | null;
+  contact_email?: string | null;
+  contact_phone?: string | null;
+  hq_country_id?: string | null;
+  hq_state_province_id?: string | null;
+  hq_city?: string | null;
+  hq_postal_code?: string | null;
+  hq_address_line1?: string | null;
+}
+
+export function useCreateChildOrg() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (params: CreateChildOrgParams) => {
+      const withAudit = await withCreatedBy({
+        ...params,
+        is_active: true,
+        registration_step: 0,
+      });
+      const { data, error } = await supabase
+        .from('seeker_organizations')
+        .insert(withAudit)
+        .select('id, organization_name')
+        .single();
+
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['org-picker-options'] });
+      toast.success('Child organization created successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to create organization: ${error.message}`);
     },
   });
 }
