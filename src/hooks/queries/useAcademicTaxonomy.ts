@@ -28,7 +28,7 @@ export function useAcademicDisciplines(includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("academic_disciplines")
-        .select("*")
+        .select("id, name, description, display_order, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -128,7 +128,6 @@ export function useRestoreAcademicDiscipline() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_disciplines"] });
-      queryClient.refetchQueries({ queryKey: ["academic_disciplines"] });
       toast.success("Discipline restored successfully");
     },
     onError: (error: Error) => {
@@ -268,7 +267,6 @@ export function useRestoreAcademicStream() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_streams"] });
-      queryClient.refetchQueries({ queryKey: ["academic_streams"] });
       toast.success("Stream restored successfully");
     },
     onError: (error: Error) => {
@@ -408,7 +406,6 @@ export function useRestoreAcademicSubject() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["academic_subjects"] });
-      queryClient.refetchQueries({ queryKey: ["academic_subjects"] });
       toast.success("Subject restored successfully");
     },
     onError: (error: Error) => {

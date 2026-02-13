@@ -15,7 +15,7 @@ export function useParticipationModes(includeInactive = false) {
     queryFn: async () => {
       let query = supabase
         .from("participation_modes")
-        .select("*")
+        .select("id, code, name, description, requires_org_info, display_order, is_active, created_at, updated_at, created_by, updated_by")
         .order("display_order", { ascending: true, nullsFirst: false })
         .order("name", { ascending: true });
 
@@ -133,7 +133,6 @@ export function useRestoreParticipationMode() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["participation_modes"] });
-      queryClient.refetchQueries({ queryKey: ["participation_modes"] });
       toast.success("Participation mode restored successfully");
     },
     onError: (error: Error) => {

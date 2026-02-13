@@ -247,7 +247,6 @@ export function useRestoreQuestion() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["question_bank"] });
-      queryClient.refetchQueries({ queryKey: ["question_bank"] });
       toast.success("Question restored successfully");
     },
     onError: (error: Error) => {

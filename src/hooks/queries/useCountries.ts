@@ -157,7 +157,6 @@ export function useRestoreCountry() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["countries"] });
-      queryClient.refetchQueries({ queryKey: ["countries"] });
       toast.success("Country restored successfully");
     },
     onError: (error: Error) => {

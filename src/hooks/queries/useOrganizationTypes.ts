@@ -134,7 +134,6 @@ export function useRestoreOrganizationType() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization_types"] });
-      queryClient.refetchQueries({ queryKey: ["organization_types"] });
       toast.success("Organization type restored successfully");
     },
     onError: (error: Error) => {

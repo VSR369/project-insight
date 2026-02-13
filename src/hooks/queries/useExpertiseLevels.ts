@@ -132,7 +132,6 @@ export function useRestoreExpertiseLevel() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["expertise_levels"] });
-      queryClient.refetchQueries({ queryKey: ["expertise_levels"] });
       toast.success("Expertise level restored successfully");
     },
     onError: (error: Error) => {
