@@ -8,7 +8,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { AdminLayout } from "@/components/admin";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -286,7 +286,7 @@ export function InterviewKitQuestionsPage() {
   };
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -609,6 +609,6 @@ export function InterviewKitQuestionsPage() {
         }
         isLoading={hardDeleteMutation.isPending || deleteMutation.isPending}
       />
-    </AdminLayout>
+    </>
   );
 }

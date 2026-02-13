@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { useExpertiseLevels } from "@/hooks/queries/useExpertiseLevels";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import {
@@ -181,18 +181,12 @@ export default function InterviewRequirementsPage() {
 
   const isLoading = levelsLoading || industriesLoading || configsLoading;
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Interview Setup" },
-    { label: "Quorum Requirements" },
-  ];
-
   return (
-    <AdminLayout
-      title="Quorum Requirements"
-      description="Configure the required number of interviewers per expertise level and industry segment"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Quorum Requirements</h1>
+        <p className="text-muted-foreground mt-1">Configure the required number of interviewers per expertise level and industry segment</p>
+      </div>
       <div className="space-y-6">
         {/* Info Banner */}
         <Alert className="bg-blue-50 border-blue-200">
@@ -340,6 +334,6 @@ export default function InterviewRequirementsPage() {
           </div>
         )}
       </div>
-    </AdminLayout>
+    </>
   );
 }

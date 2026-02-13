@@ -4,7 +4,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recha
 import html2pdf from "html2pdf.js";
 import * as XLSX from "xlsx";
 
-import { AdminLayout } from "@/components/admin";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -773,17 +773,12 @@ export function QuestionBankPage() {
     }
   };
 
-  const breadcrumbs = [
-    { label: "Admin", href: "/admin" },
-    { label: "Question Bank" },
-  ];
-
   return (
-    <AdminLayout
-      title="Question Bank"
-      description="Manage assessment questions organized by speciality"
-      breadcrumbs={breadcrumbs}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Question Bank</h1>
+        <p className="text-muted-foreground mt-1">Manage assessment questions organized by speciality</p>
+      </div>
       <Card>
         <CardHeader className="space-y-4">
           <div className="flex items-center justify-between">
@@ -1934,6 +1929,6 @@ export function QuestionBankPage() {
         open={treePreviewOpen}
         onOpenChange={setTreePreviewOpen}
       />
-    </AdminLayout>
+    </>
   );
 }

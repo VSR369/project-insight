@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -103,7 +103,7 @@ export default function ReviewerAvailabilityPage() {
   };
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -331,6 +331,6 @@ export default function ReviewerAvailabilityPage() {
         onOpenChange={(open) => !open && setCancelSlot(null)}
         slot={cancelSlot}
       />
-    </AdminLayout>
+    </>
   );
 }
