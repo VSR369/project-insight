@@ -143,6 +143,11 @@ const BaseFeesPage = lazy(() => import("@/pages/admin/base-fees").then(m => ({ d
 const ShadowPricingPage = lazy(() => import("@/pages/admin/shadow-pricing").then(m => ({ default: m.ShadowPricingPage })));
 const PricingOverviewPage = lazy(() => import("@/pages/admin/pricing-overview").then(m => ({ default: m.PricingOverviewPage })));
 const PlatformFeesPage = lazy(() => import("@/pages/admin/platform-fees").then(m => ({ default: m.PlatformFeesPage })));
+const TaxFormatsPage = lazy(() => import("@/pages/admin/tax-formats").then(m => ({ default: m.TaxFormatsPage })));
+const SubsidizedPricingPage = lazy(() => import("@/pages/admin/subsidized-pricing").then(m => ({ default: m.SubsidizedPricingPage })));
+const PostalFormatsPage = lazy(() => import("@/pages/admin/postal-formats").then(m => ({ default: m.PostalFormatsPage })));
+const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then(m => ({ default: m.BillingCyclesPage })));
+const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
 
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -530,6 +535,11 @@ const App = () => (
               <Route path="seeker-config/base-fees" element={<BaseFeesPage />} />
               <Route path="seeker-config/shadow-pricing" element={<ShadowPricingPage />} />
               <Route path="seeker-config/platform-fees" element={<PlatformFeesPage />} />
+              <Route path="seeker-config/tax-formats" element={<TaxFormatsPage />} />
+              <Route path="seeker-config/subsidized-pricing" element={<SubsidizedPricingPage />} />
+              <Route path="seeker-config/postal-formats" element={<PostalFormatsPage />} />
+              <Route path="seeker-config/billing-cycles" element={<BillingCyclesPage />} />
+              <Route path="seeker-config/payment-methods" element={<PaymentMethodsPage />} />
               <Route path="saas-agreements" element={<SaasAgreementPage />} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
