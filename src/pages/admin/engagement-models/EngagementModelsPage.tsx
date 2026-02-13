@@ -1,7 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -77,11 +77,15 @@ export default function EngagementModelsPage() {
   ] : [];
 
   return (
-    <AdminLayout title="Engagement Models" description="Manage challenge engagement models" breadcrumbs={[{ label: "Seeker Config", href: "/admin" }, { label: "Engagement Models" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Engagement Models</h1>
+        <p className="text-muted-foreground mt-1">Manage challenge engagement models</p>
+      </div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search models..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Model" emptyMessage="No engagement models found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Engagement Model" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Engagement Model Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Model" : "Delete Model"} itemName={selected?.name} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -96,11 +96,11 @@ export default function BaseFeesPage() {
   const displayName = selected ? `${selected.countries?.name ?? ""} / ${selected.md_subscription_tiers?.name ?? ""}` : "";
 
   return (
-    <AdminLayout title="Base Fee Configuration" description="Manage consulting and management base fees per country and subscription tier" breadcrumbs={[{ label: "Seeker Config", href: "/admin" }, { label: "Base Fees" }]}>
+    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Base Fee Configuration</h1><p className="text-muted-foreground mt-1">Manage consulting and management base fees per country and subscription tier</p></div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Base Fee" emptyMessage="No base fee configurations found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Base Fee Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Base Fee" : "Delete Base Fee"} itemName={displayName} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

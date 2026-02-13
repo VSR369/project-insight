@@ -1,7 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -88,11 +88,11 @@ export default function MembershipTiersPage() {
   ] : [];
 
   return (
-    <AdminLayout title="Membership Tiers" description="Manage membership tier plans, discounts, and commission rates" breadcrumbs={[{ label: "Seeker Config", href: "/admin" }, { label: "Membership Tiers" }]}>
+    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Membership Tiers</h1><p className="text-muted-foreground mt-1">Manage membership tier plans, discounts, and commission rates</p></div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search tiers..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Tier" emptyMessage="No membership tiers found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Membership Tier" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Membership Tier Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Tier" : "Delete Tier"} itemName={selected?.name} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

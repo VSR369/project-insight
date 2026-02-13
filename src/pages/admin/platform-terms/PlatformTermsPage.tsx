@@ -1,7 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -79,11 +79,15 @@ export default function PlatformTermsPage() {
   ] : [];
 
   return (
-    <AdminLayout title="Platform Terms" description="Manage platform terms & conditions versions" breadcrumbs={[{ label: "Seeker Config", href: "/admin" }, { label: "Platform Terms" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Platform Terms</h1>
+        <p className="text-muted-foreground mt-1">Manage platform terms & conditions versions</p>
+      </div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="title" searchPlaceholder="Search terms..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Version" emptyMessage="No platform terms found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Platform Terms" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Platform Terms Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Terms" : "Delete Terms"} itemName={`${selected?.title} v${selected?.version}`} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

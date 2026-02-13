@@ -2,7 +2,7 @@ import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import {
   DataTable,
   DataTableColumn,
@@ -144,11 +144,15 @@ export default function CountriesPage() {
     : [];
 
   return (
-    <AdminLayout title="Countries" description="Manage countries available in the platform" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Countries" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Countries</h1>
+        <p className="text-muted-foreground mt-1">Manage countries available in the platform</p>
+      </div>
       <DataTable data={countries} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search countries..." isLoading={isLoading} onAdd={() => { setSelectedCountry(null); setIsFormOpen(true); }} addButtonLabel="Add Country" emptyMessage="No countries found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Country" description="Countries are used for provider location and compliance." fields={formFields} schema={countrySchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedCountry ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Country Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedCountry?.is_active ? "Deactivate Country" : "Delete Country"} itemName={selectedCountry?.name} onConfirm={selectedCountry?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedCountry?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedCountry?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

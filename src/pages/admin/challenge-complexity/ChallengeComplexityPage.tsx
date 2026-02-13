@@ -1,7 +1,7 @@
 import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -88,11 +88,15 @@ export default function ChallengeComplexityPage() {
   ] : [];
 
   return (
-    <AdminLayout title="Challenge Complexity" description="Manage challenge complexity levels and fee multipliers" breadcrumbs={[{ label: "Seeker Config", href: "/admin" }, { label: "Challenge Complexity" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Challenge Complexity</h1>
+        <p className="text-muted-foreground mt-1">Manage challenge complexity levels and fee multipliers</p>
+      </div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="complexity_label" searchPlaceholder="Search complexity..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Complexity" emptyMessage="No complexity levels found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Challenge Complexity" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Challenge Complexity Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Complexity" : "Delete Complexity"} itemName={selected?.complexity_label} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

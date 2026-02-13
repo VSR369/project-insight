@@ -1,4 +1,3 @@
-import { AdminLayout } from '@/components/admin';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -121,7 +120,7 @@ export default function AdminDashboard() {
   const { data: pendingCount } = usePendingReviewerCount();
 
   return (
-    <AdminLayout>
+    <>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
@@ -160,6 +159,6 @@ export default function AdminDashboard() {
           ))}
         </div>
       </div>
-    </AdminLayout>
+    </>
   );
 }

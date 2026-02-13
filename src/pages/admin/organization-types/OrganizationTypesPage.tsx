@@ -2,7 +2,7 @@ import * as React from "react";
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 
-import { AdminLayout } from "@/components/admin/AdminLayout";
+
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
 import { MasterDataForm, FormFieldConfig } from "@/components/admin/MasterDataForm";
 import { DeleteConfirmDialog } from "@/components/admin/DeleteConfirmDialog";
@@ -81,11 +81,15 @@ export default function OrganizationTypesPage() {
     : [];
 
   return (
-    <AdminLayout title="Organization Types" description="Manage organization categories for solution providers" breadcrumbs={[{ label: "Master Data", href: "/admin" }, { label: "Organization Types" }]}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Organization Types</h1>
+        <p className="text-muted-foreground mt-1">Manage organization categories for solution providers</p>
+      </div>
       <DataTable data={types} columns={columns} actions={actions} searchKey="name" searchPlaceholder="Search organization types..." isLoading={isLoading} onAdd={() => { setSelectedType(null); setIsFormOpen(true); }} addButtonLabel="Add Organization Type" emptyMessage="No organization types found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Organization Type" description="Organization types categorize the entities that providers represent." fields={formFields} schema={organizationTypeSchema} defaultValues={defaultValues} onSubmit={handleSubmit} isLoading={createMutation.isPending || updateMutation.isPending} mode={selectedType ? "edit" : "create"} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Organization Type Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selectedType?.is_active ? "Deactivate Organization Type" : "Delete Organization Type"} itemName={selectedType?.name} onConfirm={selectedType?.is_active ? handleDelete : handleHardDelete} onHardDelete={handleHardDelete} isLoading={selectedType?.is_active ? deleteMutation.isPending : hardDeleteMutation.isPending} hardDeleteLoading={hardDeleteMutation.isPending} isSoftDelete={selectedType?.is_active ?? true} showHardDelete={false} />
-    </AdminLayout>
+    </>
   );
 }

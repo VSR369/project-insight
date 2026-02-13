@@ -9,6 +9,7 @@ import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 import { RegistrationProvider } from "@/contexts/RegistrationContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
+import { AdminShell } from "@/components/admin/AdminShell";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
@@ -473,197 +474,44 @@ const App = () => (
               }
             />
 
-            {/* Admin Routes (all lazy loaded) */}
-            <Route
-              path="/admin"
-              element={
-                <AdminGuard>
-                  <LazyRoute><AdminDashboard /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/countries"
-              element={
-                <AdminGuard>
-                  <LazyRoute><CountriesPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/industry-segments"
-              element={
-                <AdminGuard>
-                  <LazyRoute><IndustrySegmentsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/organization-types"
-              element={
-                <AdminGuard>
-                  <LazyRoute><OrganizationTypesPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/participation-modes"
-              element={
-                <AdminGuard>
-                  <LazyRoute><ParticipationModesPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/expertise-levels"
-              element={
-                <AdminGuard>
-                  <LazyRoute><ExpertiseLevelsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/academic-taxonomy"
-              element={
-                <AdminGuard>
-                  <LazyRoute><AcademicTaxonomyPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/master-data/proficiency-taxonomy"
-              element={
-                <AdminGuard>
-                  <LazyRoute><ProficiencyTaxonomyPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/questions"
-              element={
-                <AdminGuard>
-                  <LazyRoute><QuestionBankPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/capability-tags"
-              element={
-                <AdminGuard>
-                  <LazyRoute><CapabilityTagsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/level-speciality-map"
-              element={
-                <AdminGuard>
-                  <LazyRoute><LevelSpecialityMapPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/invitations"
-              element={
-                <AdminGuard>
-                  <LazyRoute><InvitationsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/invitations/panel-reviewers"
-              element={
-                <AdminGuard>
-                  <LazyRoute><PanelReviewerInvitationsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/smoke-test"
-              element={
-                <AdminGuard>
-                  <LazyRoute><SmokeTestPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/settings"
-              element={
-                <AdminGuard>
-                  <LazyRoute><AdminSettingsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/interview/kit"
-              element={
-                <AdminGuard>
-                  <LazyRoute><InterviewKitPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/interview/kit/questions"
-              element={
-                <AdminGuard>
-                  <LazyRoute><InterviewKitQuestionsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/interview/quorum-requirements"
-              element={
-                <AdminGuard>
-                  <LazyRoute><InterviewRequirementsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/reviewer-approvals"
-              element={
-                <AdminGuard>
-                  <LazyRoute><ReviewerApprovalsPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/interview/reviewer-availability"
-              element={
-                <AdminGuard>
-                  <LazyRoute><ReviewerAvailabilityPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/pulse-social-test"
-              element={
-                <AdminGuard>
-                  <LazyRoute><PulseSocialTestPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/admin/regression-test-kit"
-              element={
-                <AdminGuard>
-                  <LazyRoute><RegressionTestKitPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
-
-            {/* Seeker Config Admin Routes */}
-            <Route path="/admin/master-data/functional-areas" element={<AdminGuard><LazyRoute><FunctionalAreasPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/subscription-tiers" element={<AdminGuard><LazyRoute><SubscriptionTiersPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/engagement-models" element={<AdminGuard><LazyRoute><EngagementModelsPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/challenge-complexity" element={<AdminGuard><LazyRoute><ChallengeComplexityPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/challenge-statuses" element={<AdminGuard><LazyRoute><ChallengeStatusesPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/export-control" element={<AdminGuard><LazyRoute><ExportControlPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/data-residency" element={<AdminGuard><LazyRoute><DataResidencyPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/blocked-domains" element={<AdminGuard><LazyRoute><BlockedDomainsPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/platform-terms" element={<AdminGuard><LazyRoute><PlatformTermsPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/membership-tiers" element={<AdminGuard><LazyRoute><MembershipTiersPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/base-fees" element={<AdminGuard><LazyRoute><BaseFeesPage /></LazyRoute></AdminGuard>} />
-            <Route path="/admin/seeker-config/shadow-pricing" element={<AdminGuard><LazyRoute><ShadowPricingPage /></LazyRoute></AdminGuard>} />
+            {/* Admin Routes — nested under AdminShell for persistent sidebar */}
+            <Route path="/admin" element={<AdminGuard><AdminShell /></AdminGuard>}>
+              <Route index element={<AdminDashboard />} />
+              <Route path="master-data/countries" element={<CountriesPage />} />
+              <Route path="master-data/industry-segments" element={<IndustrySegmentsPage />} />
+              <Route path="master-data/organization-types" element={<OrganizationTypesPage />} />
+              <Route path="master-data/participation-modes" element={<ParticipationModesPage />} />
+              <Route path="master-data/expertise-levels" element={<ExpertiseLevelsPage />} />
+              <Route path="master-data/academic-taxonomy" element={<AcademicTaxonomyPage />} />
+              <Route path="master-data/proficiency-taxonomy" element={<ProficiencyTaxonomyPage />} />
+              <Route path="master-data/functional-areas" element={<FunctionalAreasPage />} />
+              <Route path="questions" element={<QuestionBankPage />} />
+              <Route path="capability-tags" element={<CapabilityTagsPage />} />
+              <Route path="level-speciality-map" element={<LevelSpecialityMapPage />} />
+              <Route path="invitations" element={<InvitationsPage />} />
+              <Route path="invitations/panel-reviewers" element={<PanelReviewerInvitationsPage />} />
+              <Route path="smoke-test" element={<SmokeTestPage />} />
+              <Route path="settings" element={<AdminSettingsPage />} />
+              <Route path="interview/kit" element={<InterviewKitPage />} />
+              <Route path="interview/kit/questions" element={<InterviewKitQuestionsPage />} />
+              <Route path="interview/quorum-requirements" element={<InterviewRequirementsPage />} />
+              <Route path="reviewer-approvals" element={<ReviewerApprovalsPage />} />
+              <Route path="interview/reviewer-availability" element={<ReviewerAvailabilityPage />} />
+              <Route path="pulse-social-test" element={<PulseSocialTestPage />} />
+              <Route path="regression-test-kit" element={<RegressionTestKitPage />} />
+              <Route path="seeker-config/subscription-tiers" element={<SubscriptionTiersPage />} />
+              <Route path="seeker-config/engagement-models" element={<EngagementModelsPage />} />
+              <Route path="seeker-config/challenge-complexity" element={<ChallengeComplexityPage />} />
+              <Route path="seeker-config/challenge-statuses" element={<ChallengeStatusesPage />} />
+              <Route path="seeker-config/export-control" element={<ExportControlPage />} />
+              <Route path="seeker-config/data-residency" element={<DataResidencyPage />} />
+              <Route path="seeker-config/blocked-domains" element={<BlockedDomainsPage />} />
+              <Route path="seeker-config/platform-terms" element={<PlatformTermsPage />} />
+              <Route path="seeker-config/membership-tiers" element={<MembershipTiersPage />} />
+              <Route path="seeker-config/base-fees" element={<BaseFeesPage />} />
+              <Route path="seeker-config/shadow-pricing" element={<ShadowPricingPage />} />
+              <Route path="saas-agreements" element={<SaasAgreementPage />} />
+            </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
               path="/reviewer/invitation-response"
@@ -917,14 +765,7 @@ const App = () => (
                 <LazyRoute><OnboardingCompletePage /></LazyRoute>
               }
             />
-            <Route
-              path="/admin/saas-agreements"
-              element={
-                <AdminGuard>
-                  <LazyRoute><SaasAgreementPage /></LazyRoute>
-                </AdminGuard>
-              }
-            />
+            {/* SaasAgreementPage moved to nested /admin route above */}
 
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
