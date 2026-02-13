@@ -1,66 +1,78 @@
 
 
-# Unique Organization Identification -- Country Required + Composite Unique Constraint
+# Fix Required Field Validation on Both Forms
 
-## Summary
+## Problem
 
-Add a hard unique constraint on `(LOWER(organization_name), hq_country_id)` in the database and make Country a required field in the child org creation form. This prevents exact-name duplicates within the same country at the database level, while the existing trigram fuzzy check catches near-matches as an advisory warning.
+Both forms can be submitted without meaningful data because:
+
+1. **Enterprise Agreement form**: Most "required" fields have valid defaults pre-filled (fee_amount=0, agreement_type="saas_fee", currency="USD", frequencies="monthly"). The form submits successfully without the user entering anything meaningful. Additionally, `fee_amount` accepts 0, and `department_id`/`functional_area_id` are fully optional.
+
+2. **Child Organization form**: The Zod schema requires `organization_name` (min 1 char) and `hq_country_id` (valid UUID), which should block submission. If it's still saving, the issue may be in how empty string defaults interact with Zod validation on blur vs submit. Need to verify and tighten.
 
 ## Changes
 
-### 1. Database Migration
+### 1. Schema Tightening (`saasAgreement.schema.ts`)
 
-Add a composite unique index on `seeker_organizations`:
+**Enterprise Agreement schema** -- add stricter required field validation:
+- `fee_amount`: Change from `.min(0)` to `.positive("Fee amount must be greater than zero")` -- a zero-dollar agreement is not meaningful
+- `department_id`: Make required (non-nullable) -- every agreement must be linked to a department per the architecture notes
+- `functional_area_id`: Make required (non-nullable) -- same reasoning
+- Add a refine for internal scope requiring `department_id`
 
-```sql
-CREATE UNIQUE INDEX idx_seeker_orgs_unique_name_country
-  ON public.seeker_organizations (LOWER(organization_name::text), hq_country_id)
-  WHERE is_deleted = false;
-```
+**Child Org schema** -- no schema changes needed (already correct), but verify the form's default values align with the schema expectations.
 
-This is a **partial unique index** -- it only enforces uniqueness among non-deleted records, allowing soft-deleted orgs to share names.
+### 2. Form Default Values
 
-### 2. Schema Update (`saasAgreement.schema.ts`)
+- Change `department_id` and `functional_area_id` defaults from `null` to `""` (empty string) so they fail the UUID validation when not selected
+- Keep `fee_amount` default at 0 so the field displays but fails the new `positive()` check on submit
 
-Make `hq_country_id` required in `childOrgSchema`:
+### 3. UI Updates (`SaasAgreementFormDialog.tsx`)
 
-```text
-Before:  hq_country_id: z.string().uuid().optional().nullable()
-After:   hq_country_id: z.string().uuid("Please select a country")
-```
+- Add `*` required indicator to Department and Functional Area field labels
+- Add `*` required indicator to Fee Amount label (already has it)
 
-### 3. UI Update (`CreateChildOrgDialog.tsx`)
+### 4. Select Component Fix
 
-- Mark the Country field label with `*` (required indicator)
-- No other UI changes needed -- the form already renders a country selector
+The `__none__` sentinel value used in Department/Functional Area selects needs to be removed or adjusted -- currently when a user selects "-- None --" it sets the value to `null`, which bypasses the required UUID check. Remove the "-- None --" option for these now-required fields, or change the placeholder to prompt selection.
 
-### 4. Error Handling
+## Technical Details
 
-- If the unique constraint is violated (exact duplicate name + country), the mutation's `onError` handler already shows a toast. The error message from Postgres will mention the constraint -- we can intercept it and show a friendlier message like "An organization with this name already exists in the selected country."
+### File: `src/pages/admin/saas/saasAgreement.schema.ts`
 
-## Files Changed
+- `fee_amount`: `.min(0)` becomes `.positive("Fee amount must be greater than zero")`
+- `department_id`: `z.string().uuid().optional().nullable()` becomes `z.string().uuid("Please select a department").or(z.literal(""))` with a refine ensuring it's provided
+- `functional_area_id`: Same pattern as department_id
+- Add refine: department_id must be a valid UUID (not empty) for all scopes
+- Add refine: functional_area_id must be a valid UUID (not empty) for all scopes
+- Update `SAAS_AGREEMENT_DEFAULTS`: `department_id: ""`, `functional_area_id: ""`
 
-| File | Change |
-|---|---|
-| New migration SQL | Add partial unique index `idx_seeker_orgs_unique_name_country` |
-| `src/pages/admin/saas/saasAgreement.schema.ts` | Make `hq_country_id` required (non-nullable) in `childOrgSchema` |
-| `src/components/admin/CreateChildOrgDialog.tsx` | Add required indicator `*` to Country label |
-| `src/hooks/queries/useSaasData.ts` | Add friendly duplicate error message handling in `useCreateChildOrg` `onError` |
+### File: `src/components/admin/SaasAgreementFormDialog.tsx`
 
-## How It Works Together
+- Add `*` to Department and Functional Area labels
+- Remove "-- None --" option from Department and Functional Area selects (or change sentinel handling)
+- When department/functional_area value is `""`, treat as unselected in the Select component
 
-```text
-User submits "ACME Corp" + "United States"
-  --> Step 1: Trigram fuzzy check (advisory)
-      - Finds "Acme Corporation" at 0.65 similarity
-      - Shows DuplicateOrgModal warning
-      - User clicks "Proceed Anyway"
-  --> Step 2: INSERT hits DB
-      - If exact "acme corp" + US already exists (non-deleted):
-        DB rejects with unique constraint violation
-        Toast: "An organization with this name already exists in the selected country"
-      - Otherwise: inserted successfully
-```
+### File: `src/pages/admin/SaasAgreementPage.tsx`
 
-Two layers of protection: fuzzy warning (soft) + exact constraint (hard).
+- Update `getDefaultValues` to return `""` instead of `null` for department_id/functional_area_id when the agreement has no value set
+
+### File: `src/components/admin/CreateChildOrgDialog.tsx`
+
+- No changes needed -- the schema already requires `organization_name` and `hq_country_id`. If the form is still saving without them, the issue is likely in the form's interaction with empty strings, which the current default of `""` for `hq_country_id` should already trigger validation failure on submit.
+
+## Summary of Required Fields After Fix
+
+| Field | Enterprise Agreement | Child Organization |
+|---|---|---|
+| Child Organization | Required (child_org scope) | N/A |
+| Department | Required (all scopes) | N/A |
+| Functional Area | Required (all scopes) | N/A |
+| Agreement Type | Required (pre-selected) | N/A |
+| Fee Amount | Required, must be > 0 | N/A |
+| Fee Currency | Required (pre-filled USD) | N/A |
+| Fee Frequency | Required (pre-selected) | N/A |
+| Billing Frequency | Required (pre-selected) | N/A |
+| Organization Name | N/A | Required |
+| Country | N/A | Required |
 
