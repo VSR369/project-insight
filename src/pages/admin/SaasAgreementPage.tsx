@@ -219,7 +219,7 @@ export default function SaasAgreementPage() {
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">SaaS Agreements</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Enterprise Agreements</h1>
         <p className="text-muted-foreground mt-1">
           Manage SaaS fee agreements between parent and child organizations
         </p>
