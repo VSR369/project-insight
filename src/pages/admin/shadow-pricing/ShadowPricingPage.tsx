@@ -26,7 +26,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-type ShadowPricingWithJoins = ShadowPricing & {
+type ShadowPricingWithJoins = Pick<ShadowPricing, 'id' | 'tier_id' | 'country_id' | 'shadow_charge_per_challenge' | 'currency_code' | 'currency_symbol' | 'description' | 'is_active' | 'created_at'> & {
   md_subscription_tiers?: { name: string } | null;
   countries?: { name: string; currency_code: string; currency_symbol: string } | null;
 };
@@ -46,8 +46,8 @@ export default function ShadowPricingPage() {
   const restoreM = useRestoreShadowPricing();
   const hardDeleteM = useHardDeleteShadowPricing();
 
-  const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
-  const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
+  const tierOptions = React.useMemo(() => tiers.map((t) => ({ value: t.id, label: t.name })), [tiers]);
+  const countryOptions = React.useMemo(() => countries.map((c) => ({ value: c.id, label: c.name })), [countries]);
 
   const handleFieldChange = React.useCallback((fieldName: string, value: unknown) => {
     if (fieldName === "country_id") {

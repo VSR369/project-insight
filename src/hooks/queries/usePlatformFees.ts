@@ -42,7 +42,7 @@ export function usePlatformFees(includeInactive = false) {
   return useQuery({
     queryKey: [...KEY, { includeInactive }],
     queryFn: async () => {
-      let q = supabase.from(TABLE).select(`*, md_engagement_models(name), md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`).order("created_at");
+      let q = supabase.from(TABLE).select(`id, engagement_model_id, tier_id, country_id, currency_code, platform_fee_pct, description, is_active, created_at, md_engagement_models(name), md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`).order("created_at");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
