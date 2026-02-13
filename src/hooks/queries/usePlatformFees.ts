@@ -8,6 +8,8 @@ export interface PlatformFee {
   id: string;
   engagement_model_id: string;
   tier_id: string;
+  country_id: string | null;
+  currency_code: string;
   platform_fee_pct: number;
   description: string | null;
   is_active: boolean;
@@ -20,6 +22,8 @@ export interface PlatformFee {
 export interface PlatformFeeInsert {
   engagement_model_id: string;
   tier_id: string;
+  country_id: string;
+  currency_code: string;
   platform_fee_pct: number;
   description?: string | null;
   is_active?: boolean;
@@ -28,6 +32,7 @@ export interface PlatformFeeInsert {
 type PlatformFeeWithJoins = PlatformFee & {
   md_engagement_models?: { name: string } | null;
   md_subscription_tiers?: { name: string } | null;
+  countries?: { name: string; currency_code: string; currency_symbol: string } | null;
 };
 
 const TABLE = "md_platform_fees";
@@ -37,7 +42,7 @@ export function usePlatformFees(includeInactive = false) {
   return useQuery({
     queryKey: [...KEY, { includeInactive }],
     queryFn: async () => {
-      let q = supabase.from(TABLE).select(`*, md_engagement_models(name), md_subscription_tiers(name)`).order("created_at");
+      let q = supabase.from(TABLE).select(`*, md_engagement_models(name), md_subscription_tiers(name), countries(name, currency_code, currency_symbol)`).order("created_at");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw new Error(error.message);

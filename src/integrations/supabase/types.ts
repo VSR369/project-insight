@@ -2130,8 +2130,10 @@ export type Database = {
       }
       md_platform_fees: {
         Row: {
+          country_id: string | null
           created_at: string
           created_by: string | null
+          currency_code: string
           description: string | null
           engagement_model_id: string
           id: string
@@ -2142,8 +2144,10 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          country_id?: string | null
           created_at?: string
           created_by?: string | null
+          currency_code?: string
           description?: string | null
           engagement_model_id: string
           id?: string
@@ -2154,8 +2158,10 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          country_id?: string | null
           created_at?: string
           created_by?: string | null
+          currency_code?: string
           description?: string | null
           engagement_model_id?: string
           id?: string
@@ -2166,6 +2172,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "md_platform_fees_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "md_platform_fees_engagement_model_id_fkey"
             columns: ["engagement_model_id"]
@@ -2231,6 +2244,7 @@ export type Database = {
       }
       md_shadow_pricing: {
         Row: {
+          country_id: string | null
           created_at: string
           created_by: string | null
           currency_code: string
@@ -2244,6 +2258,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          country_id?: string | null
           created_at?: string
           created_by?: string | null
           currency_code?: string
@@ -2257,6 +2272,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          country_id?: string | null
           created_at?: string
           created_by?: string | null
           currency_code?: string
@@ -2270,6 +2286,13 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "md_shadow_pricing_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "md_shadow_pricing_tier_id_fkey"
             columns: ["tier_id"]

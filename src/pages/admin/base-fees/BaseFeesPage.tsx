@@ -53,13 +53,20 @@ export default function BaseFeesPage() {
   const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
   const modelOptions = [{ value: "", label: "— All Models —" }, ...models.map((m) => ({ value: m.id, label: m.name }))];
 
+  const handleFieldChange = React.useCallback((fieldName: string, value: unknown) => {
+    if (fieldName === "country_id") {
+      const country = countries.find((c) => c.id === value);
+      if (country) return { currency_code: country.currency_code ?? "USD" } as Partial<FormData>;
+    }
+  }, [countries]);
+
   const formFields: FormFieldConfig<FormData>[] = [
     { name: "country_id", label: "Country", type: "select", options: countryOptions, required: true },
     { name: "tier_id", label: "Subscription Tier", type: "select", options: tierOptions, required: true },
     { name: "engagement_model_id", label: "Engagement Model", type: "select", options: modelOptions },
     { name: "consulting_base_fee", label: "Consulting Base Fee", type: "number", min: 0, required: true },
     { name: "management_base_fee", label: "Management Base Fee", type: "number", min: 0, required: true },
-    { name: "currency_code", label: "Currency Code", type: "text", placeholder: "e.g., USD", required: true },
+    { name: "currency_code", label: "Currency Code", type: "text", disabled: true },
     { name: "is_active", label: "Active", type: "switch" },
   ];
 
@@ -82,7 +89,8 @@ export default function BaseFeesPage() {
   ];
 
   const handleSubmit = async (data: FormData) => {
-    const payload = { ...data, engagement_model_id: data.engagement_model_id || null };
+    const country = countries.find((c) => c.id === data.country_id);
+    const payload = { ...data, engagement_model_id: data.engagement_model_id || null, currency_code: country?.currency_code ?? data.currency_code };
     if (selected) await updateM.mutateAsync({ id: selected.id, ...payload });
     else await createM.mutateAsync(payload as BaseFeeInsert);
   };
@@ -107,7 +115,7 @@ export default function BaseFeesPage() {
   return (
     <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Base Fee Configuration</h1><p className="text-muted-foreground mt-1">Manage consulting and management base fees per country, subscription tier, and engagement model</p></div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Base Fee" emptyMessage="No base fee configurations found." />
-      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
+      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Base Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} onFieldChange={handleFieldChange} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Base Fee Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Base Fee" : "Delete Base Fee"} itemName={displayName} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
     </>
