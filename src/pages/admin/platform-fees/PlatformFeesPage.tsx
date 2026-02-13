@@ -14,10 +14,13 @@ import {
 } from "@/hooks/queries/usePlatformFees";
 import { useSubscriptionTiers } from "@/hooks/queries/usePlanSelectionData";
 import { useEngagementModels } from "@/hooks/queries/useEngagementModels";
+import { useCountries } from "@/hooks/queries/useCountries";
 
 const schema = z.object({
+  country_id: z.string().min(1, "Country is required"),
   engagement_model_id: z.string().min(1, "Engagement model is required"),
   tier_id: z.string().min(1, "Subscription tier is required"),
+  currency_code: z.string().min(2).max(5).default("USD"),
   platform_fee_pct: z.coerce.number().min(0).max(100),
   description: z.string().max(500).optional().nullable(),
   is_active: z.boolean().default(true),
@@ -27,6 +30,7 @@ type FormData = z.infer<typeof schema>;
 type PlatformFeeWithJoins = PlatformFee & {
   md_engagement_models?: { name: string } | null;
   md_subscription_tiers?: { name: string } | null;
+  countries?: { name: string; currency_code: string; currency_symbol: string } | null;
 };
 
 export default function PlatformFeesPage() {
@@ -38,6 +42,7 @@ export default function PlatformFeesPage() {
   const { data: items = [], isLoading } = usePlatformFees(true);
   const { data: tiers = [] } = useSubscriptionTiers();
   const { data: models = [] } = useEngagementModels();
+  const { data: countries = [] } = useCountries();
   const createM = useCreatePlatformFee();
   const updateM = useUpdatePlatformFee();
   const deleteM = useDeletePlatformFee();
@@ -46,20 +51,31 @@ export default function PlatformFeesPage() {
 
   const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
   const modelOptions = models.map((m) => ({ value: m.id, label: m.name }));
+  const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
+
+  const handleFieldChange = React.useCallback((fieldName: string, value: unknown) => {
+    if (fieldName === "country_id") {
+      const country = countries.find((c) => c.id === value);
+      if (country) return { currency_code: country.currency_code ?? "USD" } as Partial<FormData>;
+    }
+  }, [countries]);
 
   const formFields: FormFieldConfig<FormData>[] = [
+    { name: "country_id", label: "Country", type: "select", options: countryOptions, required: true },
     { name: "engagement_model_id", label: "Engagement Model", type: "select", options: modelOptions, required: true },
     { name: "tier_id", label: "Subscription Tier", type: "select", options: tierOptions, required: true },
+    { name: "currency_code", label: "Currency Code", type: "text", disabled: true },
     { name: "platform_fee_pct", label: "Platform Fee %", type: "number", min: 0, required: true },
     { name: "description", label: "Description", type: "textarea" },
     { name: "is_active", label: "Active", type: "switch" },
   ];
 
   const columns: DataTableColumn<PlatformFeeWithJoins>[] = [
+    { accessorKey: "countries", header: "Country", cell: (v) => (v as { name: string } | null)?.name ?? "—" },
     { accessorKey: "md_engagement_models", header: "Engagement Model", cell: (v) => (v as { name: string } | null)?.name ?? "—" },
     { accessorKey: "md_subscription_tiers", header: "Tier", cell: (v) => (v as { name: string } | null)?.name ?? "—" },
+    { accessorKey: "currency_code", header: "Currency" },
     { accessorKey: "platform_fee_pct", header: "Fee %", cell: (v) => `${v as number}%` },
-    { accessorKey: "description", header: "Description", cell: (v) => (v as string) || "—" },
     { accessorKey: "is_active", header: "Status", cell: (v) => <StatusBadge isActive={v as boolean} /> },
   ];
 
@@ -72,33 +88,37 @@ export default function PlatformFeesPage() {
   ];
 
   const handleSubmit = async (data: FormData) => {
-    if (selected) await updateM.mutateAsync({ id: selected.id, ...data });
-    else await createM.mutateAsync(data as PlatformFeeInsert);
+    const country = countries.find((c) => c.id === data.country_id);
+    const payload = { ...data, currency_code: country?.currency_code ?? data.currency_code };
+    if (selected) await updateM.mutateAsync({ id: selected.id, ...payload });
+    else await createM.mutateAsync(payload as PlatformFeeInsert);
   };
 
   const defaults: Partial<FormData> = selected
-    ? { engagement_model_id: selected.engagement_model_id, tier_id: selected.tier_id, platform_fee_pct: selected.platform_fee_pct, description: selected.description, is_active: selected.is_active }
-    : { engagement_model_id: "", tier_id: "", platform_fee_pct: 0, description: "", is_active: true };
+    ? { country_id: selected.country_id ?? "", engagement_model_id: selected.engagement_model_id, tier_id: selected.tier_id, currency_code: selected.currency_code, platform_fee_pct: selected.platform_fee_pct, description: selected.description, is_active: selected.is_active }
+    : { country_id: "", engagement_model_id: "", tier_id: "", currency_code: "USD", platform_fee_pct: 0, description: "", is_active: true };
 
   const viewFields: ViewField[] = selected ? [
+    { label: "Country", value: selected.countries?.name ?? "—" },
     { label: "Engagement Model", value: selected.md_engagement_models?.name ?? selected.engagement_model_id },
     { label: "Subscription Tier", value: selected.md_subscription_tiers?.name ?? selected.tier_id },
+    { label: "Currency", value: selected.currency_code },
     { label: "Platform Fee %", value: `${selected.platform_fee_pct}%` },
     { label: "Description", value: selected.description ?? "—" },
     { label: "Status", value: selected.is_active, type: "boolean" },
     { label: "Created At", value: selected.created_at, type: "date" },
   ] : [];
 
-  const displayName = selected ? `${selected.md_engagement_models?.name ?? ""} / ${selected.md_subscription_tiers?.name ?? ""}` : "";
+  const displayName = selected ? `${selected.countries?.name ?? ""} / ${selected.md_engagement_models?.name ?? ""} / ${selected.md_subscription_tiers?.name ?? ""}` : "";
 
   return (
     <>
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Platform Fee Configuration</h1>
-        <p className="text-muted-foreground mt-1">Manage platform usage fee percentages per engagement model and subscription tier</p>
+        <p className="text-muted-foreground mt-1">Manage platform usage fee percentages per country, engagement model and subscription tier</p>
       </div>
-      <DataTable data={items} columns={columns} actions={actions} searchKey="description" searchPlaceholder="Search by description..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Platform Fee" emptyMessage="No platform fees configured yet." />
-      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Platform Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} />
+      <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Platform Fee" emptyMessage="No platform fees configured yet." />
+      <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Platform Fee" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} onFieldChange={handleFieldChange} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Platform Fee Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />
       <DeleteConfirmDialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen} title={selected?.is_active ? "Deactivate Platform Fee" : "Delete Platform Fee"} itemName={displayName} onConfirm={selected?.is_active ? () => deleteM.mutateAsync(selected!.id) : () => hardDeleteM.mutateAsync(selected!.id)} onHardDelete={() => hardDeleteM.mutateAsync(selected!.id)} isLoading={deleteM.isPending || hardDeleteM.isPending} hardDeleteLoading={hardDeleteM.isPending} isSoftDelete={selected?.is_active ?? true} showHardDelete={false} />
     </>

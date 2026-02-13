@@ -65,6 +65,8 @@ interface MasterDataFormProps<TData extends FieldValues> {
   onSubmit: (data: TData) => Promise<void>;
   isLoading?: boolean;
   mode?: "create" | "edit";
+  /** When a select field changes, return derived field values to auto-fill */
+  onFieldChange?: (fieldName: string, value: unknown) => Partial<TData> | void;
 }
 
 export function MasterDataForm<TData extends FieldValues>({
@@ -78,6 +80,7 @@ export function MasterDataForm<TData extends FieldValues>({
   onSubmit,
   isLoading = false,
   mode = "create",
+  onFieldChange,
 }: MasterDataFormProps<TData>) {
   const form = useForm<TData>({
     resolver: zodResolver(schema),
@@ -152,7 +155,17 @@ export function MasterDataForm<TData extends FieldValues>({
         return (
           <Select
             value={(field.value as string) ?? ""}
-            onValueChange={field.onChange}
+            onValueChange={(val) => {
+              field.onChange(val);
+              if (onFieldChange) {
+                const derived = onFieldChange(String(fieldConfig.name), val);
+                if (derived) {
+                  Object.entries(derived).forEach(([key, value]) => {
+                    form.setValue(key as Path<TData>, value as any);
+                  });
+                }
+              }
+            }}
             disabled={disabled || isLoading}
           >
             <SelectTrigger>
