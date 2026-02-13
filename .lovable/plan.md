@@ -1,93 +1,135 @@
 
+# Departments CRUD + Department-Linked Functional Areas
 
-# Performance Fix: Slow Admin Page Navigation (5-10s to <1s)
+## Overview
 
-## Root Cause Analysis (5 Whys)
+The `md_departments` table already exists with 20 seed records but has no admin CRUD screen. The `md_functional_areas` table is currently standalone (no `department_id` column). This plan adds a Departments admin page and links functional areas to departments.
 
-**Symptom:** Clicking any admin sidebar menu item takes 5-10 seconds to display the page.
+## What Changes
 
-1. **Why is the page slow to appear?** Because the browser must download, parse, and execute the JavaScript chunk for each lazy-loaded page before React can render it.
+### 1. Database Migration
 
-2. **Why are the chunks slow to download?** Because the initial bundle is bloated. 15 Pulse pages are **eagerly imported** (not lazy-loaded) in App.tsx line 85, pulling their entire dependency tree into the main bundle. This means every page load -- including admin pages -- pays the cost of parsing Pulse code.
+Add `department_id` column to `md_functional_areas`:
 
-3. **Why does the chunk download not start sooner?** Because there is no **prefetching** of admin route chunks. The chunk only begins downloading after the user clicks a sidebar item. The browser must complete: click -> React Router match -> Suspense triggers -> dynamic import starts -> network fetch -> parse -> render. All of this is sequential.
+```sql
+ALTER TABLE md_functional_areas 
+  ADD COLUMN department_id UUID REFERENCES md_departments(id);
 
-4. **Why is there no prefetching?** The sidebar items use plain `navigate()` calls with no preloading strategy. When a user hovers or the admin shell mounts, no chunks are fetched ahead of time.
+CREATE INDEX idx_functional_areas_department ON md_functional_areas(department_id);
+```
 
-5. **Why does back-navigation also feel slow?** Because while React Query caches the API data (staleTime 5min), the JavaScript chunks are re-evaluated by the module system on each navigation. Additionally, the `AdminSidebar` instantiates 5 mutation hooks (`usePendingReviewerCount`) on every render cycle.
+The column is **nullable** so all existing functional area records remain valid (no breaking change). Existing `seeker_contacts` references to `md_functional_areas` are unaffected since the FK relationship is unchanged.
 
-## Solution: Three Targeted Fixes
+Add admin write policy on `md_departments` (currently only has a SELECT policy):
 
-### Fix 1: Convert Pulse Pages from Eager to Lazy Imports (BIGGEST IMPACT)
+```sql
+CREATE POLICY "Admin full access md_departments"
+  ON md_departments FOR ALL
+  USING (has_role(auth.uid(), 'platform_admin'::app_role));
+```
 
-Currently, 15 Pulse pages are eagerly imported in App.tsx. They are pulled into the main bundle even when visiting admin pages, inflating parse time for every single route.
+Seed department-functional area linkages by updating existing functional area records with matching department IDs (e.g., "Technology" functional area linked to "Information Technology" department).
 
-**Change in `src/App.tsx`:**
-- Move the Pulse barrel import from eager (line 85) to lazy loading, just like admin pages
-- Each Pulse page becomes a `lazy(() => import(...))` call
-- This reduces the initial bundle size significantly, speeding up all routes
+### 2. New Files: Departments Admin CRUD
 
-### Fix 2: Add Route Chunk Prefetching to AdminSidebar
+Following the exact same pattern as FunctionalAreasPage:
 
-When the AdminShell mounts, preload the chunks for the most likely admin pages. When a user hovers on any sidebar item, preload that specific chunk.
+**`src/hooks/queries/useDepartmentsAdmin.ts`** -- CRUD hooks (useCreateDepartment, useUpdateDepartment, useDeleteDepartment, useRestoreDepartment, useHardDeleteDepartment) using `handleMutationError`, `withCreatedBy`/`withUpdatedBy`, and explicit column selection.
 
-**Changes:**
-- Create a `src/lib/routePrefetch.ts` utility that maps sidebar paths to their dynamic import functions
-- In `AdminSidebar`, call `prefetchAdminRoutes()` once on mount (via useEffect) to preload the top 5-6 most-used pages
-- Add `onMouseEnter` handlers to sidebar menu items to prefetch the hovered route's chunk
+**`src/pages/admin/departments/DepartmentsPage.tsx`** -- Standard DataTable page with View/Edit/Deactivate/Delete/Restore actions, identical pattern to FunctionalAreasPage.
 
-**Prefetch utility pattern:**
+**`src/pages/admin/departments/index.ts`** -- Barrel export.
+
+### 3. Modified Files
+
+**`src/pages/admin/functional-areas/FunctionalAreasPage.tsx`**
+- Add a "Department" select dropdown to the form (optional field)
+- Show department name in the table columns (via Supabase join)
+- View dialog shows linked department name
+
+**`src/hooks/queries/useFunctionalAreasAdmin.ts`**
+- Update `useFunctionalAreas` query to join `md_departments(name)` and select `department_id`
+- Update create/update mutations to include `department_id`
+
+**`src/hooks/queries/useFunctionalAreas.ts`** (registration flow hook)
+- Add `department_id` to the select so the registration form can filter functional areas by selected department
+
+**`src/components/admin/AdminSidebar.tsx`**
+- Add "Departments" entry to `masterDataItems` array (before Functional Areas)
+
+**`src/App.tsx`**
+- Add lazy import for DepartmentsPage
+- Add route: `master-data/departments`
+
+**`src/lib/routePrefetch.ts`**
+- Add departments route to prefetch registry
+
+### 4. Registration Form Impact (Future -- Not in This Change)
+
+The `PrimaryContactForm.tsx` currently shows all functional areas in a flat dropdown. Once functional areas are linked to departments, the form could filter functional areas by the selected department. However, this is NOT part of this change -- the current form will continue to work because:
+- `department_id` is nullable on `md_functional_areas`
+- The registration form's `useFunctionalAreas()` hook fetches all active areas regardless
+- No existing data or FK relationships are broken
+
+## Non-Breaking Guarantees
+
+| Concern | Why It Is Safe |
+|---|---|
+| Existing `md_functional_areas` rows | `department_id` is nullable; existing rows get NULL (still valid) |
+| `seeker_contacts.department_functional_area_id` FK | Points to `md_functional_areas.id` which is unchanged |
+| `seeker_contacts.functional_area_id` FK | Same -- unchanged |
+| Registration form functional area dropdown | Continues to fetch all active areas; no filter change |
+| Existing RLS policies on `md_functional_areas` | Unchanged; new column is just data |
+| `md_departments` existing data | 20 seed records remain; only adding admin write RLS policy |
+
+## Technical Details
+
+### Departments Admin Hook Pattern
+
 ```typescript
-const ADMIN_ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
-  '/admin/master-data/countries': () => import('@/pages/admin/countries'),
-  '/admin/master-data/industry-segments': () => import('@/pages/admin/industry-segments'),
-  // ... all admin routes
-};
-
-export function prefetchRoute(path: string) {
-  ADMIN_ROUTE_IMPORTS[path]?.();
-}
-
-export function prefetchAdminRoutes() {
-  // Preload top routes after a short idle delay
-  requestIdleCallback(() => {
-    ['/admin/master-data/countries', '/admin/master-data/industry-segments', ...]
-      .forEach(path => prefetchRoute(path));
+export function useDepartments(includeInactive = false) {
+  return useQuery({
+    queryKey: ["departments", { includeInactive }],
+    queryFn: async () => {
+      let query = supabase.from("md_departments")
+        .select("id, code, name, description, display_order, is_active, created_at, updated_at")
+        .order("display_order").order("name");
+      if (!includeInactive) query = query.eq("is_active", true);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 ```
 
-### Fix 3: Eager-Load AdminDashboard (Already Done) and Deduplicate Sidebar Queries
+### Functional Areas Query with Department Join
 
-The `AdminSidebar` calls `usePendingReviewerCount()` which fires a HEAD request to `panel_reviewers` on every sidebar render. This is fine, but ensure it uses aggressive caching.
+```typescript
+// Updated select in useFunctionalAreasAdmin
+supabase.from("md_functional_areas")
+  .select("id, code, name, description, department_id, display_order, is_active, created_at, updated_at, md_departments(name)")
+```
 
-**Changes in `AdminSidebar.tsx`:**
-- Add `onMouseEnter` prefetch handlers to each sidebar menu item
-- Call `prefetchAdminRoutes()` on mount
+### Functional Areas Form -- Department Select Field
 
-## Files Changed
+```typescript
+{
+  name: "department_id",
+  label: "Department",
+  type: "select",
+  placeholder: "Select department (optional)",
+  options: departments.map(d => ({ value: d.id, label: d.name })),
+}
+```
 
-| File | Change |
-|---|---|
-| `src/App.tsx` | Convert 15 Pulse page imports from eager to lazy |
-| `src/lib/routePrefetch.ts` | New file: admin route prefetch registry |
-| `src/components/admin/AdminSidebar.tsx` | Add onMouseEnter prefetch + mount-time preload |
+### Seed Linkage SQL (in migration)
 
-## What We Are NOT Changing
-
-| Item | Reason |
-|---|---|
-| React Query config | Already optimized (staleTime 30s, gcTime 5min) |
-| DataTable component | Already has skeletons, pagination, memoized columns |
-| Hook patterns | Already use React Query with explicit columns |
-| Server-side pagination | Datasets are 10-200 rows; client-side is faster |
-| Database indexes | Already added in previous migration |
-| Lazy loading of admin pages | Already implemented |
-
-## Expected Results
-
-- **First admin page load:** <1s (chunk prefetched during idle or hover)
-- **Subsequent navigation:** Near-instant (chunk already cached by browser)
-- **Main bundle size reduction:** ~30-50% smaller from removing eager Pulse imports
-- **Zero functional changes:** No database, hook, UX, or navigation modifications
-
+```sql
+UPDATE md_functional_areas SET department_id = (
+  SELECT id FROM md_departments WHERE code = 'IT'
+) WHERE code = 'TECH';
+-- ... similar for OPS, FIN, MKT, HR, LEGAL, RND, SCM, SALES
+```
