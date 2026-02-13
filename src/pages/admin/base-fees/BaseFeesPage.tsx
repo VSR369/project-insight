@@ -27,7 +27,7 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
-type BaseFeeWithJoins = BaseFee & {
+type BaseFeeWithJoins = Pick<BaseFee, 'id' | 'country_id' | 'tier_id' | 'engagement_model_id' | 'consulting_base_fee' | 'management_base_fee' | 'currency_code' | 'is_active' | 'created_at'> & {
   countries?: { name: string } | null;
   md_subscription_tiers?: { name: string } | null;
   md_engagement_models?: { name: string } | null;
@@ -49,9 +49,9 @@ export default function BaseFeesPage() {
   const restoreM = useRestoreBaseFee();
   const hardDeleteM = useHardDeleteBaseFee();
 
-  const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
-  const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
-  const modelOptions = [{ value: "", label: "— All Models —" }, ...models.map((m) => ({ value: m.id, label: m.name }))];
+  const tierOptions = React.useMemo(() => tiers.map((t) => ({ value: t.id, label: t.name })), [tiers]);
+  const countryOptions = React.useMemo(() => countries.map((c) => ({ value: c.id, label: c.name })), [countries]);
+  const modelOptions = React.useMemo(() => [{ value: "", label: "— All Models —" }, ...models.map((m) => ({ value: m.id, label: m.name }))], [models]);
 
   const handleFieldChange = React.useCallback((fieldName: string, value: unknown) => {
     if (fieldName === "country_id") {

@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { handleMutationError } from "@/lib/errorHandler";
 import type { Database } from "@/integrations/supabase/types";
 
 export type MembershipTier = Database["public"]["Tables"]["md_membership_tiers"]["Row"];
@@ -20,6 +21,7 @@ export function useMembershipTiers(includeInactive = false) {
       return data as MembershipTier[];
     },
     staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 }
 
@@ -32,7 +34,7 @@ export function useCreateMembershipTier() {
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Membership tier created successfully"); },
-    onError: (e: Error) => toast.error(`Failed to create: ${e.message}`),
+    onError: (e: Error) => handleMutationError(e, { operation: "create_membership_tier" }),
   });
 }
 
@@ -45,7 +47,7 @@ export function useUpdateMembershipTier() {
       return data;
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Membership tier updated successfully"); },
-    onError: (e: Error) => toast.error(`Failed to update: ${e.message}`),
+    onError: (e: Error) => handleMutationError(e, { operation: "update_membership_tier" }),
   });
 }
 
@@ -57,7 +59,7 @@ export function useDeleteMembershipTier() {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Membership tier deactivated"); },
-    onError: (e: Error) => toast.error(`Failed to deactivate: ${e.message}`),
+    onError: (e: Error) => handleMutationError(e, { operation: "deactivate_membership_tier" }),
   });
 }
 
@@ -69,7 +71,7 @@ export function useRestoreMembershipTier() {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Membership tier restored"); },
-    onError: (e: Error) => toast.error(`Failed to restore: ${e.message}`),
+    onError: (e: Error) => handleMutationError(e, { operation: "restore_membership_tier" }),
   });
 }
 
@@ -81,6 +83,6 @@ export function useHardDeleteMembershipTier() {
       if (error) throw new Error(error.message);
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Membership tier permanently deleted"); },
-    onError: (e: Error) => toast.error(`Failed to delete: ${e.message}`),
+    onError: (e: Error) => handleMutationError(e, { operation: "delete_membership_tier" }),
   });
 }

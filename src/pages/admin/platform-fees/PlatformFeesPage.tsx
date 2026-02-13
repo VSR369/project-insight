@@ -49,9 +49,9 @@ export default function PlatformFeesPage() {
   const restoreM = useRestorePlatformFee();
   const hardDeleteM = useHardDeletePlatformFee();
 
-  const tierOptions = tiers.map((t) => ({ value: t.id, label: t.name }));
-  const modelOptions = models.map((m) => ({ value: m.id, label: m.name }));
-  const countryOptions = countries.map((c) => ({ value: c.id, label: c.name }));
+  const tierOptions = React.useMemo(() => tiers.map((t) => ({ value: t.id, label: t.name })), [tiers]);
+  const modelOptions = React.useMemo(() => models.map((m) => ({ value: m.id, label: m.name })), [models]);
+  const countryOptions = React.useMemo(() => countries.map((c) => ({ value: c.id, label: c.name })), [countries]);
 
   const handleFieldChange = React.useCallback((fieldName: string, value: unknown) => {
     if (fieldName === "country_id") {
