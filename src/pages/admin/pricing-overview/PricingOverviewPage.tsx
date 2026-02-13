@@ -330,17 +330,28 @@ function TierCard({
           {tierFeatures.length === 0 ? (
             <NotConfiguredMessage link="/admin/seeker-config/subscription-tiers" label="Features" />
           ) : (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
-              {tierFeatures.map((f: any) => (
-                <div key={f.id} className="flex items-center gap-2 text-sm py-0.5">
-                  {f.access_type === "included" ? (
-                    <Check className="h-4 w-4 text-primary shrink-0" />
-                  ) : (
-                    <Badge variant="outline" className="text-xs">{f.usage_limit ?? f.access_type}</Badge>
-                  )}
-                  <span>{f.feature_name}</span>
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-1">
+                {tierFeatures.map((f: any) => (
+                  <div key={f.id} className="flex items-center gap-2 text-sm py-0.5">
+                    {f.access_type === "included" ? (
+                      <Check className="h-4 w-4 text-primary shrink-0" />
+                    ) : (
+                      <X className="h-4 w-4 text-destructive shrink-0" />
+                    )}
+                    <span className={f.access_type !== "included" ? "text-muted-foreground line-through" : ""}>
+                      {f.feature_name}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {tierFeatures.some((f: any) => f.description) && (
+                <div className="pt-1 border-t border-border">
+                  {tierFeatures.filter((f: any) => f.description).map((f: any) => (
+                    <p key={f.id} className="text-xs text-muted-foreground italic">+ {f.description}</p>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
         </CollapsibleSection>
