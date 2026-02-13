@@ -59,6 +59,7 @@ const masterDataItems = [
 ];
 
 const seekerConfigItems = [
+  { title: 'Pricing Overview', icon: Activity, path: '/admin/seeker-config/pricing-overview' },
   { title: 'Subscription Tiers', icon: CreditCard, path: '/admin/seeker-config/subscription-tiers' },
   { title: 'Membership Tiers', icon: Award, path: '/admin/seeker-config/membership-tiers' },
   { title: 'Engagement Models', icon: Network, path: '/admin/seeker-config/engagement-models' },
