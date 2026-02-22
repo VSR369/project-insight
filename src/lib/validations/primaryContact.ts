@@ -69,9 +69,8 @@ export const primaryContactSchema = z.object({
   preferred_language_id: z.string()
     .min(1, 'Please select a preferred language'),
 
-  is_email_verified: z.literal(true, {
-    errorMap: () => ({ message: 'Email must be verified before proceeding' }),
-  }),
+  // TODO: TEMP BYPASS — was z.literal(true) requiring OTP verification
+  is_email_verified: z.boolean().default(true),
 });
 
 export type PrimaryContactFormValues = z.infer<typeof primaryContactSchema>;

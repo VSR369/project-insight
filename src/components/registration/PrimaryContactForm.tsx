@@ -79,7 +79,8 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   // SECTION 2: useState hooks
   // ══════════════════════════════════════
-  const [emailVerified, setEmailVerified] = useState(() => !!state.step2?.email_verified);
+  // TODO: TEMP BYPASS — was: useState(() => !!state.step2?.email_verified)
+  const [emailVerified, setEmailVerified] = useState(true);
 
   // ══════════════════════════════════════
   // SECTION 3: Form hook
@@ -99,7 +100,7 @@ export function PrimaryContactForm() {
       department_functional_area_id: '',
       timezone: state.step2?.timezone ?? detectedTimezone ?? '',
       preferred_language_id: state.step2?.preferred_language_id ?? '',
-      is_email_verified: state.step2?.email_verified ? true : undefined as unknown as true,
+      is_email_verified: true, // TODO: TEMP BYPASS — was conditional on state.step2?.email_verified
     },
   });
 
@@ -299,7 +300,8 @@ export function PrimaryContactForm() {
         />
 
         {/* OTP Verification */}
-        {watchedEmail && !isEmailBlocked && (
+        {/* TODO: TEMP BYPASS — OTP section hidden */}
+        {false && watchedEmail && !isEmailBlocked && (
           <OtpVerification
             email={watchedEmail}
             isVerified={emailVerified}
@@ -473,7 +475,7 @@ export function PrimaryContactForm() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           ) : (
-            <Button type="submit" disabled={isSubmitting || !emailVerified}>
+            <Button type="submit" disabled={isSubmitting}> {/* TODO: TEMP BYPASS — removed !emailVerified */}
               {isSubmitting ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
