@@ -286,7 +286,7 @@ export function PrimaryContactForm() {
                   type="email"
                   placeholder="name@company.com"
                   className="text-base"
-                  disabled={emailVerified}
+                  // TODO: TEMP BYPASS — was: disabled={emailVerified}
                 />
               </FormControl>
               <EmailDomainBlocker
