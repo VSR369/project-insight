@@ -329,7 +329,12 @@ export function useCreateOrganization() {
       toast.success('Organization details saved successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save organization: ${error.message}`);
+      const msg = error.message ?? '';
+      if (msg.includes('idx_seeker_orgs_unique_name_country')) {
+        toast.error('An organization with this name already exists in the selected country. Please use a different name or country.');
+      } else {
+        toast.error(`Failed to save organization: ${msg}`);
+      }
     },
   });
 }
