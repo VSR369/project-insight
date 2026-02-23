@@ -160,55 +160,59 @@ export function BillingForm() {
       return;
     }
 
-    await saveBilling.mutateAsync({
-      organization_id: state.organizationId,
-      tenant_id: state.tenantId,
-      billing_entity_name: data.billing_entity_name,
-      billing_email: data.billing_email,
-      billing_address_line1: data.billing_address_line1,
-      billing_address_line2: data.billing_address_line2,
-      billing_city: data.billing_city,
-      billing_state_province_id: data.billing_state_province_id,
-      billing_country_id: data.billing_country_id,
-      billing_postal_code: data.billing_postal_code,
-      payment_method: data.payment_method,
-      po_number: data.po_number,
-      tax_id: data.tax_id,
-    });
+    try {
+      await saveBilling.mutateAsync({
+        organization_id: state.organizationId,
+        tenant_id: state.tenantId,
+        billing_entity_name: data.billing_entity_name,
+        billing_email: data.billing_email,
+        billing_address_line1: data.billing_address_line1,
+        billing_address_line2: data.billing_address_line2,
+        billing_city: data.billing_city,
+        billing_state_province_id: data.billing_state_province_id,
+        billing_country_id: data.billing_country_id,
+        billing_postal_code: data.billing_postal_code,
+        payment_method: data.payment_method,
+        po_number: data.po_number,
+        tax_id: data.tax_id,
+      });
 
-    const termsHash = platformTerms
-      ? await generateTermsHash(state.organizationId, platformTerms.version, platformTerms.content)
-      : undefined;
+      const termsHash = platformTerms
+        ? await generateTermsHash(state.organizationId, platformTerms.version, platformTerms.content)
+        : undefined;
 
-    await createSubscription.mutateAsync({
-      organization_id: state.organizationId,
-      tenant_id: state.tenantId,
-      tier_id: state.step4.tier_id,
-      billing_cycle_id: state.step4.billing_cycle_id,
-      engagement_model_id: state.step4.engagement_model_id,
-      payment_type: isInternalDept ? 'shadow' : 'live',
-      terms_version: platformTerms?.version,
-      terms_acceptance_hash: termsHash,
-    });
+      await createSubscription.mutateAsync({
+        organization_id: state.organizationId,
+        tenant_id: state.tenantId,
+        tier_id: state.step4.tier_id,
+        billing_cycle_id: state.step4.billing_cycle_id,
+        engagement_model_id: state.step4.engagement_model_id,
+        payment_type: isInternalDept ? 'shadow' : 'live',
+        terms_version: platformTerms?.version,
+        terms_acceptance_hash: termsHash,
+      });
 
-    setStep5Data({
-      payment_method: data.payment_method,
-      is_internal_department: isInternalDept,
-      billing_entity_name: data.billing_entity_name,
-      billing_email: data.billing_email,
-      billing_address_line1: data.billing_address_line1,
-      billing_address_line2: data.billing_address_line2,
-      billing_city: data.billing_city,
-      billing_state_province_id: data.billing_state_province_id,
-      billing_country_id: data.billing_country_id,
-      billing_postal_code: data.billing_postal_code,
-      po_number: data.po_number,
-      tax_id: data.tax_id,
-    });
+      setStep5Data({
+        payment_method: data.payment_method,
+        is_internal_department: isInternalDept,
+        billing_entity_name: data.billing_entity_name,
+        billing_email: data.billing_email,
+        billing_address_line1: data.billing_address_line1,
+        billing_address_line2: data.billing_address_line2,
+        billing_city: data.billing_city,
+        billing_state_province_id: data.billing_state_province_id,
+        billing_country_id: data.billing_country_id,
+        billing_postal_code: data.billing_postal_code,
+        po_number: data.po_number,
+        tax_id: data.tax_id,
+      });
 
-    setStep(6);
-    toast.success('Registration complete! Welcome aboard.');
-    navigate('/login');
+      setStep(6);
+      toast.success('Registration complete! Welcome aboard.');
+      navigate('/login');
+    } catch {
+      // Error handled by mutation's onError callbacks
+    }
   };
 
   // ══════════════════════════════════════
