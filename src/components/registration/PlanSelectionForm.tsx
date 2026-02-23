@@ -144,7 +144,8 @@ export function PlanSelectionForm() {
   const isBasicTier = selectedTier?.code === 'basic';
   const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
 
-  const currencyCode = pricing?.[0]?.currency_code ?? state.localeInfo?.currency_code ?? 'USD';
+  const pricingArray = Array.isArray(pricing) ? pricing : [];
+  const currencyCode = pricingArray[0]?.currency_code ?? state.localeInfo?.currency_code ?? 'USD';
 
   // Annual billing cycle
   const annualCycle = billingCycles?.find((c) => c.code === 'annual' || c.months === 12);
@@ -152,14 +153,14 @@ export function PlanSelectionForm() {
   const annualDiscount = annualCycle?.discount_percentage ?? 17;
 
   const getEffectivePrice = (tierId: string) => {
-    const tp = pricing?.find((p) => p.tier_id === tierId);
+    const tp = pricingArray.find((p) => p.tier_id === tierId);
     const base = tp?.local_price ?? tp?.monthly_price_usd ?? 0;
     if (isAnnual) return base * (1 - annualDiscount / 100);
     return base;
   };
 
   const getBasePrice = (tierId: string) => {
-    const tp = pricing?.find((p) => p.tier_id === tierId);
+    const tp = pricingArray.find((p) => p.tier_id === tierId);
     return tp?.local_price ?? tp?.monthly_price_usd ?? 0;
   };
 
