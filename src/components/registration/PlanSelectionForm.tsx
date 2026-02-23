@@ -209,15 +209,19 @@ export function PlanSelectionForm() {
   const handleEnterpriseContact = async () => {
     if (!state.organizationId || !state.tenantId || !state.step2) return;
 
-    await submitEnterprise.mutateAsync({
-      organization_id: state.organizationId,
-      tenant_id: state.tenantId,
-      contact_name: state.step2.full_name,
-      contact_email: state.step2.email,
-      contact_phone: state.step2.phone,
-      company_size: state.step1?.company_size_range,
-      message: 'Enterprise tier inquiry from registration wizard',
-    });
+    try {
+      await submitEnterprise.mutateAsync({
+        organization_id: state.organizationId,
+        tenant_id: state.tenantId,
+        contact_name: state.step2.full_name,
+        contact_email: state.step2.email,
+        contact_phone: state.step2.phone,
+        company_size: state.step1?.company_size_range,
+        message: 'Enterprise tier inquiry from registration wizard',
+      });
+    } catch {
+      // Error handled by mutation's onError callback
+    }
   };
 
   const handleSubmit = async (data: PlanSelectionFormValues) => {
@@ -226,16 +230,20 @@ export function PlanSelectionForm() {
       return;
     }
 
-    setStep4Data({
-      tier_id: data.tier_id,
-      billing_cycle_id: data.billing_cycle_id,
-      engagement_model_id: data.engagement_model_id || undefined,
-      membership_tier_id: data.membership_tier_id || undefined,
-      estimated_challenges_per_month: 0,
-    });
+    try {
+      setStep4Data({
+        tier_id: data.tier_id,
+        billing_cycle_id: data.billing_cycle_id,
+        engagement_model_id: data.engagement_model_id || undefined,
+        membership_tier_id: data.membership_tier_id || undefined,
+        estimated_challenges_per_month: 0,
+      });
 
-    setStep(5);
-    navigate('/registration/billing');
+      setStep(5);
+      navigate('/registration/billing');
+    } catch {
+      // Error handled by mutation's onError callback
+    }
   };
 
   const isReturning = !!state.organizationId && !!state.step4;
