@@ -1,48 +1,98 @@
 
 
-# Fix "Save & Continue" on Primary Contact Form
+# Integrate Membership Selection into Plan Selection (Step 4)
 
-## Root Cause Analysis
+## Overview
 
-Two issues are preventing "Save & Continue" from working:
+Currently, membership enrollment happens separately after registration. This change embeds membership tier selection (Annual / Multi-Year) directly into the Plan Selection screen (Step 4) for Basic, Standard, and Premium tiers. Users will see how membership discounts reduce their per-challenge fees right on the same screen, creating a unified "Choose Your Plan + Membership" experience.
 
-1. **Silent early return**: If `state.organizationId` or `state.tenantId` is missing from the registration context (e.g., user navigated directly to Step 2, or the context was lost), the form submit handler silently returns on line 175 with zero user feedback.
+Enterprise tier is excluded -- it uses custom sales agreements.
 
-2. **Missing try/catch**: The `await upsertContact.mutateAsync(...)` call is not wrapped in a `try...catch`. If the database operation fails (RLS policy, constraint violation, network error), the promise rejection goes unhandled and the form just freezes with no feedback.
+## What Changes
 
-## Changes (1 file)
+### 1. Add Membership Tier Selector to Step 4
 
-### `src/components/registration/PrimaryContactForm.tsx`
+After a user selects a subscription tier (Basic/Standard/Premium), a new "Membership" section appears below the tier cards showing:
+- **Annual Membership** -- 12 months, 10% fee discount, 5% commission reduction
+- **Multi-Year Membership** -- 24 months, 15% fee discount, 7% commission reduction
+- **No Membership** option (proceed without discount)
 
-**Fix 1 — Add user feedback for missing context:**
-Replace the silent `return` when `organizationId`/`tenantId` are missing with a toast error message so the user knows something went wrong:
-```
-if (!state.organizationId || !state.tenantId) {
-  toast.error("Registration session not found. Please start from Step 1.");
-  return;
+Each option will display the discount benefits clearly so users understand the value.
+
+### 2. Show Discount Impact
+
+When a membership is selected, each tier card's pricing area will show a note like:
+- "10% off per-challenge fees with Annual Membership"
+
+This gives immediate visual feedback on the value of membership.
+
+### 3. Carry Membership Selection to Billing (Step 5)
+
+The selected membership tier ID will be stored in the registration context (Step 4 data) and reflected in the Billing Order Summary as a line item.
+
+### 4. Skip Membership for Enterprise and Internal Departments
+
+- Enterprise tier: No membership selector shown (custom agreements)
+- Internal departments (zero_fee_eligible): No membership selector shown (auto-bypass per BR-MEM-003)
+
+---
+
+## Technical Details
+
+### Files to Modify
+
+**`src/types/registration.ts`** -- Add `membership_tier_id` to `PlanSelectionData`:
+```typescript
+export interface PlanSelectionData {
+  tier_id: string;
+  billing_cycle_id: string;
+  engagement_model_id?: string;
+  membership_tier_id?: string;        // NEW
+  estimated_challenges_per_month: number;
 }
 ```
 
-**Fix 2 — Wrap mutateAsync in try/catch:**
-Wrap the `await upsertContact.mutateAsync(...)` and subsequent navigation calls in a `try...catch` block so database errors are caught and displayed to the user instead of silently crashing:
-```
-try {
-  await upsertContact.mutateAsync({ ... });
-  setStep2Data({ ... });
-  setStep(3);
-  navigate('/registration/compliance');
-} catch (error) {
-  // Error toast is already handled by the mutation's onError callback
-  // This catch prevents unhandled promise rejection / white screen
-}
+**`src/lib/validations/planSelection.ts`** -- Add optional `membership_tier_id` field to Zod schema:
+```typescript
+export const planSelectionSchema = z.object({
+  tier_id: z.string().min(1, 'Please select a subscription tier'),
+  billing_cycle_id: z.string().min(1, 'Please select a billing cycle'),
+  engagement_model_id: z.string().optional(),
+  membership_tier_id: z.string().optional(),   // NEW
+});
 ```
 
-## What stays the same
-- All OTP bypass changes remain
-- Form validation, schema, and field structure unchanged
-- The mutation hook's built-in `onError` toast continues to work for DB errors
+**`src/components/registration/PlanSelectionForm.tsx`** -- Main changes:
+- Import `useMembershipTiers` hook
+- Add a "Membership Plan" section that appears when a non-Enterprise tier is selected and user is not an internal department
+- Display two styled cards (Annual / Multi-Year) with discount details, plus a "No Membership" option
+- Pass `membership_tier_id` into `setStep4Data()`
+- Use `calculateMembershipDiscount()` from membershipService to show accurate discount percentages
 
-## Expected Result
-- If context is missing: user sees "Registration session not found" toast
-- If DB error occurs: user sees the error toast from the mutation hook, form stays on screen and can be retried
-- If everything works: form saves and navigates to Step 3 as expected
+**`src/components/registration/BillingForm.tsx`** -- Add membership line in Order Summary:
+- Read `membership_tier_id` from `state.step4`
+- If set, show a line: "Membership: Annual (10% challenge fee discount)" or similar
+- No price impact on subscription fee -- membership discounts apply to per-challenge fees
+
+### Data Flow
+
+```text
+Step 4 (Plan Selection)
+  |-- User selects Subscription Tier (Basic/Standard/Premium)
+  |-- User selects Billing Cycle (Monthly/Annual)
+  |-- User selects Membership Tier (Annual/Multi-Year/None)  <-- NEW
+  |-- All saved to registration context
+  v
+Step 5 (Billing)
+  |-- Order Summary shows:
+  |     Subscription: $X/mo
+  |     Billing discount: -Y%
+  |     Membership: Annual (10% off challenge fees)  <-- NEW
+  |     Due Today: $Z
+```
+
+### Business Rules Applied
+- **BR-MEM-001**: Membership discounts by tier (Annual: 10% fee / 5% commission; Multi-Year: 15% fee / 7% commission)
+- **BR-MEM-003**: Internal departments skip membership (zero-fee bypass)
+- Enterprise tier excluded from membership selection (custom agreements)
+
