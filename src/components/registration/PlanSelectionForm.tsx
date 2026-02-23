@@ -84,6 +84,13 @@ const TIER_CONFIG: Record<string, {
     btnVariant: 'outline',
     btnClass: 'border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20',
   },
+  enterprise: {
+    icon: <Crown className="h-5 w-5" />,
+    borderClass: 'border-violet-500',
+    badgeClass: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+    btnVariant: 'outline',
+    btnClass: 'border-violet-500 text-violet-700 hover:bg-violet-50 dark:text-violet-400 dark:hover:bg-violet-900/20',
+  },
 };
 
 // All features across tiers for comparison grid
@@ -246,6 +253,7 @@ export function PlanSelectionForm() {
   }
 
   const nonEnterpriseTiers = tiers?.filter((t) => !t.is_enterprise) ?? [];
+  const enterpriseTier = tiers?.find((t) => t.is_enterprise);
 
   return (
     <Form {...form}>
@@ -325,7 +333,7 @@ export function PlanSelectionForm() {
         />
 
         {/* Tier Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-5">
           {nonEnterpriseTiers.map((tier) => {
             const config = TIER_CONFIG[tier.code] ?? TIER_CONFIG.basic;
             const price = getEffectivePrice(tier.id);
@@ -434,38 +442,74 @@ export function PlanSelectionForm() {
           })}
         </div>
 
-        {/* Enterprise Card */}
-        {tiers?.some((t) => t.is_enterprise) && (
-          <Card className="border-dashed border-2">
-            <CardContent className="pt-5 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <Crown className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Enterprise</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Custom pricing, dedicated support, and unlimited features.
+          {/* Enterprise Card — inline in same grid */}
+          {enterpriseTier && (() => {
+            const config = TIER_CONFIG.enterprise;
+            const isSelected = watchedTierId === enterpriseTier.id;
+
+            return (
+              <div
+                className={cn(
+                  'relative flex flex-col rounded-xl border-2 p-0 transition-all overflow-hidden',
+                  isSelected
+                    ? `${config.borderClass} shadow-lg ring-2 ring-violet-500/20`
+                    : 'border-border hover:shadow-md border-dashed',
+                )}
+              >
+                <div className="p-5 flex flex-col flex-1">
+                  <Badge className={cn('w-fit mb-3 text-xs', config.badgeClass)}>
+                    {enterpriseTier.name}
+                  </Badge>
+
+                  <div className="mb-1">
+                    <span className="text-3xl font-bold text-foreground">Custom</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">Tailored to your needs</p>
+
+                  {enterpriseTier.description && (
+                    <p className="text-sm text-muted-foreground mb-4">{enterpriseTier.description}</p>
+                  )}
+
+                  <Separator className="mb-4" />
+
+                  <div className="space-y-2.5 flex-1">
+                    {[
+                      'Unlimited challenges & users',
+                      'Dedicated account manager',
+                      'Custom SLA & onboarding',
+                      'SSO & advanced security',
+                      'White-label reports',
+                      'Full API access & webhooks',
+                    ].map((feat) => (
+                      <div key={feat} className="flex items-start gap-2 text-sm">
+                        <Check className="h-4 w-4 text-emerald-500 shrink-0 mt-0.5" />
+                        <span className="text-foreground">{feat}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <p className="text-xs text-muted-foreground mt-4 mb-4">
+                    Custom contract & pricing
                   </p>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className={cn('w-full', config.btnClass)}
+                    onClick={handleEnterpriseContact}
+                    disabled={submitEnterprise.isPending}
+                  >
+                    {submitEnterprise.isPending ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                    )}
+                    Contact Sales
+                  </Button>
                 </div>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                className="border-amber-500 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
-                onClick={handleEnterpriseContact}
-                disabled={submitEnterprise.isPending}
-              >
-                {submitEnterprise.isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                )}
-                Contact Sales
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+            );
+          })()}
 
         {/* Engagement Model (Basic tier only) */}
         {isBasicTier && availableEngagementModels.length > 0 && (
