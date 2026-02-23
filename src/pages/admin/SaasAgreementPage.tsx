@@ -60,6 +60,7 @@ import {
   MoreHorizontal,
   Eye,
   Trash2,
+  Crown,
 } from "lucide-react";
 import { format } from "date-fns";
 import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
@@ -73,6 +74,7 @@ import {
   SAAS_AGREEMENT_DEFAULTS,
 } from "@/pages/admin/saas/saasAgreement.schema";
 import { SaasAgreementFormDialog } from "@/components/admin/SaasAgreementFormDialog";
+import { useEnterpriseContactRequests } from "@/hooks/queries/useEnterpriseRequests";
 
 const STATUS_VARIANTS: Record<
   string,
@@ -115,6 +117,7 @@ export default function SaasAgreementPage() {
   } = useSaasAgreements(selectedParentOrgId || undefined);
   const createAgreement = useCreateSaasAgreement();
   const updateAgreement = useUpdateSaasAgreement();
+  const { data: enterpriseRequests } = useEnterpriseContactRequests();
 
   // ══════════════════════════════════════
   // SECTION 5: Memos
@@ -469,6 +472,63 @@ export default function SaasAgreementPage() {
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Enterprise Tier Requests */}
+        {enterpriseRequests && enterpriseRequests.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-violet-500" />
+                Enterprise Tier Requests
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground mb-4">
+                Organizations that selected the Enterprise tier during registration and require a custom agreement.
+              </p>
+              <div className="relative w-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Organization</TableHead>
+                      <TableHead>Contact</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Company Size</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Requested</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {enterpriseRequests.map((req) => (
+                      <TableRow key={req.id}>
+                        <TableCell className="font-medium">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="h-4 w-4 text-violet-500" />
+                            {req.organization_name}
+                          </div>
+                        </TableCell>
+                        <TableCell>{req.contact_name}</TableCell>
+                        <TableCell className="text-muted-foreground">{req.contact_email}</TableCell>
+                        <TableCell className="text-muted-foreground">{req.company_size ?? '—'}</TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={req.status === 'responded' ? 'default' : req.status === 'new' ? 'secondary' : 'outline'}
+                            className="text-xs capitalize"
+                          >
+                            {req.status}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {format(new Date(req.created_at), 'MMM dd, yyyy')}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
             </CardContent>
           </Card>
         )}

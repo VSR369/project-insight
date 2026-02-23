@@ -440,7 +440,6 @@ export function PlanSelectionForm() {
               </div>
             );
           })}
-        </div>
 
           {/* Enterprise Card — inline in same grid */}
           {enterpriseTier && (() => {
@@ -510,6 +509,7 @@ export function PlanSelectionForm() {
               </div>
             );
           })()}
+        </div>
 
         {/* Engagement Model (Basic tier only) */}
         {isBasicTier && availableEngagementModels.length > 0 && (
