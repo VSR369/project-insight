@@ -113,30 +113,34 @@ export function ComplianceForm() {
       return;
     }
 
-    await upsertCompliance.mutateAsync({
-      organization_id: state.organizationId,
-      tenant_id: state.tenantId,
-      export_control_status_id: data.export_control_status_id,
-      itar_certified: data.itar_certified,
-      itar_certification_expiry: data.itar_certification_expiry || undefined,
-      data_residency_id: data.data_residency_id || undefined,
-      gdpr_compliant: data.gdpr_compliant,
-      hipaa_compliant: data.hipaa_compliant,
-      soc2_compliant: data.soc2_compliant,
-      iso27001_certified: data.iso27001_certified,
-      compliance_notes: data.compliance_notes || undefined,
-    });
+    try {
+      await upsertCompliance.mutateAsync({
+        organization_id: state.organizationId,
+        tenant_id: state.tenantId,
+        export_control_status_id: data.export_control_status_id,
+        itar_certified: data.itar_certified,
+        itar_certification_expiry: data.itar_certification_expiry || undefined,
+        data_residency_id: data.data_residency_id || undefined,
+        gdpr_compliant: data.gdpr_compliant,
+        hipaa_compliant: data.hipaa_compliant,
+        soc2_compliant: data.soc2_compliant,
+        iso27001_certified: data.iso27001_certified,
+        compliance_notes: data.compliance_notes || undefined,
+      });
 
-    setStep3Data({
-      tax_id: '',
-      tax_id_label: '',
-      export_control_status_id: data.export_control_status_id,
-      is_itar_restricted: data.itar_certified,
-      data_residency_id: data.data_residency_id,
-    });
+      setStep3Data({
+        tax_id: '',
+        tax_id_label: '',
+        export_control_status_id: data.export_control_status_id,
+        is_itar_restricted: data.itar_certified,
+        data_residency_id: data.data_residency_id,
+      });
 
-    setStep(4);
-    navigate('/registration/plan-selection');
+      setStep(4);
+      navigate('/registration/plan-selection');
+    } catch {
+      // Error already handled by mutation's onError callback
+    }
   };
 
   const isSubmitting = upsertCompliance.isPending;
