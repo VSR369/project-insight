@@ -154,6 +154,7 @@ export function PlanSelectionForm() {
   const isEnterpriseTier = selectedTier?.is_enterprise ?? false;
   const isBasicTier = selectedTier?.code === 'basic';
   const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
+  const subsidizedPct = state.orgTypeFlags?.subsidized_discount_pct ?? 0;
 
   const pricingArray = Array.isArray(pricing) ? pricing : [];
   const currencyCode = pricingArray[0]?.currency_code ?? state.localeInfo?.currency_code ?? 'USD';
@@ -163,16 +164,21 @@ export function PlanSelectionForm() {
   const monthlyCycle = billingCycles?.find((c) => c.code === 'monthly' || c.months === 1);
   const annualDiscount = annualCycle?.discount_percentage ?? 17;
 
-  const getEffectivePrice = (tierId: string) => {
+  /** Returns null when no pricing row exists (e.g. Enterprise). */
+  const getEffectivePrice = (tierId: string): number | null => {
     const tp = pricingArray.find((p) => p.tier_id === tierId);
-    const base = tp?.local_price ?? tp?.monthly_price_usd ?? 0;
-    if (isAnnual) return base * (1 - annualDiscount / 100);
-    return base;
+    if (!tp) return null;
+    const base = tp.local_price ?? tp.monthly_price_usd ?? 0;
+    let price = isAnnual ? base * (1 - annualDiscount / 100) : base;
+    if (subsidizedPct > 0) price = price * (1 - subsidizedPct / 100);
+    return price;
   };
 
-  const getBasePrice = (tierId: string) => {
+  /** Full base price before any discount. Returns null if no pricing row. */
+  const getBasePrice = (tierId: string): number | null => {
     const tp = pricingArray.find((p) => p.tier_id === tierId);
-    return tp?.local_price ?? tp?.monthly_price_usd ?? 0;
+    if (!tp) return null;
+    return tp.local_price ?? tp.monthly_price_usd ?? 0;
   };
 
   // Engagement models available for this tier
@@ -371,15 +377,28 @@ export function PlanSelectionForm() {
 
                   {/* Price */}
                   <div className="mb-1">
-                    <span className="text-3xl font-bold text-foreground">
-                      ${Math.round(price).toLocaleString()}
-                    </span>
-                    <span className="text-sm text-muted-foreground">/mo</span>
+                    {price !== null ? (
+                      <>
+                        <span className="text-3xl font-bold text-foreground">
+                          ${Math.round(price).toLocaleString()}
+                        </span>
+                        <span className="text-sm text-muted-foreground">/mo</span>
+                      </>
+                    ) : (
+                      <span className="text-xl font-bold text-muted-foreground">Contact us</span>
+                    )}
                   </div>
-                  {isAnnual && basePrice !== price && (
-                    <p className="text-xs text-muted-foreground line-through mb-2">
+                  {/* Strikethrough for discounted price */}
+                  {basePrice !== null && price !== null && basePrice !== price && (
+                    <p className="text-xs text-muted-foreground line-through mb-1">
                       ${Math.round(basePrice).toLocaleString()}/mo
                     </p>
+                  )}
+                  {/* Subsidized badge */}
+                  {subsidizedPct > 0 && price !== null && (
+                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5 py-0 mb-2">
+                      {subsidizedPct}% subsidized discount
+                    </Badge>
                   )}
 
                   {/* Description */}

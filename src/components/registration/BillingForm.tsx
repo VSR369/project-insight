@@ -146,7 +146,9 @@ export function BillingForm() {
   const tierPrice = pricingArray.find((p) => p.tier_id === state.step4?.tier_id);
   const baseMonthly = tierPrice?.local_price ?? tierPrice?.monthly_price_usd ?? 0;
   const cycleDiscount = selectedCycle?.discount_percentage ?? 0;
-  const effectiveMonthly = baseMonthly * (1 - cycleDiscount / 100);
+  const subsidizedPct = state.orgTypeFlags?.subsidized_discount_pct ?? 0;
+  const afterCycleDiscount = baseMonthly * (1 - cycleDiscount / 100);
+  const effectiveMonthly = afterCycleDiscount * (1 - subsidizedPct / 100);
   const currencyCode = tierPrice?.currency_code ?? 'USD';
 
   // ══════════════════════════════════════
@@ -574,6 +576,12 @@ export function BillingForm() {
                       <div className="flex justify-between text-emerald-600">
                         <span>Billing discount</span>
                         <span>-{cycleDiscount}%</span>
+                      </div>
+                    )}
+                    {subsidizedPct > 0 && (
+                      <div className="flex justify-between text-emerald-600">
+                        <span>Subsidized discount</span>
+                        <span>-{subsidizedPct}%</span>
                       </div>
                     )}
                     {/* Membership info */}
