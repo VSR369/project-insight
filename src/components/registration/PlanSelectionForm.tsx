@@ -25,6 +25,7 @@ import {
   useShadowPricing,
   useSubmitEnterpriseContact,
 } from '@/hooks/queries/usePlanSelectionData';
+import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
 import {
   planSelectionSchema,
   type PlanSelectionFormValues,
@@ -52,6 +53,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { MembershipTierSelector } from './MembershipTierSelector';
 
 // Tier visual config
 const TIER_CONFIG: Record<string, {
@@ -126,6 +128,7 @@ export function PlanSelectionForm() {
       tier_id: state.step4?.tier_id ?? '',
       billing_cycle_id: state.step4?.billing_cycle_id ?? '',
       engagement_model_id: state.step4?.engagement_model_id ?? '',
+      membership_tier_id: state.step4?.membership_tier_id ?? '',
     },
   });
 
@@ -141,6 +144,7 @@ export function PlanSelectionForm() {
   const { data: engagementModels } = useEngagementModels();
   const { data: tierEngagement } = useTierEngagementAccess();
   const { data: shadowPricing } = useShadowPricing();
+  const { data: membershipTiers } = useMembershipTiers();
   const submitEnterprise = useSubmitEnterpriseContact();
 
   // ══════════════════════════════════════
@@ -220,6 +224,7 @@ export function PlanSelectionForm() {
       tier_id: data.tier_id,
       billing_cycle_id: data.billing_cycle_id,
       engagement_model_id: data.engagement_model_id || undefined,
+      membership_tier_id: data.membership_tier_id || undefined,
       estimated_challenges_per_month: 0,
     });
 
@@ -536,6 +541,15 @@ export function PlanSelectionForm() {
                 <FormMessage />
               </FormItem>
             )}
+          />
+        )}
+
+        {/* Membership Tier Selection — shown for non-Enterprise, non-internal tiers */}
+        {watchedTierId && !isEnterpriseTier && !isInternalDept && membershipTiers && membershipTiers.length > 0 && (
+          <MembershipTierSelector
+            tiers={membershipTiers}
+            selectedTierId={form.watch('membership_tier_id') || undefined}
+            onSelect={(id) => form.setValue('membership_tier_id', id ?? '', { shouldDirty: true })}
           />
         )}
 

@@ -11,6 +11,7 @@ export const planSelectionSchema = z.object({
   tier_id: z.string().min(1, 'Please select a subscription tier'),
   billing_cycle_id: z.string().min(1, 'Please select a billing cycle'),
   engagement_model_id: z.string().optional(),
+  membership_tier_id: z.string().optional(),
 });
 
 export type PlanSelectionFormValues = z.infer<typeof planSelectionSchema>;
