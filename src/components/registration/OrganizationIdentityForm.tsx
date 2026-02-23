@@ -177,13 +177,18 @@ export function OrganizationIdentityForm() {
 
     // BR-REG-007: Duplicate check — skip when updating existing org
     if (!isUpdate && !skipDuplicateCheck) {
-      const result = await duplicateCheck.mutateAsync({
-        legalEntityName: data.legal_entity_name,
-        hqCountryId: data.hq_country_id,
-      });
-      if (result.exists) {
-        setDuplicateOrgName(result.orgName);
-        setShowDuplicateModal(true);
+      try {
+        const result = await duplicateCheck.mutateAsync({
+          legalEntityName: data.legal_entity_name,
+          hqCountryId: data.hq_country_id,
+        });
+        if (result.exists) {
+          setDuplicateOrgName(result.orgName);
+          setShowDuplicateModal(true);
+          return;
+        }
+      } catch {
+        // Error toast handled by mutation's onError — form stays intact for retry
         return;
       }
     }
@@ -210,35 +215,38 @@ export function OrganizationIdentityForm() {
       },
     };
 
-    if (isUpdate) {
-      // UPDATE existing organization
-      await updateOrg.mutateAsync({
-        id: state.organizationId!,
-        tenantId: state.tenantId!,
-        ...payload,
-      });
-    } else {
-      // CREATE new organization
-      const result = await createOrg.mutateAsync(payload);
-      setOrgId(result.organizationId, result.tenantId);
-    }
-    setStep1Data({
-      legal_entity_name: data.legal_entity_name,
-      trade_brand_name: data.trade_brand_name || undefined,
-      organization_type_id: data.organization_type_id,
-      industry_ids: data.industry_ids,
-      company_size_range: data.company_size_range,
-      annual_revenue_range: data.annual_revenue_range,
-      year_founded: data.year_founded,
-      hq_country_id: data.hq_country_id,
-      state_province_id: data.state_province_id,
-      city: data.city,
-      operating_geography_ids: data.operating_geography_ids,
-      verification_documents: verificationFiles.length > 0 ? verificationFiles : undefined,
-    });
+    try {
+      if (isUpdate) {
+        await updateOrg.mutateAsync({
+          id: state.organizationId!,
+          tenantId: state.tenantId!,
+          ...payload,
+        });
+      } else {
+        const result = await createOrg.mutateAsync(payload);
+        setOrgId(result.organizationId, result.tenantId);
+      }
 
-    setStep(2);
-    navigate('/registration/primary-contact');
+      setStep1Data({
+        legal_entity_name: data.legal_entity_name,
+        trade_brand_name: data.trade_brand_name || undefined,
+        organization_type_id: data.organization_type_id,
+        industry_ids: data.industry_ids,
+        company_size_range: data.company_size_range,
+        annual_revenue_range: data.annual_revenue_range,
+        year_founded: data.year_founded,
+        hq_country_id: data.hq_country_id,
+        state_province_id: data.state_province_id,
+        city: data.city,
+        operating_geography_ids: data.operating_geography_ids,
+        verification_documents: verificationFiles.length > 0 ? verificationFiles : undefined,
+      });
+
+      setStep(2);
+      navigate('/registration/primary-contact');
+    } catch {
+      // Error toast handled by mutation's onError — form stays intact for retry
+    }
   };
 
   const handleDuplicateProceed = () => {
