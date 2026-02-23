@@ -26,6 +26,8 @@ import {
   useTierPricingForCountry,
   useBillingCycles,
 } from '@/hooks/queries/usePlanSelectionData';
+import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
+import { calculateMembershipDiscount } from '@/services/membershipService';
 import { useStatesForCountry } from '@/hooks/queries/useRegistrationData';
 import { CountrySelector } from './CountrySelector';
 import { billingSchema, type BillingFormValues } from '@/lib/validations/billing';
@@ -122,6 +124,7 @@ export function BillingForm() {
   const { data: tiers } = useSubscriptionTiers();
   const { data: pricing } = useTierPricingForCountry(state.step1?.hq_country_id);
   const { data: billingCycles } = useBillingCycles();
+  const { data: membershipTiers } = useMembershipTiers();
   const saveBilling = useSaveBillingInfo();
   const createSubscription = useCreateSubscription();
 
@@ -573,6 +576,19 @@ export function BillingForm() {
                         <span>-{cycleDiscount}%</span>
                       </div>
                     )}
+                    {/* Membership info */}
+                    {state.step4?.membership_tier_id && (() => {
+                      const mTiers = membershipTiers ?? [];
+                      const selectedMembership = mTiers.find((m) => m.id === state.step4?.membership_tier_id);
+                      if (!selectedMembership) return null;
+                      const mDiscount = calculateMembershipDiscount(selectedMembership.code, false);
+                      return (
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">{selectedMembership.name}</span>
+                          <span className="text-emerald-600 text-xs">{mDiscount.feeDiscountPct}% off challenge fees</span>
+                        </div>
+                      );
+                    })()}
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Est. Challenge Fees</span>
                       <span className="text-muted-foreground text-xs">varies</span>

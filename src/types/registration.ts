@@ -63,6 +63,7 @@ export interface PlanSelectionData {
   tier_id: string;
   billing_cycle_id: string;
   engagement_model_id?: string; // Basic tier only
+  membership_tier_id?: string;  // Annual / Multi-Year membership selection
   estimated_challenges_per_month: number;
 }
 
