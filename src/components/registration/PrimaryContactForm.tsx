@@ -48,6 +48,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { toast } from 'sonner';
 
 import { EmailDomainBlocker } from './EmailDomainBlocker';
 import { OtpVerification } from './OtpVerification';
@@ -172,39 +173,47 @@ export function PrimaryContactForm() {
       form.setError('email', { message: 'Free email providers are not allowed' });
       return;
     }
-    if (!state.organizationId || !state.tenantId) return;
+    if (!state.organizationId || !state.tenantId) {
+      toast.error("Registration session not found. Please start from Step 1.");
+      return;
+    }
 
-    await upsertContact.mutateAsync({
-      organization_id: state.organizationId,
-      tenant_id: state.tenantId,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      job_title: data.job_title,
-      email: data.email,
-      phone_country_code: data.phone_country_code,
-      phone_number: data.phone_number,
-      department: data.department || undefined,
-      timezone: data.timezone,
-      preferred_language_id: data.preferred_language_id,
-      email_verified: emailVerified,
-    });
+    try {
+      await upsertContact.mutateAsync({
+        organization_id: state.organizationId,
+        tenant_id: state.tenantId,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        job_title: data.job_title,
+        email: data.email,
+        phone_country_code: data.phone_country_code,
+        phone_number: data.phone_number,
+        department: data.department || undefined,
+        timezone: data.timezone,
+        preferred_language_id: data.preferred_language_id,
+        email_verified: emailVerified,
+      });
 
-    setStep2Data({
-      full_name: `${data.first_name} ${data.last_name}`,
-      first_name: data.first_name,
-      last_name: data.last_name,
-      designation: data.job_title,
-      email: data.email,
-      phone: data.phone_number,
-      phone_country_code: data.phone_country_code,
-      department: data.department || undefined,
-      timezone: data.timezone,
-      preferred_language_id: data.preferred_language_id,
-      email_verified: emailVerified,
-    });
+      setStep2Data({
+        full_name: `${data.first_name} ${data.last_name}`,
+        first_name: data.first_name,
+        last_name: data.last_name,
+        designation: data.job_title,
+        email: data.email,
+        phone: data.phone_number,
+        phone_country_code: data.phone_country_code,
+        department: data.department || undefined,
+        timezone: data.timezone,
+        preferred_language_id: data.preferred_language_id,
+        email_verified: emailVerified,
+      });
 
-    setStep(3);
-    navigate('/registration/compliance');
+      setStep(3);
+      navigate('/registration/compliance');
+    } catch (error) {
+      // Error toast is already handled by the mutation's onError callback
+      // This catch prevents unhandled promise rejection / white screen
+    }
   };
 
   const handleBack = () => {
