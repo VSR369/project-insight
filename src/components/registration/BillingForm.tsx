@@ -376,7 +376,7 @@ export function BillingForm() {
                               <div>
                                 <Label className="text-sm">Card Number</Label>
                                 <div className="relative">
-                                  <Input placeholder="1234 5678 9012 3456" className="text-base pr-20" disabled />
+                                  <Input placeholder="1234 5678 9012 3456" className="text-base pr-20" />
                                   <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1 text-muted-foreground text-xs">
                                     VISA MC
                                   </div>
@@ -385,16 +385,16 @@ export function BillingForm() {
                               <div className="grid grid-cols-2 gap-4">
                                 <div>
                                   <Label className="text-sm">Expiry Date</Label>
-                                  <Input placeholder="MM/YY" className="text-base" disabled />
+                                  <Input placeholder="MM/YY" className="text-base" />
                                 </div>
                                 <div>
                                   <Label className="text-sm">CVV</Label>
-                                  <Input placeholder="123" className="text-base" disabled />
+                                  <Input placeholder="123" className="text-base" />
                                 </div>
                               </div>
                               <div>
                                 <Label className="text-sm">Cardholder Name</Label>
-                                <Input placeholder="John Doe" className="text-base" disabled />
+                                <Input placeholder="John Doe" className="text-base" />
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3">
                                 <Lock className="h-3.5 w-3.5 shrink-0" />
