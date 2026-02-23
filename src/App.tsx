@@ -3,10 +3,11 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom";
+import { RegistrationLayout } from "@/components/layouts/RegistrationLayout";
 import { AuthProvider } from "@/hooks/useAuth";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
-import { RegistrationProvider } from "@/contexts/RegistrationContext";
+
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { AdminShell } from "@/components/admin/AdminShell";
@@ -216,31 +217,23 @@ const App = () => (
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
-            <Route path="/registration/organization-identity" element={
-              <RegistrationProvider>
+            <Route element={<RegistrationLayout />}>
+              <Route path="/registration/organization-identity" element={
                 <LazyRoute><OrganizationIdentityPage /></LazyRoute>
-              </RegistrationProvider>
-            } />
-            <Route path="/registration/primary-contact" element={
-              <RegistrationProvider>
+              } />
+              <Route path="/registration/primary-contact" element={
                 <LazyRoute><PrimaryContactPage /></LazyRoute>
-              </RegistrationProvider>
-            } />
-            <Route path="/registration/compliance" element={
-              <RegistrationProvider>
+              } />
+              <Route path="/registration/compliance" element={
                 <LazyRoute><CompliancePage /></LazyRoute>
-              </RegistrationProvider>
-            } />
-            <Route path="/registration/plan-selection" element={
-              <RegistrationProvider>
+              } />
+              <Route path="/registration/plan-selection" element={
                 <LazyRoute><PlanSelectionPage /></LazyRoute>
-              </RegistrationProvider>
-            } />
-            <Route path="/registration/billing" element={
-              <RegistrationProvider>
+              } />
+              <Route path="/registration/billing" element={
                 <LazyRoute><BillingPage /></LazyRoute>
-              </RegistrationProvider>
-            } />
+              } />
+            </Route>
             
             {/* Reviewer Pending Approval (accessible without role) */}
             <Route 
