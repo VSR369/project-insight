@@ -135,9 +135,12 @@ export function BillingForm() {
   const isSubmitting = saveBilling.isPending || createSubscription.isPending;
 
   // Order summary data
-  const selectedTier = tiers?.find((t) => t.id === state.step4?.tier_id);
-  const selectedCycle = billingCycles?.find((c) => c.id === state.step4?.billing_cycle_id);
-  const tierPrice = pricing?.find((p) => p.tier_id === state.step4?.tier_id);
+  const tiersArray = Array.isArray(tiers) ? tiers : [];
+  const pricingArray = Array.isArray(pricing) ? pricing : [];
+  const cyclesArray = Array.isArray(billingCycles) ? billingCycles : [];
+  const selectedTier = tiersArray.find((t) => t.id === state.step4?.tier_id);
+  const selectedCycle = cyclesArray.find((c) => c.id === state.step4?.billing_cycle_id);
+  const tierPrice = pricingArray.find((p) => p.tier_id === state.step4?.tier_id);
   const baseMonthly = tierPrice?.local_price ?? tierPrice?.monthly_price_usd ?? 0;
   const cycleDiscount = selectedCycle?.discount_percentage ?? 0;
   const effectiveMonthly = baseMonthly * (1 - cycleDiscount / 100);
