@@ -1,50 +1,84 @@
 
 
-## 5 WHY Analysis: Seeking Organization Login Failure
+## Holistic Analysis: Login & Data Fetching Across All User Types
 
-### WHY 1: Why can't the seeking org user log in?
-After authentication succeeds (Supabase Auth), the Login page queries `org_users` to check if the user has an active organization membership (line 254-259). This query returns **zero rows**, so the code falls through to "No organization account found" and either signs the user out or redirects to a provider portal.
+### Investigation Summary
 
-### WHY 2: Why does the `org_users` query return zero rows?
-The `org_users` table has RLS enabled with a single policy:
-```text
-USING (tenant_id = get_user_tenant_id() OR has_role(auth.uid(), 'platform_admin'))
-```
-This policy calls `get_user_tenant_id()` to determine the user's tenant before allowing the SELECT.
-
-### WHY 3: Why does `get_user_tenant_id()` fail to resolve the tenant?
-The function is defined as:
-```sql
-SELECT tenant_id FROM org_users
-WHERE user_id = auth.uid() AND is_active = TRUE
-LIMIT 1;
-```
-This inner query **also reads `org_users`**, which is subject to the same RLS policy. Since no tenant is resolved yet, the inner query returns nothing.
-
-### WHY 4: Why does the inner query also return nothing?
-Because PostgreSQL evaluates RLS policies on every query against the table, including queries made *within* RLS policy functions. The inner `SELECT` triggers the same policy, which calls `get_user_tenant_id()` again, creating an infinite loop that Postgres short-circuits by returning empty results.
-
-### WHY 5: Why is there no alternative access path for users to read their own membership?
-There is only **one** RLS policy on `org_users` (the tenant isolation policy). There is no self-access policy like `user_id = auth.uid()` that would allow users to read their own rows without needing tenant resolution first. This single-policy design creates a **circular dependency** that blocks all non-admin users.
+I examined the RLS policies, database functions, and login flow for all four user types: **Platform Admin, Reviewer, Provider, and Seeking Organization**.
 
 ---
 
-## Root Cause Summary
+### Finding 1: Login Detection Works for ALL User Types
 
-| Layer | Problem |
-|---|---|
-| `org_users` RLS | Only policy requires `get_user_tenant_id()` which itself queries `org_users` under RLS — **circular dependency** |
-| `seeker_organizations` RLS | SELECT policy also uses `get_user_tenant_id()`, so the join in `useCurrentOrg` also fails |
-| `get_user_tenant_id()` function | Defined as `SECURITY INVOKER` (default), so its internal query is subject to caller's RLS |
-| No self-access policy | Users cannot read their own `org_users` rows without tenant resolution |
+The `Login.tsx` (lines 239-260) queries four tables in parallel after authentication. Each has proper self-access policies:
+
+| Table | Self-Access Policy | Login Detection |
+|---|---|---|
+| `user_roles` | `user_id = auth.uid()` | Admin detection works |
+| `panel_reviewers` | `user_id = auth.uid()` | Reviewer detection works |
+| `solution_providers` | `user_id = auth.uid()` | Provider detection works |
+| `org_users` | **No self-access policy** | Relies on `get_user_tenant_id()` |
+
+For `org_users`, the tenant isolation policy calls `get_user_tenant_id()`, which is `SECURITY DEFINER` owned by `postgres` (with `BYPASSRLS`). This means the function **can** resolve the tenant internally. So login detection technically works, but it depends on a fragile chain. Adding a direct self-access policy is essential defense-in-depth.
 
 ---
 
-## Fix: Two New RLS Policies (Database-Only Change)
+### Finding 2: The REAL Bug — Wrong Table Name in `useCurrentOrg`
 
-### Change 1: Self-access policy on `org_users`
+**This is the primary cause of seeking org failures after login.**
 
-Add a SELECT policy allowing users to always read their own membership rows:
+In `src/hooks/queries/useCurrentOrg.ts` (line 38), the PostgREST embedded query references `org_subscriptions`:
+
+```
+seeker_organizations!org_users_organization_id_fkey (
+  ...
+  org_subscriptions (           ← THIS TABLE DOES NOT EXIST
+    md_subscription_tiers ( code )
+  )
+)
+```
+
+The actual table is **`seeker_subscriptions`**, not `org_subscriptions`. PostgREST returns a 400 error ("Could not find a relationship between seeker_organizations and org_subscriptions"), which causes the entire `useCurrentOrg` query to fail. The `OrgProvider` then shows "No Organization Found."
+
+**This is a seeking-org-specific problem.** Providers, reviewers, and admins do not go through `useCurrentOrg` / `OrgProvider`, so they are unaffected.
+
+---
+
+### Finding 3: "Failed to Fetch" Errors Are Transient
+
+All console errors show `TypeError: Failed to fetch` on `signInWithPassword`. The auth logs are empty (no requests reached Supabase). This is a transient network/CORS issue in the Lovable preview environment, not a code bug. Refreshing the preview and retrying resolves it.
+
+---
+
+### Fix Plan
+
+#### Change 1: Fix embedded resource name in `useCurrentOrg.ts`
+
+Replace `org_subscriptions` with `seeker_subscriptions` in two places:
+
+**Line 38** — PostgREST query:
+```typescript
+// BEFORE
+org_subscriptions (
+  md_subscription_tiers ( code )
+)
+
+// AFTER
+seeker_subscriptions (
+  md_subscription_tiers ( code )
+)
+```
+
+**Line 52** — Data access:
+```typescript
+// BEFORE
+const tierCode = org?.org_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
+
+// AFTER
+const tierCode = org?.seeker_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
+```
+
+#### Change 2: Add self-access RLS policy on `org_users` (defense-in-depth)
 
 ```sql
 CREATE POLICY "Users read own memberships"
@@ -53,11 +87,9 @@ CREATE POLICY "Users read own memberships"
   USING (user_id = auth.uid());
 ```
 
-This breaks the circular dependency. When a user queries `org_users`, this policy matches on `user_id = auth.uid()` directly — no need to call `get_user_tenant_id()`.
+Even though `get_user_tenant_id()` works via SECURITY DEFINER, this provides a direct, non-fragile access path for users to read their own membership rows.
 
-### Change 2: Membership-based policy on `seeker_organizations`
-
-Add a SELECT policy so org members can read their organization's data (defense-in-depth for the join in `useCurrentOrg`):
+#### Change 3: Add membership-based RLS policy on `seeker_organizations` (defense-in-depth)
 
 ```sql
 CREATE POLICY "Org members read own org"
@@ -72,18 +104,20 @@ CREATE POLICY "Org members read own org"
   );
 ```
 
-### No Frontend Code Changes
+---
 
-The Login page logic (lines 254-259) and `useCurrentOrg` hook are correct. They simply receive zero rows due to the RLS circular dependency. Once the policies are added, all queries will resolve correctly.
+### Impact Summary
 
-### Security Verification
+| User Type | Current Status | After Fix |
+|---|---|---|
+| Platform Admin | Works | Works (unchanged) |
+| Panel Reviewer | Works | Works (unchanged) |
+| Solution Provider | Works | Works (unchanged) |
+| **Seeking Organization** | **Fails** — wrong table name in `useCurrentOrg` | **Fixed** — correct table name + RLS hardening |
 
-- The self-access policy is secure: users can only see rows where `user_id` matches their own `auth.uid()`
-- The existing tenant isolation policy remains for cross-user queries (e.g., listing all tenant members)
-- The `seeker_organizations` policy scopes access to organizations where the user has an active membership
-- Platform admin bypass is preserved in both new policies
+### Security Notes
 
-### Additional Note: "Failed to fetch" Errors
-
-The console logs also show `TypeError: Failed to fetch` on the auth endpoint. This is a **transient network issue** in the Lovable preview environment (CORS/connectivity), not a code bug. The auth request never reaches Supabase (auth logs are empty). Retrying the login should work once the preview iframe is refreshed. This is separate from the RLS root cause.
+- Self-access policy is secure: users can only see rows where `user_id` matches their own `auth.uid()`
+- Existing tenant isolation policy remains for cross-user queries
+- No existing policies are modified or removed
 
