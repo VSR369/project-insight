@@ -1,106 +1,92 @@
 
 
-# Fix: Membership Activation, Pricing Display, and Org Context Header
+# Fix: Membership Pricing, Activation State, and Org Context Banner
 
-## Problems Identified
+## Current Problems
 
-1. **No membership price shown** -- The `md_membership_tiers` table lacks a `membership_fee` column. Users see "10% off per-challenge fees" but have no idea what the membership itself costs (e.g., $500/year for Annual, $900/2yr for Multi-Year).
-2. **No activate/confirm action** -- Clicking a membership card toggles selection but there is no explicit "Activate Membership" confirmation or visual confirmation state.
-3. **No org name or country at top** -- The page header says "Choose Your Plan" with no context about which organization is being configured. Users lose context, especially when navigating directly.
+1. **No membership price displayed** -- The `md_membership_tiers` table has no price column (`annual_fee_usd` does not exist). Users see discount percentages but not the actual membership cost.
+2. **No "Selected" visual confirmation** -- Clicking a membership card toggles it, but there's no checkmark, no "Selected" label, and no visual confirmation that activation occurred.
+3. **No org context at top of page** -- The header just says "Choose Your Plan" with zero context about which organization is being configured.
 
-## Solution
+## Root Cause
 
-### Part 1: Database -- Add membership fee columns
+The database migration to add `annual_fee_usd` was proposed in a previous plan but **never executed** -- the column does not exist in the database. All downstream UI changes that depended on it were never applied.
 
-Add `annual_fee_usd` and `description` columns to `md_membership_tiers` so each tier has a price:
+## Fix Plan
+
+### Part 1: Database Migration
+
+Add `annual_fee_usd` column to `md_membership_tiers` and seed prices:
 
 ```text
-ALTER TABLE md_membership_tiers ADD COLUMN annual_fee_usd NUMERIC(10,2);
-
-UPDATE md_membership_tiers SET annual_fee_usd = 500.00 WHERE code = 'annual';
-UPDATE md_membership_tiers SET annual_fee_usd = 900.00 WHERE code = 'multi_year';
-```
-
-These are placeholder values -- adjust as needed for actual pricing.
-
-### Part 2: MembershipTierSelector -- Show price and activation
-
-Update `src/components/registration/MembershipTierSelector.tsx`:
-
-- Accept a `currencySymbol` prop (default `$`)
-- Display the membership fee prominently on each card (e.g., "$500/year", "$900/2 years")
-- Show a clear selected state with a checkmark badge and "Selected" label
-- Add descriptive text: "Billed separately from your subscription"
-
-The `useMembershipTiers` hook query already selects all columns, so `annual_fee_usd` will be available after the migration.
-
-### Part 3: Org Context Banner at Top
-
-Update `src/components/registration/PlanSelectionForm.tsx`:
-
-- Add an info banner above the "Choose Your Plan" header showing:
-  - Organization name from `state.step1?.legal_entity_name` or fallback "Your Organization"
-  - Country from `state.localeInfo?.country_name` or fallback "Country not set"
-  - Current registration step context
-- Styled as a subtle info bar (not a card) with Building icon
-
-### Part 4: Update useMembershipTiers query
-
-Update `src/hooks/queries/useMembershipTiers.ts` to include `annual_fee_usd` and `duration_months` in the select statement so pricing data flows to the component.
-
-## Files Modified
-
-| File | Changes |
-|------|---------|
-| Database migration | Add `annual_fee_usd` to `md_membership_tiers`, seed values |
-| `src/hooks/queries/useMembershipTiers.ts` | Add `annual_fee_usd, duration_months` to select |
-| `src/components/registration/MembershipTierSelector.tsx` | Show fee, duration, selected state with checkmark |
-| `src/components/registration/PlanSelectionForm.tsx` | Add org context banner at top, pass `currencySymbol` to MembershipTierSelector |
-
-## Technical Details
-
-### Database Migration
-
-```sql
 ALTER TABLE public.md_membership_tiers
   ADD COLUMN IF NOT EXISTS annual_fee_usd NUMERIC(10,2);
 
-UPDATE public.md_membership_tiers SET annual_fee_usd = 500.00 WHERE code = 'annual';
-UPDATE public.md_membership_tiers SET annual_fee_usd = 900.00 WHERE code = 'multi_year';
+UPDATE public.md_membership_tiers
+  SET annual_fee_usd = 500.00 WHERE code = 'annual';
+UPDATE public.md_membership_tiers
+  SET annual_fee_usd = 900.00 WHERE code = 'multi_year';
+
+NOTIFY pgrst, 'reload schema';
 ```
 
-### MembershipTierSelector Changes
+### Part 2: Update useMembershipTiers Hook
 
-Props interface update:
+File: `src/hooks/queries/useMembershipTiers.ts`
+
+Add `annual_fee_usd` and `duration_months` to the SELECT string (line 18):
+
 ```text
-interface MembershipTierSelectorProps {
-  tiers: MembershipTier[];          // now includes annual_fee_usd, duration_months
-  selectedTierId: string | undefined;
-  onSelect: (tierId: string | undefined) => void;
-  currencySymbol?: string;          // NEW
-}
+Current:  "id, code, name, description, display_order, is_active, created_at, ..."
+Updated:  "id, code, name, description, display_order, is_active, annual_fee_usd, duration_months, fee_discount_pct, commission_rate_pct, created_at, ..."
 ```
 
-Each card will render:
+### Part 3: Rewrite MembershipTierSelector Component
+
+File: `src/components/registration/MembershipTierSelector.tsx`
+
+Changes:
+- Add `currencySymbol` prop (default `$`)
+- Update `MembershipTier` interface to include `annual_fee_usd`, `duration_months`, `fee_discount_pct`, `commission_rate_pct`
+- Display membership fee prominently: e.g., "$500/year" in large bold text
+- Show a green checkmark badge + "Selected" label on the active card
+- Add note: "Billed separately from your subscription"
+- Each card layout becomes:
+
 ```text
-Annual Membership
-$500/year  (large, bold)
-12-month commitment
-- 10% off per-challenge fees
-- 5% less commission rate
-[checkmark badge when selected]
+[Calendar Icon]  Annual Membership
+                 $500/year  (large, bold)
+                 12-month commitment
+                 - 10% off per-challenge fees
+                 - 8% commission rate
+                 [checkmark "Selected" badge when active]
 ```
 
-### Org Context Banner (PlanSelectionForm.tsx)
+### Part 4: Add Org Context Banner to PlanSelectionForm
 
-Inserted above the "Choose Your Plan" heading:
+File: `src/components/registration/PlanSelectionForm.tsx`
+
+Insert a subtle info banner above the "Choose Your Plan" heading (after the Engagement Models info card):
+
 ```text
-[Building icon]  Registering: {org name}  |  Country: {country}
+[Building icon]  Registering: {legal_entity_name}  |  Country: {country from localeInfo or "Not set"}
 ```
 
-Uses `state.step1?.legal_entity_name` and `state.step1?.hq_country_name` or `state.localeInfo?.country_name`.
+- Uses `state.step1?.legal_entity_name` with fallback "Your Organization"
+- Uses `state.localeInfo?.currency_code` or `state.step1?.hq_country_id` for country context, fallback "Country not set"
+- Pass `currencySymbol` to `MembershipTierSelector`
+- Import `Building` icon from lucide-react
 
-### Hook Order Compliance
+## Files Modified
 
-No new hooks added. Only the select string in `useMembershipTiers` changes and props flow through existing render. All hooks remain in correct order.
+| File | Change |
+|------|--------|
+| Database migration | Add `annual_fee_usd` column, seed values, reload schema |
+| `src/hooks/queries/useMembershipTiers.ts` | Add `annual_fee_usd, duration_months, fee_discount_pct, commission_rate_pct` to select |
+| `src/components/registration/MembershipTierSelector.tsx` | Show fee, duration, checkmark selected state, currencySymbol prop |
+| `src/components/registration/PlanSelectionForm.tsx` | Add org context banner, pass currencySymbol to MembershipTierSelector |
+
+## Hook Order Compliance
+
+No new hooks are added. Only the select string in `useMembershipTiers` changes and new props flow through existing render paths. All hooks remain in correct order per Section 23 rules.
 
