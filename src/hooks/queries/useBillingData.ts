@@ -130,8 +130,10 @@ export function useCreateSubscription() {
       shadow_currency_code?: string;
       terms_version?: string;
       terms_acceptance_hash?: string;
+      status?: 'pending_billing' | 'active';
     }) => {
       const now = new Date().toISOString();
+      const subscriptionStatus = payload.status ?? ('active' as const);
       const { data, error } = await supabase
         .from('seeker_subscriptions')
         .insert({
@@ -146,7 +148,7 @@ export function useCreateSubscription() {
           payment_type: payload.payment_type,
           shadow_charge_per_challenge: payload.shadow_charge_per_challenge ?? null,
           shadow_currency_code: payload.shadow_currency_code ?? null,
-          status: 'pending_billing',
+          status: subscriptionStatus,
           starts_at: now,
           current_period_start: now,
           terms_version: payload.terms_version || null,
