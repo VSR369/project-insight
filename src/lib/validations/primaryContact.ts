@@ -22,6 +22,14 @@ export function extractDomain(email: string): string {
   return email.split('@')[1]?.toLowerCase() ?? '';
 }
 
+const passwordField = z
+  .string()
+  .min(8, 'Password must be at least 8 characters')
+  .regex(/[a-z]/, 'Must contain at least one lowercase letter')
+  .regex(/[A-Z]/, 'Must contain at least one uppercase letter')
+  .regex(/[0-9]/, 'Must contain at least one number')
+  .regex(/[^a-zA-Z0-9]/, 'Must contain at least one special character');
+
 export const primaryContactSchema = z.object({
   first_name: z.string()
     .trim()
@@ -71,6 +79,12 @@ export const primaryContactSchema = z.object({
 
   // TODO: TEMP BYPASS — was z.literal(true) requiring OTP verification
   is_email_verified: z.boolean().default(true),
+
+  password: passwordField,
+  confirm_password: z.string(),
+}).refine((data) => data.password === data.confirm_password, {
+  message: "Passwords don't match",
+  path: ['confirm_password'],
 });
 
 export type PrimaryContactFormValues = z.infer<typeof primaryContactSchema>;

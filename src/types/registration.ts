@@ -43,6 +43,8 @@ export interface PrimaryContactData {
   timezone: string;
   preferred_language_id: string;
   email_verified: boolean;
+  /** In-memory only — NEVER persisted to sessionStorage or DB */
+  password?: string;
 }
 
 // ============================================================

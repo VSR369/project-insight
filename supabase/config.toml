@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.withdraw-approval-request]
 verify_jwt = false
+
+[functions.create-org-admin]
+verify_jwt = false

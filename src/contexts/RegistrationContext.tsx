@@ -43,7 +43,7 @@ function loadPersistedState(): RegistrationState {
 
 function persistState(state: RegistrationState) {
   try {
-    // Strip File objects (not JSON-serializable)
+    // Strip File objects (not JSON-serializable) and password (security)
     const serializable = {
       ...state,
       step1: state.step1 ? {
@@ -51,6 +51,10 @@ function persistState(state: RegistrationState) {
         logo_file: undefined,
         profile_document: undefined,
         verification_documents: undefined,
+      } : undefined,
+      step2: state.step2 ? {
+        ...state.step2,
+        password: undefined, // NEVER persist password to storage
       } : undefined,
     };
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
