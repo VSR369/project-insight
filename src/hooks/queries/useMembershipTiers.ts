@@ -15,7 +15,7 @@ export function useMembershipTiers(includeInactive = false) {
   return useQuery({
     queryKey: [...KEY, { includeInactive }],
     queryFn: async () => {
-      let q = supabase.from(TABLE).select("id, code, name, description, display_order, is_active, created_at, updated_at, created_by, updated_by").order("display_order").order("name");
+      let q = supabase.from(TABLE).select("id, code, name, description, display_order, is_active, annual_fee_usd, duration_months, fee_discount_pct, commission_rate_pct, created_at, updated_at, created_by, updated_by").order("display_order").order("name");
       if (!includeInactive) q = q.eq("is_active", true);
       const { data, error } = await q;
       if (error) throw new Error(error.message);
