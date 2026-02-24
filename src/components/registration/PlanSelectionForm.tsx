@@ -19,7 +19,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import {
-  Check, X, Star, Crown, Zap, MessageSquare, Lightbulb, ArrowLeft, ArrowRight, Loader2, Sparkles,
+  Check, X, Star, Crown, Zap, MessageSquare, Lightbulb, ArrowLeft, ArrowRight, Loader2, Sparkles, Building,
 } from 'lucide-react';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
@@ -341,6 +341,18 @@ export function PlanSelectionForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {/* Org Context Banner */}
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-muted/50 border border-border text-sm">
+          <Building className="h-4 w-4 text-muted-foreground shrink-0" />
+          <span className="text-foreground font-medium">
+            Registering: {state.step1?.legal_entity_name || 'Your Organization'}
+          </span>
+          <span className="text-muted-foreground">|</span>
+          <span className="text-muted-foreground">
+            Currency: {state.localeInfo?.currency_code || 'USD'}
+          </span>
+        </div>
+
         {/* Engagement Models Info Banner */}
         <Card className="border-emerald-200 bg-emerald-50/50 dark:border-emerald-800 dark:bg-emerald-950/20">
           <CardContent className="pt-5 pb-4">
@@ -674,6 +686,7 @@ export function PlanSelectionForm() {
             tiers={membershipTiers}
             selectedTierId={form.watch('membership_tier_id') || undefined}
             onSelect={(id) => form.setValue('membership_tier_id', id ?? '', { shouldDirty: true })}
+            currencySymbol={currencySymbol}
           />
         )}
 

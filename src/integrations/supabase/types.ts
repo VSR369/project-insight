@@ -2042,6 +2042,7 @@ export type Database = {
       }
       md_membership_tiers: {
         Row: {
+          annual_fee_usd: number | null
           code: string
           commission_rate_pct: number
           created_at: string
@@ -2057,6 +2058,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          annual_fee_usd?: number | null
           code: string
           commission_rate_pct?: number
           created_at?: string
@@ -2072,6 +2074,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          annual_fee_usd?: number | null
           code?: string
           commission_rate_pct?: number
           created_at?: string
