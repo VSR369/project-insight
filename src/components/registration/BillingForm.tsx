@@ -288,9 +288,9 @@ export function BillingForm() {
       });
 
       setStep(6);
-      reset(); // Clear sessionStorage — registration is complete
-      toast.success('Registration complete! You can now log in with your email and password.');
-      navigate('/login');
+      // Do NOT reset() here — the preview page needs the data
+      toast.success('Registration complete! Review your summary.');
+      navigate('/registration/preview');
     } catch {
       // Error handled by mutation's onError callbacks
     }

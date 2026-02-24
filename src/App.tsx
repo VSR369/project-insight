@@ -170,6 +170,7 @@ const PrimaryContactPage = lazy(() => import("@/pages/registration/PrimaryContac
 const CompliancePage = lazy(() => import("@/pages/registration/CompliancePage"));
 const PlanSelectionPage = lazy(() => import("@/pages/registration/PlanSelectionPage"));
 const BillingPage = lazy(() => import("@/pages/registration/BillingPage"));
+const RegistrationPreviewPage = lazy(() => import("@/pages/registration/RegistrationPreviewPage"));
 
 // Seeker Organization Pages (lazy loaded - post-auth)
 const OrgDashboardPage = lazy(() => import("@/pages/org/OrgDashboardPage"));
@@ -232,6 +233,9 @@ const App = () => (
               } />
               <Route path="/registration/billing" element={
                 <LazyRoute><BillingPage /></LazyRoute>
+              } />
+              <Route path="/registration/preview" element={
+                <LazyRoute><RegistrationPreviewPage /></LazyRoute>
               } />
             </Route>
             
