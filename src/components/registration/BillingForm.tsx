@@ -89,7 +89,7 @@ export function BillingForm() {
   // ══════════════════════════════════════
   // SECTION 2: Context and navigation
   // ══════════════════════════════════════
-  const { state, setStep5Data, setStep } = useRegistrationContext();
+  const { state, setStep5Data, setStep, reset } = useRegistrationContext();
   const navigate = useNavigate();
 
   // ══════════════════════════════════════
@@ -288,6 +288,7 @@ export function BillingForm() {
       });
 
       setStep(6);
+      reset(); // Clear sessionStorage — registration is complete
       toast.success('Registration complete! You can now log in with your email and password.');
       navigate('/login');
     } catch {

@@ -499,7 +499,7 @@ export default function Login() {
                   </Link>
                 </p>
                 <p className="text-sm text-center text-muted-foreground">
-                  <Link to="/registration/organization-identity" className="text-teal-600 hover:underline font-medium">
+                  <Link to="/registration/organization-identity?new=1" className="text-teal-600 hover:underline font-medium">
                     Registering an organization? Start here →
                   </Link>
                 </p>
