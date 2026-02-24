@@ -1,52 +1,74 @@
 
 
-## Diagnosis Complete: Two Separate Issues Identified
+## Plan: Add Automatic Retry Logic to Handle Transient Network Failures
 
-### Issue 1: Your account (`vsr@btbt.co.in`) — Invalid Credentials (HTTP 400)
+### What I Just Verified (Again)
 
-When I tested your exact credentials (`vsr@btbt.co.in` / `Bulbul@1234`) from my browser tool, Supabase returned:
+I logged in as `admin@test.local` from my browser tool just now — **HTTP 200, full Admin Dashboard rendered, zero console errors**. The code is working. But you are consistently hitting `TypeError: Failed to fetch` at `lovable.js:1:2838` — even in incognito.
 
+### Why This Keeps Happening
+
+The `lovable.js` fetch interceptor from `cdn.gpteng.co` wraps every `fetch()` call. When its proxy connection is unstable, requests fail before reaching Supabase. This is NOT your code, but I can make your code **resilient** to it.
+
+### The Fix: Retry Logic at Two Levels
+
+Since I cannot fix `lovable.js`, I will make the application automatically retry failed network requests so that transient proxy failures are handled transparently.
+
+**File 1: `src/lib/fetchWithRetry.ts`** (NEW)
+- Create a utility that wraps `fetch` with automatic retry (3 attempts, exponential backoff: 500ms, 1s, 2s)
+- Only retries on `TypeError: Failed to fetch` (network failures), NOT on HTTP error responses (400, 401, etc.)
+
+**File 2: `src/integrations/supabase/client.ts`** (MODIFY)
+- Configure the Supabase client with a custom `fetch` that uses the retry wrapper
+- This means ALL Supabase calls (auth, queries, mutations) automatically retry on network failures
+
+**File 3: `src/hooks/useAuth.tsx`** (MODIFY)
+- Add retry logic specifically to the `signIn` function as defense-in-depth
+- Show a user-friendly toast like "Network issue, retrying..." instead of the raw error
+
+### What This Solves
+
+| Scenario | Before | After |
+|----------|--------|-------|
+| `lovable.js` proxy drops once | Instant "Failed to fetch" error | Silent retry, succeeds on 2nd attempt |
+| Proxy drops twice | Instant error | Retries up to 3 times with backoff |
+| Persistent proxy failure (all 3 retries fail) | Same error, no context | Clear message: "Network connection failed. Please refresh your browser." |
+| Valid credential error (HTTP 400) | Shows "Invalid credentials" | Same — no retry on HTTP errors |
+
+### Technical Details
+
+The retry wrapper:
+```typescript
+async function fetchWithRetry(input, init, maxRetries = 3) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fetch(input, init);
+    } catch (error) {
+      if (attempt === maxRetries) throw error;
+      // Only retry on network errors (TypeError: Failed to fetch)
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        await delay(500 * Math.pow(2, attempt)); // 500ms, 1s, 2s
+        continue;
+      }
+      throw error; // Don't retry non-network errors
+    }
+  }
+}
 ```
-HTTP 400: {"code":"invalid_credentials","message":"Invalid login credentials"}
+
+Supabase client integration:
+```typescript
+export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { ... },
+  global: {
+    fetch: fetchWithRetry,  // All Supabase calls use retry logic
+  },
+});
 ```
 
-This means **the password is wrong** for this user account. The request reached Supabase successfully (no "Failed to fetch") and Supabase explicitly rejected the credentials. This is NOT a code bug — the password simply doesn't match what's stored in Supabase Auth.
+### Files Changed
 
-**Fix:** Reset the password for `vsr@btbt.co.in` in the Supabase Auth dashboard, or use the "Forgot password?" link on the login page.
-
-### Issue 2: "Failed to fetch" in YOUR preview iframe — Lovable Preview Network Issue
-
-The `TypeError: Failed to fetch` errors you see in your preview iframe originate from `lovable.js:1:2838` — the Lovable preview environment's fetch interceptor. The request never leaves your browser.
-
-**Proof this is NOT a code bug:**
-- I just tested `admin@test.local` login from my browser tool → **HTTP 200, Admin Dashboard rendered perfectly** (screenshot captured above)
-- Previously tested `seeker@test.local` → **HTTP 200, Org Dashboard rendered correctly**
-- Auth logs confirm: when requests DO reach Supabase, they succeed for valid test accounts
-- Your preview's network log shows the request to Supabase had `Error: Failed to fetch` — meaning the browser couldn't even establish the connection
-
-### What YOU Need to Do
-
-1. **Open the app directly in a NEW browser tab** (not the Lovable preview iframe):
-   `https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app/login`
-
-2. **Try logging in with test accounts first** to confirm the system works:
-   - Admin: `admin@test.local` / `Admin123!`
-   - Provider: `provider@test.local` / `Provider123!`
-   - Reviewer: `reviewer@test.local` / `Reviewer123!`
-   - Seeker Org: `seeker@test.local` / `Seeker123!`
-
-3. **For your personal account** (`vsr@btbt.co.in`): Reset the password via the Supabase dashboard or use "Forgot password?" on the login page.
-
-### Why the Lovable Preview Iframe Sometimes Fails
-
-The Lovable editor embeds your app in an iframe with a fetch interceptor (`lovable.js`). This interceptor can occasionally lose connection to the proxy layer, causing ALL fetch requests to fail with `TypeError: Failed to fetch`. This is:
-- **Not caused by your code** (same code works from other browser sessions)
-- **Not caused by Supabase** (auth logs show zero requests arrived during your failed attempts)
-- **Transient** — refreshing or opening in a new tab resolves it
-
-### No Code Changes Needed
-
-The application code is working correctly. All previous fixes (FK disambiguation in `useCurrentOrg.ts`, RLS policies) are in place and verified. The two issues are:
-1. Wrong password for `vsr@btbt.co.in` → reset password
-2. Preview iframe network glitch → open in new tab
+1. `src/lib/fetchWithRetry.ts` — New utility (approx 30 lines)
+2. `src/integrations/supabase/client.ts` — Add custom fetch to Supabase config
+3. `src/hooks/useAuth.tsx` — Improve error message for persistent network failures
 
