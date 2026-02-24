@@ -1,101 +1,80 @@
 
 
-# Fix: Billing Page -- Keep Payment Fields, Simulate Payment, Fix Order Summary
+# Fix: Order Summary Not Reflecting Selected Plans
 
-## Problem Summary
+## Root Cause
 
-1. **"Missing registration data" error** -- The `handleSubmit` function fails because `state.organizationId`, `state.tenantId`, or `state.step4` may be missing (session started before persistence was deployed, or hot-reload scenario).
-2. **No payment gateway** -- Credit card fields exist but are not connected. Clicking "Complete Registration" should simulate a successful payment by writing the correct statuses to the database so the workflow can continue.
-3. **Order Summary is incomplete** -- Missing membership fee line item. "Due Today" only shows subscription price, not subscription + membership fee.
+There are **two distinct problems** causing the Order Summary to show no data:
 
-## Solution
+### Problem 1: Session Data Lost (the "Session Data Not Found" guard fires)
+The user completed Steps 1-4 **before** the sessionStorage persistence code was deployed. Their in-memory state was wiped when the code hot-reloaded to apply the persistence fix. Now `state.organizationId`, `state.step4`, and `state.step1` are all undefined.
 
-### Keep ALL existing payment fields as-is (Credit Card, ACH, Wire tabs stay unchanged). On "Complete Registration", treat the payment as simulated-success and write the following to the database:
+**This is a one-time issue** — going forward, the persistence works. But right now the user cannot reach the billing form at all because the guard blocks them.
 
-### Part 1: Missing Data Guard
+### Problem 2: BillingForm has no pricing fallback
+Even when `state.step1` IS available, the `BillingForm` only calls `useTierPricingForCountry(state.step1?.hq_country_id)` on line 126. If `state.step1` is missing (or the country has no pricing rows), `baseMonthly` = 0 and the Order Summary shows $0.00 everywhere. Unlike the `PlanSelectionForm` which was fixed to use `useAllTierPricing` as a fallback, the `BillingForm` never got that same fallback.
 
-Add a guard at the top of the render (after all hooks) in `BillingForm.tsx`. If `state.organizationId` or `state.step4` is missing, show a card with:
-- "Session data not found" message
-- "Return to Step 1" button
+## Fix Plan
 
-This replaces the toast error that leaves users stranded.
+### Part 1: Rehydrate Context from Database (BillingForm)
 
-### Part 2: Fix handleSubmit -- Simulate Payment Success
+Instead of just showing "Session Data Not Found" and forcing the user back to Step 1, the `BillingForm` should attempt to **reload the organization's data from the database** when context is missing but the user has a valid session.
 
-Update `handleSubmit` to pass the computed pricing into `createSubscription` and set status to `active` (instead of `pending_billing`):
+Add a new hook `useRehydrateRegistration` that:
+1. Checks if `state.organizationId` is missing
+2. Queries `seeker_organizations` using the authenticated user's ID to find their org
+3. If found, dispatches `setOrgId`, `setStep1Data` (country, name), and `setStep4Data` (from the latest draft subscription or the org's `registration_step`)
+4. This removes the hard blocker — the user can proceed
 
-```text
-Current flow:
-  1. saveBilling -> upsert seeker_billing_info
-  2. createSubscription -> insert seeker_subscriptions with status='pending_billing'
-  3. update seeker_organizations.registration_step = 5
+**File: `src/hooks/queries/useRehydrateRegistration.ts`** (new file)
 
-New flow (simulated payment):
-  1. saveBilling -> upsert seeker_billing_info (unchanged)
-  2. createSubscription -> insert seeker_subscriptions with:
-     - status = 'active' (payment simulated as successful)
-     - monthly_base_price = baseMonthly
-     - effective_monthly_cost = effectiveMonthly
-     - discount_percentage = total discount
-  3. If membership selected -> insert seeker_memberships record
-  4. update seeker_organizations.registration_step = 5
-  5. Navigate to onboarding/login
-```
+This hook will:
+- Query `seeker_organizations` filtered by `created_by = auth.uid()` and `registration_step >= 4`
+- Fetch the org's `hq_country_id`, `legal_entity_name`, `tenant_id`
+- Query `seeker_subscriptions` for the org to get `tier_id`, `billing_cycle_id`, `engagement_model_id`
+- If no subscription exists yet (Step 4 saved to context only), query the org's `registration_step` to confirm they reached Step 4
+- Populate the context with the recovered data
 
-Update `useCreateSubscription` mutation to accept `status` parameter (default `'active'`) so the caller can set it.
+### Part 2: Add Pricing Fallback to BillingForm
 
-### Part 3: Fix Order Summary
+**File: `src/components/registration/BillingForm.tsx`**
 
-Update the Order Summary card to include:
-
-| Line Item | Value |
-|-----------|-------|
-| Base Price | $X.XX/mo |
-| Billing discount | -Y% (if applicable) |
-| Subsidized discount | -Z% (if applicable) |
-| **Subscription subtotal** | $X.XX |
-| Membership Fee | $500.00 or $900.00 (if selected) |
-| Per-Challenge Fees | billed on usage |
-| Tax | not applicable at registration |
-| **Due Today** | subscription + membership fee |
+Add the same fallback pattern used in `PlanSelectionForm`:
+- Import and call `useAllTierPricing()` alongside `useTierPricingForCountry`
+- If country-specific pricing is empty, fall back to USD rows from `useAllTierPricing`
+- This ensures Order Summary shows real prices even if the country data is temporarily unavailable
 
 Changes:
-- Look up `annual_fee_usd` from `membershipTiers` using `state.step4?.membership_tier_id`
-- Add membership fee as a priced line item (not just a discount badge)
-- Update "Due Today" total: `effectiveMonthly + membershipFee`
-- Replace "Est. Challenge Fees: varies" with "Per-Challenge Fees: billed on usage"
-- Replace "Tax: calculated at checkout" with "Tax: not applicable at registration"
-- Use `state.localeInfo?.currency_symbol ?? '$'` instead of hardcoded `$`
-
-### Part 4: Create Membership Record on Registration
-
-If the user selected a membership tier in Step 4, the submit handler should also create a `seeker_memberships` row:
-
 ```text
-seeker_memberships:
-  organization_id
-  tenant_id
-  membership_tier_id = state.step4.membership_tier_id
-  lifecycle_status = 'active'
-  starts_at = now
-  ends_at = now + duration_months (12 for annual, 24 for multi-year)
-  auto_renew = true
-  fee_discount_pct = from membership tier
+Line 126: const { data: pricing } = useTierPricingForCountry(state.step1?.hq_country_id);
+Add:      const { data: allPricing } = useAllTierPricing();
+
+Line 144: const pricingArray = Array.isArray(pricing) ? pricing : [];
+Change to: Build pricingArray with fallback (same dedup pattern as PlanSelectionForm)
 ```
 
-This will be done via a new `useCreateMembership` mutation hook added to `useBillingData.ts`.
+### Part 3: Update the Missing Data Guard
 
-## Files Modified
+**File: `src/components/registration/BillingForm.tsx`**
+
+Change the guard (lines 251-269) to:
+1. First, attempt rehydration via the new hook
+2. Show a loading state while rehydrating ("Restoring your session...")
+3. Only show the "Session Data Not Found" card if rehydration fails (no org found for this user)
+
+### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/components/registration/BillingForm.tsx` | (1) Add missing-data guard, (2) pass pricing values + `status='active'` to createSubscription, (3) call createMembership if membership selected, (4) fix Order Summary with membership fee line + correct Due Today total + locale currency |
-| `src/hooks/queries/useBillingData.ts` | (1) Update `useCreateSubscription` to accept `status` parameter, (2) add `useCreateMembership` mutation hook |
+| `src/hooks/queries/useRehydrateRegistration.ts` | New hook: queries DB to restore org + plan data into context |
+| `src/components/registration/BillingForm.tsx` | (1) Call rehydration hook, (2) add `useAllTierPricing` fallback for pricing, (3) update guard to show loading during rehydration |
+| `src/hooks/queries/usePlanSelectionData.ts` | No change needed -- `useAllTierPricing` already exists |
 
-## Edge Cases
+### Edge Cases
 
-- **No membership selected**: Membership fee line hidden, no `seeker_memberships` insert, Due Today = subscription only
-- **Internal department (shadow billing)**: Already handled -- shows "Shadow billing -- no actual charge", Due Today = $0
-- **Missing session data**: Shows a clear "Return to Step 1" card instead of a toast that disappears
-- **Future Stripe integration**: When payment gateway is added, change `status` back to `pending_billing` and add Stripe payment intent flow between steps 2 and 3 of the submit handler. All other logic remains unchanged.
+- **User not authenticated**: Rehydration query returns nothing, guard shows "Return to Step 1"
+- **Multiple orgs for same user**: Query uses `order by created_at desc limit 1` to get the most recent
+- **Org exists but no subscription yet**: Step 4 data saved to context only -- rehydrate from context's `step4` if available, otherwise show guard
+- **Country pricing missing**: Falls back to USD via `useAllTierPricing`
+- **Future sessions**: Persistence works normally, rehydration is only needed as a recovery mechanism
 
