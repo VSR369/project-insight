@@ -4,41 +4,32 @@
  * Wraps all registration wizard routes in a single RegistrationProvider
  * so that state persists across step navigation.
  * 
- * Detects ?new=1 query param to reset state for fresh registrations.
+ * Synchronously clears sessionStorage when ?new=1 is detected,
+ * BEFORE RegistrationProvider mounts — preventing stale data from
+ * being loaded into the wizard forms.
  */
 
-import { Outlet, useSearchParams } from 'react-router-dom';
-import { RegistrationProvider, useRegistrationContext } from '@/contexts/RegistrationContext';
-import { useEffect, useRef } from 'react';
+import { Outlet } from 'react-router-dom';
+import { RegistrationProvider } from '@/contexts/RegistrationContext';
 
-/**
- * Inner component that has access to RegistrationContext.
- * Checks for ?new=1 param and resets state if present.
- */
-function RegistrationResetGuard({ children }: { children: React.ReactNode }) {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { reset } = useRegistrationContext();
-  const hasReset = useRef(false);
-
-  useEffect(() => {
-    if (searchParams.get('new') === '1' && !hasReset.current) {
-      hasReset.current = true;
-      reset();
-      // Remove ?new=1 from URL to prevent re-clearing on refresh
-      searchParams.delete('new');
-      setSearchParams(searchParams, { replace: true });
-    }
-  }, [searchParams, setSearchParams, reset]);
-
-  return <>{children}</>;
-}
+const STORAGE_KEY = 'registration_wizard_state';
 
 export function RegistrationLayout() {
+  // Synchronous check BEFORE RegistrationProvider mounts.
+  // If ?new=1 is present, clear sessionStorage so loadPersistedState()
+  // returns initialState (blank form). Then strip the param from URL.
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('new') === '1') {
+    sessionStorage.removeItem(STORAGE_KEY);
+    params.delete('new');
+    const search = params.toString();
+    const newUrl = window.location.pathname + (search ? '?' + search : '');
+    window.history.replaceState({}, '', newUrl);
+  }
+
   return (
     <RegistrationProvider>
-      <RegistrationResetGuard>
-        <Outlet />
-      </RegistrationResetGuard>
+      <Outlet />
     </RegistrationProvider>
   );
 }
