@@ -179,7 +179,7 @@ serve(async (req) => {
         tenant_id,
         role: "tenant_admin",
         is_active: true,
-        invitation_status: "accepted",
+        invitation_status: "active",
         joined_at: new Date().toISOString(),
         created_by: userId,
       });
