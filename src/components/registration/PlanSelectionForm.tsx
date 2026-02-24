@@ -440,6 +440,16 @@ export function PlanSelectionForm() {
           )}
         />
 
+        {/* Membership Tier Selection — shown before tier cards so users see benefits first */}
+        {!isInternalDept && membershipTiers && membershipTiers.length > 0 && (
+          <MembershipTierSelector
+            tiers={membershipTiers}
+            selectedTierId={form.watch('membership_tier_id') || undefined}
+            onSelect={(id) => form.setValue('membership_tier_id', id ?? '', { shouldDirty: true })}
+            currencySymbol={currencySymbol}
+          />
+        )}
+
         {/* Tier Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-5">
           {nonEnterpriseTiers.map((tier) => {
@@ -680,15 +690,7 @@ export function PlanSelectionForm() {
           />
         )}
 
-        {/* Membership Tier Selection — shown for non-Enterprise, non-internal tiers */}
-        {!isInternalDept && membershipTiers && membershipTiers.length > 0 && !(selectedTier?.is_enterprise) && (
-          <MembershipTierSelector
-            tiers={membershipTiers}
-            selectedTierId={form.watch('membership_tier_id') || undefined}
-            onSelect={(id) => form.setValue('membership_tier_id', id ?? '', { shouldDirty: true })}
-            currencySymbol={currencySymbol}
-          />
-        )}
+        {/* Membership section moved above tier cards */}
 
         {/* Shadow billing note for internal depts */}
         {isInternalDept && watchedTierId && tierShadow && (
