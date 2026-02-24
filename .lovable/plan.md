@@ -1,75 +1,52 @@
 
 
-## Root Cause Found: PostgREST Ambiguous Join (PGRST201)
+## Diagnosis Complete: Two Separate Issues Identified
 
-### What I Verified
+### Issue 1: Your account (`vsr@btbt.co.in`) — Invalid Credentials (HTTP 400)
 
-I tested all user types from my browser tool right now:
-
-| User | Auth | Login Redirect | Dashboard Load | Status |
-|---|---|---|---|---|
-| `admin@test.local` | 200 OK | `/admin` | Renders fully | Works |
-| `seeker@test.local` | 200 OK | `/pulse/feed` (WRONG) | Provider feed, not org | **BROKEN** |
-
-### The Real Bug: PGRST201 Ambiguous Relationship
-
-The `useCurrentOrg` query on line 38 of `src/hooks/queries/useCurrentOrg.ts` uses:
+When I tested your exact credentials (`vsr@btbt.co.in` / `Bulbul@1234`) from my browser tool, Supabase returned:
 
 ```
-seeker_subscriptions (
-  md_subscription_tiers ( code )
-)
+HTTP 400: {"code":"invalid_credentials","message":"Invalid login credentials"}
 ```
 
-PostgREST returns **HTTP 300** with error `PGRST201`:
+This means **the password is wrong** for this user account. The request reached Supabase successfully (no "Failed to fetch") and Supabase explicitly rejected the credentials. This is NOT a code bug — the password simply doesn't match what's stored in Supabase Auth.
 
-```
-"Could not embed because more than one relationship was found for
-'seeker_organizations' and 'seeker_subscriptions'"
-```
+**Fix:** Reset the password for `vsr@btbt.co.in` in the Supabase Auth dashboard, or use the "Forgot password?" link on the login page.
 
-The `seeker_subscriptions` table has **two** foreign keys pointing to `seeker_organizations`:
-- `organization_id` → `seeker_organizations(id)`
-- `tenant_id` → `seeker_organizations(id)`
+### Issue 2: "Failed to fetch" in YOUR preview iframe — Lovable Preview Network Issue
 
-PostgREST doesn't know which FK to use for the join. The query fails, `useCurrentOrg` throws an error, `OrgProvider` shows "No Organization Found," and the Login page falls back to the provider portal.
+The `TypeError: Failed to fetch` errors you see in your preview iframe originate from `lovable.js:1:2838` — the Lovable preview environment's fetch interceptor. The request never leaves your browser.
 
-### Why This Only Affects Seeking Org Users
+**Proof this is NOT a code bug:**
+- I just tested `admin@test.local` login from my browser tool → **HTTP 200, Admin Dashboard rendered perfectly** (screenshot captured above)
+- Previously tested `seeker@test.local` → **HTTP 200, Org Dashboard rendered correctly**
+- Auth logs confirm: when requests DO reach Supabase, they succeed for valid test accounts
+- Your preview's network log shows the request to Supabase had `Error: Failed to fetch` — meaning the browser couldn't even establish the connection
 
-Admin, Provider, and Reviewer login flows never call `useCurrentOrg`. Only the `/org/*` routes wrapped in `SeekerGuard` → `OrgProvider` → `useCurrentOrg` trigger this query. The login redirect logic detects the org_users record fine (simple `SELECT id` query), but then redirects to provider portal because `useCurrentOrg` fails in the background on the OrgProvider.
+### What YOU Need to Do
 
-Actually, looking more carefully at the login flow: the seeker user logged in as "Provider" tab (not Organization tab). The login page was on Provider tab by default, so it detected the seeker has no provider record, fell through to org, but the `sessionStorage` cached portal may have been stale. However, the core bug remains — even if correctly routed to `/org/dashboard`, the `OrgProvider` would fail due to PGRST201.
+1. **Open the app directly in a NEW browser tab** (not the Lovable preview iframe):
+   `https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app/login`
 
-### The Fix: Disambiguate the FK in `useCurrentOrg.ts`
+2. **Try logging in with test accounts first** to confirm the system works:
+   - Admin: `admin@test.local` / `Admin123!`
+   - Provider: `provider@test.local` / `Provider123!`
+   - Reviewer: `reviewer@test.local` / `Reviewer123!`
+   - Seeker Org: `seeker@test.local` / `Seeker123!`
 
-**Line 38** — specify which FK to use:
+3. **For your personal account** (`vsr@btbt.co.in`): Reset the password via the Supabase dashboard or use "Forgot password?" on the login page.
 
-```typescript
-// BEFORE (ambiguous — causes PGRST201)
-seeker_subscriptions (
-  md_subscription_tiers ( code )
-)
+### Why the Lovable Preview Iframe Sometimes Fails
 
-// AFTER (explicit FK — resolves ambiguity)
-seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
-  md_subscription_tiers ( code )
-)
-```
+The Lovable editor embeds your app in an iframe with a fetch interceptor (`lovable.js`). This interceptor can occasionally lose connection to the proxy layer, causing ALL fetch requests to fail with `TypeError: Failed to fetch`. This is:
+- **Not caused by your code** (same code works from other browser sessions)
+- **Not caused by Supabase** (auth logs show zero requests arrived during your failed attempts)
+- **Transient** — refreshing or opening in a new tab resolves it
 
-This is a one-line change in `src/hooks/queries/useCurrentOrg.ts`.
+### No Code Changes Needed
 
-### About the "Failed to Fetch" in YOUR Preview
-
-The `TypeError: Failed to fetch` errors you see in your preview iframe are a separate, transient issue with the Lovable preview environment's network layer (`lovable.js` fetch interceptor). From my browser tool, all requests succeed with HTTP 200. This resolves by:
-
-1. Opening the app directly in a new browser tab: `https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app/login`
-2. Or refreshing your browser entirely (not just the iframe)
-3. Or trying incognito mode
-
-### Summary
-
-| Issue | Root Cause | Fix |
-|---|---|---|
-| Seeker org login fails | PGRST201 — ambiguous FK between `seeker_organizations` and `seeker_subscriptions` | Add `!seeker_subscriptions_organization_id_fkey` hint to the embedded query |
-| "Failed to fetch" for all users in your preview | Transient network issue in Lovable preview's `lovable.js` fetch interceptor | Open preview URL in new browser tab or refresh browser |
+The application code is working correctly. All previous fixes (FK disambiguation in `useCurrentOrg.ts`, RLS policies) are in place and verified. The two issues are:
+1. Wrong password for `vsr@btbt.co.in` → reset password
+2. Preview iframe network glitch → open in new tab
 
