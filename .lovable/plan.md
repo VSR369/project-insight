@@ -1,109 +1,106 @@
 
 
-# Fix Plan: Plan Selection — 5-WHY Root Cause Resolution
+# Fix: Membership Activation, Pricing Display, and Org Context Header
 
-## 5-WHY Analysis Summary
+## Problems Identified
 
-| # | Why? | Answer |
-|---|------|--------|
-| 1 | Why do Basic/Standard/Premium show "Contact us"? | `getEffectivePrice()` returns `null` |
-| 2 | Why does it return null? | `pricingArray` is empty (no pricing rows found) |
-| 3 | Why is pricingArray empty? | `useTierPricingForCountry(state.step1?.hq_country_id)` called with `undefined` |
-| 4 | Why is `hq_country_id` undefined? | Registration context is in-memory (`useReducer`). Direct navigation to Step 4 or page refresh loses Step 1 data |
-| 5 | Why is there no fallback? | Code shows "Contact us" whenever pricing is null -- zero fallback logic exists |
+1. **No membership price shown** -- The `md_membership_tiers` table lacks a `membership_fee` column. Users see "10% off per-challenge fees" but have no idea what the membership itself costs (e.g., $500/year for Annual, $900/2yr for Multi-Year).
+2. **No activate/confirm action** -- Clicking a membership card toggles selection but there is no explicit "Activate Membership" confirmation or visual confirmation state.
+3. **No org name or country at top** -- The page header says "Choose Your Plan" with no context about which organization is being configured. Users lose context, especially when navigating directly.
 
-**Membership invisible:** Line 649 requires `watchedTierId` (a tier must be selected first). Since all tiers say "Contact us", users never select one, so the membership section never renders.
+## Solution
 
-## Three Fixes Required (All in PlanSelectionForm.tsx)
+### Part 1: Database -- Add membership fee columns
 
-### Fix A: Fallback Pricing When Country Is Missing
-
-**Problem:** `useTierPricingForCountry` is `enabled: !!countryId` -- returns `[]` when no country.
-
-**Solution:** Add a second query that fetches ALL pricing rows (no country filter) as a fallback. Use USD `monthly_price_usd` from any row when country-specific pricing is unavailable.
+Add `annual_fee_usd` and `description` columns to `md_membership_tiers` so each tier has a price:
 
 ```text
-Logic:
-  countryPricing = useTierPricingForCountry(state.step1?.hq_country_id)  // existing
-  allPricing = useAllTierPricing()  // NEW fallback query
+ALTER TABLE md_membership_tiers ADD COLUMN annual_fee_usd NUMERIC(10,2);
 
-  pricingArray = countryPricing has data ? countryPricing : deduplicated fallback from allPricing
+UPDATE md_membership_tiers SET annual_fee_usd = 500.00 WHERE code = 'annual';
+UPDATE md_membership_tiers SET annual_fee_usd = 900.00 WHERE code = 'multi_year';
 ```
 
-A new hook `useAllTierPricing` will be added to `usePlanSelectionData.ts`:
-- Fetches `md_tier_country_pricing` with no country filter
-- Groups by `tier_id`, takes first row per tier (USD preferred)
-- Only used when country-specific pricing returns empty
+These are placeholder values -- adjust as needed for actual pricing.
 
-In `PlanSelectionForm.tsx`, the derived `pricingArray` becomes:
-```text
-if countryPricing has rows -> use countryPricing (existing behavior)
-else -> build fallback array from allPricing, using monthly_price_usd, currency='USD', symbol='$'
-```
+### Part 2: MembershipTierSelector -- Show price and activation
 
-This ensures every non-enterprise tier ALWAYS shows a price.
+Update `src/components/registration/MembershipTierSelector.tsx`:
 
-### Fix B: Show Membership Section Without Requiring Tier Selection
+- Accept a `currencySymbol` prop (default `$`)
+- Display the membership fee prominently on each card (e.g., "$500/year", "$900/2 years")
+- Show a clear selected state with a checkmark badge and "Selected" label
+- Add descriptive text: "Billed separately from your subscription"
 
-**Problem:** Line 649 condition: `watchedTierId && !isEnterpriseTier && ...`
+The `useMembershipTiers` hook query already selects all columns, so `annual_fee_usd` will be available after the migration.
 
-**Solution:** Remove the `watchedTierId` gate. Membership selection is independent of tier choice -- users should see it and select a membership before or after choosing a tier.
+### Part 3: Org Context Banner at Top
 
-New condition:
-```text
-!isEnterpriseTier && !isInternalDept && membershipTiers?.length > 0
-```
+Update `src/components/registration/PlanSelectionForm.tsx`:
 
-But `isEnterpriseTier` depends on `selectedTier` which is null when no tier is selected. So the condition simplifies to:
-```text
-!isInternalDept && membershipTiers?.length > 0 && !selectedTier?.is_enterprise
-```
+- Add an info banner above the "Choose Your Plan" header showing:
+  - Organization name from `state.step1?.legal_entity_name` or fallback "Your Organization"
+  - Country from `state.localeInfo?.country_name` or fallback "Country not set"
+  - Current registration step context
+- Styled as a subtle info bar (not a card) with Building icon
 
-### Fix C: Allow Tier Selection Even Without Country Pricing
+### Part 4: Update useMembershipTiers query
 
-**Problem:** The "Select {tier}" button works fine, but users don't click it because they see "Contact us" instead of a price, making them think the tier isn't available.
-
-**Solution:** This is fully solved by Fix A -- once prices show, users will click "Select" naturally.
+Update `src/hooks/queries/useMembershipTiers.ts` to include `annual_fee_usd` and `duration_months` in the select statement so pricing data flows to the component.
 
 ## Files Modified
 
-| File | Change |
-|------|--------|
-| `src/hooks/queries/usePlanSelectionData.ts` | Add `useAllTierPricing()` fallback hook |
-| `src/components/registration/PlanSelectionForm.tsx` | Use fallback pricing array; remove `watchedTierId` gate on membership section |
+| File | Changes |
+|------|---------|
+| Database migration | Add `annual_fee_usd` to `md_membership_tiers`, seed values |
+| `src/hooks/queries/useMembershipTiers.ts` | Add `annual_fee_usd, duration_months` to select |
+| `src/components/registration/MembershipTierSelector.tsx` | Show fee, duration, selected state with checkmark |
+| `src/components/registration/PlanSelectionForm.tsx` | Add org context banner at top, pass `currencySymbol` to MembershipTierSelector |
 
 ## Technical Details
 
-### New Hook: useAllTierPricing
+### Database Migration
 
-```text
-Location: src/hooks/queries/usePlanSelectionData.ts
+```sql
+ALTER TABLE public.md_membership_tiers
+  ADD COLUMN IF NOT EXISTS annual_fee_usd NUMERIC(10,2);
 
-Query: SELECT id, tier_id, monthly_price_usd, local_price, currency_code
-       FROM md_tier_country_pricing
-       WHERE is_active = true
-
-Purpose: Fallback when hq_country_id is not set
-Cache: Same MASTER_CACHE (5min stale, 30min gc)
+UPDATE public.md_membership_tiers SET annual_fee_usd = 500.00 WHERE code = 'annual';
+UPDATE public.md_membership_tiers SET annual_fee_usd = 900.00 WHERE code = 'multi_year';
 ```
 
-### PlanSelectionForm.tsx Changes
+### MembershipTierSelector Changes
 
-1. Import `useAllTierPricing` from hooks
-2. Call `useAllTierPricing()` hook (placed with other query hooks, before useEffect)
-3. Derive `pricingArray`:
-   - If `pricing` (country-specific) has rows, use it
-   - Else deduplicate `allPricing` by tier_id (prefer USD rows), map to same shape using `monthly_price_usd`
-   - When using fallback, set `currencySymbol = '$'` (USD default)
-4. Line 649: Change membership condition from `watchedTierId && !isEnterpriseTier && ...` to `!isInternalDept && membershipTiers?.length > 0 && !(selectedTier?.is_enterprise)`
+Props interface update:
+```text
+interface MembershipTierSelectorProps {
+  tiers: MembershipTier[];          // now includes annual_fee_usd, duration_months
+  selectedTierId: string | undefined;
+  onSelect: (tierId: string | undefined) => void;
+  currencySymbol?: string;          // NEW
+}
+```
 
-### Hook Order (unchanged, compliant)
-1. useState
-2. useRegistrationContext, useNavigate
-3. useForm
-4. All useQuery hooks (including new useAllTierPricing)
-5. useEffect
-6. Derived values + handlers
-7. Conditional return
-8. Render
+Each card will render:
+```text
+Annual Membership
+$500/year  (large, bold)
+12-month commitment
+- 10% off per-challenge fees
+- 5% less commission rate
+[checkmark badge when selected]
+```
+
+### Org Context Banner (PlanSelectionForm.tsx)
+
+Inserted above the "Choose Your Plan" heading:
+```text
+[Building icon]  Registering: {org name}  |  Country: {country}
+```
+
+Uses `state.step1?.legal_entity_name` and `state.step1?.hq_country_name` or `state.localeInfo?.country_name`.
+
+### Hook Order Compliance
+
+No new hooks added. Only the select string in `useMembershipTiers` changes and props flow through existing render. All hooks remain in correct order.
 
