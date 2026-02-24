@@ -2,86 +2,68 @@
 
 # Fix All Plan Selection Problems: Pricing, Currency, Billing Cycles, Discounts, and Enterprise
 
-## Problems Summary
+## Problems Identified (Root Cause Analysis)
 
-| # | Problem | Root Cause |
-|---|---------|-----------|
-| 1 | Currency hardcoded as `$` | Line 391/402: `${Math.round(price)}` ignores `localeInfo.currency_symbol` |
-| 2 | Quarterly billing cycle (8% discount) missing | Binary `Switch` toggle only supports Monthly/Annual; Quarterly is invisible |
-| 3 | Billing cycle ID desyncs when toggling after tier selection | Toggle updates `isAnnual` state but does not update `form.billing_cycle_id` |
-| 4 | No price breakdown showing discount stacking | Only a small badge for subsidized %; users cannot see Base -> Cycle discount -> Subsidized -> Final |
-| 5 | Membership impact not shown on tier cards | Generic "per-challenge fees apply" note; no mention of membership discount effect |
-| 6 | Enterprise card wrongly has fixed pricing data seeded | Incorrectly inserted $999/mo rows in `md_tier_country_pricing`; Enterprise pricing is fully negotiated per agreement, not "starting from" |
+| # | Problem | Root Cause (File:Line) |
+|---|---------|----------------------|
+| 1 | Currency hardcoded as `$` | `PlanSelectionForm.tsx:391,402` — uses `$${Math.round(price)}` instead of `state.localeInfo?.currency_symbol` |
+| 2 | Quarterly billing cycle (8% discount) invisible | `PlanSelectionForm.tsx:114,318-331` — binary `Switch` toggle only supports Monthly/Annual; the Quarterly cycle (DB row exists with 8% discount) has no UI |
+| 3 | Billing cycle ID desyncs after tier selection | `PlanSelectionForm.tsx:200-207` — `handleSelectTier` sets `billing_cycle_id` based on toggle, but toggling the cycle afterward does NOT update the form field |
+| 4 | No price breakdown showing discount stacking | `PlanSelectionForm.tsx:406-410` — only a small badge for subsidized %; no visible breakdown of Base -> Cycle Discount -> Subsidy -> Final |
+| 5 | Membership impact not shown on tier cards | `PlanSelectionForm.tsx:451-453` — generic "per-challenge fees apply" text; no mention of selected membership discount |
+| 6 | Enterprise card has incorrect fixed pricing rows in DB | `md_tier_country_pricing` has 4 rows for Enterprise tier (`7bf7f040-...`) with $999/mo — architecturally wrong since Enterprise pricing is negotiated per agreement |
+| 7 | Enterprise card text is generic | `PlanSelectionForm.tsx:498,522-524` — "Tailored to your needs" and "Custom contract & pricing" don't reflect the Enterprise Agreement governance model |
+| 8 | `getEffectivePrice` uses hardcoded annual discount | `PlanSelectionForm.tsx:165,172` — uses `isAnnual` boolean and `annualDiscount` constant instead of the selected cycle's actual `discount_percentage` |
+
+## Database Verified
+
+- **Billing Cycles**: Monthly (0%), Quarterly (8%), Annual (17%) -- all 3 exist and are active
+- **Tier Pricing**: Basic ($199), Standard ($299), Premium ($399) with GBP/INR/BRL local prices -- correct
+- **Enterprise Pricing**: 4 rows with $999/mo -- these must be deleted (Enterprise is negotiated)
+- **`localeInfo.currency_symbol`**: Available in registration context, set during Step 1 country selection
 
 ## Fixes
 
-### Fix 1: Remove Enterprise Pricing Seed Data (Database Migration)
+### Fix 1: Database Migration -- Remove Enterprise Pricing Rows
 
-**Why:** Enterprise pricing is negotiated per Enterprise Agreement, not a fixed rate card. The seed data we inserted is architecturally wrong.
+Delete the 4 incorrectly seeded rows from `md_tier_country_pricing` where `tier_id = '7bf7f040-5d05-4c75-b26c-182cb4113c62'` (Enterprise tier).
 
-**Action:** Create a migration that deletes the 4 Enterprise pricing rows from `md_tier_country_pricing` where `tier_id = '7bf7f040-5d05-4c75-b26c-182cb4113c62'`.
+Enterprise pricing is negotiated per Enterprise Agreement, not a fixed rate card. The card will correctly show "Custom Pricing" with no dollar amounts.
 
-The Enterprise card will correctly show "Custom Pricing" with "Negotiated per Enterprise Agreement" and the "Contact Sales" CTA -- no price figures displayed.
-
-### Fix 2: Dynamic Currency Symbol (PlanSelectionForm.tsx)
+### Fix 2: Dynamic Currency Symbol
 
 Replace all hardcoded `$` with a derived currency symbol:
 
-```typescript
-const currencySymbol = state.localeInfo?.currency_symbol || pricingArray[0]?.currency_symbol || '$';
+```text
+const currencySymbol = state.localeInfo?.currency_symbol || '$';
 ```
 
-Apply in:
-- Tier card effective price (line 391)
-- Strikethrough base price (line 402)
-- Shadow pricing note (line 587)
+Applied at:
+- Line 391: Tier card effective price
+- Line 402: Strikethrough base price
+- Line 587: Shadow pricing note (already uses `currency_code`, but symbol consistency)
 
-### Fix 3: Replace Binary Toggle with 3-Option Billing Cycle Selector (PlanSelectionForm.tsx)
+### Fix 3: Replace Binary Toggle with 3-Option Billing Cycle Selector
 
-Replace the `Switch` component with a segmented button group showing all 3 database-driven cycles:
+Replace the `Switch` component (lines 318-331) with a segmented button group rendering all database-driven cycles:
 
 ```text
-[ Monthly ] [ Quarterly  Save 8% ] [ Annual  Save 17% ]
+[ Monthly ] [ Quarterly -- Save 8% ] [ Annual -- Save 17% ]
 ```
 
-**Changes:**
-- Remove `isAnnual` useState; replace with `selectedCycleId` useState initialized from `state.step4?.billing_cycle_id` or the monthly cycle ID
-- Render all `billingCycles` as styled buttons
-- Show discount badge on Quarterly and Annual options
-- On cycle selection, immediately update `form.setValue('billing_cycle_id', cycleId)`
+Changes:
+- Remove `isAnnual` useState (line 114)
+- Add `selectedCycleId` useState, initialized from `state.step4?.billing_cycle_id` or the monthly cycle's ID
+- Render `billingCycles` array as styled toggle buttons with discount badges
+- On cycle click, update both `selectedCycleId` state and `form.setValue('billing_cycle_id', cycleId)`
 
-### Fix 4: Sync Billing Cycle ID on Every Change (PlanSelectionForm.tsx)
+### Fix 4: Sync Billing Cycle ID on Every Change
 
-Currently `handleSelectTier` sets the cycle ID, but toggling the cycle after tier selection does not. The new cycle selector from Fix 3 will always call `form.setValue('billing_cycle_id', ...)` on every change, eliminating the desync.
+The new cycle selector from Fix 3 always calls `form.setValue('billing_cycle_id', ...)` on every click, eliminating the desync. The `handleSelectTier` function is also updated to use `selectedCycleId` instead of the removed `isAnnual` boolean.
 
-### Fix 5: Add Transparent Price Breakdown (PlanSelectionForm.tsx)
+### Fix 5: Refactor `getEffectivePrice` for Dynamic Cycle Discount
 
-When discounts apply (billing cycle discount > 0 or subsidized discount > 0), show a compact breakdown below the effective price on each tier card:
-
-```text
-$299/mo base
--17% annual billing
--30% NGO subsidy
-= $171/mo effective
-```
-
-This implements the documented stacking order: Base Price -> Billing Cycle Discount -> Subsidized Discount -> Final.
-
-Only shown when at least one discount is active (monthly cycle with no subsidy shows just the price, no breakdown).
-
-### Fix 6: Membership Discount Note on Tier Cards (PlanSelectionForm.tsx)
-
-Replace the generic "+ per-challenge fees apply" text with a dynamic note:
-- No membership selected: `"+ per-challenge fees apply"`
-- Membership selected: `"+ per-challenge fees apply (10% off with Annual Membership)"` (percentage from `calculateMembershipDiscount`)
-
-### Fix 7: Enterprise Card Text Update (PlanSelectionForm.tsx)
-
-Update the Enterprise card subtitle from "Tailored to your needs" to "Negotiated per Enterprise Agreement" and change the footer text from "Custom contract & pricing" to "Custom contract -- pricing negotiated per agreement" to accurately reflect the governance model.
-
-### Fix 8: Update `getEffectivePrice` for Dynamic Cycle Discount (PlanSelectionForm.tsx)
-
-Currently the function uses `isAnnual` boolean and hardcoded `annualDiscount`. Refactor to use the selected billing cycle's actual `discount_percentage`:
+Replace the `isAnnual` boolean logic (line 172) with the selected cycle's actual `discount_percentage`:
 
 ```typescript
 const selectedCycle = billingCycles?.find(c => c.id === selectedCycleId);
@@ -97,28 +79,49 @@ const getEffectivePrice = (tierId: string): number | null => {
 };
 ```
 
----
+### Fix 6: Transparent Price Breakdown on Tier Cards
 
-## Technical Details
+When at least one discount is active (cycle discount > 0 or subsidized discount > 0), show a compact breakdown below the effective price:
 
-### Files Modified
+```text
+$299/mo base
+-17% annual billing
+-30% NGO subsidy
+= $171/mo effective
+```
+
+Stacking order follows the documented rule: Base Price -> Billing Cycle Discount -> Subsidized Discount -> Final. Only displayed when discounts are active (monthly cycle with no subsidy shows just the price).
+
+### Fix 7: Membership Discount Note on Tier Cards
+
+Replace the generic "per-challenge fees apply" text (line 451-453) with a dynamic note:
+- No membership selected: `"+ per-challenge fees apply"`
+- Membership selected: `"+ per-challenge fees apply (10% off with Annual Membership)"` -- percentage from `calculateMembershipDiscount`
+
+### Fix 8: Enterprise Card Text Update
+
+- Line 496: Keep `"Custom"` as the price display (correct after removing DB rows)
+- Line 498: Change `"Tailored to your needs"` to `"Negotiated per Enterprise Agreement"`
+- Line 522-524: Change `"Custom contract & pricing"` to `"Custom contract -- pricing negotiated per agreement"`
+
+## Files Modified
 
 | File | Changes |
 |------|---------|
-| New migration SQL | DELETE Enterprise rows from `md_tier_country_pricing` |
-| `src/components/registration/PlanSelectionForm.tsx` | Fixes 2-8: currency symbol, billing cycle selector, price breakdown, membership note, Enterprise text, effective price calc |
+| New migration SQL | DELETE 4 Enterprise rows from `md_tier_country_pricing` |
+| `src/components/registration/PlanSelectionForm.tsx` | All 8 fixes: currency symbol, billing cycle selector, price breakdown, membership note, Enterprise text, effective price calc, cycle sync |
 
-### No Changes Needed
+## Files NOT Changed (Verified Correct)
 
 | File | Reason |
 |------|--------|
-| `src/components/registration/MembershipTierSelector.tsx` | Already correct -- displays fee/commission discounts properly |
-| `src/services/membershipService.ts` | Already correct -- `calculateMembershipDiscount` works as designed |
-| `src/types/registration.ts` | Already has `membership_tier_id` field |
-| `src/lib/validations/planSelection.ts` | Already has `membership_tier_id` as optional |
-| `src/hooks/queries/usePlanSelectionData.ts` | All hooks are correct and fetch the right data |
+| `MembershipTierSelector.tsx` | Already correctly displays fee/commission discounts |
+| `membershipService.ts` | `calculateMembershipDiscount` works as designed |
+| `usePlanSelectionData.ts` | All hooks fetch correct data |
+| `planSelection.ts` (validation) | Schema already has all required fields |
+| `registration.ts` (types) | Already has `membership_tier_id` field |
 
-### Data Flow After Fix
+## Data Flow After Fix
 
 ```text
 Billing Cycles DB:  Monthly (0%) | Quarterly (8%) | Annual (17%)
