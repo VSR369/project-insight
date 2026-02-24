@@ -114,7 +114,9 @@ export default function RegistrationPreviewPage() {
   const currencySymbol = state.localeInfo?.currency_symbol ?? '$';
   const membershipFee = selectedMembership?.annual_fee_usd ?? 0;
   const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
-  const dueToday = isInternalDept ? 0 : effectiveMonthly + membershipFee;
+  const cycleMonths = selectedCycle?.months ?? 1;
+  const subscriptionTotal = effectiveMonthly * cycleMonths;
+  const dueToday = isInternalDept ? 0 : subscriptionTotal + membershipFee;
 
   const handleGoToLogin = () => { reset(); navigate('/login'); };
 
