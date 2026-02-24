@@ -1,53 +1,46 @@
 
 
-# Fix All Plan Selection Problems — Implementation Plan
+# Fix All Plan Selection Problems — Final Implementation
 
-## Root Cause of Previous Failures
-The implementation kept getting stuck in a loop of proposing database migrations that required separate approval clicks. This time, the database fix (Fix 1) will be presented as a simple SQL statement for you to run manually, and all 7 code fixes will be applied in a single file write.
+## What Will Be Done
 
-## Fix 1: Database — Remove Enterprise Pricing Rows
-You will need to run this SQL in your Supabase SQL Editor:
-```sql
-DELETE FROM public.md_tier_country_pricing 
-WHERE tier_id = '7bf7f040-5d05-4c75-b26c-182cb4113c62';
-```
+All 8 fixes applied to `src/components/registration/PlanSelectionForm.tsx` in a single file write. The database fix will be proposed as a migration.
 
-## Fixes 2-8: PlanSelectionForm.tsx (Single File Rewrite)
+## Fix 1: Database Cleanup
+Delete Enterprise tier pricing rows from `md_tier_country_pricing` (tier_id `7bf7f040-5d05-4c75-b26c-182cb4113c62`). Enterprise pricing is negotiated, not a rate card.
 
-All changes are in `src/components/registration/PlanSelectionForm.tsx`:
+## Fix 2: Dynamic Currency Symbol
+Replace all hardcoded `$` with `state.localeInfo?.currency_symbol || '$'`.
 
-### Fix 2: Dynamic Currency Symbol
-- Add `const currencySymbol = state.localeInfo?.currency_symbol || '$';`
-- Replace all hardcoded `$` with `currencySymbol` in price displays
+## Fix 3: 3-Option Billing Cycle Selector
+- Remove `isAnnual` boolean state and `Switch` import
+- Add `selectedCycleId` state initialized from saved step4 data or monthly default
+- Add `useEffect` to initialize cycle when billing cycles load
+- Render segmented button group from `billingCycles` array with discount badges (e.g., "Annual -17%")
 
-### Fix 3: 3-Option Billing Cycle Selector
-- Remove `isAnnual` useState, remove `Switch` import
-- Add `selectedCycleId` useState initialized from saved state
-- Add `useEffect` to default to monthly cycle when data loads
-- Render segmented button group from `billingCycles` array with discount badges
-
-### Fix 4: Sync Billing Cycle ID
-- `handleCycleChange` updates both state and form value
+## Fix 4: Sync Billing Cycle ID
+- `handleCycleChange` updates both `selectedCycleId` state and `form.setValue('billing_cycle_id', ...)`
 - `handleSelectTier` uses `selectedCycleId` instead of `isAnnual`
 
-### Fix 5: Refactor getEffectivePrice
-- Derive `cycleDiscount` from `selectedCycleId` lookup
+## Fix 5: Refactor getEffectivePrice
+- Derive `cycleDiscount` from the selected cycle's `discount_percentage`
 - Apply: `base * (1 - cycleDiscount/100) * (1 - subsidizedPct/100)`
-- Remove hardcoded `annualDiscount` constant
+- No more hardcoded `annualDiscount` constant
 
-### Fix 6: Price Breakdown
-- When discounts are active, show stacked breakdown:
-  - `{symbol}{base}/mo base`
-  - `-{cycleDiscount}% {cycleName}`
-  - `-{subsidizedPct}% subsidized`
-  - `= {symbol}{final}/mo effective`
+## Fix 6: Price Breakdown
+When discounts active, show stacked breakdown on each tier card:
+```text
+$299/mo base (strikethrough)
+-17% Annual billing
+-30% subsidized discount
+= $171/mo effective
+```
 
-### Fix 7: Membership Discount Note
-- Replace "per-challenge fees apply" with dynamic text
-- When membership selected: show "({feeDiscountPct}% off with {membershipName})"
-- Uses `calculateMembershipDiscount` from membershipService
+## Fix 7: Membership Discount Note
+Replace static "per-challenge fees apply" with dynamic text showing membership discount when selected (e.g., "10% off with Annual Membership") using `calculateMembershipDiscount` from membershipService.
 
-### Fix 8: Enterprise Card Text
+## Fix 8: Enterprise Card Text
+- Title: "Custom Pricing" (larger)
 - Subtitle: "Negotiated per Enterprise Agreement"
 - Footer: "Custom contract -- pricing negotiated per agreement"
 
@@ -55,16 +48,34 @@ All changes are in `src/components/registration/PlanSelectionForm.tsx`:
 
 | File | Changes |
 |------|---------|
-| `src/components/registration/PlanSelectionForm.tsx` | All 7 code fixes (Fixes 2-8) |
-| Database (manual SQL) | DELETE Enterprise pricing rows |
+| `src/components/registration/PlanSelectionForm.tsx` | Complete rewrite with all 8 fixes |
+| Database | DELETE Enterprise pricing rows |
 
-## Hook Order Compliance
-All hooks called before conditional returns:
+## Technical Details
+
+### Imports Changed
+- Added: `useEffect` from React, `calculateMembershipDiscount` from membershipService
+- Removed: `Switch` from ui/switch
+
+### Hook Order (React Rules Compliance)
 1. `useState` (selectedCycleId)
-2. Context + navigation
+2. Context + navigation (useRegistrationContext, useNavigate)
 3. `useForm`
 4. All `useQuery`/`useMutation` hooks
 5. `useEffect` (cycle initialization)
-6. Conditional return (loading skeleton)
-7. Event handlers
+6. Derived values and event handlers
+7. Conditional return (loading skeleton) -- AFTER all hooks
 8. Render
+
+### Price Calculation
+```text
+selectedCycle = billingCycles.find(c => c.id === selectedCycleId)
+cycleDiscount = selectedCycle.discount_percentage ?? 0
+
+getEffectivePrice(tierId):
+  base = tp.local_price ?? tp.monthly_price_usd
+  price = base * (1 - cycleDiscount / 100)
+  price = price * (1 - subsidizedPct / 100)
+  return price
+```
+
