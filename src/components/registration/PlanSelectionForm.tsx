@@ -3,10 +3,18 @@
  * 
  * Step 4: Tier comparison, pricing, billing cycle, engagement model.
  * Business Rules: BR-REG-011, BR-REG-013, BR-REG-014, BR-REG-015
- * Redesigned to match reference mockups.
+ * 
+ * Fixes applied:
+ * Fix 2: Dynamic currency symbol from localeInfo
+ * Fix 3: 3-option billing cycle selector (segmented buttons)
+ * Fix 4: Sync billing cycle ID with selectedCycleId
+ * Fix 5: Refactored getEffectivePrice using DB discount_percentage
+ * Fix 6: Stacked price breakdown on tier cards
+ * Fix 7: Dynamic membership discount note
+ * Fix 8: Enterprise card text updates
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
@@ -26,6 +34,7 @@ import {
   useSubmitEnterpriseContact,
 } from '@/hooks/queries/usePlanSelectionData';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
+import { calculateMembershipDiscount } from '@/services/membershipService';
 import {
   planSelectionSchema,
   type PlanSelectionFormValues,
@@ -48,7 +57,6 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Card, CardContent } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -95,23 +103,13 @@ const TIER_CONFIG: Record<string, {
   },
 };
 
-// All features across tiers for comparison grid
-const COMPARISON_FEATURES = [
-  'Marketplace Access',
-  'Aggregator Access',
-  'Dedicated Account Manager',
-  'Analytics Dashboard',
-  'API Access',
-  'Priority Support',
-  'Custom Integrations',
-  'White-label Reports',
-];
-
 export function PlanSelectionForm() {
   // ══════════════════════════════════════
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
-  const [isAnnual, setIsAnnual] = useState(false);
+  const [selectedCycleId, setSelectedCycleId] = useState<string>(
+    () => ''
+  );
 
   // ══════════════════════════════════════
   // SECTION 2: Context and navigation
@@ -133,6 +131,7 @@ export function PlanSelectionForm() {
   });
 
   const watchedTierId = form.watch('tier_id');
+  const watchedMembershipTierId = form.watch('membership_tier_id');
 
   // ══════════════════════════════════════
   // SECTION 4: Query/Mutation hooks
@@ -148,7 +147,31 @@ export function PlanSelectionForm() {
   const submitEnterprise = useSubmitEnterpriseContact();
 
   // ══════════════════════════════════════
-  // SECTION 5: Derived values
+  // SECTION 5: useEffect hooks
+  // ══════════════════════════════════════
+  // Initialize selectedCycleId from saved state or default to monthly
+  useEffect(() => {
+    if (!billingCycles || billingCycles.length === 0) return;
+
+    // If we have saved step4 data, use that cycle
+    if (state.step4?.billing_cycle_id) {
+      const saved = billingCycles.find(c => c.id === state.step4!.billing_cycle_id);
+      if (saved) {
+        setSelectedCycleId(saved.id);
+        return;
+      }
+    }
+
+    // Default to monthly
+    const monthly = billingCycles.find(c => c.code === 'monthly' || c.months === 1);
+    if (monthly) {
+      setSelectedCycleId(monthly.id);
+      form.setValue('billing_cycle_id', monthly.id);
+    }
+  }, [billingCycles, state.step4?.billing_cycle_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ══════════════════════════════════════
+  // SECTION 6: Derived values
   // ══════════════════════════════════════
   const selectedTier = tiers?.find((t) => t.id === watchedTierId);
   const isEnterpriseTier = selectedTier?.is_enterprise ?? false;
@@ -156,20 +179,29 @@ export function PlanSelectionForm() {
   const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
   const subsidizedPct = state.orgTypeFlags?.subsidized_discount_pct ?? 0;
 
+  // Fix 2: Dynamic currency symbol
+  const currencySymbol = state.localeInfo?.currency_symbol || '$';
+
   const pricingArray = Array.isArray(pricing) ? pricing : [];
-  const currencyCode = pricingArray[0]?.currency_code ?? state.localeInfo?.currency_code ?? 'USD';
 
-  // Annual billing cycle
-  const annualCycle = billingCycles?.find((c) => c.code === 'annual' || c.months === 12);
-  const monthlyCycle = billingCycles?.find((c) => c.code === 'monthly' || c.months === 1);
-  const annualDiscount = annualCycle?.discount_percentage ?? 17;
+  // Selected billing cycle and its discount
+  const selectedCycle = billingCycles?.find(c => c.id === selectedCycleId);
+  const cycleDiscount = selectedCycle?.discount_percentage ?? 0;
 
-  /** Returns null when no pricing row exists (e.g. Enterprise). */
+  // Fix 7: Membership discount computation
+  const selectedMembershipTier = membershipTiers?.find(m => m.id === watchedMembershipTierId);
+  const membershipResult = calculateMembershipDiscount(
+    selectedMembershipTier?.code ?? null,
+    isInternalDept,
+  );
+
+  /** Fix 5: Returns null when no pricing row exists (e.g. Enterprise). */
   const getEffectivePrice = (tierId: string): number | null => {
     const tp = pricingArray.find((p) => p.tier_id === tierId);
     if (!tp) return null;
     const base = tp.local_price ?? tp.monthly_price_usd ?? 0;
-    let price = isAnnual ? base * (1 - annualDiscount / 100) : base;
+    // Apply billing cycle discount first, then subsidized discount
+    let price = base * (1 - cycleDiscount / 100);
     if (subsidizedPct > 0) price = price * (1 - subsidizedPct / 100);
     return price;
   };
@@ -195,14 +227,20 @@ export function PlanSelectionForm() {
   const tierShadow = shadowPricing?.find((sp) => sp.tier_id === watchedTierId);
 
   // ══════════════════════════════════════
-  // SECTION 6: Event handlers
+  // SECTION 7: Event handlers
   // ══════════════════════════════════════
+
+  // Fix 4: Cycle change handler syncs state + form
+  const handleCycleChange = (cycleId: string) => {
+    setSelectedCycleId(cycleId);
+    form.setValue('billing_cycle_id', cycleId, { shouldDirty: true });
+  };
+
+  // Fix 4: handleSelectTier uses selectedCycleId
   const handleSelectTier = (tierId: string) => {
     form.setValue('tier_id', tierId);
-    // Auto-set billing cycle based on toggle
-    const cycleToUse = isAnnual ? annualCycle : monthlyCycle;
-    if (cycleToUse) {
-      form.setValue('billing_cycle_id', cycleToUse.id);
+    if (selectedCycleId) {
+      form.setValue('billing_cycle_id', selectedCycleId);
     }
   };
 
@@ -256,7 +294,7 @@ export function PlanSelectionForm() {
   };
 
   // ══════════════════════════════════════
-  // SECTION 7: Render
+  // SECTION 8: Conditional return (loading) — AFTER all hooks
   // ══════════════════════════════════════
   if (tiersLoading) {
     return (
@@ -274,6 +312,9 @@ export function PlanSelectionForm() {
   const nonEnterpriseTiers = tiers?.filter((t) => !t.is_enterprise) ?? [];
   const enterpriseTier = tiers?.find((t) => t.is_enterprise);
 
+  // ══════════════════════════════════════
+  // SECTION 9: Render
+  // ══════════════════════════════════════
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
@@ -305,7 +346,7 @@ export function PlanSelectionForm() {
           </CardContent>
         </Card>
 
-        {/* Page Header with Toggle */}
+        {/* Page Header with Billing Cycle Selector */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
           <div>
             <h2 className="text-xl font-bold text-foreground">Choose Your Plan</h2>
@@ -314,21 +355,34 @@ export function PlanSelectionForm() {
             </p>
           </div>
 
-          {/* Monthly / Annual Toggle */}
-          <div className="flex items-center gap-3 bg-muted/50 rounded-full px-4 py-2">
-            <span className={cn('text-sm font-medium', !isAnnual ? 'text-foreground' : 'text-muted-foreground')}>
-              Monthly
-            </span>
-            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-            <span className={cn('text-sm font-medium', isAnnual ? 'text-foreground' : 'text-muted-foreground')}>
-              Annual
-            </span>
-            {annualDiscount > 0 && (
-              <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-xs">
-                Save {annualDiscount}%
-              </Badge>
-            )}
-          </div>
+          {/* Fix 3: Segmented Billing Cycle Selector */}
+          {billingCycles && billingCycles.length > 0 && (
+            <div className="flex items-center gap-1 bg-muted/50 rounded-full p-1">
+              {billingCycles.map((cycle) => {
+                const isActive = selectedCycleId === cycle.id;
+                return (
+                  <button
+                    key={cycle.id}
+                    type="button"
+                    onClick={() => handleCycleChange(cycle.id)}
+                    className={cn(
+                      'px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-1.5',
+                      isActive
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground',
+                    )}
+                  >
+                    {cycle.name}
+                    {cycle.discount_percentage > 0 && (
+                      <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5 py-0">
+                        -{cycle.discount_percentage}%
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {/* Hidden form fields for validation */}
@@ -359,6 +413,7 @@ export function PlanSelectionForm() {
             const basePrice = getBasePrice(tier.id);
             const features = getFeaturesForTier(tier.id);
             const isSelected = watchedTierId === tier.id;
+            const hasAnyDiscount = (cycleDiscount > 0 || subsidizedPct > 0) && basePrice !== null && price !== null;
 
             return (
               <div
@@ -383,12 +438,12 @@ export function PlanSelectionForm() {
                     {tier.name}
                   </Badge>
 
-                  {/* Price */}
+                  {/* Fix 2 + Fix 6: Price with dynamic symbol and breakdown */}
                   <div className="mb-1">
                     {price !== null ? (
                       <>
                         <span className="text-3xl font-bold text-foreground">
-                          ${Math.round(price).toLocaleString()}
+                          {currencySymbol}{Math.round(price).toLocaleString()}
                         </span>
                         <span className="text-sm text-muted-foreground">/mo</span>
                       </>
@@ -396,17 +451,27 @@ export function PlanSelectionForm() {
                       <span className="text-xl font-bold text-muted-foreground">Contact us</span>
                     )}
                   </div>
-                  {/* Strikethrough for discounted price */}
-                  {basePrice !== null && price !== null && basePrice !== price && (
-                    <p className="text-xs text-muted-foreground line-through mb-1">
-                      ${Math.round(basePrice).toLocaleString()}/mo
-                    </p>
-                  )}
-                  {/* Subsidized badge */}
-                  {subsidizedPct > 0 && price !== null && (
-                    <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 text-[10px] px-1.5 py-0 mb-2">
-                      {subsidizedPct}% subsidized discount
-                    </Badge>
+
+                  {/* Fix 6: Stacked Price Breakdown */}
+                  {hasAnyDiscount && (
+                    <div className="space-y-0.5 mb-2">
+                      <p className="text-xs text-muted-foreground line-through">
+                        {currencySymbol}{Math.round(basePrice!).toLocaleString()}/mo base
+                      </p>
+                      {cycleDiscount > 0 && selectedCycle && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          -{cycleDiscount}% {selectedCycle.name} billing
+                        </p>
+                      )}
+                      {subsidizedPct > 0 && (
+                        <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                          -{subsidizedPct}% subsidized discount
+                        </p>
+                      )}
+                      <p className="text-xs font-semibold text-foreground">
+                        = {currencySymbol}{Math.round(price!).toLocaleString()}/mo effective
+                      </p>
+                    </div>
                   )}
 
                   {/* Description */}
@@ -447,9 +512,14 @@ export function PlanSelectionForm() {
                     ))}
                   </div>
 
-                  {/* Per-challenge note */}
+                  {/* Fix 7: Dynamic membership discount note */}
                   <p className="text-xs text-muted-foreground mt-4 mb-4">
                     + per-challenge fees apply
+                    {membershipResult.isEligible && membershipResult.feeDiscountPct > 0 && selectedMembershipTier && (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        {' '}({membershipResult.feeDiscountPct}% off with {selectedMembershipTier.name} Membership)
+                      </span>
+                    )}
                   </p>
 
                   {/* CTA Button */}
@@ -473,7 +543,7 @@ export function PlanSelectionForm() {
             );
           })}
 
-          {/* Enterprise Card — inline in same grid */}
+          {/* Fix 8: Enterprise Card — inline in same grid */}
           {enterpriseTier && (() => {
             const config = TIER_CONFIG.enterprise;
             const isSelected = watchedTierId === enterpriseTier.id;
@@ -492,10 +562,13 @@ export function PlanSelectionForm() {
                     {enterpriseTier.name}
                   </Badge>
 
+                  {/* Fix 8: Enterprise pricing text */}
                   <div className="mb-1">
-                    <span className="text-3xl font-bold text-foreground">Custom</span>
+                    <span className="text-2xl font-bold text-foreground">Custom Pricing</span>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-2">Tailored to your needs</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Negotiated per Enterprise Agreement
+                  </p>
 
                   {enterpriseTier.description && (
                     <p className="text-sm text-muted-foreground mb-4">{enterpriseTier.description}</p>
@@ -519,8 +592,9 @@ export function PlanSelectionForm() {
                     ))}
                   </div>
 
+                  {/* Fix 8: Updated footer text */}
                   <p className="text-xs text-muted-foreground mt-4 mb-4">
-                    Custom contract & pricing
+                    Custom contract — pricing negotiated per agreement
                   </p>
 
                   <Button
