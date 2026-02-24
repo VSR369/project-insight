@@ -1,81 +1,109 @@
 
 
-# Fix All Plan Selection Problems — Final Implementation
+# Fix Plan: Plan Selection — 5-WHY Root Cause Resolution
 
-## What Will Be Done
+## 5-WHY Analysis Summary
 
-All 8 fixes applied to `src/components/registration/PlanSelectionForm.tsx` in a single file write. The database fix will be proposed as a migration.
+| # | Why? | Answer |
+|---|------|--------|
+| 1 | Why do Basic/Standard/Premium show "Contact us"? | `getEffectivePrice()` returns `null` |
+| 2 | Why does it return null? | `pricingArray` is empty (no pricing rows found) |
+| 3 | Why is pricingArray empty? | `useTierPricingForCountry(state.step1?.hq_country_id)` called with `undefined` |
+| 4 | Why is `hq_country_id` undefined? | Registration context is in-memory (`useReducer`). Direct navigation to Step 4 or page refresh loses Step 1 data |
+| 5 | Why is there no fallback? | Code shows "Contact us" whenever pricing is null -- zero fallback logic exists |
 
-## Fix 1: Database Cleanup
-Delete Enterprise tier pricing rows from `md_tier_country_pricing` (tier_id `7bf7f040-5d05-4c75-b26c-182cb4113c62`). Enterprise pricing is negotiated, not a rate card.
+**Membership invisible:** Line 649 requires `watchedTierId` (a tier must be selected first). Since all tiers say "Contact us", users never select one, so the membership section never renders.
 
-## Fix 2: Dynamic Currency Symbol
-Replace all hardcoded `$` with `state.localeInfo?.currency_symbol || '$'`.
+## Three Fixes Required (All in PlanSelectionForm.tsx)
 
-## Fix 3: 3-Option Billing Cycle Selector
-- Remove `isAnnual` boolean state and `Switch` import
-- Add `selectedCycleId` state initialized from saved step4 data or monthly default
-- Add `useEffect` to initialize cycle when billing cycles load
-- Render segmented button group from `billingCycles` array with discount badges (e.g., "Annual -17%")
+### Fix A: Fallback Pricing When Country Is Missing
 
-## Fix 4: Sync Billing Cycle ID
-- `handleCycleChange` updates both `selectedCycleId` state and `form.setValue('billing_cycle_id', ...)`
-- `handleSelectTier` uses `selectedCycleId` instead of `isAnnual`
+**Problem:** `useTierPricingForCountry` is `enabled: !!countryId` -- returns `[]` when no country.
 
-## Fix 5: Refactor getEffectivePrice
-- Derive `cycleDiscount` from the selected cycle's `discount_percentage`
-- Apply: `base * (1 - cycleDiscount/100) * (1 - subsidizedPct/100)`
-- No more hardcoded `annualDiscount` constant
+**Solution:** Add a second query that fetches ALL pricing rows (no country filter) as a fallback. Use USD `monthly_price_usd` from any row when country-specific pricing is unavailable.
 
-## Fix 6: Price Breakdown
-When discounts active, show stacked breakdown on each tier card:
 ```text
-$299/mo base (strikethrough)
--17% Annual billing
--30% subsidized discount
-= $171/mo effective
+Logic:
+  countryPricing = useTierPricingForCountry(state.step1?.hq_country_id)  // existing
+  allPricing = useAllTierPricing()  // NEW fallback query
+
+  pricingArray = countryPricing has data ? countryPricing : deduplicated fallback from allPricing
 ```
 
-## Fix 7: Membership Discount Note
-Replace static "per-challenge fees apply" with dynamic text showing membership discount when selected (e.g., "10% off with Annual Membership") using `calculateMembershipDiscount` from membershipService.
+A new hook `useAllTierPricing` will be added to `usePlanSelectionData.ts`:
+- Fetches `md_tier_country_pricing` with no country filter
+- Groups by `tier_id`, takes first row per tier (USD preferred)
+- Only used when country-specific pricing returns empty
 
-## Fix 8: Enterprise Card Text
-- Title: "Custom Pricing" (larger)
-- Subtitle: "Negotiated per Enterprise Agreement"
-- Footer: "Custom contract -- pricing negotiated per agreement"
+In `PlanSelectionForm.tsx`, the derived `pricingArray` becomes:
+```text
+if countryPricing has rows -> use countryPricing (existing behavior)
+else -> build fallback array from allPricing, using monthly_price_usd, currency='USD', symbol='$'
+```
+
+This ensures every non-enterprise tier ALWAYS shows a price.
+
+### Fix B: Show Membership Section Without Requiring Tier Selection
+
+**Problem:** Line 649 condition: `watchedTierId && !isEnterpriseTier && ...`
+
+**Solution:** Remove the `watchedTierId` gate. Membership selection is independent of tier choice -- users should see it and select a membership before or after choosing a tier.
+
+New condition:
+```text
+!isEnterpriseTier && !isInternalDept && membershipTiers?.length > 0
+```
+
+But `isEnterpriseTier` depends on `selectedTier` which is null when no tier is selected. So the condition simplifies to:
+```text
+!isInternalDept && membershipTiers?.length > 0 && !selectedTier?.is_enterprise
+```
+
+### Fix C: Allow Tier Selection Even Without Country Pricing
+
+**Problem:** The "Select {tier}" button works fine, but users don't click it because they see "Contact us" instead of a price, making them think the tier isn't available.
+
+**Solution:** This is fully solved by Fix A -- once prices show, users will click "Select" naturally.
 
 ## Files Modified
 
-| File | Changes |
-|------|---------|
-| `src/components/registration/PlanSelectionForm.tsx` | Complete rewrite with all 8 fixes |
-| Database | DELETE Enterprise pricing rows |
+| File | Change |
+|------|--------|
+| `src/hooks/queries/usePlanSelectionData.ts` | Add `useAllTierPricing()` fallback hook |
+| `src/components/registration/PlanSelectionForm.tsx` | Use fallback pricing array; remove `watchedTierId` gate on membership section |
 
 ## Technical Details
 
-### Imports Changed
-- Added: `useEffect` from React, `calculateMembershipDiscount` from membershipService
-- Removed: `Switch` from ui/switch
+### New Hook: useAllTierPricing
 
-### Hook Order (React Rules Compliance)
-1. `useState` (selectedCycleId)
-2. Context + navigation (useRegistrationContext, useNavigate)
-3. `useForm`
-4. All `useQuery`/`useMutation` hooks
-5. `useEffect` (cycle initialization)
-6. Derived values and event handlers
-7. Conditional return (loading skeleton) -- AFTER all hooks
-8. Render
-
-### Price Calculation
 ```text
-selectedCycle = billingCycles.find(c => c.id === selectedCycleId)
-cycleDiscount = selectedCycle.discount_percentage ?? 0
+Location: src/hooks/queries/usePlanSelectionData.ts
 
-getEffectivePrice(tierId):
-  base = tp.local_price ?? tp.monthly_price_usd
-  price = base * (1 - cycleDiscount / 100)
-  price = price * (1 - subsidizedPct / 100)
-  return price
+Query: SELECT id, tier_id, monthly_price_usd, local_price, currency_code
+       FROM md_tier_country_pricing
+       WHERE is_active = true
+
+Purpose: Fallback when hq_country_id is not set
+Cache: Same MASTER_CACHE (5min stale, 30min gc)
 ```
+
+### PlanSelectionForm.tsx Changes
+
+1. Import `useAllTierPricing` from hooks
+2. Call `useAllTierPricing()` hook (placed with other query hooks, before useEffect)
+3. Derive `pricingArray`:
+   - If `pricing` (country-specific) has rows, use it
+   - Else deduplicate `allPricing` by tier_id (prefer USD rows), map to same shape using `monthly_price_usd`
+   - When using fallback, set `currencySymbol = '$'` (USD default)
+4. Line 649: Change membership condition from `watchedTierId && !isEnterpriseTier && ...` to `!isInternalDept && membershipTiers?.length > 0 && !(selectedTier?.is_enterprise)`
+
+### Hook Order (unchanged, compliant)
+1. useState
+2. useRegistrationContext, useNavigate
+3. useForm
+4. All useQuery hooks (including new useAllTierPricing)
+5. useEffect
+6. Derived values + handlers
+7. Conditional return
+8. Render
 
