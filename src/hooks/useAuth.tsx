@@ -68,6 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // This ensures onAuthStateChange won't cause race conditions
       initialSessionResolved.current = true;
       setLoading(false);
+    }).catch((err) => {
+      // Handle network failures during initial session check gracefully
+      // instead of crashing the AuthProvider and losing context for children
+      console.warn('[AuthProvider] Initial session check failed, continuing without session:', err?.message);
+      initialSessionResolved.current = true;
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();
