@@ -25,8 +25,10 @@ import { useCreateMembership } from '@/hooks/queries/useMembershipData';
 import {
   useSubscriptionTiers,
   useTierPricingForCountry,
+  useAllTierPricing,
   useBillingCycles,
 } from '@/hooks/queries/usePlanSelectionData';
+import { useRehydrateRegistration } from '@/hooks/queries/useRehydrateRegistration';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
 
 import { useStatesForCountry } from '@/hooks/queries/useRegistrationData';
@@ -124,11 +126,13 @@ export function BillingForm() {
   const { data: billingStates, isLoading: statesLoading } = useStatesForCountry(watchedBillingCountryId);
   const { data: tiers } = useSubscriptionTiers();
   const { data: pricing } = useTierPricingForCountry(state.step1?.hq_country_id);
+  const { data: allPricingRaw } = useAllTierPricing();
   const { data: billingCycles } = useBillingCycles();
   const { data: membershipTiers } = useMembershipTiers();
   const saveBilling = useSaveBillingInfo();
   const createSubscription = useCreateSubscription();
   const createMembership = useCreateMembership();
+  const { isRehydrating, rehydrationFailed } = useRehydrateRegistration();
 
   // ══════════════════════════════════════
   // SECTION 5: Derived values
@@ -141,7 +145,22 @@ export function BillingForm() {
 
   // Order summary data
   const tiersArray = Array.isArray(tiers) ? tiers : [];
-  const pricingArray = Array.isArray(pricing) ? pricing : [];
+  const countryPricingArray = Array.isArray(pricing) ? pricing : [];
+  const allPricingArray = Array.isArray(allPricingRaw) ? allPricingRaw : [];
+
+  // Fallback: if no country-specific pricing, use USD rows from global pricing (deduped by tier_id)
+  const pricingArray = countryPricingArray.length > 0
+    ? countryPricingArray
+    : (() => {
+        const seen = new Set<string>();
+        return allPricingArray
+          .filter((p) => p.currency_code === 'USD')
+          .filter((p) => {
+            if (seen.has(p.tier_id)) return false;
+            seen.add(p.tier_id);
+            return true;
+          });
+      })();
   const cyclesArray = Array.isArray(billingCycles) ? billingCycles : [];
   const mTiersArray = Array.isArray(membershipTiers) ? membershipTiers : [];
   const selectedTier = tiersArray.find((t) => t.id === state.step4?.tier_id);
@@ -248,7 +267,23 @@ export function BillingForm() {
   // ══════════════════════════════════════
   // SECTION 7: Missing data guard (after all hooks)
   // ══════════════════════════════════════
-  if (!state.organizationId || !state.tenantId || !state.step4) {
+  if (isRehydrating) {
+    return (
+      <Card className="max-w-md mx-auto mt-8">
+        <CardContent className="pt-6 text-center space-y-4">
+          <Loader2 className="h-10 w-10 mx-auto text-primary animate-spin" />
+          <div>
+            <h3 className="font-semibold text-foreground">Restoring Your Session</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Loading your registration data…
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (rehydrationFailed || !state.organizationId || !state.tenantId || !state.step4) {
     return (
       <Card className="max-w-md mx-auto mt-8">
         <CardContent className="pt-6 text-center space-y-4">
