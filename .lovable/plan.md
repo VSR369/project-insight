@@ -1,63 +1,57 @@
 
 
-## Answers to Your Two Questions
+## Analysis
 
-### Question 1: How is a Seeker Organization uniquely identified?
+The Registration Preview page currently shows **raw IDs** instead of resolved display names for Steps 4 and 5. Specifically:
 
-**Two-layer uniqueness enforcement exists today:**
+**Step 4 (Plan Selection) — Missing:**
+- Tier name (only `estimated_challenges_per_month: 0` is shown)
+- Billing cycle name
+- Engagement model name
+- Membership tier name
+- Full order summary (base price, discounts, due today)
 
-| Layer | Mechanism | What It Does |
-|---|---|---|
-| **Database (hard constraint)** | `UNIQUE INDEX idx_seeker_orgs_unique_name_country ON (LOWER(organization_name), hq_country_id) WHERE is_deleted = false` | Prevents two active organizations with the **same name in the same country**. Case-insensitive. Soft-deleted orgs are excluded. |
-| **Advisory (soft check)** | `check_duplicate_organization()` RPC + trigram similarity index (`gin_trgm_ops`) | Warns the user via the `DuplicateOrgModal` if a **similar** name (>40% similarity) exists in the same country. User can choose to proceed anyway. |
+**Step 5 (Billing) — Missing:**
+- Country and state names (raw IDs stored)
+- Payment method label (raw code like `credit_card`)
 
-So the composite natural key is: **`LOWER(organization_name) + hq_country_id`** for active (non-deleted) records.
+**Step 1 (Organization) — Missing:**
+- Organization type name, country name, state name, industry names (all stored as IDs)
 
-This means:
-- "Acme Corp" in **USA** and "Acme Corp" in **UK** are two different valid organizations
-- "Acme Corp" and "ACME CORP" in the **same country** are considered duplicates (case-insensitive)
-- A deleted "Acme Corp" in USA does not block a new "Acme Corp" in USA
+## Root Cause
 
----
+The preview page reads `state.step4.tier_id`, `state.step4.billing_cycle_id`, etc. but never queries the database to resolve these IDs into human-readable names. The BillingForm already has all this resolution logic in its order summary sidebar — but the preview page doesn't use any query hooks.
 
-### Question 2: Different organization, same email — what is the correct action?
+## Implementation Plan
 
-**Current state:** The `create-org-admin` edge function calls `auth.admin.createUser()` which fails with "User already registered" because Supabase Auth enforces unique emails globally.
+### Change 1: Rewrite `src/pages/registration/RegistrationPreviewPage.tsx`
 
-**The correct architectural answer:**
+Add query hooks to resolve all IDs to display names, and add a full Order Summary card:
 
-A single **person** (auth user) CAN legitimately be the admin of **multiple** organizations. The `org_users` table already supports this — it has a `UNIQUE(user_id, organization_id)` constraint, meaning the same `user_id` can appear in multiple rows with different `organization_id` values.
+**Hooks to add:**
+- `useSubscriptionTiers()` — resolve `tier_id` → tier name/code
+- `useBillingCycles()` — resolve `billing_cycle_id` → cycle name
+- `useEngagementModels()` — resolve `engagement_model_id` → model name
+- `useMembershipTiers()` — resolve `membership_tier_id` → membership name, fee, discount
+- `useTierPricingForCountry()` + `useAllTierPricing()` — get base price for the tier
+- `useCountries()` — resolve `hq_country_id`, `billing_country_id`
+- `useOrganizationTypes()` — resolve `organization_type_id`
+- `useStatesForCountry()` — resolve `state_province_id`
 
-The correct flow is:
+**New sections:**
 
-| Scenario | Action |
-|---|---|
-| Email is **new** | Create auth user + create `org_users` record (current behavior) |
-| Email **exists**, user is NOT already mapped to THIS org | Skip auth user creation, look up existing `user_id`, create new `org_users` record mapping them as `tenant_admin` of the new org |
-| Email **exists**, user IS already mapped to THIS org | Return error — "You are already registered with this organization" |
+1. **Step 1 card** — Add resolved country, state, org type names
+2. **Step 3 card** — Add resolved export control status and data residency names
+3. **Step 4 card** — Show tier name, billing cycle, engagement model, membership tier with full pricing breakdown
+4. **Step 5 card** — Show resolved payment method label, country/state names
+5. **Order Summary card** — Replicate the BillingForm's order summary: base price, cycle discount, subsidized discount, membership fee, due today total
 
-```text
-create-org-admin logic:
+**Pricing computation** (same as BillingForm lines 149-183):
+- Build `pricingArray` with country fallback to USD
+- Calculate `baseMonthly`, `cycleDiscount`, `subsidizedPct`, `effectiveMonthly`, `membershipFee`, `dueToday`
+- Display with currency symbol from `localeInfo`
 
-1. Try createUser(email, password)
-2. If success → userId = newUser.id → insert org_users → done
-3. If "already registered":
-   a. Look up existing user by email → userId
-   b. Check org_users for (userId, organization_id)
-      - If exists → return error "Already admin of this org"
-      - If not → insert org_users(userId, organization_id, tenant_admin) → done
-```
+**Loading state:** Show skeleton while any query is loading.
 
-**Data integrity implications:**
-- The auth user's password is NOT updated (they keep their existing password)
-- The user gets a **new `org_users` row** linking them to the new organization as `tenant_admin`
-- The `seeker_organizations` record is separate — a new org with its own `tenant_id`
-- When the user logs in, they will need an **org-switcher** to choose which organization context to operate in (future requirement)
-
-**This means the edge function fix should:**
-1. Make user creation idempotent (handle "already registered" gracefully)
-2. Check for duplicate `org_users` mapping before inserting
-3. Return success with the existing `user_id` so the flow can proceed to the preview screen
-
-No plan is needed here — these are architectural answers to your questions. When you are ready to implement, say so and I will present the implementation plan for the edge function fix + preview screen.
+No other files need changes. The preview page is self-contained — it reads from context and resolves via queries.
 
