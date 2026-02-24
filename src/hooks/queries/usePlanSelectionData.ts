@@ -145,6 +145,24 @@ export function useShadowPricing() {
 }
 
 // ============================================================
+// All Tier Pricing (fallback when country is unknown)
+// ============================================================
+export function useAllTierPricing() {
+  return useQuery({
+    queryKey: ['all_tier_pricing'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('md_tier_country_pricing')
+        .select('id, tier_id, monthly_price_usd, local_price, currency_code')
+        .eq('is_active', true);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    ...MASTER_CACHE,
+  });
+}
+
+// ============================================================
 // Submit Enterprise Contact Request (BR-REG-013)
 // ============================================================
 export function useSubmitEnterpriseContact() {
