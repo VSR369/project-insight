@@ -4,6 +4,9 @@
  * Shared wizard state across all 5 registration steps.
  * Per Project Knowledge: minimize context usage, justify each use.
  * This is justified because registration data must persist across 5 route-level pages.
+ * 
+ * Persistence: state is synced to sessionStorage so it survives page refreshes
+ * and direct URL navigation. File objects are stripped before serialization.
  */
 
 import React, { createContext, useContext, useReducer, useCallback } from 'react';
@@ -17,6 +20,52 @@ import type {
   LocaleInfo,
   OrgTypeFlags,
 } from '@/types/registration';
+
+// ============================================================
+// SessionStorage Persistence
+// ============================================================
+const STORAGE_KEY = 'registration_wizard_state';
+
+function loadPersistedState(): RegistrationState {
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && typeof parsed === 'object' && typeof parsed.currentStep === 'number') {
+        return parsed as RegistrationState;
+      }
+    }
+  } catch {
+    /* ignore parse errors or unavailable storage */
+  }
+  return initialState;
+}
+
+function persistState(state: RegistrationState) {
+  try {
+    // Strip File objects (not JSON-serializable)
+    const serializable = {
+      ...state,
+      step1: state.step1 ? {
+        ...state.step1,
+        logo_file: undefined,
+        profile_document: undefined,
+        verification_documents: undefined,
+      } : undefined,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+  } catch {
+    /* storage full or unavailable — silently degrade */
+  }
+}
+
+function clearPersistedState() {
+  try {
+    sessionStorage.removeItem(STORAGE_KEY);
+  } catch {
+    /* ignore */
+  }
+}
 
 // ============================================================
 // Actions
@@ -70,6 +119,20 @@ function registrationReducer(state: RegistrationState, action: RegistrationActio
   }
 }
 
+/**
+ * Wraps the reducer to persist state after every action.
+ * On RESET, clears sessionStorage.
+ */
+function persistedReducer(state: RegistrationState, action: RegistrationAction): RegistrationState {
+  const nextState = registrationReducer(state, action);
+  if (action.type === 'RESET') {
+    clearPersistedState();
+  } else {
+    persistState(nextState);
+  }
+  return nextState;
+}
+
 // ============================================================
 // Context
 // ============================================================
@@ -93,7 +156,7 @@ const RegistrationContext = createContext<RegistrationContextValue | undefined>(
 // Provider
 // ============================================================
 export function RegistrationProvider({ children }: { children: React.ReactNode }) {
-  const [state, dispatch] = useReducer(registrationReducer, initialState);
+  const [state, dispatch] = useReducer(persistedReducer, undefined, loadPersistedState);
 
   const setStep = useCallback((step: number) => dispatch({ type: 'SET_STEP', step }), []);
   const setOrgId = useCallback((organizationId: string, tenantId: string) => dispatch({ type: 'SET_ORG_ID', organizationId, tenantId }), []);
