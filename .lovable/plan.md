@@ -1,123 +1,60 @@
 
 
-## Holistic Analysis: Login & Data Fetching Across All User Types
+## Root Cause Analysis: "Failed to Fetch" for ALL Users
 
-### Investigation Summary
+### The Problem is NOT in the Code
 
-I examined the RLS policies, database functions, and login flow for all four user types: **Platform Admin, Reviewer, Provider, and Seeking Organization**.
+I just tested the login flow myself using the browser tool — **admin login works perfectly**. The auth request returned HTTP 200, all role/data queries succeeded with 200, and the admin dashboard rendered correctly.
 
----
+### What the Console Logs Actually Show
 
-### Finding 1: Login Detection Works for ALL User Types
-
-The `Login.tsx` (lines 239-260) queries four tables in parallel after authentication. Each has proper self-access policies:
-
-| Table | Self-Access Policy | Login Detection |
-|---|---|---|
-| `user_roles` | `user_id = auth.uid()` | Admin detection works |
-| `panel_reviewers` | `user_id = auth.uid()` | Reviewer detection works |
-| `solution_providers` | `user_id = auth.uid()` | Provider detection works |
-| `org_users` | **No self-access policy** | Relies on `get_user_tenant_id()` |
-
-For `org_users`, the tenant isolation policy calls `get_user_tenant_id()`, which is `SECURITY DEFINER` owned by `postgres` (with `BYPASSRLS`). This means the function **can** resolve the tenant internally. So login detection technically works, but it depends on a fragile chain. Adding a direct self-access policy is essential defense-in-depth.
-
----
-
-### Finding 2: The REAL Bug — Wrong Table Name in `useCurrentOrg`
-
-**This is the primary cause of seeking org failures after login.**
-
-In `src/hooks/queries/useCurrentOrg.ts` (line 38), the PostgREST embedded query references `org_subscriptions`:
-
+Every single error in your console is:
 ```
-seeker_organizations!org_users_organization_id_fkey (
-  ...
-  org_subscriptions (           ← THIS TABLE DOES NOT EXIST
-    md_subscription_tiers ( code )
-  )
-)
+TypeError: Failed to fetch
+  at window.fetch (https://cdn.gpteng.co/lovable.js:1:2838)
+  at signInWithPassword(...)
 ```
 
-The actual table is **`seeker_subscriptions`**, not `org_subscriptions`. PostgREST returns a 400 error ("Could not find a relationship between seeker_organizations and org_subscriptions"), which causes the entire `useCurrentOrg` query to fail. The `OrgProvider` then shows "No Organization Found."
+Key detail: the error originates from `lovable.js` — the Lovable preview wrapper's fetch interceptor. The request **never reaches Supabase at all**. This is confirmed by:
 
-**This is a seeking-org-specific problem.** Providers, reviewers, and admins do not go through `useCurrentOrg` / `OrgProvider`, so they are unaffected.
+1. **Auth logs are completely empty** for the time window of your attempts — zero requests arrived at Supabase
+2. **When I tested from the browser tool**, the exact same login (`admin@test.local` / `Admin123!`) succeeded immediately with HTTP 200
+3. **All four parallel data queries** (user_roles, solution_providers, panel_reviewers, org_users) also returned 200
 
----
+### 5 WHY Analysis
 
-### Finding 3: "Failed to Fetch" Errors Are Transient
+| WHY | Answer |
+|-----|--------|
+| **WHY 1:** Why can't you log in? | The `signInWithPassword` call throws `TypeError: Failed to fetch` |
+| **WHY 2:** Why does fetch fail? | The HTTP request never leaves the browser — it fails at the network level before reaching Supabase |
+| **WHY 3:** Why does it fail at the network level? | The preview iframe's fetch wrapper (`lovable.js`) is intercepting and failing the request |
+| **WHY 4:** Why is the fetch wrapper failing? | The Lovable preview iframe session has a stale or broken connection state — this is a known transient issue in the preview environment |
+| **WHY 5:** Why does this affect ALL users? | Because the problem is at the network transport layer (before any user-specific code runs), not at the authentication or data layer |
 
-All console errors show `TypeError: Failed to fetch` on `signInWithPassword`. The auth logs are empty (no requests reached Supabase). This is a transient network/CORS issue in the Lovable preview environment, not a code bug. Refreshing the preview and retrying resolves it.
+### Evidence This is a Preview Environment Issue, Not a Code Bug
 
----
+| Evidence | Detail |
+|----------|--------|
+| Auth logs empty | No requests reached Supabase — network failure before transport |
+| Error origin | `lovable.js:1:2838` — Lovable's fetch interceptor, not app code |
+| My test succeeded | Same credentials, same code, different browser session → works |
+| All users affected equally | If it were a code/RLS bug, at least some user types would work |
+| No Postgres errors | Zero error-severity entries in Postgres logs |
 
-### Fix Plan
+### Solution: Refresh the Preview
 
-#### Change 1: Fix embedded resource name in `useCurrentOrg.ts`
+This is resolved by **refreshing the preview iframe**. There are no code changes needed.
 
-Replace `org_subscriptions` with `seeker_subscriptions` in two places:
+**How to refresh:**
+1. In the Lovable editor, click the refresh button on the preview panel (top of the preview iframe)
+2. If that doesn't work, try opening the preview URL directly in a new browser tab: `https://id-preview--850a8bf8-9f37-46d4-bdd1-6ed1d177ac44.lovable.app/login`
+3. Try the login again after the page fully loads
 
-**Line 38** — PostgREST query:
-```typescript
-// BEFORE
-org_subscriptions (
-  md_subscription_tiers ( code )
-)
+### Previously Fixed Code Bug (Already Applied)
 
-// AFTER
-seeker_subscriptions (
-  md_subscription_tiers ( code )
-)
-```
+The `useCurrentOrg.ts` fix from the last edit (changing `org_subscriptions` to `seeker_subscriptions`) is correct and already applied. Once you can get past the transient network issue by refreshing, the seeking organization login should work properly.
 
-**Line 52** — Data access:
-```typescript
-// BEFORE
-const tierCode = org?.org_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
+### Pending: RLS Defense-in-Depth Policies
 
-// AFTER
-const tierCode = org?.seeker_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
-```
-
-#### Change 2: Add self-access RLS policy on `org_users` (defense-in-depth)
-
-```sql
-CREATE POLICY "Users read own memberships"
-  ON public.org_users
-  FOR SELECT
-  USING (user_id = auth.uid());
-```
-
-Even though `get_user_tenant_id()` works via SECURITY DEFINER, this provides a direct, non-fragile access path for users to read their own membership rows.
-
-#### Change 3: Add membership-based RLS policy on `seeker_organizations` (defense-in-depth)
-
-```sql
-CREATE POLICY "Org members read own org"
-  ON public.seeker_organizations
-  FOR SELECT
-  USING (
-    id IN (
-      SELECT organization_id FROM org_users
-      WHERE user_id = auth.uid() AND is_active = TRUE
-    )
-    OR has_role(auth.uid(), 'platform_admin'::app_role)
-  );
-```
-
----
-
-### Impact Summary
-
-| User Type | Current Status | After Fix |
-|---|---|---|
-| Platform Admin | Works | Works (unchanged) |
-| Panel Reviewer | Works | Works (unchanged) |
-| Solution Provider | Works | Works (unchanged) |
-| **Seeking Organization** | **Fails** — wrong table name in `useCurrentOrg` | **Fixed** — correct table name + RLS hardening |
-
-### Security Notes
-
-- Self-access policy is secure: users can only see rows where `user_id` matches their own `auth.uid()`
-- Existing tenant isolation policy remains for cross-user queries
-- No existing policies are modified or removed
+The two RLS policies proposed earlier (self-access on `org_users` and membership-based on `seeker_organizations`) are still recommended as defense-in-depth. These are not blocking login right now, but they make the system more resilient. They require a database migration to apply.
 
