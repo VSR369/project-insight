@@ -1,38 +1,95 @@
 
 
-## Problem
+## Confirmation of Your Requirement
 
-When navigating to `/registration/organization-identity` to register a **new** organization, the form is pre-populated with data from a **previous** registration stored in `sessionStorage`. This is both a UX bug and a security issue — one organization's data leaks into another registration session.
+You are asking for TWO behaviors to coexist:
 
-### Root Cause
+| Scenario | Expected Behavior |
+|---|---|
+| **New org sign-up** (clicking "Register Organization") | All forms start **completely blank** |
+| **In-progress registration** (navigating between steps, refreshing page, even logging out and back in) | Data **persists** — no re-entry needed |
 
-1. `RegistrationProvider` calls `loadPersistedState()` on mount, which reads from `sessionStorage` key `registration_wizard_state`
-2. `OrganizationIdentityForm` uses `state.step1?.field` as `defaultValues` — so old data fills the form
-3. There is **no mechanism** to detect "starting fresh" vs. "resuming an in-progress registration"
-4. The `reset()` function exists in the context but is **never called** at any entry point
+**Confirmed.** The `sessionStorage` persistence is correct and must stay. The only problem is that starting a NEW registration doesn't clear the old data before the forms initialize.
 
-### Fix
+---
 
-**Add a `?new=1` query parameter** to entry-point links (Login page, OrgContext fallback). When the `RegistrationLayout` mounts and detects `?new=1`, it calls `reset()` to clear sessionStorage before rendering the form.
+## 5 WHY Root Cause Analysis
 
-#### Changes Required
+**WHY 1:** Old org data appears in the form when starting a new registration.
+Because `OrganizationIdentityForm` sets `defaultValues: { legal_entity_name: state.step1?.legal_entity_name ?? '' }` and `state` contains old data at mount time.
 
-**1. `src/components/layouts/RegistrationLayout.tsx`**
-- Import `useSearchParams` from `react-router-dom` and `useRegistrationContext`
-- On mount, check for `?new=1` search param
-- If present, call `reset()` on the context and remove the param from the URL (to prevent re-clearing on refresh)
+**WHY 2:** `state` contains old data when the form mounts.
+Because `RegistrationProvider` calls `loadPersistedState()` which reads stale data from `sessionStorage` before any reset logic executes.
 
-**2. `src/pages/Login.tsx`**
-- Change the registration link from `/registration/organization-identity` to `/registration/organization-identity?new=1`
+**WHY 3:** Reset logic doesn't execute before the provider reads storage.
+Because `RegistrationResetGuard` calls `reset()` inside a `useEffect`, which runs AFTER the first render — by then, the provider already loaded old data and the form already initialized.
 
-**3. `src/contexts/OrgContext.tsx`**
-- Change the "Register Organization" link from `/registration/organization-identity` to `/registration/organization-identity?new=1`
+**WHY 4:** Even after `useEffect` fires and clears context, the form still shows old data.
+Because React Hook Form's `defaultValues` are set once on mount and are **immutable**. Updating context state on a second render cycle doesn't change the already-initialized form fields.
 
-**4. `src/components/registration/BillingForm.tsx`**
-- After successful registration completion (before redirect to `/login`), call `reset()` to clear the sessionStorage — the registration is done, stale data should not persist
+**WHY 5:** Why was the fix designed as a post-mount effect?
+Because the `RegistrationResetGuard` sits INSIDE the `RegistrationProvider`, so it can only act after the provider has already loaded from storage. The clearing must happen BEFORE the provider mounts.
 
-This ensures:
-- **New registrations** always start with a blank form
-- **In-progress registrations** (navigating between steps, page refresh) retain their data
-- **Completed registrations** clean up after themselves
+```text
+Timeline of the bug:
+
+1. User clicks "Register Organization" → /registration/organization-identity?new=1
+2. RegistrationLayout renders
+3.   └─ RegistrationProvider mounts → loadPersistedState() → READS OLD DATA
+4.       └─ RegistrationResetGuard mounts (inside provider)
+5.           └─ OrganizationIdentityForm mounts → useForm({ defaultValues: OLD DATA })
+6.               └─ FIRST PAINT: old data visible in fields
+7.                   └─ useEffect fires → reset() clears context
+8.                       └─ BUT form fields are FROZEN with old defaults
+```
+
+---
+
+## Permanent Fix
+
+**Clear `sessionStorage` synchronously in `RegistrationLayout` BEFORE `RegistrationProvider` mounts.** This way `loadPersistedState()` finds nothing and returns blank initial state.
+
+### Change 1: `src/components/layouts/RegistrationLayout.tsx`
+
+Replace the entire file. Remove `RegistrationResetGuard`. Add synchronous clearing before the provider:
+
+```typescript
+import { Outlet } from 'react-router-dom';
+import { RegistrationProvider } from '@/contexts/RegistrationContext';
+
+const STORAGE_KEY = 'registration_wizard_state';
+
+export function RegistrationLayout() {
+  // Synchronous check BEFORE RegistrationProvider mounts.
+  // If ?new=1 is present, clear sessionStorage so loadPersistedState()
+  // returns initialState (blank form). Then strip the param from URL.
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('new') === '1') {
+    sessionStorage.removeItem(STORAGE_KEY);
+    params.delete('new');
+    const search = params.toString();
+    const newUrl = window.location.pathname + (search ? '?' + search : '');
+    window.history.replaceState({}, '', newUrl);
+  }
+
+  return (
+    <RegistrationProvider>
+      <Outlet />
+    </RegistrationProvider>
+  );
+}
+```
+
+**Why this works:**
+- The `if` block runs during the render phase, synchronously, BEFORE `RegistrationProvider` mounts
+- When `RegistrationProvider` then calls `loadPersistedState()`, `sessionStorage` is empty → returns blank `initialState`
+- `OrganizationIdentityForm` gets `state.step1` as `undefined` → all `defaultValues` are `''`
+- No timing race. No useEffect. No second render needed.
+
+**Why persistence is preserved:**
+- This only triggers when `?new=1` is in the URL (only on entry-point links)
+- Normal page refreshes or step navigation don't have `?new=1` → storage is untouched → data persists
+- Logout/login doesn't clear `sessionStorage` → data survives
+
+No other files need changes. `Login.tsx`, `OrgContext.tsx`, and `BillingForm.tsx` already have the correct `?new=1` param and `reset()` call from the previous edit.
 
