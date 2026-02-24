@@ -1,98 +1,138 @@
 
 
-# Integrate Membership Selection into Plan Selection (Step 4)
+# Fix All Plan Selection Problems: Pricing, Currency, Billing Cycles, Discounts, and Enterprise
 
-## Overview
+## Problems Summary
 
-Currently, membership enrollment happens separately after registration. This change embeds membership tier selection (Annual / Multi-Year) directly into the Plan Selection screen (Step 4) for Basic, Standard, and Premium tiers. Users will see how membership discounts reduce their per-challenge fees right on the same screen, creating a unified "Choose Your Plan + Membership" experience.
+| # | Problem | Root Cause |
+|---|---------|-----------|
+| 1 | Currency hardcoded as `$` | Line 391/402: `${Math.round(price)}` ignores `localeInfo.currency_symbol` |
+| 2 | Quarterly billing cycle (8% discount) missing | Binary `Switch` toggle only supports Monthly/Annual; Quarterly is invisible |
+| 3 | Billing cycle ID desyncs when toggling after tier selection | Toggle updates `isAnnual` state but does not update `form.billing_cycle_id` |
+| 4 | No price breakdown showing discount stacking | Only a small badge for subsidized %; users cannot see Base -> Cycle discount -> Subsidized -> Final |
+| 5 | Membership impact not shown on tier cards | Generic "per-challenge fees apply" note; no mention of membership discount effect |
+| 6 | Enterprise card wrongly has fixed pricing data seeded | Incorrectly inserted $999/mo rows in `md_tier_country_pricing`; Enterprise pricing is fully negotiated per agreement, not "starting from" |
 
-Enterprise tier is excluded -- it uses custom sales agreements.
+## Fixes
 
-## What Changes
+### Fix 1: Remove Enterprise Pricing Seed Data (Database Migration)
 
-### 1. Add Membership Tier Selector to Step 4
+**Why:** Enterprise pricing is negotiated per Enterprise Agreement, not a fixed rate card. The seed data we inserted is architecturally wrong.
 
-After a user selects a subscription tier (Basic/Standard/Premium), a new "Membership" section appears below the tier cards showing:
-- **Annual Membership** -- 12 months, 10% fee discount, 5% commission reduction
-- **Multi-Year Membership** -- 24 months, 15% fee discount, 7% commission reduction
-- **No Membership** option (proceed without discount)
+**Action:** Create a migration that deletes the 4 Enterprise pricing rows from `md_tier_country_pricing` where `tier_id = '7bf7f040-5d05-4c75-b26c-182cb4113c62'`.
 
-Each option will display the discount benefits clearly so users understand the value.
+The Enterprise card will correctly show "Custom Pricing" with "Negotiated per Enterprise Agreement" and the "Contact Sales" CTA -- no price figures displayed.
 
-### 2. Show Discount Impact
+### Fix 2: Dynamic Currency Symbol (PlanSelectionForm.tsx)
 
-When a membership is selected, each tier card's pricing area will show a note like:
-- "10% off per-challenge fees with Annual Membership"
+Replace all hardcoded `$` with a derived currency symbol:
 
-This gives immediate visual feedback on the value of membership.
+```typescript
+const currencySymbol = state.localeInfo?.currency_symbol || pricingArray[0]?.currency_symbol || '$';
+```
 
-### 3. Carry Membership Selection to Billing (Step 5)
+Apply in:
+- Tier card effective price (line 391)
+- Strikethrough base price (line 402)
+- Shadow pricing note (line 587)
 
-The selected membership tier ID will be stored in the registration context (Step 4 data) and reflected in the Billing Order Summary as a line item.
+### Fix 3: Replace Binary Toggle with 3-Option Billing Cycle Selector (PlanSelectionForm.tsx)
 
-### 4. Skip Membership for Enterprise and Internal Departments
+Replace the `Switch` component with a segmented button group showing all 3 database-driven cycles:
 
-- Enterprise tier: No membership selector shown (custom agreements)
-- Internal departments (zero_fee_eligible): No membership selector shown (auto-bypass per BR-MEM-003)
+```text
+[ Monthly ] [ Quarterly  Save 8% ] [ Annual  Save 17% ]
+```
+
+**Changes:**
+- Remove `isAnnual` useState; replace with `selectedCycleId` useState initialized from `state.step4?.billing_cycle_id` or the monthly cycle ID
+- Render all `billingCycles` as styled buttons
+- Show discount badge on Quarterly and Annual options
+- On cycle selection, immediately update `form.setValue('billing_cycle_id', cycleId)`
+
+### Fix 4: Sync Billing Cycle ID on Every Change (PlanSelectionForm.tsx)
+
+Currently `handleSelectTier` sets the cycle ID, but toggling the cycle after tier selection does not. The new cycle selector from Fix 3 will always call `form.setValue('billing_cycle_id', ...)` on every change, eliminating the desync.
+
+### Fix 5: Add Transparent Price Breakdown (PlanSelectionForm.tsx)
+
+When discounts apply (billing cycle discount > 0 or subsidized discount > 0), show a compact breakdown below the effective price on each tier card:
+
+```text
+$299/mo base
+-17% annual billing
+-30% NGO subsidy
+= $171/mo effective
+```
+
+This implements the documented stacking order: Base Price -> Billing Cycle Discount -> Subsidized Discount -> Final.
+
+Only shown when at least one discount is active (monthly cycle with no subsidy shows just the price, no breakdown).
+
+### Fix 6: Membership Discount Note on Tier Cards (PlanSelectionForm.tsx)
+
+Replace the generic "+ per-challenge fees apply" text with a dynamic note:
+- No membership selected: `"+ per-challenge fees apply"`
+- Membership selected: `"+ per-challenge fees apply (10% off with Annual Membership)"` (percentage from `calculateMembershipDiscount`)
+
+### Fix 7: Enterprise Card Text Update (PlanSelectionForm.tsx)
+
+Update the Enterprise card subtitle from "Tailored to your needs" to "Negotiated per Enterprise Agreement" and change the footer text from "Custom contract & pricing" to "Custom contract -- pricing negotiated per agreement" to accurately reflect the governance model.
+
+### Fix 8: Update `getEffectivePrice` for Dynamic Cycle Discount (PlanSelectionForm.tsx)
+
+Currently the function uses `isAnnual` boolean and hardcoded `annualDiscount`. Refactor to use the selected billing cycle's actual `discount_percentage`:
+
+```typescript
+const selectedCycle = billingCycles?.find(c => c.id === selectedCycleId);
+const cycleDiscount = selectedCycle?.discount_percentage ?? 0;
+
+const getEffectivePrice = (tierId: string): number | null => {
+  const tp = pricingArray.find(p => p.tier_id === tierId);
+  if (!tp) return null;
+  const base = tp.local_price ?? tp.monthly_price_usd ?? 0;
+  let price = base * (1 - cycleDiscount / 100);
+  if (subsidizedPct > 0) price = price * (1 - subsidizedPct / 100);
+  return price;
+};
+```
 
 ---
 
 ## Technical Details
 
-### Files to Modify
+### Files Modified
 
-**`src/types/registration.ts`** -- Add `membership_tier_id` to `PlanSelectionData`:
-```typescript
-export interface PlanSelectionData {
-  tier_id: string;
-  billing_cycle_id: string;
-  engagement_model_id?: string;
-  membership_tier_id?: string;        // NEW
-  estimated_challenges_per_month: number;
-}
-```
+| File | Changes |
+|------|---------|
+| New migration SQL | DELETE Enterprise rows from `md_tier_country_pricing` |
+| `src/components/registration/PlanSelectionForm.tsx` | Fixes 2-8: currency symbol, billing cycle selector, price breakdown, membership note, Enterprise text, effective price calc |
 
-**`src/lib/validations/planSelection.ts`** -- Add optional `membership_tier_id` field to Zod schema:
-```typescript
-export const planSelectionSchema = z.object({
-  tier_id: z.string().min(1, 'Please select a subscription tier'),
-  billing_cycle_id: z.string().min(1, 'Please select a billing cycle'),
-  engagement_model_id: z.string().optional(),
-  membership_tier_id: z.string().optional(),   // NEW
-});
-```
+### No Changes Needed
 
-**`src/components/registration/PlanSelectionForm.tsx`** -- Main changes:
-- Import `useMembershipTiers` hook
-- Add a "Membership Plan" section that appears when a non-Enterprise tier is selected and user is not an internal department
-- Display two styled cards (Annual / Multi-Year) with discount details, plus a "No Membership" option
-- Pass `membership_tier_id` into `setStep4Data()`
-- Use `calculateMembershipDiscount()` from membershipService to show accurate discount percentages
+| File | Reason |
+|------|--------|
+| `src/components/registration/MembershipTierSelector.tsx` | Already correct -- displays fee/commission discounts properly |
+| `src/services/membershipService.ts` | Already correct -- `calculateMembershipDiscount` works as designed |
+| `src/types/registration.ts` | Already has `membership_tier_id` field |
+| `src/lib/validations/planSelection.ts` | Already has `membership_tier_id` as optional |
+| `src/hooks/queries/usePlanSelectionData.ts` | All hooks are correct and fetch the right data |
 
-**`src/components/registration/BillingForm.tsx`** -- Add membership line in Order Summary:
-- Read `membership_tier_id` from `state.step4`
-- If set, show a line: "Membership: Annual (10% challenge fee discount)" or similar
-- No price impact on subscription fee -- membership discounts apply to per-challenge fees
-
-### Data Flow
+### Data Flow After Fix
 
 ```text
-Step 4 (Plan Selection)
-  |-- User selects Subscription Tier (Basic/Standard/Premium)
-  |-- User selects Billing Cycle (Monthly/Annual)
-  |-- User selects Membership Tier (Annual/Multi-Year/None)  <-- NEW
-  |-- All saved to registration context
-  v
-Step 5 (Billing)
-  |-- Order Summary shows:
-  |     Subscription: $X/mo
-  |     Billing discount: -Y%
-  |     Membership: Annual (10% off challenge fees)  <-- NEW
-  |     Due Today: $Z
+Billing Cycles DB:  Monthly (0%) | Quarterly (8%) | Annual (17%)
+                         |
+         User picks cycle via segmented selector
+                         |
+         form.billing_cycle_id = selectedCycle.id  (always synced)
+                         |
+         getEffectivePrice() uses selectedCycle.discount_percentage
+                         |
+         Price breakdown shows: Base -> Cycle % -> Subsidy % -> Final
+                         |
+         Membership note shows fee discount if membership selected
+                         |
+         Enterprise card: "Custom Pricing" (no amount), "Contact Sales"
 ```
-
-### Business Rules Applied
-- **BR-MEM-001**: Membership discounts by tier (Annual: 10% fee / 5% commission; Multi-Year: 15% fee / 7% commission)
-- **BR-MEM-003**: Internal departments skip membership (zero-fee bypass)
-- Enterprise tier excluded from membership selection (custom agreements)
 
