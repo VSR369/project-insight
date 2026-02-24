@@ -1,95 +1,63 @@
 
 
-## Confirmation of Your Requirement
+## Answers to Your Two Questions
 
-You are asking for TWO behaviors to coexist:
+### Question 1: How is a Seeker Organization uniquely identified?
 
-| Scenario | Expected Behavior |
-|---|---|
-| **New org sign-up** (clicking "Register Organization") | All forms start **completely blank** |
-| **In-progress registration** (navigating between steps, refreshing page, even logging out and back in) | Data **persists** — no re-entry needed |
+**Two-layer uniqueness enforcement exists today:**
 
-**Confirmed.** The `sessionStorage` persistence is correct and must stay. The only problem is that starting a NEW registration doesn't clear the old data before the forms initialize.
+| Layer | Mechanism | What It Does |
+|---|---|---|
+| **Database (hard constraint)** | `UNIQUE INDEX idx_seeker_orgs_unique_name_country ON (LOWER(organization_name), hq_country_id) WHERE is_deleted = false` | Prevents two active organizations with the **same name in the same country**. Case-insensitive. Soft-deleted orgs are excluded. |
+| **Advisory (soft check)** | `check_duplicate_organization()` RPC + trigram similarity index (`gin_trgm_ops`) | Warns the user via the `DuplicateOrgModal` if a **similar** name (>40% similarity) exists in the same country. User can choose to proceed anyway. |
+
+So the composite natural key is: **`LOWER(organization_name) + hq_country_id`** for active (non-deleted) records.
+
+This means:
+- "Acme Corp" in **USA** and "Acme Corp" in **UK** are two different valid organizations
+- "Acme Corp" and "ACME CORP" in the **same country** are considered duplicates (case-insensitive)
+- A deleted "Acme Corp" in USA does not block a new "Acme Corp" in USA
 
 ---
 
-## 5 WHY Root Cause Analysis
+### Question 2: Different organization, same email — what is the correct action?
 
-**WHY 1:** Old org data appears in the form when starting a new registration.
-Because `OrganizationIdentityForm` sets `defaultValues: { legal_entity_name: state.step1?.legal_entity_name ?? '' }` and `state` contains old data at mount time.
+**Current state:** The `create-org-admin` edge function calls `auth.admin.createUser()` which fails with "User already registered" because Supabase Auth enforces unique emails globally.
 
-**WHY 2:** `state` contains old data when the form mounts.
-Because `RegistrationProvider` calls `loadPersistedState()` which reads stale data from `sessionStorage` before any reset logic executes.
+**The correct architectural answer:**
 
-**WHY 3:** Reset logic doesn't execute before the provider reads storage.
-Because `RegistrationResetGuard` calls `reset()` inside a `useEffect`, which runs AFTER the first render — by then, the provider already loaded old data and the form already initialized.
+A single **person** (auth user) CAN legitimately be the admin of **multiple** organizations. The `org_users` table already supports this — it has a `UNIQUE(user_id, organization_id)` constraint, meaning the same `user_id` can appear in multiple rows with different `organization_id` values.
 
-**WHY 4:** Even after `useEffect` fires and clears context, the form still shows old data.
-Because React Hook Form's `defaultValues` are set once on mount and are **immutable**. Updating context state on a second render cycle doesn't change the already-initialized form fields.
+The correct flow is:
 
-**WHY 5:** Why was the fix designed as a post-mount effect?
-Because the `RegistrationResetGuard` sits INSIDE the `RegistrationProvider`, so it can only act after the provider has already loaded from storage. The clearing must happen BEFORE the provider mounts.
+| Scenario | Action |
+|---|---|
+| Email is **new** | Create auth user + create `org_users` record (current behavior) |
+| Email **exists**, user is NOT already mapped to THIS org | Skip auth user creation, look up existing `user_id`, create new `org_users` record mapping them as `tenant_admin` of the new org |
+| Email **exists**, user IS already mapped to THIS org | Return error — "You are already registered with this organization" |
 
 ```text
-Timeline of the bug:
+create-org-admin logic:
 
-1. User clicks "Register Organization" → /registration/organization-identity?new=1
-2. RegistrationLayout renders
-3.   └─ RegistrationProvider mounts → loadPersistedState() → READS OLD DATA
-4.       └─ RegistrationResetGuard mounts (inside provider)
-5.           └─ OrganizationIdentityForm mounts → useForm({ defaultValues: OLD DATA })
-6.               └─ FIRST PAINT: old data visible in fields
-7.                   └─ useEffect fires → reset() clears context
-8.                       └─ BUT form fields are FROZEN with old defaults
+1. Try createUser(email, password)
+2. If success → userId = newUser.id → insert org_users → done
+3. If "already registered":
+   a. Look up existing user by email → userId
+   b. Check org_users for (userId, organization_id)
+      - If exists → return error "Already admin of this org"
+      - If not → insert org_users(userId, organization_id, tenant_admin) → done
 ```
 
----
+**Data integrity implications:**
+- The auth user's password is NOT updated (they keep their existing password)
+- The user gets a **new `org_users` row** linking them to the new organization as `tenant_admin`
+- The `seeker_organizations` record is separate — a new org with its own `tenant_id`
+- When the user logs in, they will need an **org-switcher** to choose which organization context to operate in (future requirement)
 
-## Permanent Fix
+**This means the edge function fix should:**
+1. Make user creation idempotent (handle "already registered" gracefully)
+2. Check for duplicate `org_users` mapping before inserting
+3. Return success with the existing `user_id` so the flow can proceed to the preview screen
 
-**Clear `sessionStorage` synchronously in `RegistrationLayout` BEFORE `RegistrationProvider` mounts.** This way `loadPersistedState()` finds nothing and returns blank initial state.
-
-### Change 1: `src/components/layouts/RegistrationLayout.tsx`
-
-Replace the entire file. Remove `RegistrationResetGuard`. Add synchronous clearing before the provider:
-
-```typescript
-import { Outlet } from 'react-router-dom';
-import { RegistrationProvider } from '@/contexts/RegistrationContext';
-
-const STORAGE_KEY = 'registration_wizard_state';
-
-export function RegistrationLayout() {
-  // Synchronous check BEFORE RegistrationProvider mounts.
-  // If ?new=1 is present, clear sessionStorage so loadPersistedState()
-  // returns initialState (blank form). Then strip the param from URL.
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('new') === '1') {
-    sessionStorage.removeItem(STORAGE_KEY);
-    params.delete('new');
-    const search = params.toString();
-    const newUrl = window.location.pathname + (search ? '?' + search : '');
-    window.history.replaceState({}, '', newUrl);
-  }
-
-  return (
-    <RegistrationProvider>
-      <Outlet />
-    </RegistrationProvider>
-  );
-}
-```
-
-**Why this works:**
-- The `if` block runs during the render phase, synchronously, BEFORE `RegistrationProvider` mounts
-- When `RegistrationProvider` then calls `loadPersistedState()`, `sessionStorage` is empty → returns blank `initialState`
-- `OrganizationIdentityForm` gets `state.step1` as `undefined` → all `defaultValues` are `''`
-- No timing race. No useEffect. No second render needed.
-
-**Why persistence is preserved:**
-- This only triggers when `?new=1` is in the URL (only on entry-point links)
-- Normal page refreshes or step navigation don't have `?new=1` → storage is untouched → data persists
-- Logout/login doesn't clear `sessionStorage` → data survives
-
-No other files need changes. `Login.tsx`, `OrgContext.tsx`, and `BillingForm.tsx` already have the correct `?new=1` param and `reset()` call from the previous edit.
+No plan is needed here — these are architectural answers to your questions. When you are ready to implement, say so and I will present the implementation plan for the edge function fix + preview screen.
 
