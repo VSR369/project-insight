@@ -35,8 +35,8 @@ export function useCurrentOrg() {
             legal_entity_name,
             tenant_id,
             hq_country_id,
-            seeker_subscriptions (
-              md_subscription_tiers ( code )
+            seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
+              md_subscription_tiers!seeker_subscriptions_tier_id_fkey ( code )
             )
           )
         `)
