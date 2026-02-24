@@ -27,6 +27,7 @@ import {
   useSubscriptionTiers,
   useTierFeatures,
   useTierPricingForCountry,
+  useAllTierPricing,
   useBillingCycles,
   useEngagementModels,
   useTierEngagementAccess,
@@ -139,6 +140,7 @@ export function PlanSelectionForm() {
   const { data: tiers, isLoading: tiersLoading } = useSubscriptionTiers();
   const { data: tierFeatures } = useTierFeatures();
   const { data: pricing } = useTierPricingForCountry(state.step1?.hq_country_id);
+  const { data: allTierPricing } = useAllTierPricing();
   const { data: billingCycles } = useBillingCycles();
   const { data: engagementModels } = useEngagementModels();
   const { data: tierEngagement } = useTierEngagementAccess();
@@ -179,10 +181,31 @@ export function PlanSelectionForm() {
   const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
   const subsidizedPct = state.orgTypeFlags?.subsidized_discount_pct ?? 0;
 
-  // Fix 2: Dynamic currency symbol
-  const currencySymbol = state.localeInfo?.currency_symbol || '$';
+  // Fix 2: Dynamic currency symbol — fallback to USD when no country
+  const hasCountryPricing = Array.isArray(pricing) && pricing.length > 0;
+  const currencySymbol = hasCountryPricing
+    ? (state.localeInfo?.currency_symbol || '$')
+    : '$';
 
-  const pricingArray = Array.isArray(pricing) ? pricing : [];
+  // Fix A: Build pricingArray with fallback to allTierPricing (USD) when country is missing
+  const pricingArray = (() => {
+    if (hasCountryPricing) return pricing!;
+    if (!Array.isArray(allTierPricing) || allTierPricing.length === 0) return [];
+    // Deduplicate by tier_id, prefer USD rows
+    const byTier = new Map<string, typeof allTierPricing[number]>();
+    for (const row of allTierPricing) {
+      const existing = byTier.get(row.tier_id);
+      if (!existing || row.currency_code === 'USD') {
+        byTier.set(row.tier_id, row);
+      }
+    }
+    // Map to same shape using monthly_price_usd as local_price
+    return Array.from(byTier.values()).map(row => ({
+      ...row,
+      local_price: row.monthly_price_usd,
+      currency_code: 'USD',
+    }));
+  })();
 
   // Selected billing cycle and its discount
   const selectedCycle = billingCycles?.find(c => c.id === selectedCycleId);
@@ -646,7 +669,7 @@ export function PlanSelectionForm() {
         )}
 
         {/* Membership Tier Selection — shown for non-Enterprise, non-internal tiers */}
-        {watchedTierId && !isEnterpriseTier && !isInternalDept && membershipTiers && membershipTiers.length > 0 && (
+        {!isInternalDept && membershipTiers && membershipTiers.length > 0 && !(selectedTier?.is_enterprise) && (
           <MembershipTierSelector
             tiers={membershipTiers}
             selectedTierId={form.watch('membership_tier_id') || undefined}
