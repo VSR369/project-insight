@@ -71,6 +71,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 const PAYMENT_METHOD_LABELS: Record<string, { label: string; desc: string; icon: React.ReactNode }> = {
   credit_card: { label: 'Credit/Debit Card', desc: 'Visa, Mastercard, Amex', icon: <CreditCard className="h-4 w-4" /> },
@@ -141,7 +142,8 @@ export function BillingForm() {
     ? [{ payment_method: 'shadow' as const, id: 'shadow', tier_id: null }]
     : paymentMethods?.filter((pm) => !state.step4?.tier_id || !pm.tier_id || pm.tier_id === state.step4.tier_id) ?? [];
 
-  const isSubmitting = saveBilling.isPending || createSubscription.isPending || createMembership.isPending;
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const isSubmitting = saveBilling.isPending || createSubscription.isPending || createMembership.isPending || isCreatingAccount;
 
   // Order summary data
   const tiersArray = Array.isArray(tiers) ? tiers : [];
@@ -241,6 +243,35 @@ export function BillingForm() {
         });
       }
 
+      // ── Create Auth User + org_users via edge function ──
+      if (state.step2?.password && state.step2?.email) {
+        setIsCreatingAccount(true);
+        try {
+          const response = await supabase.functions.invoke('create-org-admin', {
+            body: {
+              email: state.step2.email,
+              password: state.step2.password,
+              first_name: state.step2.first_name ?? '',
+              last_name: state.step2.last_name ?? '',
+              organization_id: state.organizationId,
+              tenant_id: state.tenantId,
+            },
+          });
+
+          if (response.error || !response.data?.success) {
+            const errMsg = response.data?.error?.message ?? response.error?.message ?? 'Account creation failed';
+            toast.error(`Account creation failed: ${errMsg}`);
+            setIsCreatingAccount(false);
+            return;
+          }
+        } finally {
+          setIsCreatingAccount(false);
+        }
+      } else {
+        toast.error('Password not found. Please go back to Step 2 and set your password.');
+        return;
+      }
+
       setStep5Data({
         payment_method: data.payment_method,
         is_internal_department: isInternalDept,
@@ -257,7 +288,7 @@ export function BillingForm() {
       });
 
       setStep(6);
-      toast.success('Registration complete! Welcome aboard.');
+      toast.success('Registration complete! You can now log in with your email and password.');
       navigate('/login');
     } catch {
       // Error handled by mutation's onError callbacks

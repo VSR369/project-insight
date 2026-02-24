@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardContent } from '@/components/ui/card';
 import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -102,6 +103,8 @@ export function PrimaryContactForm() {
       timezone: state.step2?.timezone ?? detectedTimezone ?? '',
       preferred_language_id: state.step2?.preferred_language_id ?? '',
       is_email_verified: true, // TODO: TEMP BYPASS — was conditional on state.step2?.email_verified
+      password: '',
+      confirm_password: '',
     },
   });
 
@@ -206,6 +209,7 @@ export function PrimaryContactForm() {
         timezone: data.timezone,
         preferred_language_id: data.preferred_language_id,
         email_verified: emailVerified,
+        password: data.password, // In-memory only, stripped from sessionStorage
       });
 
       setStep(3);
@@ -471,6 +475,46 @@ export function PrimaryContactForm() {
             </FormItem>
           )}
         />
+
+        {/* Account Password */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground">Create Your Account Password</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                This will be used to log in after registration is complete.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Password *</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" placeholder="Min 8 chars, mixed case, number, symbol" className="text-base" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirm_password"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Confirm Password *</FormLabel>
+                    <FormControl>
+                      <Input {...field} type="password" placeholder="Re-enter password" className="text-base" />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Navigation Buttons */}
         <div className="flex items-center justify-between pt-4">
