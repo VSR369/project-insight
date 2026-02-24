@@ -21,13 +21,14 @@ import {
   useSaveBillingInfo,
   useCreateSubscription,
 } from '@/hooks/queries/useBillingData';
+import { useCreateMembership } from '@/hooks/queries/useMembershipData';
 import {
   useSubscriptionTiers,
   useTierPricingForCountry,
   useBillingCycles,
 } from '@/hooks/queries/usePlanSelectionData';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
-import { calculateMembershipDiscount } from '@/services/membershipService';
+
 import { useStatesForCountry } from '@/hooks/queries/useRegistrationData';
 import { CountrySelector } from './CountrySelector';
 import { billingSchema, type BillingFormValues } from '@/lib/validations/billing';
@@ -127,6 +128,7 @@ export function BillingForm() {
   const { data: membershipTiers } = useMembershipTiers();
   const saveBilling = useSaveBillingInfo();
   const createSubscription = useCreateSubscription();
+  const createMembership = useCreateMembership();
 
   // ══════════════════════════════════════
   // SECTION 5: Derived values
@@ -135,12 +137,13 @@ export function BillingForm() {
     ? [{ payment_method: 'shadow' as const, id: 'shadow', tier_id: null }]
     : paymentMethods?.filter((pm) => !state.step4?.tier_id || !pm.tier_id || pm.tier_id === state.step4.tier_id) ?? [];
 
-  const isSubmitting = saveBilling.isPending || createSubscription.isPending;
+  const isSubmitting = saveBilling.isPending || createSubscription.isPending || createMembership.isPending;
 
   // Order summary data
   const tiersArray = Array.isArray(tiers) ? tiers : [];
   const pricingArray = Array.isArray(pricing) ? pricing : [];
   const cyclesArray = Array.isArray(billingCycles) ? billingCycles : [];
+  const mTiersArray = Array.isArray(membershipTiers) ? membershipTiers : [];
   const selectedTier = tiersArray.find((t) => t.id === state.step4?.tier_id);
   const selectedCycle = cyclesArray.find((c) => c.id === state.step4?.billing_cycle_id);
   const tierPrice = pricingArray.find((p) => p.tier_id === state.step4?.tier_id);
@@ -150,6 +153,13 @@ export function BillingForm() {
   const afterCycleDiscount = baseMonthly * (1 - cycleDiscount / 100);
   const effectiveMonthly = afterCycleDiscount * (1 - subsidizedPct / 100);
   const currencyCode = tierPrice?.currency_code ?? 'USD';
+  const currencySymbol = state.localeInfo?.currency_symbol ?? '$';
+
+  // Membership fee
+  const selectedMembership = mTiersArray.find((m) => m.id === state.step4?.membership_tier_id);
+  const membershipFee = selectedMembership?.annual_fee_usd ?? 0;
+  const totalDiscount = Math.min(100, cycleDiscount + subsidizedPct);
+  const dueToday = isInternalDept ? 0 : effectiveMonthly + membershipFee;
 
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
@@ -187,10 +197,30 @@ export function BillingForm() {
         tier_id: state.step4.tier_id,
         billing_cycle_id: state.step4.billing_cycle_id,
         engagement_model_id: state.step4.engagement_model_id,
+        monthly_base_price: baseMonthly,
+        effective_monthly_cost: effectiveMonthly,
+        discount_percentage: totalDiscount,
         payment_type: isInternalDept ? 'shadow' : 'live',
+        status: 'active', // Simulated payment — no gateway yet
         terms_version: platformTerms?.version,
         terms_acceptance_hash: termsHash,
       });
+
+      // Create membership record if a membership tier was selected
+      if (state.step4.membership_tier_id && selectedMembership) {
+        const durationMonths = selectedMembership.duration_months ?? 12;
+        const endsAt = new Date();
+        endsAt.setMonth(endsAt.getMonth() + durationMonths);
+
+        await createMembership.mutateAsync({
+          organization_id: state.organizationId,
+          tenant_id: state.tenantId,
+          membership_tier_id: state.step4.membership_tier_id,
+          fee_discount_pct: selectedMembership.fee_discount_pct ?? 0,
+          commission_rate_pct: selectedMembership.commission_rate_pct ?? 0,
+          ends_at: endsAt.toISOString(),
+        });
+      }
 
       setStep5Data({
         payment_method: data.payment_method,
@@ -216,7 +246,30 @@ export function BillingForm() {
   };
 
   // ══════════════════════════════════════
-  // SECTION 7: Render
+  // SECTION 7: Missing data guard (after all hooks)
+  // ══════════════════════════════════════
+  if (!state.organizationId || !state.tenantId || !state.step4) {
+    return (
+      <Card className="max-w-md mx-auto mt-8">
+        <CardContent className="pt-6 text-center space-y-4">
+          <Shield className="h-10 w-10 mx-auto text-muted-foreground" />
+          <div>
+            <h3 className="font-semibold text-foreground">Session Data Not Found</h3>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your registration session may have expired or data was not saved. Please restart from Step 1.
+            </p>
+          </div>
+          <Button onClick={() => navigate('/registration/organization-identity')} className="w-full">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Return to Step 1
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ══════════════════════════════════════
+  // SECTION 8: Render
   // ══════════════════════════════════════
   return (
     <Form {...form}>
@@ -574,40 +627,54 @@ export function BillingForm() {
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Base Price</span>
-                      <span className="text-foreground">${baseMonthly.toFixed(2)}/mo</span>
+                      <span className="text-foreground">{currencySymbol}{baseMonthly.toFixed(2)}/mo</span>
                     </div>
                     {cycleDiscount > 0 && (
-                      <div className="flex justify-between text-emerald-600">
+                      <div className="flex justify-between text-primary">
                         <span>Billing discount</span>
                         <span>-{cycleDiscount}%</span>
                       </div>
                     )}
                     {subsidizedPct > 0 && (
-                      <div className="flex justify-between text-emerald-600">
+                      <div className="flex justify-between text-primary">
                         <span>Subsidized discount</span>
                         <span>-{subsidizedPct}%</span>
                       </div>
                     )}
-                    {/* Membership info */}
-                    {state.step4?.membership_tier_id && (() => {
-                      const mTiers = membershipTiers ?? [];
-                      const selectedMembership = mTiers.find((m) => m.id === state.step4?.membership_tier_id);
-                      if (!selectedMembership) return null;
-                      const mDiscount = calculateMembershipDiscount(selectedMembership.code, false);
-                      return (
+                    {(cycleDiscount > 0 || subsidizedPct > 0) && (
+                      <div className="flex justify-between font-medium">
+                        <span className="text-muted-foreground">Subscription subtotal</span>
+                        <span className="text-foreground">{currencySymbol}{effectiveMonthly.toFixed(2)}/mo</span>
+                      </div>
+                    )}
+
+                    <Separator className="my-1" />
+
+                    {/* Membership fee line item */}
+                    {selectedMembership ? (
+                      <div className="space-y-1">
                         <div className="flex justify-between">
                           <span className="text-muted-foreground">{selectedMembership.name}</span>
-                          <span className="text-emerald-600 text-xs">{mDiscount.feeDiscountPct}% off challenge fees</span>
+                          <span className="text-foreground">{currencySymbol}{membershipFee.toFixed(2)}</span>
                         </div>
-                      );
-                    })()}
+                        <p className="text-xs text-primary">
+                          Includes {selectedMembership.fee_discount_pct ?? 0}% off per-challenge fees
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Membership</span>
+                        <span className="text-muted-foreground text-xs">not selected</span>
+                      </div>
+                    )}
+
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Est. Challenge Fees</span>
-                      <span className="text-muted-foreground text-xs">varies</span>
+                      <span className="text-muted-foreground">Per-Challenge Fees</span>
+                      <span className="text-muted-foreground text-xs">billed on usage</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Tax</span>
-                      <span className="text-muted-foreground text-xs">calculated at checkout</span>
+                      <span className="text-muted-foreground text-xs">not applicable</span>
                     </div>
                   </div>
 
@@ -617,7 +684,7 @@ export function BillingForm() {
                   <div className="flex justify-between items-center">
                     <span className="font-semibold text-foreground">Due Today</span>
                     <span className="text-lg font-bold text-foreground">
-                      ${effectiveMonthly.toFixed(2)}
+                      {currencySymbol}{dueToday.toFixed(2)}
                     </span>
                   </div>
 
@@ -628,7 +695,7 @@ export function BillingForm() {
                   )}
 
                   <p className="text-xs text-muted-foreground text-center pt-2">
-                    You can upgrade, downgrade, or cancel anytime.
+                    Subscription renews automatically.{selectedMembership ? ' Membership fee is annual.' : ''} You can cancel anytime.
                   </p>
                 </CardContent>
               </Card>
@@ -651,7 +718,7 @@ export function BillingForm() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {isSubmitting ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
