@@ -35,6 +35,8 @@ import {
   useSubmitEnterpriseContact,
   useBaseFeesByCountry,
   usePlatformFeesByCountry,
+  useAllBaseFees,
+  useAllPlatformFees,
 } from '@/hooks/queries/usePlanSelectionData';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
@@ -151,6 +153,8 @@ export function PlanSelectionForm() {
   const { data: membershipTiers } = useMembershipTiers();
   const { data: baseFeesByCountry } = useBaseFeesByCountry(state.step1?.hq_country_id);
   const { data: platformFeesByCountry } = usePlatformFeesByCountry(state.step1?.hq_country_id);
+  const { data: allBaseFees } = useAllBaseFees();
+  const { data: allPlatformFees } = useAllPlatformFees();
   const submitEnterprise = useSubmitEnterpriseContact();
 
   // ══════════════════════════════════════
@@ -526,19 +530,32 @@ export function PlanSelectionForm() {
 
                   {/* Per-Challenge Fee Breakdown by Engagement Model */}
                   {!isInternalDept && (() => {
-                    const tierBaseFees = baseFeesByCountry?.filter(bf => bf.tier_id === tier.id) ?? [];
-                    const tierPlatformFees = platformFeesByCountry?.filter(pf => pf.tier_id === tier.id) ?? [];
-                    const hasCountryFees = tierBaseFees.length > 0;
+                    // Use country-specific fees if available, otherwise fallback to all fees (prefer USD)
+                    const hasCountryBaseFees = Array.isArray(baseFeesByCountry) && baseFeesByCountry.length > 0;
+                    const hasCountryPlatformFees = Array.isArray(platformFeesByCountry) && platformFeesByCountry.length > 0;
 
-                    if (!state.step1?.hq_country_id) {
-                      return (
-                        <p className="text-xs text-muted-foreground italic mb-2">
-                          Select country to see per-challenge fees
-                        </p>
-                      );
-                    }
+                    const baseFeeSource = hasCountryBaseFees ? baseFeesByCountry! : (allBaseFees ?? []);
+                    const platformFeeSource = hasCountryPlatformFees ? platformFeesByCountry! : (allPlatformFees ?? []);
+                    const usingFallback = !hasCountryBaseFees;
 
-                    if (!hasCountryFees) return null;
+                    // Deduplicate fallback by tier_id + engagement_model_id, prefer USD
+                    const dedup = <T extends { tier_id: string; engagement_model_id: string | null; currency_code: string }>(arr: T[]): T[] => {
+                      if (hasCountryBaseFees) return arr; // no dedup needed for country-specific
+                      const map = new Map<string, T>();
+                      for (const row of arr) {
+                        const key = `${row.tier_id}_${row.engagement_model_id}`;
+                        const existing = map.get(key);
+                        if (!existing || row.currency_code === 'USD') {
+                          map.set(key, row);
+                        }
+                      }
+                      return Array.from(map.values());
+                    };
+
+                    const tierBaseFees = dedup(baseFeeSource).filter(bf => bf.tier_id === tier.id);
+                    const tierPlatformFees = dedup(platformFeeSource).filter(pf => pf.tier_id === tier.id);
+
+                    if (tierBaseFees.length === 0 && tierPlatformFees.length === 0) return null;
 
                     const marketplaceFee = tierBaseFees.find(bf => bf.md_engagement_models?.code === 'marketplace');
                     const aggregatorFee = tierBaseFees.find(bf => bf.md_engagement_models?.code === 'aggregator');
@@ -546,10 +563,14 @@ export function PlanSelectionForm() {
                     const aggregatorPlatform = tierPlatformFees.find(pf => pf.md_engagement_models?.code === 'aggregator');
 
                     const discountPct = membershipResult.isEligible ? membershipResult.feeDiscountPct : 0;
+                    const feeCurrency = usingFallback ? '$' : currencySymbol;
+                    const fallbackLabel = usingFallback ? ' (USD)' : '';
 
                     return (
                       <div className="rounded-lg border border-border bg-muted/30 p-3 mb-2">
-                        <p className="text-xs font-semibold text-foreground mb-2">Per-Challenge Fees</p>
+                        <p className="text-xs font-semibold text-foreground mb-2">
+                          Per-Challenge Fees{fallbackLabel}
+                        </p>
                         <Tabs defaultValue="marketplace" className="w-full">
                           <TabsList className="w-full h-7 p-0.5">
                             <TabsTrigger value="marketplace" className="flex-1 text-[11px] h-6 px-2">Marketplace</TabsTrigger>
@@ -562,16 +583,16 @@ export function PlanSelectionForm() {
                               return (
                                 <>
                                   <div className="text-xs text-muted-foreground">
-                                    Consulting: {currencySymbol}{marketplaceFee.consulting_base_fee.toLocaleString()} + Mgmt: {currencySymbol}{marketplaceFee.management_base_fee.toLocaleString()}
+                                    Consulting: {feeCurrency}{marketplaceFee.consulting_base_fee.toLocaleString()} + Mgmt: {feeCurrency}{marketplaceFee.management_base_fee.toLocaleString()}
                                   </div>
                                   <div className="flex items-baseline gap-1.5">
                                     {discountPct > 0 ? (
                                       <>
                                         <span className="text-xs text-muted-foreground line-through">
-                                          {currencySymbol}{total.toLocaleString()}
+                                          {feeCurrency}{total.toLocaleString()}/challenge
                                         </span>
                                         <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
-                                          {currencySymbol}{discounted.toLocaleString()}
+                                          {feeCurrency}{discounted.toLocaleString()}/challenge
                                         </span>
                                         <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
                                           {discountPct}% off
@@ -579,7 +600,7 @@ export function PlanSelectionForm() {
                                       </>
                                     ) : (
                                       <span className="text-sm font-bold text-foreground">
-                                        {currencySymbol}{total.toLocaleString()}/challenge
+                                        {feeCurrency}{total.toLocaleString()}/challenge
                                       </span>
                                     )}
                                   </div>
