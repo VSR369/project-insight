@@ -35,7 +35,7 @@ export function useCurrentOrg() {
             legal_entity_name,
             tenant_id,
             hq_country_id,
-            org_subscriptions (
+            seeker_subscriptions (
               md_subscription_tiers ( code )
             )
           )
@@ -49,7 +49,7 @@ export function useCurrentOrg() {
       if (!data) return null;
 
       const org = data.seeker_organizations as any;
-      const tierCode = org?.org_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
+      const tierCode = org?.seeker_subscriptions?.[0]?.md_subscription_tiers?.code ?? null;
       const orgId = data.organization_id;
 
       // Check if org is a child in an active saas_agreements record (internal department)
