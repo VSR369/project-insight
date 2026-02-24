@@ -519,6 +519,15 @@ export function PlanSelectionForm() {
                     </div>
                   )}
 
+                  {/* Membership per-challenge fee discount note */}
+                  {membershipResult.isEligible && membershipResult.feeDiscountPct > 0 && (
+                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 mb-2">
+                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                        🎉 {membershipResult.feeDiscountPct}% off per-challenge fees with {selectedMembershipTier?.name}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Description */}
                   {tier.description && (
                     <p className="text-sm text-muted-foreground mb-4">{tier.description}</p>
