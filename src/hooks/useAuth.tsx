@@ -74,8 +74,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    return { error: error as Error | null };
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return { error: error as Error | null };
+    } catch (err) {
+      // If fetchWithRetry exhausted all retries, provide a clear message
+      if (err instanceof TypeError && err.message.includes('Failed to fetch')) {
+        return {
+          error: new Error('Network connection failed after multiple retries. Please refresh your browser and try again.'),
+        };
+      }
+      return { error: err as Error };
+    }
   };
 
   const signUp = async (email: string, password: string, metadata?: Record<string, unknown>) => {
