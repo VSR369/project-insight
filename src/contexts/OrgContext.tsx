@@ -53,7 +53,7 @@ export function OrgProvider({ children }: { children: React.ReactNode }) {
           </p>
           <div className="flex gap-3 justify-center">
             <Button asChild variant="outline">
-              <Link to="/registration/organization-identity">Register Organization</Link>
+              <Link to="/registration/organization-identity?new=1">Register Organization</Link>
             </Button>
             <Button asChild>
               <Link to="/login">Back to Login</Link>
