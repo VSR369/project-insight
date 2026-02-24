@@ -1,56 +1,71 @@
 
 
-## 5 WHY Root Cause Analysis
+## Fundamental Gap: No User Account Created During Seeker Registration
 
-**WHY 1:** The "Complete Registration" button shows an error after a delay.
+You've identified a critical missing piece. Here's what's happening:
 
-**WHY 2:** Network logs show billing info (200) and subscription (201) **both succeed now**. The failure is a **new error** on `seeker_memberships` — `POST /rest/v1/seeker_memberships` returns **401 with code 42501**: `"new row violates row-level security policy for table \"seeker_memberships\""`.
+### Current State
 
-**WHY 3:** `seeker_memberships` has a restrictive RLS policy (likely a `FOR ALL` with `tenant_id = get_user_tenant_id()`) but no registration-phase permissive INSERT or SELECT policy.
+The 5-step Seeker Registration wizard collects:
+1. Organization identity (company name, type, country, etc.)
+2. Primary contact info (name, email, phone) + OTP email verification
+3. Compliance data
+4. Plan selection (tier, billing cycle)
+5. Billing info + subscription creation
 
-**WHY 4:** The user is on the anon key. `get_user_tenant_id()` returns NULL. The tenant-isolation policy evaluates to FALSE.
+After Step 5, it redirects to `/login` with `toast.success('Registration complete!')`.
 
-**WHY 5:** This is the **exact same root cause** as `seeker_billing_info` and `seeker_subscriptions` — the table was never given registration-phase permissive policies when the pattern was applied to other tables.
+**But at no point does the flow call `supabase.auth.signUp()`.** No Supabase Auth user is created. No password is ever collected. No `org_users` record is inserted to map a user to the organization. The contact email is verified via OTP, but it's stored only in `seeker_contacts` — not as an auth account.
 
----
+### What Needs to Happen
 
-## The Repeating Pattern
+The registration flow must include **user account creation** so the primary contact can log in. This requires:
 
-The registration billing step calls **three** mutations in sequence:
-1. `seeker_billing_info` upsert — fixed previously, now returns 200
-2. `seeker_subscriptions` insert — fixed in last migration, now returns 201
-3. `seeker_memberships` insert — **STILL MISSING policies, returns 42501**
+1. **Collect a password** — Add password + confirm password fields (likely in Step 2, alongside the already-verified email)
+2. **Call `supabase.auth.signUp()`** — Create the Supabase Auth user with the verified email and chosen password, passing metadata (first_name, last_name, role)
+3. **Insert an `org_users` record** — Map the new `auth.users.id` to the `seeker_organizations.id` with role `tenant_admin`, making them the organization's admin user
+4. **Update `seeker_organizations.created_by`** — Set the `created_by` field to the new user ID for audit trail
+5. **Handle email confirmation** — Decide whether Supabase's built-in email confirmation is needed (the OTP already verified the email, so it could be marked as pre-confirmed)
 
-Each time we fix one table, execution progresses to the next and hits the same missing-policy problem.
+### Recommended Implementation Location
 
----
+**Step 5 (Billing Form) — on "Complete Registration"**, after all data is saved successfully:
 
-## Permanent Fix — Database Migration
+```text
+Current flow:
+  Save billing → Save subscription → Save membership → redirect to /login
 
-Add registration-phase permissive policies for `seeker_memberships`:
-
-```sql
--- Registration-phase permissive policies for seeker_memberships
--- Same pattern as seeker_billing_info, seeker_subscriptions, seeker_compliance, etc.
-
-CREATE POLICY "Registration insert seeker_memberships"
-ON public.seeker_memberships
-FOR INSERT
-TO anon, authenticated
-WITH CHECK (true);
-
-CREATE POLICY "Registration select seeker_memberships"
-ON public.seeker_memberships
-FOR SELECT
-TO anon, authenticated
-USING (true);
+Proposed flow:
+  Save billing → Save subscription → Save membership
+  → signUp(email, password)       ← CREATE AUTH USER
+  → insert org_users record       ← MAP USER TO ORG  
+  → update org created_by         ← AUDIT TRAIL
+  → redirect to /login with success message
 ```
 
-### No Code Changes Required
+The password fields should be added to **Step 2** (where email is already collected and verified), and stored in the registration context for use at completion.
 
-The `useCreateMembership` hook in `useMembershipData.ts` and the `BillingForm.tsx` orchestration are correct. Only the missing database policies are blocking the operation.
+### Technical Details
 
-### Security Note
+**Step 2 changes (PrimaryContactForm):**
+- Add `password` and `confirmPassword` fields with the existing `passwordSchema` validation (8+ chars, mixed case, number, special char)
+- Store in registration context `step2` data (password kept in memory only, never persisted to DB)
 
-Same as prior fixes — these permissive policies are intentional for the registration flow. Post-registration, tenant-isolation policies govern access. A future hardening pass should scope these more tightly.
+**Step 5 changes (BillingForm `handleSubmit`):**
+- After successful subscription/membership creation, call `supabase.auth.signUp({ email: step2.email, password: step2.password, options: { data: { first_name, last_name } } })`
+- Insert `org_users` record: `{ user_id: newUser.id, organization_id, tenant_id, role: 'tenant_admin', is_active: true }`
+- Update `seeker_organizations.created_by` to the new user ID
+- Handle the case where Supabase sends a confirmation email (or disable it since OTP already verified)
+
+**New edge function (alternative approach):**
+- A `create-org-admin` edge function using `service_role` key could atomically create the auth user + org_users record, avoiding RLS issues
+
+**RLS consideration:**
+- `org_users` will need a registration-phase INSERT policy (same pattern as other tables)
+- Or the edge function approach bypasses RLS entirely with `service_role`
+
+### Security Notes
+- Password is never stored in localStorage or registration context persistence — only in React state
+- If the user refreshes between Step 2 and Step 5, they must re-enter the password
+- The edge function approach is more secure as it keeps account creation server-side
 
