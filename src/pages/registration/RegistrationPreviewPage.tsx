@@ -1,9 +1,7 @@
 /**
  * Registration Preview Page (Step 6 — Post-Submit)
  *
- * Read-only summary of all 5 registration steps.
- * Displayed after successful account creation.
- * "Go to Login" button clears state and navigates to /login.
+ * Read-only summary of all 5 registration steps with resolved names + order summary.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -16,10 +14,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// ============================================================
-// Helper: render a labeled value row
-// ============================================================
+// Data hooks for ID → name resolution
+import { useCountries, useOrganizationTypes, useIndustrySegments } from '@/hooks/queries/useMasterData';
+import { useStatesForCountry } from '@/hooks/queries/useRegistrationData';
+import {
+  useSubscriptionTiers, useBillingCycles, useEngagementModels,
+  useTierPricingForCountry, useAllTierPricing,
+} from '@/hooks/queries/usePlanSelectionData';
+import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
+import { PreviewOrderSummary } from '@/components/registration/PreviewOrderSummary';
+
+// ── Helpers ──
 function Field({ label, value }: { label: string; value?: string | number | boolean | null }) {
   if (value === undefined || value === null || value === '') return null;
   const display = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : String(value);
@@ -31,6 +38,18 @@ function Field({ label, value }: { label: string; value?: string | number | bool
   );
 }
 
+function resolveName<T extends { id: string; name: string }>(list: T[] | undefined, id?: string) {
+  if (!id || !list) return undefined;
+  return list.find((i) => i.id === id)?.name;
+}
+
+const PAYMENT_LABELS: Record<string, string> = {
+  credit_card: 'Credit/Debit Card',
+  ach_bank_transfer: 'ACH Bank Transfer',
+  wire_transfer: 'Wire Transfer',
+  shadow: 'Internal Tracking (Shadow)',
+};
+
 export default function RegistrationPreviewPage() {
   const { state, reset } = useRegistrationContext();
   const navigate = useNavigate();
@@ -41,12 +60,65 @@ export default function RegistrationPreviewPage() {
   const s4 = state.step4;
   const s5 = state.step5;
 
-  const handleGoToLogin = () => {
-    reset();
-    navigate('/login');
-  };
+  // ══════════════════════════════════════
+  // Query hooks — resolve IDs
+  // ══════════════════════════════════════
+  const { data: countries, isLoading: lCountries } = useCountries();
+  const { data: orgTypes, isLoading: lOrgTypes } = useOrganizationTypes();
+  const { data: industries, isLoading: lIndustries } = useIndustrySegments();
+  const { data: hqStates, isLoading: lHqStates } = useStatesForCountry(s1?.hq_country_id);
+  const { data: billingStates } = useStatesForCountry(s5?.billing_country_id);
+  const { data: tiers, isLoading: lTiers } = useSubscriptionTiers();
+  const { data: cycles, isLoading: lCycles } = useBillingCycles();
+  const { data: engModels } = useEngagementModels();
+  const { data: mTiers } = useMembershipTiers();
+  const { data: countryPricing } = useTierPricingForCountry(s1?.hq_country_id);
+  const { data: allPricingRaw } = useAllTierPricing();
 
-  // Guard: if state is empty (e.g. direct URL access after reset)
+  const isLoading = lCountries || lOrgTypes || lIndustries || lHqStates || lTiers || lCycles;
+
+  // ── Resolve names ──
+  const hqCountryName = resolveName(countries, s1?.hq_country_id);
+  const hqStateName = resolveName(hqStates, s1?.state_province_id);
+  const orgTypeName = resolveName(orgTypes, s1?.organization_type_id);
+  const industryNames = s1?.industry_ids?.map((id) => resolveName(industries, id)).filter(Boolean).join(', ');
+
+  const selectedTier = tiers?.find((t) => t.id === s4?.tier_id);
+  const selectedCycle = cycles?.find((c) => c.id === s4?.billing_cycle_id);
+  const engModelName = resolveName(engModels, s4?.engagement_model_id);
+  const selectedMembership = mTiers?.find((m) => m.id === s4?.membership_tier_id);
+
+  const billingCountryName = resolveName(countries, s5?.billing_country_id);
+  const billingStateName = resolveName(billingStates, s5?.billing_state_province_id);
+
+  // ── Pricing logic (mirrors BillingForm) ──
+  const countryPricingArr = Array.isArray(countryPricing) ? countryPricing : [];
+  const allPricingArr = Array.isArray(allPricingRaw) ? allPricingRaw : [];
+  const pricingArray = countryPricingArr.length > 0
+    ? countryPricingArr
+    : (() => {
+        const seen = new Set<string>();
+        return allPricingArr.filter((p) => p.currency_code === 'USD').filter((p) => {
+          if (seen.has(p.tier_id)) return false;
+          seen.add(p.tier_id);
+          return true;
+        });
+      })();
+
+  const tierPrice = pricingArray.find((p) => p.tier_id === s4?.tier_id);
+  const baseMonthly = tierPrice?.local_price ?? tierPrice?.monthly_price_usd ?? 0;
+  const cycleDiscount = selectedCycle?.discount_percentage ?? 0;
+  const subsidizedPct = state.orgTypeFlags?.subsidized_discount_pct ?? 0;
+  const afterCycleDiscount = baseMonthly * (1 - cycleDiscount / 100);
+  const effectiveMonthly = afterCycleDiscount * (1 - subsidizedPct / 100);
+  const currencySymbol = state.localeInfo?.currency_symbol ?? '$';
+  const membershipFee = selectedMembership?.annual_fee_usd ?? 0;
+  const isInternalDept = state.orgTypeFlags?.zero_fee_eligible ?? false;
+  const dueToday = isInternalDept ? 0 : effectiveMonthly + membershipFee;
+
+  const handleGoToLogin = () => { reset(); navigate('/login'); };
+
+  // ── Guard: no data ──
   if (!s1 && !s2 && !s3 && !s4 && !s5) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
@@ -54,14 +126,21 @@ export default function RegistrationPreviewPage() {
           <CardContent className="pt-6 text-center space-y-4">
             <Shield className="h-10 w-10 mx-auto text-muted-foreground" />
             <h3 className="font-semibold text-foreground">No Registration Data</h3>
-            <p className="text-sm text-muted-foreground">
-              Your registration session has expired or was already completed.
-            </p>
-            <Button onClick={() => navigate('/login')} className="w-full">
-              <LogIn className="h-4 w-4 mr-2" /> Go to Login
-            </Button>
+            <p className="text-sm text-muted-foreground">Your registration session has expired or was already completed.</p>
+            <Button onClick={() => navigate('/login')} className="w-full"><LogIn className="h-4 w-4 mr-2" /> Go to Login</Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // ── Loading skeleton ──
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4 gap-4">
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-48 w-full max-w-4xl" />
+        <Skeleton className="h-48 w-full max-w-4xl" />
       </div>
     );
   }
@@ -70,150 +149,156 @@ export default function RegistrationPreviewPage() {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-card shrink-0">
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
           <span className="text-xl font-bold text-primary">Registration</span>
-          <Badge variant="default" className="gap-1.5">
-            <CheckCircle2 className="h-3.5 w-3.5" /> Complete
-          </Badge>
+          <Badge variant="default" className="gap-1.5"><CheckCircle2 className="h-3.5 w-3.5" /> Complete</Badge>
         </div>
       </header>
 
       {/* Success Banner */}
       <div className="bg-primary/5 border-b">
-        <div className="max-w-4xl mx-auto px-4 py-6 text-center space-y-2">
+        <div className="max-w-5xl mx-auto px-4 py-6 text-center space-y-2">
           <div className="inline-flex items-center justify-center h-12 w-12 rounded-full bg-primary/10 mx-auto">
             <CheckCircle2 className="h-6 w-6 text-primary" />
           </div>
           <h1 className="text-2xl font-bold text-foreground">Registration Complete!</h1>
-          <p className="text-muted-foreground max-w-md mx-auto">
-            Your organization has been registered. Please review the summary below, then log in to get started.
-          </p>
+          <p className="text-muted-foreground max-w-md mx-auto">Your organization has been registered. Review the summary below, then log in to get started.</p>
         </div>
       </div>
 
-      {/* Content */}
+      {/* Content — 2 columns on xl */}
       <main className="flex-1 min-h-0">
-        <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+        <div className="max-w-5xl mx-auto px-4 py-8 grid grid-cols-1 xl:grid-cols-3 gap-6">
 
-          {/* Step 1: Organization Identity */}
-          {s1 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Building2 className="h-4 w-4 text-primary" /> Organization Identity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Legal Entity Name" value={s1.legal_entity_name} />
-                  <Field label="Trade / Brand Name" value={s1.trade_brand_name} />
-                  <Field label="Company Size" value={s1.company_size_range} />
-                  <Field label="Annual Revenue" value={s1.annual_revenue_range} />
-                  <Field label="Year Founded" value={s1.year_founded} />
-                  <Field label="City" value={s1.city} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          {/* LEFT — Step summaries */}
+          <div className="xl:col-span-2 space-y-6">
+            {/* Step 1 */}
+            {s1 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Building2 className="h-4 w-4 text-primary" /> Organization Identity</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Field label="Legal Entity Name" value={s1.legal_entity_name} />
+                    <Field label="Trade / Brand Name" value={s1.trade_brand_name} />
+                    <Field label="Organization Type" value={orgTypeName} />
+                    <Field label="Industries" value={industryNames} />
+                    <Field label="Company Size" value={s1.company_size_range} />
+                    <Field label="Annual Revenue" value={s1.annual_revenue_range} />
+                    <Field label="Year Founded" value={s1.year_founded} />
+                    <Field label="HQ Country" value={hqCountryName} />
+                    <Field label="State / Province" value={hqStateName} />
+                    <Field label="City" value={s1.city} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 2: Primary Contact */}
-          {s2 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <User className="h-4 w-4 text-primary" /> Primary Contact
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Full Name" value={s2.full_name} />
-                  <Field label="Designation" value={s2.designation} />
-                  <Field label="Email" value={s2.email} />
-                  <Field label="Phone" value={`${s2.phone_country_code} ${s2.phone}`} />
-                  <Field label="Department" value={s2.department} />
-                  <Field label="Timezone" value={s2.timezone} />
-                  <Field label="Email Verified" value={s2.email_verified} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Step 2 */}
+            {s2 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><User className="h-4 w-4 text-primary" /> Primary Contact</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Field label="Full Name" value={s2.full_name} />
+                    <Field label="Designation" value={s2.designation} />
+                    <Field label="Email" value={s2.email} />
+                    <Field label="Phone" value={`${s2.phone_country_code} ${s2.phone}`} />
+                    <Field label="Department" value={s2.department} />
+                    <Field label="Timezone" value={s2.timezone} />
+                    <Field label="Email Verified" value={s2.email_verified} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 3: Compliance */}
-          {s3 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <Shield className="h-4 w-4 text-primary" /> Compliance & Export Control
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Tax ID" value={s3.tax_id} />
-                  <Field label="Tax ID Label" value={s3.tax_id_label} />
-                  <Field label="ITAR Restricted" value={s3.is_itar_restricted} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Step 3 */}
+            {s3 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> Compliance & Export Control</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Field label="Tax ID" value={s3.tax_id} />
+                    <Field label="Tax ID Label" value={s3.tax_id_label} />
+                    <Field label="ITAR Restricted" value={s3.is_itar_restricted} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 4: Plan Selection */}
-          {s4 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-primary" /> Plan Selection
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Estimated Challenges / Month" value={s4.estimated_challenges_per_month} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Step 4 — Plan Selection */}
+            {s4 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileText className="h-4 w-4 text-primary" /> Plan Selection</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Field label="Subscription Tier" value={selectedTier?.name} />
+                    <Field label="Billing Cycle" value={selectedCycle?.name} />
+                    <Field label="Engagement Model" value={engModelName} />
+                    <Field label="Membership Tier" value={selectedMembership?.name} />
+                    <Field label="Est. Challenges / Month" value={s4.estimated_challenges_per_month} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
-          {/* Step 5: Billing */}
-          {s5 && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <CreditCard className="h-4 w-4 text-primary" /> Billing
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Billing Entity" value={s5.billing_entity_name} />
-                  <Field label="Billing Email" value={s5.billing_email} />
-                  <Field label="Payment Method" value={s5.payment_method} />
-                  <Field label="Address" value={[s5.billing_address_line1, s5.billing_address_line2, s5.billing_city].filter(Boolean).join(', ')} />
-                  <Field label="Postal Code" value={s5.billing_postal_code} />
-                  <Field label="PO Number" value={s5.po_number} />
-                  <Field label="Tax ID" value={s5.tax_id} />
-                </div>
-              </CardContent>
-            </Card>
-          )}
+            {/* Step 5 — Billing */}
+            {s5 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4 text-primary" /> Billing</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                    <Field label="Billing Entity" value={s5.billing_entity_name} />
+                    <Field label="Billing Email" value={s5.billing_email} />
+                    <Field label="Payment Method" value={PAYMENT_LABELS[s5.payment_method] ?? s5.payment_method} />
+                    <Field label="Address" value={[s5.billing_address_line1, s5.billing_address_line2].filter(Boolean).join(', ')} />
+                    <Field label="City" value={s5.billing_city} />
+                    <Field label="State / Province" value={billingStateName} />
+                    <Field label="Country" value={billingCountryName} />
+                    <Field label="Postal Code" value={s5.billing_postal_code} />
+                    <Field label="PO Number" value={s5.po_number} />
+                    <Field label="Tax ID" value={s5.tax_id} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
 
-          <Separator />
+          {/* RIGHT — Order Summary */}
+          <div className="space-y-6">
+            {s4 && (
+              <PreviewOrderSummary
+                tierName={selectedTier?.name ?? 'N/A'}
+                cycleName={selectedCycle?.name ?? 'N/A'}
+                cycleMonths={selectedCycle?.months ?? 1}
+                membershipName={selectedMembership?.name}
+                currencySymbol={currencySymbol}
+                baseMonthly={baseMonthly}
+                cycleDiscount={cycleDiscount}
+                subsidizedPct={subsidizedPct}
+                effectiveMonthly={effectiveMonthly}
+                membershipFee={membershipFee}
+                dueToday={dueToday}
+                isInternalDept={isInternalDept}
+              />
+            )}
 
-          {/* Action buttons */}
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Button onClick={handleGoToLogin} size="lg" className="gap-2">
-              <LogIn className="h-4 w-4" /> Go to Login
-            </Button>
-            <Button variant="outline" size="lg" className="gap-2" onClick={() => window.print()}>
-              <Printer className="h-4 w-4" /> Print Summary
-            </Button>
+            {/* Actions */}
+            <div className="flex flex-col gap-3">
+              <Button onClick={handleGoToLogin} size="lg" className="gap-2 w-full">
+                <LogIn className="h-4 w-4" /> Go to Login
+              </Button>
+              <Button variant="outline" size="lg" className="gap-2 w-full" onClick={() => window.print()}>
+                <Printer className="h-4 w-4" /> Print Summary
+              </Button>
+            </div>
           </div>
         </div>
       </main>
 
       {/* Footer */}
       <footer className="border-t bg-card shrink-0">
-        <div className="max-w-4xl mx-auto px-4 py-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            A confirmation email has been sent to your registered email address.
-          </p>
+        <div className="max-w-5xl mx-auto px-4 py-3 text-center">
+          <p className="text-xs text-muted-foreground">A confirmation email has been sent to your registered email address.</p>
         </div>
       </footer>
     </div>
