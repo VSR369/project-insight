@@ -33,7 +33,10 @@ import {
   useTierEngagementAccess,
   useShadowPricing,
   useSubmitEnterpriseContact,
+  useBaseFeesByCountry,
+  usePlatformFeesByCountry,
 } from '@/hooks/queries/usePlanSelectionData';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
 import { calculateMembershipDiscount } from '@/services/membershipService';
 import {
@@ -146,6 +149,8 @@ export function PlanSelectionForm() {
   const { data: tierEngagement } = useTierEngagementAccess();
   const { data: shadowPricing } = useShadowPricing();
   const { data: membershipTiers } = useMembershipTiers();
+  const { data: baseFeesByCountry } = useBaseFeesByCountry(state.step1?.hq_country_id);
+  const { data: platformFeesByCountry } = usePlatformFeesByCountry(state.step1?.hq_country_id);
   const submitEnterprise = useSubmitEnterpriseContact();
 
   // ══════════════════════════════════════
@@ -519,14 +524,87 @@ export function PlanSelectionForm() {
                     </div>
                   )}
 
-                  {/* Membership per-challenge fee discount note */}
-                  {membershipResult.isEligible && membershipResult.feeDiscountPct > 0 && (
-                    <div className="rounded-md bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800 px-2.5 py-1.5 mb-2">
-                      <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
-                        🎉 {membershipResult.feeDiscountPct}% off per-challenge fees with {selectedMembershipTier?.name}
-                      </p>
-                    </div>
-                  )}
+                  {/* Per-Challenge Fee Breakdown by Engagement Model */}
+                  {!isInternalDept && (() => {
+                    const tierBaseFees = baseFeesByCountry?.filter(bf => bf.tier_id === tier.id) ?? [];
+                    const tierPlatformFees = platformFeesByCountry?.filter(pf => pf.tier_id === tier.id) ?? [];
+                    const hasCountryFees = tierBaseFees.length > 0;
+
+                    if (!state.step1?.hq_country_id) {
+                      return (
+                        <p className="text-xs text-muted-foreground italic mb-2">
+                          Select country to see per-challenge fees
+                        </p>
+                      );
+                    }
+
+                    if (!hasCountryFees) return null;
+
+                    const marketplaceFee = tierBaseFees.find(bf => bf.md_engagement_models?.code === 'marketplace');
+                    const aggregatorFee = tierBaseFees.find(bf => bf.md_engagement_models?.code === 'aggregator');
+                    const marketplacePlatform = tierPlatformFees.find(pf => pf.md_engagement_models?.code === 'marketplace');
+                    const aggregatorPlatform = tierPlatformFees.find(pf => pf.md_engagement_models?.code === 'aggregator');
+
+                    const discountPct = membershipResult.isEligible ? membershipResult.feeDiscountPct : 0;
+
+                    return (
+                      <div className="rounded-lg border border-border bg-muted/30 p-3 mb-2">
+                        <p className="text-xs font-semibold text-foreground mb-2">Per-Challenge Fees</p>
+                        <Tabs defaultValue="marketplace" className="w-full">
+                          <TabsList className="w-full h-7 p-0.5">
+                            <TabsTrigger value="marketplace" className="flex-1 text-[11px] h-6 px-2">Marketplace</TabsTrigger>
+                            <TabsTrigger value="aggregator" className="flex-1 text-[11px] h-6 px-2">Aggregator</TabsTrigger>
+                          </TabsList>
+                          <TabsContent value="marketplace" className="mt-2 space-y-1">
+                            {marketplaceFee ? (() => {
+                              const total = marketplaceFee.consulting_base_fee + marketplaceFee.management_base_fee;
+                              const discounted = discountPct > 0 ? Math.round(total * (1 - discountPct / 100) * 100) / 100 : total;
+                              return (
+                                <>
+                                  <div className="text-xs text-muted-foreground">
+                                    Consulting: {currencySymbol}{marketplaceFee.consulting_base_fee.toLocaleString()} + Mgmt: {currencySymbol}{marketplaceFee.management_base_fee.toLocaleString()}
+                                  </div>
+                                  <div className="flex items-baseline gap-1.5">
+                                    {discountPct > 0 ? (
+                                      <>
+                                        <span className="text-xs text-muted-foreground line-through">
+                                          {currencySymbol}{total.toLocaleString()}
+                                        </span>
+                                        <span className="text-sm font-bold text-emerald-600 dark:text-emerald-400">
+                                          {currencySymbol}{discounted.toLocaleString()}
+                                        </span>
+                                        <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+                                          {discountPct}% off
+                                        </span>
+                                      </>
+                                    ) : (
+                                      <span className="text-sm font-bold text-foreground">
+                                        {currencySymbol}{total.toLocaleString()}/challenge
+                                      </span>
+                                    )}
+                                  </div>
+                                  {marketplacePlatform && (
+                                    <p className="text-[11px] text-muted-foreground">
+                                      + {marketplacePlatform.platform_fee_pct}% platform fee on award
+                                    </p>
+                                  )}
+                                </>
+                              );
+                            })() : <p className="text-xs text-muted-foreground">Not available</p>}
+                          </TabsContent>
+                          <TabsContent value="aggregator" className="mt-2 space-y-1">
+                            <p className="text-sm font-bold text-foreground">No per-challenge fees</p>
+                            <p className="text-[11px] text-muted-foreground">Platform-mediated — no consulting or management fees</p>
+                            {aggregatorPlatform && (
+                              <p className="text-[11px] text-muted-foreground">
+                                + {aggregatorPlatform.platform_fee_pct}% platform fee on award
+                              </p>
+                            )}
+                          </TabsContent>
+                        </Tabs>
+                      </div>
+                    );
+                  })()}
 
                   {/* Description */}
                   {tier.description && (
@@ -566,15 +644,8 @@ export function PlanSelectionForm() {
                     ))}
                   </div>
 
-                  {/* Fix 7: Dynamic membership discount note */}
-                  <p className="text-xs text-muted-foreground mt-4 mb-4">
-                    + per-challenge fees apply
-                    {membershipResult.isEligible && membershipResult.feeDiscountPct > 0 && selectedMembershipTier && (
-                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
-                        {' '}({membershipResult.feeDiscountPct}% off with {selectedMembershipTier.name} Membership)
-                      </span>
-                    )}
-                  </p>
+                  {/* Spacer before CTA */}
+                  <div className="mt-4 mb-4" />
 
                   {/* CTA Button */}
                   <Button

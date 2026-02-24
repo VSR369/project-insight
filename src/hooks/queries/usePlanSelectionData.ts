@@ -163,6 +163,48 @@ export function useAllTierPricing() {
 }
 
 // ============================================================
+// Base Fees by Country (for tier card per-challenge display)
+// ============================================================
+export function useBaseFeesByCountry(countryId?: string) {
+  return useQuery({
+    queryKey: ['base_fees_by_country', countryId],
+    queryFn: async () => {
+      if (!countryId) return [];
+      const { data, error } = await supabase
+        .from('md_challenge_base_fees')
+        .select('id, tier_id, engagement_model_id, consulting_base_fee, management_base_fee, currency_code, md_subscription_tiers(code), md_engagement_models(code)')
+        .eq('country_id', countryId)
+        .eq('is_active', true);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!countryId,
+    ...MASTER_CACHE,
+  });
+}
+
+// ============================================================
+// Platform Fees by Country (for tier card platform % display)
+// ============================================================
+export function usePlatformFeesByCountry(countryId?: string) {
+  return useQuery({
+    queryKey: ['platform_fees_by_country', countryId],
+    queryFn: async () => {
+      if (!countryId) return [];
+      const { data, error } = await supabase
+        .from('md_platform_fees')
+        .select('id, tier_id, engagement_model_id, platform_fee_pct, currency_code, md_subscription_tiers(code), md_engagement_models(code)')
+        .eq('country_id', countryId)
+        .eq('is_active', true);
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!countryId,
+    ...MASTER_CACHE,
+  });
+}
+
+// ============================================================
 // Submit Enterprise Contact Request (BR-REG-013)
 // ============================================================
 export function useSubmitEnterpriseContact() {
