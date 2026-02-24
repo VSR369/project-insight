@@ -1,123 +1,120 @@
 
 
-# Correction Plan: Aggregator Fee Model and Visible Per-Challenge Pricing on Tier Cards
+# Root Cause Analysis: Registration Data Loss and Missing Per-Challenge Fee Tabs
 
-## Current Problem
+## 5-Why Analysis
 
-1. **Aggregator model is wrongly configured** -- The database has consulting fees ($200-$350) seeded for Aggregator rows, but the business rule states Aggregator has NO consulting and NO management fees. Aggregator only charges the **Platform Usage Fee %** (a percentage taken from the provider award). Per-challenge base fees should be $0 for Aggregator.
+**Symptom:** Per-challenge fee tabs (Marketplace/Aggregator) are not visible on Step 4. Data entered in Steps 1-3 appears lost.
 
-2. **Users cannot see per-challenge fees** -- The tier cards only say "per-challenge fees apply" in small text. Users have no visibility into what those fees are or how membership discounts affect them.
+1. **Why are the Marketplace/Aggregator tabs not showing?**
+   Because `PlanSelectionForm.tsx` line 533 checks `if (!state.step1?.hq_country_id)` and shows "Select country to see per-challenge fees" instead of the tabs. Also, `useBaseFeesByCountry` and `usePlatformFeesByCountry` have `enabled: !!countryId` -- when countryId is undefined, the queries never fire.
 
-3. **Membership impact is invisible** -- Selecting a membership plan shows a generic "10% off per-challenge fees" badge but no actual dollar amounts change, making it feel pointless.
+2. **Why is `state.step1?.hq_country_id` undefined on Step 4?**
+   Because `state.step1` is `undefined`. The `RegistrationContext` has no data for Step 1.
 
-## How the Fee Structure Actually Works
+3. **Why does the context have no Step 1 data when the user already filled it?**
+   Because the `RegistrationContext` uses `useReducer` with **pure in-memory state** (line 96 of `RegistrationContext.tsx`). There is **zero persistence** -- no `sessionStorage`, no `localStorage`, no database rehydration.
 
-```text
-                     MARKETPLACE MODEL              AGGREGATOR MODEL
-                     ─────────────────              ────────────────
-Subscription Fee:    Fixed monthly price             Same fixed monthly price
-                     (Basic $199, Standard $299,     (unchanged by model)
-                      Premium $399)
+4. **Why does in-memory state get lost?**
+   Any of these scenarios wipes the context:
+   - **Page refresh** (F5, browser reload) on any step
+   - **Direct URL access** (typing `/registration/plan-selection` in address bar)
+   - **React lazy route boundary** re-mounting the component tree
+   - **Browser back/forward** in some edge cases
+   The `RegistrationProvider` re-initializes with `initialState = { currentStep: 1 }` every time.
 
-Per-Challenge Fee:   Consulting + Management         $0 (no base fees)
-                     (e.g. Basic: $500 + $200 = $700)
+5. **Why was persistence never implemented?**
+   The architecture correctly identified the need for a shared `RegistrationProvider` (via `RegistrationLayout`), but the implementation only handles the single-page-app navigation case. It missed the page refresh and direct access cases that are common during development and real usage.
 
-Platform Usage Fee:  % of provider award             % of provider award
-                     (e.g. Basic: 12%)               (e.g. Basic: 10%)
+## Impact Summary
 
-Membership Discount: Applies to Per-Challenge Fee    Nothing to discount
-                     (10% Annual / 15% Multi-Year)   (base fee is already $0)
+| What breaks | Root cause |
+|---|---|
+| Per-challenge fee tabs invisible | `state.step1?.hq_country_id` is undefined -- no fallback |
+| Org name shows "Your Organization" | `state.step1?.legal_entity_name` is undefined |
+| Currency shows "USD" always | `state.localeInfo` is undefined |
+| Org type flags (subsidized, zero-fee) lost | `state.orgTypeFlags` is undefined |
+| Step 2 contact data unavailable | `state.step2` is undefined |
+| Step 3 compliance data unavailable | `state.step3` is undefined |
+
+## Two-Part Fix
+
+### Part 1: Persist RegistrationContext to sessionStorage
+
+**File: `src/contexts/RegistrationContext.tsx`**
+
+Add sessionStorage persistence so context survives page refreshes:
+
+1. On every dispatch (state change), serialize the updated state to `sessionStorage` under key `registration_wizard_state`
+2. On provider mount, attempt to restore from `sessionStorage` -- if valid data exists, use it as the initial state instead of `{ currentStep: 1 }`
+3. On `RESET` action, clear the sessionStorage key
+4. Exclude non-serializable fields (like `File` objects in `verification_documents`) by stripping them before serialization
+
+Implementation pattern:
+```typescript
+const STORAGE_KEY = 'registration_wizard_state';
+
+function loadPersistedState(): RegistrationState {
+  try {
+    const stored = sessionStorage.getItem(STORAGE_KEY);
+    if (stored) return JSON.parse(stored);
+  } catch { /* ignore parse errors */ }
+  return initialState;
+}
+
+function persistState(state: RegistrationState) {
+  try {
+    // Strip File objects (not serializable)
+    const serializable = {
+      ...state,
+      step1: state.step1 ? {
+        ...state.step1,
+        logo_file: undefined,
+        profile_document: undefined,
+        verification_documents: undefined,
+      } : undefined,
+    };
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+  } catch { /* storage full or unavailable */ }
+}
 ```
 
-**Summary: Membership discounts are only meaningful for Marketplace users**, because Aggregator has no per-challenge base fees to discount.
+The reducer wrapper calls `persistState` after every state update. The provider initializes from `loadPersistedState()`.
 
-## Complete Fee Matrix (USD, What Users Should See)
+### Part 2: Add Fallback Hooks for Base Fees and Platform Fees
 
-### Without Membership
+Even with persistence, we should handle the edge case where country is not yet available (same pattern already used for subscription pricing via `useAllTierPricing`).
 
-| Tier | Subscription | Marketplace Per-Challenge | Aggregator Per-Challenge | Marketplace Platform % | Aggregator Platform % |
-|------|-------------|--------------------------|-------------------------|----------------------|---------------------|
-| Basic | $199/mo | $700 | $0 | 12% | 10% |
-| Standard | $299/mo | $550 | $0 | 10% | 8% |
-| Premium | $399/mo | $400 | $0 | 8% | 6% |
+**File: `src/hooks/queries/usePlanSelectionData.ts`**
 
-### With Annual Membership (10% off per-challenge)
+Add two new hooks:
+- `useAllBaseFees()` -- fetches ALL `md_challenge_base_fees` rows (no country filter)
+- `useAllPlatformFees()` -- fetches ALL `md_platform_fees` rows (no country filter)
 
-| Tier | Subscription | Marketplace Per-Challenge | Aggregator Per-Challenge |
-|------|-------------|--------------------------|-------------------------|
-| Basic | $199/mo | ~~$700~~ $630 | $0 (no change) |
-| Standard | $299/mo | ~~$550~~ $495 | $0 (no change) |
-| Premium | $399/mo | ~~$400~~ $360 | $0 (no change) |
+### Part 3: Update PlanSelectionForm to Use Fallback Data
 
-### With Multi-Year Membership (15% off per-challenge)
+**File: `src/components/registration/PlanSelectionForm.tsx`**
 
-| Tier | Subscription | Marketplace Per-Challenge | Aggregator Per-Challenge |
-|------|-------------|--------------------------|-------------------------|
-| Basic | $199/mo | ~~$700~~ $595 | $0 (no change) |
-| Standard | $299/mo | ~~$550~~ $467.50 | $0 (no change) |
-| Premium | $399/mo | ~~$400~~ $340 | $0 (no change) |
-
-## Correction Plan (3 Parts)
-
-### Part 1: Database Fix -- Zero Out Aggregator Base Fees
-
-Set `consulting_base_fee = 0` and `management_base_fee = 0` for all Aggregator rows in `md_challenge_base_fees`. This corrects the seed data to match the business rule that Aggregator has no per-challenge base fees.
-
-**Migration SQL:**
-- UPDATE `md_challenge_base_fees` SET `consulting_base_fee = 0, management_base_fee = 0` WHERE `engagement_model_id` = (Aggregator model ID)
-- Affects all countries (Brazil, Australia, USA, India, UK, Singapore)
-
-### Part 2: New Data Hooks -- Fetch Per-Challenge and Platform Fees
-
-Add two new hooks to `src/hooks/queries/usePlanSelectionData.ts`:
-
-- `useBaseFeesByCountry(countryId)` -- Fetches `md_challenge_base_fees` rows for the user's country, joined with tier and engagement model codes
-- `usePlatformFeesByCountry(countryId)` -- Fetches `md_platform_fees` rows for the user's country, joined with tier and engagement model codes
-
-Both hooks return arrays keyed by tier + engagement model so the UI can look up fees per card.
-
-### Part 3: Tier Card UI -- Show Per-Challenge Fee Breakdown
-
-Update `src/components/registration/PlanSelectionForm.tsx` to display per-challenge fees on each tier card:
-
-**What each tier card will show (below the subscription price):**
-
-For Marketplace model:
-```text
-Per-Challenge Fee:
-  Consulting: $500 + Management: $200 = $700
-  (with membership: ~~$700~~ $630 -- "10% off")
-Platform Fee: 12% of provider award
-```
-
-For Aggregator model:
-```text
-Per-Challenge Fee: None (platform-mediated)
-Platform Fee: 10% of provider award
-```
-
-**Display logic:**
-- Show both models side-by-side in a compact two-tab or two-column mini-section within each card
-- When membership is selected, show strikethrough original + green discounted amount for Marketplace
-- For Aggregator, show "No per-challenge fees" with a note that only the platform fee applies
-- If no engagement model selected yet, default to showing both
-
-**Remove:** The current generic "per-challenge fees apply" text and the small emerald discount badge (lines 522-529 and 569-577) -- replaced by the actual fee display.
+1. Call the new `useAllBaseFees()` and `useAllPlatformFees()` alongside existing country-filtered hooks
+2. Build `baseFeeArray` and `platformFeeArray` using the same fallback pattern as `pricingArray`:
+   - If country-specific data exists, use it
+   - Otherwise, deduplicate the "all fees" data by `tier_id + engagement_model_id`, preferring USD rows
+3. Remove the `if (!state.step1?.hq_country_id)` gate on line 533 -- the tabs now always render using fallback USD data when no country is selected
+4. Add a small "(USD)" note when showing fallback data
 
 ### Files Modified
 
 | File | Change |
-|------|--------|
-| New migration SQL | Zero out Aggregator consulting_base_fee across all countries |
-| `src/hooks/queries/usePlanSelectionData.ts` | Add `useBaseFeesByCountry` and `usePlatformFeesByCountry` hooks |
-| `src/components/registration/PlanSelectionForm.tsx` | Fetch fees, render per-model pricing on each tier card with membership discount, remove generic text |
-| `src/services/engagementModelRulesService.ts` | No changes needed (already correct) |
-| `src/services/challengePricingService.ts` | No changes needed (already handles zero fees correctly) |
+|---|---|
+| `src/contexts/RegistrationContext.tsx` | Add sessionStorage persistence (load on mount, save on dispatch, clear on reset) |
+| `src/hooks/queries/usePlanSelectionData.ts` | Add `useAllBaseFees()` and `useAllPlatformFees()` fallback hooks |
+| `src/components/registration/PlanSelectionForm.tsx` | Use fallback fee arrays, remove country gate on per-challenge tabs, add "(USD)" fallback label |
 
 ### Edge Cases Handled
 
-- **No country selected:** Hide per-challenge section, show "Select country to see challenge fees"
-- **Enterprise tier:** No per-challenge section (custom pricing)
-- **Internal departments:** Show shadow fee instead (already implemented)
-- **NGO/Academic (subsidized):** Subsidy applies to subscription price (already working), membership discount applies additionally to per-challenge fees
+- **sessionStorage unavailable** (private browsing in some browsers): silently falls back to in-memory only -- same as current behavior
+- **Corrupted stored data**: wrapped in try/catch, falls back to initial state
+- **File objects in step1**: stripped before serialization (Files are not JSON-serializable)
+- **Enterprise tier**: no per-challenge section (unchanged)
+- **Internal departments**: shadow fee display (unchanged)
 
