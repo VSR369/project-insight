@@ -215,7 +215,7 @@ const registrationTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase.from("md_billing_cycles").select("discount_percentage").eq("code", "quarterly").eq("is_active", true).single();
       if (error) throw new Error(`Query failed: ${error.message}`);
-      if (data.discount_percentage !== 8) throw new Error(`Expected 8% quarterly discount, got ${data.discount_percentage}%`);
+      if (Number(data.discount_percentage) !== 8) throw new Error(`Expected 8% quarterly discount, got ${data.discount_percentage}%`);
     }),
   },
   {
@@ -228,7 +228,7 @@ const registrationTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase.from("md_billing_cycles").select("discount_percentage").eq("code", "annual").eq("is_active", true).single();
       if (error) throw new Error(`Query failed: ${error.message}`);
-      if (data.discount_percentage !== 17) throw new Error(`Expected 17% annual discount, got ${data.discount_percentage}%`);
+      if (Number(data.discount_percentage) !== 17) throw new Error(`Expected 17% annual discount, got ${data.discount_percentage}%`);
     }),
   },
   {
@@ -440,9 +440,10 @@ const billingTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase.from("md_billing_cycles").select("discount_percentage, months").eq("code", "quarterly").single();
       if (error) throw new Error(`Query failed: ${error.message}`);
-      if (data.discount_percentage !== 8) throw new Error(`Expected 8%, got ${data.discount_percentage}%`);
+      const discount = Number(data.discount_percentage);
+      if (discount !== 8) throw new Error(`Expected 8%, got ${data.discount_percentage}%`);
       const monthly = 1000;
-      const expected = monthly * data.months * (1 - data.discount_percentage / 100);
+      const expected = monthly * data.months * (1 - discount / 100);
       if (expected !== 2760) throw new Error(`Discount calculation wrong: ${expected} !== 2760`);
     }),
   },
@@ -456,9 +457,10 @@ const billingTests: TestCase[] = [
     run: () => runTest(async () => {
       const { data, error } = await supabase.from("md_billing_cycles").select("discount_percentage, months").eq("code", "annual").single();
       if (error) throw new Error(`Query failed: ${error.message}`);
-      if (data.discount_percentage !== 17) throw new Error(`Expected 17%, got ${data.discount_percentage}%`);
+      const discount = Number(data.discount_percentage);
+      if (discount !== 17) throw new Error(`Expected 17%, got ${data.discount_percentage}%`);
       const monthly = 1000;
-      const expected = monthly * data.months * (1 - data.discount_percentage / 100);
+      const expected = monthly * data.months * (1 - discount / 100);
       if (expected !== 9960) throw new Error(`Discount calculation wrong: ${expected} !== 9960`);
     }),
   },
