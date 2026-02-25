@@ -36,6 +36,7 @@ import { performanceDiagnosticCategories, getPerformanceDiagnosticTests, getPerf
 // Import adapter test categories
 import { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount } from "./enrollmentAdapterTests";
 import { pulseSocialAdapterCategories, getPulseSocialAdapterTests, getPulseSocialAdapterTestCount } from "./pulseSocialAdapterTests";
+import { seekerPlatformCategories, getSeekerPlatformTests, getSeekerPlatformTestCount } from "./seekerPlatformTests";
 import { smokeAdapterCategories, getSmokeAdapterTests, getSmokeAdapterTestCount } from "./smokeAdapterTests";
 
 import {
@@ -75,6 +76,8 @@ export function getAllTestCategories(): TestCategory[] {
     ...enrollmentAdapterCategories,
     ...pulseSocialAdapterCategories,
     ...smokeAdapterCategories,
+    // Seeker Platform (140 TCs)
+    ...seekerPlatformCategories,
   ];
 }
 
@@ -93,6 +96,7 @@ export function getAllTests(): TestCase[] {
     ...getEnrollmentAdapterTests(),
     ...getPulseSocialAdapterTests(),
     ...getSmokeAdapterTests(),
+    ...getSeekerPlatformTests(),
   ];
 }
 
@@ -110,7 +114,8 @@ export function getTotalTestCount(): number {
     getPerformanceDiagnosticTestCount() +
     getEnrollmentAdapterTestCount() +
     getPulseSocialAdapterTestCount() +
-    getSmokeAdapterTestCount()
+    getSmokeAdapterTestCount() +
+    getSeekerPlatformTestCount()
   );
 }
 
@@ -129,6 +134,7 @@ export function getTestCountsByCategory(): Record<string, number> {
     "Enrollment Lifecycle": getEnrollmentAdapterTestCount(),
     "Pulse Social": getPulseSocialAdapterTestCount(),
     "Smoke/Master Data": getSmokeAdapterTestCount(),
+    "Seeker Platform": getSeekerPlatformTestCount(),
   };
 }
 
@@ -435,6 +441,7 @@ export { performanceDiagnosticCategories, getPerformanceDiagnosticTests, getPerf
 export { enrollmentAdapterCategories, getEnrollmentAdapterTests, getEnrollmentAdapterTestCount };
 export { pulseSocialAdapterCategories, getPulseSocialAdapterTests, getPulseSocialAdapterTestCount };
 export { smokeAdapterCategories, getSmokeAdapterTests, getSmokeAdapterTestCount };
+export { seekerPlatformCategories, getSeekerPlatformTests, getSeekerPlatformTestCount };
 
 // Re-export display names
 export { ROLE_DISPLAY_NAMES, MODULE_DISPLAY_NAMES };
