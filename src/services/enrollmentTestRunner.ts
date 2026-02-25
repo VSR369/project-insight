@@ -3011,8 +3011,9 @@ const edgeFunctionSmokeTests: TestCase[] = [
     description: "Verify edge function is deployed",
     run: () => runTest(async () => {
       const { error } = await supabase.functions.invoke("process-manager-decision", {
-        body: { test: true },
+        body: { orgId: "00000000-0000-0000-0000-000000000000", approvalToken: "smoke-test", decision: "approve" },
       });
+      // 400/403/404 errors mean function IS deployed (validation/auth errors expected)
       if (error && isDeploymentError(error.message)) {
         throw new Error("process-manager-decision function not deployed");
       }
