@@ -134,6 +134,30 @@ serve(async (req) => {
 
         userId = foundUserId;
         isExistingUser = true;
+
+        // Update password to the one they just provided during org registration
+        const { error: pwdError } = await supabaseAdmin.auth.admin.updateUserById(
+          foundUserId,
+          { password }
+        );
+        if (pwdError) {
+          console.warn("Password update for existing user failed:", pwdError.message);
+        }
+
+        // Update user metadata with seeker role_type
+        const { error: metaError } = await supabaseAdmin.auth.admin.updateUserById(
+          foundUserId,
+          {
+            user_metadata: {
+              first_name: first_name ?? undefined,
+              last_name: last_name ?? undefined,
+              role_type: "seeker",
+            },
+          }
+        );
+        if (metaError) {
+          console.warn("Metadata update for existing user failed:", metaError.message);
+        }
       } else {
         console.error("Auth user creation failed:", authError.message);
         return new Response(
