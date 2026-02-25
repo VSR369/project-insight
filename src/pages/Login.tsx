@@ -155,7 +155,7 @@ export default function Login() {
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
-        supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).maybeSingle()
+        supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle()
       ]);
 
       const roles = rolesResult.data;
@@ -256,6 +256,7 @@ export default function Login() {
             .select('id')
             .eq('user_id', userId)
             .eq('is_active', true)
+            .limit(1)
             .maybeSingle()
         ]);
         
