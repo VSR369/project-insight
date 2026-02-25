@@ -1,71 +1,73 @@
 
 
-## Diagnosis and Fix Plan
+## Current State of `vsr@btbt.co.in`
 
-### Your 3 Questions Answered
+Your single email has accumulated:
 
-**1. Email domain restrictions in master data**
-You can remove domain restrictions if you want to allow any email. That is a data configuration choice, not a code issue. It does not affect the login problem.
+| What | Records |
+|------|---------|
+| `user_roles` | `platform_admin` (should NOT be there) |
+| `org_users` | 2 rows — org `2a8b744d` and org `58be3565` (both as `tenant_admin`) |
 
-**2. What happens when a password is set during org registration?**
-This is the root cause. Here is exactly what happens:
+This causes two bugs:
+1. Login priority is Admin > Reviewer > Org > Provider, so `platform_admin` always wins — you land on `/admin`
+2. Having 2 `org_users` rows makes `.maybeSingle()` throw an error, so the system thinks you have NO org access
 
-- Your account `vsr@btbt.co.in` was **first created on Jan 14** via the regular `/register` page with some password (let's call it Password-A)
-- When you registered org "Bulbul" (Feb 24), you entered password `Bulbul@1234`. The edge function tried to create a new auth user, got "already exists", then **silently skipped the password** and only created the `org_users` mapping. Password-A remained active.
-- When you registered org "RTC" (Feb 25), you entered password `Rtc@1234`. Same thing happened — password was **silently discarded**. Password-A is still the only valid password.
+## Best Practice: One Email, Multiple Roles
 
-The bug is on **line 135-136** of `create-org-admin/index.ts`: when an existing user is found, it sets `userId = foundUserId` and moves on **without updating the password**. The password you typed during org registration was collected but never saved to Supabase Auth.
+Using one email for multiple roles is **completely valid** — the system is designed for it. A single user CAN be a provider, reviewer, AND org admin simultaneously. The problem is not your approach; it is two specific bugs:
 
-**3. Why "email or password not right"?**
-Because Supabase still has Password-A (from Jan 14 registration). Neither `Bulbul@1234` nor `Rtc@1234` were ever stored.
+1. **Data bug**: An incorrect `platform_admin` role was assigned to your account
+2. **Code bug**: `.maybeSingle()` crashes when a user belongs to multiple organizations
 
-### Currency and Phone Code Auto-Population
+## Fix Plan (3 Changes)
 
-The country-to-currency/phone-code auto-population is **already implemented** in `OrganizationIdentityForm.tsx` (lines 136-147) and `PrimaryContactForm.tsx` (lines 127-131). When you select India, it correctly fetches `INR`, `₹`, `+91` from the `countries` table. If this is not working for you, it may be a UI rendering issue I can investigate separately.
+### Change 1: Remove incorrect `platform_admin` role (Data Fix)
 
----
+Delete the `platform_admin` entry from `user_roles` for user `58fa3afe-e64a-4bc2-9c33-2ce267fe6f13`. This user should only have organization access, not admin access.
 
-### Fix Plan (2 Changes)
+### Change 2: Fix `.maybeSingle()` for multi-org users (Code Fix)
 
-**Change 1: Fix `supabase/functions/create-org-admin/index.ts`** — Update password for existing users
+Add `.limit(1)` before `.maybeSingle()` in three locations so users with multiple organizations don't break:
 
-After line 136 (`isExistingUser = true`), add a password update call:
-
-```typescript
-// User exists — update password to the one they just provided
-const { error: pwdError } = await supabaseAdmin.auth.admin.updateUserById(
-  foundUserId,
-  { password }
-);
-if (pwdError) {
-  console.warn("Password update for existing user failed:", pwdError.message);
-}
-
-// Also update user metadata with seeker role_type
-await supabaseAdmin.auth.admin.updateUserById(foundUserId, {
-  user_metadata: {
-    first_name: first_name ?? undefined,
-    last_name: last_name ?? undefined,
-    role_type: "seeker",
-  },
-});
+**`src/pages/Login.tsx` line 158:**
+```
+.eq('is_active', true).maybeSingle()
+→ .eq('is_active', true).limit(1).maybeSingle()
 ```
 
-This ensures that whenever a user registers a new organization, their password is updated to the one they just entered — which is what they expect.
+**`src/pages/Login.tsx` line 258:**
+```
+.eq('is_active', true).maybeSingle()
+→ .eq('is_active', true).limit(1).maybeSingle()
+```
 
-**Change 2: Immediate password reset for `vsr@btbt.co.in`**
+**`src/components/routing/RoleBasedRedirect.tsx` line 49:**
+```
+.eq('is_active', true).maybeSingle()
+→ .eq('is_active', true).limit(1).maybeSingle()
+```
 
-After deploying the edge function fix, I will reset the password for `vsr@btbt.co.in` to `Rtc@1234` (or whatever you prefer) using a one-time admin API call, so you can log in immediately without re-registering.
+### Change 3: Respect the user's portal tab selection (Logic Fix)
+
+Currently, even when you click the "Organization" tab, the fallback logic overrides your choice if you have other roles. The `canAccessSelected` check already exists but the fallback ignores the tab. No code change needed beyond fixes 1 and 2 — once `platform_admin` is removed and `.maybeSingle()` works, the tab selection will be respected correctly.
+
+## After Fix: How Same-Email Multi-Role Works
+
+| You click tab | System checks | Result |
+|--------------|---------------|--------|
+| Organization | `org_users` has record? Yes | → `/org/dashboard` |
+| Provider | `solution_providers` has record? Yes | → `/pulse/feed` |
+| Reviewer | `panel_reviewers` has record? Yes | → `/reviewer/dashboard` |
+| Admin | `user_roles` has `platform_admin`? No | → Error toast, falls back to next available |
+
+The portal tab acts as the user's intent. The system validates access for that specific tab and only falls back if the user genuinely lacks access.
 
 ### Files to Change
 
 | File | Change |
 |------|--------|
-| `supabase/functions/create-org-admin/index.ts` | Add `updateUserById` password sync after line 136 |
-
-### What This Fixes Permanently
-
-- Any user registering multiple orgs with the same email will always have their **latest password** active
-- No more silent password discarding
-- Login with the most recently set password will always work
+| `user_roles` table | Delete `platform_admin` row for user `58fa3afe-...` |
+| `src/pages/Login.tsx` | Add `.limit(1)` at lines 158 and 258 |
+| `src/components/routing/RoleBasedRedirect.tsx` | Add `.limit(1)` at line 49 |
 
