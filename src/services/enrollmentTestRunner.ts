@@ -3024,11 +3024,10 @@ const edgeFunctionSmokeTests: TestCase[] = [
     name: "verify-manager-login function exists",
     description: "Verify edge function is deployed",
     run: () => runTest(async () => {
-      const { error } = await supabase.functions.invoke("verify-manager-login", {
-        body: { test: true },
+      const { data, error } = await supabase.functions.invoke("verify-manager-login", {
+        body: { email: "smoke-test@test.invalid", password: "smoke-test" },
       });
-      // 400/403 errors mean function IS deployed (validation/auth errors)
-      // Only specific deployment errors indicate the function isn't deployed
+      // 400/401/404 errors mean function IS deployed (validation/auth errors expected)
       if (error && isDeploymentError(error.message)) {
         throw new Error("verify-manager-login function not deployed");
       }
@@ -3040,10 +3039,10 @@ const edgeFunctionSmokeTests: TestCase[] = [
     name: "withdraw-approval-request function exists",
     description: "Verify edge function is deployed",
     run: () => runTest(async () => {
-      const { error } = await supabase.functions.invoke("withdraw-approval-request", {
-        body: { test: true },
+      const { data, error } = await supabase.functions.invoke("withdraw-approval-request", {
+        body: { providerId: "00000000-0000-0000-0000-000000000000" },
       });
-      // 400/403 errors mean function IS deployed (validation/auth errors)
+      // 400/401/404 errors mean function IS deployed (validation/auth errors expected)
       if (error && isDeploymentError(error.message)) {
         throw new Error("withdraw-approval-request function not deployed");
       }
@@ -3055,10 +3054,10 @@ const edgeFunctionSmokeTests: TestCase[] = [
     name: "notify-booking-cancelled function exists",
     description: "Verify edge function is deployed",
     run: () => runTest(async () => {
-      const { error } = await supabase.functions.invoke("notify-booking-cancelled", {
-        body: { test: true },
+      const { data, error } = await supabase.functions.invoke("notify-booking-cancelled", {
+        body: { provider_email: "smoke@test.invalid", provider_name: "Smoke Test", scheduled_at: new Date().toISOString(), booking_id: "00000000-0000-0000-0000-000000000000" },
       });
-      // 400/403 errors mean function IS deployed (validation/auth errors)
+      // 400/401/404 errors mean function IS deployed (validation/auth errors expected)
       if (error && isDeploymentError(error.message)) {
         throw new Error("notify-booking-cancelled function not deployed");
       }
@@ -3070,10 +3069,10 @@ const edgeFunctionSmokeTests: TestCase[] = [
     name: "send-reviewer-invitation function exists",
     description: "Verify edge function is deployed",
     run: () => runTest(async () => {
-      const { error } = await supabase.functions.invoke("send-reviewer-invitation", {
-        body: { test: true },
+      const { data, error } = await supabase.functions.invoke("send-reviewer-invitation", {
+        body: { reviewer_id: "00000000-0000-0000-0000-000000000000" },
       });
-      // 400/403 errors mean function IS deployed (validation/auth errors)
+      // 400/401/404 errors mean function IS deployed (validation/auth errors expected)
       if (error && isDeploymentError(error.message)) {
         throw new Error("send-reviewer-invitation function not deployed");
       }
