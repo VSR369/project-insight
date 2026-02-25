@@ -1,74 +1,71 @@
 
 
-## Plan: Add Automatic Retry Logic to Handle Transient Network Failures
+## Diagnosis and Fix Plan
 
-### What I Just Verified (Again)
+### Your 3 Questions Answered
 
-I logged in as `admin@test.local` from my browser tool just now — **HTTP 200, full Admin Dashboard rendered, zero console errors**. The code is working. But you are consistently hitting `TypeError: Failed to fetch` at `lovable.js:1:2838` — even in incognito.
+**1. Email domain restrictions in master data**
+You can remove domain restrictions if you want to allow any email. That is a data configuration choice, not a code issue. It does not affect the login problem.
 
-### Why This Keeps Happening
+**2. What happens when a password is set during org registration?**
+This is the root cause. Here is exactly what happens:
 
-The `lovable.js` fetch interceptor from `cdn.gpteng.co` wraps every `fetch()` call. When its proxy connection is unstable, requests fail before reaching Supabase. This is NOT your code, but I can make your code **resilient** to it.
+- Your account `vsr@btbt.co.in` was **first created on Jan 14** via the regular `/register` page with some password (let's call it Password-A)
+- When you registered org "Bulbul" (Feb 24), you entered password `Bulbul@1234`. The edge function tried to create a new auth user, got "already exists", then **silently skipped the password** and only created the `org_users` mapping. Password-A remained active.
+- When you registered org "RTC" (Feb 25), you entered password `Rtc@1234`. Same thing happened — password was **silently discarded**. Password-A is still the only valid password.
 
-### The Fix: Retry Logic at Two Levels
+The bug is on **line 135-136** of `create-org-admin/index.ts`: when an existing user is found, it sets `userId = foundUserId` and moves on **without updating the password**. The password you typed during org registration was collected but never saved to Supabase Auth.
 
-Since I cannot fix `lovable.js`, I will make the application automatically retry failed network requests so that transient proxy failures are handled transparently.
+**3. Why "email or password not right"?**
+Because Supabase still has Password-A (from Jan 14 registration). Neither `Bulbul@1234` nor `Rtc@1234` were ever stored.
 
-**File 1: `src/lib/fetchWithRetry.ts`** (NEW)
-- Create a utility that wraps `fetch` with automatic retry (3 attempts, exponential backoff: 500ms, 1s, 2s)
-- Only retries on `TypeError: Failed to fetch` (network failures), NOT on HTTP error responses (400, 401, etc.)
+### Currency and Phone Code Auto-Population
 
-**File 2: `src/integrations/supabase/client.ts`** (MODIFY)
-- Configure the Supabase client with a custom `fetch` that uses the retry wrapper
-- This means ALL Supabase calls (auth, queries, mutations) automatically retry on network failures
+The country-to-currency/phone-code auto-population is **already implemented** in `OrganizationIdentityForm.tsx` (lines 136-147) and `PrimaryContactForm.tsx` (lines 127-131). When you select India, it correctly fetches `INR`, `₹`, `+91` from the `countries` table. If this is not working for you, it may be a UI rendering issue I can investigate separately.
 
-**File 3: `src/hooks/useAuth.tsx`** (MODIFY)
-- Add retry logic specifically to the `signIn` function as defense-in-depth
-- Show a user-friendly toast like "Network issue, retrying..." instead of the raw error
+---
 
-### What This Solves
+### Fix Plan (2 Changes)
 
-| Scenario | Before | After |
-|----------|--------|-------|
-| `lovable.js` proxy drops once | Instant "Failed to fetch" error | Silent retry, succeeds on 2nd attempt |
-| Proxy drops twice | Instant error | Retries up to 3 times with backoff |
-| Persistent proxy failure (all 3 retries fail) | Same error, no context | Clear message: "Network connection failed. Please refresh your browser." |
-| Valid credential error (HTTP 400) | Shows "Invalid credentials" | Same — no retry on HTTP errors |
+**Change 1: Fix `supabase/functions/create-org-admin/index.ts`** — Update password for existing users
 
-### Technical Details
+After line 136 (`isExistingUser = true`), add a password update call:
 
-The retry wrapper:
 ```typescript
-async function fetchWithRetry(input, init, maxRetries = 3) {
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
-    try {
-      return await fetch(input, init);
-    } catch (error) {
-      if (attempt === maxRetries) throw error;
-      // Only retry on network errors (TypeError: Failed to fetch)
-      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        await delay(500 * Math.pow(2, attempt)); // 500ms, 1s, 2s
-        continue;
-      }
-      throw error; // Don't retry non-network errors
-    }
-  }
+// User exists — update password to the one they just provided
+const { error: pwdError } = await supabaseAdmin.auth.admin.updateUserById(
+  foundUserId,
+  { password }
+);
+if (pwdError) {
+  console.warn("Password update for existing user failed:", pwdError.message);
 }
-```
 
-Supabase client integration:
-```typescript
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: { ... },
-  global: {
-    fetch: fetchWithRetry,  // All Supabase calls use retry logic
+// Also update user metadata with seeker role_type
+await supabaseAdmin.auth.admin.updateUserById(foundUserId, {
+  user_metadata: {
+    first_name: first_name ?? undefined,
+    last_name: last_name ?? undefined,
+    role_type: "seeker",
   },
 });
 ```
 
-### Files Changed
+This ensures that whenever a user registers a new organization, their password is updated to the one they just entered — which is what they expect.
 
-1. `src/lib/fetchWithRetry.ts` — New utility (approx 30 lines)
-2. `src/integrations/supabase/client.ts` — Add custom fetch to Supabase config
-3. `src/hooks/useAuth.tsx` — Improve error message for persistent network failures
+**Change 2: Immediate password reset for `vsr@btbt.co.in`**
+
+After deploying the edge function fix, I will reset the password for `vsr@btbt.co.in` to `Rtc@1234` (or whatever you prefer) using a one-time admin API call, so you can log in immediately without re-registering.
+
+### Files to Change
+
+| File | Change |
+|------|--------|
+| `supabase/functions/create-org-admin/index.ts` | Add `updateUserById` password sync after line 136 |
+
+### What This Fixes Permanently
+
+- Any user registering multiple orgs with the same email will always have their **latest password** active
+- No more silent password discarding
+- Login with the most recently set password will always work
 
