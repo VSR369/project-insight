@@ -45,6 +45,14 @@ export interface PrimaryContactData {
   email_verified: boolean;
   /** In-memory only — NEVER persisted to sessionStorage or DB */
   password?: string;
+  /** Admin designation: 'self' = registering user is admin, 'separate' = different person */
+  admin_designation?: 'self' | 'separate';
+  /** Optional separate admin details (provided during registration or later from settings) */
+  separate_admin?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+  };
 }
 
 // ============================================================
