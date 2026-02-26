@@ -12,6 +12,7 @@ import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUs
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
 import { validateUserInvite } from '@/services/teamService';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { OrgLayout } from '@/components/org/OrgLayout';
 import { Users, UserPlus, Shield, Crown, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -47,12 +48,12 @@ export default function TeamPage() {
   };
 
   return (
-    <div className="container max-w-5xl mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Team Management</h1>
-          <p className="text-muted-foreground">Manage your organization's team members and roles</p>
-        </div>
+    <OrgLayout
+      title="Team Management"
+      description="Manage your organization's team members and roles"
+      breadcrumbs={[{ label: 'Team' }]}
+    >
+      <div className="flex justify-end mb-4">
         <Button onClick={() => setInviteOpen(true)} disabled={!validation.canInvite}>
           <UserPlus className="h-4 w-4 mr-2" />
           Add Member
@@ -204,6 +205,6 @@ export default function TeamPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </OrgLayout>
   );
 }

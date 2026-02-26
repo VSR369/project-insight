@@ -15,6 +15,7 @@ import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { OrgLayout } from '@/components/org/OrgLayout';
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -52,19 +53,19 @@ export default function OrgBillingPage() {
   };
 
   return (
-    <div className="container max-w-5xl mx-auto py-8 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Billing & Usage</h1>
-          <p className="text-muted-foreground">Monitor challenge usage, invoices, and purchase top-ups</p>
-        </div>
-        {!isInternalDepartment && (
+    <OrgLayout
+      title="Billing & Usage"
+      description="Monitor challenge usage, invoices, and purchase top-ups"
+      breadcrumbs={[{ label: 'Billing' }]}
+    >
+      {!isInternalDepartment && (
+        <div className="flex justify-end mb-4">
           <Button onClick={() => setTopUpOpen(true)}>
             <Package className="h-4 w-4 mr-2" />
             Buy Top-Up
           </Button>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* BR-SAAS-003: Internal Department Billing Gate */}
       {isInternalDepartment && (
@@ -281,6 +282,6 @@ export default function OrgBillingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </OrgLayout>
   );
 }
