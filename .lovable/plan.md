@@ -1,77 +1,104 @@
 
 
-## Plan: Wrap All Org Pages in OrgLayout + Add Registration Data Visibility
+## Plan: Fill the Terms/NDA UI Gaps
 
-### Problem Summary
+### Gap Analysis (Corrected)
 
-Three org pages (`OrgSettingsPage`, `OrgBillingPage`, `TeamPage`) render raw `<div>` containers instead of using `OrgLayout`. This means they lack:
-- The sidebar with navigation links and "Back to App" button
-- The header with breadcrumbs, user dropdown, and **Sign Out** option
-- Consistent page titles and breadcrumb trails
+After inspecting the actual codebase, the gap summary from the user's message is partially outdated. Here is the corrected status:
 
-Meanwhile, `OrgDashboardPage`, `MembershipPage`, and `ChallengeListPage` correctly use `OrgLayout` and have full navigation.
+| Feature | Database | Backend | UI | Actual Gap |
+|---------|----------|---------|-----|-----------|
+| Multi-tenant isolation | Done | Done | Done | No gap |
+| Platform Terms versioning | Done | Done | Admin: Done, Registration: Done | No gap |
+| Terms scrollable viewer | N/A | N/A | **Already built** (BillingForm Dialog with ScrollArea, lines 662-680) | No gap |
+| Terms acceptance hash (SHA-256) | DB function exists | Client-side hash generated and stored | Hash is wired in BillingForm | **Minor gap**: uses client-side `crypto.subtle.digest` instead of the DB function `generate_terms_acceptance_hash()` |
+| NDA preference (Standard/Custom) | Columns on `seeker_organizations` table | Enums exist | **Not built anywhere** | **Real gap** |
+| Custom NDA upload + review | `custom_nda_document_id` on `seeker_organizations`, `seeker_org_documents` table exists | Schema exists | **Not built** | **Real gap** |
 
-The dashboard also only shows usage gauges and quick action cards — it does not surface the registration data (profile, compliance, contacts, subscription details) that the user captured during sign-up.
-
----
-
-### Part 1: Wrap OrgSettingsPage in OrgLayout
-
-**File:** `src/pages/org/OrgSettingsPage.tsx`
-
-Currently renders a bare `<div className="max-w-5xl mx-auto p-6 space-y-6">`. Replace with `OrgLayout` wrapper with title, description, and breadcrumbs. Remove the manual `<h1>` and `<p>` since OrgLayout renders those.
+### What Needs to Be Built (2 real gaps)
 
 ---
 
-### Part 2: Wrap OrgBillingPage in OrgLayout
+### Gap 1: NDA Preference Selector in Compliance Form (Step 3)
 
-**File:** `src/pages/org/OrgBillingPage.tsx`
+**File to modify:** `src/components/registration/ComplianceForm.tsx`
 
-Currently renders `<div className="container max-w-5xl mx-auto py-8 space-y-6">` with a manual heading. Replace with `OrgLayout` wrapper. Remove duplicate title/description markup.
+Add a new section after the "Compliance Certifications" grid and before "Additional Notes":
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  📋 NDA Preference                                      │
+│                                                         │
+│  How would you like to handle your Non-Disclosure        │
+│  Agreement with the platform?                            │
+│                                                         │
+│  (●) Standard Platform NDA (Recommended)                │
+│      Use our pre-approved mutual NDA. No review needed. │
+│                                                         │
+│  ( ) Custom NDA                                         │
+│      Upload your own NDA for platform review.           │
+│      Review typically takes 3-5 business days.           │
+│                                                         │
+│  [If Custom NDA selected:]                              │
+│  ┌────────────────────────────────────────────┐         │
+│  │  Upload Custom NDA (PDF, max 10MB)         │         │
+│  │  [ Choose File ]                           │         │
+│  │  Status: ⏳ Pending Review                  │         │
+│  └────────────────────────────────────────────┘         │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Data flow:**
+- Add `nda_preference` and `custom_nda_file` fields to the Zod schema (`src/lib/validations/compliance.ts`)
+- On submit, update `seeker_organizations` with `nda_preference` and `nda_review_status`
+- If custom NDA: upload file to Supabase Storage (`{tenant_id}/nda/{uuid}_{filename}`), create a record in `seeker_org_documents`, and set `custom_nda_document_id` on the organization
+- If standard NDA: set `nda_review_status = 'not_applicable'`
+
+**Validation schema updates (`src/lib/validations/compliance.ts`):**
+- Add `nda_preference: z.enum(['standard_platform_nda', 'custom_nda']).default('standard_platform_nda')`
+- Add conditional: if `custom_nda`, file upload is recommended but not required (user may not have it ready)
+
+**Hook updates (`src/hooks/queries/useComplianceData.ts`):**
+- Extend `useUpsertCompliance` to also update `seeker_organizations.nda_preference`, `nda_review_status`
+- Add a new `useUploadNdaDocument` mutation for file upload + `seeker_org_documents` insert + organization update
+
+**Registration context updates (`src/types/registration.ts`):**
+- Add `nda_preference` to `Step3ComplianceData`
 
 ---
 
-### Part 3: Wrap TeamPage in OrgLayout
+### Gap 2: Use Server-Side Terms Hash Function
 
-**File:** `src/pages/org/TeamPage.tsx`
+**File to modify:** `src/components/registration/BillingForm.tsx`
 
-Same pattern — currently renders a bare container. Wrap in `OrgLayout` with title "Team Management" and breadcrumb.
+Currently the `generateTermsHash` function (lines 829-836) computes SHA-256 client-side using `crypto.subtle.digest`. The database has a `generate_terms_acceptance_hash(p_org_id, p_terms_version, p_accepted_at, p_accepted_by)` function that should be used instead for immutable server-side proof.
 
----
+**Change:** Replace the client-side hash generation with an RPC call:
 
-### Part 4: Enhance Dashboard with Registration Data Summary Cards
+```typescript
+const { data: termsHash } = await supabase.rpc('generate_terms_acceptance_hash', {
+  p_org_id: state.organizationId,
+  p_terms_version: platformTerms.version,
+  p_accepted_at: new Date().toISOString(),
+  p_accepted_by: state.organizationId, // pre-auth, no user ID yet
+});
+```
 
-**File:** `src/pages/org/OrgDashboardPage.tsx`
-
-Add a new section below the existing quick action cards that shows a summary of registration data across tabs, each linking to the relevant settings tab or page:
-
-| Card | Data Shown | Links To |
-|------|-----------|----------|
-| Organization Profile | Legal name, type, country, website | `/org/settings` (Profile tab) |
-| Admin Details | Admin name, email, status | `/org/settings` (Admin tab) |
-| Subscription & Billing | Tier, billing cycle, engagement model, period dates | `/org/settings` (Subscription tab) |
-| Compliance | NDA preference, terms acceptance status | `/org/settings` (future tab) |
-| Team | Member count, admin count | `/org/team` |
-
-Each card shows 2-3 key fields with a "View Details →" link. This gives the logged-in user a single-screen overview of everything captured during registration.
-
-**New hooks needed:** The dashboard will reuse existing hooks (`useOrgProfile`, `useOrgSubscription` from `useOrgSettings.ts`, `useOrgAdminDetails` from `useOrgAdminHooks.ts`).
+Remove the local `generateTermsHash` utility function.
 
 ---
 
-### Files to Modify
+### Files Summary
 
-| File | Change |
-|------|--------|
-| `src/pages/org/OrgSettingsPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
-| `src/pages/org/OrgBillingPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
-| `src/pages/org/TeamPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
-| `src/pages/org/OrgDashboardPage.tsx` | Add registration data summary cards section |
+| File | Action | Description |
+|------|--------|-------------|
+| `src/lib/validations/compliance.ts` | Modify | Add `nda_preference` enum field to schema |
+| `src/components/registration/ComplianceForm.tsx` | Modify | Add NDA preference radio group + conditional file upload section |
+| `src/hooks/queries/useComplianceData.ts` | Modify | Extend upsert to update org NDA fields; add `useUploadNdaDocument` mutation |
+| `src/types/registration.ts` | Modify | Add `nda_preference` to `Step3ComplianceData` |
+| `src/components/registration/BillingForm.tsx` | Modify | Replace client-side hash with `supabase.rpc('generate_terms_acceptance_hash')` call |
 
-### What This Achieves
+### No Database Changes Required
 
-- Every org page gets sidebar (with Dashboard, Challenges, Settings, Team, Membership, Billing links), header (with user dropdown containing **Sign Out**), and "Back to App" button in sidebar footer
-- Dashboard becomes a true hub showing all captured registration data at a glance with drill-down links
-- Consistent breadcrumb navigation on every page
-- No new components or database changes required
+All columns, enums, and functions already exist. This is purely a UI wiring task.
 
