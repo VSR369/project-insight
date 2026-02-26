@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
@@ -117,7 +118,7 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
   const LockedField = ({ label, value, icon: Icon }: { label: string; value: string; icon?: React.ElementType }) => (
     <div className="space-y-1.5">
       <div className="flex items-center gap-2">
-        <FormLabel className="text-sm font-medium text-muted-foreground">{label}</FormLabel>
+        <Label className="text-sm font-medium text-muted-foreground">{label}</Label>
         <Lock className="h-3 w-3 text-muted-foreground" />
       </div>
       <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted/50 border border-border text-sm text-foreground">
@@ -144,7 +145,7 @@ export function ProfileTab({ organizationId }: ProfileTabProps) {
         {industries && industries.length > 0 && (
           <div className="mt-4 space-y-1.5">
             <div className="flex items-center gap-2">
-              <FormLabel className="text-sm font-medium text-muted-foreground">Industries</FormLabel>
+              <Label className="text-sm font-medium text-muted-foreground">Industries</Label>
               <Lock className="h-3 w-3 text-muted-foreground" />
             </div>
             <div className="flex flex-wrap gap-2">
