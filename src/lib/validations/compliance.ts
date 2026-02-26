@@ -17,9 +17,9 @@ export const complianceSchema = z.object({
   soc2_compliant: z.boolean().default(false),
   iso27001_certified: z.boolean().default(false),
   compliance_notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
+  nda_preference: z.enum(['standard_platform_nda', 'custom_nda']).default('standard_platform_nda'),
 }).refine(
   (data) => {
-    // If ITAR certified, expiry date is required
     if (data.itar_certified && !data.itar_certification_expiry) {
       return false;
     }

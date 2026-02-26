@@ -64,6 +64,7 @@ export interface ComplianceData {
   export_control_status_id?: string;
   is_itar_restricted: boolean;
   data_residency_id?: string;
+  nda_preference?: 'standard_platform_nda' | 'custom_nda';
 }
 
 // ============================================================

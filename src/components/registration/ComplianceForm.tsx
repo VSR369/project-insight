@@ -7,15 +7,16 @@
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Shield } from 'lucide-react';
+import { AlertTriangle, Shield, FileText, Clock } from 'lucide-react';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
 import {
   useExportControlStatuses,
   useDataResidencyOptions,
   useUpsertCompliance,
+  useUploadNdaDocument,
 } from '@/hooks/queries/useComplianceData';
 import {
   complianceSchema,
@@ -44,6 +45,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Textarea } from '@/components/ui/textarea';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { FileUploadZone } from '@/components/shared/FileUploadZone';
+import { Badge } from '@/components/ui/badge';
 import { Loader2 } from 'lucide-react';
 
 export function ComplianceForm() {
@@ -68,11 +73,18 @@ export function ComplianceForm() {
       soc2_compliant: false,
       iso27001_certified: false,
       compliance_notes: '',
+      nda_preference: state.step3?.nda_preference ?? 'standard_platform_nda',
     },
   });
 
   const watchedExportControlId = form.watch('export_control_status_id');
   const watchedItarCertified = form.watch('itar_certified');
+  const watchedNdaPreference = form.watch('nda_preference');
+
+  // ══════════════════════════════════════
+  // SECTION 2b: NDA file state
+  // ══════════════════════════════════════
+  const [ndaFile, setNdaFile] = useState<File | null>(null);
 
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
@@ -80,6 +92,7 @@ export function ComplianceForm() {
   const { data: exportStatuses, isLoading: exportStatusesLoading } = useExportControlStatuses();
   const { data: dataResidencyOptions, isLoading: residencyLoading } = useDataResidencyOptions();
   const upsertCompliance = useUpsertCompliance();
+  const uploadNda = useUploadNdaDocument();
 
   // ══════════════════════════════════════
   // SECTION 4: Derived values
@@ -126,7 +139,17 @@ export function ComplianceForm() {
         soc2_compliant: data.soc2_compliant,
         iso27001_certified: data.iso27001_certified,
         compliance_notes: data.compliance_notes || undefined,
+        nda_preference: data.nda_preference,
       });
+
+      // Upload custom NDA file if provided
+      if (data.nda_preference === 'custom_nda' && ndaFile) {
+        await uploadNda.mutateAsync({
+          organization_id: state.organizationId,
+          tenant_id: state.tenantId,
+          file: ndaFile,
+        });
+      }
 
       setStep3Data({
         tax_id: '',
@@ -134,6 +157,7 @@ export function ComplianceForm() {
         export_control_status_id: data.export_control_status_id,
         is_itar_restricted: data.itar_certified,
         data_residency_id: data.data_residency_id,
+        nda_preference: data.nda_preference,
       });
 
       setStep(4);
@@ -143,7 +167,7 @@ export function ComplianceForm() {
     }
   };
 
-  const isSubmitting = upsertCompliance.isPending;
+  const isSubmitting = upsertCompliance.isPending || uploadNda.isPending;
   const isReturning = !!state.organizationId && !!state.step3;
   const { isDirty } = form.formState;
   const showContinueOnly = isReturning && !isDirty;
@@ -321,6 +345,79 @@ export function ComplianceForm() {
               />
             ))}
           </div>
+        </div>
+
+        {/* NDA Preference */}
+        <div className="space-y-4 rounded-lg border border-border p-4">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <FileText className="h-4 w-4" />
+            <span>NDA Preference</span>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            How would you like to handle your Non-Disclosure Agreement with the platform?
+          </p>
+
+          <FormField
+            control={form.control}
+            name="nda_preference"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <RadioGroup
+                    value={field.value}
+                    onValueChange={field.onChange}
+                    className="space-y-3"
+                  >
+                    <div className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
+                      <RadioGroupItem value="standard_platform_nda" id="nda-standard" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label htmlFor="nda-standard" className="cursor-pointer font-medium text-sm">
+                          Standard Platform NDA
+                          <Badge variant="secondary" className="ml-2 text-xs">Recommended</Badge>
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Use our pre-approved mutual NDA. No review needed.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-start gap-3 rounded-lg border border-border p-3 hover:bg-muted/30 transition-colors">
+                      <RadioGroupItem value="custom_nda" id="nda-custom" className="mt-1" />
+                      <div className="space-y-1">
+                        <Label htmlFor="nda-custom" className="cursor-pointer font-medium text-sm">
+                          Custom NDA
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Upload your own NDA for platform review. Review typically takes 3–5 business days.
+                        </p>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {watchedNdaPreference === 'custom_nda' && (
+            <div className="space-y-3 ml-7">
+              <FileUploadZone
+                config={{
+                  maxSizeBytes: 10 * 1024 * 1024,
+                  maxSizeMB: 10,
+                  allowedTypes: ['application/pdf'] as const,
+                  allowedExtensions: ['.pdf'] as const,
+                  label: 'Custom NDA Document',
+                }}
+                value={ndaFile}
+                onChange={setNdaFile}
+              />
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" />
+                <span>Status: Pending Review (after upload)</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Notes */}

@@ -208,9 +208,21 @@ export function BillingForm() {
         tax_id: data.tax_id,
       });
 
-      const termsHash = platformTerms
-        ? await generateTermsHash(state.organizationId, platformTerms.version, platformTerms.content)
-        : undefined;
+      const acceptedAt = new Date().toISOString();
+      let termsHash: string | undefined;
+      if (platformTerms && state.organizationId) {
+        const { data: hashResult, error: hashError } = await supabase.rpc('generate_terms_acceptance_hash', {
+          p_org_id: state.organizationId,
+          p_terms_version: platformTerms.version,
+          p_accepted_at: acceptedAt,
+          p_accepted_by: state.organizationId,
+        });
+        if (hashError) {
+          toast.error('Failed to generate terms acceptance hash');
+          return;
+        }
+        termsHash = hashResult as string;
+      }
 
       await createSubscription.mutateAsync({
         organization_id: state.organizationId,
@@ -823,14 +835,3 @@ export function BillingForm() {
   );
 }
 
-// ============================================================
-// Utility: Generate SHA-256 hash for terms acceptance
-// ============================================================
-async function generateTermsHash(orgId: string, version: string, content: string): Promise<string> {
-  const input = `${orgId}:${version}:${content}`;
-  const encoder = new TextEncoder();
-  const data = encoder.encode(input);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-}
