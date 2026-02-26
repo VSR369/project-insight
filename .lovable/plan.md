@@ -1,209 +1,77 @@
 
 
-## Revised Plan: Seeker Org Admin Assignment, Delegation & Admin Details Tab
+## Plan: Wrap All Org Pages in OrgLayout + Add Registration Data Visibility
 
-### Overview
+### Problem Summary
 
-This plan adds three capabilities to the Seeker Organization flow:
+Three org pages (`OrgSettingsPage`, `OrgBillingPage`, `TeamPage`) render raw `<div>` containers instead of using `OrgLayout`. This means they lack:
+- The sidebar with navigation links and "Back to App" button
+- The header with breadcrumbs, user dropdown, and **Sign Out** option
+- Consistent page titles and breadcrumb trails
 
-1. **Registration Step 2 Enhancement** — "Will you be the Org Admin?" radio toggle with optional separate admin form
-2. **Admin Details Tab** in Org Settings — displays and allows updating the designated admin
-3. **Admin Change Approval Workflow** — notifications to Platform Admin when admin is reassigned post-registration
+Meanwhile, `OrgDashboardPage`, `MembershipPage`, and `ChallengeListPage` correctly use `OrgLayout` and have full navigation.
 
----
-
-### Part 1: Registration — Admin Designation Toggle (Step 2)
-
-**File to modify:** `src/components/registration/PrimaryContactForm.tsx`
-
-**Current behavior:** The registering user is always assigned as `tenant_admin` via the `create-org-admin` edge function at Step 5. Step 2 captures only the registering user's contact details.
-
-**New behavior:**
-
-After the existing contact fields, add a section:
-
-```text
-┌────────────────────────────────────────────────┐
-│  Will you be the Seeking Org Admin?            │
-│                                                │
-│  (●) Yes, I will be the Admin                  │
-│  ( ) No, a separate person will be the Admin   │
-└────────────────────────────────────────────────┘
-```
-
-When "No, a separate person" is selected, expand an **optional** sub-form:
-
-```text
-┌────────────────────────────────────────────────┐
-│  Separate Admin Details (Optional)             │
-│  You can provide these later from Settings.    │
-│                                                │
-│  Full Name:    [________________]              │
-│  Email:        [________________]              │
-│  Phone:        [________________]              │
-└────────────────────────────────────────────────┘
-```
-
-All three fields are optional. The user can skip and fill them later from the dashboard.
-
-**Data flow changes:**
-
-- Add `admin_designation` field to `PrimaryContactData` type: `'self' | 'separate'`
-- Add optional `separate_admin` object: `{ name?: string; email?: string; phone?: string }`
-- Store in registration context (Step 2 data) — persisted to sessionStorage
-- At Step 5 submission (BillingForm), if `admin_designation === 'separate'` AND separate admin details are provided, insert a record into a new `org_admin_change_requests` table with status `'pending_platform_approval'`
-- If `admin_designation === 'separate'` but details are empty, no request is created — user handles it post-login
-
-**Edge function change:** `create-org-admin` continues to create the registering user as `tenant_admin` regardless. The separate admin request is a **pending transfer**, not a replacement during registration. This ensures the org always has a functional admin immediately.
+The dashboard also only shows usage gauges and quick action cards — it does not surface the registration data (profile, compliance, contacts, subscription details) that the user captured during sign-up.
 
 ---
 
-### Part 2: Database — New `org_admin_change_requests` Table
+### Part 1: Wrap OrgSettingsPage in OrgLayout
 
-**New migration required.** This table stores admin change/transfer requests that require Platform Admin approval.
+**File:** `src/pages/org/OrgSettingsPage.tsx`
 
-```text
-org_admin_change_requests
-─────────────────────────
-id                  UUID PK
-tenant_id           UUID NOT NULL → seeker_organizations(id)
-organization_id     UUID NOT NULL → seeker_organizations(id)
-requested_by        UUID → auth.users(id)
-current_admin_user_id UUID → auth.users(id)
-new_admin_name      TEXT
-new_admin_email     TEXT NOT NULL
-new_admin_phone     TEXT
-request_type        TEXT CHECK ('registration_delegate', 'post_login_change')
-lifecycle_status    TEXT CHECK ('pending', 'approved', 'rejected', 'cancelled')
-                    DEFAULT 'pending'
-status_changed_at   TIMESTAMPTZ
-status_changed_by   UUID → auth.users(id)
-platform_notes      TEXT
-created_at          TIMESTAMPTZ DEFAULT NOW()
-created_by          UUID → auth.users(id)
-updated_at          TIMESTAMPTZ
-updated_by          UUID → auth.users(id)
-```
-
-RLS: Tenant-scoped reads for the org admin. Platform admins see all via `has_role()`.
+Currently renders a bare `<div className="max-w-5xl mx-auto p-6 space-y-6">`. Replace with `OrgLayout` wrapper with title, description, and breadcrumbs. Remove the manual `<h1>` and `<p>` since OrgLayout renders those.
 
 ---
 
-### Part 3: Admin Details Tab in Org Settings
+### Part 2: Wrap OrgBillingPage in OrgLayout
 
-**New file:** `src/components/org-settings/AdminDetailsTab.tsx`
+**File:** `src/pages/org/OrgBillingPage.tsx`
 
-**Data sources:** Joins `org_users` (where `role = 'tenant_admin'`) with `seeker_contacts` (where `is_primary = true`) for the organization.
-
-**Display — 11 fields in a read-only card:**
-
-| Field | Source | Notes |
-|-------|--------|-------|
-| User ID | `org_users.user_id` | Read-only, locked |
-| Full Name | `seeker_contacts.first_name + last_name` | Read-only |
-| Business Email | `seeker_contacts.email` | Read-only |
-| Phone Number | `seeker_contacts.phone_country_code + phone_number` | Read-only |
-| Organization ID | `org_users.organization_id` | Read-only, locked |
-| Status | `org_users.invitation_status` | Badge display |
-| Activation Date | `org_users.joined_at` | Formatted date |
-| Created By | `org_users.created_by` | UUID or "System" |
-| Created At | `org_users.created_at` | Formatted date |
-| Last Modified By | `org_users.updated_by` | UUID or "—" |
-| Last Modified At | `org_users.updated_at` | Formatted date or "—" |
-
-**Below the read-only card**, add a "Change Admin" section:
-
-```text
-┌─────────────────────────────────────────────────┐
-│  Change Organization Admin                       │
-│                                                  │
-│  Reassigning the admin role requires Platform    │
-│  Admin approval. New credentials will be issued  │
-│  by the platform.                                │
-│                                                  │
-│  New Admin Name:   [________________]            │
-│  New Admin Email:  [________________]  *required │
-│  New Admin Phone:  [________________]            │
-│                                                  │
-│  [ Request Admin Change ]                        │
-│                                                  │
-│  Pending request: "John Doe (john@co.com)"       │
-│  Status: ⏳ Pending Platform Approval             │
-└─────────────────────────────────────────────────┘
-```
-
-Submitting inserts into `org_admin_change_requests` with `request_type = 'post_login_change'`.
+Currently renders `<div className="container max-w-5xl mx-auto py-8 space-y-6">` with a manual heading. Replace with `OrgLayout` wrapper. Remove duplicate title/description markup.
 
 ---
 
-### Part 4: OrgSettingsPage Updates
+### Part 3: Wrap TeamPage in OrgLayout
 
-**File to modify:** `src/pages/org/OrgSettingsPage.tsx`
+**File:** `src/pages/org/TeamPage.tsx`
 
-1. Replace `useSearchParams` with `useOrgContext()` — fixes the existing bug
-2. Add 5th tab "Admin" with `UserCircle` icon between Profile and Subscription
-3. Updated tab grid: `grid-cols-5`
-
-Tab order:
-```text
-Profile | Admin | Subscription | Engagement | Audit Trail
-```
+Same pattern — currently renders a bare container. Wrap in `OrgLayout` with title "Team Management" and breadcrumb.
 
 ---
 
-### Part 5: New Hooks
+### Part 4: Enhance Dashboard with Registration Data Summary Cards
 
-**File to modify:** `src/hooks/queries/useOrgSettings.ts`
+**File:** `src/pages/org/OrgDashboardPage.tsx`
 
-Add two new hooks:
+Add a new section below the existing quick action cards that shows a summary of registration data across tabs, each linking to the relevant settings tab or page:
 
-1. `useOrgAdminDetails(organizationId)` — fetches `org_users` (tenant_admin) + `seeker_contacts` (is_primary)
-2. `useRequestAdminChange()` — mutation to insert into `org_admin_change_requests`
-3. `usePendingAdminRequest(organizationId)` — fetches latest pending request for display
+| Card | Data Shown | Links To |
+|------|-----------|----------|
+| Organization Profile | Legal name, type, country, website | `/org/settings` (Profile tab) |
+| Admin Details | Admin name, email, status | `/org/settings` (Admin tab) |
+| Subscription & Billing | Tier, billing cycle, engagement model, period dates | `/org/settings` (Subscription tab) |
+| Compliance | NDA preference, terms acceptance status | `/org/settings` (future tab) |
+| Team | Member count, admin count | `/org/team` |
 
----
+Each card shows 2-3 key fields with a "View Details →" link. This gives the logged-in user a single-screen overview of everything captured during registration.
 
-### Part 6: Registration Type Updates
-
-**File to modify:** `src/types/registration.ts`
-
-Add to `PrimaryContactData`:
-```typescript
-admin_designation?: 'self' | 'separate';
-separate_admin?: {
-  name?: string;
-  email?: string;
-  phone?: string;
-};
-```
+**New hooks needed:** The dashboard will reuse existing hooks (`useOrgProfile`, `useOrgSubscription` from `useOrgSettings.ts`, `useOrgAdminDetails` from `useOrgAdminHooks.ts`).
 
 ---
 
-### Part 7: BillingForm — Submit Separate Admin Request
+### Files to Modify
 
-**File to modify:** `src/components/registration/BillingForm.tsx`
+| File | Change |
+|------|--------|
+| `src/pages/org/OrgSettingsPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
+| `src/pages/org/OrgBillingPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
+| `src/pages/org/TeamPage.tsx` | Wrap in `OrgLayout`, remove manual heading |
+| `src/pages/org/OrgDashboardPage.tsx` | Add registration data summary cards section |
 
-In the `handleSubmit` function, after successful registration, if `state.step2?.admin_designation === 'separate'` and `state.step2?.separate_admin?.email` is provided:
-- Insert a row into `org_admin_change_requests` with `request_type = 'registration_delegate'`
+### What This Achieves
 
----
-
-### Files Summary
-
-| File | Action | Description |
-|------|--------|-------------|
-| `src/types/registration.ts` | Modify | Add `admin_designation` and `separate_admin` fields |
-| `src/components/registration/PrimaryContactForm.tsx` | Modify | Add radio toggle + optional separate admin form |
-| `src/components/registration/BillingForm.tsx` | Modify | Submit separate admin request on registration complete |
-| `src/pages/org/OrgSettingsPage.tsx` | Modify | Fix OrgContext usage, add Admin tab (5 tabs) |
-| `src/components/org-settings/AdminDetailsTab.tsx` | Create | Read-only admin details + change admin form |
-| `src/hooks/queries/useOrgSettings.ts` | Modify | Add admin details + admin change hooks |
-| **Migration** | Create | `org_admin_change_requests` table + RLS + indexes |
-
-### Impact Assessment
-
-- **Zero risk to existing registration flow.** The registering user is ALWAYS created as `tenant_admin` by `create-org-admin`. The separate admin request is a secondary, pending operation.
-- **No changes to `create-org-admin` edge function.** It continues to work identically.
-- **Multi-tenant safe.** The new table has `tenant_id` and RLS. The admin details tab reads only within the user's tenant context.
-- **Backward compatible.** Existing registrations without `admin_designation` default to `'self'` implicitly (no field = current user is admin, which is already the case).
+- Every org page gets sidebar (with Dashboard, Challenges, Settings, Team, Membership, Billing links), header (with user dropdown containing **Sign Out**), and "Back to App" button in sidebar footer
+- Dashboard becomes a true hub showing all captured registration data at a glance with drill-down links
+- Consistent breadcrumb navigation on every page
+- No new components or database changes required
 
