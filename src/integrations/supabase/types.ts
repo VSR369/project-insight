@@ -2797,6 +2797,81 @@ export type Database = {
           },
         ]
       }
+      org_admin_change_requests: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          current_admin_user_id: string | null
+          id: string
+          lifecycle_status: string
+          new_admin_email: string
+          new_admin_name: string | null
+          new_admin_phone: string | null
+          organization_id: string
+          platform_notes: string | null
+          request_type: string
+          requested_by: string | null
+          status_changed_at: string | null
+          status_changed_by: string | null
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          current_admin_user_id?: string | null
+          id?: string
+          lifecycle_status?: string
+          new_admin_email: string
+          new_admin_name?: string | null
+          new_admin_phone?: string | null
+          organization_id: string
+          platform_notes?: string | null
+          request_type: string
+          requested_by?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          current_admin_user_id?: string | null
+          id?: string
+          lifecycle_status?: string
+          new_admin_email?: string
+          new_admin_name?: string | null
+          new_admin_phone?: string | null
+          organization_id?: string
+          platform_notes?: string | null
+          request_type?: string
+          requested_by?: string | null
+          status_changed_at?: string | null
+          status_changed_by?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_admin_change_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_admin_change_requests_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_roles: {
         Row: {
           code: string

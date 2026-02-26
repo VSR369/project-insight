@@ -272,6 +272,28 @@ export function BillingForm() {
         return;
       }
 
+      // ── Submit separate admin request if designated ──
+      if (
+        state.step2?.admin_designation === 'separate' &&
+        state.step2?.separate_admin?.email
+      ) {
+        try {
+          await supabase.from('org_admin_change_requests').insert({
+            tenant_id: state.tenantId,
+            organization_id: state.organizationId,
+            requested_by: null, // unauthenticated at this point
+            current_admin_user_id: null,
+            new_admin_name: state.step2.separate_admin.name ?? null,
+            new_admin_email: state.step2.separate_admin.email,
+            new_admin_phone: state.step2.separate_admin.phone ?? null,
+            request_type: 'registration_delegate',
+            lifecycle_status: 'pending',
+          });
+        } catch {
+          // Non-blocking — admin change request is secondary
+        }
+      }
+
       setStep5Data({
         payment_method: data.payment_method,
         is_internal_department: isInternalDept,

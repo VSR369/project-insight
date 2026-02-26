@@ -48,7 +48,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
-import { Loader2, ArrowLeft, ArrowRight } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { Loader2, ArrowLeft, ArrowRight, UserCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { EmailDomainBlocker } from './EmailDomainBlocker';
@@ -83,6 +85,14 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   // TODO: TEMP BYPASS — was: useState(() => !!state.step2?.email_verified)
   const [emailVerified, setEmailVerified] = useState(true);
+  const [adminDesignation, setAdminDesignation] = useState<'self' | 'separate'>(
+    state.step2?.admin_designation ?? 'self'
+  );
+  const [separateAdmin, setSeparateAdmin] = useState({
+    name: state.step2?.separate_admin?.name ?? '',
+    email: state.step2?.separate_admin?.email ?? '',
+    phone: state.step2?.separate_admin?.phone ?? '',
+  });
 
   // ══════════════════════════════════════
   // SECTION 3: Form hook
@@ -210,6 +220,10 @@ export function PrimaryContactForm() {
         preferred_language_id: data.preferred_language_id,
         email_verified: emailVerified,
         password: data.password, // In-memory only, stripped from sessionStorage
+        admin_designation: adminDesignation,
+        separate_admin: adminDesignation === 'separate'
+          ? { name: separateAdmin.name || undefined, email: separateAdmin.email || undefined, phone: separateAdmin.phone || undefined }
+          : undefined,
       });
 
       setStep(3);
@@ -475,6 +489,67 @@ export function PrimaryContactForm() {
             </FormItem>
           )}
         />
+
+        {/* Admin Designation */}
+        <Card className="border-border">
+          <CardContent className="pt-6 space-y-4">
+            <div>
+              <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                <UserCircle className="h-4 w-4" />
+                Organization Admin Designation
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                Will you be the Seeking Org Admin, or will it be a separate person?
+              </p>
+            </div>
+            <RadioGroup
+              value={adminDesignation}
+              onValueChange={(v) => setAdminDesignation(v as 'self' | 'separate')}
+              className="space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="self" id="admin-self" />
+                <Label htmlFor="admin-self" className="cursor-pointer text-sm">
+                  Yes, I will be the Admin
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="separate" id="admin-separate" />
+                <Label htmlFor="admin-separate" className="cursor-pointer text-sm">
+                  No, a separate person will be the Admin
+                </Label>
+              </div>
+            </RadioGroup>
+
+            {adminDesignation === 'separate' && (
+              <div className="space-y-3 pt-2 pl-6 border-l-2 border-primary/20">
+                <p className="text-xs text-muted-foreground">
+                  Separate Admin Details (Optional) — You can provide these later from Settings.
+                </p>
+                <Input
+                  placeholder="Full Name"
+                  className="text-base"
+                  value={separateAdmin.name}
+                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, name: e.target.value }))}
+                />
+                <Input
+                  placeholder="Email address"
+                  type="email"
+                  className="text-base"
+                  value={separateAdmin.email}
+                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, email: e.target.value }))}
+                />
+                <Input
+                  placeholder="Phone number"
+                  type="tel"
+                  className="text-base"
+                  value={separateAdmin.phone}
+                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, phone: e.target.value }))}
+                />
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Account Password */}
         <Card className="border-primary/20 bg-primary/5">
