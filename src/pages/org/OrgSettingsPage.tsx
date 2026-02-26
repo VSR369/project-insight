@@ -15,21 +15,17 @@ import { EngagementModelTab } from '@/components/org-settings/EngagementModelTab
 import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
+import { OrgLayout } from '@/components/org/OrgLayout';
 
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
 
   return (
-    <div className="max-w-5xl mx-auto p-6 space-y-6">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Organization Settings</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage your organization profile, admin, subscription, and engagement model.
-        </p>
-      </div>
-
-      {/* Tabbed Layout */}
+    <OrgLayout
+      title="Organization Settings"
+      description="Manage your organization profile, admin, subscription, and engagement model."
+      breadcrumbs={[{ label: 'Settings' }]}
+    >
       <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center gap-2">
@@ -74,6 +70,6 @@ export default function OrgSettingsPage() {
           <AuditTrailTable organizationId={organizationId} />
         </TabsContent>
       </Tabs>
-    </div>
+    </OrgLayout>
   );
 }
