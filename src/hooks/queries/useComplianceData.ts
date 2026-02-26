@@ -68,7 +68,9 @@ export function useUpsertCompliance() {
       soc2_compliant: boolean;
       iso27001_certified: boolean;
       compliance_notes?: string;
+      nda_preference?: 'standard_platform_nda' | 'custom_nda';
     }) => {
+      // 1. Upsert compliance record
       const { data, error } = await supabase
         .from('seeker_compliance')
         .upsert(
@@ -91,14 +93,96 @@ export function useUpsertCompliance() {
         .single();
 
       if (error) throw new Error(error.message);
+
+      // 2. Update NDA preference on seeker_organizations
+      if (payload.nda_preference) {
+        const ndaReviewStatus = payload.nda_preference === 'standard_platform_nda'
+          ? 'not_applicable'
+          : 'pending_review';
+
+        const { error: orgError } = await supabase
+          .from('seeker_organizations')
+          .update({
+            nda_preference: payload.nda_preference,
+            nda_review_status: ndaReviewStatus,
+          })
+          .eq('id', payload.organization_id);
+
+        if (orgError) throw new Error(orgError.message);
+      }
+
       return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker_compliance'] });
+      queryClient.invalidateQueries({ queryKey: ['seeker_organizations'] });
       toast.success('Compliance details saved successfully');
     },
     onError: (error: Error) => {
       toast.error(`Failed to save compliance: ${error.message}`);
+    },
+  });
+}
+
+// ============================================================
+// Upload Custom NDA Document
+// ============================================================
+export function useUploadNdaDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      organization_id: string;
+      tenant_id: string;
+      file: File;
+    }) => {
+      const fileExt = payload.file.name.split('.').pop();
+      const storagePath = `${payload.tenant_id}/nda/${crypto.randomUUID()}_${payload.file.name}`;
+
+      // 1. Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('org-documents')
+        .upload(storagePath, payload.file, {
+          contentType: payload.file.type,
+          upsert: false,
+        });
+
+      if (uploadError) throw new Error(uploadError.message);
+
+      // 2. Create document record
+      const { data: docRecord, error: docError } = await supabase
+        .from('seeker_org_documents')
+        .insert({
+          organization_id: payload.organization_id,
+          tenant_id: payload.tenant_id,
+          document_type: 'custom_nda' as const,
+          file_name: payload.file.name,
+          file_size: payload.file.size,
+          mime_type: payload.file.type,
+          storage_path: storagePath,
+          verification_status: 'pending' as const,
+        })
+        .select('id')
+        .single();
+
+      if (docError) throw new Error(docError.message);
+
+      // 3. Link document to organization
+      const { error: linkError } = await supabase
+        .from('seeker_organizations')
+        .update({ custom_nda_document_id: docRecord.id })
+        .eq('id', payload.organization_id);
+
+      if (linkError) throw new Error(linkError.message);
+
+      return docRecord;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker_organizations'] });
+      toast.success('Custom NDA uploaded successfully');
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to upload NDA: ${error.message}`);
     },
   });
 }
