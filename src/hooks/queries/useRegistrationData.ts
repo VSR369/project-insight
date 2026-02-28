@@ -233,6 +233,54 @@ export function useUpdateOrganization() {
 }
 
 // ============================================================
+// Upload Org Document (logo, profile, verification)
+// ============================================================
+export function useUploadOrgDocument() {
+  return useMutation({
+    mutationFn: async (params: {
+      file: File;
+      tenantId: string;
+      organizationId: string;
+      documentType: 'logo' | 'profile' | 'verification';
+    }) => {
+      const { file, tenantId, organizationId, documentType } = params;
+      const fileId = crypto.randomUUID();
+      const storagePath = `${tenantId}/${documentType}/${fileId}_${file.name}`;
+
+      // 1. Upload to storage
+      const { error: uploadError } = await supabase.storage
+        .from('org-documents')
+        .upload(storagePath, file, { contentType: file.type, upsert: false });
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`);
+
+      // 2. Map to DB enum value
+      const dbDocType = documentType === 'verification' ? 'verification'
+        : documentType === 'profile' ? 'profile'
+        : 'logo';
+
+      // 3. Insert DB record
+      const { data, error: dbError } = await supabase
+        .from('seeker_org_documents')
+        .insert({
+          organization_id: organizationId,
+          tenant_id: tenantId,
+          document_type: dbDocType,
+          file_name: file.name,
+          file_size: file.size,
+          mime_type: file.type,
+          storage_path: storagePath,
+          verification_status: 'pending',
+        })
+        .select()
+        .single();
+      if (dbError) throw new Error(`DB record failed: ${dbError.message}`);
+
+      return { storagePath, record: data };
+    },
+  });
+}
+
+// ============================================================
 // Create Organization (Step 1 save)
 // ============================================================
 export function useCreateOrganization() {
