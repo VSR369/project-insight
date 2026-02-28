@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Download, CheckCircle, XCircle, Loader2, FileQuestion } from 'lucide-react';
 import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
-import { useState, useEffect } from 'react';
+import { PdfPreviewCanvas } from '@/components/PdfPreviewCanvas';
+import { useState } from 'react';
 import type { SeekerDocument } from './types';
 
 const statusColors: Record<string, string> = {
@@ -22,11 +23,12 @@ function formatSize(bytes: number): string {
 interface DocumentPreviewDialogProps {
   doc: SeekerDocument | null;
   blobUrl: string | null;
+  pdfData: ArrayBuffer | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: DocumentPreviewDialogProps) {
+export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChange }: DocumentPreviewDialogProps) {
   const approveDoc = useApproveDocument();
   const [rejectOpen, setRejectOpen] = useState(false);
 
@@ -37,9 +39,7 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
   const isPending = doc.verification_status === 'pending';
 
   const handleApprove = () => {
-    approveDoc.mutate(doc.id, {
-      onSuccess: () => onOpenChange(false),
-    });
+    approveDoc.mutate(doc.id, { onSuccess: () => onOpenChange(false) });
   };
 
   const handleRejectSuccess = () => {
@@ -58,7 +58,7 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
   };
 
   const renderPreview = () => {
-    if (!blobUrl) {
+    if (!blobUrl && !pdfData) {
       return (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -69,25 +69,13 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
     if (isImage) {
       return (
         <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-muted/30 p-4">
-          <img src={blobUrl} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
+          <img src={blobUrl!} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
         </div>
       );
     }
 
     if (isPdf) {
-      return (
-        <div className="flex-1 min-h-0 flex flex-col w-full rounded overflow-hidden">
-          <object data={blobUrl} type="application/pdf" className="flex-1 w-full min-h-0">
-            <embed src={blobUrl} type="application/pdf" className="w-full h-full" />
-          </object>
-          <div className="shrink-0 flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
-            <span>PDF not displaying?</span>
-            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => window.open(blobUrl, '_blank')}>
-              Open in new tab
-            </Button>
-          </div>
-        </div>
-      );
+      return <PdfPreviewCanvas pdfData={pdfData} blobUrl={blobUrl} fileName={doc.file_name} />;
     }
 
     return (
@@ -127,19 +115,10 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
             </Button>
             {isPending && (
               <div className="flex gap-2">
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => setRejectOpen(true)}
-                >
+                <Button variant="destructive" size="sm" onClick={() => setRejectOpen(true)}>
                   <XCircle className="h-4 w-4 mr-1" /> Reject
                 </Button>
-                <Button
-                  size="sm"
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  onClick={handleApprove}
-                  disabled={approveDoc.isPending}
-                >
+                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApprove} disabled={approveDoc.isPending}>
                   {approveDoc.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
                   Accept
                 </Button>
@@ -151,10 +130,7 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
 
       <RejectDocumentDialog
         open={rejectOpen}
-        onOpenChange={(o) => {
-          setRejectOpen(o);
-          if (!o) handleRejectSuccess();
-        }}
+        onOpenChange={(o) => { setRejectOpen(o); if (!o) handleRejectSuccess(); }}
         docId={doc.id}
       />
     </>
