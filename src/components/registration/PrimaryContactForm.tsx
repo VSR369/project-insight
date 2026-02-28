@@ -38,6 +38,8 @@ import {
   FormMessage,
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { useCountries } from '@/hooks/queries/useCountries';
 import {
   Select,
   SelectContent,
@@ -92,6 +94,9 @@ export function PrimaryContactForm() {
     name: state.step2?.separate_admin?.name ?? '',
     email: state.step2?.separate_admin?.email ?? '',
     phone: state.step2?.separate_admin?.phone ?? '',
+    country_id: state.step2?.separate_admin?.country_id ?? state.step1?.hq_country_id ?? '',
+    phone_country_code: state.step2?.separate_admin?.phone_country_code ?? state.localeInfo?.phone_code ?? '',
+    working_location: state.step2?.separate_admin?.working_location ?? '',
   });
 
   // ══════════════════════════════════════
@@ -124,6 +129,7 @@ export function PrimaryContactForm() {
   // SECTION 4: Query/Mutation hooks
   // ══════════════════════════════════════
   const { data: blockedDomains = [], isLoading: domainsLoading } = useBlockedDomains();
+  const { data: countries } = useCountries();
   const { data: languages, isLoading: languagesLoading } = useLanguages();
   const { data: departments, isLoading: departmentsLoading } = useDepartments();
   const { data: functionalAreas, isLoading: areasLoading } = useFunctionalAreas();
@@ -136,7 +142,7 @@ export function PrimaryContactForm() {
   // ══════════════════════════════════════
   // Auto-populate phone country code from locale
   useEffect(() => {
-    if (state.localeInfo?.phone_code && !form.getValues('phone_country_code')) {
+    if (state.localeInfo?.phone_code) {
       form.setValue('phone_country_code', state.localeInfo.phone_code);
     }
   }, [state.localeInfo, form]);
@@ -222,7 +228,14 @@ export function PrimaryContactForm() {
         password: data.password, // In-memory only, stripped from sessionStorage
         admin_designation: adminDesignation,
         separate_admin: adminDesignation === 'separate'
-          ? { name: separateAdmin.name || undefined, email: separateAdmin.email || undefined, phone: separateAdmin.phone || undefined }
+          ? {
+              name: separateAdmin.name || undefined,
+              email: separateAdmin.email || undefined,
+              phone: separateAdmin.phone || undefined,
+              country_id: separateAdmin.country_id || undefined,
+              phone_country_code: separateAdmin.phone_country_code || undefined,
+              working_location: separateAdmin.working_location || undefined,
+            }
           : undefined,
       });
 
@@ -539,13 +552,68 @@ export function PrimaryContactForm() {
                   value={separateAdmin.email}
                   onChange={(e) => setSeparateAdmin((p) => ({ ...p, email: e.target.value }))}
                 />
-                <Input
-                  placeholder="Phone number"
-                  type="tel"
-                  className="text-base"
-                  value={separateAdmin.phone}
-                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, phone: e.target.value }))}
-                />
+
+                {/* Country selector for separate admin */}
+                <div>
+                  <Label className="text-sm mb-1.5 block">Country</Label>
+                  <Select
+                    value={separateAdmin.country_id}
+                    onValueChange={(countryId) => {
+                      const selected = countries?.find((c) => c.id === countryId);
+                      setSeparateAdmin((p) => ({
+                        ...p,
+                        country_id: countryId,
+                        phone_country_code: selected?.phone_code ?? p.phone_country_code,
+                      }));
+                    }}
+                  >
+                    <SelectTrigger className="text-base">
+                      <SelectValue placeholder="Select country" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {countries?.map((c) => (
+                        <SelectItem key={c.id} value={c.id}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Phone with country code */}
+                <div className="grid grid-cols-[120px_1fr] gap-3">
+                  <div>
+                    <Label className="text-sm mb-1.5 block">Code</Label>
+                    <Input
+                      value={separateAdmin.phone_country_code}
+                      readOnly
+                      className="text-base bg-muted"
+                      placeholder="+1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-sm mb-1.5 block">Phone Number</Label>
+                    <Input
+                      placeholder="Phone number"
+                      type="tel"
+                      className="text-base"
+                      value={separateAdmin.phone}
+                      onChange={(e) => setSeparateAdmin((p) => ({ ...p, phone: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Working Location / Address */}
+                <div>
+                  <Label className="text-sm mb-1.5 block">Working Location / Address</Label>
+                  <Textarea
+                    placeholder="Optional — office address or working location"
+                    className="text-base"
+                    rows={2}
+                    value={separateAdmin.working_location}
+                    onChange={(e) => setSeparateAdmin((p) => ({ ...p, working_location: e.target.value }))}
+                  />
+                </div>
               </div>
             )}
           </CardContent>
