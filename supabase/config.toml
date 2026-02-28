@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.create-org-admin]
 verify_jwt = false
+
+[functions.send-seeker-welcome-email]
+verify_jwt = false
