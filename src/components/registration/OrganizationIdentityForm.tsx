@@ -12,9 +12,11 @@
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useState, useEffect, useRef } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
+import { supabase } from '@/integrations/supabase/client';
 import { useOrganizationTypes } from '@/hooks/queries/useMasterData';
 import {
   useStatesForCountry,
@@ -25,6 +27,7 @@ import {
   useCreateOrganization,
   useUpdateOrganization,
   useTierCountryPricing,
+  useUploadOrgDocument,
 } from '@/hooks/queries/useRegistrationData';
 import { isStartupEligible } from '@/services/registrationService';
 import {
@@ -116,6 +119,7 @@ export function OrganizationIdentityForm() {
   const createOrg = useCreateOrganization();
   const updateOrg = useUpdateOrganization();
   const { data: countryPricingSupported } = useTierCountryPricing(watchedCountryId);
+  const uploadDoc = useUploadOrgDocument();
 
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
@@ -216,15 +220,71 @@ export function OrganizationIdentityForm() {
     };
 
     try {
+      let orgId = state.organizationId;
+      let tenId = state.tenantId;
+
       if (isUpdate) {
         await updateOrg.mutateAsync({
           id: state.organizationId!,
           tenantId: state.tenantId!,
           ...payload,
         });
+        orgId = state.organizationId!;
+        tenId = state.tenantId!;
       } else {
         const result = await createOrg.mutateAsync(payload);
         setOrgId(result.organizationId, result.tenantId);
+        orgId = result.organizationId;
+        tenId = result.tenantId;
+      }
+
+      // Upload documents (non-blocking — failures show toast but don't block navigation)
+      if (orgId && tenId) {
+        const uploadPromises: Promise<unknown>[] = [];
+
+        if (logoFile) {
+          uploadPromises.push(
+            uploadDoc.mutateAsync({
+              file: logoFile,
+              tenantId: tenId,
+              organizationId: orgId,
+              documentType: 'logo',
+            }).then(async ({ storagePath }) => {
+              // Update logo_url on the org record
+              await supabase
+                .from('seeker_organizations')
+                .update({ logo_url: storagePath })
+                .eq('id', orgId!);
+            }).catch(() => toast.error('Logo upload failed — you can re-upload later.'))
+          );
+        }
+
+        if (profileDocument) {
+          uploadPromises.push(
+            uploadDoc.mutateAsync({
+              file: profileDocument,
+              tenantId: tenId,
+              organizationId: orgId,
+              documentType: 'profile',
+            }).catch(() => toast.error('Profile document upload failed — you can re-upload later.'))
+          );
+        }
+
+        if (verificationFiles.length > 0) {
+          for (const vFile of verificationFiles) {
+            uploadPromises.push(
+              uploadDoc.mutateAsync({
+                file: vFile,
+                tenantId: tenId,
+                organizationId: orgId,
+                documentType: 'verification',
+              }).catch(() => toast.error(`Verification doc "${vFile.name}" upload failed.`))
+            );
+          }
+        }
+
+        // Wait for all uploads but don't block navigation on failure
+        await Promise.allSettled(uploadPromises);
       }
 
       setStep1Data({
