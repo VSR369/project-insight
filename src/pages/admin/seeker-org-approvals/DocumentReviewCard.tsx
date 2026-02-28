@@ -3,8 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
-import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
-import { getDocumentSignedUrl } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useApproveDocument, fetchDocumentBlobUrl } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import type { SeekerDocument } from './types';
@@ -30,17 +29,27 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const [rejectDocId, setRejectDocId] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<SeekerDocument | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const handlePreview = async (doc: SeekerDocument) => {
     setPreviewLoading(doc.id);
     setPreviewDoc(doc);
-    setPreviewUrl(null);
+    // Revoke previous blob URL
+    if (blobUrl) URL.revokeObjectURL(blobUrl);
+    setBlobUrl(null);
     setPreviewOpen(true);
-    const url = await getDocumentSignedUrl(doc.storage_path);
-    setPreviewUrl(url);
+    const url = await fetchDocumentBlobUrl(doc.storage_path);
+    setBlobUrl(url);
     setPreviewLoading(null);
+  };
+
+  const handlePreviewClose = (open: boolean) => {
+    setPreviewOpen(open);
+    if (!open && blobUrl) {
+      URL.revokeObjectURL(blobUrl);
+      setBlobUrl(null);
+    }
   };
 
   return (
@@ -110,9 +119,9 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
 
       <DocumentPreviewDialog
         doc={previewDoc}
-        signedUrl={previewUrl}
+        blobUrl={blobUrl}
         open={previewOpen}
-        onOpenChange={setPreviewOpen}
+        onOpenChange={handlePreviewClose}
       />
     </Card>
   );
