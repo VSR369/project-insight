@@ -73,8 +73,15 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
       }
     }
 
-    renderPdf();
-    return () => { cancelled = true; };
+    const timeout = setTimeout(() => {
+      if (!cancelled && taskId === renderTaskRef.current) {
+        console.error('PDF render timed out after 15s');
+        setStatus('error');
+      }
+    }, 15000);
+
+    renderPdf().finally(() => clearTimeout(timeout));
+    return () => { cancelled = true; clearTimeout(timeout); };
   }, [pdfData]);
 
   const handleDownload = () => {
