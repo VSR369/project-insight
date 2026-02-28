@@ -1,25 +1,56 @@
 
+Goal: make PDF preview reliable across Chrome/Edge/Firefox/Safari (including embedded iframe contexts) by removing dependency on native browser PDF plugins (`iframe/object/embed`) and rendering PDFs in-app.
 
-## Fix: Chrome Blocking PDF Preview in Iframe
+Implementation steps:
 
-### Root Cause
-Chrome blocks `blob:` URLs rendered inside `<iframe>` elements in certain security contexts (especially when the app itself runs inside an iframe, as in the Lovable preview). The `<iframe>` triggers Chrome's built-in "blocked page" warning even though the blob was fetched successfully.
+1) Replace native PDF embed with PDF.js canvas renderer
+- Add `pdfjs-dist` dependency.
+- In `DocumentPreviewDialog.tsx`, remove `<object>/<embed>` PDF block.
+- Add a dedicated React PDF preview section that:
+  - loads the PDF from blob data using PDF.js,
+  - renders page(s) to `<canvas>`,
+  - shows loading spinner + explicit error state.
+- Keep image preview path unchanged (`<img src={blobUrl}>`).
 
-### Solution
-Replace `<iframe>` with `<embed>` for PDF rendering and add `<object>` as a layered fallback. The `<embed>` element with `type="application/pdf"` uses the browser's native PDF viewer without the iframe security restrictions. Additionally, add a manual "Open in new tab" fallback button for browsers that don't support embedded PDF viewing at all.
+2) Update preview data flow to support PDF.js input
+- In `useSeekerOrgApprovals.ts`, add helper returning `Blob` (or `ArrayBuffer`) from signed URL, not only `blob:` URL.
+- In `DocumentReviewCard.tsx`, fetch blob once on eye click and pass:
+  - `blob` (for PDF.js render),
+  - `blobUrl` (for image preview + download).
+- Keep existing signed URL flow private and unchanged at storage/API layer.
 
-### Changes
+3) Harden dialog states + fallbacks
+- `DocumentPreviewDialog.tsx`:
+  - If PDF render fails, show user-facing error + “Download” action.
+  - Keep “Open in new tab” as optional fallback (secondary).
+  - Disable Accept/Reject while preview is still loading only if needed; otherwise preserve current behavior.
+- Ensure no blank gray area: always show one of {loading, rendered preview, error fallback}.
 
-**`DocumentPreviewDialog.tsx`** — Single file change:
-- Replace the `<iframe src={blobUrl}>` block (line 79-84) with:
-  ```tsx
-  <embed
-    src={blobUrl}
-    type="application/pdf"
-    className="flex-1 min-h-0 w-full rounded"
-  />
-  ```
-- Add a small fallback message below the embed in case the browser still can't render it, with a button that opens the blob URL in a new tab via `window.open(blobUrl, '_blank')`
+4) Memory and lifecycle cleanup
+- Revoke `blobUrl` on dialog close and when switching documents (already partially present; keep and tighten).
+- Clear PDF.js loading task/page state on unmount and document switch to avoid stale renders/leaks.
 
-No other files need changes. The blob fetching logic in `useSeekerOrgApprovals.ts` and `DocumentReviewCard.tsx` is correct and working (confirmed by network logs showing successful 200 responses).
+5) Validate end-to-end on real flows
+- Test with at least:
+  - small PDF,
+  - larger PDF,
+  - image file,
+  - unsupported mime type.
+- Verify sequence:
+  - click eye → preview renders,
+  - click Download → file saves correctly,
+  - Accept/Reject from dialog still mutates status and closes dialog.
+- Verify in both Lovable preview iframe and published app URL.
 
+Technical details (for implementation):
+- Preferred files to touch:
+  - `src/pages/admin/seeker-org-approvals/DocumentPreviewDialog.tsx`
+  - `src/pages/admin/seeker-org-approvals/DocumentReviewCard.tsx`
+  - `src/hooks/queries/useSeekerOrgApprovals.ts`
+- Suggested new helper/component:
+  - `PdfPreviewCanvas` (can be local in `DocumentPreviewDialog.tsx` or extracted to `src/components/...`).
+- PDF.js setup:
+  - configure worker via `pdfjsLib.GlobalWorkerOptions.workerSrc` using bundler-safe import URL.
+  - render with devicePixelRatio scaling for crisp text.
+- Keep existing mutation hooks (`useApproveDocument`, reject dialog path) unchanged.
+- No database/RLS/API contract changes required.
