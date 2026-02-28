@@ -68,7 +68,7 @@ serve(async (req) => {
     const loginUrl = "https://schema-whisperer-72.lovable.app/login";
 
     const { error: emailError } = await resend.emails.send({
-      from: "CogniBlend <noreply@cogniblend.com>",
+      from: "CogniBlend <onboarding@resend.dev>",
       to: [recipientEmail],
       subject: `Welcome to CogniBlend — ${orgName} Account Activated`,
       html: `

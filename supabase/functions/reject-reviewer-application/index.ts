@@ -131,7 +131,7 @@ serve(async (req) => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            from: "CogniBlend <noreply@cogniblend.com>",
+            from: "CogniBlend <onboarding@resend.dev>",
             to: [reviewer.email],
             subject: "Update on Your Reviewer Application",
             html: `
