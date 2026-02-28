@@ -1,48 +1,32 @@
 
 
-## Document Preview with Accept/Reject Actions
+## Fix: Document Preview & Download Blocked by Browser
 
-### Current Behavior
-Clicking the download button opens the document in a new browser tab via a signed URL. Accept/Reject buttons sit inline next to each document row.
+### Root Cause
+The Supabase signed URL (`izwimkvabbvnqcrrubpf.supabase.co/storage/...`) is being blocked by the browser (ad blocker or cross-origin iframe restriction — `ERR_BLOCKED_BY_CLIENT`). Both the `<iframe src={signedUrl}>` for PDF preview and the `<a href={signedUrl}>` download link fail because the browser blocks navigation to the Supabase domain.
 
-### Proposed Change
-Replace the "open in new tab" behavior with an **in-page document preview dialog**. When the admin clicks the download/view button on a document row:
+### Fix
+Fetch the file as a **blob** via `fetch()`, create a local `blob:` URL using `URL.createObjectURL()`, and use that for both preview and download. Blob URLs are same-origin and bypass browser blocking.
 
-1. **Fetch the signed URL** from Supabase Storage.
-2. **Open a full-screen Dialog** containing:
-   - An `<iframe>` rendering the document (PDF files render natively in browsers; images via `<img>` tag based on `mime_type`).
-   - Document metadata header (file name, type, size, current status).
-   - A footer with **Accept** and **Reject** buttons (only shown when `verification_status === 'pending'`).
-   - A separate **Download** icon button to still allow saving the file locally.
-3. Clicking **Reject** opens the existing `RejectDocumentDialog` on top.
-4. After Accept/Reject, the preview dialog closes automatically.
+### Changes
 
-### New File
-- `src/pages/admin/seeker-org-approvals/DocumentPreviewDialog.tsx` — The preview dialog component.
+**1. `DocumentPreviewDialog.tsx`**
+- Accept a `blobUrl` prop instead of (or alongside) `signedUrl`
+- Use `blobUrl` for `<iframe src>`, `<img src>`, and download `<a href>`
+- Clean up blob URL on unmount via `URL.revokeObjectURL()`
 
-### Modified File
-- `src/pages/admin/seeker-org-approvals/DocumentReviewCard.tsx` — Replace `window.open` with opening the preview dialog. Keep inline Accept/Reject buttons as-is for quick actions without previewing.
+**2. `DocumentReviewCard.tsx`**
+- In `handlePreview`, after getting the signed URL, fetch it as a blob:
+  ```ts
+  const response = await fetch(signedUrl);
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  ```
+- Pass `blobUrl` to `DocumentPreviewDialog`
+- Revoke old blob URLs when creating new ones
 
-### Implementation Details
+**3. `useSeekerOrgApprovals.ts`**
+- Add a helper `fetchDocumentBlob(storagePath)` that gets the signed URL and fetches the blob in one step, returning a blob URL. This keeps the logic centralized.
 
-**DocumentPreviewDialog props:**
-```ts
-interface DocumentPreviewDialogProps {
-  doc: SeekerDocument | null;
-  signedUrl: string | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-```
-
-**Rendering logic:**
-- If `mime_type` starts with `image/` → render `<img>` tag
-- If `mime_type` is `application/pdf` → render `<iframe>` with full height
-- Fallback → show "Preview not available" message with download link
-
-**Dialog layout:**
-- `max-h-[90vh]` with `flex flex-col overflow-hidden` per project standards
-- Header: file name + status badge (shrink-0)
-- Body: iframe/img preview (flex-1 min-h-0 overflow-hidden)
-- Footer: Download, Accept, Reject buttons (shrink-0)
+### No changes to business logic, navigation, APIs, or data integrity. Only the rendering transport (signed URL to blob URL) changes.
 
