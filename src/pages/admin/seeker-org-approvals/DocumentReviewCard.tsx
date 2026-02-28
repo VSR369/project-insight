@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { FileText, CheckCircle, XCircle, Download, Loader2 } from 'lucide-react';
+import { FileText, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
 import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
 import { getDocumentSignedUrl } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
+import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import type { SeekerDocument } from './types';
 
 const statusColors: Record<string, string> = {
@@ -27,13 +28,19 @@ interface DocumentReviewCardProps {
 export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const approveDoc = useApproveDocument();
   const [rejectDocId, setRejectDocId] = useState<string | null>(null);
-  const [downloading, setDownloading] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
+  const [previewDoc, setPreviewDoc] = useState<SeekerDocument | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
 
-  const handleDownload = async (doc: SeekerDocument) => {
-    setDownloading(doc.id);
+  const handlePreview = async (doc: SeekerDocument) => {
+    setPreviewLoading(doc.id);
+    setPreviewDoc(doc);
+    setPreviewUrl(null);
+    setPreviewOpen(true);
     const url = await getDocumentSignedUrl(doc.storage_path);
-    if (url) window.open(url, '_blank');
-    setDownloading(null);
+    setPreviewUrl(url);
+    setPreviewLoading(null);
   };
 
   return (
@@ -60,8 +67,8 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
                   </div>
                 </div>
                 <Badge className={statusColors[doc.verification_status] ?? ''}>{doc.verification_status}</Badge>
-                <Button variant="ghost" size="icon" onClick={() => handleDownload(doc)} disabled={downloading === doc.id}>
-                  {downloading === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                <Button variant="ghost" size="icon" onClick={() => handlePreview(doc)} disabled={previewLoading === doc.id}>
+                  {previewLoading === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                 </Button>
                 {doc.verification_status === 'pending' && (
                   <>
@@ -99,6 +106,13 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
         open={!!rejectDocId}
         onOpenChange={(open) => !open && setRejectDocId(null)}
         docId={rejectDocId ?? ''}
+      />
+
+      <DocumentPreviewDialog
+        doc={previewDoc}
+        signedUrl={previewUrl}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
       />
     </Card>
   );
