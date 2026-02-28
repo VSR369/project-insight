@@ -1,91 +1,48 @@
 
 
-## Compliance Gaps — Seeker Org Approvals Module
+## Document Preview with Accept/Reject Actions
 
-### Gap 1: Error handling uses raw `toast.error` instead of `handleMutationError`
-**Violation:** Section 11.5 (Console Usage Rules), Section 25 (Anti-Patterns)
-**Files:** `useSeekerOrgApprovals.ts` — all 6 mutations use `toast.error(...)` in `onError` instead of `handleMutationError(error, { operation: "..." })`
-**Fix:** Replace all `onError` callbacks with `handleMutationError` from `@/lib/errorHandler`.
+### Current Behavior
+Clicking the download button opens the document in a new browser tab via a signed URL. Accept/Reject buttons sit inline next to each document row.
 
-### Gap 2: Mutations missing `withCreatedBy` / `withUpdatedBy` audit utilities
-**Violation:** Section 24.1 (Audit Fields Utility), Section 27 (Code Review Checklist)
-**Files:** `useSeekerOrgApprovals.ts` — `useApproveOrg`, `useRejectOrg`, `useApproveDocument`, `useRejectDocument` all inline `supabase.auth.getUser()` instead of using the centralized `withUpdatedBy()` from `@/lib/auditFields.ts`.
-**Fix:** Replace inline user fetching with `withUpdatedBy()` calls. Also add `updated_at` timestamp to reject mutation.
+### Proposed Change
+Replace the "open in new tab" behavior with an **in-page document preview dialog**. When the admin clicks the download/view button on a document row:
 
-### Gap 3: `useRejectOrg` does not persist `rejection_reason`
-**Violation:** Business logic gap — the rejection reason is collected in the dialog but never stored in the database update.
-**Fix:** Add `rejection_reason: reason` to the `.update()` call. Also add `updated_by` and `updated_at` fields.
+1. **Fetch the signed URL** from Supabase Storage.
+2. **Open a full-screen Dialog** containing:
+   - An `<iframe>` rendering the document (PDF files render natively in browsers; images via `<img>` tag based on `mime_type`).
+   - Document metadata header (file name, type, size, current status).
+   - A footer with **Accept** and **Reject** buttons (only shown when `verification_status === 'pending'`).
+   - A separate **Download** icon button to still allow saving the file locally.
+3. Clicking **Reject** opens the existing `RejectDocumentDialog` on top.
+4. After Accept/Reject, the preview dialog closes automatically.
 
-### Gap 4: Missing `updated_at` on several mutations
-**Violation:** Section 2.2 (Mandatory Fields)
-**Files:** `useApproveOrg` and `useRejectOrg` do not set `updated_at`. `useApproveDocument` and `useRejectDocument` do not set `updated_at`.
-**Fix:** Include `updated_at: new Date().toISOString()` in all update payloads (handled automatically via `withUpdatedBy`).
+### New File
+- `src/pages/admin/seeker-org-approvals/DocumentPreviewDialog.tsx` — The preview dialog component.
 
-### Gap 5: `AdminCredentialsCard` generates temp password on every render
-**Violation:** Security concern — `Date.now()` makes password non-deterministic across re-renders, and it's generated client-side without any real credential management.
-**Fix:** Use `useMemo` to stabilize the generated password within a session. Add a comment noting this is a placeholder until proper credential management is implemented.
+### Modified File
+- `src/pages/admin/seeker-org-approvals/DocumentReviewCard.tsx` — Replace `window.open` with opening the preview dialog. Keep inline Accept/Reject buttons as-is for quick actions without previewing.
 
-### Gap 6: `AdminCredentialsCard` passes `user_id` as `adminEmail`
-**Violation:** Data integrity — line 67 sends `adminUser.user_id` (a UUID) as `adminEmail`. The edge function expects an email address.
-**Fix:** Fetch the admin user's email from the `org_users` join or add an email field lookup. The `org_users` table likely has or references the auth email — need to resolve this correctly.
+### Implementation Details
 
-### Gap 7: Missing `any` type usage — no TypeScript interfaces
-**Violation:** Section 22.2 (Variable Naming), Section 27 (TypeScript types/interfaces defined)
-**Files:** All card components use `any` for props (`org: any`, `contacts: any[]`, `compliance: any`, etc.). No shared types defined.
-**Fix:** Create `src/pages/admin/seeker-org-approvals/types.ts` with interfaces for `SeekerOrg`, `SeekerContact`, `SeekerCompliance`, `SeekerSubscription`, `SeekerBilling`, `SeekerDocument`, `OrgUser`.
+**DocumentPreviewDialog props:**
+```ts
+interface DocumentPreviewDialogProps {
+  doc: SeekerDocument | null;
+  signedUrl: string | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+```
 
-### Gap 8: `SeekerOrgApprovalsPage` list has no pagination
-**Violation:** Section 4.4 (Pagination Mandatory for All List Endpoints), Section 16.2 (Pagination mandatory)
-**Fix:** Add client-side pagination to the table (page size 20). The query currently fetches all orgs without limit.
+**Rendering logic:**
+- If `mime_type` starts with `image/` → render `<img>` tag
+- If `mime_type` is `application/pdf` → render `<iframe>` with full height
+- Fallback → show "Preview not available" message with download link
 
-### Gap 9: Missing `ComplianceDetailCard` fields from registration
-**Violation:** Feature completeness — the compliance card does not show Tax ID, DUNS Number, NDA Preference, Export Control Status, or Data Residency (fields collected in registration Step 3).
-**Fix:** Add `tax_id`, `duns_number`, `nda_preference`, `export_control_status_id`, `data_residency_id` fields. Resolve IDs to names where applicable.
-
-### Gap 10: Missing Error Boundary wrapping
-**Violation:** Section 11.4 (Error Boundary Pattern), Section 27 (Error boundaries wrap features)
-**Fix:** Wrap `SeekerOrgReviewPage` content in a `FeatureErrorBoundary`.
-
-### Gap 11: Dialog components missing `max-h-[90vh] overflow-y-auto`
-**Violation:** Section 7.3 (Dialog/Modal Pattern), Section 9.3 (Mandatory Patterns)
-**Files:** `RejectOrgDialog.tsx`, `RejectDocumentDialog.tsx` — `DialogContent` missing responsive overflow handling.
-**Fix:** Add `max-h-[90vh] flex flex-col overflow-hidden` to `DialogContent`.
-
-### Gap 12: Approve button has no confirmation
-**Violation:** UX best practice — destructive/irreversible state change (verification) happens with a single click, no confirmation.
-**Fix:** Add an `AlertDialog` confirmation before approving an organization.
-
----
-
-## Implementation Plan
-
-### Step 1: Create TypeScript interfaces
-Create `src/pages/admin/seeker-org-approvals/types.ts` with proper interfaces for all data shapes used across card components.
-
-### Step 2: Fix `useSeekerOrgApprovals.ts` hooks
-- Replace all `onError: (error) => toast.error(...)` with `handleMutationError(error, { operation: "..." })`
-- Replace inline `supabase.auth.getUser()` with `withUpdatedBy()` from `@/lib/auditFields`
-- Add `rejection_reason` to `useRejectOrg` mutation
-- Add `updated_at` to all update mutations
-- Add query limit to `useSeekerOrgList`
-
-### Step 3: Fix `AdminCredentialsCard`
-- Stabilize temp password with `useMemo`
-- Fix `adminEmail` to use actual email instead of UUID (fetch from profiles or contacts)
-
-### Step 4: Enhance `ComplianceDetailCard`
-- Add missing fields: Tax ID, DUNS, NDA Preference, Export Control Status, Data Residency
-
-### Step 5: Add pagination to `SeekerOrgApprovalsPage`
-- Add simple client-side pagination (20 items per page)
-
-### Step 6: Add dialog overflow patterns and confirmation
-- Fix `RejectOrgDialog` and `RejectDocumentDialog` with proper `max-h-[90vh]` pattern
-- Add `AlertDialog` confirmation for Approve action
-
-### Step 7: Add Error Boundary
-- Wrap review page content in `FeatureErrorBoundary`
-
-### Step 8: Apply types to all card components
-- Replace `any` props with proper interfaces from `types.ts`
+**Dialog layout:**
+- `max-h-[90vh]` with `flex flex-col overflow-hidden` per project standards
+- Header: file name + status badge (shrink-0)
+- Body: iframe/img preview (flex-1 min-h-0 overflow-hidden)
+- Footer: Download, Accept, Reject buttons (shrink-0)
 
