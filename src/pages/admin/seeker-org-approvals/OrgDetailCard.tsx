@@ -1,11 +1,12 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2 } from 'lucide-react';
+import type { SeekerOrg, SeekerOrgIndustry, SeekerOrgGeography } from './types';
 
 interface OrgDetailCardProps {
-  org: any;
-  industries: any[];
-  geographies: any[];
+  org: SeekerOrg;
+  industries: SeekerOrgIndustry[];
+  geographies: SeekerOrgGeography[];
 }
 
 function Field({ label, value }: { label: string; value?: string | number | null }) {
@@ -59,8 +60,8 @@ export function OrgDetailCard({ org, industries, geographies }: OrgDetailCardPro
           <div>
             <p className="text-xs text-muted-foreground mb-1">Industry Segments</p>
             <div className="flex flex-wrap gap-1">
-              {industries.map((i: any) => (
-                <Badge key={i.id} variant="secondary">{i.industry_segments?.name ?? i.industry_segment_id}</Badge>
+              {industries.map((i) => (
+                <Badge key={i.id} variant="secondary">{i.industry_segments?.name ?? i.industry_id}</Badge>
               ))}
             </div>
           </div>
@@ -70,7 +71,7 @@ export function OrgDetailCard({ org, industries, geographies }: OrgDetailCardPro
           <div>
             <p className="text-xs text-muted-foreground mb-1">Operating Geographies</p>
             <div className="flex flex-wrap gap-1">
-              {geographies.map((g: any) => (
+              {geographies.map((g) => (
                 <Badge key={g.id} variant="outline">{g.countries?.name ?? g.country_id}</Badge>
               ))}
             </div>

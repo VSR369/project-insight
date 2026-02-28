@@ -1,0 +1,1 @@
+ALTER TABLE public.seeker_organizations ADD COLUMN IF NOT EXISTS rejection_reason TEXT;

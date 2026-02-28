@@ -6670,6 +6670,7 @@ export type Database = {
           preferred_language_id: string | null
           registration_number: string | null
           registration_step: number
+          rejection_reason: string | null
           subsidized_discount_pct: number
           tax_id: string | null
           tenant_id: string
@@ -6720,6 +6721,7 @@ export type Database = {
           preferred_language_id?: string | null
           registration_number?: string | null
           registration_step?: number
+          rejection_reason?: string | null
           subsidized_discount_pct?: number
           tax_id?: string | null
           tenant_id: string
@@ -6770,6 +6772,7 @@ export type Database = {
           preferred_language_id?: string | null
           registration_number?: string | null
           registration_step?: number
+          rejection_reason?: string | null
           subsidized_discount_pct?: number
           tax_id?: string | null
           tenant_id?: string
