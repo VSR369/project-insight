@@ -1,32 +1,25 @@
 
 
-## Fix: Document Preview & Download Blocked by Browser
+## Fix: Chrome Blocking PDF Preview in Iframe
 
 ### Root Cause
-The Supabase signed URL (`izwimkvabbvnqcrrubpf.supabase.co/storage/...`) is being blocked by the browser (ad blocker or cross-origin iframe restriction — `ERR_BLOCKED_BY_CLIENT`). Both the `<iframe src={signedUrl}>` for PDF preview and the `<a href={signedUrl}>` download link fail because the browser blocks navigation to the Supabase domain.
+Chrome blocks `blob:` URLs rendered inside `<iframe>` elements in certain security contexts (especially when the app itself runs inside an iframe, as in the Lovable preview). The `<iframe>` triggers Chrome's built-in "blocked page" warning even though the blob was fetched successfully.
 
-### Fix
-Fetch the file as a **blob** via `fetch()`, create a local `blob:` URL using `URL.createObjectURL()`, and use that for both preview and download. Blob URLs are same-origin and bypass browser blocking.
+### Solution
+Replace `<iframe>` with `<embed>` for PDF rendering and add `<object>` as a layered fallback. The `<embed>` element with `type="application/pdf"` uses the browser's native PDF viewer without the iframe security restrictions. Additionally, add a manual "Open in new tab" fallback button for browsers that don't support embedded PDF viewing at all.
 
 ### Changes
 
-**1. `DocumentPreviewDialog.tsx`**
-- Accept a `blobUrl` prop instead of (or alongside) `signedUrl`
-- Use `blobUrl` for `<iframe src>`, `<img src>`, and download `<a href>`
-- Clean up blob URL on unmount via `URL.revokeObjectURL()`
-
-**2. `DocumentReviewCard.tsx`**
-- In `handlePreview`, after getting the signed URL, fetch it as a blob:
-  ```ts
-  const response = await fetch(signedUrl);
-  const blob = await response.blob();
-  const blobUrl = URL.createObjectURL(blob);
+**`DocumentPreviewDialog.tsx`** — Single file change:
+- Replace the `<iframe src={blobUrl}>` block (line 79-84) with:
+  ```tsx
+  <embed
+    src={blobUrl}
+    type="application/pdf"
+    className="flex-1 min-h-0 w-full rounded"
+  />
   ```
-- Pass `blobUrl` to `DocumentPreviewDialog`
-- Revoke old blob URLs when creating new ones
+- Add a small fallback message below the embed in case the browser still can't render it, with a button that opens the blob URL in a new tab via `window.open(blobUrl, '_blank')`
 
-**3. `useSeekerOrgApprovals.ts`**
-- Add a helper `fetchDocumentBlob(storagePath)` that gets the signed URL and fetches the blob in one step, returning a blob URL. This keeps the logic centralized.
-
-### No changes to business logic, navigation, APIs, or data integrity. Only the rendering transport (signed URL to blob URL) changes.
+No other files need changes. The blob fetching logic in `useSeekerOrgApprovals.ts` and `DocumentReviewCard.tsx` is correct and working (confirmed by network logs showing successful 200 responses).
 
