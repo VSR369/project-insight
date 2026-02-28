@@ -76,11 +76,17 @@ export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: Docu
 
     if (isPdf) {
       return (
-        <iframe
-          src={blobUrl}
-          title={doc.file_name}
-          className="flex-1 min-h-0 w-full border-0 rounded"
-        />
+        <div className="flex-1 min-h-0 flex flex-col w-full rounded overflow-hidden">
+          <object data={blobUrl} type="application/pdf" className="flex-1 w-full min-h-0">
+            <embed src={blobUrl} type="application/pdf" className="w-full h-full" />
+          </object>
+          <div className="shrink-0 flex items-center justify-center gap-2 py-2 text-xs text-muted-foreground">
+            <span>PDF not displaying?</span>
+            <Button variant="link" size="sm" className="h-auto p-0 text-xs" onClick={() => window.open(blobUrl, '_blank')}>
+              Open in new tab
+            </Button>
+          </div>
+        </div>
       );
     }
 
