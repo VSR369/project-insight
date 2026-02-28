@@ -112,6 +112,13 @@ export interface SeekerBilling {
   billing_address_line2: string | null;
   billing_city: string | null;
   billing_postal_code: string | null;
+  billing_verification_status: string;
+  bank_transaction_id: string | null;
+  bank_name: string | null;
+  payment_received_date: string | null;
+  billing_verification_notes: string | null;
+  billing_verified_at: string | null;
+  billing_verified_by: string | null;
   countries?: { name: string } | null;
 }
 

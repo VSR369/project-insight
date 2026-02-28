@@ -5636,6 +5636,8 @@ export type Database = {
       }
       seeker_billing_info: {
         Row: {
+          bank_name: string | null
+          bank_transaction_id: string | null
           billing_address_line1: string | null
           billing_address_line2: string | null
           billing_city: string | null
@@ -5645,6 +5647,10 @@ export type Database = {
           billing_entity_name: string | null
           billing_postal_code: string | null
           billing_state_province_id: string | null
+          billing_verification_notes: string | null
+          billing_verification_status: string
+          billing_verified_at: string | null
+          billing_verified_by: string | null
           created_at: string
           created_by: string | null
           id: string
@@ -5653,6 +5659,7 @@ export type Database = {
           payment_method:
             | Database["public"]["Enums"]["payment_method_type_enum"]
             | null
+          payment_received_date: string | null
           payment_reference: string | null
           po_number: string | null
           tax_id: string | null
@@ -5662,6 +5669,8 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          bank_name?: string | null
+          bank_transaction_id?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
@@ -5671,6 +5680,10 @@ export type Database = {
           billing_entity_name?: string | null
           billing_postal_code?: string | null
           billing_state_province_id?: string | null
+          billing_verification_notes?: string | null
+          billing_verification_status?: string
+          billing_verified_at?: string | null
+          billing_verified_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -5679,6 +5692,7 @@ export type Database = {
           payment_method?:
             | Database["public"]["Enums"]["payment_method_type_enum"]
             | null
+          payment_received_date?: string | null
           payment_reference?: string | null
           po_number?: string | null
           tax_id?: string | null
@@ -5688,6 +5702,8 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          bank_name?: string | null
+          bank_transaction_id?: string | null
           billing_address_line1?: string | null
           billing_address_line2?: string | null
           billing_city?: string | null
@@ -5697,6 +5713,10 @@ export type Database = {
           billing_entity_name?: string | null
           billing_postal_code?: string | null
           billing_state_province_id?: string | null
+          billing_verification_notes?: string | null
+          billing_verification_status?: string
+          billing_verified_at?: string | null
+          billing_verified_by?: string | null
           created_at?: string
           created_by?: string | null
           id?: string
@@ -5705,6 +5725,7 @@ export type Database = {
           payment_method?:
             | Database["public"]["Enums"]["payment_method_type_enum"]
             | null
+          payment_received_date?: string | null
           payment_reference?: string | null
           po_number?: string | null
           tax_id?: string | null

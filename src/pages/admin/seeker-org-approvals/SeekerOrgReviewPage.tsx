@@ -69,6 +69,7 @@ function SeekerOrgReviewContent() {
             <Button
               onClick={() => setApproveConfirmOpen(true)}
               disabled={approveOrg.isPending}
+              title={billing?.billing_verification_status !== 'verified' ? 'Billing payment has not been verified yet' : undefined}
             >
               {approveOrg.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
               Approve Organization
@@ -97,6 +98,9 @@ function SeekerOrgReviewContent() {
           <AlertDialogHeader>
             <AlertDialogTitle>Approve Organization?</AlertDialogTitle>
             <AlertDialogDescription>
+              {billing?.billing_verification_status !== 'verified' && (
+                <span className="block mb-2 font-medium text-amber-600">⚠ Billing payment has not been verified yet.</span>
+              )}
               This will verify "{org.organization_name}" and allow them to access the platform. This action cannot be easily undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
