@@ -1,41 +1,46 @@
 
 
-## Fix: Sanitize Filenames in Storage Upload Paths
+## Missing Data on Registration Preview Page
 
-### Root Cause
-Supabase Storage rejects keys containing special characters like `[`, `]`, `(`, `)`, etc. The filename `Entrepreneurship[1].pdf` triggers "Invalid key" because `[1]` is passed directly into the storage path.
+### Current State
+The `RegistrationPreviewPage.tsx` shows partial data from each step. Here's what's **missing**:
 
-### Solution
-Create a shared `sanitizeFileName` utility and apply it in both upload hooks. The function strips unsafe characters while preserving the file extension and original name for the DB record.
+**Step 1 — Organization Identity:**
+- Operating Geographies (country names)
+- Uploaded documents: Logo, Profile Document, Verification Documents
 
-### Changes
+**Step 2 — Primary Contact:**
+- Preferred Language (needs `useLanguages` hook)
+- Admin Designation (`self` / `separate`)
+- Separate Admin details (name, email, phone) if applicable
 
-#### 1. Create `src/lib/sanitizeFileName.ts`
-A utility function that replaces non-alphanumeric characters (except `-`, `_`, `.`) with underscores:
-```ts
-export function sanitizeFileName(name: string): string {
-  return name.replace(/[^a-zA-Z0-9._-]/g, '_');
-}
-```
+**Step 3 — Compliance:**
+- Export Control Status (needs `useExportControlStatuses` hook to resolve ID)
+- Data Residency (needs `useDataResidencyOptions` hook to resolve ID)
+- NDA Preference (`standard_platform_nda` / `custom_nda`)
 
-#### 2. `src/hooks/queries/useComplianceData.ts` (line 140)
-Change storage path construction to sanitize the filename:
-```ts
-// Before
-const storagePath = `${payload.tenant_id}/nda/${crypto.randomUUID()}_${payload.file.name}`;
-// After
-const storagePath = `${payload.tenant_id}/nda/${crypto.randomUUID()}_${sanitizeFileName(payload.file.name)}`;
-```
-The `file_name` field in the DB record keeps the original name for display.
+**Step 5 — Billing:**
+- Internal Department flag (`is_internal_department`)
 
-#### 3. `src/hooks/queries/useRegistrationData.ts` (line 248)
-Same fix for org document uploads:
-```ts
-// Before
-const storagePath = `${tenantId}/${documentType}/${fileId}_${file.name}`;
-// After
-const storagePath = `${tenantId}/${documentType}/${fileId}_${sanitizeFileName(file.name)}`;
-```
+**Documents Section (new):**
+- No query exists to fetch uploaded documents from `seeker_org_documents` table
+- Need a new section showing all uploaded files with their verification status
 
-Both hooks already store the original `file.name` in the `seeker_org_documents.file_name` column, so display names are unaffected.
+### Plan
+
+#### 1. Add a `useOrgDocuments` query hook in `useRegistrationData.ts`
+Query `seeker_org_documents` by `organization_id` to fetch uploaded document metadata (file_name, document_type, verification_status, file_size).
+
+#### 2. Expand `RegistrationPreviewPage.tsx` with missing fields and documents
+
+- **Step 1**: Add `Operating Geographies` field (resolve country IDs to names)
+- **Step 2**: Add `Preferred Language` (via `useLanguages`), `Admin Designation`, separate admin details
+- **Step 3**: Add `Export Control Status` (via `useExportControlStatuses`), `Data Residency` (via `useDataResidencyOptions`), `NDA Preference`
+- **Step 5**: Add `Internal Department` flag
+- **New "Uploaded Documents" card**: List all documents from `seeker_org_documents` with file name, type badge, size, and verification status badge
+
+#### 3. Additional hooks to import
+- `useLanguages` from `usePrimaryContactData`
+- `useExportControlStatuses`, `useDataResidencyOptions` from `useComplianceData`
+- New `useOrgDocuments` hook
 
