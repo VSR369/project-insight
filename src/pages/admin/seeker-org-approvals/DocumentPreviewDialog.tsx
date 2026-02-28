@@ -57,37 +57,6 @@ export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChang
     document.body.removeChild(a);
   };
 
-  const renderPreview = () => {
-    if (!blobUrl && !pdfData) {
-      return (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      );
-    }
-
-    if (isImage) {
-      return (
-        <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-muted/30 p-4">
-          <img src={blobUrl!} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
-        </div>
-      );
-    }
-
-    if (isPdf) {
-      return <PdfPreviewCanvas pdfData={pdfData} blobUrl={blobUrl} fileName={doc.file_name} />;
-    }
-
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-        <FileQuestion className="h-12 w-12" />
-        <p className="text-sm">Preview not available for this file type.</p>
-        <Button variant="outline" size="sm" onClick={handleDownload}>
-          <Download className="h-4 w-4 mr-1" /> Download to view
-        </Button>
-      </div>
-    );
-  };
 
   return (
     <>
@@ -106,7 +75,28 @@ export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChang
           </DialogHeader>
 
           <div className="flex-1 min-h-0 flex flex-col px-6 overflow-hidden">
-            {renderPreview()}
+            {isImage && blobUrl && (
+              <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-muted/30 p-4">
+                <img src={blobUrl} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
+              </div>
+            )}
+            {isPdf && (
+              <PdfPreviewCanvas pdfData={pdfData} blobUrl={blobUrl} fileName={doc.file_name} />
+            )}
+            {!isImage && !isPdf && !blobUrl && !pdfData && (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <Loader2 className="h-8 w-8 animate-spin" />
+              </div>
+            )}
+            {!isImage && !isPdf && (blobUrl || pdfData) && (
+              <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+                <FileQuestion className="h-12 w-12" />
+                <p className="text-sm">Preview not available for this file type.</p>
+                <Button variant="outline" size="sm" onClick={handleDownload}>
+                  <Download className="h-4 w-4 mr-1" /> Download to view
+                </Button>
+              </div>
+            )}
           </div>
 
           <DialogFooter className="shrink-0 px-6 pb-6 pt-3 flex-row justify-between sm:justify-between">

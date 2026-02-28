@@ -15,16 +15,35 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const pdfDocRef = useRef<any>(null);
-  const renderTaskRef = useRef<number>(0);
+  const renderTaskRef = useRef<any>(null);
+  const loadingTaskRef = useRef<any>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelledRef = useRef(false);
 
-  const renderPage = useCallback(async (pageNum: number) => {
+  const clearTimeoutSafe = useCallback(() => {
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
+    }
+  }, []);
+
+  const renderPage = useCallback(async (pageNum: number): Promise<boolean> => {
     const pdf = pdfDocRef.current;
     const canvas = canvasRef.current;
     const container = containerRef.current;
-    if (!pdf || !canvas || !container) return;
+
+    if (!pdf || !canvas || !container) return false;
+
+    // Cancel any in-flight render
+    if (renderTaskRef.current) {
+      try { renderTaskRef.current.cancel(); } catch {}
+      renderTaskRef.current = null;
+    }
 
     try {
       const page = await pdf.getPage(pageNum);
+      if (cancelledRef.current) return false;
+
       const containerWidth = container.clientWidth || 800;
       const unscaledViewport = page.getViewport({ scale: 1 });
       const scale = containerWidth / unscaledViewport.width;
@@ -37,87 +56,104 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
       canvas.style.height = `${viewport.height / dpr}px`;
 
       const ctx = canvas.getContext('2d');
-      if (!ctx) throw new Error('Canvas context unavailable');
+      if (!ctx) return false;
 
-      await page.render({ canvasContext: ctx, viewport }).promise;
-    } catch (err) {
+      const task = page.render({ canvasContext: ctx, viewport });
+      renderTaskRef.current = task;
+      await task.promise;
+
+      if (cancelledRef.current) return false;
+      renderTaskRef.current = null;
+      return true;
+    } catch (err: any) {
+      if (err?.name === 'RenderingCancelledException') return false;
       console.error('PDF page render failed:', err);
+      return false;
     }
   }, []);
 
   useEffect(() => {
-    if (!pdfData) {
-      setStatus('loading');
-      return;
-    }
+    cancelledRef.current = false;
+    setStatus('loading');
+    setCurrentPage(1);
+    setTotalPages(0);
+    pdfDocRef.current = null;
+    clearTimeoutSafe();
 
-    const taskId = ++renderTaskRef.current;
-    let cancelled = false;
+    if (!pdfData) return;
 
-    async function loadPdf() {
-      try {
-        setStatus('loading');
-        const pdfjsLib = await import('pdfjs-dist');
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
-
-        const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice(0) });
-        const pdf = await loadingTask.promise;
-
-        if (cancelled || taskId !== renderTaskRef.current) return;
-
-        pdfDocRef.current = pdf;
-        setTotalPages(pdf.numPages);
-        setCurrentPage(1);
-
-        // Render first page
-        const canvas = canvasRef.current;
-        const container = containerRef.current;
-        if (!canvas || !container) return;
-
-        const page = await pdf.getPage(1);
-        if (cancelled || taskId !== renderTaskRef.current) return;
-
-        const containerWidth = container.clientWidth || 800;
-        const unscaledViewport = page.getViewport({ scale: 1 });
-        const scale = containerWidth / unscaledViewport.width;
-        const dpr = window.devicePixelRatio || 1;
-        const viewport = page.getViewport({ scale: scale * dpr });
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        canvas.style.width = `${viewport.width / dpr}px`;
-        canvas.style.height = `${viewport.height / dpr}px`;
-
-        const ctx = canvas.getContext('2d');
-        if (!ctx) throw new Error('Canvas context unavailable');
-
-        await page.render({ canvasContext: ctx, viewport }).promise;
-
-        if (cancelled || taskId !== renderTaskRef.current) return;
-        setStatus('rendered');
-      } catch (err) {
-        if (!cancelled && taskId === renderTaskRef.current) {
-          console.error('PDF render failed:', err);
-          setStatus('error');
-        }
-      }
-    }
-
-    const timeout = setTimeout(() => {
-      if (!cancelled && taskId === renderTaskRef.current) {
+    // Start timeout — only cleared on terminal state or unmount
+    timeoutRef.current = setTimeout(() => {
+      if (!cancelledRef.current) {
         console.error('PDF render timed out after 15s');
         setStatus('error');
       }
     }, 15000);
 
-    loadPdf().finally(() => clearTimeout(timeout));
-    return () => { cancelled = true; clearTimeout(timeout); };
-  }, [pdfData]);
+    async function loadPdf() {
+      try {
+        const pdfjsLib = await import('pdfjs-dist');
+        if (cancelledRef.current) return;
 
-  const goToPage = useCallback((pageNum: number) => {
-    if (pageNum < 1 || pageNum > totalPages) return;
-    setCurrentPage(pageNum);
-    renderPage(pageNum);
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`;
+
+        const loadTask = pdfjsLib.getDocument({ data: pdfData!.slice(0) });
+        loadingTaskRef.current = loadTask;
+        const pdf = await loadTask.promise;
+
+        if (cancelledRef.current) return;
+
+        pdfDocRef.current = pdf;
+        loadingTaskRef.current = null;
+        setTotalPages(pdf.numPages);
+
+        const ok = await renderPage(1);
+        if (cancelledRef.current) return;
+
+        if (ok) {
+          setCurrentPage(1);
+          setStatus('rendered');
+          clearTimeoutSafe();
+        } else {
+          setStatus('error');
+          clearTimeoutSafe();
+        }
+      } catch (err) {
+        if (!cancelledRef.current) {
+          console.error('PDF load failed:', err);
+          setStatus('error');
+          clearTimeoutSafe();
+        }
+      }
+    }
+
+    loadPdf();
+
+    return () => {
+      cancelledRef.current = true;
+      clearTimeoutSafe();
+      if (renderTaskRef.current) {
+        try { renderTaskRef.current.cancel(); } catch {}
+        renderTaskRef.current = null;
+      }
+      if (loadingTaskRef.current) {
+        try { loadingTaskRef.current.destroy(); } catch {}
+        loadingTaskRef.current = null;
+      }
+    };
+  }, [pdfData, renderPage, clearTimeoutSafe]);
+
+  const goToPage = useCallback(async (pageNum: number) => {
+    if (pageNum < 1 || pageNum > totalPages || !pdfDocRef.current) return;
+    setStatus('loading');
+    const ok = await renderPage(pageNum);
+    if (ok) {
+      setCurrentPage(pageNum);
+      setStatus('rendered');
+    } else {
+      setStatus('error');
+    }
   }, [totalPages, renderPage]);
 
   const handleDownload = () => {
@@ -130,38 +166,47 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
     document.body.removeChild(a);
   };
 
-  if (status === 'loading') {
-    return (
-      <div className="flex-1 flex items-center justify-center text-muted-foreground">
-        <Loader2 className="h-8 w-8 animate-spin" />
-      </div>
-    );
-  }
-
-  if (status === 'error') {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
-        <FileWarning className="h-12 w-12" />
-        <p className="text-sm">Could not render this PDF.</p>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={handleDownload} disabled={!blobUrl}>
-            <Download className="h-4 w-4 mr-1" /> Download
-          </Button>
-          {blobUrl && (
-            <Button variant="link" size="sm" onClick={() => window.open(blobUrl, '_blank')}>
-              Open in new tab
-            </Button>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div ref={containerRef} className="flex-1 min-h-0 overflow-auto flex flex-col items-center bg-muted/30 p-4">
-      <canvas ref={canvasRef} className="max-w-full rounded shadow-sm" />
-      {totalPages > 0 && (
-        <div className="flex items-center gap-2 mt-3">
+    <div
+      ref={containerRef}
+      className="relative flex-1 min-h-0 w-full flex flex-col items-center bg-muted/30"
+    >
+      {/* Loading overlay */}
+      {status === 'loading' && (
+        <div className="absolute inset-0 z-10 flex items-center justify-center bg-background/60">
+          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+        </div>
+      )}
+
+      {/* Error overlay */}
+      {status === 'error' && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 text-muted-foreground bg-background/60">
+          <FileWarning className="h-12 w-12" />
+          <p className="text-sm">Could not render this PDF.</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handleDownload} disabled={!blobUrl}>
+              <Download className="h-4 w-4 mr-1" /> Download
+            </Button>
+            {blobUrl && (
+              <Button variant="link" size="sm" onClick={() => window.open(blobUrl, '_blank')}>
+                Open in new tab
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Always-mounted canvas area */}
+      <div className="flex-1 min-h-0 w-full overflow-auto flex items-start justify-center p-4">
+        <canvas
+          ref={canvasRef}
+          className={`max-w-full rounded shadow-sm ${status !== 'rendered' ? 'invisible' : ''}`}
+        />
+      </div>
+
+      {/* Page navigation */}
+      {status === 'rendered' && totalPages > 1 && (
+        <div className="shrink-0 flex items-center gap-2 py-3">
           <Button
             variant="outline"
             size="icon"
