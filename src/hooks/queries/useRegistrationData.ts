@@ -14,6 +14,7 @@ import {
   validateCountryPricing,
   getSubsidizedPricing,
 } from '@/services/registrationService';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
@@ -245,7 +246,7 @@ export function useUploadOrgDocument() {
     }) => {
       const { file, tenantId, organizationId, documentType } = params;
       const fileId = crypto.randomUUID();
-      const storagePath = `${tenantId}/${documentType}/${fileId}_${file.name}`;
+      const storagePath = `${tenantId}/${documentType}/${fileId}_${sanitizeFileName(file.name)}`;
 
       // 1. Upload to storage
       const { error: uploadError } = await supabase.storage

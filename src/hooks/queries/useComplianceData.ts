@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { sanitizeFileName } from '@/lib/sanitizeFileName';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
@@ -137,7 +138,7 @@ export function useUploadNdaDocument() {
       file: File;
     }) => {
       const fileExt = payload.file.name.split('.').pop();
-      const storagePath = `${payload.tenant_id}/nda/${crypto.randomUUID()}_${payload.file.name}`;
+      const storagePath = `${payload.tenant_id}/nda/${crypto.randomUUID()}_${sanitizeFileName(payload.file.name)}`;
 
       // 1. Upload to storage
       const { error: uploadError } = await supabase.storage
