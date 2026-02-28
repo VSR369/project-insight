@@ -20,6 +20,7 @@ export default defineConfig(({ mode }) => ({
   },
   // PERFORMANCE: Manual chunk splitting for better code splitting
   build: {
+    target: 'esnext',
     rollupOptions: {
       output: {
         manualChunks: {
