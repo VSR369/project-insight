@@ -179,6 +179,8 @@ const OrgSettingsPage = lazy(() => import("@/pages/org/OrgSettingsPage"));
 const MembershipPage = lazy(() => import("@/pages/org/MembershipPage"));
 const ParentDashboardPage = lazy(() => import("@/pages/org/ParentDashboardPage"));
 const SaasAgreementPage = lazy(() => import("@/pages/admin/SaasAgreementPage"));
+const SeekerOrgApprovalsPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgApprovalsPage"));
+const SeekerOrgReviewPage = lazy(() => import("@/pages/admin/seeker-org-approvals/SeekerOrgReviewPage"));
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
 const ChallengeCreatePage = lazy(() => import("@/pages/org/ChallengeCreatePage"));
 const OrgBillingPage = lazy(() => import("@/pages/org/OrgBillingPage"));
@@ -538,6 +540,8 @@ const App = () => (
               <Route path="seeker-config/billing-cycles" element={<BillingCyclesPage />} />
               <Route path="seeker-config/payment-methods" element={<PaymentMethodsPage />} />
               <Route path="saas-agreements" element={<SaasAgreementPage />} />
+              <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
+              <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route

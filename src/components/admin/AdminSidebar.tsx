@@ -48,6 +48,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
+import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
 const masterDataItems = [
@@ -94,6 +95,7 @@ const interviewItems = [
 ];
 
 const seekerItems = [
+  { title: 'Org Approvals', icon: UserCheck, path: '/admin/seeker-org-approvals', hasBadge: true },
   { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
 ];
 
@@ -110,6 +112,7 @@ export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
+  const { data: pendingSeekerCount } = usePendingSeekerCount();
 
   // Prefetch top admin routes on mount
   useEffect(() => {
@@ -232,7 +235,12 @@ export function AdminSidebar() {
                     isActive={isActive(item.path)}
                   >
                     <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
+                    <span className="flex-1">{item.title}</span>
+                    {item.hasBadge && pendingSeekerCount && pendingSeekerCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingSeekerCount}
+                      </Badge>
+                    )}
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
