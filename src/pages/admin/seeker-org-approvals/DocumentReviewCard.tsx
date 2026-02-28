@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { FileText, CheckCircle, XCircle, Eye, Loader2 } from 'lucide-react';
-import { useApproveDocument, fetchDocumentBlobUrl } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useApproveDocument, fetchDocumentBlob } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import type { SeekerDocument } from './types';
@@ -30,6 +30,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const [previewLoading, setPreviewLoading] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<SeekerDocument | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const handlePreview = async (doc: SeekerDocument) => {
@@ -38,17 +39,29 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
     // Revoke previous blob URL
     if (blobUrl) URL.revokeObjectURL(blobUrl);
     setBlobUrl(null);
+    setPdfData(null);
     setPreviewOpen(true);
-    const url = await fetchDocumentBlobUrl(doc.storage_path);
-    setBlobUrl(url);
+
+    const result = await fetchDocumentBlob(doc.storage_path);
+    if (result) {
+      setBlobUrl(result.blobUrl);
+      // For PDFs, also extract ArrayBuffer for PDF.js
+      if (doc.mime_type === 'application/pdf') {
+        const ab = await result.blob.arrayBuffer();
+        setPdfData(ab);
+      }
+    }
     setPreviewLoading(null);
   };
 
   const handlePreviewClose = (open: boolean) => {
     setPreviewOpen(open);
-    if (!open && blobUrl) {
-      URL.revokeObjectURL(blobUrl);
-      setBlobUrl(null);
+    if (!open) {
+      if (blobUrl) {
+        URL.revokeObjectURL(blobUrl);
+        setBlobUrl(null);
+      }
+      setPdfData(null);
     }
   };
 
@@ -81,21 +94,10 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
                 </Button>
                 {doc.verification_status === 'pending' && (
                   <>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-green-600"
-                      onClick={() => approveDoc.mutate(doc.id)}
-                      disabled={approveDoc.isPending}
-                    >
+                    <Button variant="ghost" size="icon" className="text-green-600" onClick={() => approveDoc.mutate(doc.id)} disabled={approveDoc.isPending}>
                       <CheckCircle className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="text-destructive"
-                      onClick={() => setRejectDocId(doc.id)}
-                    >
+                    <Button variant="ghost" size="icon" className="text-destructive" onClick={() => setRejectDocId(doc.id)}>
                       <XCircle className="h-4 w-4" />
                     </Button>
                   </>
@@ -111,15 +113,12 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
         )}
       </CardContent>
 
-      <RejectDocumentDialog
-        open={!!rejectDocId}
-        onOpenChange={(open) => !open && setRejectDocId(null)}
-        docId={rejectDocId ?? ''}
-      />
+      <RejectDocumentDialog open={!!rejectDocId} onOpenChange={(open) => !open && setRejectDocId(null)} docId={rejectDocId ?? ''} />
 
       <DocumentPreviewDialog
         doc={previewDoc}
         blobUrl={blobUrl}
+        pdfData={pdfData}
         open={previewOpen}
         onOpenChange={handlePreviewClose}
       />

@@ -226,17 +226,23 @@ export async function getDocumentSignedUrl(storagePath: string): Promise<string 
   return data.signedUrl;
 }
 
-// ─── Fetch document as blob URL (bypasses ad-blockers / cross-origin blocks) ───
-export async function fetchDocumentBlobUrl(storagePath: string): Promise<string | null> {
+// ─── Fetch document as Blob (for PDF.js) and blob URL (for images / download) ───
+export async function fetchDocumentBlob(storagePath: string): Promise<{ blob: Blob; blobUrl: string } | null> {
   const signedUrl = await getDocumentSignedUrl(storagePath);
   if (!signedUrl) return null;
   try {
     const response = await fetch(signedUrl);
     if (!response.ok) throw new Error(`Failed to fetch document: ${response.status}`);
     const blob = await response.blob();
-    return URL.createObjectURL(blob);
+    return { blob, blobUrl: URL.createObjectURL(blob) };
   } catch (error) {
     handleMutationError(error as Error, { operation: 'fetch_document_blob' });
     return null;
   }
+}
+
+// Legacy wrapper kept for backward compat
+export async function fetchDocumentBlobUrl(storagePath: string): Promise<string | null> {
+  const result = await fetchDocumentBlob(storagePath);
+  return result?.blobUrl ?? null;
 }
