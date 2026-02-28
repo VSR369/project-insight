@@ -52,6 +52,9 @@ export interface PrimaryContactData {
     name?: string;
     email?: string;
     phone?: string;
+    country_id?: string;
+    phone_country_code?: string;
+    working_location?: string;
   };
 }
 
