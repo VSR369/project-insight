@@ -1,46 +1,104 @@
 
 
-## Missing Data on Registration Preview Page
+## Platform Admin — Seeker Organization Verification Inbox
 
-### Current State
-The `RegistrationPreviewPage.tsx` shows partial data from each step. Here's what's **missing**:
+### Context
+Currently, when a Seeker Organization completes registration (Steps 1-5), an Auth user + `org_users` mapping is created, but no Platform Admin review workflow exists. The `seeker_organizations` table has `verification_status` (enum: `unverified`, `pending`, `verified`, `rejected`) which defaults to `unverified`. Documents in `seeker_org_documents` have `verification_status` (`pending`, `verified`, `rejected`). None of these are surfaced to the Platform Admin.
 
-**Step 1 — Organization Identity:**
-- Operating Geographies (country names)
-- Uploaded documents: Logo, Profile Document, Verification Documents
+### What Will Be Built
 
-**Step 2 — Primary Contact:**
-- Preferred Language (needs `useLanguages` hook)
-- Admin Designation (`self` / `separate`)
-- Separate Admin details (name, email, phone) if applicable
+**1. Admin Sidebar Entry** — Add "Org Approvals" under "Seeker Management" group in `AdminSidebar.tsx` with a pending-count badge (like Reviewer Approvals).
 
-**Step 3 — Compliance:**
-- Export Control Status (needs `useExportControlStatuses` hook to resolve ID)
-- Data Residency (needs `useDataResidencyOptions` hook to resolve ID)
-- NDA Preference (`standard_platform_nda` / `custom_nda`)
+**2. New Admin Page: `SeekerOrgApprovalsPage`** at `/admin/seeker-org-approvals`
+- **List View**: Table of all `seeker_organizations` with `verification_status = 'pending'` (and tabs for Verified / Rejected / All).
+- Columns: Org Name, Country, Type, Submitted Date, Verification Status.
+- Click a row to open the **Detail Review View**.
 
-**Step 5 — Billing:**
-- Internal Department flag (`is_internal_department`)
+**3. Detail Review View: `SeekerOrgReviewPage`** at `/admin/seeker-org-approvals/:orgId`
+- Read-only display of ALL registration data across 6 sections:
+  - **Organization Identity** — from `seeker_organizations` + `seeker_org_industries` + `seeker_org_operating_geographies`
+  - **Primary Contact** — from `seeker_contacts` (primary contact)
+  - **Compliance & Export Control** — from `seeker_compliance`
+  - **Plan Selection** — from `seeker_subscriptions`
+  - **Billing** — from `seeker_billing_info`
+  - **Admin Details** — from `org_users` (tenant_admin user) + auth user email
+- **Documents Section**: List all `seeker_org_documents` with:
+  - File name, type, size, current status
+  - Per-document Approve / Reject buttons (with rejection reason dialog)
+  - Download link via signed URL
+- **Payment Verification**: Show billing entity, payment method, billing address
+  - Accept / Flag payment details
+- **Admin Credentials Section**: Show the org admin email and a generated temp password
+  - "Send Welcome Email" button triggers an edge function
 
-**Documents Section (new):**
-- No query exists to fetch uploaded documents from `seeker_org_documents` table
-- Need a new section showing all uploaded files with their verification status
+**4. Verification Actions**:
+  - **Approve Organization**: Sets `seeker_organizations.verification_status = 'verified'`, `verified_at`, `verified_by`
+  - **Reject Organization**: Sets status to `rejected` with rejection notes
+  - **Approve/Reject Individual Documents**: Updates `seeker_org_documents.verification_status` per document
 
-### Plan
+**5. Edge Function: `send-seeker-welcome-email`**
+  - Sends credentials + welcome instructions to the org admin
+  - Uses Resend SDK (standardized email sender)
+  - Triggered by Platform Admin after verification
 
-#### 1. Add a `useOrgDocuments` query hook in `useRegistrationData.ts`
-Query `seeker_org_documents` by `organization_id` to fetch uploaded document metadata (file_name, document_type, verification_status, file_size).
+**6. React Query Hooks**: `useSeekerOrgApprovals.ts`
+  - `usePendingSeekOrgs()` — list orgs needing review
+  - `useSeekerOrgDetail(orgId)` — full org data with joins
+  - `useApproveOrg()`, `useRejectOrg()` mutations
+  - `useApproveDocument()`, `useRejectDocument()` mutations
+  - `usePendingSeekerCount()` — for sidebar badge
+  - `useSendWelcomeEmail()` — invoke edge function
 
-#### 2. Expand `RegistrationPreviewPage.tsx` with missing fields and documents
+### Database Changes
+- **Migration**: Add RLS policy on `seeker_organizations` for `platform_admin` SELECT access (the existing RLS likely restricts to tenant-only). Same for `seeker_contacts`, `seeker_compliance`, `seeker_billing_info`, `seeker_subscriptions`, `seeker_org_documents`.
 
-- **Step 1**: Add `Operating Geographies` field (resolve country IDs to names)
-- **Step 2**: Add `Preferred Language` (via `useLanguages`), `Admin Designation`, separate admin details
-- **Step 3**: Add `Export Control Status` (via `useExportControlStatuses`), `Data Residency` (via `useDataResidencyOptions`), `NDA Preference`
-- **Step 5**: Add `Internal Department` flag
-- **New "Uploaded Documents" card**: List all documents from `seeker_org_documents` with file name, type badge, size, and verification status badge
+### New Files
+```
+src/pages/admin/seeker-org-approvals/
+├── SeekerOrgApprovalsPage.tsx        # List page with tabs
+├── SeekerOrgReviewPage.tsx           # Detail review page
+├── OrgDetailCard.tsx                 # Organization identity card
+├── ContactDetailCard.tsx             # Primary contact card
+├── ComplianceDetailCard.tsx          # Compliance card
+├── SubscriptionDetailCard.tsx        # Plan + billing card
+├── DocumentReviewCard.tsx            # Documents with approve/reject
+├── AdminCredentialsCard.tsx          # Admin details + send email
+├── RejectOrgDialog.tsx               # Rejection reason dialog
+├── RejectDocumentDialog.tsx          # Document rejection dialog
+├── index.ts
+src/hooks/queries/useSeekerOrgApprovals.ts
+supabase/functions/send-seeker-welcome-email/index.ts
+```
 
-#### 3. Additional hooks to import
-- `useLanguages` from `usePrimaryContactData`
-- `useExportControlStatuses`, `useDataResidencyOptions` from `useComplianceData`
-- New `useOrgDocuments` hook
+### Modified Files
+- `src/components/admin/AdminSidebar.tsx` — Add "Org Approvals" item with badge
+- `src/App.tsx` — Add routes for list + detail pages
+
+### Technical Details
+
+**Data Fetching for Detail View** — Single query with joins:
+```sql
+SELECT so.*, 
+  c.name as country_name, 
+  ot.name as org_type_name,
+  sc.*, 
+  sbi.*,
+  ss.*
+FROM seeker_organizations so
+LEFT JOIN countries c ON c.id = so.hq_country_id
+LEFT JOIN organization_types ot ON ot.id = so.organization_type_id
+LEFT JOIN seeker_compliance sc ON sc.organization_id = so.id
+LEFT JOIN seeker_billing_info sbi ON sbi.organization_id = so.id
+LEFT JOIN seeker_subscriptions ss ON ss.organization_id = so.id
+WHERE so.id = :orgId
+```
+
+**RLS for Platform Admin** — Uses existing `has_role(auth.uid(), 'platform_admin')` pattern:
+```sql
+CREATE POLICY "platform_admin_full_access" ON seeker_organizations
+  FOR ALL TO authenticated
+  USING (has_role(auth.uid(), 'platform_admin'::app_role));
+```
+
+**Welcome Email Edge Function** — Uses Resend SDK with `CogniBlend <noreply@cogniblend.com>` sender, includes org name, admin email, temp password, and login URL.
 
