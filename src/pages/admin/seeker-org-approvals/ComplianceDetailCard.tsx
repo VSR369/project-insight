@@ -1,9 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Shield } from 'lucide-react';
+import type { SeekerCompliance, SeekerOrg } from './types';
 
 interface ComplianceDetailCardProps {
-  compliance: any;
+  compliance: SeekerCompliance;
+  org: SeekerOrg;
 }
 
 function Field({ label, value }: { label: string; value?: string | null | boolean }) {
@@ -16,7 +17,7 @@ function Field({ label, value }: { label: string; value?: string | null | boolea
   );
 }
 
-export function ComplianceDetailCard({ compliance }: ComplianceDetailCardProps) {
+export function ComplianceDetailCard({ compliance, org }: ComplianceDetailCardProps) {
   return (
     <Card>
       <CardHeader>
@@ -26,6 +27,11 @@ export function ComplianceDetailCard({ compliance }: ComplianceDetailCardProps) 
         </CardTitle>
       </CardHeader>
       <CardContent className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Field label="Tax ID" value={org.tax_id} />
+        <Field label="NDA Preference" value={org.nda_preference} />
+        <Field label="NDA Review Status" value={org.nda_review_status} />
+        <Field label="Export Control Status" value={compliance.md_export_control_statuses?.name} />
+        <Field label="Data Residency" value={compliance.md_data_residency?.name} />
         <Field label="ITAR Certified" value={compliance.itar_certified} />
         <Field label="ITAR Expiry" value={compliance.itar_certification_expiry} />
         <Field label="GDPR Compliant" value={compliance.gdpr_compliant} />

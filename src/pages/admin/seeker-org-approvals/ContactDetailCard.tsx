@@ -1,10 +1,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { User } from 'lucide-react';
+import type { SeekerContact } from './types';
 
 interface ContactDetailCardProps {
-  contact: any;
-  allContacts: any[];
+  contact: SeekerContact | undefined;
+  allContacts: SeekerContact[];
 }
 
 function Field({ label, value }: { label: string; value?: string | null }) {
@@ -28,7 +29,7 @@ export function ContactDetailCard({ contact, allContacts }: ContactDetailCardPro
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        {allContacts.map((c: any) => (
+        {allContacts.map((c) => (
           <div key={c.id} className="grid grid-cols-1 lg:grid-cols-3 gap-4 border-b pb-4 last:border-0 last:pb-0">
             <div className="lg:col-span-3 flex gap-2 items-center">
               <span className="text-sm font-semibold">{c.first_name} {c.last_name}</span>

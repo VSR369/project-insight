@@ -1,10 +1,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { CreditCard } from 'lucide-react';
+import type { SeekerSubscription, SeekerBilling } from './types';
 
 interface SubscriptionDetailCardProps {
-  subscription: any;
-  billing: any;
+  subscription: SeekerSubscription | null;
+  billing: SeekerBilling | null;
 }
 
 function Field({ label, value }: { label: string; value?: string | number | null | boolean }) {

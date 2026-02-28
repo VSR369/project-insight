@@ -6,6 +6,7 @@ import { FileText, CheckCircle, XCircle, Download, Loader2 } from 'lucide-react'
 import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
 import { getDocumentSignedUrl } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
+import type { SeekerDocument } from './types';
 
 const statusColors: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
@@ -20,7 +21,7 @@ function formatSize(bytes: number): string {
 }
 
 interface DocumentReviewCardProps {
-  documents: any[];
+  documents: SeekerDocument[];
 }
 
 export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
@@ -28,7 +29,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const [rejectDocId, setRejectDocId] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  const handleDownload = async (doc: any) => {
+  const handleDownload = async (doc: SeekerDocument) => {
     setDownloading(doc.id);
     const url = await getDocumentSignedUrl(doc.storage_path);
     if (url) window.open(url, '_blank');
@@ -48,7 +49,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
           <p className="text-sm text-muted-foreground">No documents uploaded.</p>
         ) : (
           <div className="space-y-3">
-            {documents.map((doc: any) => (
+            {documents.map((doc) => (
               <div key={doc.id} className="flex items-center gap-3 p-3 rounded-lg border">
                 <FileText className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
