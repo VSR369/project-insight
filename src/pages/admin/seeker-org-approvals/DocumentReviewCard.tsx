@@ -31,6 +31,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const [previewDoc, setPreviewDoc] = useState<SeekerDocument | null>(null);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
+  const [fileData, setFileData] = useState<ArrayBuffer | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const handlePreview = async (doc: SeekerDocument) => {
@@ -40,15 +41,18 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
     if (blobUrl) URL.revokeObjectURL(blobUrl);
     setBlobUrl(null);
     setPdfData(null);
+    setFileData(null);
     setPreviewOpen(true);
 
     const result = await fetchDocumentBlob(doc.storage_path);
     if (result) {
       setBlobUrl(result.blobUrl);
-      // For PDFs, also extract ArrayBuffer for PDF.js
+      const ab = await result.blob.arrayBuffer();
+      // For PDFs, pass as pdfData; for others, pass as fileData
       if (doc.mime_type === 'application/pdf') {
-        const ab = await result.blob.arrayBuffer();
         setPdfData(ab);
+      } else {
+        setFileData(ab);
       }
     }
     setPreviewLoading(null);
@@ -62,6 +66,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
         setBlobUrl(null);
       }
       setPdfData(null);
+      setFileData(null);
     }
   };
 
@@ -119,6 +124,7 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
         doc={previewDoc}
         blobUrl={blobUrl}
         pdfData={pdfData}
+        fileData={fileData}
         open={previewOpen}
         onOpenChange={handlePreviewClose}
       />

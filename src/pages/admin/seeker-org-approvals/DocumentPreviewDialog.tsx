@@ -5,6 +5,9 @@ import { Download, CheckCircle, XCircle, Loader2, FileQuestion } from 'lucide-re
 import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
 import { PdfPreviewCanvas } from '@/components/PdfPreviewCanvas';
+import { DocxPreviewCanvas } from '@/components/DocxPreviewCanvas';
+import { XlsxPreviewCanvas } from '@/components/XlsxPreviewCanvas';
+import { PptxPreviewCanvas } from '@/components/PptxPreviewCanvas';
 import { useState } from 'react';
 import type { SeekerDocument } from './types';
 
@@ -24,11 +27,12 @@ interface DocumentPreviewDialogProps {
   doc: SeekerDocument | null;
   blobUrl: string | null;
   pdfData: ArrayBuffer | null;
+  fileData: ArrayBuffer | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChange }: DocumentPreviewDialogProps) {
+export function DocumentPreviewDialog({ doc, blobUrl, pdfData, fileData, open, onOpenChange }: DocumentPreviewDialogProps) {
   const approveDoc = useApproveDocument();
   const [rejectOpen, setRejectOpen] = useState(false);
 
@@ -36,6 +40,10 @@ export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChang
 
   const isImage = doc.mime_type?.startsWith('image/');
   const isPdf = doc.mime_type === 'application/pdf';
+  const isDocx = doc.mime_type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || doc.file_name?.endsWith('.docx');
+  const isXlsx = doc.mime_type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' || doc.mime_type === 'application/vnd.ms-excel' || doc.file_name?.endsWith('.xlsx') || doc.file_name?.endsWith('.xls');
+  const isPptx = doc.mime_type === 'application/vnd.openxmlformats-officedocument.presentationml.presentation' || doc.mime_type === 'application/vnd.ms-powerpoint' || doc.file_name?.endsWith('.pptx') || doc.file_name?.endsWith('.ppt');
+  const hasPreview = isImage || isPdf || isDocx || isXlsx || isPptx;
   const isPending = doc.verification_status === 'pending';
 
   const handleApprove = () => {
@@ -83,12 +91,21 @@ export function DocumentPreviewDialog({ doc, blobUrl, pdfData, open, onOpenChang
             {isPdf && (
               <PdfPreviewCanvas pdfData={pdfData} blobUrl={blobUrl} fileName={doc.file_name} />
             )}
-            {!isImage && !isPdf && !blobUrl && !pdfData && (
+            {isDocx && (
+              <DocxPreviewCanvas fileData={fileData} blobUrl={blobUrl} fileName={doc.file_name} />
+            )}
+            {isXlsx && (
+              <XlsxPreviewCanvas fileData={fileData} blobUrl={blobUrl} fileName={doc.file_name} />
+            )}
+            {isPptx && (
+              <PptxPreviewCanvas fileData={fileData} blobUrl={blobUrl} fileName={doc.file_name} />
+            )}
+            {!hasPreview && !blobUrl && !pdfData && (
               <div className="flex-1 flex items-center justify-center text-muted-foreground">
                 <Loader2 className="h-8 w-8 animate-spin" />
               </div>
             )}
-            {!isImage && !isPdf && (blobUrl || pdfData) && (
+            {!hasPreview && (blobUrl || pdfData) && (
               <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
                 <FileQuestion className="h-12 w-12" />
                 <p className="text-sm">Preview not available for this file type.</p>
