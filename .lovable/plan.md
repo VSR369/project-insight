@@ -1,29 +1,38 @@
 
 
-## Fix: `useFormContext` is null — FormLabel Used Outside Form Provider
+## Fix: Allow Custom NDA Upload During Pre-Auth Registration
 
 ### Root Cause
+The `org-documents` storage bucket has RLS policies requiring `auth.role() = 'authenticated'`. During registration, the user is unauthenticated (account is created at Step 5), so uploads fail.
 
-In `src/components/org-settings/ProfileTab.tsx`, the `LockedField` helper component (line 117-128) uses `<FormLabel>` from the shadcn form primitives. `FormLabel` internally calls `useFormField()` which calls `useFormContext()`. The `LockedField` component is rendered **outside** of the `<Form>` provider (lines 136-143), so `useFormContext()` returns `null`, causing the crash.
+### Solution
+Add a permissive INSERT policy on `storage.objects` for the `org-documents` bucket that allows anonymous uploads to NDA paths only. This mirrors the same pattern already used for `seeker_org_documents`, `seeker_compliance`, and other registration tables that have permissive pre-auth INSERT policies.
 
-The same issue occurs at line 147 where `FormLabel` is used for the "Industries" label — also outside the `<Form>` wrapper.
+### Changes
 
-### Fix
+**1. Database Migration — Add anon storage policy**
 
-Replace `FormLabel` with the plain `Label` component (from `@/components/ui/label`) in the `LockedField` helper and the Industries label. These are read-only display elements that have no form field association, so they should never use `FormLabel`.
+```sql
+-- Allow pre-auth NDA upload during registration (path-scoped)
+CREATE POLICY "Pre-auth NDA upload during registration"
+  ON storage.objects FOR INSERT
+  WITH CHECK (
+    bucket_id = 'org-documents'
+    AND (storage.foldername(name))[2] = 'nda'
+  );
+```
 
-### File to Modify
+This scopes anon uploads to only the `{tenant_id}/nda/` path within the bucket.
 
-| File | Change |
-|------|--------|
-| `src/components/org-settings/ProfileTab.tsx` | Replace `FormLabel` with `Label` in `LockedField` (line 120) and Industries label (line 147) |
+**2. No code changes needed**
 
-### Details
+The `ComplianceForm.tsx` already has the NDA preference radio group and conditional file upload UI. The `useUploadNdaDocument` hook already handles upload + document record creation + linking. The only blocker was the storage RLS policy.
 
-Line 120: Change `<FormLabel className="...">` to `<Label className="...">`
-Line 147: Change `<FormLabel className="...">` to `<Label className="...">`
+### Post-Registration Custom NDA Upload
+The user's second question — "what if they accept Standard NDA initially and later want to upload Custom NDA?" — is already handled by the existing architecture:
+- `seeker_organizations.nda_preference` can be updated anytime
+- The Organization Settings compliance tab (post-auth) can reuse the same `useUploadNdaDocument` hook
+- Post-auth uploads already work since `auth.role() = 'authenticated'` policies are in place
 
-Add `import { Label } from '@/components/ui/label';` if not already imported.
-
-No other files are affected — `AdminDetailsTab.tsx` correctly uses `FormLabel` only inside `<Form>` and `<FormField>`.
+No additional code is needed for the post-registration scenario — the org settings page just needs a compliance section (which can be a future task).
 
