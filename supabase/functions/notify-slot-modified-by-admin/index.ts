@@ -118,7 +118,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Send email to reviewer
     const emailResponse = await resend.emails.send({
-      from: "CogniBlend <noreply@cogniblend.com>",
+      from: "CogniBlend <onboarding@resend.dev>",
       to: [data.reviewer_email],
       subject: getSubject(data.action),
       html: getEmailBody(data),
@@ -164,7 +164,7 @@ const handler = async (req: Request): Promise<Response> => {
       `;
 
       const providerEmailResponse = await resend.emails.send({
-        from: "CogniBlend <noreply@cogniblend.com>",
+        from: "CogniBlend <onboarding@resend.dev>",
         to: [data.provider_email],
         subject: "[CogniBlend] Your Interview Has Been Cancelled",
         html: providerHtml,

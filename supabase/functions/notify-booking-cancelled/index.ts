@@ -99,7 +99,7 @@ Deno.serve(async (req) => {
 
     // Send email
     const { data: emailData, error: emailError } = await resend.emails.send({
-      from: 'CogniBlend <noreply@cogniblend.com>',
+      from: 'CogniBlend <onboarding@resend.dev>',
       to: [body.provider_email],
       subject: 'Interview Booking Cancelled - Action Required',
       html: `

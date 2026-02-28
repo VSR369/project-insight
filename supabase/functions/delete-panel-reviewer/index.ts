@@ -71,7 +71,7 @@ const handler = async (req: Request): Promise<Response> => {
         const resend = new Resend(resendApiKey);
         try {
           await resend.emails.send({
-            from: "CogniBlend <noreply@cogniblend.com>",
+            from: "CogniBlend <onboarding@resend.dev>",
             to: [reviewer.email],
             subject: "Panel Membership Removal Notice - CogniBlend",
             html: `
