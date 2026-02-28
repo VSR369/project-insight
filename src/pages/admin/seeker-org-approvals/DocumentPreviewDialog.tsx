@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Download, CheckCircle, XCircle, Loader2, FileQuestion } from 'lucide-react';
 import { useApproveDocument } from '@/hooks/queries/useSeekerOrgApprovals';
 import { RejectDocumentDialog } from './RejectDocumentDialog';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { SeekerDocument } from './types';
 
 const statusColors: Record<string, string> = {
@@ -21,12 +21,12 @@ function formatSize(bytes: number): string {
 
 interface DocumentPreviewDialogProps {
   doc: SeekerDocument | null;
-  signedUrl: string | null;
+  blobUrl: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: DocumentPreviewDialogProps) {
+export function DocumentPreviewDialog({ doc, blobUrl, open, onOpenChange }: DocumentPreviewDialogProps) {
   const approveDoc = useApproveDocument();
   const [rejectOpen, setRejectOpen] = useState(false);
 
@@ -47,8 +47,18 @@ export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: Do
     onOpenChange(false);
   };
 
+  const handleDownload = () => {
+    if (!blobUrl) return;
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = doc.file_name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  };
+
   const renderPreview = () => {
-    if (!signedUrl) {
+    if (!blobUrl) {
       return (
         <div className="flex-1 flex items-center justify-center text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin" />
@@ -59,7 +69,7 @@ export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: Do
     if (isImage) {
       return (
         <div className="flex-1 min-h-0 overflow-auto flex items-center justify-center bg-muted/30 p-4">
-          <img src={signedUrl} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
+          <img src={blobUrl} alt={doc.file_name} className="max-w-full max-h-full object-contain rounded" />
         </div>
       );
     }
@@ -67,7 +77,7 @@ export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: Do
     if (isPdf) {
       return (
         <iframe
-          src={signedUrl}
+          src={blobUrl}
           title={doc.file_name}
           className="flex-1 min-h-0 w-full border-0 rounded"
         />
@@ -78,10 +88,8 @@ export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: Do
       <div className="flex-1 flex flex-col items-center justify-center gap-3 text-muted-foreground">
         <FileQuestion className="h-12 w-12" />
         <p className="text-sm">Preview not available for this file type.</p>
-        <Button variant="outline" size="sm" asChild>
-          <a href={signedUrl} download={doc.file_name} target="_blank" rel="noopener noreferrer">
-            <Download className="h-4 w-4 mr-1" /> Download to view
-          </a>
+        <Button variant="outline" size="sm" onClick={handleDownload}>
+          <Download className="h-4 w-4 mr-1" /> Download to view
         </Button>
       </div>
     );
@@ -108,10 +116,8 @@ export function DocumentPreviewDialog({ doc, signedUrl, open, onOpenChange }: Do
           </div>
 
           <DialogFooter className="shrink-0 px-6 pb-6 pt-3 flex-row justify-between sm:justify-between">
-            <Button variant="outline" size="sm" asChild>
-              <a href={signedUrl ?? '#'} download={doc.file_name} target="_blank" rel="noopener noreferrer">
-                <Download className="h-4 w-4 mr-1" /> Download
-              </a>
+            <Button variant="outline" size="sm" onClick={handleDownload} disabled={!blobUrl}>
+              <Download className="h-4 w-4 mr-1" /> Download
             </Button>
             {isPending && (
               <div className="flex gap-2">
