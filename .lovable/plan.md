@@ -1,56 +1,21 @@
 
-Goal: make PDF preview reliable across Chrome/Edge/Firefox/Safari (including embedded iframe contexts) by removing dependency on native browser PDF plugins (`iframe/object/embed`) and rendering PDFs in-app.
 
-Implementation steps:
+## Fix: PDF.js Hanging on Loading Spinner
 
-1) Replace native PDF embed with PDF.js canvas renderer
-- Add `pdfjs-dist` dependency.
-- In `DocumentPreviewDialog.tsx`, remove `<object>/<embed>` PDF block.
-- Add a dedicated React PDF preview section that:
-  - loads the PDF from blob data using PDF.js,
-  - renders page(s) to `<canvas>`,
-  - shows loading spinner + explicit error state.
-- Keep image preview path unchanged (`<img src={blobUrl}>`).
+### Root Cause
+`pdfjs-dist` v4.9.155 uses **top-level `await`** internally, which requires the Vite build target to be `es2022` or higher. The current `vite.config.ts` has no `build.target` set (defaults to older ES target), so the dynamic `import('pdfjs-dist')` silently fails. The PDF.js worker CDN request never fires, and the spinner hangs forever.
 
-2) Update preview data flow to support PDF.js input
-- In `useSeekerOrgApprovals.ts`, add helper returning `Blob` (or `ArrayBuffer`) from signed URL, not only `blob:` URL.
-- In `DocumentReviewCard.tsx`, fetch blob once on eye click and pass:
-  - `blob` (for PDF.js render),
-  - `blobUrl` (for image preview + download).
-- Keep existing signed URL flow private and unchanged at storage/API layer.
+### Fix (2 files)
 
-3) Harden dialog states + fallbacks
-- `DocumentPreviewDialog.tsx`:
-  - If PDF render fails, show user-facing error + “Download” action.
-  - Keep “Open in new tab” as optional fallback (secondary).
-  - Disable Accept/Reject while preview is still loading only if needed; otherwise preserve current behavior.
-- Ensure no blank gray area: always show one of {loading, rendered preview, error fallback}.
+**1. `vite.config.ts`** — Add `build.target: 'esnext'` so Vite supports top-level await:
+```ts
+build: {
+  target: 'esnext',
+  rollupOptions: { ... }
+}
+```
 
-4) Memory and lifecycle cleanup
-- Revoke `blobUrl` on dialog close and when switching documents (already partially present; keep and tighten).
-- Clear PDF.js loading task/page state on unmount and document switch to avoid stale renders/leaks.
+**2. `src/components/PdfPreviewCanvas.tsx`** — Add a timeout fallback so if PDF.js still fails for any reason, the user sees the error state with Download/Open options instead of an infinite spinner (e.g., 15-second timeout that sets status to `'error'`).
 
-5) Validate end-to-end on real flows
-- Test with at least:
-  - small PDF,
-  - larger PDF,
-  - image file,
-  - unsupported mime type.
-- Verify sequence:
-  - click eye → preview renders,
-  - click Download → file saves correctly,
-  - Accept/Reject from dialog still mutates status and closes dialog.
-- Verify in both Lovable preview iframe and published app URL.
+No other files change.
 
-Technical details (for implementation):
-- Preferred files to touch:
-  - `src/pages/admin/seeker-org-approvals/DocumentPreviewDialog.tsx`
-  - `src/pages/admin/seeker-org-approvals/DocumentReviewCard.tsx`
-  - `src/hooks/queries/useSeekerOrgApprovals.ts`
-- Suggested new helper/component:
-  - `PdfPreviewCanvas` (can be local in `DocumentPreviewDialog.tsx` or extracted to `src/components/...`).
-- PDF.js setup:
-  - configure worker via `pdfjsLib.GlobalWorkerOptions.workerSrc` using bundler-safe import URL.
-  - render with devicePixelRatio scaling for crisp text.
-- Keep existing mutation hooks (`useApproveDocument`, reject dialog path) unchanged.
-- No database/RLS/API contract changes required.
