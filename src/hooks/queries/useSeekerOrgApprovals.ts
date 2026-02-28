@@ -214,6 +214,40 @@ export function useSendWelcomeEmail() {
   });
 }
 
+// ─── Approve billing (verify payment) ───
+export function useApproveBilling() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ billingId, bankTransactionId, bankName, paymentReceivedDate, notes }: {
+      billingId: string;
+      bankTransactionId: string;
+      bankName: string;
+      paymentReceivedDate: string;
+      notes?: string;
+    }) => {
+      const updateData = await withUpdatedBy({
+        billing_verification_status: 'verified' as any,
+        bank_transaction_id: bankTransactionId,
+        bank_name: bankName,
+        payment_received_date: paymentReceivedDate,
+        billing_verification_notes: notes || null,
+        billing_verified_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_billing_info')
+        .update({ ...updateData, billing_verified_by: updateData.updated_by })
+        .eq('id', billingId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+      toast.success('Billing verified successfully');
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'approve_billing' }),
+  });
+}
+
 // ─── Download document via signed URL ───
 export async function getDocumentSignedUrl(storagePath: string): Promise<string | null> {
   const { data, error } = await supabase.storage
