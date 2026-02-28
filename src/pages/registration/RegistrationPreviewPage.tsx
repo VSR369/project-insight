@@ -7,6 +7,7 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, User, Shield, CreditCard, FileText, CheckCircle2, LogIn, Printer,
+  FileIcon, Globe,
 } from 'lucide-react';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
@@ -18,12 +19,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 // Data hooks for ID → name resolution
 import { useCountries, useOrganizationTypes, useIndustrySegments } from '@/hooks/queries/useMasterData';
-import { useStatesForCountry } from '@/hooks/queries/useRegistrationData';
+import { useStatesForCountry, useOrgDocuments } from '@/hooks/queries/useRegistrationData';
 import {
   useSubscriptionTiers, useBillingCycles, useEngagementModels,
   useTierPricingForCountry, useAllTierPricing,
 } from '@/hooks/queries/usePlanSelectionData';
 import { useMembershipTiers } from '@/hooks/queries/useMembershipTiers';
+import { useLanguages } from '@/hooks/queries/usePrimaryContactData';
+import { useExportControlStatuses, useDataResidencyOptions } from '@/hooks/queries/useComplianceData';
 import { PreviewOrderSummary } from '@/components/registration/PreviewOrderSummary';
 
 // ── Helpers ──
@@ -43,11 +46,36 @@ function resolveName<T extends { id: string; name: string }>(list: T[] | undefin
   return list.find((i) => i.id === id)?.name;
 }
 
+function formatFileSize(bytes: number | null | undefined): string {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 const PAYMENT_LABELS: Record<string, string> = {
   credit_card: 'Credit/Debit Card',
   ach_bank_transfer: 'ACH Bank Transfer',
   wire_transfer: 'Wire Transfer',
   shadow: 'Internal Tracking (Shadow)',
+};
+
+const NDA_LABELS: Record<string, string> = {
+  standard_platform_nda: 'Standard Platform NDA',
+  custom_nda: 'Custom NDA (Uploaded)',
+};
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  logo: 'Logo',
+  profile: 'Profile Document',
+  verification: 'Verification Document',
+  nda: 'NDA Document',
+};
+
+const VERIFICATION_STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+  pending: 'secondary',
+  verified: 'default',
+  rejected: 'destructive',
 };
 
 export default function RegistrationPreviewPage() {
@@ -74,6 +102,10 @@ export default function RegistrationPreviewPage() {
   const { data: mTiers } = useMembershipTiers();
   const { data: countryPricing } = useTierPricingForCountry(s1?.hq_country_id);
   const { data: allPricingRaw } = useAllTierPricing();
+  const { data: languages } = useLanguages();
+  const { data: exportControlStatuses } = useExportControlStatuses();
+  const { data: dataResidencyOptions } = useDataResidencyOptions();
+  const { data: orgDocuments } = useOrgDocuments(state.organizationId);
 
   const isLoading = lCountries || lOrgTypes || lIndustries || lHqStates || lTiers || lCycles;
 
@@ -82,6 +114,14 @@ export default function RegistrationPreviewPage() {
   const hqStateName = resolveName(hqStates, s1?.state_province_id);
   const orgTypeName = resolveName(orgTypes, s1?.organization_type_id);
   const industryNames = s1?.industry_ids?.map((id) => resolveName(industries, id)).filter(Boolean).join(', ');
+  const operatingGeoNames = s1?.operating_geography_ids
+    ?.map((id) => resolveName(countries, id))
+    .filter(Boolean)
+    .join(', ');
+
+  const preferredLanguageName = resolveName(languages, s2?.preferred_language_id);
+  const exportControlName = resolveName(exportControlStatuses, s3?.export_control_status_id);
+  const dataResidencyName = resolveName(dataResidencyOptions, s3?.data_residency_id);
 
   const selectedTier = tiers?.find((t) => t.id === s4?.tier_id);
   const selectedCycle = cycles?.find((c) => c.id === s4?.billing_cycle_id);
@@ -190,6 +230,7 @@ export default function RegistrationPreviewPage() {
                     <Field label="HQ Country" value={hqCountryName} />
                     <Field label="State / Province" value={hqStateName} />
                     <Field label="City" value={s1.city} />
+                    <Field label="Operating Geographies" value={operatingGeoNames} />
                   </div>
                 </CardContent>
               </Card>
@@ -207,8 +248,22 @@ export default function RegistrationPreviewPage() {
                     <Field label="Phone" value={`${s2.phone_country_code} ${s2.phone}`} />
                     <Field label="Department" value={s2.department} />
                     <Field label="Timezone" value={s2.timezone} />
+                    <Field label="Preferred Language" value={preferredLanguageName} />
                     <Field label="Email Verified" value={s2.email_verified} />
+                    <Field label="Admin Designation" value={s2.admin_designation === 'separate' ? 'Separate Admin' : 'Self (Registering User)'} />
                   </div>
+                  {s2.admin_designation === 'separate' && s2.separate_admin && (
+                    <>
+                      <Separator className="my-4" />
+                      <p className="text-xs font-medium text-muted-foreground mb-3">Designated Administrator</p>
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                        <Field label="Admin Name" value={s2.separate_admin.name} />
+                        <Field label="Admin Email" value={s2.separate_admin.email} />
+                        <Field label="Admin Phone" value={s2.separate_admin.phone ? `${s2.separate_admin.phone_country_code ?? ''} ${s2.separate_admin.phone}` : undefined} />
+                        <Field label="Working Location" value={s2.separate_admin.working_location} />
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -221,7 +276,10 @@ export default function RegistrationPreviewPage() {
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <Field label="Tax ID" value={s3.tax_id} />
                     <Field label="Tax ID Label" value={s3.tax_id_label} />
+                    <Field label="Export Control Status" value={exportControlName} />
                     <Field label="ITAR Restricted" value={s3.is_itar_restricted} />
+                    <Field label="Data Residency" value={dataResidencyName} />
+                    <Field label="NDA Preference" value={s3.nda_preference ? NDA_LABELS[s3.nda_preference] ?? s3.nda_preference : undefined} />
                   </div>
                 </CardContent>
               </Card>
@@ -252,6 +310,7 @@ export default function RegistrationPreviewPage() {
                     <Field label="Billing Entity" value={s5.billing_entity_name} />
                     <Field label="Billing Email" value={s5.billing_email} />
                     <Field label="Payment Method" value={PAYMENT_LABELS[s5.payment_method] ?? s5.payment_method} />
+                    <Field label="Internal Department" value={s5.is_internal_department} />
                     <Field label="Address" value={[s5.billing_address_line1, s5.billing_address_line2].filter(Boolean).join(', ')} />
                     <Field label="City" value={s5.billing_city} />
                     <Field label="State / Province" value={billingStateName} />
@@ -259,6 +318,34 @@ export default function RegistrationPreviewPage() {
                     <Field label="Postal Code" value={s5.billing_postal_code} />
                     <Field label="PO Number" value={s5.po_number} />
                     <Field label="Tax ID" value={s5.tax_id} />
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Uploaded Documents */}
+            {orgDocuments && orgDocuments.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3"><CardTitle className="text-base flex items-center gap-2"><FileIcon className="h-4 w-4 text-primary" /> Uploaded Documents</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {orgDocuments.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between rounded-md border p-3">
+                        <div className="flex items-center gap-3 min-w-0">
+                          <FileIcon className="h-4 w-4 text-muted-foreground shrink-0" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-foreground truncate">{doc.file_name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {DOC_TYPE_LABELS[doc.document_type] ?? doc.document_type}
+                              {doc.file_size ? ` · ${formatFileSize(doc.file_size)}` : ''}
+                            </p>
+                          </div>
+                        </div>
+                        <Badge variant={VERIFICATION_STATUS_VARIANT[doc.verification_status] ?? 'outline'} className="shrink-0 ml-2">
+                          {doc.verification_status}
+                        </Badge>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
               </Card>

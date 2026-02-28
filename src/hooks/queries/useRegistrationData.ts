@@ -284,6 +284,27 @@ export function useUploadOrgDocument() {
 // ============================================================
 // Create Organization (Step 1 save)
 // ============================================================
+// ============================================================
+// Fetch Org Documents (for preview page)
+// ============================================================
+export function useOrgDocuments(organizationId?: string) {
+  return useQuery({
+    queryKey: ['org_documents', organizationId],
+    queryFn: async () => {
+      if (!organizationId) return [];
+      const { data, error } = await supabase
+        .from('seeker_org_documents')
+        .select('id, document_type, file_name, file_size, mime_type, verification_status, created_at')
+        .eq('organization_id', organizationId)
+        .order('created_at', { ascending: true });
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!organizationId,
+    staleTime: 30 * 1000,
+  });
+}
+
 export function useCreateOrganization() {
   const queryClient = useQueryClient();
 
