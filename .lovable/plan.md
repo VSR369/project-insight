@@ -1,52 +1,84 @@
 
 
-## Plan: Enforce Sequential Verification Gates for Organization Approval
+## Compliance Audit: Seeker Org Approvals Module
 
-### Current State
-- **Documents**: Each document can be individually verified/rejected — status saved in `seeker_org_documents.verification_status`
-- **Billing**: Has verification form with bank details — status saved in `seeker_billing_info.billing_verification_status`
-- **Org Approval**: Currently shows a warning if billing is unverified, but the Approve button is still clickable
-- **Welcome Email**: Currently enabled when `org.verification_status === 'verified'` — correct, but no additional guard
+### Gaps Found & Fixes
 
-### Gaps Identified
-1. **Approve Org button is not truly disabled** when documents are unverified or billing is unverified — it only shows a warning for billing
-2. **No check for document verification** before org approval
-3. **No visual indication** of what prerequisites are missing for approval
-4. **Welcome email** gating is correct (requires verified org), but should also confirm all prerequisites were met
+**1. RejectOrgDialog & RejectDocumentDialog — Missing Zod + React Hook Form (Section 8.1)**
+Both dialogs use raw `useState` for form state instead of mandatory React Hook Form + Zod validation. Rejection reason has no max length constraint.
 
-### Rules to Enforce
-```text
-┌──────────────────────────────────────────────────┐
-│  Gate 1: All uploaded documents → verified        │
-│  Gate 2: Billing payment → verified               │
-│  Gate 3: Org Approval (enabled only after 1 + 2)  │
-│  Gate 4: Welcome Email (enabled only after 3)     │
-└──────────────────────────────────────────────────┘
-```
+**Fix:** Convert both dialogs to use `useForm` with Zod schema (`reason: z.string().min(1).max(500).trim()`).
 
-### Files to Update
+---
 
-**1. `src/pages/admin/seeker-org-approvals/SeekerOrgReviewPage.tsx`**
-- Compute `allDocsVerified`: all documents have `verification_status === 'verified'` (true if no documents)
-- Compute `billingVerified`: `billing?.billing_verification_status === 'verified'`
-- Compute `canApprove`: `allDocsVerified && billingVerified`
-- **Disable** the "Approve Organization" button when `!canApprove`
-- Add tooltip/helper text listing which prerequisites are unmet
-- In the confirmation dialog, list the verification summary (docs count, billing status)
+**2. Duplicate `Field` component across 3 files (Section 25 Anti-Patterns)**
+`Field` helper is defined identically in `OrgDetailCard.tsx`, `ComplianceDetailCard.tsx`, and `SubscriptionDetailCard.tsx` — violates DRY and component reuse standards.
 
-**2. `src/pages/admin/seeker-org-approvals/AdminCredentialsCard.tsx`**
-- No change needed — already gates on `org.verification_status !== 'verified'`. This is correct since Welcome Email should only be available after overall org approval.
+**Fix:** Extract to a shared `ReviewField.tsx` component in the module directory and import everywhere.
 
-### No Database Changes Required
-All verification statuses are already persisted:
-- `seeker_org_documents.verification_status` — per-document
-- `seeker_billing_info.billing_verification_status` — billing
-- `seeker_organizations.verification_status` — org-level
+---
 
-### Implementation Details
-- Pass `documents` and `billing` data to the approval button logic in `SeekerOrgReviewPage`
-- Show a checklist-style message near the Approve button:
-  - "✓ All documents verified" or "✗ X of Y documents pending/rejected"
-  - "✓ Billing payment verified" or "✗ Billing payment not verified"
-- Button disabled with clear reasoning when prerequisites are unmet
+**3. `useSeekerOrgApprovals.ts` — `SELECT *` usage (Section 25 Anti-Patterns)**
+The `useSeekerOrgDetail` hook uses `SELECT *` on `seeker_organizations` instead of specifying columns.
+
+**Fix:** Replace `*` with explicit column list.
+
+---
+
+**4. Missing `tenantId` in ErrorContext (Section 11.1)**
+All `handleMutationError` calls use only `{ operation }` without `component` context, making debugging harder.
+
+**Fix:** Add `component: 'seeker-org-approvals'` to all error contexts in the hooks file.
+
+---
+
+**5. `AdminCredentialsCard` — Client-side password generation (Section 18)**
+Temporary passwords are generated client-side with `Math.random()`, which is cryptographically insecure and violates security hardening standards. The TODO comment acknowledges this.
+
+**Fix:** Replace `Math.random()` with `crypto.getRandomValues()` for stronger temp passwords. Add a comment that server-side generation is the long-term target.
+
+---
+
+**6. Missing `as const` on status color maps (Section 22.3)**
+`statusColors` maps in `DocumentReviewCard.tsx` and `SeekerOrgApprovalsPage.tsx` lack `as const` for type safety.
+
+**Fix:** Add `as const satisfies Record<string, string>` to status color maps.
+
+---
+
+**7. `DocumentReviewCard` — Excessive `useState` calls for preview state (Section 6.2)**
+Six separate `useState` calls manage preview state. Should be consolidated into a single `useReducer` or a grouped state object per state management standards.
+
+**Fix:** Consolidate preview-related state into a single `useState` with an object shape `{ doc, blobUrl, pdfData, fileData, loading }`.
+
+---
+
+**8. Missing JSDoc on public functions (Section 20.2)**
+None of the exported components or hook functions have JSDoc documentation.
+
+**Fix:** Add JSDoc to all exported components and hook functions.
+
+---
+
+### Implementation Plan (5 files)
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `ReviewField.tsx` (new) | Shared `Field` component with JSDoc |
+| 2 | `OrgDetailCard.tsx` | Import shared `ReviewField`, remove local `Field`, add JSDoc |
+| 3 | `ComplianceDetailCard.tsx` | Same as above |
+| 4 | `SubscriptionDetailCard.tsx` | Same as above |
+| 5 | `RejectOrgDialog.tsx` | Convert to RHF + Zod |
+| 6 | `RejectDocumentDialog.tsx` | Convert to RHF + Zod |
+| 7 | `DocumentReviewCard.tsx` | Consolidate preview state, add `as const` |
+| 8 | `AdminCredentialsCard.tsx` | Use `crypto.getRandomValues()` for temp password |
+| 9 | `useSeekerOrgApprovals.ts` | Replace `SELECT *`, add `component` to error contexts |
+| 10 | `SeekerOrgApprovalsPage.tsx` | Add `as const` to status map |
+
+### What Is NOT Changing
+- Database schema, RLS policies, migrations — all correct
+- Navigation and routing — intact
+- API response shapes — already standard
+- Existing UX flow (gates, tooltips, workflow instructions) — preserved
+- Hook ordering — already compliant
 
