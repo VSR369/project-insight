@@ -49,7 +49,7 @@ function SeekerOrgReviewContent() {
     return <div className="text-center py-12 text-muted-foreground">Organization not found.</div>;
   }
 
-  const { org, contacts, compliance, subscription, billing, documents, industries, geographies, orgUsers } = data;
+  const { org, contacts, compliance, subscription, billing, documents, industries, geographies, orgUsers, adminDelegation } = data;
   const isVerified = org.verification_status === 'verified';
   const isRejected = org.verification_status === 'rejected';
   const primaryContact = contacts.find((c) => c.is_primary) ?? contacts[0];
@@ -185,9 +185,9 @@ function SeekerOrgReviewContent() {
                   <Mail className="h-3.5 w-3.5 text-muted-foreground" />
                   <span className="text-sm font-medium text-foreground">Send Welcome Email</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  After approval, scroll to <strong>Admin Credentials</strong> and send the welcome email with login credentials to the organization administrator.
-                </p>
+                 <p className="text-xs text-muted-foreground mt-0.5">
+                   After approval, scroll to <strong>Admin Credentials</strong> and send welcome email(s) — one or two depending on whether the registrant is also the admin.
+                 </p>
               </div>
             </li>
           </ol>
@@ -200,7 +200,7 @@ function SeekerOrgReviewContent() {
         {compliance && <ComplianceDetailCard compliance={compliance} org={org} />}
         <SubscriptionDetailCard subscription={subscription} billing={billing} />
         <DocumentReviewCard documents={documents} />
-        <AdminCredentialsCard orgUsers={orgUsers} org={org} contacts={contacts} />
+        <AdminCredentialsCard orgUsers={orgUsers} org={org} contacts={contacts} adminDelegation={adminDelegation} />
       </div>
 
       <RejectOrgDialog

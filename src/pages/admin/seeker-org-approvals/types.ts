@@ -156,6 +156,13 @@ export interface SeekerOrgGeography {
   countries?: { name: string } | null;
 }
 
+export interface AdminDelegation {
+  new_admin_name: string | null;
+  new_admin_email: string;
+  new_admin_phone: string | null;
+  lifecycle_status: string;
+}
+
 export interface SeekerOrgDetailData {
   org: SeekerOrg;
   contacts: SeekerContact[];
@@ -166,4 +173,5 @@ export interface SeekerOrgDetailData {
   industries: SeekerOrgIndustry[];
   geographies: SeekerOrgGeography[];
   orgUsers: OrgUser[];
+  adminDelegation: AdminDelegation | null;
 }
