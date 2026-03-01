@@ -1,84 +1,119 @@
 
 
-## Compliance Audit: Seeker Org Approvals Module
+## Refined Plan: Smart Welcome Email Logic (Self vs. Separate Admin)
 
-### Gaps Found & Fixes
+### Current State
+- `AdminCredentialsCard` sends ONE welcome email to the primary contact with admin credentials
+- No awareness of whether registrant = admin or registrant ≠ admin
+- `org_admin_change_requests` table stores `registration_delegate` records when a separate admin is designated during registration (Step 2)
+- The separate admin's email is in `org_admin_change_requests.new_admin_email`
 
-**1. RejectOrgDialog & RejectDocumentDialog — Missing Zod + React Hook Form (Section 8.1)**
-Both dialogs use raw `useState` for form state instead of mandatory React Hook Form + Zod validation. Rejection reason has no max length constraint.
+### Data Model for Detection
+```
+IF org_admin_change_requests has a row WHERE
+  organization_id = orgId
+  AND request_type = 'registration_delegate'
+THEN → Separate admin (two emails)
+ELSE → Same person (one email)
+```
 
-**Fix:** Convert both dialogs to use `useForm` with Zod schema (`reason: z.string().min(1).max(500).trim()`).
+### Implementation
 
----
+#### 1. Update `useSeekerOrgApprovals.ts` — Query Changes
+- In `useSeekerOrgDetail`, add a query for `org_admin_change_requests` filtered by `organization_id` and `request_type = 'registration_delegate'`
+- Return as `adminDelegation: { new_admin_name, new_admin_email, new_admin_phone, lifecycle_status } | null`
 
-**2. Duplicate `Field` component across 3 files (Section 25 Anti-Patterns)**
-`Field` helper is defined identically in `OrgDetailCard.tsx`, `ComplianceDetailCard.tsx`, and `SubscriptionDetailCard.tsx` — violates DRY and component reuse standards.
+#### 2. Update `types.ts`
+- Add `adminDelegation` field to `SeekerOrgDetailData`:
+  ```ts
+  adminDelegation: {
+    new_admin_name: string | null;
+    new_admin_email: string;
+    new_admin_phone: string | null;
+    lifecycle_status: string;
+  } | null;
+  ```
 
-**Fix:** Extract to a shared `ReviewField.tsx` component in the module directory and import everywhere.
+#### 3. Refactor Edge Function: `send-seeker-welcome-email`
+Accept a new `emailMode` parameter:
+- `mode: 'self'` — Single email to registrant/admin with credentials + admin instructions (create roles, publish challenges)
+- `mode: 'registrant_only'` — Email to registrant: "Your org is approved. A separate admin has been designated. They will receive their credentials separately."
+- `mode: 'admin_only'` — Email to separate admin: welcome + credentials + admin instructions (create roles, publish challenges)
 
----
+The edge function sends the appropriate email template based on `mode`.
 
-**3. `useSeekerOrgApprovals.ts` — `SELECT *` usage (Section 25 Anti-Patterns)**
-The `useSeekerOrgDetail` hook uses `SELECT *` on `seeker_organizations` instead of specifying columns.
+#### 4. Update `AdminCredentialsCard.tsx`
+- Accept `adminDelegation` prop
+- Detect scenario:
+  - **No delegation record** → Show single "Send Welcome Email" button (same person is registrant + admin)
+  - **Delegation record exists** → Show two buttons:
+    - "Send Welcome Email to Registrant" (no credentials, just approval confirmation)
+    - "Send Admin Credentials to [delegation email]" (credentials + admin instructions)
+- Display delegation info (delegated admin name/email) when applicable
+- The temp password is only shown/sent for the admin recipient
 
-**Fix:** Replace `*` with explicit column list.
+#### 5. Update `SeekerOrgReviewPage.tsx`
+- Pass `adminDelegation` from detail data to `AdminCredentialsCard`
+- Update workflow Step 4 text to reflect: "Send welcome email(s) — one or two depending on admin designation"
 
----
+#### 6. Email Content
 
-**4. Missing `tenantId` in ErrorContext (Section 11.1)**
-All `handleMutationError` calls use only `{ operation }` without `component` context, making debugging harder.
+**Self (registrant = admin) — Single Email:**
+```
+Subject: Welcome to CogniBlend — {OrgName} Account Activated
 
-**Fix:** Add `component: 'seeker-org-approvals'` to all error contexts in the hooks file.
+Body:
+- Your org {OrgName} has been verified and approved
+- Login credentials (email + temp password)
+- As the Organization Admin, you can now:
+  • Create user roles for your team
+  • Set up your organization workspace
+  • Publish challenges and receive solutions from providers
+- Login link
+- "Please change your password after first login"
+```
 
----
+**Registrant (when admin is separate):**
+```
+Subject: {OrgName} Has Been Approved on CogniBlend
 
-**5. `AdminCredentialsCard` — Client-side password generation (Section 18)**
-Temporary passwords are generated client-side with `Math.random()`, which is cryptographically insecure and violates security hardening standards. The TODO comment acknowledges this.
+Body:
+- Your org {OrgName} has been verified and approved
+- A designated administrator ({admin_name}) has been assigned
+- They will receive their login credentials separately
+- Thank you for registering
+```
 
-**Fix:** Replace `Math.random()` with `crypto.getRandomValues()` for stronger temp passwords. Add a comment that server-side generation is the long-term target.
+**Separate Admin:**
+```
+Subject: Welcome to CogniBlend — You Are the Admin for {OrgName}
 
----
+Body:
+- You have been designated as administrator for {OrgName}
+- Login credentials (email + temp password)
+- As the Organization Admin, you can now:
+  • Create user roles for your team
+  • Set up your organization workspace
+  • Publish challenges and receive solutions from providers
+- Login link
+- "Please change your password after first login"
+```
 
-**6. Missing `as const` on status color maps (Section 22.3)**
-`statusColors` maps in `DocumentReviewCard.tsx` and `SeekerOrgApprovalsPage.tsx` lack `as const` for type safety.
-
-**Fix:** Add `as const satisfies Record<string, string>` to status color maps.
-
----
-
-**7. `DocumentReviewCard` — Excessive `useState` calls for preview state (Section 6.2)**
-Six separate `useState` calls manage preview state. Should be consolidated into a single `useReducer` or a grouped state object per state management standards.
-
-**Fix:** Consolidate preview-related state into a single `useState` with an object shape `{ doc, blobUrl, pdfData, fileData, loading }`.
-
----
-
-**8. Missing JSDoc on public functions (Section 20.2)**
-None of the exported components or hook functions have JSDoc documentation.
-
-**Fix:** Add JSDoc to all exported components and hook functions.
-
----
-
-### Implementation Plan (5 files)
+### Files Changed
 
 | # | File | Change |
 |---|------|--------|
-| 1 | `ReviewField.tsx` (new) | Shared `Field` component with JSDoc |
-| 2 | `OrgDetailCard.tsx` | Import shared `ReviewField`, remove local `Field`, add JSDoc |
-| 3 | `ComplianceDetailCard.tsx` | Same as above |
-| 4 | `SubscriptionDetailCard.tsx` | Same as above |
-| 5 | `RejectOrgDialog.tsx` | Convert to RHF + Zod |
-| 6 | `RejectDocumentDialog.tsx` | Convert to RHF + Zod |
-| 7 | `DocumentReviewCard.tsx` | Consolidate preview state, add `as const` |
-| 8 | `AdminCredentialsCard.tsx` | Use `crypto.getRandomValues()` for temp password |
-| 9 | `useSeekerOrgApprovals.ts` | Replace `SELECT *`, add `component` to error contexts |
-| 10 | `SeekerOrgApprovalsPage.tsx` | Add `as const` to status map |
+| 1 | `types.ts` | Add `adminDelegation` to `SeekerOrgDetailData` |
+| 2 | `useSeekerOrgApprovals.ts` | Query `org_admin_change_requests` in detail hook; update `useSendWelcomeEmail` to accept `mode` param |
+| 3 | `send-seeker-welcome-email/index.ts` | Handle 3 email modes with distinct templates |
+| 4 | `AdminCredentialsCard.tsx` | Accept `adminDelegation`, show 1 or 2 send buttons |
+| 5 | `SeekerOrgReviewPage.tsx` | Pass `adminDelegation` to `AdminCredentialsCard` |
 
 ### What Is NOT Changing
-- Database schema, RLS policies, migrations — all correct
-- Navigation and routing — intact
-- API response shapes — already standard
-- Existing UX flow (gates, tooltips, workflow instructions) — preserved
-- Hook ordering — already compliant
+- Database schema — `org_admin_change_requests` already exists with all needed fields
+- Registration flow — untouched
+- Document/billing verification flow — untouched
+- Rejection flow — handled separately in the billing rejection plan
+- `create-org-admin` edge function — untouched
+- `config.toml` — no new functions needed
 
