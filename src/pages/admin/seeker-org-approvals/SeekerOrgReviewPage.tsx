@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
-import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertTriangle, Info, FileCheck, CreditCard, ShieldCheck, Mail } from 'lucide-react';
 import { useSeekerOrgDetail, useApproveOrg } from '@/hooks/queries/useSeekerOrgApprovals';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { OrgDetailCard } from './OrgDetailCard';
@@ -116,17 +116,81 @@ function SeekerOrgReviewContent() {
         )}
       </div>
 
-      {/* Approval prerequisites checklist */}
+      {/* ── Approval Workflow Instructions ── */}
       {!isVerified && !isRejected && (
-        <div className="flex flex-wrap gap-3 mb-6 text-sm">
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border ${allDocsVerified ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-            {allDocsVerified ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-            {totalDocs === 0 ? 'No documents uploaded' : `Documents: ${verifiedDocs}/${totalDocs} verified`}
-          </span>
-          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md border ${billingVerified ? 'border-green-200 bg-green-50 text-green-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
-            {billingVerified ? <CheckCircle className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
-            {billingVerified ? 'Billing verified' : 'Billing not verified'}
-          </span>
+        <div className="rounded-lg border border-border bg-muted/40 p-4 mb-6">
+          <div className="flex items-start gap-2 mb-3">
+            <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+            <div>
+              <h3 className="font-semibold text-sm text-foreground">Approval Workflow — Follow These Steps in Order</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                All steps must be completed before the organization can be approved and granted platform access.
+              </p>
+            </div>
+          </div>
+          <ol className="space-y-2.5 ml-1">
+            {/* Step 1 */}
+            <li className="flex items-start gap-2.5">
+              <span className={`mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold ${allDocsVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>1</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <FileCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Verify All Uploaded Documents</span>
+                  {allDocsVerified
+                    ? <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                    : <span className="text-xs text-amber-600 font-medium">({verifiedDocs}/{totalDocs} done)</span>
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Scroll to the <strong>Documents</strong> section below. Review each document (Logo, Profile, NDA, Verification) and click <em>Approve</em> or <em>Reject</em> individually.
+                </p>
+              </div>
+            </li>
+            {/* Step 2 */}
+            <li className="flex items-start gap-2.5">
+              <span className={`mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold ${billingVerified ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>2</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Verify Billing Payment</span>
+                  {billingVerified
+                    ? <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                    : <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
+                  }
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  In the <strong>Plan & Billing</strong> section, click <em>Verify Payment</em> and enter the Bank Transaction ID, Bank Name, and Payment Received Date.
+                </p>
+              </div>
+            </li>
+            {/* Step 3 */}
+            <li className="flex items-start gap-2.5">
+              <span className={`mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold ${canApprove ? 'bg-green-100 text-green-700' : 'bg-muted text-muted-foreground'}`}>3</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <ShieldCheck className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Approve the Organization</span>
+                  {canApprove && <span className="text-xs text-primary font-medium">Ready</span>}
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Once steps 1 & 2 are complete, the <strong>Approve Organization</strong> button (top-right) will be enabled. This sets the organization status to <em>verified</em>.
+                </p>
+              </div>
+            </li>
+            {/* Step 4 */}
+            <li className="flex items-start gap-2.5">
+              <span className="mt-0.5 shrink-0 flex items-center justify-center h-5 w-5 rounded-full text-[10px] font-bold bg-muted text-muted-foreground">4</span>
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+                  <span className="text-sm font-medium text-foreground">Send Welcome Email</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  After approval, scroll to <strong>Admin Credentials</strong> and send the welcome email with login credentials to the organization administrator.
+                </p>
+              </div>
+            </li>
+          </ol>
         </div>
       )}
 
