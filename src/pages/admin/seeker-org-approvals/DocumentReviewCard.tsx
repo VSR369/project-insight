@@ -8,11 +8,11 @@ import { RejectDocumentDialog } from './RejectDocumentDialog';
 import { DocumentPreviewDialog } from './DocumentPreviewDialog';
 import type { SeekerDocument } from './types';
 
-const statusColors: Record<string, string> = {
+const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
   verified: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
+} as const satisfies Record<string, string>;
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -20,53 +20,60 @@ function formatSize(bytes: number): string {
   return `${(bytes / 1048576).toFixed(1)} MB`;
 }
 
+/** State for document preview — consolidated to reduce useState count. */
+interface PreviewState {
+  doc: SeekerDocument | null;
+  blobUrl: string | null;
+  pdfData: ArrayBuffer | null;
+  fileData: ArrayBuffer | null;
+  loadingId: string | null;
+}
+
+const INITIAL_PREVIEW: PreviewState = {
+  doc: null,
+  blobUrl: null,
+  pdfData: null,
+  fileData: null,
+  loadingId: null,
+};
+
 interface DocumentReviewCardProps {
   documents: SeekerDocument[];
 }
 
+/** Displays uploaded documents with preview, approve, and reject actions. */
 export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
   const approveDoc = useApproveDocument();
   const [rejectDocId, setRejectDocId] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
-  const [previewDoc, setPreviewDoc] = useState<SeekerDocument | null>(null);
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-  const [pdfData, setPdfData] = useState<ArrayBuffer | null>(null);
-  const [fileData, setFileData] = useState<ArrayBuffer | null>(null);
+  const [preview, setPreview] = useState<PreviewState>(INITIAL_PREVIEW);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   const handlePreview = async (doc: SeekerDocument) => {
-    setPreviewLoading(doc.id);
-    setPreviewDoc(doc);
     // Revoke previous blob URL
-    if (blobUrl) URL.revokeObjectURL(blobUrl);
-    setBlobUrl(null);
-    setPdfData(null);
-    setFileData(null);
+    if (preview.blobUrl) URL.revokeObjectURL(preview.blobUrl);
+    setPreview({ ...INITIAL_PREVIEW, doc, loadingId: doc.id });
     setPreviewOpen(true);
 
     const result = await fetchDocumentBlob(doc.storage_path);
     if (result) {
-      setBlobUrl(result.blobUrl);
       const ab = await result.blob.arrayBuffer();
-      // For PDFs, pass as pdfData; for others, pass as fileData
-      if (doc.mime_type === 'application/pdf') {
-        setPdfData(ab);
-      } else {
-        setFileData(ab);
-      }
+      setPreview((prev) => ({
+        ...prev,
+        blobUrl: result.blobUrl,
+        pdfData: doc.mime_type === 'application/pdf' ? ab : null,
+        fileData: doc.mime_type !== 'application/pdf' ? ab : null,
+        loadingId: null,
+      }));
+    } else {
+      setPreview((prev) => ({ ...prev, loadingId: null }));
     }
-    setPreviewLoading(null);
   };
 
   const handlePreviewClose = (open: boolean) => {
     setPreviewOpen(open);
     if (!open) {
-      if (blobUrl) {
-        URL.revokeObjectURL(blobUrl);
-        setBlobUrl(null);
-      }
-      setPdfData(null);
-      setFileData(null);
+      if (preview.blobUrl) URL.revokeObjectURL(preview.blobUrl);
+      setPreview(INITIAL_PREVIEW);
     }
   };
 
@@ -93,9 +100,9 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
                     {doc.file_size && <span>· {formatSize(Number(doc.file_size))}</span>}
                   </div>
                 </div>
-                <Badge className={statusColors[doc.verification_status] ?? ''}>{doc.verification_status}</Badge>
-                <Button variant="ghost" size="icon" onClick={() => handlePreview(doc)} disabled={previewLoading === doc.id}>
-                  {previewLoading === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
+                <Badge className={statusColors[doc.verification_status as keyof typeof statusColors] ?? ''}>{doc.verification_status}</Badge>
+                <Button variant="ghost" size="icon" onClick={() => handlePreview(doc)} disabled={preview.loadingId === doc.id}>
+                  {preview.loadingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />}
                 </Button>
                 {doc.verification_status === 'pending' && (
                   <>
@@ -121,10 +128,10 @@ export function DocumentReviewCard({ documents }: DocumentReviewCardProps) {
       <RejectDocumentDialog open={!!rejectDocId} onOpenChange={(open) => !open && setRejectDocId(null)} docId={rejectDocId ?? ''} />
 
       <DocumentPreviewDialog
-        doc={previewDoc}
-        blobUrl={blobUrl}
-        pdfData={pdfData}
-        fileData={fileData}
+        doc={preview.doc}
+        blobUrl={preview.blobUrl}
+        pdfData={preview.pdfData}
+        fileData={preview.fileData}
         open={previewOpen}
         onOpenChange={handlePreviewClose}
       />

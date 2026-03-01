@@ -61,7 +61,15 @@ export function useSeekerOrgDetail(orgId?: string) {
       const { data: org, error: orgErr } = await supabase
         .from('seeker_organizations')
         .select(`
-          *,
+          id, organization_name, trade_brand_name, legal_entity_name,
+          organization_type_id, registration_number, tax_id, website_url,
+          founding_year, employee_count_range, annual_revenue_range,
+          is_enterprise, organization_description, logo_url,
+          hq_address_line1, hq_address_line2, hq_city, hq_postal_code,
+          hq_country_id, hq_state_province_id,
+          nda_preference, nda_review_status,
+          verification_status, verified_at, verified_by, rejection_reason,
+          registration_step, created_at, updated_at,
           countries!seeker_organizations_hq_country_id_fkey(name, code),
           organization_types(name)
         `)
@@ -117,7 +125,7 @@ export function useApproveOrg() {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
       toast.success('Organization approved successfully');
     },
-    onError: (error: Error) => handleMutationError(error, { operation: 'approve_organization' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'approve_organization', component: 'seeker-org-approvals' }),
   });
 }
 
@@ -141,7 +149,7 @@ export function useRejectOrg() {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
       toast.success('Organization rejected');
     },
-    onError: (error: Error) => handleMutationError(error, { operation: 'reject_organization' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'reject_organization', component: 'seeker-org-approvals' }),
   });
 }
 
@@ -165,7 +173,7 @@ export function useApproveDocument() {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
       toast.success('Document approved');
     },
-    onError: (error: Error) => handleMutationError(error, { operation: 'approve_document' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'approve_document', component: 'seeker-org-approvals' }),
   });
 }
 
@@ -190,7 +198,7 @@ export function useRejectDocument() {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
       toast.success('Document rejected');
     },
-    onError: (error: Error) => handleMutationError(error, { operation: 'reject_document' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'reject_document', component: 'seeker-org-approvals' }),
   });
 }
 
@@ -210,7 +218,7 @@ export function useSendWelcomeEmail() {
       return data;
     },
     onSuccess: () => toast.success('Welcome email sent successfully'),
-    onError: (error: Error) => handleMutationError(error, { operation: 'send_welcome_email' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'send_welcome_email', component: 'seeker-org-approvals' }),
   });
 }
 
@@ -244,7 +252,7 @@ export function useApproveBilling() {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
       toast.success('Billing verified successfully');
     },
-    onError: (error: Error) => handleMutationError(error, { operation: 'approve_billing' }),
+    onError: (error: Error) => handleMutationError(error, { operation: 'approve_billing', component: 'seeker-org-approvals' }),
   });
 }
 

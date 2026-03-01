@@ -12,12 +12,12 @@ import type { SeekerOrgListItem } from './types';
 
 const PAGE_SIZE = 20;
 
-const statusColors: Record<string, string> = {
+const statusColors = {
   unverified: 'bg-muted text-muted-foreground',
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
   verified: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
   rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-};
+} as const satisfies Record<string, string>;
 
 export default function SeekerOrgApprovalsPage() {
   const [tab, setTab] = useState('pending');

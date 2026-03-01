@@ -16,12 +16,14 @@ export function AdminCredentialsCard({ orgUsers, org, contacts }: AdminCredentia
   const sendEmail = useSendWelcomeEmail();
   const [showPassword, setShowPassword] = useState(false);
 
-  // Placeholder: stabilize temp password within session via useMemo.
-  // TODO: Replace with proper credential management (server-generated, hashed, single-use).
-  const tempPassword = useMemo(
-    () => `Temp${org.id.slice(0, 4)}!${Math.random().toString(36).slice(2, 6)}`,
-    [org.id]
-  );
+  // Cryptographically stronger temp password (session-stable via useMemo).
+  // TODO: Replace with server-generated, hashed, single-use credential management.
+  const tempPassword = useMemo(() => {
+    const array = new Uint8Array(6);
+    crypto.getRandomValues(array);
+    const rand = Array.from(array, (b) => b.toString(36)).join('').slice(0, 8);
+    return `Temp${org.id.slice(0, 4)}!${rand}`;
+  }, [org.id]);
 
   const adminUser = orgUsers.find((u) => u.role === 'tenant_admin') ?? orgUsers[0];
 

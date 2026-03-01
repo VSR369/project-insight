@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Building2 } from 'lucide-react';
+import { ReviewField } from './ReviewField';
 import type { SeekerOrg, SeekerOrgIndustry, SeekerOrgGeography } from './types';
 
 interface OrgDetailCardProps {
@@ -9,15 +10,7 @@ interface OrgDetailCardProps {
   geographies: SeekerOrgGeography[];
 }
 
-function Field({ label, value }: { label: string; value?: string | number | null }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{value || '—'}</p>
-    </div>
-  );
-}
-
+/** Displays core organization identity details for admin review. */
 export function OrgDetailCard({ org, industries, geographies }: OrgDetailCardProps) {
   return (
     <Card>
@@ -29,17 +22,17 @@ export function OrgDetailCard({ org, industries, geographies }: OrgDetailCardPro
       </CardHeader>
       <CardContent className="grid gap-4">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          <Field label="Organization Name" value={org.organization_name} />
-          <Field label="Trade/Brand Name" value={org.trade_brand_name} />
-          <Field label="Legal Entity" value={org.legal_entity_name} />
-          <Field label="Type" value={org.organization_types?.name} />
-          <Field label="Registration Number" value={org.registration_number} />
-          <Field label="Tax ID" value={org.tax_id} />
-          <Field label="Website" value={org.website_url} />
-          <Field label="Founded" value={org.founding_year} />
-          <Field label="Employees" value={org.employee_count_range} />
-          <Field label="Revenue" value={org.annual_revenue_range} />
-          <Field label="Enterprise" value={org.is_enterprise ? 'Yes' : 'No'} />
+          <ReviewField label="Organization Name" value={org.organization_name} />
+          <ReviewField label="Trade/Brand Name" value={org.trade_brand_name} />
+          <ReviewField label="Legal Entity" value={org.legal_entity_name} />
+          <ReviewField label="Type" value={org.organization_types?.name} />
+          <ReviewField label="Registration Number" value={org.registration_number} />
+          <ReviewField label="Tax ID" value={org.tax_id} />
+          <ReviewField label="Website" value={org.website_url} />
+          <ReviewField label="Founded" value={org.founding_year} />
+          <ReviewField label="Employees" value={org.employee_count_range} />
+          <ReviewField label="Revenue" value={org.annual_revenue_range} />
+          <ReviewField label="Enterprise" value={org.is_enterprise} />
         </div>
 
         <div>
