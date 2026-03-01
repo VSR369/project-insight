@@ -77,7 +77,7 @@ export function useSeekerOrgDetail(orgId?: string) {
         .single();
       if (orgErr) throw new Error(orgErr.message);
 
-      const [contacts, compliance, subscription, billing, documents, industries, geographies, orgUsers] = await Promise.all([
+      const [contacts, compliance, subscription, billing, documents, industries, geographies, orgUsers, adminDelegation] = await Promise.all([
         supabase.from('seeker_contacts').select('*').eq('organization_id', orgId).eq('is_deleted', false),
         supabase.from('seeker_compliance').select('*, md_export_control_statuses(name), md_data_residency(name)').eq('organization_id', orgId).maybeSingle(),
         supabase.from('seeker_subscriptions').select(`*, md_subscription_tiers!seeker_subscriptions_tier_id_fkey(name, code), md_billing_cycles(name, months), md_engagement_models(name)`).eq('organization_id', orgId).maybeSingle(),
@@ -86,6 +86,7 @@ export function useSeekerOrgDetail(orgId?: string) {
         supabase.from('seeker_org_industries').select('*, industry_segments(name)').eq('organization_id', orgId),
         supabase.from('seeker_org_operating_geographies').select('*, countries(name)').eq('organization_id', orgId),
         supabase.from('org_users').select('*').eq('organization_id', orgId).eq('is_active', true),
+        supabase.from('org_admin_change_requests').select('new_admin_name, new_admin_email, new_admin_phone, lifecycle_status').eq('organization_id', orgId).eq('request_type', 'registration_delegate').maybeSingle(),
       ]);
 
       return {
@@ -98,6 +99,7 @@ export function useSeekerOrgDetail(orgId?: string) {
         industries: industries.data ?? [],
         geographies: geographies.data ?? [],
         orgUsers: orgUsers.data ?? [],
+        adminDelegation: adminDelegation.data ?? null,
       } as unknown as SeekerOrgDetailData;
     },
     enabled: !!orgId,
@@ -205,14 +207,16 @@ export function useRejectDocument() {
 // ─── Send welcome email ───
 export function useSendWelcomeEmail() {
   return useMutation({
-    mutationFn: async ({ orgId, adminEmail, orgName, tempPassword }: {
+    mutationFn: async ({ orgId, adminEmail, orgName, tempPassword, mode, adminName }: {
       orgId: string;
       adminEmail: string;
       orgName: string;
-      tempPassword: string;
+      tempPassword?: string;
+      mode: 'self' | 'registrant_only' | 'admin_only';
+      adminName?: string;
     }) => {
       const { data, error } = await supabase.functions.invoke('send-seeker-welcome-email', {
-        body: { orgId, adminEmail, orgName, tempPassword },
+        body: { orgId, adminEmail, orgName, tempPassword, mode, adminName },
       });
       if (error) throw error;
       return data;
