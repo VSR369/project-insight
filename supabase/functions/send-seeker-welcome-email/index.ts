@@ -66,9 +66,10 @@ serve(async (req) => {
 
     const resend = new Resend(resendApiKey);
     const loginUrl = "https://schema-whisperer-72.lovable.app/login";
+    const fromEmail = Deno.env.get("RESEND_FROM_EMAIL") ?? "CogniBlend <noreply@cogniblend.com>";
 
     const { error: emailError } = await resend.emails.send({
-      from: "CogniBlend <onboarding@resend.dev>",
+      from: fromEmail,
       to: [recipientEmail],
       subject: `Welcome to CogniBlend — ${orgName} Account Activated`,
       html: `
@@ -88,9 +89,20 @@ serve(async (req) => {
 
     if (emailError) {
       console.error("Email send error:", emailError);
-      return new Response(JSON.stringify({ success: false, error: emailError.message }), {
-        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+
+      const isResendSandboxRestriction =
+        typeof emailError.message === "string" &&
+        emailError.message.includes("You can only send testing emails to your own email address");
+
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: isResendSandboxRestriction
+            ? "Email sender is still in Resend testing mode. Verify your sending domain in Resend and ensure RESEND_API_KEY belongs to that verified domain account."
+            : emailError.message,
+        }),
+        { status: isResendSandboxRestriction ? 400 : 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     return new Response(JSON.stringify({ success: true }), {
