@@ -10,6 +10,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useApproveBilling } from '@/hooks/queries/useSeekerOrgApprovals';
+import { ReviewField } from './ReviewField';
 import type { SeekerSubscription, SeekerBilling } from './types';
 
 const billingVerificationSchema = z.object({
@@ -26,16 +27,6 @@ interface SubscriptionDetailCardProps {
   billing: SeekerBilling | null;
 }
 
-function Field({ label, value }: { label: string; value?: string | number | null | boolean }) {
-  const display = typeof value === 'boolean' ? (value ? 'Yes' : 'No') : (value ?? '—');
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="text-sm font-medium">{String(display)}</p>
-    </div>
-  );
-}
-
 function getStatusBadge(status: string) {
   switch (status) {
     case 'verified':
@@ -47,6 +38,7 @@ function getStatusBadge(status: string) {
   }
 }
 
+/** Displays subscription plan and billing details with payment verification form. */
 export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDetailCardProps) {
   const [showVerifyForm, setShowVerifyForm] = useState(false);
   const approveBilling = useApproveBilling();
@@ -84,15 +76,15 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
       <CardContent className="space-y-6">
         {subscription ? (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <Field label="Subscription Tier" value={subscription.md_subscription_tiers?.name} />
-            <Field label="Billing Cycle" value={subscription.md_billing_cycles?.name} />
-            <Field label="Engagement Model" value={subscription.md_engagement_models?.name} />
-            <Field label="Payment Type" value={subscription.payment_type} />
-            <Field label="Monthly Base" value={subscription.monthly_base_price ? `$${subscription.monthly_base_price}` : null} />
-            <Field label="Discount" value={subscription.discount_percentage ? `${subscription.discount_percentage}%` : '0%'} />
-            <Field label="Effective Monthly" value={subscription.effective_monthly_cost ? `$${subscription.effective_monthly_cost}` : null} />
-            <Field label="Status" value={subscription.status} />
-            <Field label="Auto-Renew" value={subscription.auto_renew} />
+            <ReviewField label="Subscription Tier" value={subscription.md_subscription_tiers?.name} />
+            <ReviewField label="Billing Cycle" value={subscription.md_billing_cycles?.name} />
+            <ReviewField label="Engagement Model" value={subscription.md_engagement_models?.name} />
+            <ReviewField label="Payment Type" value={subscription.payment_type} />
+            <ReviewField label="Monthly Base" value={subscription.monthly_base_price ? `$${subscription.monthly_base_price}` : null} />
+            <ReviewField label="Discount" value={subscription.discount_percentage ? `${subscription.discount_percentage}%` : '0%'} />
+            <ReviewField label="Effective Monthly" value={subscription.effective_monthly_cost ? `$${subscription.effective_monthly_cost}` : null} />
+            <ReviewField label="Status" value={subscription.status} />
+            <ReviewField label="Auto-Renew" value={subscription.auto_renew} />
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">No subscription data.</p>
@@ -102,12 +94,12 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
           <>
             <h4 className="text-sm font-semibold border-t pt-4">Billing Details</h4>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <Field label="Billing Entity" value={billing.billing_entity_name} />
-              <Field label="Payment Method" value={billing.payment_method} />
-              <Field label="Billing Email" value={billing.billing_email} />
-              <Field label="PO Number" value={billing.po_number} />
-              <Field label="Tax ID" value={billing.tax_id} />
-              <Field label="Tax ID Verified" value={billing.tax_id_verified} />
+              <ReviewField label="Billing Entity" value={billing.billing_entity_name} />
+              <ReviewField label="Payment Method" value={billing.payment_method} />
+              <ReviewField label="Billing Email" value={billing.billing_email} />
+              <ReviewField label="PO Number" value={billing.po_number} />
+              <ReviewField label="Tax ID" value={billing.tax_id} />
+              <ReviewField label="Tax ID Verified" value={billing.tax_id_verified} />
               <div className="lg:col-span-3">
                 <p className="text-xs text-muted-foreground">Billing Address</p>
                 <p className="text-sm">
@@ -116,7 +108,6 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
               </div>
             </div>
 
-            {/* Verified payment details */}
             {isVerified && (
               <>
                 <h4 className="text-sm font-semibold border-t pt-4 flex items-center gap-2">
@@ -124,20 +115,19 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
                   Payment Verification Details
                 </h4>
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  <Field label="Bank Transaction ID" value={billing.bank_transaction_id} />
-                  <Field label="Bank Name" value={billing.bank_name} />
-                  <Field label="Payment Received Date" value={billing.payment_received_date} />
+                  <ReviewField label="Bank Transaction ID" value={billing.bank_transaction_id} />
+                  <ReviewField label="Bank Name" value={billing.bank_name} />
+                  <ReviewField label="Payment Received Date" value={billing.payment_received_date} />
                   {billing.billing_verification_notes && (
                     <div className="lg:col-span-3">
-                      <Field label="Verification Notes" value={billing.billing_verification_notes} />
+                      <ReviewField label="Verification Notes" value={billing.billing_verification_notes} />
                     </div>
                   )}
-                  <Field label="Verified At" value={billing.billing_verified_at ? new Date(billing.billing_verified_at).toLocaleString() : null} />
+                  <ReviewField label="Verified At" value={billing.billing_verified_at ? new Date(billing.billing_verified_at).toLocaleString() : null} />
                 </div>
               </>
             )}
 
-            {/* Verify Payment button / form */}
             {!isVerified && !showVerifyForm && (
               <Button onClick={() => setShowVerifyForm(true)} className="mt-2">
                 <CheckCircle className="h-4 w-4 mr-1" /> Verify Payment
