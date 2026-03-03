@@ -35,6 +35,13 @@ export interface SeekerOrg {
   registration_step: number;
   created_at: string;
   updated_at: string | null;
+  // New gap-closure fields
+  correction_count: number;
+  correction_instructions: string | null;
+  suspended_at: string | null;
+  suspended_by: string | null;
+  suspension_reason: string | null;
+  verification_started_at: string | null;
   // Joined relations
   countries?: { name: string; code: string } | null;
   organization_types?: { name: string } | null;
@@ -113,6 +120,7 @@ export interface SeekerBilling {
   billing_city: string | null;
   billing_postal_code: string | null;
   billing_verification_status: string;
+  billing_rejection_reason: string | null;
   bank_transaction_id: string | null;
   bank_name: string | null;
   payment_received_date: string | null;

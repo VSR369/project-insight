@@ -5,11 +5,12 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { CreditCard, CheckCircle, Loader2 } from 'lucide-react';
+import { CreditCard, CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useApproveBilling } from '@/hooks/queries/useSeekerOrgApprovals';
+import { RejectBillingDialog } from './RejectBillingDialog';
 import { ReviewField } from './ReviewField';
 import type { SeekerSubscription, SeekerBilling } from './types';
 
@@ -41,6 +42,7 @@ function getStatusBadge(status: string) {
 /** Displays subscription plan and billing details with payment verification form. */
 export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDetailCardProps) {
   const [showVerifyForm, setShowVerifyForm] = useState(false);
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
   const approveBilling = useApproveBilling();
 
   const form = useForm<BillingVerificationValues>({
@@ -128,10 +130,25 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
               </>
             )}
 
+            {verificationStatus === 'rejected' && billing.billing_rejection_reason && (
+              <>
+                <h4 className="text-sm font-semibold border-t pt-4 flex items-center gap-2">
+                  <XCircle className="h-4 w-4 text-destructive" />
+                  Payment Rejection Details
+                </h4>
+                <p className="text-sm text-destructive">{billing.billing_rejection_reason}</p>
+              </>
+            )}
+
             {!isVerified && !showVerifyForm && (
-              <Button onClick={() => setShowVerifyForm(true)} className="mt-2">
-                <CheckCircle className="h-4 w-4 mr-1" /> Verify Payment
-              </Button>
+              <div className="flex gap-2 mt-2">
+                <Button onClick={() => setShowVerifyForm(true)}>
+                  <CheckCircle className="h-4 w-4 mr-1" /> Verify Payment
+                </Button>
+                <Button variant="outline" className="text-destructive" onClick={() => setShowRejectDialog(true)}>
+                  <XCircle className="h-4 w-4 mr-1" /> Reject Payment
+                </Button>
+              </div>
             )}
 
             {!isVerified && showVerifyForm && (
@@ -176,6 +193,14 @@ export function SubscriptionDetailCard({ subscription, billing }: SubscriptionDe
               </form>
             )}
           </>
+        )}
+
+        {billing && (
+          <RejectBillingDialog
+            open={showRejectDialog}
+            onOpenChange={setShowRejectDialog}
+            billingId={billing.id}
+          />
         )}
       </CardContent>
     </Card>

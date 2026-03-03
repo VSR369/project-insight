@@ -306,6 +306,16 @@ export function BillingForm() {
         }
       }
 
+      // Update verification_status to 'payment_submitted' (queues for Platform Admin review)
+      await supabase
+        .from('seeker_organizations')
+        .update({
+          verification_status: 'payment_submitted' as any,
+          registration_step: 5,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', state.organizationId);
+
       setStep5Data({
         payment_method: data.payment_method,
         is_internal_department: isInternalDept,

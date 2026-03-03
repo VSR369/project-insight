@@ -6,31 +6,30 @@ import { Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { useRejectOrg } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSuspendOrg } from '@/hooks/queries/useSeekerOrgApprovals';
 
-const rejectionSchema = z.object({
-  reason: z.string().trim().min(50, 'Rejection reason must be at least 50 characters').max(500, 'Reason must be 500 characters or less'),
+const suspendSchema = z.object({
+  reason: z.string().trim().min(50, 'Suspension reason must be at least 50 characters').max(500),
 });
 
-type RejectionValues = z.infer<typeof rejectionSchema>;
+type SuspendValues = z.infer<typeof suspendSchema>;
 
-interface RejectOrgDialogProps {
+interface SuspendOrgDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   orgId: string;
 }
 
-/** Dialog for rejecting an organization with a mandatory reason (validated via Zod). */
-export function RejectOrgDialog({ open, onOpenChange, orgId }: RejectOrgDialogProps) {
-  const rejectOrg = useRejectOrg();
+export function SuspendOrgDialog({ open, onOpenChange, orgId }: SuspendOrgDialogProps) {
+  const suspendOrg = useSuspendOrg();
 
-  const form = useForm<RejectionValues>({
-    resolver: zodResolver(rejectionSchema),
+  const form = useForm<SuspendValues>({
+    resolver: zodResolver(suspendSchema),
     defaultValues: { reason: '' },
   });
 
-  const onSubmit = (data: RejectionValues) => {
-    rejectOrg.mutate({ orgId, reason: data.reason }, {
+  const onSubmit = (data: SuspendValues) => {
+    suspendOrg.mutate({ orgId, reason: data.reason }, {
       onSuccess: () => {
         form.reset();
         onOpenChange(false);
@@ -42,15 +41,15 @@ export function RejectOrgDialog({ open, onOpenChange, orgId }: RejectOrgDialogPr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle>Reject Organization</DialogTitle>
+          <DialogTitle>Suspend Organization</DialogTitle>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
           <div className="py-4">
-            <Label htmlFor="rejection-reason">Rejection Reason</Label>
+            <Label htmlFor="suspension-reason">Suspension Reason *</Label>
             <Textarea
-              id="rejection-reason"
+              id="suspension-reason"
               {...form.register('reason')}
-              placeholder="Provide a reason for rejection..."
+              placeholder="Explain the reason for suspension (min 50 characters)..."
               className="mt-2"
               rows={4}
             />
@@ -60,9 +59,9 @@ export function RejectOrgDialog({ open, onOpenChange, orgId }: RejectOrgDialogPr
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" variant="destructive" disabled={rejectOrg.isPending}>
-              {rejectOrg.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Reject
+            <Button type="submit" variant="destructive" disabled={suspendOrg.isPending}>
+              {suspendOrg.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Suspend
             </Button>
           </DialogFooter>
         </form>
