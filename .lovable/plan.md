@@ -1,119 +1,173 @@
 
 
-## Refined Plan: Smart Welcome Email Logic (Self vs. Separate Admin)
+## Plan: Close All Registration & Verification Gaps
 
-### Current State
-- `AdminCredentialsCard` sends ONE welcome email to the primary contact with admin credentials
-- No awareness of whether registrant = admin or registrant ≠ admin
-- `org_admin_change_requests` table stores `registration_delegate` records when a separate admin is designated during registration (Step 2)
-- The separate admin's email is in `org_admin_change_requests.new_admin_email`
+This plan addresses the 10 gap items from the analysis. OTP remains bypassed per dev decision. Payment gateway remains simulated. The focus is on **state machine completion, admin verification UX, and correction/suspension workflows**.
 
-### Data Model for Detection
-```
-IF org_admin_change_requests has a row WHERE
-  organization_id = orgId
-  AND request_type = 'registration_delegate'
-THEN → Separate admin (two emails)
-ELSE → Same person (one email)
-```
+---
 
-### Implementation
+### Phase 1: Database Migration
 
-#### 1. Update `useSeekerOrgApprovals.ts` — Query Changes
-- In `useSeekerOrgDetail`, add a query for `org_admin_change_requests` filtered by `organization_id` and `request_type = 'registration_delegate'`
-- Return as `adminDelegation: { new_admin_name, new_admin_email, new_admin_phone, lifecycle_status } | null`
+Add new enum values and columns to `seeker_organizations`:
 
-#### 2. Update `types.ts`
-- Add `adminDelegation` field to `SeekerOrgDetailData`:
-  ```ts
-  adminDelegation: {
-    new_admin_name: string | null;
-    new_admin_email: string;
-    new_admin_phone: string | null;
-    lifecycle_status: string;
-  } | null;
-  ```
+```sql
+-- Add missing verification states
+ALTER TYPE org_verification_status_enum ADD VALUE IF NOT EXISTS 'payment_submitted';
+ALTER TYPE org_verification_status_enum ADD VALUE IF NOT EXISTS 'under_verification';
+ALTER TYPE org_verification_status_enum ADD VALUE IF NOT EXISTS 'returned_for_correction';
+ALTER TYPE org_verification_status_enum ADD VALUE IF NOT EXISTS 'suspended';
+ALTER TYPE org_verification_status_enum ADD VALUE IF NOT EXISTS 'active';
 
-#### 3. Refactor Edge Function: `send-seeker-welcome-email`
-Accept a new `emailMode` parameter:
-- `mode: 'self'` — Single email to registrant/admin with credentials + admin instructions (create roles, publish challenges)
-- `mode: 'registrant_only'` — Email to registrant: "Your org is approved. A separate admin has been designated. They will receive their credentials separately."
-- `mode: 'admin_only'` — Email to separate admin: welcome + credentials + admin instructions (create roles, publish challenges)
+-- Add correction/suspension columns to seeker_organizations
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS correction_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS correction_instructions TEXT;
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS suspended_at TIMESTAMPTZ;
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS suspended_by UUID REFERENCES auth.users(id);
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS suspension_reason TEXT;
+ALTER TABLE seeker_organizations ADD COLUMN IF NOT EXISTS verification_started_at TIMESTAMPTZ;
 
-The edge function sends the appropriate email template based on `mode`.
-
-#### 4. Update `AdminCredentialsCard.tsx`
-- Accept `adminDelegation` prop
-- Detect scenario:
-  - **No delegation record** → Show single "Send Welcome Email" button (same person is registrant + admin)
-  - **Delegation record exists** → Show two buttons:
-    - "Send Welcome Email to Registrant" (no credentials, just approval confirmation)
-    - "Send Admin Credentials to [delegation email]" (credentials + admin instructions)
-- Display delegation info (delegated admin name/email) when applicable
-- The temp password is only shown/sent for the admin recipient
-
-#### 5. Update `SeekerOrgReviewPage.tsx`
-- Pass `adminDelegation` from detail data to `AdminCredentialsCard`
-- Update workflow Step 4 text to reflect: "Send welcome email(s) — one or two depending on admin designation"
-
-#### 6. Email Content
-
-**Self (registrant = admin) — Single Email:**
-```
-Subject: Welcome to CogniBlend — {OrgName} Account Activated
-
-Body:
-- Your org {OrgName} has been verified and approved
-- Login credentials (email + temp password)
-- As the Organization Admin, you can now:
-  • Create user roles for your team
-  • Set up your organization workspace
-  • Publish challenges and receive solutions from providers
-- Login link
-- "Please change your password after first login"
+-- Add billing rejection column
+ALTER TABLE seeker_billing_info ADD COLUMN IF NOT EXISTS billing_rejection_reason TEXT;
 ```
 
-**Registrant (when admin is separate):**
-```
-Subject: {OrgName} Has Been Approved on CogniBlend
+---
 
-Body:
-- Your org {OrgName} has been verified and approved
-- A designated administrator ({admin_name}) has been assigned
-- They will receive their login credentials separately
-- Thank you for registering
-```
+### Phase 2: Registration-Side Changes
 
-**Separate Admin:**
-```
-Subject: Welcome to CogniBlend — You Are the Admin for {OrgName}
+**File: `PrimaryContactForm.tsx`**
+- Add validation: when "SEPARATE PERSON" is selected, admin email must differ from registrant email (Zod `.refine()`)
+- OTP stays bypassed (tagged `TEMP BYPASS`) — no changes needed
 
-Body:
-- You have been designated as administrator for {OrgName}
-- Login credentials (email + temp password)
-- As the Organization Admin, you can now:
-  • Create user roles for your team
-  • Set up your organization workspace
-  • Publish challenges and receive solutions from providers
-- Login link
-- "Please change your password after first login"
-```
+**File: `BillingForm.tsx`**
+- After simulated payment success, set `verification_status` to `'payment_submitted'` instead of leaving as `'unverified'`
 
-### Files Changed
+---
 
-| # | File | Change |
+### Phase 3: Rejection Improvements
+
+**File: `RejectOrgDialog.tsx`**
+- Change Zod min from `.min(1)` to `.min(50, 'Rejection reason must be at least 50 characters')`
+- Accept new props: `documents`, `billing`, `orgName`, `primaryContactEmail`
+- After rejection mutation succeeds, invoke `send-seeker-rejection-email` edge function with consolidated rejections (all rejected docs + billing rejection + org-level reason)
+
+**File: `SubscriptionDetailCard.tsx`**
+- Add "Reject Payment" button next to "Verify Payment"
+- Show `billing_rejection_reason` when billing status is `rejected`
+- Keep "Verify Payment" available after rejection (re-verification path)
+
+**New Component: `RejectBillingDialog.tsx`**
+- RHF + Zod, reason 1-500 chars
+- Calls `useRejectBilling` mutation
+
+**New Edge Function: `send-seeker-rejection-email`**
+- Accepts `orgName`, `recipientEmail`, `rejections[]` (area, reason, recommendation)
+- Sends single consolidated email via Resend
+
+---
+
+### Phase 4: Return for Correction Flow
+
+**New Component: `ReturnForCorrectionDialog.tsx`**
+- Mandatory instructions field (min 50 chars, max 1000)
+- Shows current correction count and warns if this is the 2nd (final) return
+- Calls `useReturnForCorrection` mutation
+
+**Hook: `useReturnForCorrection` in `useSeekerOrgApprovals.ts`**
+- Updates org: `verification_status = 'returned_for_correction'`, `correction_instructions`, increments `correction_count`
+- Sends notification email to registrant contact with correction instructions
+- If `correction_count >= 2`, disables the "Return" button — admin must approve or reject
+
+**File: `SeekerOrgReviewPage.tsx`**
+- Add "Return for Correction" button alongside Approve/Reject (visible when status is `under_verification`)
+- Disable "Return" button when `correction_count >= 2`
+- Show correction history (count, last instructions) in an info panel
+
+---
+
+### Phase 5: Suspension Flow
+
+**New Component: `SuspendOrgDialog.tsx`**
+- Mandatory reason field (min 50 chars)
+- Calls `useSuspendOrg` mutation
+
+**New Component: `ReinstateOrgDialog.tsx`**
+- Mandatory rationale field
+- Calls `useReinstateOrg` mutation
+
+**Hooks in `useSeekerOrgApprovals.ts`**:
+- `useSuspendOrg`: Sets `verification_status = 'suspended'`, `suspended_at`, `suspended_by`, `suspension_reason`
+- `useReinstateOrg`: Sets `verification_status = 'active'`, clears suspension fields
+
+**File: `SeekerOrgReviewPage.tsx`**
+- Show "Suspend" button for `verified`/`active` orgs
+- Show "Reinstate" button for `suspended` orgs
+- Display suspension reason and date when suspended
+
+---
+
+### Phase 6: Auto-Transitions & SLA
+
+**File: `SeekerOrgReviewPage.tsx`**
+- When admin opens a `payment_submitted` org, auto-transition to `under_verification` via a mutation (fires once via `useEffect`)
+- Set `verification_started_at` at the same time
+- Display elapsed time since `verification_started_at` (e.g., "2 days 4 hours") with warning color if > 3 business days
+
+---
+
+### Phase 7: Verification Checklist (V1-V6)
+
+**New Component: `VerificationChecklist.tsx`**
+- Displays a V1-V6 checklist panel on the review page with auto-computed pass/fail indicators:
+  - **V1 Payment**: Green if `billing_verification_status === 'verified'`
+  - **V2 Org Identity**: Manual checkbox (admin confirms visual review of legal entity name)
+  - **V3 Sanctions**: Auto-check `countries.is_ofac_restricted` — green if `false`, red flag if `true`
+  - **V4 Duplicate**: Run trigram similarity query on org name + country and show result (no duplicates = green)
+  - **V5 Admin Identity**: Show delegation details if separate admin; manual checkbox for plausibility
+  - **V6 Email Domain**: Auto-compare admin email domain against org `website_url` domain — show match/mismatch. For marketplace engagement model, show info note that mismatch is expected.
+
+**File: `SeekerOrgReviewPage.tsx`**
+- Render `VerificationChecklist` above the detail cards
+
+---
+
+### Phase 8: Approvals Page Updates
+
+**File: `SeekerOrgApprovalsPage.tsx`**
+- Add new tabs: `payment_submitted`, `under_verification`, `returned_for_correction`, `suspended`
+- Update `statusColors` map with new states
+- Default tab changes to `payment_submitted` (first actionable queue)
+
+**File: `types.ts`**
+- Add `billing_rejection_reason: string | null` to `SeekerBilling`
+- Add `correction_count`, `correction_instructions`, `suspended_at`, `suspension_reason`, `verification_started_at` to `SeekerOrg`
+
+---
+
+### Files Summary
+
+| # | File | Action |
 |---|------|--------|
-| 1 | `types.ts` | Add `adminDelegation` to `SeekerOrgDetailData` |
-| 2 | `useSeekerOrgApprovals.ts` | Query `org_admin_change_requests` in detail hook; update `useSendWelcomeEmail` to accept `mode` param |
-| 3 | `send-seeker-welcome-email/index.ts` | Handle 3 email modes with distinct templates |
-| 4 | `AdminCredentialsCard.tsx` | Accept `adminDelegation`, show 1 or 2 send buttons |
-| 5 | `SeekerOrgReviewPage.tsx` | Pass `adminDelegation` to `AdminCredentialsCard` |
+| 1 | Migration SQL | Add enum values + new columns |
+| 2 | `PrimaryContactForm.tsx` | Validate admin email ≠ registrant email |
+| 3 | `BillingForm.tsx` | Set status to `payment_submitted` on payment |
+| 4 | `RejectOrgDialog.tsx` | Min 50 chars; consolidated rejection email |
+| 5 | `RejectBillingDialog.tsx` | New component |
+| 6 | `SubscriptionDetailCard.tsx` | Add reject button, show rejection reason |
+| 7 | `ReturnForCorrectionDialog.tsx` | New component |
+| 8 | `SuspendOrgDialog.tsx` | New component |
+| 9 | `ReinstateOrgDialog.tsx` | New component |
+| 10 | `VerificationChecklist.tsx` | New component (V1-V6) |
+| 11 | `useSeekerOrgApprovals.ts` | Add 4 new mutations, update detail query |
+| 12 | `SeekerOrgReviewPage.tsx` | Auto-transition, checklist, new buttons, SLA display |
+| 13 | `SeekerOrgApprovalsPage.tsx` | New tabs, status colors |
+| 14 | `types.ts` | New fields |
+| 15 | `send-seeker-rejection-email/index.ts` | New edge function |
+| 16 | `supabase/config.toml` | Register new edge function |
 
-### What Is NOT Changing
-- Database schema — `org_admin_change_requests` already exists with all needed fields
-- Registration flow — untouched
-- Document/billing verification flow — untouched
-- Rejection flow — handled separately in the billing rejection plan
-- `create-org-admin` edge function — untouched
-- `config.toml` — no new functions needed
+### What Stays Unchanged
+- OTP bypass — remains tagged `TEMP BYPASS` for dev
+- Payment gateway — remains simulated
+- Welcome email logic — already implemented (self/registrant_only/admin_only)
+- Document approval/rejection flow — already works
+- `active` state triggered by first login + T&C — deferred to post-MVP (requires auth hook integration)
 
