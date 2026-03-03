@@ -192,6 +192,13 @@ export function PrimaryContactForm() {
       form.setError('email', { message: 'Free email providers are not allowed' });
       return;
     }
+    // BR-REG-002: Separate admin email must differ from registrant email
+    if (adminDesignation === 'separate' && separateAdmin.email) {
+      if (separateAdmin.email.trim().toLowerCase() === data.email.trim().toLowerCase()) {
+        toast.error('The designated admin email must be different from your registrant email.');
+        return;
+      }
+    }
     if (!state.organizationId || !state.tenantId) {
       toast.error("Registration session not found. Please start from Step 1.");
       return;

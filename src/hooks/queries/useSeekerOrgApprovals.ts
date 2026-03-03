@@ -70,6 +70,9 @@ export function useSeekerOrgDetail(orgId?: string) {
           nda_preference, nda_review_status,
           verification_status, verified_at, verified_by, rejection_reason,
           registration_step, created_at, updated_at,
+          correction_count, correction_instructions,
+          suspended_at, suspended_by, suspension_reason,
+          verification_started_at,
           countries!seeker_organizations_hq_country_id_fkey(name, code),
           organization_types(name)
         `)
@@ -291,4 +294,158 @@ export async function fetchDocumentBlob(storagePath: string): Promise<{ blob: Bl
 export async function fetchDocumentBlobUrl(storagePath: string): Promise<string | null> {
   const result = await fetchDocumentBlob(storagePath);
   return result?.blobUrl ?? null;
+}
+
+// ─── Reject billing ───
+export function useRejectBilling() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ billingId, reason }: { billingId: string; reason: string }) => {
+      const updateData = await withUpdatedBy({
+        billing_verification_status: 'rejected' as any,
+        billing_rejection_reason: reason,
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_billing_info')
+        .update(updateData)
+        .eq('id', billingId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+      toast.success('Billing rejected');
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'reject_billing', component: 'seeker-org-approvals' }),
+  });
+}
+
+// ─── Return for correction ───
+export function useReturnForCorrection() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, instructions }: { orgId: string; instructions: string }) => {
+      // Fetch current correction_count
+      const { data: currentOrg, error: fetchErr } = await supabase
+        .from('seeker_organizations')
+        .select('correction_count')
+        .eq('id', orgId)
+        .single();
+      if (fetchErr) throw new Error(fetchErr.message);
+
+      const newCount = (currentOrg?.correction_count ?? 0) + 1;
+      const updateData = await withUpdatedBy({
+        verification_status: 'returned_for_correction' as any,
+        correction_instructions: instructions,
+        correction_count: newCount,
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_organizations')
+        .update(updateData)
+        .eq('id', orgId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+      toast.success('Organization returned for correction');
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'return_for_correction', component: 'seeker-org-approvals' }),
+  });
+}
+
+// ─── Suspend organization ───
+export function useSuspendOrg() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, reason }: { orgId: string; reason: string }) => {
+      const updateData = await withUpdatedBy({
+        verification_status: 'suspended' as any,
+        suspended_at: new Date().toISOString(),
+        suspension_reason: reason,
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_organizations')
+        .update({ ...updateData, suspended_by: updateData.updated_by })
+        .eq('id', orgId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+      toast.success('Organization suspended');
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'suspend_org', component: 'seeker-org-approvals' }),
+  });
+}
+
+// ─── Reinstate organization ───
+export function useReinstateOrg() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, rationale }: { orgId: string; rationale: string }) => {
+      const updateData = await withUpdatedBy({
+        verification_status: 'active' as any,
+        suspended_at: null,
+        suspended_by: null,
+        suspension_reason: null,
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_organizations')
+        .update(updateData)
+        .eq('id', orgId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+      toast.success('Organization reinstated');
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'reinstate_org', component: 'seeker-org-approvals' }),
+  });
+}
+
+// ─── Auto-transition to under_verification ───
+export function useStartVerification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (orgId: string) => {
+      const updateData = await withUpdatedBy({
+        verification_status: 'under_verification' as any,
+        verification_started_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('seeker_organizations')
+        .update(updateData)
+        .eq('id', orgId);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+    },
+    onError: (error: Error) => handleMutationError(error, { operation: 'start_verification', component: 'seeker-org-approvals' }),
+  });
+}
+
+// ─── Duplicate check for verification ───
+export function useDuplicateCheck(orgName: string, countryId: string | null) {
+  return useQuery({
+    queryKey: ['seeker-orgs', 'duplicate-check', orgName, countryId],
+    queryFn: async () => {
+      let query = supabase
+        .from('seeker_organizations')
+        .select('id, organization_name, verification_status')
+        .eq('is_deleted', false)
+        .neq('verification_status', 'rejected' as any)
+        .ilike('organization_name', `%${orgName}%`)
+        .limit(10);
+      if (countryId) query = query.eq('hq_country_id', countryId);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!orgName && orgName.length > 2,
+    staleTime: 60 * 1000,
+  });
 }

@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.send-seeker-welcome-email]
 verify_jwt = false
+
+[functions.send-seeker-rejection-email]
+verify_jwt = false

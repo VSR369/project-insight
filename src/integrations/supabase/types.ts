@@ -5646,6 +5646,7 @@ export type Database = {
           billing_email: string | null
           billing_entity_name: string | null
           billing_postal_code: string | null
+          billing_rejection_reason: string | null
           billing_state_province_id: string | null
           billing_verification_notes: string | null
           billing_verification_status: string
@@ -5679,6 +5680,7 @@ export type Database = {
           billing_email?: string | null
           billing_entity_name?: string | null
           billing_postal_code?: string | null
+          billing_rejection_reason?: string | null
           billing_state_province_id?: string | null
           billing_verification_notes?: string | null
           billing_verification_status?: string
@@ -5712,6 +5714,7 @@ export type Database = {
           billing_email?: string | null
           billing_entity_name?: string | null
           billing_postal_code?: string | null
+          billing_rejection_reason?: string | null
           billing_state_province_id?: string | null
           billing_verification_notes?: string | null
           billing_verification_status?: string
@@ -6657,6 +6660,8 @@ export type Database = {
         Row: {
           address_format_template: Json | null
           annual_revenue_range: string | null
+          correction_count: number
+          correction_instructions: string | null
           created_at: string
           created_by: string | null
           custom_nda_document_id: string | null
@@ -6693,6 +6698,9 @@ export type Database = {
           registration_step: number
           rejection_reason: string | null
           subsidized_discount_pct: number
+          suspended_at: string | null
+          suspended_by: string | null
+          suspension_reason: string | null
           tax_id: string | null
           tenant_id: string
           timezone: string | null
@@ -6700,6 +6708,7 @@ export type Database = {
           updated_at: string | null
           updated_by: string | null
           verification_expiry_date: string | null
+          verification_started_at: string | null
           verification_status: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at: string | null
           verified_by: string | null
@@ -6708,6 +6717,8 @@ export type Database = {
         Insert: {
           address_format_template?: Json | null
           annual_revenue_range?: string | null
+          correction_count?: number
+          correction_instructions?: string | null
           created_at?: string
           created_by?: string | null
           custom_nda_document_id?: string | null
@@ -6744,6 +6755,9 @@ export type Database = {
           registration_step?: number
           rejection_reason?: string | null
           subsidized_discount_pct?: number
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
           tax_id?: string | null
           tenant_id: string
           timezone?: string | null
@@ -6751,6 +6765,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           verification_expiry_date?: string | null
+          verification_started_at?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at?: string | null
           verified_by?: string | null
@@ -6759,6 +6774,8 @@ export type Database = {
         Update: {
           address_format_template?: Json | null
           annual_revenue_range?: string | null
+          correction_count?: number
+          correction_instructions?: string | null
           created_at?: string
           created_by?: string | null
           custom_nda_document_id?: string | null
@@ -6795,6 +6812,9 @@ export type Database = {
           registration_step?: number
           rejection_reason?: string | null
           subsidized_discount_pct?: number
+          suspended_at?: string | null
+          suspended_by?: string | null
+          suspension_reason?: string | null
           tax_id?: string | null
           tenant_id?: string
           timezone?: string | null
@@ -6802,6 +6822,7 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           verification_expiry_date?: string | null
+          verification_started_at?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
           verified_at?: string | null
           verified_by?: string | null
@@ -8004,6 +8025,11 @@ export type Database = {
         | "pending"
         | "verified"
         | "rejected"
+        | "payment_submitted"
+        | "under_verification"
+        | "returned_for_correction"
+        | "suspended"
+        | "active"
       payment_method_type_enum:
         | "credit_card"
         | "ach_bank_transfer"
@@ -8267,6 +8293,11 @@ export const Constants = {
         "pending",
         "verified",
         "rejected",
+        "payment_submitted",
+        "under_verification",
+        "returned_for_correction",
+        "suspended",
+        "active",
       ],
       payment_method_type_enum: [
         "credit_card",

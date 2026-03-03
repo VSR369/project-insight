@@ -12,20 +12,24 @@ import type { SeekerOrgListItem } from './types';
 
 const PAGE_SIZE = 20;
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   unverified: 'bg-muted text-muted-foreground',
   pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  payment_submitted: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  under_verification: 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200',
   verified: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
+  active: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200',
   rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
-} as const satisfies Record<string, string>;
+  returned_for_correction: 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200',
+  suspended: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+};
 
 export default function SeekerOrgApprovalsPage() {
-  const [tab, setTab] = useState('pending');
+  const [tab, setTab] = useState('payment_submitted');
   const [page, setPage] = useState(0);
   const { data: orgs, isLoading } = useSeekerOrgList(tab);
   const navigate = useNavigate();
 
-  // Reset page when tab changes
   const handleTabChange = (value: string) => {
     setTab(value);
     setPage(0);
@@ -43,10 +47,14 @@ export default function SeekerOrgApprovalsPage() {
       />
 
       <Tabs value={tab} onValueChange={handleTabChange}>
-        <TabsList>
+        <TabsList className="flex-wrap h-auto">
+          <TabsTrigger value="payment_submitted">Payment Submitted</TabsTrigger>
+          <TabsTrigger value="under_verification">Under Verification</TabsTrigger>
+          <TabsTrigger value="returned_for_correction">Returned</TabsTrigger>
           <TabsTrigger value="pending">Pending</TabsTrigger>
-          <TabsTrigger value="unverified">Unverified</TabsTrigger>
           <TabsTrigger value="verified">Verified</TabsTrigger>
+          <TabsTrigger value="active">Active</TabsTrigger>
+          <TabsTrigger value="suspended">Suspended</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
           <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
@@ -88,7 +96,7 @@ export default function SeekerOrgApprovalsPage() {
                         <TableCell>{org.registration_step}/5</TableCell>
                         <TableCell>
                           <Badge className={statusColors[org.verification_status] ?? ''}>
-                            {org.verification_status}
+                            {org.verification_status.replace(/_/g, ' ')}
                           </Badge>
                         </TableCell>
                       </TableRow>
@@ -103,20 +111,10 @@ export default function SeekerOrgApprovalsPage() {
                     Showing {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, allOrgs.length)} of {allOrgs.length}
                   </p>
                   <div className="flex gap-1">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage((p) => Math.max(0, p - 1))}
-                      disabled={page === 0}
-                    >
+                    <Button variant="outline" size="icon" onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}>
                       <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                      disabled={page >= totalPages - 1}
-                    >
+                    <Button variant="outline" size="icon" onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1}>
                       <ChevronRight className="h-4 w-4" />
                     </Button>
                   </div>
