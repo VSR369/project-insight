@@ -8,14 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useReturnForCorrection } from '@/hooks/queries/useSeekerOrgApprovals';
 import { useSystemConfig, getConfigValue } from '@/hooks/queries/useSystemConfig';
-
-const correctionSchema = z.object({
-  instructions: z.string().trim()
-    .min(50, 'Instructions must be at least 50 characters')
-    .max(1000, 'Instructions must be 1000 characters or less'),
-});
-
-type CorrectionValues = z.infer<typeof correctionSchema>;
+import { useMemo } from 'react';
 
 interface ReturnForCorrectionDialogProps {
   open: boolean;
@@ -28,7 +21,16 @@ export function ReturnForCorrectionDialog({ open, onOpenChange, orgId, correctio
   const returnForCorrection = useReturnForCorrection();
   const { data: config } = useSystemConfig();
   const maxCycles = getConfigValue(config, 'max_correction_cycles', 2);
+  const minLength = getConfigValue(config, 'min_rejection_reason_length', 50);
   const isFinalReturn = correctionCount >= maxCycles - 1;
+
+  const correctionSchema = useMemo(() => z.object({
+    instructions: z.string().trim()
+      .min(minLength, `Instructions must be at least ${minLength} characters`)
+      .max(1000, 'Instructions must be 1000 characters or less'),
+  }), [minLength]);
+
+  type CorrectionValues = z.infer<typeof correctionSchema>;
 
   const form = useForm<CorrectionValues>({
     resolver: zodResolver(correctionSchema),
@@ -71,7 +73,7 @@ export function ReturnForCorrectionDialog({ open, onOpenChange, orgId, correctio
               <Textarea
                 id="correction-instructions"
                 {...form.register('instructions')}
-                placeholder="Describe what needs to be corrected (min 50 characters)..."
+                placeholder={`Describe what needs to be corrected (min ${minLength} characters)...`}
                 className="mt-2"
                 rows={6}
               />

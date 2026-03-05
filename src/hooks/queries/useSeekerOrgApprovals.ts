@@ -383,9 +383,9 @@ export function useSuspendOrg() {
       // BR-VA-004: Cascade-deactivate all org admins
       const { error: adminError } = await supabase
         .from('seeking_org_admins')
-        .update({ status: 'Suspended', updated_at: new Date().toISOString() } as any)
+        .update({ status: 'suspended', updated_at: new Date().toISOString() } as any)
         .eq('organization_id', orgId)
-        .in('status', ['Active', 'Invited']);
+        .in('status', ['active', 'pending_activation']);
       if (adminError) throw new Error(adminError.message);
     },
     onSuccess: () => {
@@ -417,9 +417,9 @@ export function useReinstateOrg() {
       // BR-VA-004: Re-activate org admins that were suspended
       const { error: adminError } = await supabase
         .from('seeking_org_admins')
-        .update({ status: 'Active', updated_at: new Date().toISOString() } as any)
+        .update({ status: 'active', updated_at: new Date().toISOString() } as any)
         .eq('organization_id', orgId)
-        .eq('status', 'Suspended');
+        .eq('status', 'suspended');
       if (adminError) throw new Error(adminError.message);
     },
     onSuccess: () => {
