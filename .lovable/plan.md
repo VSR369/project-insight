@@ -1,37 +1,77 @@
 
 
-# Assessment: Payment Gateway Deferral Compatibility
+# Security Scan Results: `registration_payments` & `md_system_config`
 
-## Verdict: No blocking issues. The current architecture is cleanly deferral-ready.
+## Scan Summary
 
-Here is why the current implementation will not cause problems when you integrate a real payment gateway later:
+The Supabase linter and security scanner identified **1 finding specific to these tables** plus **2 issues found via manual policy inspection**.
 
-## What's Already in Place
+---
 
-1. **`registration_payments` table** has all the fields a real gateway needs: `transaction_id` (auto-generated UUID), `gateway_reference`, `payment_method`, `status` (Pending/Completed/Failed/Refunded), `payment_attempts`, `failure_reason`.
+## Findings
 
-2. **Payment creation is isolated** — lines 258-274 in `BillingForm.tsx` create a dummy record with `status: 'Completed'` and `gateway_reference: SIM-{timestamp}`. This is a single, clearly-commented block that can be swapped out.
+### Issue 1 — CRITICAL: No GRANT permissions for `anon` on `registration_payments`
 
-3. **Subscription status is decoupled** — the subscription is set to `active` independently of the payment record. When you add a real gateway, you would change this to `pending_billing` until payment confirmation arrives.
+The `information_schema.role_table_grants` query returned **zero rows** for both tables for `anon` and `authenticated` roles. This means:
 
-4. **V1 verification already reads from `registration_payments`** — `VerificationChecklist.tsx` checks `paymentRecord.status === 'Completed'`, so real gateway statuses will flow through without UI changes.
+- `BillingForm.tsx` (line 260) does a raw `supabase.from('registration_payments').insert(...)` during **unauthenticated** registration
+- Without `GRANT INSERT` for `anon`, this insert silently fails (the `catch {}` on line 272 swallows the error)
+- Payment records are **never created**, so the V1 verification check in the admin workflow has no data
 
-## Two Minor Items to Note (Not Blockers)
+**Fix:** Add `GRANT SELECT, INSERT ON public.registration_payments TO anon, authenticated;` — matching the pattern already used for `seeker_billing_info`, `seeker_subscriptions`, and other registration-critical tables.
 
-| Item | Current State | Gateway Integration Impact |
-|------|--------------|---------------------------|
-| `useCreateRegistrationPayment` hook exists but is **not used** — `BillingForm` does a raw `supabase.from()` insert instead | Works fine for now | When integrating, refactor to use the hook (which already has proper audit fields via `withCreatedBy`) or replace with a gateway edge function call |
-| Payment insert is wrapped in a **silent try/catch** (line 272: `catch {}`) so failures are swallowed | Acceptable for dummy flow | Must become blocking when real payments are added — a failed payment should halt registration |
+### Issue 2 — CRITICAL: `registration_payments` RLS policy queries `user_roles` directly
 
-## No Changes Needed Now
+The current policy `tenant_isolation_registration_payments` contains:
+```sql
+JOIN user_roles ur ON (ur.user_id = auth.uid()) WHERE (ur.role = 'platform_admin')
+```
 
-The dummy payment flow is structurally sound for deferral. When you're ready for production gateway integration, the work will be:
+Per project standards, this **must** use the `has_role()` SECURITY DEFINER function to prevent potential infinite recursion if `user_roles` ever gets its own RLS policies that reference other tables.
 
-1. Create an edge function that calls the gateway API (Stripe, etc.)
-2. Replace the dummy insert block in `BillingForm.tsx` with a call to that edge function
-3. Change subscription initial status from `active` to `pending_billing`
-4. Add a webhook handler edge function for gateway callbacks to confirm payment and activate the subscription
-5. Make the payment failure path blocking instead of silent
+**Fix:** Replace with `has_role(auth.uid(), 'platform_admin'::app_role)`.
 
-All of these are additive changes — nothing in the current schema or code needs to be torn out.
+### Issue 3 — MEDIUM: `md_system_config` modify policy queries `user_roles` directly
+
+The `platform_admin_modify_system_config` policy uses:
+```sql
+EXISTS (SELECT 1 FROM user_roles WHERE user_id = auth.uid() AND role = 'platform_admin')
+```
+
+Same issue as above — should use `has_role()`.
+
+**Fix:** Replace with `has_role(auth.uid(), 'platform_admin'::app_role)`.
+
+### Issue 4 — INFORMATIONAL: `md_system_config` SELECT policy uses `USING (true)`
+
+The scanner flagged `platform_admin_read_system_config` as always-true. This is **intentional** — config values like `max_correction_cycles` and `min_rejection_reason_length` are non-sensitive operational parameters needed during unauthenticated registration flows. **No change needed.**
+
+### Issue 5 — MINOR: `BillingForm.tsx` uses raw insert instead of `useCreateRegistrationPayment` hook
+
+The existing hook in `useRegistrationPayments.ts` already applies `withCreatedBy()` for audit fields. The raw insert in `BillingForm.tsx` skips this. When the GRANT fix enables the insert to actually succeed, payment records will be missing `created_by`.
+
+**Fix:** Wire the `useCreateRegistrationPayment` hook into `BillingForm.tsx`.
+
+---
+
+## Implementation Plan
+
+### Migration (1 file)
+1. Drop and recreate `registration_payments` RLS policy using `has_role()` function
+2. Drop and recreate `md_system_config` modify policy using `has_role()` function
+3. Add `GRANT SELECT, INSERT ON public.registration_payments TO anon, authenticated`
+
+### Code (1 file)
+4. Update `BillingForm.tsx` to use `useCreateRegistrationPayment` hook instead of raw Supabase insert (adds audit fields via `withCreatedBy`)
+
+### No Change
+5. `md_system_config` SELECT `USING (true)` — intentional, documented as accepted risk
+
+| Issue | Severity | Action |
+|-------|----------|--------|
+| Missing GRANT on `registration_payments` | Critical | Migration |
+| `registration_payments` RLS uses direct `user_roles` query | Critical | Migration |
+| `md_system_config` modify uses direct `user_roles` query | Medium | Migration |
+| `md_system_config` SELECT `true` | Intentional | No change |
+| Raw insert missing audit fields | Minor | Code fix |
 
