@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { format } from 'date-fns';
@@ -22,12 +23,14 @@ import {
 } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 import {
   useOrgAdminDetails,
   useRequestAdminChange,
   usePendingAdminRequest,
 } from '@/hooks/queries/useOrgAdminHooks';
+import { AdminTransferSection } from './AdminTransferSection';
 
 // ============================================================
 // Validation
@@ -85,6 +88,25 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
   const { data: adminDetails, isLoading: adminLoading } = useOrgAdminDetails(organizationId);
   const { data: pendingRequest, isLoading: pendingLoading } = usePendingAdminRequest(organizationId);
   const requestChange = useRequestAdminChange();
+
+  // Query seeking_org_admins for the from_admin_id needed by transfer protocol
+  const { data: seekingAdmin } = useQuery({
+    queryKey: ['seeking_org_admin', organizationId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('seeking_org_admins')
+        .select('id')
+        .eq('organization_id', organizationId!)
+        .eq('admin_tier', 'PRIMARY')
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!organizationId,
+    staleTime: 5 * 60 * 1000,
+  });
 
   // ══════════════════════════════════════
   // SECTION 4: Handlers
@@ -309,6 +331,11 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
           )}
         </CardContent>
       </Card>
+      {/* Transfer Primary Admin Section */}
+      <AdminTransferSection
+        organizationId={organizationId}
+        fromAdminId={seekingAdmin?.id ?? null}
+      />
     </div>
   );
 }
