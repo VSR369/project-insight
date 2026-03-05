@@ -42,6 +42,13 @@ export interface SeekerOrg {
   suspended_by: string | null;
   suspension_reason: string | null;
   verification_started_at: string | null;
+  registrant_contact: {
+    first_name: string;
+    last_name: string;
+    email: string;
+    phone_number?: string;
+    job_title?: string;
+  } | null;
   // Joined relations
   countries?: { name: string; code: string } | null;
   organization_types?: { name: string } | null;
@@ -168,6 +175,8 @@ export interface AdminDelegation {
   new_admin_name: string | null;
   new_admin_email: string;
   new_admin_phone: string | null;
+  new_admin_title: string | null;
+  new_admin_relationship_to_org: string | null;
   lifecycle_status: string;
 }
 

@@ -15,6 +15,8 @@ export interface CurrentOrg {
   tierCode: string | null;
   hqCountryId: string | null;
   isInternalDepartment: boolean;
+  verificationStatus: string | null;
+  tcVersionAccepted: string | null;
 }
 
 export function useCurrentOrg() {
@@ -35,6 +37,8 @@ export function useCurrentOrg() {
             legal_entity_name,
             tenant_id,
             hq_country_id,
+            verification_status,
+            tc_version_accepted,
             seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
               md_subscription_tiers!seeker_subscriptions_tier_id_fkey ( code )
             )
@@ -69,6 +73,8 @@ export function useCurrentOrg() {
         tierCode,
         hqCountryId: org?.hq_country_id ?? null,
         isInternalDepartment: !!saasData,
+        verificationStatus: org?.verification_status ?? null,
+        tcVersionAccepted: org?.tc_version_accepted ?? null,
       };
     },
     enabled: !!user?.id,

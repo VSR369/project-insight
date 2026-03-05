@@ -4,6 +4,7 @@
  */
 
 import { OrgLayout } from '@/components/org/OrgLayout';
+import { TcReAcceptanceModal } from '@/components/org/TcReAcceptanceModal';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useOrgSubscription as useOrgSubBilling } from '@/hooks/queries/useBillingData';
 import { useOrgUsers } from '@/hooks/queries/useTeamData';
@@ -20,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 
 export default function OrgDashboardPage() {
-  const { organizationId, orgName, tierCode } = useOrgContext();
+  const { organizationId, orgName, tierCode, verificationStatus, tcVersionAccepted } = useOrgContext();
   const navigate = useNavigate();
 
   const { data: billingSubscription, isLoading: subLoading } = useOrgSubBilling(organizationId);
@@ -39,6 +40,12 @@ export default function OrgDashboardPage() {
 
   return (
     <OrgLayout title="Dashboard" description={`Welcome to ${orgName}`}>
+      {/* T&C Re-acceptance / First-login modal */}
+      <TcReAcceptanceModal
+        orgId={organizationId}
+        orgVerificationStatus={verificationStatus ?? ''}
+        currentTcVersion={tcVersionAccepted}
+      />
       {/* Usage Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
         {subLoading ? (
