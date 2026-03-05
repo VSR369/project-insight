@@ -134,7 +134,7 @@ export function useApproveOrg() {
   });
 }
 
-// ─── Reject organization ───
+// ─── Reject organization (GAP 9/13: triggers rejection email) ───
 export function useRejectOrg() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -149,6 +149,15 @@ export function useRejectOrg() {
         .update(updateData)
         .eq('id', orgId);
       if (error) throw new Error(error.message);
+
+      // BR-VA-002: Send rejection email notification
+      try {
+        await supabase.functions.invoke('send-seeker-rejection-email', {
+          body: { orgId, rejectionReason: reason },
+        });
+      } catch {
+        // Non-blocking — rejection is already persisted
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
@@ -354,7 +363,7 @@ export function useReturnForCorrection() {
   });
 }
 
-// ─── Suspend organization ───
+// ─── Suspend organization (GAP 5: cascade-deactivate org users) ───
 export function useSuspendOrg() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -370,6 +379,14 @@ export function useSuspendOrg() {
         .update({ ...updateData, suspended_by: updateData.updated_by })
         .eq('id', orgId);
       if (error) throw new Error(error.message);
+
+      // BR-VA-004: Cascade-deactivate all org admins
+      const { error: adminError } = await supabase
+        .from('seeking_org_admins')
+        .update({ status: 'Suspended', updated_at: new Date().toISOString() } as any)
+        .eq('organization_id', orgId)
+        .in('status', ['Active', 'Invited']);
+      if (adminError) throw new Error(adminError.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
@@ -379,7 +396,7 @@ export function useSuspendOrg() {
   });
 }
 
-// ─── Reinstate organization ───
+// ─── Reinstate organization (GAP 5: re-activate org users) ───
 export function useReinstateOrg() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -396,6 +413,14 @@ export function useReinstateOrg() {
         .update(updateData)
         .eq('id', orgId);
       if (error) throw new Error(error.message);
+
+      // BR-VA-004: Re-activate org admins that were suspended
+      const { error: adminError } = await supabase
+        .from('seeking_org_admins')
+        .update({ status: 'Active', updated_at: new Date().toISOString() } as any)
+        .eq('organization_id', orgId)
+        .eq('status', 'Suspended');
+      if (adminError) throw new Error(adminError.message);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });

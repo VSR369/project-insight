@@ -7,12 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRejectOrg } from '@/hooks/queries/useSeekerOrgApprovals';
-
-const rejectionSchema = z.object({
-  reason: z.string().trim().min(50, 'Rejection reason must be at least 50 characters').max(500, 'Reason must be 500 characters or less'),
-});
-
-type RejectionValues = z.infer<typeof rejectionSchema>;
+import { useSystemConfig, getConfigValue } from '@/hooks/queries/useSystemConfig';
 
 interface RejectOrgDialogProps {
   open: boolean;
@@ -23,6 +18,14 @@ interface RejectOrgDialogProps {
 /** Dialog for rejecting an organization with a mandatory reason (validated via Zod). */
 export function RejectOrgDialog({ open, onOpenChange, orgId }: RejectOrgDialogProps) {
   const rejectOrg = useRejectOrg();
+  const { data: config } = useSystemConfig();
+  const minLength = getConfigValue(config, 'min_rejection_reason_length', 50);
+
+  const rejectionSchema = z.object({
+    reason: z.string().trim().min(minLength, `Rejection reason must be at least ${minLength} characters`).max(500, 'Reason must be 500 characters or less'),
+  });
+
+  type RejectionValues = z.infer<typeof rejectionSchema>;
 
   const form = useForm<RejectionValues>({
     resolver: zodResolver(rejectionSchema),
@@ -50,7 +53,7 @@ export function RejectOrgDialog({ open, onOpenChange, orgId }: RejectOrgDialogPr
             <Textarea
               id="rejection-reason"
               {...form.register('reason')}
-              placeholder="Provide a reason for rejection..."
+              placeholder={`Provide a reason for rejection (min ${minLength} characters)...`}
               className="mt-2"
               rows={4}
             />

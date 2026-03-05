@@ -4,6 +4,7 @@ import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertTriangle, Info, FileCheck, CreditCard, ShieldCheck, Mail, RotateCcw, Ban, Clock } from 'lucide-react';
 import { useSeekerOrgDetail, useApproveOrg, useStartVerification } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSystemConfig, getConfigValue } from '@/hooks/queries/useSystemConfig';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { OrgDetailCard } from './OrgDetailCard';
 import { ContactDetailCard } from './ContactDetailCard';
@@ -41,6 +42,7 @@ function SeekerOrgReviewContent() {
   const { data, isLoading } = useSeekerOrgDetail(orgId);
   const approveOrg = useApproveOrg();
   const startVerification = useStartVerification();
+  const { data: sysConfig } = useSystemConfig();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
@@ -84,7 +86,8 @@ function SeekerOrgReviewContent() {
   const allDocsVerified = totalDocs === 0 || verifiedDocs === totalDocs;
   const billingVerified = billing?.billing_verification_status === 'verified';
   const canApprove = allDocsVerified && billingVerified;
-  const canReturn = (org.correction_count ?? 0) < 2;
+  const maxCorrectionCycles = getConfigValue(sysConfig, 'max_correction_cycles', 2);
+  const canReturn = (org.correction_count ?? 0) < maxCorrectionCycles;
 
   const unmetReasons: string[] = [];
   if (!allDocsVerified) unmetReasons.push(`${verifiedDocs} of ${totalDocs} documents verified`);
@@ -192,7 +195,7 @@ function SeekerOrgReviewContent() {
           <div className="flex items-start gap-2">
             <RotateCcw className="h-5 w-5 text-amber-600 mt-0.5 shrink-0" />
             <div>
-              <h3 className="font-semibold text-sm text-foreground">Returned for Correction (Cycle {org.correction_count}/2)</h3>
+              <h3 className="font-semibold text-sm text-foreground">Returned for Correction (Cycle {org.correction_count}/{maxCorrectionCycles})</h3>
               <p className="text-sm text-muted-foreground mt-1">{org.correction_instructions}</p>
             </div>
           </div>

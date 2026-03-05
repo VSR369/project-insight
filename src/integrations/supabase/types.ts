@@ -233,8 +233,11 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           created_at: string
+          expires_at: string | null
           from_admin_id: string
           id: string
+          initiated_by: string | null
+          justification: string | null
           organization_id: string
           rejection_reason: string | null
           requested_at: string
@@ -246,8 +249,11 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          expires_at?: string | null
           from_admin_id: string
           id?: string
+          initiated_by?: string | null
+          justification?: string | null
           organization_id: string
           rejection_reason?: string | null
           requested_at?: string
@@ -259,8 +265,11 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
+          expires_at?: string | null
           from_admin_id?: string
           id?: string
+          initiated_by?: string | null
+          justification?: string | null
           organization_id?: string
           rejection_reason?: string | null
           requested_at?: string
@@ -2684,6 +2693,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      md_system_config: {
+        Row: {
+          config_key: string
+          config_value: string
+          created_at: string
+          created_by: string | null
+          data_type: string
+          description: string | null
+          id: string
+          is_active: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          config_key: string
+          config_value: string
+          created_at?: string
+          created_by?: string | null
+          data_type?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          config_key?: string
+          config_value?: string
+          created_at?: string
+          created_by?: string | null
+          data_type?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       md_tax_formats: {
         Row: {
@@ -5642,6 +5690,78 @@ export type Database = {
           },
         ]
       }
+      registration_payments: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          failure_reason: string | null
+          gateway_reference: string | null
+          id: string
+          organization_id: string
+          payment_amount: number
+          payment_attempts: number
+          payment_method: string
+          payment_timestamp: string
+          status: string
+          tenant_id: string
+          transaction_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          failure_reason?: string | null
+          gateway_reference?: string | null
+          id?: string
+          organization_id: string
+          payment_amount?: number
+          payment_attempts?: number
+          payment_method?: string
+          payment_timestamp?: string
+          status?: string
+          tenant_id: string
+          transaction_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          failure_reason?: string | null
+          gateway_reference?: string | null
+          id?: string
+          organization_id?: string
+          payment_amount?: number
+          payment_attempts?: number
+          payment_method?: string
+          payment_timestamp?: string
+          status?: string
+          tenant_id?: string
+          transaction_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registration_payments_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registration_payments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saas_agreements: {
         Row: {
           agreement_type: string
@@ -6867,6 +6987,7 @@ export type Database = {
           trade_brand_name: string | null
           updated_at: string | null
           updated_by: string | null
+          verification_checklist_results: Json | null
           verification_expiry_date: string | null
           verification_started_at: string | null
           verification_status: Database["public"]["Enums"]["org_verification_status_enum"]
@@ -6926,6 +7047,7 @@ export type Database = {
           trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          verification_checklist_results?: Json | null
           verification_expiry_date?: string | null
           verification_started_at?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]
@@ -6985,6 +7107,7 @@ export type Database = {
           trade_brand_name?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          verification_checklist_results?: Json | null
           verification_expiry_date?: string | null
           verification_started_at?: string | null
           verification_status?: Database["public"]["Enums"]["org_verification_status_enum"]

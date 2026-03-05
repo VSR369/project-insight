@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { CheckCircle, XCircle, AlertTriangle, ClipboardCheck, Info } from 'lucide-react';
 import { useDuplicateCheck } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useVerificationChecklistResults, useSaveVerificationChecklist } from '@/hooks/queries/useVerificationChecklist';
+import { useRegistrationPayment } from '@/hooks/queries/useRegistrationPayments';
 import type { SeekerOrg, SeekerBilling, SeekerDocument, AdminDelegation, SeekerSubscription, SeekerContact } from './types';
 
 interface VerificationChecklistProps {
@@ -23,14 +25,28 @@ function StatusIcon({ passed }: { passed: boolean | null }) {
 }
 
 export function VerificationChecklist({ org, billing, documents, adminDelegation, subscription, contacts }: VerificationChecklistProps) {
-  const [v2Confirmed, setV2Confirmed] = useState(false);
-  const [v5Confirmed, setV5Confirmed] = useState(false);
+  // GAP 10: Persisted V2/V5 state
+  const { data: savedResults } = useVerificationChecklistResults(org.id);
+  const saveChecklist = useSaveVerificationChecklist();
 
-  // V1: Payment verification
-  const v1Passed = billing?.billing_verification_status === 'verified';
+  const v2Confirmed = savedResults?.v2_confirmed ?? false;
+  const v5Confirmed = savedResults?.v5_confirmed ?? false;
+
+  const handleV2Change = (checked: boolean) => {
+    saveChecklist.mutate({ orgId: org.id, results: { ...savedResults, v2_confirmed: checked } });
+  };
+  const handleV5Change = (checked: boolean) => {
+    saveChecklist.mutate({ orgId: org.id, results: { ...savedResults, v5_confirmed: checked } });
+  };
+
+  // V1: Payment verification — check registration_payments if available
+  const { data: paymentRecord } = useRegistrationPayment(org.id);
+  const v1Passed = paymentRecord
+    ? paymentRecord.status === 'Completed'
+    : billing?.billing_verification_status === 'verified';
 
   // V3: Sanctions check (OFAC)
-  const isOfacRestricted = org.countries?.code ? false : null; // Will be enhanced when country data includes is_ofac_restricted
+  const isOfacRestricted = org.countries?.code ? false : null;
   const v3Passed = isOfacRestricted === false;
 
   // V4: Duplicate check
@@ -53,7 +69,12 @@ export function VerificationChecklist({ org, billing, documents, adminDelegation
   const v6Passed = isMarketplace ? true : (orgDomain && emailDomain ? emailDomain.includes(orgDomain) || orgDomain.includes(emailDomain) : null);
 
   const checks = [
-    { id: 'V1', label: 'Payment Verification', passed: v1Passed, detail: v1Passed ? 'Payment verified' : 'Payment not yet verified' },
+    {
+      id: 'V1', label: 'Payment Verification', passed: v1Passed,
+      detail: v1Passed
+        ? (paymentRecord ? `Payment verified — TXN: ${paymentRecord.transaction_id}` : 'Payment verified')
+        : 'Payment not yet verified',
+    },
     { id: 'V2', label: 'Organization Identity', passed: v2Confirmed, detail: 'Manual check — confirm legal entity name is valid', isManual: true },
     { id: 'V3', label: 'Sanctions / Compliance', passed: v3Passed, detail: v3Passed ? 'Country not OFAC-restricted' : 'OFAC check pending' },
     { id: 'V4', label: 'Duplicate Check', passed: v4Passed, detail: v4Passed ? 'No duplicates found' : `${otherDuplicates.length} potential duplicate(s) found` },
@@ -94,7 +115,7 @@ export function VerificationChecklist({ org, billing, documents, adminDelegation
                   <Checkbox
                     id="v2-confirm"
                     checked={v2Confirmed}
-                    onCheckedChange={(checked) => setV2Confirmed(!!checked)}
+                    onCheckedChange={(checked) => handleV2Change(!!checked)}
                   />
                   <label htmlFor="v2-confirm" className="text-xs text-muted-foreground cursor-pointer">Confirmed</label>
                 </div>
@@ -104,7 +125,7 @@ export function VerificationChecklist({ org, billing, documents, adminDelegation
                   <Checkbox
                     id="v5-confirm"
                     checked={v5Confirmed}
-                    onCheckedChange={(checked) => setV5Confirmed(!!checked)}
+                    onCheckedChange={(checked) => handleV5Change(!!checked)}
                   />
                   <label htmlFor="v5-confirm" className="text-xs text-muted-foreground cursor-pointer">Confirmed</label>
                 </div>
