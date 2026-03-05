@@ -19,7 +19,7 @@ import {
 } from "@/components/reviewer/candidates";
 import { InterviewKitTabContent } from "@/components/reviewer/interview-kit";
 import { useCandidateDetail, useUpdateCandidateReviewData } from "@/hooks/queries/useCandidateDetail";
-import { toast } from "sonner";
+import { handleMutationError } from "@/lib/errorHandler";
 
 export default function CandidateDetailPage() {
   const { enrollmentId } = useParams<{ enrollmentId: string }>();
@@ -38,7 +38,7 @@ export default function CandidateDetailPage() {
         { bookingId: candidate.interviewBookingId, clarificationNotes: notes },
         {
           onError: (err) => {
-            toast.error(`Failed to save clarification: ${err.message}`);
+            handleMutationError(err, { operation: 'update_clarification_notes' });
           },
         }
       );
@@ -51,7 +51,7 @@ export default function CandidateDetailPage() {
         { bookingId: candidate.interviewBookingId, reviewerNotes: notes },
         {
           onError: (err) => {
-            toast.error(`Failed to save notes: ${err.message}`);
+            handleMutationError(err, { operation: 'update_reviewer_notes' });
           },
         }
       );

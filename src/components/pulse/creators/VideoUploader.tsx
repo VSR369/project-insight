@@ -172,11 +172,11 @@ export function VideoUploader({
 
   // Cleanup helper
   const cleanupCamera = useCallback(() => {
-    console.log('[VideoUploader] Cleaning up camera...');
+    logDebug('[VideoUploader] Cleaning up camera...', { operation: 'video_cleanup' });
     
     if (streamRef.current) {
       streamRef.current.getTracks().forEach(track => {
-        console.log('[VideoUploader] Stopping track:', track.kind);
+        logDebug('[VideoUploader] Stopping track: ' + track.kind, { operation: 'video_cleanup' });
         track.stop();
       });
       streamRef.current = null;
@@ -208,7 +208,7 @@ export function VideoUploader({
    * This maintains the user gesture context required by browser security policies.
    */
   const startRecording = useCallback(async () => {
-    console.log('[VideoUploader] startRecording called - DIRECT initialization');
+    logDebug('[VideoUploader] startRecording called - DIRECT initialization', { operation: 'video_recording' });
     
     // Set state immediately for UI feedback
     setCameraState('initializing');
@@ -244,7 +244,7 @@ export function VideoUploader({
       
       if (selectedMicDeviceId) {
         audioConstraints.deviceId = { exact: selectedMicDeviceId };
-        console.log('[VideoUploader] Using selected microphone:', selectedMicDeviceId);
+        logDebug('[VideoUploader] Using selected microphone: ' + selectedMicDeviceId, { operation: 'video_recording' });
       }
 
       // ================================================================
@@ -253,8 +253,7 @@ export function VideoUploader({
       // ================================================================
       let stream: MediaStream;
       try {
-        console.log('[VideoUploader] Requesting camera with constraints:', videoConstraints);
-        console.log('[VideoUploader] Requesting audio with constraints:', audioConstraints);
+        logDebug('[VideoUploader] Requesting camera+audio', { operation: 'video_recording' });
         stream = await navigator.mediaDevices.getUserMedia({
           video: videoConstraints,
           audio: audioConstraints,
@@ -273,29 +272,20 @@ export function VideoUploader({
       }
       
       streamRef.current = stream;
-      console.log('[VideoUploader] Got media stream:', stream.getTracks().map(t => `${t.kind}:${t.readyState}`));
+      logDebug('[VideoUploader] Got media stream: ' + stream.getTracks().map(t => `${t.kind}:${t.readyState}`).join(', '), { operation: 'video_recording' });
 
       // Activate video track explicitly (Edge compatibility)
       const videoTrack = stream.getVideoTracks()[0];
       if (videoTrack) {
         videoTrack.enabled = true;
-        console.log('[VideoUploader] Video track:', {
-          label: videoTrack.label,
-          readyState: videoTrack.readyState,
-          enabled: videoTrack.enabled,
-        });
+        logDebug('[VideoUploader] Video track: ' + videoTrack.label + ' (' + videoTrack.readyState + ')', { operation: 'video_recording' });
       }
       
       // Activate audio track explicitly (Edge compatibility - CRITICAL for audio capture)
       const audioTrack = stream.getAudioTracks()[0];
       if (audioTrack) {
         audioTrack.enabled = true;
-        console.log('[VideoUploader] Audio track:', {
-          label: audioTrack.label,
-          readyState: audioTrack.readyState,
-          enabled: audioTrack.enabled,
-          muted: audioTrack.muted,
-        });
+        logDebug('[VideoUploader] Audio track: ' + audioTrack.label + ' (' + audioTrack.readyState + ')', { operation: 'video_recording' });
       } else {
         logWarning('No audio track in stream!', { operation: 'video_audio_track' });
         toast.warning('No microphone detected. Video will record without audio.');
@@ -317,7 +307,7 @@ export function VideoUploader({
       
       // Attach stream
       video.srcObject = stream;
-      console.log('[VideoUploader] Stream attached to video element');
+      logDebug('[VideoUploader] Stream attached to video element', { operation: 'video_recording' });
       
       // Wait for video to have ACTUAL FRAMES
       await new Promise<void>((resolve, reject) => {
@@ -328,7 +318,7 @@ export function VideoUploader({
         const checkFrames = () => {
           if (video.videoWidth > 0 && video.videoHeight > 0) {
             clearTimeout(timeoutId);
-            console.log('[VideoUploader] Video has frames:', video.videoWidth, 'x', video.videoHeight);
+            logDebug('[VideoUploader] Video has frames: ' + video.videoWidth + 'x' + video.videoHeight, { operation: 'video_recording' });
             resolve();
           } else {
             requestAnimationFrame(checkFrames);
@@ -337,7 +327,7 @@ export function VideoUploader({
         
         video.play()
           .then(() => {
-            console.log('[VideoUploader] Video playing, waiting for frames...');
+            logDebug('[VideoUploader] Video playing, waiting for frames...', { operation: 'video_recording' });
             checkFrames();
           })
           .catch(reject);
@@ -351,7 +341,7 @@ export function VideoUploader({
       // Catches physical camera covers, wrong device, etc. BEFORE recording
       // ================================================================
       const previewCheck = checkPreviewNotBlack(video);
-      console.log('[VideoUploader] Preview brightness check:', previewCheck.avgBrightness);
+      logDebug('[VideoUploader] Preview brightness check: ' + previewCheck.avgBrightness, { operation: 'video_recording' });
       
       if (!previewCheck.isValid) {
         toast.error('Camera preview appears black. Check your camera cover or select a different camera.');
@@ -361,7 +351,7 @@ export function VideoUploader({
         return;
       }
       
-      console.log('[VideoUploader] Frames stable, preview valid, starting MediaRecorder');
+      logDebug('[VideoUploader] Frames stable, preview valid, starting MediaRecorder', { operation: 'video_recording' });
       
       // Create MediaRecorder
       const mimeType = getSupportedVideoMimeType();
@@ -380,7 +370,7 @@ export function VideoUploader({
 
       // Data handler with 500ms interval for stability
       mediaRecorder.ondataavailable = (e) => {
-        console.log('[VideoUploader] Chunk received:', e.data.size, 'bytes');
+        logDebug('[VideoUploader] Chunk received: ' + e.data.size + ' bytes', { operation: 'video_recording' });
         if (e.data.size > 0) {
           chunksRef.current.push(e.data);
         }
@@ -388,16 +378,16 @@ export function VideoUploader({
 
       // Stop handler - uses ref to prevent stale closure
       mediaRecorder.onstop = async () => {
-        console.log('[VideoUploader] MediaRecorder.onstop fired');
+        logDebug('[VideoUploader] MediaRecorder.onstop fired', { operation: 'video_recording' });
         
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
-        console.log('[VideoUploader] Total recorded:', chunksRef.current.length, 'chunks,', totalSize, 'bytes');
+        logDebug('[VideoUploader] Total recorded: ' + chunksRef.current.length + ' chunks, ' + totalSize + ' bytes', { operation: 'video_recording' });
         
         const fullMimeType = mimeTypeRef.current || 'video/webm';
         const baseMimeType = getBaseMimeType(fullMimeType);
         const extension = getVideoFileExtension(fullMimeType);
         
-        console.log('[VideoUploader] Creating blob with type:', baseMimeType);
+        logDebug('[VideoUploader] Creating blob with type: ' + baseMimeType, { operation: 'video_recording' });
         
         const blob = new Blob(chunksRef.current, { type: baseMimeType });
         
@@ -415,7 +405,7 @@ export function VideoUploader({
           type: baseMimeType,
         });
         
-        console.log('[VideoUploader] File created:', file.name, file.size, 'bytes');
+        logDebug('[VideoUploader] File created: ' + file.name + ' ' + file.size + ' bytes', { operation: 'video_recording' });
         
         handleFileSelect(file);
         cleanupCamera();
@@ -431,7 +421,7 @@ export function VideoUploader({
 
       // Start recording with 500ms chunks for stability
       mediaRecorder.start(500);
-      console.log('[VideoUploader] Recording started');
+      logDebug('[VideoUploader] Recording started', { operation: 'video_recording' });
       
       setCameraState('recording');
       setRecordingTime(0);
@@ -471,7 +461,7 @@ export function VideoUploader({
 
   // Stop recording
   const stopRecording = useCallback(() => {
-    console.log('[VideoUploader] stopRecording called');
+    logDebug('[VideoUploader] stopRecording called', { operation: 'video_recording' });
     
     if (timerRef.current) {
       clearInterval(timerRef.current);
@@ -479,7 +469,7 @@ export function VideoUploader({
     }
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-      console.log('[VideoUploader] Requesting final data and stopping...');
+      logDebug('[VideoUploader] Requesting final data and stopping...', { operation: 'video_recording' });
       mediaRecorderRef.current.requestData();
       mediaRecorderRef.current.stop();
       setCameraState('stopping');
@@ -488,7 +478,7 @@ export function VideoUploader({
 
   // Cancel recording
   const cancelRecording = useCallback(() => {
-    console.log('[VideoUploader] cancelRecording called');
+    logDebug('[VideoUploader] cancelRecording called', { operation: 'video_recording' });
     chunksRef.current = [];
     
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {

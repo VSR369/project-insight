@@ -22,7 +22,7 @@ import {
   isSuspiciousDevice,
   getPreferredDevice,
 } from "./audioUtils";
-import { logWarning } from "@/lib/errorHandler";
+import { logWarning, logDebug } from "@/lib/errorHandler";
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob, duration: number) => void;
@@ -294,14 +294,14 @@ export function AudioRecorder({
         setAudioLevel(0);
         
         if (!validation.isValid) {
-          console.error("[AudioRecorder] Validation failed:", validation.errorMessage);
+          logWarning("[AudioRecorder] Validation failed: " + validation.errorMessage, { operation: "audio_recording_validation" });
           setError(validation.errorMessage || "Recording validation failed");
           setSuggestDeviceChange(validation.suggestDeviceChange || false);
           setState("idle");
           return;
         }
         
-        console.log("[AudioRecorder] Validation passed, RMS:", validation.rms.toFixed(4));
+        logDebug("[AudioRecorder] Validation passed, RMS: " + validation.rms.toFixed(4), { operation: "audio_recording_validation" });
         
         // Pass to parent with correct duration
         const finalDuration = durationRef.current || Math.round(validation.duration);
@@ -310,21 +310,21 @@ export function AudioRecorder({
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error("[AudioRecorder] MediaRecorder error:", event);
+        logWarning("[AudioRecorder] MediaRecorder error: " + String(event), { operation: "audio_recording" });
         setError("Recording error occurred. Please try again.");
         cleanup();
         setState("idle");
       };
 
       mediaRecorder.start(500); // Frequent chunks for reliability
-      console.log("[AudioRecorder] Recording started");
+      logDebug("[AudioRecorder] Recording started", { operation: "audio_recording" });
       
       setState("recording");
       startTimer();
       
     } catch (err) {
       const error = err as Error;
-      console.error("[AudioRecorder] Error:", error);
+      logWarning("[AudioRecorder] Error: " + error.message, { operation: "audio_recording" });
       
       if (error.name === "NotAllowedError") {
         setError("Microphone permission denied. Please allow access in your browser settings.");
