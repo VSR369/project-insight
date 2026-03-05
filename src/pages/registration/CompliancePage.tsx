@@ -6,12 +6,14 @@
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { ComplianceForm } from '@/components/registration/ComplianceForm';
 
 export default function CompliancePage() {
   return (
     <RegistrationWizardLayout currentStep={3} completedSteps={[1, 2]}>
-      <div className="space-y-6">
+      <FeatureErrorBoundary featureName="Compliance Step">
+        <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Compliance & Export Control</h1>
           <p className="text-muted-foreground mt-1">
@@ -19,7 +21,8 @@ export default function CompliancePage() {
           </p>
         </div>
         <ComplianceForm />
-      </div>
+        </div>
+      </FeatureErrorBoundary>
     </RegistrationWizardLayout>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { handleMutationError } from "@/lib/errorHandler";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +37,7 @@ export default function InvitationResponsePage() {
       
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("*")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, invitation_message, approval_status, expertise_level_ids, industry_segment_ids, invited_at, invitation_sent_at, invitation_accepted_at, enrollment_source, years_experience, timezone, languages, max_interviews_per_day, notes")
         .eq("user_id", user.id)
         .single();
 
@@ -69,7 +70,7 @@ export default function InvitationResponsePage() {
       navigate("/reviewer/dashboard");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to accept: ${error.message}`);
+      handleMutationError(error, { operation: 'accept_reviewer_invitation' });
     },
   });
 
@@ -94,7 +95,7 @@ export default function InvitationResponsePage() {
       navigate("/login");
     },
     onError: (error: Error) => {
-      toast.error(`Failed to decline: ${error.message}`);
+      handleMutationError(error, { operation: 'decline_reviewer_invitation' });
     },
   });
 

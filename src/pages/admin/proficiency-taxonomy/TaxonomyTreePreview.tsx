@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ChevronDown, ChevronRight, Target, Boxes, Sparkles, Loader2 } from "lucide-react";
+import { logWarning } from "@/lib/errorHandler";
 import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
@@ -117,7 +118,7 @@ export function TaxonomyTreePreview({
       setExpandedAreas(new Set(tree.map(a => a.id)));
       setExpandedSubDomains(new Set(tree.flatMap(a => a.subDomains.map(sd => sd.id))));
     } catch (error) {
-      console.error("Failed to fetch tree data:", error);
+      logWarning("Failed to fetch tree data", { operation: 'fetch_taxonomy_tree', additionalData: { error: String(error) } });
     } finally {
       setIsLoading(false);
     }

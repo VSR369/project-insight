@@ -6,12 +6,14 @@
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { BillingForm } from '@/components/registration/BillingForm';
 
 export default function BillingPage() {
   return (
     <RegistrationWizardLayout currentStep={5} completedSteps={[1, 2, 3, 4]}>
-      <div className="space-y-6">
+      <FeatureErrorBoundary featureName="Billing Step">
+        <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Billing Setup</h1>
           <p className="text-muted-foreground mt-1">
@@ -19,7 +21,8 @@ export default function BillingPage() {
           </p>
         </div>
         <BillingForm />
-      </div>
+        </div>
+      </FeatureErrorBoundary>
     </RegistrationWizardLayout>
   );
 }

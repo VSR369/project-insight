@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
@@ -274,7 +275,7 @@ export function useSubmitEnterpriseContact() {
       toast.success('Enterprise contact request submitted. Our team will reach out shortly.');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to submit request: ${error.message}`);
+      handleMutationError(error, { operation: 'submit_enterprise_contact' });
     },
   });
 }

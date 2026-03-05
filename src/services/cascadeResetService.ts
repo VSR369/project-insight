@@ -197,7 +197,7 @@ export async function handleOrphanedProofPointsV2(
  * Execute industry change reset for a provider (affects ALL enrollments)
  */
 export async function executeIndustryChangeReset(providerId: string): Promise<CascadeResetResult> {
-  console.warn('executeIndustryChangeReset is deprecated. Use executeIndustryChangeResetV2 with enrollmentId instead.');
+  logWarning('executeIndustryChangeReset is deprecated. Use executeIndustryChangeResetV2 with enrollmentId instead.', { operation: 'deprecated_industry_reset' });
   
   try {
     const userId = await getCurrentUserId();
@@ -242,7 +242,7 @@ export async function executeIndustryChangeReset(providerId: string): Promise<Ca
  * Execute expertise level change reset for a provider (affects ALL enrollments)
  */
 export async function executeExpertiseLevelChangeReset(providerId: string): Promise<CascadeResetResult> {
-  console.warn('executeExpertiseLevelChangeReset is deprecated. Use executeExpertiseLevelChangeResetV2 with enrollmentId instead.');
+  logWarning('executeExpertiseLevelChangeReset is deprecated. Use executeExpertiseLevelChangeResetV2 with enrollmentId instead.', { operation: 'deprecated_expertise_reset' });
   
   try {
     const userId = await getCurrentUserId();
@@ -287,7 +287,7 @@ export async function executeExpertiseLevelChangeReset(providerId: string): Prom
  * Get cascade impact counts for a provider (counts ALL enrollments)
  */
 export async function getCascadeImpactCounts(providerId: string): Promise<CascadeImpactCounts | null> {
-  console.warn('getCascadeImpactCounts is deprecated. Use getCascadeImpactCountsV2 with enrollmentId instead.');
+  logWarning('getCascadeImpactCounts is deprecated. Use getCascadeImpactCountsV2 with enrollmentId instead.', { operation: 'deprecated_cascade_counts' });
   
   try {
     const { data, error } = await supabase.rpc('get_cascade_impact_counts', {

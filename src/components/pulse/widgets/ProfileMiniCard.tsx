@@ -18,6 +18,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { validateFile } from '@/lib/validations/media';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { logWarning } from '@/lib/errorHandler';
 
 interface ProfileMiniCardProps {
   providerId?: string;
@@ -105,7 +106,7 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
       // Update profile
       await updateAvatar.mutateAsync({ userId, avatarUrl: urlData.publicUrl });
     } catch (error) {
-      console.error('Upload error:', error);
+      logWarning('Profile photo upload failed', { operation: 'upload_avatar', additionalData: { error: String(error) } });
       toast.error('Failed to upload photo');
     } finally {
       setIsUploading(false);
@@ -129,7 +130,7 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
       });
       setIsEditingHeadline(false);
     } catch (error) {
-      console.error('Failed to save headline:', error);
+      logWarning('Failed to save headline', { operation: 'update_pulse_headline', additionalData: { error: String(error) } });
     }
   };
 

@@ -110,8 +110,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       this.setState({ copied: true });
       setTimeout(() => this.setState({ copied: false }), 2000);
     } catch {
-      // Fallback for browsers without clipboard API
-      console.error('Failed to copy to clipboard');
+      // Fallback for browsers without clipboard API — silent fail is acceptable here
     }
   };
 

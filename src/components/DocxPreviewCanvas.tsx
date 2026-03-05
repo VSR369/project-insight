@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, FileWarning, Download } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { Button } from '@/components/ui/button';
 
 interface DocxPreviewCanvasProps {
@@ -36,7 +37,7 @@ export function DocxPreviewCanvas({ fileData, blobUrl, fileName }: DocxPreviewCa
         setHtml(result.value);
         setStatus('rendered');
       } catch (err) {
-        console.error('DOCX render failed:', err);
+        logWarning('DOCX render failed', { operation: 'docx_preview', additionalData: { error: String(err) } });
         if (!cancelledRef.current) setStatus('error');
       } finally {
         clearTimeout(timeout);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, FileWarning, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { Button } from '@/components/ui/button';
 
 interface SheetData {
@@ -47,7 +48,7 @@ export function XlsxPreviewCanvas({ fileData, blobUrl, fileName }: XlsxPreviewCa
         setSheets(parsed);
         setStatus('rendered');
       } catch (err) {
-        console.error('XLSX render failed:', err);
+        logWarning('XLSX render failed', { operation: 'xlsx_preview', additionalData: { error: String(err) } });
         if (!cancelledRef.current) setStatus('error');
       } finally {
         clearTimeout(timeout);

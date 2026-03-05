@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { CameraSelector } from './CameraSelector';
 import { MicrophoneSelector } from './MicrophoneSelector';
 import { getPreferredDevice as getPreferredMicDevice } from './audioUtils';
+import { logWarning, logDebug, handleMutationError } from "@/lib/errorHandler";
 import {
   getSupportedVideoMimeType,
   getVideoFileExtension,
@@ -82,22 +83,18 @@ export function VideoUploader({
 
   // Handle file validation and selection
   const handleFileSelect = useCallback(async (file: File) => {
-    console.log('[VideoUploader] handleFileSelect called:', {
-      name: file.name,
-      size: file.size,
-      type: file.type
-    });
+    logDebug('handleFileSelect called', { operation: 'video_file_select', additionalData: { name: file.name, size: file.size, type: file.type } });
 
     if (file.size === 0) {
       toast.error('Recording failed - empty file. Please try again.');
-      console.error('[VideoUploader] Empty file received');
+      logWarning('Empty file received', { operation: 'video_file_select' });
       return;
     }
 
     const validation = validateFile(file, 'reel');
     if (!validation.valid) {
       toast.error(validation.error);
-      console.error('[VideoUploader] Validation failed:', validation.error);
+      logWarning('Validation failed', { operation: 'video_validation', additionalData: { error: validation.error } });
       return;
     }
 
@@ -119,7 +116,7 @@ export function VideoUploader({
         onCoverExtracted(cover);
       }
     } catch (error) {
-      console.warn('[VideoUploader] Could not extract cover image:', error);
+      logWarning('Could not extract cover image', { operation: 'extract_video_thumbnail', additionalData: { error: String(error) } });
     } finally {
       setIsExtracting(false);
     }
@@ -217,7 +214,7 @@ export function VideoUploader({
     setCameraState('initializing');
     
     if (!videoContainerRef.current) {
-      console.error('[VideoUploader] Video container not found!');
+      handleMutationError(new Error('Video container not found'), { operation: 'video_init' });
       toast.error('Camera initialization failed. Please try again.');
       setCameraState('idle');
       return;
@@ -263,7 +260,7 @@ export function VideoUploader({
           audio: audioConstraints,
         });
       } catch (constraintError) {
-        console.warn('[VideoUploader] Preferred constraints failed, trying fallback:', constraintError);
+        logWarning('Preferred constraints failed, trying fallback', { operation: 'video_constraints', additionalData: { error: String(constraintError) } });
         // Fallback to basic constraints but keep audio processing
         stream = await navigator.mediaDevices.getUserMedia({
           video: true,
@@ -300,7 +297,7 @@ export function VideoUploader({
           muted: audioTrack.muted,
         });
       } else {
-        console.warn('[VideoUploader] No audio track in stream!');
+        logWarning('No audio track in stream!', { operation: 'video_audio_track' });
         toast.warning('No microphone detected. Video will record without audio.');
       }
 
@@ -407,7 +404,7 @@ export function VideoUploader({
         // Validate recording before accepting
         const validation = await validateRecordedVideo(blob);
         if (!validation.isValid) {
-          console.error('[VideoUploader] Recording validation failed:', validation.error);
+          logWarning('Recording validation failed', { operation: 'video_recording_validation', additionalData: { error: validation.error } });
           toast.error(validation.error || 'Recording failed - please try again');
           cleanupCamera();
           setCameraState('idle');
@@ -426,7 +423,7 @@ export function VideoUploader({
       };
 
       mediaRecorder.onerror = (event) => {
-        console.error('[VideoUploader] MediaRecorder error:', event);
+        handleMutationError(new Error(String(event)), { operation: 'media_recorder_error' });
         toast.error('Recording failed. Please try again.');
         cleanupCamera();
         setCameraState('idle');
@@ -464,7 +461,7 @@ export function VideoUploader({
     } catch (error) {
       const errorMessage = getCameraErrorMessage(error);
       toast.error(errorMessage);
-      console.error('[VideoUploader] Camera error:', error);
+      handleMutationError(error instanceof Error ? error : new Error(String(error)), { operation: 'camera_init_error' }, false);
       cleanupCamera();
       setCameraState('idle');
       // Show camera settings on error

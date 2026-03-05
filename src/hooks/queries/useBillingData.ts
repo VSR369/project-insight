@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
@@ -104,7 +105,7 @@ export function useSaveBillingInfo() {
       queryClient.invalidateQueries({ queryKey: ['seeker_billing_info'] });
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save billing info: ${error.message}`);
+      handleMutationError(error, { operation: 'save_billing_info' });
     },
   });
 }
@@ -172,7 +173,7 @@ export function useCreateSubscription() {
       toast.success('Registration completed successfully!');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create subscription: ${error.message}`);
+      handleMutationError(error, { operation: 'create_subscription' });
     },
   });
 }
@@ -291,7 +292,7 @@ export function usePurchaseTopUp() {
       toast.success('Top-up purchased successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to purchase top-up: ${error.message}`);
+      handleMutationError(error, { operation: 'purchase_top_up' });
     },
   });
 }

@@ -7,12 +7,14 @@
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { PrimaryContactForm } from '@/components/registration/PrimaryContactForm';
 
 export default function PrimaryContactPage() {
   return (
     <RegistrationWizardLayout currentStep={2} completedSteps={[1]}>
-      <div className="space-y-6">
+      <FeatureErrorBoundary featureName="Primary Contact Step">
+        <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Primary Contact</h1>
           <p className="text-muted-foreground mt-1">
@@ -20,7 +22,8 @@ export default function PrimaryContactPage() {
           </p>
         </div>
         <PrimaryContactForm />
-      </div>
+        </div>
+      </FeatureErrorBoundary>
     </RegistrationWizardLayout>
   );
 }

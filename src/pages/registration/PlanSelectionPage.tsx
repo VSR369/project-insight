@@ -6,12 +6,15 @@
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { PlanSelectionForm } from '@/components/registration/PlanSelectionForm';
 
 export default function PlanSelectionPage() {
   return (
     <RegistrationWizardLayout currentStep={4} completedSteps={[1, 2, 3]}>
-      <PlanSelectionForm />
+      <FeatureErrorBoundary featureName="Plan Selection Step">
+        <PlanSelectionForm />
+      </FeatureErrorBoundary>
     </RegistrationWizardLayout>
   );
 }

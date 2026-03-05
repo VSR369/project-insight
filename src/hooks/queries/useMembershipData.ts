@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 // ============================================================
 // Membership Tiers (reference data)
@@ -128,7 +129,7 @@ export function useCreateMembership() {
       toast.success('Membership activated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create membership: ${error.message}`);
+      handleMutationError(error, { operation: 'create_membership' });
     },
   });
 }
@@ -154,7 +155,7 @@ export function useToggleAutoRenew() {
       toast.success(variables.autoRenew ? 'Auto-renewal enabled' : 'Auto-renewal disabled');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update auto-renewal: ${error.message}`);
+      handleMutationError(error, { operation: 'toggle_auto_renew' });
     },
   });
 }
@@ -187,7 +188,7 @@ export function useCancelMembership() {
       toast.success('Membership cancelled');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to cancel membership: ${error.message}`);
+      handleMutationError(error, { operation: 'cancel_membership' });
     },
   });
 }

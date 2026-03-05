@@ -1,3 +1,4 @@
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 /**
  * Registration Preview Page (Step 6 — Post-Submit)
  *
@@ -390,6 +391,7 @@ export default function RegistrationPreviewPage() {
           <p className="text-xs text-muted-foreground">A confirmation email has been sent to your registered email address.</p>
         </div>
       </footer>
-    </div>
+      </div>
+    </FeatureErrorBoundary>
   );
 }

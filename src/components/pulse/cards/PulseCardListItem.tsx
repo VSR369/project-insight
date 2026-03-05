@@ -93,19 +93,16 @@ export function PulseCardListItem({
     setIsFlagDialogOpen(true);
   };
 
-  const handleFlagLayer = (layerId: string) => {
+  const handleFlagLayer = (_layerId: string) => {
     // TODO: Open flag dialog for specific layer
-    console.log('Flag layer:', layerId);
   };
 
   const handleViewHistory = () => {
     // TODO: Implement build history modal
-    console.log('View history for card:', card.id);
   };
 
   const handleRecompile = () => {
     // TODO: Trigger recompilation via edge function
-    console.log('Recompile narrative for card:', card.id);
   };
 
   // Loading state for layers

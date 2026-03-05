@@ -7,12 +7,14 @@
  */
 
 import { RegistrationWizardLayout } from '@/components/layouts/RegistrationWizardLayout';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { OrganizationIdentityForm } from '@/components/registration/OrganizationIdentityForm';
 
 export default function OrganizationIdentityPage() {
   return (
     <RegistrationWizardLayout currentStep={1}>
-      <div className="space-y-6">
+      <FeatureErrorBoundary featureName="Organization Identity Step">
+        <div className="space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Organization Identity</h1>
           <p className="text-muted-foreground mt-1">
@@ -20,7 +22,8 @@ export default function OrganizationIdentityPage() {
           </p>
         </div>
         <OrganizationIdentityForm />
-      </div>
+        </div>
+      </FeatureErrorBoundary>
     </RegistrationWizardLayout>
   );
 }

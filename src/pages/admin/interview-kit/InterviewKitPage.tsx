@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Link } from 'react-router-dom';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';

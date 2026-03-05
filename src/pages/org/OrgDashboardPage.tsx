@@ -1,3 +1,4 @@
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 /**
  * OrgDashboardPage — Dashboard hub for the Seeker Organization portal.
  * Shows usage gauges, tier info, quick actions, registration data summary.
@@ -304,6 +305,7 @@ export default function OrgDashboardPage() {
           </CardContent>
         </Card>
       </div>
-    </OrgLayout>
+      </OrgLayout>
+    </FeatureErrorBoundary>
   );
 }

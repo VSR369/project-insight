@@ -22,6 +22,7 @@ import {
   isSuspiciousDevice,
   getPreferredDevice,
 } from "./audioUtils";
+import { logWarning } from "@/lib/errorHandler";
 
 interface AudioRecorderProps {
   onRecordingComplete: (audioBlob: Blob, duration: number) => void;
@@ -167,7 +168,7 @@ export function AudioRecorder({
       
       updateLevel();
     } catch (e) {
-      console.warn("[AudioRecorder] Could not start audio level monitoring:", e);
+      logWarning("Could not start audio level monitoring", { operation: 'start_audio_monitoring', additionalData: { error: String(e) } });
     }
   }, []);
 
@@ -217,7 +218,7 @@ export function AudioRecorder({
       
       // Warn if suspicious device
       if (isSuspiciousDevice(trackLabel)) {
-        console.warn("[AudioRecorder] Suspicious device detected:", trackLabel);
+        logWarning("Suspicious device detected", { operation: 'check_audio_device', additionalData: { label: trackLabel } });
       }
       
       if (audioTrack.readyState !== "live") {

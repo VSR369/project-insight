@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 const ORG_CACHE = { staleTime: 30 * 1000, gcTime: 5 * 60 * 1000 };
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
@@ -133,7 +134,7 @@ export function useUpdateOrgProfile() {
       toast.success('Organization profile updated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update profile: ${error.message}`);
+      handleMutationError(error, { operation: 'update_org_profile' });
     },
   });
 }
@@ -197,7 +198,7 @@ export function useChangeTier() {
       );
     },
     onError: (error: Error) => {
-      toast.error(`Failed to change tier: ${error.message}`);
+      handleMutationError(error, { operation: 'change_tier' });
     },
   });
 }
@@ -233,7 +234,7 @@ export function useSwitchEngagementModel() {
       toast.success('Engagement model updated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to switch engagement model: ${error.message}`);
+      handleMutationError(error, { operation: 'switch_engagement_model' });
     },
   });
 }

@@ -27,7 +27,7 @@ export function useUpgradeExpertise() {
         
         toast.success(result.message || 'Ready for expertise upgrade. Please select your new expertise level.');
       } else {
-        toast.error(result.error || 'Failed to initiate upgrade');
+        handleMutationError(new Error(result.error || 'Failed to initiate upgrade'), { operation: 'upgrade_expertise_certified' });
       }
       return result;
     },
