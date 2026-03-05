@@ -1,50 +1,37 @@
 
 
-# Fix Plan: 3 Remaining Gaps + Critical Status Case Mismatch
+# Assessment: Payment Gateway Deferral Compatibility
 
-## Critical Bug Found During Analysis
+## Verdict: No blocking issues. The current architecture is cleanly deferral-ready.
 
-The `seeking_org_admins` table has a **CHECK constraint** allowing only lowercase values (`pending_activation`, `active`, `suspended`, `transferred`), but:
-- The **partial unique index** (BR-SOA-006) uses title case (`'Invited'`, `'Active'`) — effectively dead, never matches
-- The **suspend/reinstate mutations** use title case (`'Suspended'`, `'Active'`, `'Invited'`) — will fail at runtime
-- The **BR-SOA-011 trigger** checks for `'Deactivated'` — not in the allowed values
+Here is why the current implementation will not cause problems when you integrate a real payment gateway later:
 
-This must be fixed alongside the 3 gaps.
+## What's Already in Place
 
----
+1. **`registration_payments` table** has all the fields a real gateway needs: `transaction_id` (auto-generated UUID), `gateway_reference`, `payment_method`, `status` (Pending/Completed/Failed/Refunded), `payment_attempts`, `failure_reason`.
 
-## Changes
+2. **Payment creation is isolated** — lines 258-274 in `BillingForm.tsx` create a dummy record with `status: 'Completed'` and `gateway_reference: SIM-{timestamp}`. This is a single, clearly-commented block that can be swapped out.
 
-### 1. Database Migration
+3. **Subscription status is decoupled** — the subscription is set to `active` independently of the payment record. When you add a real gateway, you would change this to `pending_billing` until payment confirmation arrives.
 
-**a) Fix CHECK constraint** — expand to include all needed statuses (standardize on lowercase):
-- Drop old CHECK, add new: `pending_activation, active, suspended, transferred, deactivated`
+4. **V1 verification already reads from `registration_payments`** — `VerificationChecklist.tsx` checks `paymentRecord.status === 'Completed'`, so real gateway statuses will flow through without UI changes.
 
-**b) Fix partial unique index** — recreate with lowercase values:
-- `WHERE admin_tier = 'PRIMARY' AND status IN ('pending_activation', 'active')`
+## Two Minor Items to Note (Not Blockers)
 
-**c) Fix BR-SOA-011 trigger** — change `'Deactivated'` to `'deactivated'`
+| Item | Current State | Gateway Integration Impact |
+|------|--------------|---------------------------|
+| `useCreateRegistrationPayment` hook exists but is **not used** — `BillingForm` does a raw `supabase.from()` insert instead | Works fine for now | When integrating, refactor to use the hook (which already has proper audit fields via `withCreatedBy`) or replace with a gateway edge function call |
+| Payment insert is wrapped in a **silent try/catch** (line 272: `catch {}`) so failures are swallowed | Acceptable for dummy flow | Must become blocking when real payments are added — a failed payment should halt registration |
 
-**d) Add `designation_method`** column:
-- `designation_method TEXT CHECK (designation_method IN ('SELF', 'SEPARATE', 'DELEGATED', 'TRANSFER'))`
+## No Changes Needed Now
 
-### 2. Fix Suspend/Reinstate Mutations (`useSeekerOrgApprovals.ts`)
+The dummy payment flow is structurally sound for deferral. When you're ready for production gateway integration, the work will be:
 
-- `useSuspendOrg`: Change `'Suspended'` → `'suspended'`, `'Active', 'Invited'` → `'active', 'pending_activation'`
-- `useReinstateOrg`: Change `'Active'` → `'active'`, `'Suspended'` → `'suspended'`
+1. Create an edge function that calls the gateway API (Stripe, etc.)
+2. Replace the dummy insert block in `BillingForm.tsx` with a call to that edge function
+3. Change subscription initial status from `active` to `pending_billing`
+4. Add a webhook handler edge function for gateway callbacks to confirm payment and activate the subscription
+5. Make the payment failure path blocking instead of silent
 
-### 3. Fix ReturnForCorrectionDialog — Dynamic Zod Schema
-
-Move Zod schema inside the component (same pattern as `RejectOrgDialog`) so `.min()` uses the dynamic config value from `md_system_config` instead of hardcoded 50.
-
-### 4. GAP 2: Registrant Title/Role
-
-Already captured as `job_title` in Step 2 (`PrimaryContactForm.tsx`) and persisted to `registrant_contact.job_title`. The BRD says "Step 1" but Step 2 (Primary Contact) is the logical place for personal registrant details. **No change needed** — functionally complete.
-
----
-
-## Files Modified
-- **1 new migration** — fix CHECK, index, trigger, add column
-- `src/hooks/queries/useSeekerOrgApprovals.ts` — fix status casing in suspend/reinstate
-- `src/pages/admin/seeker-org-approvals/ReturnForCorrectionDialog.tsx` — dynamic Zod schema
+All of these are additive changes — nothing in the current schema or code needs to be torn out.
 
