@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useReturnForCorrection } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSystemConfig, getConfigValue } from '@/hooks/queries/useSystemConfig';
 
 const correctionSchema = z.object({
   instructions: z.string().trim()
@@ -25,7 +26,9 @@ interface ReturnForCorrectionDialogProps {
 
 export function ReturnForCorrectionDialog({ open, onOpenChange, orgId, correctionCount }: ReturnForCorrectionDialogProps) {
   const returnForCorrection = useReturnForCorrection();
-  const isFinalReturn = correctionCount >= 1;
+  const { data: config } = useSystemConfig();
+  const maxCycles = getConfigValue(config, 'max_correction_cycles', 2);
+  const isFinalReturn = correctionCount >= maxCycles - 1;
 
   const form = useForm<CorrectionValues>({
     resolver: zodResolver(correctionSchema),
@@ -61,7 +64,7 @@ export function ReturnForCorrectionDialog({ open, onOpenChange, orgId, correctio
               </div>
             )}
             <p className="text-sm text-muted-foreground">
-              Correction cycle: {correctionCount + 1} of 2
+              Correction cycle: {correctionCount + 1} of {maxCycles}
             </p>
             <div>
               <Label htmlFor="correction-instructions">Correction Instructions *</Label>

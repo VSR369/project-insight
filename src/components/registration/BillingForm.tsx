@@ -255,6 +255,24 @@ export function BillingForm() {
         });
       }
 
+      // GAP 1: Create dummy registration_payments record
+      try {
+        await supabase
+          .from('registration_payments')
+          .insert({
+            organization_id: state.organizationId,
+            tenant_id: state.tenantId,
+            payment_amount: dueToday,
+            currency_code: currencyCode,
+            payment_method: isInternalDept ? 'shadow' : data.payment_method,
+            status: 'Completed',
+            payment_timestamp: new Date().toISOString(),
+            gateway_reference: `SIM-${Date.now()}`,
+          } as any);
+      } catch {
+        // Non-blocking — structural placeholder for future gateway
+      }
+
       // ── Create Auth User + org_users via edge function ──
       if (state.step2?.password && state.step2?.email) {
         setIsCreatingAccount(true);
