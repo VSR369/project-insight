@@ -189,6 +189,7 @@ export default function RegistrationPreviewPage() {
   }
 
   return (
+    <FeatureErrorBoundary featureName="RegistrationPreview">
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="border-b bg-card shrink-0">

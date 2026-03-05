@@ -37,7 +37,7 @@ export default function InvitationResponsePage() {
       
       const { data, error } = await supabase
         .from("panel_reviewers")
-        .select("id, name, email, phone, user_id, is_active, invitation_status, invitation_message, approval_status, expertise_level_ids, industry_segment_ids, invited_at, invitation_sent_at, invitation_accepted_at, enrollment_source, years_experience, timezone, languages, max_interviews_per_day, notes")
+        .select("id, name, email, phone, user_id, is_active, invitation_status, invitation_message, approval_status, expertise_level_ids, industry_segment_ids, invitation_sent_at, invitation_accepted_at, enrollment_source, years_experience, timezone, languages, max_interviews_per_day, notes")
         .eq("user_id", user.id)
         .single();
 
