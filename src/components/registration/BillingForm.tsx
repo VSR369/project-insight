@@ -22,6 +22,7 @@ import {
   useCreateSubscription,
 } from '@/hooks/queries/useBillingData';
 import { useCreateMembership } from '@/hooks/queries/useMembershipData';
+import { useCreateRegistrationPayment } from '@/hooks/queries/useRegistrationPayments';
 import {
   useSubscriptionTiers,
   useTierPricingForCountry,
@@ -133,6 +134,7 @@ export function BillingForm() {
   const saveBilling = useSaveBillingInfo();
   const createSubscription = useCreateSubscription();
   const createMembership = useCreateMembership();
+  const createPayment = useCreateRegistrationPayment();
   const { isRehydrating, rehydrationFailed } = useRehydrateRegistration();
 
   // ══════════════════════════════════════
@@ -255,20 +257,15 @@ export function BillingForm() {
         });
       }
 
-      // GAP 1: Create dummy registration_payments record
+      // GAP 1: Create dummy registration_payments record (uses withCreatedBy for audit fields)
       try {
-        await supabase
-          .from('registration_payments')
-          .insert({
-            organization_id: state.organizationId,
-            tenant_id: state.tenantId,
-            payment_amount: dueToday,
-            currency_code: currencyCode,
-            payment_method: isInternalDept ? 'shadow' : data.payment_method,
-            status: 'Completed',
-            payment_timestamp: new Date().toISOString(),
-            gateway_reference: `SIM-${Date.now()}`,
-          } as any);
+        await createPayment.mutateAsync({
+          organization_id: state.organizationId,
+          tenant_id: state.tenantId,
+          payment_amount: dueToday,
+          currency_code: currencyCode,
+          payment_method: isInternalDept ? 'shadow' : data.payment_method,
+        });
       } catch {
         // Non-blocking — structural placeholder for future gateway
       }
