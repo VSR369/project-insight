@@ -49,7 +49,7 @@ export function CompositeScoreBanner({
   return (
     <Card className={cn('border-2', outcomeConfig.bgClass)}>
       <CardContent className="p-6">
-        <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           {/* Score Display */}
           <div className="flex items-center gap-4">
             <div className={cn(

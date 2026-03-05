@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 const CACHE = { staleTime: 30 * 1000, gcTime: 5 * 60 * 1000 };
 
@@ -66,7 +67,7 @@ export function useRequestAdminTransfer() {
       toast.success('Admin transfer request submitted for Platform Admin approval');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to submit transfer request: ${error.message}`);
+      handleMutationError(error, { operation: 'request_admin_transfer' });
     },
   });
 }
@@ -90,7 +91,7 @@ export function useCancelTransferRequest() {
       toast.success('Transfer request cancelled');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to cancel request: ${error.message}`);
+      handleMutationError(error, { operation: 'cancel_admin_transfer' });
     },
   });
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -122,6 +123,7 @@ export default function SeekerOrgApprovalsPage() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+      </div>
+    </FeatureErrorBoundary>
   );
 }

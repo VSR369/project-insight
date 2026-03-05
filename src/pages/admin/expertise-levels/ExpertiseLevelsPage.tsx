@@ -1,4 +1,5 @@
 import * as React from "react";
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { z } from "zod";
 import { Eye, Pencil, Trash2, RotateCcw, Trash } from "lucide-react";
 

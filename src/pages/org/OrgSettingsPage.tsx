@@ -15,6 +15,7 @@ import { EngagementModelTab } from '@/components/org-settings/EngagementModelTab
 import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { OrgLayout } from '@/components/org/OrgLayout';
 
 export default function OrgSettingsPage() {
@@ -26,7 +27,8 @@ export default function OrgSettingsPage() {
       description="Manage your organization profile, admin, subscription, and engagement model."
       breadcrumbs={[{ label: 'Settings' }]}
     >
-      <Tabs defaultValue="profile" className="w-full">
+      <FeatureErrorBoundary featureName="Org Settings Tabs">
+        <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
@@ -69,7 +71,8 @@ export default function OrgSettingsPage() {
         <TabsContent value="audit" className="mt-6">
           <AuditTrailTable organizationId={organizationId} />
         </TabsContent>
-      </Tabs>
+        </Tabs>
+      </FeatureErrorBoundary>
     </OrgLayout>
   );
 }

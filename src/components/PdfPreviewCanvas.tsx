@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { Loader2, FileWarning, Download, ChevronLeft, ChevronRight } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { Button } from '@/components/ui/button';
 
 interface PdfPreviewCanvasProps {
@@ -67,7 +68,7 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
       return true;
     } catch (err: any) {
       if (err?.name === 'RenderingCancelledException') return false;
-      console.error('PDF page render failed:', err);
+      logWarning('PDF page render failed', { operation: 'pdf_preview', additionalData: { error: String(err) } });
       return false;
     }
   }, []);
@@ -85,7 +86,7 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
     // Start timeout — only cleared on terminal state or unmount
     timeoutRef.current = setTimeout(() => {
       if (!cancelledRef.current) {
-        console.error('PDF render timed out after 15s');
+        logWarning('PDF render timed out after 15s', { operation: 'pdf_preview' });
         setStatus('error');
       }
     }, 15000);
@@ -121,7 +122,7 @@ export function PdfPreviewCanvas({ pdfData, blobUrl, fileName }: PdfPreviewCanva
         }
       } catch (err) {
         if (!cancelledRef.current) {
-          console.error('PDF load failed:', err);
+          logWarning('PDF load failed', { operation: 'pdf_preview', additionalData: { error: String(err) } });
           setStatus('error');
           clearTimeoutSafe();
         }

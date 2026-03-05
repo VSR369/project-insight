@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Loader2, FileWarning, Download, ChevronLeft, ChevronRight, Presentation } from 'lucide-react';
+import { logWarning } from '@/lib/errorHandler';
 import { Button } from '@/components/ui/button';
 
 interface SlideData {
@@ -76,7 +77,7 @@ export function PptxPreviewCanvas({ fileData, blobUrl, fileName }: PptxPreviewCa
         setSlides(parsed);
         setStatus('rendered');
       } catch (err) {
-        console.error('PPTX parse failed:', err);
+        logWarning('PPTX parse failed', { operation: 'pptx_preview', additionalData: { error: String(err) } });
         if (!cancelledRef.current) setStatus('error');
       } finally {
         clearTimeout(timeout);

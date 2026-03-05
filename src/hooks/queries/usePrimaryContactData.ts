@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
 
@@ -89,7 +90,7 @@ export function useSendOtp() {
       toast.success('Verification code sent to your email');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to send OTP: ${error.message}`);
+      handleMutationError(error, { operation: 'send_registration_otp' });
     },
   });
 }
@@ -114,7 +115,7 @@ export function useVerifyOtp() {
       return data;
     },
     onError: (error: Error) => {
-      toast.error(error.message);
+      handleMutationError(error, { operation: 'verify_registration_otp' });
     },
   });
 }
@@ -188,7 +189,7 @@ export function useUpsertContact() {
       toast.success('Contact details saved successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save contact: ${error.message}`);
+      handleMutationError(error, { operation: 'save_contact_info' });
     },
   });
 }

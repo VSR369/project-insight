@@ -1,3 +1,5 @@
+import { logWarning, handleMutationError } from "@/lib/errorHandler";
+
 /**
  * Fetch wrapper with automatic retry logic for transient network failures.
  * Only retries on TypeError (network errors like "Failed to fetch"),
@@ -21,19 +23,14 @@ export async function fetchWithRetry(
     } catch (error) {
       // Last attempt — give up
       if (attempt === MAX_RETRIES) {
-        console.error(
-          `[fetchWithRetry] All ${MAX_RETRIES} retries exhausted for:`,
-          typeof input === 'string' ? input : (input as Request).url ?? input
-        );
+        handleMutationError(error instanceof Error ? error : new Error(String(error)), { operation: 'fetch_retry_exhausted', additionalData: { url: typeof input === 'string' ? input : (input as Request).url } }, false);
         throw error;
       }
 
       // Only retry on network errors (TypeError: Failed to fetch)
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
         const backoffMs = BASE_DELAY_MS * Math.pow(2, attempt); // 500ms, 1s, 2s
-        console.warn(
-          `[fetchWithRetry] Network error, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`
-        );
+        logWarning(`Network error, retrying in ${backoffMs}ms (attempt ${attempt + 1}/${MAX_RETRIES})`, { operation: 'fetch_retry' });
         await delay(backoffMs);
         continue;
       }

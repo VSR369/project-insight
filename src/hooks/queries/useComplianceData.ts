@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import { sanitizeFileName } from '@/lib/sanitizeFileName';
 
 const MASTER_CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
@@ -124,7 +125,7 @@ export function useUpsertCompliance() {
       toast.success('Compliance details saved successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to save compliance: ${error.message}`);
+      handleMutationError(error, { operation: 'upsert_compliance' });
     },
   });
 }
@@ -187,7 +188,7 @@ export function useUploadNdaDocument() {
       toast.success('Custom NDA uploaded successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to upload NDA: ${error.message}`);
+      handleMutationError(error, { operation: 'upload_nda_document' });
     },
   });
 }

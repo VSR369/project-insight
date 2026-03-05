@@ -8,6 +8,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withCreatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import { useAuth } from '@/hooks/useAuth';
 
 const ORG_CACHE = { staleTime: 30 * 1000, gcTime: 5 * 60 * 1000 };
@@ -157,7 +158,7 @@ export function useRequestAdminChange() {
       toast.success('Admin change request submitted for Platform Admin approval');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to submit request: ${error.message}`);
+      handleMutationError(error, { operation: 'request_admin_change' });
     },
   });
 }

@@ -617,7 +617,7 @@ export function useDeleteExpiredAttempt() {
         queryClient.invalidateQueries({ queryKey: ['active-assessment-any-enrollment'] });
         toast.success('Expired assessment cleared. You can start a new assessment.');
       } else {
-        toast.error(result.error || 'Failed to clear expired assessment');
+        handleMutationError(new Error(result.error || 'Failed to clear expired assessment'), { operation: 'clear_expired_assessment' });
       }
     },
     onError: (error: Error) => {

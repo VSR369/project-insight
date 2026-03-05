@@ -8,6 +8,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import {
   checkDuplicateOrganization,
   deriveOrgTypeFlags,
@@ -228,7 +229,7 @@ export function useUpdateOrganization() {
       toast.success('Organization details updated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update organization: ${error.message}`);
+      handleMutationError(error, { operation: 'update_organization' });
     },
   });
 }
@@ -403,7 +404,7 @@ export function useCreateOrganization() {
       if (msg.includes('idx_seeker_orgs_unique_name_country')) {
         toast.error('An organization with this name already exists in the selected country. Please use a different name or country.');
       } else {
-        toast.error(`Failed to save organization: ${msg}`);
+        handleMutationError(error, { operation: 'create_organization' });
       }
     },
   });

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { logWarning } from '@/lib/errorHandler';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useCurrentProvider } from '@/hooks/queries/useProvider';
@@ -215,7 +216,7 @@ export default function Dashboard() {
   const handleEnrollmentSwitch = (enrollmentId: string) => {
     if (!isContextAvailable) {
       // Context not ready - log warning and let user retry
-      console.warn('[Dashboard] EnrollmentContext unavailable during switch');
+      logWarning('EnrollmentContext unavailable during enrollment switch', { operation: 'enrollment_switch' });
       return;
     }
     enrollmentContext.setActiveEnrollment(enrollmentId);

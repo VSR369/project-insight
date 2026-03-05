@@ -30,6 +30,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { handleMutationError } from '@/lib/errorHandler';
 
 type RoleTab = 'provider' | 'reviewer' | 'admin';
 type ProviderSubTab = 'experienced' | 'student';
@@ -244,7 +245,7 @@ export default function Register() {
       toast.success('Account created! Please check your email to verify your account.');
       navigate('/login');
     } catch (err) {
-      console.error('Registration error:', err);
+      handleMutationError(err instanceof Error ? err : new Error(String(err)), { operation: 'register_provider' });
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -283,7 +284,7 @@ export default function Register() {
       toast.success('Application submitted! Your reviewer application is pending admin approval.');
       navigate('/login');
     } catch (err) {
-      console.error('Reviewer registration error:', err);
+      handleMutationError(err instanceof Error ? err : new Error(String(err)), { operation: 'register_reviewer' });
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -297,7 +298,7 @@ export default function Register() {
       // Requires integration with admin_access_codes table - see database schema
       toast.error('Admin registration requires a valid access code. Contact your administrator.');
     } catch (err) {
-      console.error('Admin registration error:', err);
+      handleMutationError(err instanceof Error ? err : new Error(String(err)), { operation: 'register_admin' });
       toast.error('An unexpected error occurred');
     } finally {
       setIsLoading(false);

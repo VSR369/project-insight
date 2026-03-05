@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useRef, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { logWarning } from '@/lib/errorHandler';
 import { queryClient } from '@/lib/queryClient';
 
 interface AuthContextType {
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }).catch((err) => {
       // Handle network failures during initial session check gracefully
       // instead of crashing the AuthProvider and losing context for children
-      console.warn('[AuthProvider] Initial session check failed, continuing without session:', err?.message);
+      logWarning('Initial session check failed, continuing without session', { operation: 'auth_init', additionalData: { error: err?.message } });
       initialSessionResolved.current = true;
       setLoading(false);
     });

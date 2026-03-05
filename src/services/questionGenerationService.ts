@@ -668,6 +668,6 @@ export async function logQuestionExposure(
     .insert(exposureRecords);
 
   if (error) {
-    console.error('Failed to log question exposure:', error);
+    logWarning('Failed to log question exposure', { operation: 'log_question_exposure', additionalData: { error: error.message } });
   }
 }

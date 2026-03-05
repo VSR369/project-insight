@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 
 /**
  * Fetch org users for a given organization
@@ -80,7 +81,7 @@ export function useInviteOrgUser() {
       toast.success('Team member added successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to add team member: ${error.message}`);
+      handleMutationError(error, { operation: 'invite_org_user' });
     },
   });
 }
@@ -103,7 +104,7 @@ export function useUpdateOrgUserRole() {
       toast.success('Role updated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update role: ${error.message}`);
+      handleMutationError(error, { operation: 'update_org_user_role' });
     },
   });
 }
@@ -126,7 +127,7 @@ export function useDeactivateOrgUser() {
       toast.success('Team member removed');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to remove member: ${error.message}`);
+      handleMutationError(error, { operation: 'deactivate_org_user' });
     },
   });
 }
@@ -164,7 +165,7 @@ export function useCreateOrgRole() {
       toast.success('Custom role created');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create role: ${error.message}`);
+      handleMutationError(error, { operation: 'create_org_role' });
     },
   });
 }

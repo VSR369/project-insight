@@ -19,6 +19,7 @@ export interface ErrorContext {
   operation: string;
   component?: string;
   userId?: string;
+  tenantId?: string;
   providerId?: string;
   enrollmentId?: string;
   additionalData?: Record<string, unknown>;
@@ -42,6 +43,7 @@ export interface StructuredLogEntry {
     operation: string;
     component?: string;
     userId?: string;
+    tenantId?: string;
     providerId?: string;
   };
   error?: {
@@ -110,6 +112,7 @@ function createStructuredLogEntry(
       operation: context.operation,
       component: context.component,
       userId: context.userId,
+      tenantId: context.tenantId,
       providerId: context.providerId,
     },
   };
