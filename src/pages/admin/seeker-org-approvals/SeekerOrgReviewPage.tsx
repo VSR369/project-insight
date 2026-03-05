@@ -12,6 +12,7 @@ import { SubscriptionDetailCard } from './SubscriptionDetailCard';
 import { DocumentReviewCard } from './DocumentReviewCard';
 import { AdminCredentialsCard } from './AdminCredentialsCard';
 import { VerificationChecklist } from './VerificationChecklist';
+import { StateAuditLogCard } from './StateAuditLogCard';
 import { RejectOrgDialog } from './RejectOrgDialog';
 import { ReturnForCorrectionDialog } from './ReturnForCorrectionDialog';
 import { SuspendOrgDialog } from './SuspendOrgDialog';
@@ -268,11 +269,12 @@ function SeekerOrgReviewContent() {
           contacts={contacts}
         />
         <OrgDetailCard org={org} industries={industries} geographies={geographies} />
-        <ContactDetailCard contact={primaryContact} allContacts={contacts} />
+        <ContactDetailCard contact={primaryContact} allContacts={contacts} registrantContact={org.registrant_contact} />
         {compliance && <ComplianceDetailCard compliance={compliance} org={org} />}
         <SubscriptionDetailCard subscription={subscription} billing={billing} />
         <DocumentReviewCard documents={documents} />
         <AdminCredentialsCard orgUsers={orgUsers} org={org} contacts={contacts} adminDelegation={adminDelegation} />
+        <StateAuditLogCard orgId={org.id} />
       </div>
 
       <RejectOrgDialog open={rejectOpen} onOpenChange={setRejectOpen} orgId={orgId!} />

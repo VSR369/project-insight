@@ -87,6 +87,14 @@ export function AdminCredentialsCard({ orgUsers, org, contacts, adminDelegation 
                     <span className="text-xs text-muted-foreground">Admin Phone</span>
                     <p>{adminDelegation.new_admin_phone || '—'}</p>
                   </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Admin Title</span>
+                    <p>{adminDelegation.new_admin_title || '—'}</p>
+                  </div>
+                  <div>
+                    <span className="text-xs text-muted-foreground">Relationship to Org</span>
+                    <p>{adminDelegation.new_admin_relationship_to_org || '—'}</p>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Registrant ({registrantEmail}) will receive approval confirmation. Admin credentials will be sent to {adminDelegation.new_admin_email}.

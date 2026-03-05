@@ -180,6 +180,111 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_activation_links: {
+        Row: {
+          admin_id: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          organization_id: string
+          reminders_sent: number
+          status: string
+          token: string
+        }
+        Insert: {
+          admin_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          organization_id: string
+          reminders_sent?: number
+          status?: string
+          token?: string
+        }
+        Update: {
+          admin_id?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          organization_id?: string
+          reminders_sent?: number
+          status?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_activation_links_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_org_admins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_activation_links_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      admin_transfer_requests: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          from_admin_id: string
+          id: string
+          organization_id: string
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          to_admin_email: string
+          to_admin_name: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_admin_id: string
+          id?: string
+          organization_id: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          to_admin_email: string
+          to_admin_name?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          from_admin_id?: string
+          id?: string
+          organization_id?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          to_admin_email?: string
+          to_admin_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_transfer_requests_from_admin_id_fkey"
+            columns: ["from_admin_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_org_admins"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "admin_transfer_requests_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_attempt_responses: {
         Row: {
           answered_at: string | null
@@ -2928,6 +3033,47 @@ export type Database = {
           {
             foreignKeyName: "org_roles_tenant_id_fkey"
             columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      org_state_audit_log: {
+        Row: {
+          change_reason: string | null
+          changed_by: string | null
+          created_at: string
+          id: string
+          metadata: Json | null
+          new_status: string
+          organization_id: string
+          previous_status: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status: string
+          organization_id: string
+          previous_status: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_by?: string | null
+          created_at?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string
+          organization_id?: string
+          previous_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_state_audit_log_organization_id_fkey"
+            columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
             referencedColumns: ["id"]
@@ -6715,6 +6861,7 @@ export type Database = {
           suspended_by: string | null
           suspension_reason: string | null
           tax_id: string | null
+          tc_version_accepted: string | null
           tenant_id: string
           timezone: string | null
           trade_brand_name: string | null
@@ -6773,6 +6920,7 @@ export type Database = {
           suspended_by?: string | null
           suspension_reason?: string | null
           tax_id?: string | null
+          tc_version_accepted?: string | null
           tenant_id: string
           timezone?: string | null
           trade_brand_name?: string | null
@@ -6831,6 +6979,7 @@ export type Database = {
           suspended_by?: string | null
           suspension_reason?: string | null
           tax_id?: string | null
+          tc_version_accepted?: string | null
           tenant_id?: string
           timezone?: string | null
           trade_brand_name?: string | null
@@ -7028,6 +7177,59 @@ export type Database = {
             columns: ["tier_id"]
             isOneToOne: false
             referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      seeking_org_admins: {
+        Row: {
+          activated_at: string | null
+          admin_tier: string
+          created_at: string
+          created_by: string | null
+          designated_by: string | null
+          domain_scope: string
+          id: string
+          organization_id: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          admin_tier?: string
+          created_at?: string
+          created_by?: string | null
+          designated_by?: string | null
+          domain_scope?: string
+          id?: string
+          organization_id: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          admin_tier?: string
+          created_at?: string
+          created_by?: string | null
+          designated_by?: string | null
+          domain_scope?: string
+          id?: string
+          organization_id?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "seeking_org_admins_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
             referencedColumns: ["id"]
           },
         ]
@@ -7536,6 +7738,30 @@ export type Database = {
           setting_key?: string
           setting_value?: Json
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      tc_versions: {
+        Row: {
+          content_url: string | null
+          created_at: string
+          effective_date: string
+          id: string
+          version: string
+        }
+        Insert: {
+          content_url?: string | null
+          created_at?: string
+          effective_date: string
+          id?: string
+          version: string
+        }
+        Update: {
+          content_url?: string | null
+          created_at?: string
+          effective_date?: string
+          id?: string
+          version?: string
         }
         Relationships: []
       }

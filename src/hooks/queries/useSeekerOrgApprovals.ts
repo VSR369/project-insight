@@ -72,7 +72,7 @@ export function useSeekerOrgDetail(orgId?: string) {
           registration_step, created_at, updated_at,
           correction_count, correction_instructions,
           suspended_at, suspended_by, suspension_reason,
-          verification_started_at,
+          verification_started_at, registrant_contact,
           countries!seeker_organizations_hq_country_id_fkey(name, code),
           organization_types(name)
         `)
@@ -89,7 +89,7 @@ export function useSeekerOrgDetail(orgId?: string) {
         supabase.from('seeker_org_industries').select('*, industry_segments(name)').eq('organization_id', orgId),
         supabase.from('seeker_org_operating_geographies').select('*, countries(name)').eq('organization_id', orgId),
         supabase.from('org_users').select('*').eq('organization_id', orgId).eq('is_active', true),
-        supabase.from('org_admin_change_requests').select('new_admin_name, new_admin_email, new_admin_phone, lifecycle_status').eq('organization_id', orgId).eq('request_type', 'registration_delegate').maybeSingle(),
+        supabase.from('org_admin_change_requests').select('new_admin_name, new_admin_email, new_admin_phone, new_admin_title, new_admin_relationship_to_org, lifecycle_status').eq('organization_id', orgId).eq('request_type', 'registration_delegate').maybeSingle(),
       ]);
 
       return {
