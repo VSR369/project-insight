@@ -21,6 +21,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Check, X, Star, Crown, Zap, MessageSquare, Lightbulb, ArrowLeft, ArrowRight, Loader2, Sparkles, Building,
 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
 import {
@@ -61,6 +64,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -116,6 +120,11 @@ export function PlanSelectionForm() {
   const [selectedCycleId, setSelectedCycleId] = useState<string>(
     () => ''
   );
+  const [showEnterpriseDialog, setShowEnterpriseDialog] = useState(false);
+  const [enterpriseFormData, setEnterpriseFormData] = useState({
+    expected_challenge_volume: '',
+    specific_requirements: '',
+  });
 
   // ══════════════════════════════════════
   // SECTION 2: Context and navigation
@@ -279,6 +288,14 @@ export function PlanSelectionForm() {
   const handleEnterpriseContact = async () => {
     if (!state.organizationId || !state.tenantId || !state.step2) return;
 
+    const messageParts = ['Enterprise tier inquiry from registration wizard'];
+    if (enterpriseFormData.expected_challenge_volume) {
+      messageParts.push(`Expected challenge volume/month: ${enterpriseFormData.expected_challenge_volume}`);
+    }
+    if (enterpriseFormData.specific_requirements.trim()) {
+      messageParts.push(`Requirements: ${enterpriseFormData.specific_requirements.trim()}`);
+    }
+
     try {
       await submitEnterprise.mutateAsync({
         organization_id: state.organizationId,
@@ -287,8 +304,10 @@ export function PlanSelectionForm() {
         contact_email: state.step2.email,
         contact_phone: state.step2.phone,
         company_size: state.step1?.company_size_range,
-        message: 'Enterprise tier inquiry from registration wizard',
+        message: messageParts.join(' | '),
       });
+      setShowEnterpriseDialog(false);
+      setEnterpriseFormData({ expected_challenge_volume: '', specific_requirements: '' });
     } catch {
       // Error handled by mutation's onError callback
     }
@@ -747,14 +766,10 @@ export function PlanSelectionForm() {
                     type="button"
                     variant="outline"
                     className={cn('w-full', config.btnClass)}
-                    onClick={handleEnterpriseContact}
+                    onClick={() => setShowEnterpriseDialog(true)}
                     disabled={submitEnterprise.isPending}
                   >
-                    {submitEnterprise.isPending ? (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    ) : (
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                    )}
+                    <MessageSquare className="mr-2 h-4 w-4" />
                     Contact Sales
                   </Button>
                 </div>
@@ -828,6 +843,72 @@ export function PlanSelectionForm() {
             )}
           </div>
         </div>
+
+        {/* Enterprise Qualification Dialog */}
+        <Dialog open={showEnterpriseDialog} onOpenChange={setShowEnterpriseDialog}>
+          <DialogContent className="w-full max-w-md">
+            <DialogHeader>
+              <DialogTitle>Contact Our Enterprise Team</DialogTitle>
+              <DialogDescription>
+                Tell us about your needs so we can tailor the right plan for you.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              {/* Company Size — read-only from Step 1 */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Company Size</Label>
+                <Input
+                  value={state.step1?.company_size_range || 'Not specified'}
+                  readOnly
+                  className="text-base bg-muted/50"
+                />
+              </div>
+
+              {/* Expected Challenge Volume */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Expected Challenges per Month</Label>
+                <Select
+                  value={enterpriseFormData.expected_challenge_volume}
+                  onValueChange={(val) => setEnterpriseFormData(prev => ({ ...prev, expected_challenge_volume: val }))}
+                >
+                  <SelectTrigger className="text-base">
+                    <SelectValue placeholder="Select volume" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="1-5">1–5</SelectItem>
+                    <SelectItem value="6-20">6–20</SelectItem>
+                    <SelectItem value="21-50">21–50</SelectItem>
+                    <SelectItem value="50+">50+</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Specific Requirements */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Specific Requirements (Optional)</Label>
+                <Textarea
+                  value={enterpriseFormData.specific_requirements}
+                  onChange={(e) => setEnterpriseFormData(prev => ({ ...prev, specific_requirements: e.target.value.slice(0, 500) }))}
+                  placeholder="Any particular needs — SLA, integrations, compliance..."
+                  className="min-h-[100px]"
+                  maxLength={500}
+                />
+                <p className="text-xs text-muted-foreground text-right">
+                  {enterpriseFormData.specific_requirements.length}/500
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowEnterpriseDialog(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleEnterpriseContact} disabled={submitEnterprise.isPending}>
+                {submitEnterprise.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                Submit Inquiry
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </form>
     </Form>
   );
