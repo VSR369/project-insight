@@ -74,6 +74,8 @@ export function ComplianceForm() {
       iso27001_certified: false,
       compliance_notes: '',
       nda_preference: state.step3?.nda_preference ?? 'standard_platform_nda',
+      privacy_policy_accepted: false as any,
+      dpa_accepted: false as any,
     },
   });
 
@@ -140,6 +142,8 @@ export function ComplianceForm() {
         iso27001_certified: data.iso27001_certified,
         compliance_notes: data.compliance_notes || undefined,
         nda_preference: data.nda_preference,
+        privacy_policy_accepted: data.privacy_policy_accepted,
+        dpa_accepted: data.dpa_accepted,
       });
 
       // Upload custom NDA file if provided
@@ -418,6 +422,64 @@ export function ComplianceForm() {
               </div>
             </div>
           )}
+        </div>
+
+        {/* Privacy Policy & DPA Acceptance */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-sm font-medium text-foreground">
+            <Shield className="h-4 w-4" />
+            <span>Legal Agreements</span>
+          </div>
+
+          <FormField
+            control={form.control}
+            name="privacy_policy_accepted"
+            render={({ field }) => (
+              <FormItem className="flex items-start gap-3 rounded-lg border border-border p-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value === true}
+                    onCheckedChange={field.onChange}
+                    className="mt-0.5"
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel className="cursor-pointer text-sm font-medium">
+                    I accept the Privacy Policy *
+                  </FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    I have read and agree to the platform's <a href="/privacy" className="text-primary underline">Privacy Policy</a>.
+                  </p>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="dpa_accepted"
+            render={({ field }) => (
+              <FormItem className="flex items-start gap-3 rounded-lg border border-border p-3">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value === true}
+                    onCheckedChange={field.onChange}
+                    className="mt-0.5"
+                  />
+                </FormControl>
+                <div className="space-y-0.5">
+                  <FormLabel className="cursor-pointer text-sm font-medium">
+                    I accept the Data Processing Agreement *
+                  </FormLabel>
+                  <p className="text-xs text-muted-foreground">
+                    I have read and agree to the <a href="/dpa" className="text-primary underline">Data Processing Agreement</a>.
+                  </p>
+                </div>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
         </div>
 
         {/* Notes */}

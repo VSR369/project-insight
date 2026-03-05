@@ -70,6 +70,8 @@ export function useUpsertCompliance() {
       iso27001_certified: boolean;
       compliance_notes?: string;
       nda_preference?: 'standard_platform_nda' | 'custom_nda';
+      privacy_policy_accepted?: boolean;
+      dpa_accepted?: boolean;
     }) => {
       // 1. Upsert compliance record
       const { data, error } = await supabase
@@ -87,7 +89,9 @@ export function useUpsertCompliance() {
             soc2_compliant: payload.soc2_compliant,
             iso27001_certified: payload.iso27001_certified,
             compliance_notes: payload.compliance_notes || null,
-          },
+            privacy_policy_accepted: payload.privacy_policy_accepted ?? false,
+            dpa_accepted: payload.dpa_accepted ?? false,
+          } as any,
           { onConflict: 'organization_id' }
         )
         .select('id')

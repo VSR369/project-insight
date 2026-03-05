@@ -27,6 +27,19 @@ export const organizationIdentitySchema = z.object({
     .optional()
     .or(z.literal('')),
 
+  website_url: z.string()
+    .trim()
+    .url('Please enter a valid URL (e.g. https://example.com)')
+    .max(255, 'URL must be 255 characters or less')
+    .optional()
+    .or(z.literal('')),
+
+  business_registration_number: z.string()
+    .trim()
+    .max(100, 'Registration number must be 100 characters or less')
+    .optional()
+    .or(z.literal('')),
+
   organization_type_id: z.string()
     .min(1, 'Please select an organization type'),
 

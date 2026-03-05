@@ -2807,6 +2807,8 @@ export type Database = {
           new_admin_email: string
           new_admin_name: string | null
           new_admin_phone: string | null
+          new_admin_relationship_to_org: string | null
+          new_admin_title: string | null
           organization_id: string
           platform_notes: string | null
           request_type: string
@@ -2826,6 +2828,8 @@ export type Database = {
           new_admin_email: string
           new_admin_name?: string | null
           new_admin_phone?: string | null
+          new_admin_relationship_to_org?: string | null
+          new_admin_title?: string | null
           organization_id: string
           platform_notes?: string | null
           request_type: string
@@ -2845,6 +2849,8 @@ export type Database = {
           new_admin_email?: string
           new_admin_name?: string | null
           new_admin_phone?: string | null
+          new_admin_relationship_to_org?: string | null
+          new_admin_title?: string | null
           organization_id?: string
           platform_notes?: string | null
           request_type?: string
@@ -5838,6 +5844,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           data_residency_id: string | null
+          dpa_accepted: boolean
           export_control_status_id: string | null
           gdpr_compliant: boolean
           hipaa_compliant: boolean
@@ -5847,6 +5854,7 @@ export type Database = {
           itar_certification_expiry: string | null
           itar_certified: boolean
           organization_id: string
+          privacy_policy_accepted: boolean
           reviewed_at: string | null
           reviewed_by: string | null
           soc2_compliant: boolean
@@ -5860,6 +5868,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_residency_id?: string | null
+          dpa_accepted?: boolean
           export_control_status_id?: string | null
           gdpr_compliant?: boolean
           hipaa_compliant?: boolean
@@ -5869,6 +5878,7 @@ export type Database = {
           itar_certification_expiry?: string | null
           itar_certified?: boolean
           organization_id: string
+          privacy_policy_accepted?: boolean
           reviewed_at?: string | null
           reviewed_by?: string | null
           soc2_compliant?: boolean
@@ -5882,6 +5892,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           data_residency_id?: string | null
+          dpa_accepted?: boolean
           export_control_status_id?: string | null
           gdpr_compliant?: boolean
           hipaa_compliant?: boolean
@@ -5891,6 +5902,7 @@ export type Database = {
           itar_certification_expiry?: string | null
           itar_certified?: boolean
           organization_id?: string
+          privacy_policy_accepted?: boolean
           reviewed_at?: string | null
           reviewed_by?: string | null
           soc2_compliant?: boolean
@@ -6694,6 +6706,7 @@ export type Database = {
           organization_type_id: string | null
           preferred_currency: string | null
           preferred_language_id: string | null
+          registrant_contact: Json | null
           registration_number: string | null
           registration_step: number
           rejection_reason: string | null
@@ -6751,6 +6764,7 @@ export type Database = {
           organization_type_id?: string | null
           preferred_currency?: string | null
           preferred_language_id?: string | null
+          registrant_contact?: Json | null
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
@@ -6808,6 +6822,7 @@ export type Database = {
           organization_type_id?: string | null
           preferred_currency?: string | null
           preferred_language_id?: string | null
+          registrant_contact?: Json | null
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
