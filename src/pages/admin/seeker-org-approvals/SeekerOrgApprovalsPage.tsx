@@ -40,6 +40,7 @@ export default function SeekerOrgApprovalsPage() {
   const paginatedOrgs = allOrgs.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   return (
+    <FeatureErrorBoundary featureName="SeekerOrgApprovals">
     <div>
       <PageHeader
         title="Organization Approvals"

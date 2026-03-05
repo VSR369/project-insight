@@ -40,6 +40,7 @@ export default function OrgDashboardPage() {
     : null;
 
   return (
+    <FeatureErrorBoundary featureName="OrgDashboard">
     <OrgLayout title="Dashboard" description={`Welcome to ${orgName}`}>
       {/* T&C Re-acceptance / First-login modal */}
       <TcReAcceptanceModal
