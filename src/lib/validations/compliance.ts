@@ -18,6 +18,12 @@ export const complianceSchema = z.object({
   iso27001_certified: z.boolean().default(false),
   compliance_notes: z.string().max(500, 'Notes must be 500 characters or less').optional(),
   nda_preference: z.enum(['standard_platform_nda', 'custom_nda']).default('standard_platform_nda'),
+  privacy_policy_accepted: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept the Privacy Policy' }),
+  }),
+  dpa_accepted: z.literal(true, {
+    errorMap: () => ({ message: 'You must accept the Data Processing Agreement' }),
+  }),
 }).refine(
   (data) => {
     if (data.itar_certified && !data.itar_certification_expiry) {

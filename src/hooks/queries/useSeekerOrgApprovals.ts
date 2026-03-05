@@ -13,7 +13,7 @@ export function usePendingSeekerCount() {
       const { count, error } = await supabase
         .from('seeker_organizations')
         .select('id', { count: 'exact', head: true })
-        .eq('verification_status', 'pending')
+        .eq('verification_status', 'payment_submitted')
         .eq('is_deleted', false);
       if (error) throw new Error(error.message);
       return count ?? 0;

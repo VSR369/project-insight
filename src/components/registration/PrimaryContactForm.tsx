@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useBlockedDomains,
   useLanguages,
@@ -50,6 +51,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Loader2, ArrowLeft, ArrowRight, UserCircle } from 'lucide-react';
@@ -90,6 +92,7 @@ export function PrimaryContactForm() {
   const [adminDesignation, setAdminDesignation] = useState<'self' | 'separate'>(
     state.step2?.admin_designation ?? 'self'
   );
+  const [selfConfirmed, setSelfConfirmed] = useState(false);
   const [separateAdmin, setSeparateAdmin] = useState({
     name: state.step2?.separate_admin?.name ?? '',
     email: state.step2?.separate_admin?.email ?? '',
@@ -97,6 +100,8 @@ export function PrimaryContactForm() {
     country_id: state.step2?.separate_admin?.country_id ?? state.step1?.hq_country_id ?? '',
     phone_country_code: state.step2?.separate_admin?.phone_country_code ?? state.localeInfo?.phone_code ?? '',
     working_location: state.step2?.separate_admin?.working_location ?? '',
+    admin_title: (state.step2?.separate_admin as any)?.admin_title ?? '',
+    relationship_to_org: (state.step2?.separate_admin as any)?.relationship_to_org ?? '',
   });
 
   // ══════════════════════════════════════
@@ -192,8 +197,29 @@ export function PrimaryContactForm() {
       form.setError('email', { message: 'Free email providers are not allowed' });
       return;
     }
-    // BR-REG-002: Separate admin email must differ from registrant email
-    if (adminDesignation === 'separate' && separateAdmin.email) {
+    // BR-REG-006: SELF confirmation checkbox
+    if (adminDesignation === 'self' && !selfConfirmed) {
+      toast.error('Please confirm that you will serve as the Primary Seeking Org Admin.');
+      return;
+    }
+    // BR-REG-002: Separate admin validation
+    if (adminDesignation === 'separate') {
+      if (!separateAdmin.name.trim()) {
+        toast.error('Designated admin name is required.');
+        return;
+      }
+      if (!separateAdmin.email.trim()) {
+        toast.error('Designated admin email is required.');
+        return;
+      }
+      if (!separateAdmin.phone.trim()) {
+        toast.error('Designated admin phone number is required.');
+        return;
+      }
+      if (!separateAdmin.admin_title.trim()) {
+        toast.error('Designated admin title/role is required.');
+        return;
+      }
       if (separateAdmin.email.trim().toLowerCase() === data.email.trim().toLowerCase()) {
         toast.error('The designated admin email must be different from your registrant email.');
         return;
@@ -220,6 +246,20 @@ export function PrimaryContactForm() {
         email_verified: emailVerified,
       });
 
+      // 1.9: Store registrant_contact JSONB on org record
+      await supabase
+        .from('seeker_organizations')
+        .update({
+          registrant_contact: {
+            first_name: data.first_name,
+            last_name: data.last_name,
+            email: data.email,
+            phone_number: data.phone_number,
+            job_title: data.job_title,
+          },
+        } as any)
+        .eq('id', state.organizationId);
+
       setStep2Data({
         full_name: `${data.first_name} ${data.last_name}`,
         first_name: data.first_name,
@@ -242,7 +282,9 @@ export function PrimaryContactForm() {
               country_id: separateAdmin.country_id || undefined,
               phone_country_code: separateAdmin.phone_country_code || undefined,
               working_location: separateAdmin.working_location || undefined,
-            }
+              admin_title: separateAdmin.admin_title || undefined,
+              relationship_to_org: separateAdmin.relationship_to_org || undefined,
+            } as any
           : undefined,
       });
 
@@ -541,24 +583,67 @@ export function PrimaryContactForm() {
               </div>
             </RadioGroup>
 
+            {/* SELF confirmation checkbox */}
+            {adminDesignation === 'self' && (
+              <div className="flex items-start gap-3 pt-2 pl-6 border-l-2 border-primary/20">
+                <Checkbox
+                  id="self-confirm"
+                  checked={selfConfirmed}
+                  onCheckedChange={(checked) => setSelfConfirmed(checked === true)}
+                  className="mt-0.5"
+                />
+                <Label htmlFor="self-confirm" className="cursor-pointer text-sm text-muted-foreground">
+                  I confirm I will serve as the Primary Seeking Org Admin
+                </Label>
+              </div>
+            )}
+
             {adminDesignation === 'separate' && (
               <div className="space-y-3 pt-2 pl-6 border-l-2 border-primary/20">
-                <p className="text-xs text-muted-foreground">
-                  Separate Admin Details (Optional) — You can provide these later from Settings.
+                <p className="text-xs font-medium text-foreground">
+                  Designated Admin Details (Required)
                 </p>
-                <Input
-                  placeholder="Full Name"
-                  className="text-base"
-                  value={separateAdmin.name}
-                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, name: e.target.value }))}
-                />
-                <Input
-                  placeholder="Email address"
-                  type="email"
-                  className="text-base"
-                  value={separateAdmin.email}
-                  onChange={(e) => setSeparateAdmin((p) => ({ ...p, email: e.target.value }))}
-                />
+                <div>
+                  <Label className="text-sm mb-1.5 block">Full Name *</Label>
+                  <Input
+                    placeholder="Full Name"
+                    className="text-base"
+                    value={separateAdmin.name}
+                    onChange={(e) => setSeparateAdmin((p) => ({ ...p, name: e.target.value }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-sm mb-1.5 block">Email *</Label>
+                  <Input
+                    placeholder="Email address"
+                    type="email"
+                    className="text-base"
+                    value={separateAdmin.email}
+                    onChange={(e) => setSeparateAdmin((p) => ({ ...p, email: e.target.value }))}
+                  />
+                </div>
+
+                {/* Admin Title (mandatory) */}
+                <div>
+                  <Label className="text-sm mb-1.5 block">Title / Role *</Label>
+                  <Input
+                    placeholder="e.g. IT Director, VP Operations"
+                    className="text-base"
+                    value={separateAdmin.admin_title}
+                    onChange={(e) => setSeparateAdmin((p) => ({ ...p, admin_title: e.target.value }))}
+                  />
+                </div>
+
+                {/* Relationship to Org (optional — used in V5 verification) */}
+                <div>
+                  <Label className="text-sm mb-1.5 block">Relationship to Organization</Label>
+                  <Input
+                    placeholder="e.g. Employee, Board Member, Consultant"
+                    className="text-base"
+                    value={separateAdmin.relationship_to_org}
+                    onChange={(e) => setSeparateAdmin((p) => ({ ...p, relationship_to_org: e.target.value }))}
+                  />
+                </div>
 
                 {/* Country selector for separate admin */}
                 <div>
@@ -599,7 +684,7 @@ export function PrimaryContactForm() {
                     />
                   </div>
                   <div>
-                    <Label className="text-sm mb-1.5 block">Phone Number</Label>
+                    <Label className="text-sm mb-1.5 block">Phone Number *</Label>
                     <Input
                       placeholder="Phone number"
                       type="tel"

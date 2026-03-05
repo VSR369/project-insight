@@ -34,6 +34,7 @@ import {
   organizationIdentitySchema,
   type OrganizationIdentityFormValues,
 } from '@/lib/validations/organizationIdentity';
+import type { OrganizationIdentityData } from '@/types/registration';
 import { COMPANY_SIZE_OPTIONS, ANNUAL_REVENUE_OPTIONS, FILE_LIMITS } from '@/config/registration';
 
 import {
@@ -90,6 +91,8 @@ export function OrganizationIdentityForm() {
     defaultValues: {
       legal_entity_name: state.step1?.legal_entity_name ?? '',
       trade_brand_name: state.step1?.trade_brand_name ?? '',
+      website_url: (state.step1 as any)?.website_url ?? '',
+      business_registration_number: (state.step1 as any)?.business_registration_number ?? '',
       organization_type_id: state.step1?.organization_type_id ?? '',
       industry_ids: state.step1?.industry_ids ?? [],
       company_size_range: state.step1?.company_size_range ?? undefined,
@@ -106,6 +109,10 @@ export function OrganizationIdentityForm() {
   const watchedOrgTypeId = form.watch('organization_type_id');
   const watchedYearFounded = form.watch('year_founded');
   const watchedSizeRange = form.watch('company_size_range');
+  const watchedRevenueRange = form.watch('annual_revenue_range');
+
+  // BR-REG-003: Enterprise auto-flag
+  const isEnterpriseCandidate = watchedSizeRange === '5001+' || watchedRevenueRange === '>1B';
 
   // ══════════════════════════════════════
   // SECTION 4: Query/Mutation hooks
@@ -200,6 +207,8 @@ export function OrganizationIdentityForm() {
     const payload = {
       legal_entity_name: data.legal_entity_name,
       trade_brand_name: data.trade_brand_name || undefined,
+      website_url: data.website_url || undefined,
+      registration_number: data.business_registration_number || undefined,
       organization_type_id: data.organization_type_id,
       employee_count_range: data.company_size_range,
       annual_revenue_range: data.annual_revenue_range,
@@ -209,6 +218,7 @@ export function OrganizationIdentityForm() {
       hq_city: data.city,
       industry_ids: data.industry_ids,
       operating_geography_ids: data.operating_geography_ids,
+      is_enterprise: isEnterpriseCandidate,
       subsidized_discount_pct: subsidizedPricing?.discount_pct,
       locale: {
         currency_code: countryLocale?.currency_code,
@@ -300,7 +310,9 @@ export function OrganizationIdentityForm() {
         city: data.city,
         operating_geography_ids: data.operating_geography_ids,
         verification_documents: verificationFiles.length > 0 ? verificationFiles : undefined,
-      });
+        website_url: data.website_url || undefined,
+        business_registration_number: data.business_registration_number || undefined,
+      } as OrganizationIdentityData & { website_url?: string; business_registration_number?: string });
 
       setStep(2);
       navigate('/registration/primary-contact');
@@ -356,6 +368,21 @@ export function OrganizationIdentityForm() {
                 <FormLabel>Trade / Brand Name</FormLabel>
                 <FormControl>
                   <Input {...field} placeholder="Optional — if different from legal name" className="text-base" />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Website URL */}
+          <FormField
+            control={form.control}
+            name="website_url"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Website URL</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="https://www.example.com" className="text-base" />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -483,6 +510,17 @@ export function OrganizationIdentityForm() {
             />
           </div>
 
+          {/* BR-REG-003: Enterprise Auto-Flag Banner */}
+          {isEnterpriseCandidate && (
+            <Alert className="border-primary/30 bg-primary/5">
+              <AlertTriangle className="h-4 w-4 text-primary" />
+              <AlertDescription className="text-sm">
+                Based on your organization profile, we recommend the <strong>Premium (Enterprise)</strong> tier
+                for organizations with 5,000+ employees or $1B+ annual revenue.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {/* Year Founded */}
           <FormField
             control={form.control}
@@ -499,6 +537,21 @@ export function OrganizationIdentityForm() {
                     value={field.value || ''}
                     onChange={(e) => field.onChange(e.target.value ? Number(e.target.value) : '')}
                   />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          {/* Business Registration Number */}
+          <FormField
+            control={form.control}
+            name="business_registration_number"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Business Registration Number</FormLabel>
+                <FormControl>
+                  <Input {...field} placeholder="e.g. Company Registration No." className="text-base" />
                 </FormControl>
                 <FormMessage />
               </FormItem>

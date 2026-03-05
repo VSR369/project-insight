@@ -298,9 +298,11 @@ export function BillingForm() {
             new_admin_name: state.step2.separate_admin.name ?? null,
             new_admin_email: state.step2.separate_admin.email,
             new_admin_phone: state.step2.separate_admin.phone ?? null,
+            new_admin_title: (state.step2.separate_admin as any).admin_title ?? null,
+            new_admin_relationship_to_org: (state.step2.separate_admin as any).relationship_to_org ?? null,
             request_type: 'registration_delegate',
             lifecycle_status: 'pending',
-          });
+          } as any);
         } catch {
           // Non-blocking — admin change request is secondary
         }
