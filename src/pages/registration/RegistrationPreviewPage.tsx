@@ -8,7 +8,7 @@ import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useNavigate } from 'react-router-dom';
 import {
   Building2, User, Shield, CreditCard, FileText, CheckCircle2, LogIn, Printer,
-  FileIcon, Globe,
+  FileIcon, Globe, ArrowLeft, LayoutDashboard, LogOut,
 } from 'lucide-react';
 
 import { useRegistrationContext } from '@/contexts/RegistrationContext';
@@ -160,6 +160,8 @@ export default function RegistrationPreviewPage() {
   const dueToday = isInternalDept ? 0 : subscriptionTotal + membershipFee;
 
   const handleGoToLogin = () => { reset(); navigate('/login'); };
+  const handleBack = () => navigate('/registration/compliance');
+  const handleDashboard = () => navigate('/org/dashboard');
 
   // ── Guard: no data ──
   if (!s1 && !s2 && !s3 && !s4 && !s5) {
@@ -375,12 +377,17 @@ export default function RegistrationPreviewPage() {
 
             {/* Actions */}
             <div className="flex flex-col gap-3">
-              <Button onClick={handleGoToLogin} size="lg" className="gap-2 w-full">
-                <LogIn className="h-4 w-4" /> Go to Login
+              <Button variant="outline" onClick={handleBack} size="lg" className="gap-2 w-full">
+                <ArrowLeft className="h-4 w-4" /> Back
               </Button>
-              <Button variant="outline" size="lg" className="gap-2 w-full" onClick={() => window.print()}>
-                <Printer className="h-4 w-4" /> Print Summary
-              </Button>
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="outline" onClick={handleGoToLogin} size="lg" className="gap-2 w-full">
+                  <LogOut className="h-4 w-4" /> Logout
+                </Button>
+                <Button onClick={handleDashboard} size="lg" className="gap-2 w-full">
+                  <LayoutDashboard className="h-4 w-4" /> Dashboard
+                </Button>
+              </div>
             </div>
           </div>
         </div>
