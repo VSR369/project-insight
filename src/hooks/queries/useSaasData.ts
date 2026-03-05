@@ -7,6 +7,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { handleMutationError } from '@/lib/errorHandler';
 import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
 
 // ============================================================
@@ -113,7 +114,7 @@ export function useCreateSaasAgreement() {
       toast.success('SaaS agreement created successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to create agreement: ${error.message}`);
+      handleMutationError(error, { operation: 'create_saas_agreement' });
     },
   });
 }
@@ -176,7 +177,7 @@ export function useUpdateSaasAgreement() {
       toast.success('Agreement updated successfully');
     },
     onError: (error: Error) => {
-      toast.error(`Failed to update agreement: ${error.message}`);
+      handleMutationError(error, { operation: 'update_saas_agreement' });
     },
   });
 }
@@ -224,7 +225,7 @@ export function useCreateChildOrg() {
       if (msg.includes('idx_seeker_orgs_unique_name_country')) {
         toast.error('An organization with this name already exists in the selected country.');
       } else {
-        toast.error(`Failed to create organization: ${msg}`);
+        handleMutationError(error, { operation: 'create_child_org' });
       }
     },
   });

@@ -5,6 +5,8 @@
  * and post-recording validation to ensure recordings contain actual audio.
  */
 
+import { logDebug, logWarning } from "@/lib/errorHandler";
+
 // ============================================================================
 // MIME Type Detection
 // ============================================================================
@@ -30,7 +32,7 @@ export function getSupportedMimeType(): MimeTypeResult {
 
   for (const candidate of candidates) {
     if (MediaRecorder.isTypeSupported(candidate.mime)) {
-      console.log('[AudioUtils] Selected MIME type:', candidate.mime);
+      logDebug('[AudioUtils] Selected MIME type: ' + candidate.mime, { operation: 'audio_mime_detection' });
       return {
         mimeType: candidate.mime,
         extension: candidate.ext,
@@ -40,7 +42,7 @@ export function getSupportedMimeType(): MimeTypeResult {
   }
 
   // Fallback: let browser choose
-  console.log('[AudioUtils] No preferred MIME type supported, using browser default');
+  logDebug('[AudioUtils] No preferred MIME type supported, using browser default', { operation: 'audio_mime_detection' });
   return {
     mimeType: '',
     extension: 'webm', // Most common default
@@ -119,7 +121,7 @@ const SILENCE_THRESHOLD = 0.005;
  * @returns Promise<ValidationResult>
  */
 export async function validateRecordedAudio(blob: Blob): Promise<ValidationResult> {
-  console.log('[AudioUtils] Validating recording:', blob.size, 'bytes, type:', blob.type);
+  logDebug('[AudioUtils] Validating recording: ' + blob.size + ' bytes, type: ' + blob.type, { operation: 'audio_validation' });
   
   // Check minimum size (a few KB minimum for any real audio)
   if (blob.size < 1000) {
@@ -141,8 +143,7 @@ export async function validateRecordedAudio(blob: Blob): Promise<ValidationResul
       const channelData = audioBuffer.getChannelData(0);
       const rms = calculateRMSFromPCM(channelData);
       
-      console.log('[AudioUtils] Decoded audio - Duration:', audioBuffer.duration.toFixed(2), 
-        's, RMS:', rms.toFixed(4));
+      logDebug('[AudioUtils] Decoded audio - Duration: ' + audioBuffer.duration.toFixed(2) + 's, RMS: ' + rms.toFixed(4), { operation: 'audio_validation' });
       
       audioContext.close();
       
@@ -163,7 +164,7 @@ export async function validateRecordedAudio(blob: Blob): Promise<ValidationResul
       };
       
     } catch (decodeError) {
-      console.error('[AudioUtils] Failed to decode audio:', decodeError);
+      logWarning('[AudioUtils] Failed to decode audio: ' + String(decodeError), { operation: 'audio_validation' });
       audioContext.close();
       
       return {
@@ -176,7 +177,7 @@ export async function validateRecordedAudio(blob: Blob): Promise<ValidationResul
     }
     
   } catch (err) {
-    console.error('[AudioUtils] Validation error:', err);
+    logWarning('[AudioUtils] Validation error: ' + String(err), { operation: 'audio_validation' });
     return {
       isValid: false,
       rms: 0,
@@ -215,7 +216,7 @@ export async function getAudioInputDevices(): Promise<AudioDevice[]> {
         label: device.label || `Microphone ${index + 1}`,
       }));
   } catch (err) {
-    console.error('[AudioUtils] Failed to enumerate devices:', err);
+    logWarning('[AudioUtils] Failed to enumerate devices: ' + String(err), { operation: 'audio_device_enum' });
     return [];
   }
 }

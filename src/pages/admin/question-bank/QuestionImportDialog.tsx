@@ -357,10 +357,7 @@ export function QuestionImportDialog({
   const { data: hierarchyData, isLoading: hierarchyLoading } = useHierarchyData();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Debug: Log isImporting state transitions
-  React.useEffect(() => {
-    console.log('[QuestionImportDialog] isImporting changed to:', isImporting);
-  }, [isImporting]);
+  // Debug logging removed per §11.5 compliance
 
   // Reset state when dialog closes
   React.useEffect(() => {

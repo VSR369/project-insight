@@ -144,7 +144,6 @@ function ProofPointsContent() {
         });
       } catch (error) {
         // Error is already handled by the mutation's onError
-        console.error('Delete error:', error);
       }
     }
   };
