@@ -7311,6 +7311,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           designated_by: string | null
+          designation_method: string | null
           domain_scope: string
           id: string
           organization_id: string
@@ -7325,6 +7326,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           designated_by?: string | null
+          designation_method?: string | null
           domain_scope?: string
           id?: string
           organization_id: string
@@ -7339,6 +7341,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           designated_by?: string | null
+          designation_method?: string | null
           domain_scope?: string
           id?: string
           organization_id?: string
