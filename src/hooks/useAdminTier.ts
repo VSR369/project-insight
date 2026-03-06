@@ -26,7 +26,7 @@ export function useAdminTier(): AdminTierResult {
         .from('platform_admin_profiles')
         .select('admin_tier')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
       if (error) throw new Error(error.message);
       return profile?.admin_tier as AdminTier;

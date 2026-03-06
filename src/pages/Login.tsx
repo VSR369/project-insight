@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 // Portal type for routing
 type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
-type AdminSubTier = 'supervisor' | 'senior_admin' | 'admin';
+
 
 // Tab configuration with icons and descriptions
 const LOGIN_TABS: Array<{
@@ -77,7 +77,7 @@ const DEV_ACCOUNTS: Array<{
   portal: PortalType;
 }> = [
   {
-    role: 'Platform Admin',
+    role: 'Supervisor',
     email: 'admin@test.local',
     password: 'Admin123!',
     icon: Shield,
@@ -86,20 +86,38 @@ const DEV_ACCOUNTS: Array<{
     portal: 'admin',
   },
   {
-    role: 'Solution Provider',
+    role: 'Senior Admin',
+    email: 'senioradmin@test.local',
+    password: 'SeniorAdmin123!',
+    icon: Shield,
+    description: 'Config + team view',
+    color: 'text-orange-600',
+    portal: 'admin',
+  },
+  {
+    role: 'Basic Admin',
+    email: 'basicadmin@test.local',
+    password: 'BasicAdmin123!',
+    icon: Shield,
+    description: 'Core admin only',
+    color: 'text-amber-600',
+    portal: 'admin',
+  },
+  {
+    role: 'Provider',
     email: 'provider@test.local',
     password: 'Provider123!',
     icon: User,
-    description: 'Provider dashboard access',
+    description: 'Provider dashboard',
     color: 'text-primary',
     portal: 'provider',
   },
   {
-    role: 'Panel Reviewer',
+    role: 'Reviewer',
     email: 'reviewer@test.local',
     password: 'Reviewer123!',
     icon: ClipboardCheck,
-    description: 'Interview panel access',
+    description: 'Interview panel',
     color: 'text-green-600',
     portal: 'reviewer',
   },
@@ -108,7 +126,7 @@ const DEV_ACCOUNTS: Array<{
     email: 'seeker@test.local',
     password: 'Seeker123!',
     icon: Building2,
-    description: 'Organization portal access',
+    description: 'Organization portal',
     color: 'text-teal-600',
     portal: 'organization',
   },
@@ -127,7 +145,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDevAccounts, setShowDevAccounts] = useState(true);
   const [selectedRole, setSelectedRole] = useState<PortalType>('provider');
-  const [adminSubTier, setAdminSubTier] = useState<AdminSubTier>('admin');
+  
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
@@ -334,9 +352,6 @@ export default function Login() {
         
         // Persist portal choice and admin tier for future sessions/refreshes
         sessionStorage.setItem('activePortal', targetPortal);
-        if (targetPortal === 'admin') {
-          sessionStorage.setItem('adminTier', adminSubTier);
-        }
         
         // Handle pending reviewers - redirect to pending approval page
         if (targetPortal === 'reviewer' && isPendingReviewer) {
@@ -409,26 +424,6 @@ export default function Login() {
             <CardDescription className="text-center text-sm">
               {currentTab.description}
             </CardDescription>
-            {/* Admin tier sub-selector */}
-            {selectedRole === 'admin' && (
-              <div className="flex justify-center gap-1 pt-2">
-                {(['supervisor', 'senior_admin', 'admin'] as const).map((tier) => (
-                  <Button
-                    key={tier}
-                    type="button"
-                    size="sm"
-                    variant={adminSubTier === tier ? 'default' : 'outline'}
-                    className={cn(
-                      "text-xs capitalize",
-                      adminSubTier === tier && "bg-destructive hover:bg-destructive/90"
-                    )}
-                    onClick={() => setAdminSubTier(tier)}
-                  >
-                    {tier === 'senior_admin' ? 'Senior Admin' : tier}
-                  </Button>
-                ))}
-              </div>
-            )}
           </CardHeader>
 
           <Form {...form}>
@@ -559,7 +554,7 @@ export default function Login() {
           </CardHeader>
           {showDevAccounts && (
             <CardContent className="pt-2">
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
                 {DEV_ACCOUNTS.map((account) => {
                   const Icon = account.icon;
                   return (
