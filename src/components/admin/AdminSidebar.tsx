@@ -140,7 +140,7 @@ export function AdminSidebar() {
   // Build team management items based on tier
   const teamManagementItems = [
     ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    { title: 'My Profile', icon: User, path: '/admin/my-profile' },
+    ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
   // Prefetch on hover handler
