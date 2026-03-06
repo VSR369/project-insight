@@ -294,9 +294,28 @@ export default function Register() {
   const onAdminSubmit = async (data: AdminRegisterFormData) => {
     setIsLoading(true);
     try {
-      // TODO(ADMIN-ACCESS): Implement admin access code validation via edge function
-      // Requires integration with admin_access_codes table - see database schema
-      toast.error('Admin registration requires a valid access code. Contact your administrator.');
+      const { data: response, error } = await supabase.functions.invoke('register-platform-admin', {
+        body: {
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+          accessCode: data.accessCode,
+        },
+      });
+
+      if (error) {
+        toast.error(error.message || 'Registration failed');
+        return;
+      }
+
+      if (!response?.success) {
+        toast.error(response?.error || 'Registration failed');
+        return;
+      }
+
+      toast.success('Admin account created successfully. You can now log in.');
+      navigate('/login');
     } catch (err) {
       handleMutationError(err instanceof Error ? err : new Error(String(err)), { operation: 'register_admin' });
       toast.error('An unexpected error occurred');
