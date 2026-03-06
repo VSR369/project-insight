@@ -1,49 +1,16 @@
 
 
-# Platform Admin Sub-Role Tiers — Implementation Complete
+## Problem
 
-## What Was Implemented
+The `admin@test.local` user has the `platform_admin` role in `user_roles` but **no corresponding record in `platform_admin_profiles`**. The `useAdminTier` hook (used by `AdminSidebar` and `AdminHeader`) calls `.single()` which throws a 406 error when 0 rows are returned, causing the admin screens to fail to render.
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+## Fix
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+**File: `src/hooks/useAdminTier.ts`**
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+Change `.single()` to `.maybeSingle()` so that a missing profile row returns `null` instead of throwing an error. When `profile` is null, default the tier to `null` and let the UI render gracefully with no tier-restricted items visible.
 
-## Tier Permission Matrix
+This is a one-line change: line 29 `.single()` → `.maybeSingle()`.
 
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
+This will immediately unblock the admin dashboard for users who have the `platform_admin` role but haven't yet been registered via the platform admin registration flow.
 
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
