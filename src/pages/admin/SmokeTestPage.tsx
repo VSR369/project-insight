@@ -30,7 +30,9 @@ export default function SmokeTestPage() {
   // All hooks must be called first, before any conditional logic
   const [isSeeding, setIsSeeding] = React.useState(false);
   const [seedResult, setSeedResult] = React.useState<any>(null);
-  
+  const [isSeedingAdmins, setIsSeedingAdmins] = React.useState(false);
+  const [adminSeedResult, setAdminSeedResult] = React.useState<any>(null);
+
   const {
     isRunning,
     currentModule,
@@ -67,6 +69,26 @@ export default function SmokeTestPage() {
       setSeedResult({ success: false, error: err.message });
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  const handleSeedAdminAccounts = async () => {
+    setIsSeedingAdmins(true);
+    setAdminSeedResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-admin-test-accounts");
+      if (error) throw error;
+      setAdminSeedResult(data);
+      if (data?.success) {
+        toast.success(`Admin accounts seeded: ${data.accounts?.length || 3} accounts ready`);
+      } else {
+        toast.error(data?.error || "Seeding failed");
+      }
+    } catch (err: any) {
+      toast.error(`Seed failed: ${err.message}`);
+      setAdminSeedResult({ success: false, error: err.message });
+    } finally {
+      setIsSeedingAdmins(false);
     }
   };
 
@@ -202,7 +224,73 @@ export default function SmokeTestPage() {
         )}
       </Card>
 
-      {/* Summary Cards */}
+      {/* Admin Accounts Seeder Card */}
+      <Card className="mb-6 border-dashed">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Database className="h-5 w-5" />
+                Admin Tier Test Accounts
+              </CardTitle>
+              <CardDescription>
+                Seed 3 admin accounts: Supervisor (admin@test.local), Senior Admin (senioradmin@test.local), Basic Admin (basicadmin@test.local)
+              </CardDescription>
+            </div>
+            <Button
+              onClick={handleSeedAdminAccounts}
+              disabled={isSeedingAdmins}
+              variant="outline"
+            >
+              {isSeedingAdmins ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Seeding...
+                </>
+              ) : (
+                <>
+                  <Database className="h-4 w-4 mr-2" />
+                  Seed Admin Accounts
+                </>
+              )}
+            </Button>
+          </div>
+        </CardHeader>
+        {adminSeedResult && (
+          <CardContent>
+            <div className={`rounded-md p-3 ${adminSeedResult.success ? 'bg-green-50 border border-green-200' : 'bg-destructive/10 border border-destructive/20'}`}>
+              {adminSeedResult.success ? (
+                <div className="space-y-2">
+                  <p className="font-medium text-green-800">✓ Admin accounts seeded successfully</p>
+                  <div className="space-y-1 text-sm">
+                    {adminSeedResult.credentials?.map((cred: { email: string; password: string; tier: string }, i: number) => (
+                      <div key={i} className="flex items-center gap-2 text-green-700">
+                        <Badge variant="outline" className="text-xs capitalize">{cred.tier.replace('_', ' ')}</Badge>
+                        <span className="font-mono">{cred.email}</span>
+                        <span className="text-muted-foreground">/ {cred.password}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="text-destructive">❌ {adminSeedResult.error}</p>
+              )}
+            </div>
+            {adminSeedResult.phases && (
+              <ScrollArea className="h-32 mt-3 rounded-md border bg-muted/30 p-2">
+                <pre className="text-xs font-mono">
+                  {adminSeedResult.phases.map((phase: string, i: number) => (
+                    <div key={i} className={phase.includes("✓") ? "text-green-600" : phase.includes("❌") ? "text-destructive" : "text-muted-foreground"}>
+                      {phase}
+                    </div>
+                  ))}
+                </pre>
+              </ScrollArea>
+            )}
+          </CardContent>
+        )}
+      </Card>
+
       <div className="grid gap-4 md:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
