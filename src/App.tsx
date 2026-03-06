@@ -159,6 +159,9 @@ const ViewPlatformAdminPage = lazy(() => import("@/pages/admin/platform-admins/V
 const MyProfilePage = lazy(() => import("@/pages/admin/platform-admins/MyProfilePage"));
 const AvailabilitySettingsPage = lazy(() => import("@/pages/admin/platform-admins/AvailabilitySettingsPage"));
 
+// MOD-02: Assignment Engine Audit Log (Supervisor only)
+const AssignmentAuditLogPage = lazy(() => import("@/pages/admin/AssignmentAuditLogPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -560,6 +563,8 @@ const App = () => (
               <Route path="platform-admins/:adminId/edit" element={<TierGuard requiredTier="supervisor"><EditPlatformAdminPage /></TierGuard>} />
               <Route path="my-profile" element={<MyProfilePage />} />
               <Route path="availability" element={<AvailabilitySettingsPage />} />
+              {/* MOD-02: Assignment Engine Audit Log — supervisor only */}
+              <Route path="assignment-audit-log" element={<TierGuard requiredTier="supervisor"><AssignmentAuditLogPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
