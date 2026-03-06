@@ -97,3 +97,6 @@ verify_jwt = false
 
 [functions.manage-platform-admin]
 verify_jwt = false
+
+[functions.seed-admin-test-accounts]
+verify_jwt = false
