@@ -171,9 +171,10 @@ function AuditLogContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-8" />
-                    <TableHead>Date/Time</TableHead>
-                    <TableHead>Outcome</TableHead>
+                     <TableHead className="w-8" />
+                     <TableHead>Date/Time</TableHead>
+                     <TableHead>Org Name</TableHead>
+                     <TableHead>Outcome</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Domain Score</TableHead>
                     <TableHead>Selection Reason</TableHead>
