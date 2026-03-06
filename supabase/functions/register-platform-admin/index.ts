@@ -30,7 +30,6 @@ serve(async (req: Request) => {
     const body: RegisterAdminRequest = await req.json();
     const { email, password, firstName, lastName, accessCode } = body;
 
-    // Validate required fields
     if (!email || !password || !firstName || !lastName || !accessCode) {
       return new Response(
         JSON.stringify({ success: false, error: "All fields are required" }),
@@ -48,7 +47,7 @@ serve(async (req: Request) => {
     // Validate access code
     const { data: codeRecord, error: codeError } = await supabase
       .from("admin_access_codes")
-      .select("id, is_used, expires_at")
+      .select("id, is_used, expires_at, admin_tier")
       .eq("code_hash", codeHash)
       .maybeSingle();
 
@@ -73,6 +72,9 @@ serve(async (req: Request) => {
       );
     }
 
+    // Derive tier from access code
+    const adminTier = codeRecord.admin_tier || "admin";
+
     // Check if email already exists
     const { data: existingUsers } = await supabase.auth.admin.listUsers();
     const emailExists = existingUsers?.users?.some(
@@ -94,6 +96,7 @@ serve(async (req: Request) => {
         first_name: firstName,
         last_name: lastName,
         role_type: "platform_admin",
+        admin_tier: adminTier,
       },
     });
 
@@ -127,7 +130,6 @@ serve(async (req: Request) => {
 
     if (roleError) {
       console.error("[register-platform-admin] Role insert error:", roleError);
-      // Rollback: delete the auth user
       await supabase.auth.admin.deleteUser(userId);
       return new Response(
         JSON.stringify({ success: false, error: "Failed to assign admin role" }),
@@ -135,10 +137,7 @@ serve(async (req: Request) => {
       );
     }
 
-    // Create platform_admin_profiles record
-    // Note: industry_expertise is required (trigger enforced), so we use a placeholder
-    // The supervisor will complete the profile via the manage-platform-admin flow
-    // For self-registration, we insert with a default industry that must be updated later
+    // Get default industry for placeholder
     const { data: defaultIndustry } = await supabase
       .from("industry_segments")
       .select("id")
@@ -148,6 +147,7 @@ serve(async (req: Request) => {
 
     const industryExpertise = defaultIndustry ? [defaultIndustry.id] : [];
 
+    // Create platform_admin_profiles record with tier
     const { data: adminProfile, error: adminProfileError } = await supabase
       .from("platform_admin_profiles")
       .insert({
@@ -155,7 +155,8 @@ serve(async (req: Request) => {
         full_name: `${firstName} ${lastName}`,
         email,
         phone: "",
-        is_supervisor: false,
+        is_supervisor: adminTier === "supervisor",
+        admin_tier: adminTier,
         industry_expertise: industryExpertise,
         availability_status: "Available",
         created_by: userId,
@@ -165,7 +166,6 @@ serve(async (req: Request) => {
 
     if (adminProfileError) {
       console.error("[register-platform-admin] Admin profile error:", adminProfileError);
-      // Rollback
       await supabase.from("user_roles").delete().eq("user_id", userId);
       await supabase.auth.admin.deleteUser(userId);
       return new Response(
@@ -204,7 +204,11 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         success: true,
-        data: { user_id: userId, admin_profile_id: adminProfile?.id },
+        data: {
+          user_id: userId,
+          admin_profile_id: adminProfile?.id,
+          admin_tier: adminTier,
+        },
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

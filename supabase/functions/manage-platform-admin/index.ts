@@ -14,6 +14,14 @@ function generateSecurePassword(): string {
   return Array.from(array, (byte) => chars[byte % chars.length]).join("");
 }
 
+type AdminTier = "supervisor" | "senior_admin" | "admin";
+
+const TIER_RANK: Record<AdminTier, number> = {
+  supervisor: 3,
+  senior_admin: 2,
+  admin: 1,
+};
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -44,16 +52,19 @@ serve(async (req: Request) => {
       );
     }
 
-    // Verify caller is a supervisor
+    // Get caller's profile and tier
     const { data: callerProfile } = await supabase
       .from("platform_admin_profiles")
-      .select("id, is_supervisor")
+      .select("id, is_supervisor, admin_tier")
       .eq("user_id", caller.id)
       .single();
 
-    if (!callerProfile?.is_supervisor) {
+    const callerTier = (callerProfile?.admin_tier || "admin") as AdminTier;
+
+    // Only supervisor and senior_admin can manage admins
+    if (TIER_RANK[callerTier] < TIER_RANK["senior_admin"]) {
       return new Response(
-        JSON.stringify({ success: false, error: "Supervisor access required" }),
+        JSON.stringify({ success: false, error: "Senior Admin or Supervisor access required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -63,11 +74,11 @@ serve(async (req: Request) => {
 
     switch (action) {
       case "create":
-        return await handleCreate(supabase, body, caller.id, corsHeaders);
+        return await handleCreate(supabase, body, caller.id, callerTier, corsHeaders);
       case "update":
-        return await handleUpdate(supabase, body, caller.id, corsHeaders);
+        return await handleUpdate(supabase, body, caller.id, callerTier, corsHeaders);
       case "deactivate":
-        return await handleDeactivate(supabase, body, caller.id, corsHeaders);
+        return await handleDeactivate(supabase, body, caller.id, callerTier, corsHeaders);
       default:
         return new Response(
           JSON.stringify({ success: false, error: `Unknown action: ${action}` }),
@@ -90,6 +101,7 @@ async function handleCreate(
   supabase: ReturnType<typeof createClient>,
   body: Record<string, unknown>,
   callerId: string,
+  callerTier: AdminTier,
   headers: Record<string, string>
 ): Promise<Response> {
   const {
@@ -97,6 +109,7 @@ async function handleCreate(
     full_name,
     phone,
     is_supervisor,
+    admin_tier: requestedTier,
     industry_expertise,
     country_region_expertise,
     org_type_expertise,
@@ -108,6 +121,25 @@ async function handleCreate(
     return new Response(
       JSON.stringify({ success: false, error: "Missing required fields: email, full_name, phone, industry_expertise" }),
       { status: 400, headers: { ...headers, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Determine target tier
+  const targetTier: AdminTier = requestedTier || "admin";
+
+  // Enforce hierarchy: can only create tiers below or equal to own (supervisor can create all, senior_admin can only create admin)
+  if (TIER_RANK[targetTier] > TIER_RANK[callerTier]) {
+    return new Response(
+      JSON.stringify({ success: false, error: `You cannot create a ${targetTier}. Insufficient privileges.` }),
+      { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
+    );
+  }
+
+  // senior_admin can only create admin tier
+  if (callerTier === "senior_admin" && targetTier !== "admin") {
+    return new Response(
+      JSON.stringify({ success: false, error: "Senior Admins can only create Admin-tier accounts" }),
+      { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
     );
   }
 
@@ -125,7 +157,7 @@ async function handleCreate(
     );
   }
 
-  // Create auth user with generated password
+  // Create auth user
   const generatedPassword = generateSecurePassword();
   const nameParts = (full_name as string).split(" ");
   const firstName = nameParts[0];
@@ -135,7 +167,7 @@ async function handleCreate(
     email: email as string,
     password: generatedPassword,
     email_confirm: true,
-    user_metadata: { first_name: firstName, last_name: lastName, role_type: "platform_admin" },
+    user_metadata: { first_name: firstName, last_name: lastName, role_type: "platform_admin", admin_tier: targetTier },
   });
 
   if (authError || !authData.user) {
@@ -169,7 +201,7 @@ async function handleCreate(
     );
   }
 
-  // Insert platform_admin_profiles
+  // Insert platform_admin_profiles with tier
   const { data: adminProfile, error: profileError } = await supabase
     .from("platform_admin_profiles")
     .insert({
@@ -177,7 +209,8 @@ async function handleCreate(
       full_name,
       email,
       phone,
-      is_supervisor: is_supervisor || false,
+      is_supervisor: targetTier === "supervisor" || (is_supervisor || false),
+      admin_tier: targetTier,
       industry_expertise,
       country_region_expertise: country_region_expertise || [],
       org_type_expertise: org_type_expertise || [],
@@ -205,13 +238,15 @@ async function handleCreate(
     admin_id: adminProfile.id,
     event_type: "CREATED",
     actor_id: callerId,
-    actor_type: "SUPERVISOR",
+    actor_type: callerTier.toUpperCase(),
+    field_changed: "admin_tier",
+    new_value: JSON.stringify(targetTier),
   });
 
   return new Response(
     JSON.stringify({
       success: true,
-      data: { admin_id: adminProfile.id, user_id: userId, generated_password: generatedPassword },
+      data: { admin_id: adminProfile.id, user_id: userId, generated_password: generatedPassword, admin_tier: targetTier },
     }),
     { status: 200, headers: { ...headers, "Content-Type": "application/json" } }
   );
@@ -221,6 +256,7 @@ async function handleUpdate(
   supabase: ReturnType<typeof createClient>,
   body: Record<string, unknown>,
   callerId: string,
+  callerTier: AdminTier,
   headers: Record<string, string>
 ): Promise<Response> {
   const { admin_id, updates } = body as { admin_id: string; updates: Record<string, any> };
@@ -232,10 +268,23 @@ async function handleUpdate(
     );
   }
 
+  // Only supervisors can change admin_tier
+  if (updates.admin_tier && callerTier !== "supervisor") {
+    return new Response(
+      JSON.stringify({ success: false, error: "Only supervisors can change admin tier" }),
+      { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Keep is_supervisor in sync with admin_tier
+  if (updates.admin_tier) {
+    updates.is_supervisor = updates.admin_tier === "supervisor";
+  }
+
   // Get current values for diff
   const { data: current, error: fetchError } = await supabase
     .from("platform_admin_profiles")
-    .select("full_name, phone, is_supervisor, industry_expertise, country_region_expertise, org_type_expertise, max_concurrent_verifications, assignment_priority, availability_status, leave_start_date, leave_end_date")
+    .select("full_name, phone, is_supervisor, admin_tier, industry_expertise, country_region_expertise, org_type_expertise, max_concurrent_verifications, assignment_priority, availability_status, leave_start_date, leave_end_date")
     .eq("id", admin_id)
     .single();
 
@@ -243,6 +292,15 @@ async function handleUpdate(
     return new Response(
       JSON.stringify({ success: false, error: "Admin profile not found" }),
       { status: 404, headers: { ...headers, "Content-Type": "application/json" } }
+    );
+  }
+
+  // Senior admins cannot edit supervisors or other senior admins
+  const targetTier = (current as Record<string, any>).admin_tier as AdminTier;
+  if (callerTier === "senior_admin" && TIER_RANK[targetTier] >= TIER_RANK["senior_admin"]) {
+    return new Response(
+      JSON.stringify({ success: false, error: "Senior Admins cannot edit Supervisor or Senior Admin profiles" }),
+      { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
     );
   }
 
@@ -267,13 +325,14 @@ async function handleUpdate(
       let eventType = "UPDATED";
       if (key === "availability_status") eventType = "AVAILABILITY_CHANGED";
       if (key === "is_supervisor") eventType = "SUPERVISOR_CHANGED";
+      if (key === "admin_tier") eventType = "TIER_CHANGED";
       if (key === "leave_start_date" || key === "leave_end_date") eventType = "LEAVE_SCHEDULED";
 
       auditEntries.push({
         admin_id,
         event_type: eventType,
         actor_id: callerId,
-        actor_type: "SUPERVISOR",
+        actor_type: callerTier.toUpperCase(),
         field_changed: key,
         old_value: JSON.stringify(oldValue),
         new_value: JSON.stringify(newValue),
@@ -295,6 +354,7 @@ async function handleDeactivate(
   supabase: ReturnType<typeof createClient>,
   body: Record<string, unknown>,
   callerId: string,
+  callerTier: AdminTier,
   headers: Record<string, string>
 ): Promise<Response> {
   const { admin_id } = body as { admin_id: string };
@@ -306,7 +366,14 @@ async function handleDeactivate(
     );
   }
 
-  // Get current state
+  // Only supervisors can deactivate
+  if (callerTier !== "supervisor") {
+    return new Response(
+      JSON.stringify({ success: false, error: "Only supervisors can deactivate admins" }),
+      { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
+    );
+  }
+
   const { data: current } = await supabase
     .from("platform_admin_profiles")
     .select("availability_status, current_active_verifications")
@@ -320,13 +387,9 @@ async function handleDeactivate(
     );
   }
 
-  // Deactivate (trigger will enforce BR-MPA-001)
   const { error: updateError } = await supabase
     .from("platform_admin_profiles")
-    .update({
-      availability_status: "Inactive",
-      updated_by: callerId,
-    })
+    .update({ availability_status: "Inactive", updated_by: callerId })
     .eq("id", admin_id);
 
   if (updateError) {
@@ -336,7 +399,6 @@ async function handleDeactivate(
     );
   }
 
-  // Audit log
   await supabase.from("platform_admin_profile_audit_log").insert({
     admin_id,
     event_type: "DEACTIVATED",
@@ -350,10 +412,7 @@ async function handleDeactivate(
   return new Response(
     JSON.stringify({
       success: true,
-      data: {
-        admin_id,
-        pending_verifications: current.current_active_verifications || 0,
-      },
+      data: { admin_id, pending_verifications: current.current_active_verifications || 0 },
     }),
     { status: 200, headers: { ...headers, "Content-Type": "application/json" } }
   );
