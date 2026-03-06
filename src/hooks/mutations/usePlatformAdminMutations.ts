@@ -18,6 +18,7 @@ interface CreatePlatformAdminInput {
   full_name: string;
   phone: string;
   is_supervisor: boolean;
+  admin_tier?: 'supervisor' | 'senior_admin' | 'admin';
   industry_expertise: string[];
   country_region_expertise?: string[];
   org_type_expertise?: string[];

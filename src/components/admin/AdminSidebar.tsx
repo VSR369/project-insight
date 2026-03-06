@@ -50,6 +50,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
 const masterDataItems = [
@@ -100,11 +101,6 @@ const seekerItems = [
   { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
 ];
 
-const teamManagementItems = [
-  { title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' },
-  { title: 'My Profile', icon: User, path: '/admin/my-profile' },
-];
-
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
@@ -119,6 +115,7 @@ export function AdminSidebar() {
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
   const { data: pendingSeekerCount } = usePendingSeekerCount();
+  const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
 
   // Prefetch top admin routes on mount
   useEffect(() => {
@@ -133,6 +130,16 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
+  // Tier-based visibility
+  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
+  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
+
+  // Build team management items based on tier
+  const teamManagementItems = [
+    ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
+    { title: 'My Profile', icon: User, path: '/admin/my-profile' },
+  ];
+
   // Prefetch on hover handler
   const handleMouseEnter = useCallback((path: string) => {
     prefetchRoute(path);
@@ -143,7 +150,14 @@ export function AdminSidebar() {
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6 text-primary" />
-          <span className="text-lg font-semibold">Admin Panel</span>
+          <div className="flex flex-col">
+            <span className="text-lg font-semibold">Admin Panel</span>
+            {!tierLoading && tier && (
+              <span className="text-xs text-muted-foreground capitalize">
+                {tier === 'senior_admin' ? 'Senior Admin' : tier}
+              </span>
+            )}
+          </div>
         </div>
       </SidebarHeader>
       
@@ -274,25 +288,27 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {seekerConfigItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {canSeeSeekerConfig && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {seekerConfigItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.path)}
+                      onMouseEnter={() => handleMouseEnter(item.path)}
+                      isActive={isActive(item.path)}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel>Other</SidebarGroupLabel>

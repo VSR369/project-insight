@@ -1,10 +1,11 @@
 /**
  * Shared form component for Create and Edit Platform Admin.
+ * Supports admin_tier field with hierarchy-based restrictions.
  */
 
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { platformAdminFormSchema, type PlatformAdminFormValues } from './platformAdminForm.schema';
+import { platformAdminFormSchema, ADMIN_TIER_OPTIONS, type PlatformAdminFormValues, type AdminTierValue } from './platformAdminForm.schema';
 import {
   Form,
   FormControl,
@@ -17,6 +18,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Loader2 } from 'lucide-react';
 import { IndustryExpertisePicker } from './IndustryExpertisePicker';
 import { CountryExpertisePicker } from './CountryExpertisePicker';
@@ -24,6 +26,7 @@ import { OrgTypeExpertisePicker } from './OrgTypeExpertisePicker';
 
 interface PlatformAdminFormProps {
   mode: 'create' | 'edit';
+  callerTier?: AdminTierValue;
   defaultValues?: Partial<PlatformAdminFormValues>;
   onSubmit: (data: PlatformAdminFormValues) => Promise<void>;
   isSubmitting?: boolean;
@@ -32,6 +35,7 @@ interface PlatformAdminFormProps {
 
 export function PlatformAdminForm({
   mode,
+  callerTier = 'admin',
   defaultValues,
   onSubmit,
   isSubmitting,
@@ -44,6 +48,7 @@ export function PlatformAdminForm({
       email: '',
       phone: '',
       is_supervisor: false,
+      admin_tier: 'admin',
       industry_expertise: [],
       country_region_expertise: [],
       org_type_expertise: [],
@@ -56,6 +61,13 @@ export function PlatformAdminForm({
   const handleSubmit = async (data: PlatformAdminFormValues) => {
     await onSubmit(data);
   };
+
+  // Determine which tier options the caller can assign
+  const allowedTierOptions = ADMIN_TIER_OPTIONS.filter((opt) => {
+    if (callerTier === 'supervisor') return true; // supervisors can assign any tier
+    if (callerTier === 'senior_admin') return opt.value === 'admin'; // senior admins can only create admin
+    return false;
+  });
 
   return (
     <Form {...form}>
@@ -114,6 +126,41 @@ export function PlatformAdminForm({
             )}
           />
 
+          {/* Admin Tier */}
+          <FormField
+            control={form.control}
+            name="admin_tier"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Admin Tier</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value}
+                  disabled={allowedTierOptions.length <= 1}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select tier" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {allowedTierOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormDescription>
+                  {callerTier === 'senior_admin'
+                    ? 'Senior Admins can only create Admin-tier accounts.'
+                    : 'Supervisor, Senior Admin, or Admin access level.'}
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
           {/* Max Concurrent Verifications */}
           <FormField
             control={form.control}
@@ -142,25 +189,6 @@ export function PlatformAdminForm({
                 </FormControl>
                 <FormDescription>1 (highest) – 10 (lowest)</FormDescription>
                 <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          {/* Supervisor Flag */}
-          <FormField
-            control={form.control}
-            name="is_supervisor"
-            render={({ field }) => (
-              <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                <div className="space-y-0.5">
-                  <FormLabel className="text-base">Supervisor</FormLabel>
-                  <FormDescription>
-                    Supervisors can manage other admin profiles.
-                  </FormDescription>
-                </div>
-                <FormControl>
-                  <Switch checked={field.value} onCheckedChange={field.onChange} />
-                </FormControl>
               </FormItem>
             )}
           />

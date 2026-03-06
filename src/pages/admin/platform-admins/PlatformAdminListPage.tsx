@@ -1,16 +1,19 @@
 /**
  * SCR-01-01: Platform Admin List Page
+ * Tier-based: Supervisor sees full CRUD, Senior Admin sees list + view, Admin tier hidden from sidebar.
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { usePlatformAdmins, usePlatformAdminSelf } from '@/hooks/queries/usePlatformAdmins';
+import { usePlatformAdmins } from '@/hooks/queries/usePlatformAdmins';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
 import { ExpertiseTags } from '@/components/admin/platform-admins/ExpertiseTags';
 import { ExecutiveContactWarningBanner } from '@/components/admin/platform-admins/ExecutiveContactWarningBanner';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,13 +28,20 @@ const STATUS_OPTIONS = [
   { value: 'Inactive', label: 'Inactive' },
 ];
 
+const TIER_LABELS: Record<string, string> = {
+  supervisor: 'Supervisor',
+  senior_admin: 'Senior Admin',
+  admin: 'Admin',
+};
+
 function PlatformAdminListContent() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
 
   const { data: admins, isLoading } = usePlatformAdmins(statusFilter);
-  const { data: self } = usePlatformAdminSelf();
-  const isSupervisor = self?.is_supervisor === true;
+  const { isSupervisor, isSeniorAdmin } = useAdminTier();
+  const canCreate = isSupervisor || isSeniorAdmin;
+  const canEdit = isSupervisor;
 
   if (isLoading) {
     return (
@@ -64,7 +74,7 @@ function PlatformAdminListContent() {
               ))}
             </SelectContent>
           </Select>
-          {isSupervisor && (
+          {canCreate && (
             <Button onClick={() => navigate('/admin/platform-admins/new')}>
               <Plus className="mr-2 h-4 w-4" />
               <span className="hidden lg:inline">Add Admin</span>
@@ -86,6 +96,7 @@ function PlatformAdminListContent() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Email</TableHead>
+                <TableHead>Tier</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Supervisor</TableHead>
                 <TableHead>Workload</TableHead>
@@ -98,6 +109,11 @@ function PlatformAdminListContent() {
                 <TableRow key={admin.id}>
                   <TableCell className="font-medium">{admin.full_name}</TableCell>
                   <TableCell>{admin.email}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className="capitalize">
+                      {TIER_LABELS[(admin as any).admin_tier] || 'Admin'}
+                    </Badge>
+                  </TableCell>
                   <TableCell>
                     <AdminStatusBadge status={admin.availability_status} />
                   </TableCell>
@@ -123,7 +139,7 @@ function PlatformAdminListContent() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {isSupervisor && (
+                      {canEdit && (
                         <Button
                           variant="ghost"
                           size="icon"

@@ -1,9 +1,11 @@
 /**
  * SCR-01-02: Create Platform Admin Page
+ * Supervisor can create any tier. Senior Admin can only create admin tier.
  */
 
 import { useNavigate } from 'react-router-dom';
 import { useCreatePlatformAdmin } from '@/hooks/mutations/usePlatformAdminMutations';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { PlatformAdminForm } from '@/components/admin/platform-admins/PlatformAdminForm';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import type { PlatformAdminFormValues } from '@/components/admin/platform-admins/platformAdminForm.schema';
@@ -11,13 +13,23 @@ import type { PlatformAdminFormValues } from '@/components/admin/platform-admins
 function CreateContent() {
   const navigate = useNavigate();
   const createMutation = useCreatePlatformAdmin();
+  const { isSupervisor, isSeniorAdmin } = useAdminTier();
+
+  if (!isSupervisor && !isSeniorAdmin) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        You don't have permission to create platform admins.
+      </div>
+    );
+  }
 
   const handleSubmit = async (data: PlatformAdminFormValues) => {
     await createMutation.mutateAsync({
       email: data.email,
       full_name: data.full_name,
       phone: data.phone,
-      is_supervisor: data.is_supervisor,
+      is_supervisor: data.admin_tier === 'supervisor',
+      admin_tier: data.admin_tier,
       industry_expertise: data.industry_expertise,
       country_region_expertise: data.country_region_expertise,
       org_type_expertise: data.org_type_expertise,
@@ -35,6 +47,7 @@ function CreateContent() {
       </div>
       <PlatformAdminForm
         mode="create"
+        callerTier={isSupervisor ? 'supervisor' : 'senior_admin'}
         onSubmit={handleSubmit}
         isSubmitting={createMutation.isPending}
         onCancel={() => navigate('/admin/platform-admins')}
