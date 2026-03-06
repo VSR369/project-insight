@@ -1,27 +1,49 @@
 
 
-## Fix: Clean Up Quick Login Grid Layout
+# Platform Admin Sub-Role Tiers — Implementation Complete
 
-The 6 accounts in a single row (`grid-cols-3 lg:grid-cols-6`) causes cramped, cluttered buttons as shown in the screenshot.
+## What Was Implemented
 
-### Change
+### Database
+- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
+- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
+- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
+- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
+- Added index `idx_pap_admin_tier`
 
-**File: `src/pages/Login.tsx` (line 557)**
+### Edge Functions
+- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
+- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
 
-Replace the grid with a clean **two-row layout**: Row 1 = Admin tiers (3 buttons), Row 2 = Other portals (3 buttons), with a subtle label for each row.
+### Frontend
+- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
+- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
+- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
+- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
+- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
+- `EditPlatformAdminPage`: Supervisor only
+- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
+- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
 
-```
-Row 1:  "Admin Tiers"
-        [Supervisor]  [Senior Admin]  [Basic Admin]
+## Tier Permission Matrix
 
-Row 2:  "Portals"
-        [Provider]    [Reviewer]      [Seeking Org]
-```
+| Feature | Supervisor | Senior Admin | Admin |
+|---------|-----------|--------------|-------|
+| Dashboard | ✅ | ✅ | ✅ |
+| Master Data | ✅ | ✅ | ✅ |
+| Taxonomy | ✅ | ✅ | ✅ |
+| Interview Setup | ✅ | ✅ | ✅ |
+| Seeker Management | ✅ | ✅ | ✅ |
+| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
+| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
+| Edit Admin | ✅ | ❌ | ❌ |
+| Deactivate Admin | ✅ | ❌ | ❌ |
+| Seeker Config | ✅ | ✅ | ❌ |
+| My Profile | ✅ | ✅ | ✅ |
 
-- Use `grid grid-cols-3 gap-3` (always 3 columns, never 6)
-- Add a small muted label above each row: "Platform Admins" and "Portal Accounts"
-- Increase button padding slightly for better touch targets
-- Show full email without truncation since 3-col gives more space
-
-Single file change, no logic changes — purely layout.
-
+## Zero-Impact Areas
+- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
+- `AdminGuard` unchanged
+- `useUserRoles` unchanged
+- `RoleBasedRedirect` unchanged
+- All existing admin CRUD for master data, seekers, etc. untouched
