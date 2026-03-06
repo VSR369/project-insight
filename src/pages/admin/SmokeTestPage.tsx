@@ -30,7 +30,9 @@ export default function SmokeTestPage() {
   // All hooks must be called first, before any conditional logic
   const [isSeeding, setIsSeeding] = React.useState(false);
   const [seedResult, setSeedResult] = React.useState<any>(null);
-  
+  const [isSeedingAdmins, setIsSeedingAdmins] = React.useState(false);
+  const [adminSeedResult, setAdminSeedResult] = React.useState<any>(null);
+
   const {
     isRunning,
     currentModule,
@@ -67,6 +69,26 @@ export default function SmokeTestPage() {
       setSeedResult({ success: false, error: err.message });
     } finally {
       setIsSeeding(false);
+    }
+  };
+
+  const handleSeedAdminAccounts = async () => {
+    setIsSeedingAdmins(true);
+    setAdminSeedResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("seed-admin-test-accounts");
+      if (error) throw error;
+      setAdminSeedResult(data);
+      if (data?.success) {
+        toast.success(`Admin accounts seeded: ${data.accounts?.length || 3} accounts ready`);
+      } else {
+        toast.error(data?.error || "Seeding failed");
+      }
+    } catch (err: any) {
+      toast.error(`Seed failed: ${err.message}`);
+      setAdminSeedResult({ success: false, error: err.message });
+    } finally {
+      setIsSeedingAdmins(false);
     }
   };
 
