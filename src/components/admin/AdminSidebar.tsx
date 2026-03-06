@@ -250,7 +250,13 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Seeker Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {seekerItems.map((item) => (
+              {seekerItems
+                .filter((item) => {
+                  // Enterprise Agreements requires senior_admin+
+                  if (item.path === '/admin/saas-agreements') return isSupervisor || isSeniorAdmin;
+                  return true;
+                })
+                .map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
@@ -271,25 +277,27 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Team Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {teamManagementItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {canSeeTeamManagement && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Team Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {teamManagementItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.path)}
+                      onMouseEnter={() => handleMouseEnter(item.path)}
+                      isActive={isActive(item.path)}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {canSeeSeekerConfig && (
           <SidebarGroup>
