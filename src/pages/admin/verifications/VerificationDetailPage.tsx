@@ -1,5 +1,7 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerificationDetail } from '@/hooks/queries/useVerificationDashboard';
+import { useVerificationAction } from '@/hooks/queries/useVerificationMutations';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { SLATimelineBar } from '@/components/admin/verifications/SLATimelineBar';
 import { AssignedStateBanner } from '@/components/admin/verifications/AssignedStateBanner';
 import { AssignmentMethodBadge } from '@/components/admin/verifications/AssignmentMethodBadge';
@@ -10,15 +12,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Building2, Globe, FileText } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 /**
  * SCR-03-03: Verification Detail Page
  * Supports 3 states: EDIT (1), READ-ONLY (2), BLOCKED (3)
+ * GAP-8: Supervisor "Reassign to Me" via banner
+ * GAP-10: Org Details and Registrant Comms stub tabs
+ * GAP-15: FeatureErrorBoundary wrapper
  */
-export default function VerificationDetailPage() {
+function VerificationDetailContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { data, isLoading, error } = useVerificationDetail(id);
+  const { data, isLoading, error, refetch } = useVerificationDetail(id);
 
   if (isLoading) {
     return (
@@ -41,9 +48,28 @@ export default function VerificationDetailPage() {
     );
   }
 
-  const { verification, checks, history, currentAssignment, viewState, assignedAdminName } = data;
+  const { verification, checks, history, currentAssignment, viewState, assignedAdminName, currentAdminProfileId } = data;
   const org = verification.organization;
   const isEditable = viewState === 1;
+
+  // GAP-8: Supervisor reassign to self
+  const handleReassignToMe = async () => {
+    if (!currentAdminProfileId || !id) return;
+    try {
+      const { error: err } = await supabase
+        .from('platform_admin_verifications')
+        .update({
+          assigned_admin_id: currentAdminProfileId,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id);
+      if (err) throw err;
+      toast.success('Verification reassigned to you');
+      refetch();
+    } catch (e: any) {
+      toast.error(`Reassign failed: ${e.message}`);
+    }
+  };
 
   return (
     <div className="space-y-6 pb-24">
@@ -59,7 +85,11 @@ export default function VerificationDetailPage() {
 
       {/* State Banner */}
       {viewState !== 1 && (
-        <AssignedStateBanner state={viewState} assignedAdminName={assignedAdminName ?? undefined} />
+        <AssignedStateBanner
+          state={viewState}
+          assignedAdminName={assignedAdminName ?? undefined}
+          onReassignToMe={viewState === 2 ? handleReassignToMe : undefined}
+        />
       )}
 
       {/* SLA Timeline */}
@@ -97,12 +127,20 @@ export default function VerificationDetailPage() {
         </div>
       </div>
 
-      {/* Tabs */}
+      {/* Tabs — GAP-10: 4 tabs including stubs */}
       <Tabs defaultValue="checks">
         <TabsList>
+          <TabsTrigger value="org-details">Org Details</TabsTrigger>
           <TabsTrigger value="checks">Verification Checks</TabsTrigger>
           <TabsTrigger value="history">Assignment History</TabsTrigger>
+          <TabsTrigger value="comms">Registrant Comms</TabsTrigger>
         </TabsList>
+
+        <TabsContent value="org-details">
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            Organization details will be displayed here in a future release.
+          </div>
+        </TabsContent>
 
         <TabsContent value="checks">
           <VerificationChecksPanel
@@ -114,17 +152,32 @@ export default function VerificationDetailPage() {
         <TabsContent value="history">
           <AssignmentHistoryTab history={history} />
         </TabsContent>
+
+        <TabsContent value="comms">
+          <div className="py-8 text-center text-muted-foreground text-sm">
+            Registrant communications will be available in a future release.
+          </div>
+        </TabsContent>
       </Tabs>
 
-      {/* Action Bar — STATE 1 only */}
+      {/* Action Bar — STATE 1 only, GAP-14: orgName passed for confirm dialog */}
       {isEditable && (
         <VerificationActionBar
           verificationId={verification.id}
+          orgName={org?.organization_name ?? 'Unknown'}
           checks={checks}
           reassignmentCount={verification.reassignment_count}
           currentAssignment={currentAssignment}
         />
       )}
     </div>
+  );
+}
+
+export default function VerificationDetailPage() {
+  return (
+    <FeatureErrorBoundary featureName="Verification Detail">
+      <VerificationDetailContent />
+    </FeatureErrorBoundary>
   );
 }

@@ -2,19 +2,26 @@ import { useState } from 'react';
 import { useVerificationAction } from '@/hooks/queries/useVerificationMutations';
 import { ReleaseToQueueModal } from './ReleaseToQueueModal';
 import { RequestReassignmentModal } from './RequestReassignmentModal';
+import { ApproveConfirmModal } from './ApproveConfirmModal';
+import { RejectReasonModal } from './RejectReasonModal';
 import { ReleaseWindowCountdown } from './ReleaseWindowCountdown';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, RotateCcw, ArrowRightLeft, Undo2 } from 'lucide-react';
 
 interface VerificationActionBarProps {
   verificationId: string;
+  orgName: string;
   checks: Array<{ check_id: string; result: string }>;
   reassignmentCount: number;
   currentAssignment: { id: string; assigned_at: string; assignment_method: string } | null;
 }
 
+/**
+ * GAP-14: Approve/Reject confirmation dialogs
+ */
 export function VerificationActionBar({
   verificationId,
+  orgName,
   checks,
   reassignmentCount,
   currentAssignment,
@@ -22,11 +29,12 @@ export function VerificationActionBar({
   const actionMutation = useVerificationAction();
   const [showRelease, setShowRelease] = useState(false);
   const [showReassign, setShowReassign] = useState(false);
+  const [showApprove, setShowApprove] = useState(false);
+  const [showReject, setShowReject] = useState(false);
 
   const v6Check = checks.find(c => c.check_id === 'V6');
   const canApprove = v6Check?.result === 'Pass';
 
-  // Release window: only show if within 2hr of assignment
   const showReleaseButton = currentAssignment?.assigned_at
     ? (Date.now() - new Date(currentAssignment.assigned_at).getTime()) < 2 * 3600 * 1000
     : false;
@@ -77,7 +85,7 @@ export function VerificationActionBar({
               variant="destructive"
               size="sm"
               className="gap-1.5"
-              onClick={() => actionMutation.mutate({ verificationId, action: 'Rejected' })}
+              onClick={() => setShowReject(true)}
               disabled={actionMutation.isPending}
             >
               <XCircle className="h-3.5 w-3.5" />
@@ -87,7 +95,7 @@ export function VerificationActionBar({
               size="sm"
               className="gap-1.5 bg-emerald-600 hover:bg-emerald-700"
               disabled={!canApprove || actionMutation.isPending}
-              onClick={() => actionMutation.mutate({ verificationId, action: 'Approved' })}
+              onClick={() => setShowApprove(true)}
             >
               <CheckCircle2 className="h-3.5 w-3.5" />
               Approve
@@ -113,6 +121,27 @@ export function VerificationActionBar({
           reassignmentCount={reassignmentCount}
         />
       )}
+
+      <ApproveConfirmModal
+        open={showApprove}
+        onOpenChange={setShowApprove}
+        orgName={orgName}
+        onConfirm={() => {
+          actionMutation.mutate({ verificationId, action: 'Approved' });
+          setShowApprove(false);
+        }}
+        isPending={actionMutation.isPending}
+      />
+
+      <RejectReasonModal
+        open={showReject}
+        onOpenChange={setShowReject}
+        onConfirm={(notes) => {
+          actionMutation.mutate({ verificationId, action: 'Rejected', notes });
+          setShowReject(false);
+        }}
+        isPending={actionMutation.isPending}
+      />
     </>
   );
 }
