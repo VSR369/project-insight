@@ -1,6 +1,6 @@
 /**
  * SCR-01-04: View Platform Admin Page (Tabbed)
- * Supervisor + Senior Admin can view. Supervisor can edit/deactivate.
+ * Enhanced: initials avatar, phone in header, updated DeactivateAdminModal props.
  */
 
 import { useState } from 'react';
@@ -12,6 +12,7 @@ import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
 import { ExpertiseTags } from '@/components/admin/platform-admins/ExpertiseTags';
+import { InitialsAvatar } from '@/components/admin/platform-admins/InitialsAvatar';
 import { DeactivateAdminModal } from '@/components/admin/platform-admins/DeactivateAdminModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
@@ -19,7 +20,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { Pencil, Shield, ArrowLeft, UserX } from 'lucide-react';
+import { Pencil, Shield, ArrowLeft, UserX, Phone } from 'lucide-react';
 import { format } from 'date-fns';
 
 const TIER_LABELS: Record<string, string> = {
@@ -60,13 +61,19 @@ function ViewContent() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/admin/platform-admins')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
+          <InitialsAvatar name={admin.full_name} size="lg" />
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               {admin.full_name}
               {admin.is_supervisor && <Shield className="h-5 w-5 text-primary" />}
             </h1>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <p className="text-muted-foreground">{admin.email}</p>
+              {admin.phone && (
+                <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                  <Phone className="h-3 w-3" /> {admin.phone}
+                </span>
+              )}
               <Badge variant="outline" className="capitalize text-xs">
                 {TIER_LABELS[adminTier] || 'Admin'}
               </Badge>
@@ -246,7 +253,12 @@ function ViewContent() {
         onOpenChange={setDeactivateOpen}
         adminId={admin.id}
         adminName={admin.full_name}
+        adminEmail={admin.email}
+        adminStatus={admin.availability_status}
+        currentVerifications={admin.current_active_verifications}
+        maxVerifications={admin.max_concurrent_verifications}
         pendingVerifications={admin.current_active_verifications}
+        isSupervisor={admin.is_supervisor}
       />
     </div>
   );

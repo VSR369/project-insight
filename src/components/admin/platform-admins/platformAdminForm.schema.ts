@@ -18,7 +18,9 @@ export const platformAdminFormSchema = z.object({
     .max(100, 'Name must be 100 characters or less')
     .trim(),
   email: z.string().email('Invalid email address').max(255),
-  phone: z.string().min(1, 'Phone number is required'),
+  phone: z.string()
+    .min(1, 'Phone number is required')
+    .regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format (e.g. +1234567890)'),
   is_supervisor: z.boolean().default(false),
   admin_tier: z.enum(['supervisor', 'senior_admin', 'admin']).default('admin'),
   industry_expertise: z.array(z.string().uuid()).min(1, 'At least one industry is required'),

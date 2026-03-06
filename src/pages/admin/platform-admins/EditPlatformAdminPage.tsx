@@ -1,6 +1,6 @@
 /**
  * SCR-01-03: Edit Platform Admin Page
- * Supervisors can edit any profile. Senior Admins can edit admin-tier profiles only.
+ * Enhanced: passes currentActiveVerifications for capacity warning.
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -65,6 +65,7 @@ function EditContent() {
       <PlatformAdminForm
         mode="edit"
         callerTier={tier || 'admin'}
+        currentActiveVerifications={admin.current_active_verifications}
         defaultValues={{
           full_name: admin.full_name,
           email: admin.email,
