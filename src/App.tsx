@@ -150,6 +150,14 @@ const PostalFormatsPage = lazy(() => import("@/pages/admin/postal-formats").then
 const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then(m => ({ default: m.BillingCyclesPage })));
 const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
 
+// Platform Admin Management Pages (MOD-01, lazy loaded)
+const PlatformAdminListPage = lazy(() => import("@/pages/admin/platform-admins/PlatformAdminListPage"));
+const CreatePlatformAdminPage = lazy(() => import("@/pages/admin/platform-admins/CreatePlatformAdminPage"));
+const EditPlatformAdminPage = lazy(() => import("@/pages/admin/platform-admins/EditPlatformAdminPage"));
+const ViewPlatformAdminPage = lazy(() => import("@/pages/admin/platform-admins/ViewPlatformAdminPage"));
+const MyProfilePage = lazy(() => import("@/pages/admin/platform-admins/MyProfilePage"));
+const AvailabilitySettingsPage = lazy(() => import("@/pages/admin/platform-admins/AvailabilitySettingsPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -542,6 +550,13 @@ const App = () => (
               <Route path="saas-agreements" element={<SaasAgreementPage />} />
               <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
               <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
+              {/* MOD-01: Platform Admin Management */}
+              <Route path="platform-admins" element={<PlatformAdminListPage />} />
+              <Route path="platform-admins/new" element={<CreatePlatformAdminPage />} />
+              <Route path="platform-admins/:adminId" element={<ViewPlatformAdminPage />} />
+              <Route path="platform-admins/:adminId/edit" element={<EditPlatformAdminPage />} />
+              <Route path="my-profile" element={<MyProfilePage />} />
+              <Route path="availability" element={<AvailabilitySettingsPage />} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route

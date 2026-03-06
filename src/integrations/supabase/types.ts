@@ -228,6 +228,44 @@ export type Database = {
           },
         ]
       }
+      admin_performance_metrics: {
+        Row: {
+          admin_id: string
+          avg_processing_hours: number | null
+          created_at: string
+          id: string
+          sla_compliance_rate_pct: number | null
+          updated_at: string | null
+          verifications_completed: number
+        }
+        Insert: {
+          admin_id: string
+          avg_processing_hours?: number | null
+          created_at?: string
+          id?: string
+          sla_compliance_rate_pct?: number | null
+          updated_at?: string | null
+          verifications_completed?: number
+        }
+        Update: {
+          admin_id?: string
+          avg_processing_hours?: number | null
+          created_at?: string
+          id?: string
+          sla_compliance_rate_pct?: number | null
+          updated_at?: string | null
+          verifications_completed?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_performance_metrics_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: true
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_transfer_requests: {
         Row: {
           approved_at: string | null
@@ -2288,6 +2326,39 @@ export type Database = {
         }
         Relationships: []
       }
+      md_mpa_config: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          id: string
+          param_key: string
+          param_value: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          param_key: string
+          param_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          param_key?: string
+          param_value?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_org_types: {
         Row: {
           code: string
@@ -3456,6 +3527,122 @@ export type Database = {
           requires_org_info?: boolean
           updated_at?: string | null
           updated_by?: string | null
+        }
+        Relationships: []
+      }
+      platform_admin_profile_audit_log: {
+        Row: {
+          actor_id: string | null
+          actor_type: string | null
+          admin_id: string
+          created_at: string
+          event_type: string
+          field_changed: string | null
+          id: string
+          ip_address: string | null
+          new_value: Json | null
+          old_value: Json | null
+        }
+        Insert: {
+          actor_id?: string | null
+          actor_type?: string | null
+          admin_id: string
+          created_at?: string
+          event_type: string
+          field_changed?: string | null
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Update: {
+          actor_id?: string | null
+          actor_type?: string | null
+          admin_id?: string
+          created_at?: string
+          event_type?: string
+          field_changed?: string | null
+          id?: string
+          ip_address?: string | null
+          new_value?: Json | null
+          old_value?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_admin_profile_audit_log_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_admin_profiles: {
+        Row: {
+          assignment_priority: number
+          availability_status: string
+          country_region_expertise: string[] | null
+          created_at: string
+          created_by: string | null
+          current_active_verifications: number
+          email: string
+          full_name: string
+          id: string
+          industry_expertise: string[]
+          is_supervisor: boolean
+          last_assignment_timestamp: string | null
+          leave_end_date: string | null
+          leave_start_date: string | null
+          max_concurrent_verifications: number
+          org_type_expertise: string[] | null
+          phone: string
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          assignment_priority?: number
+          availability_status?: string
+          country_region_expertise?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          current_active_verifications?: number
+          email: string
+          full_name: string
+          id?: string
+          industry_expertise?: string[]
+          is_supervisor?: boolean
+          last_assignment_timestamp?: string | null
+          leave_end_date?: string | null
+          leave_start_date?: string | null
+          max_concurrent_verifications?: number
+          org_type_expertise?: string[] | null
+          phone: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          assignment_priority?: number
+          availability_status?: string
+          country_region_expertise?: string[] | null
+          created_at?: string
+          created_by?: string | null
+          current_active_verifications?: number
+          email?: string
+          full_name?: string
+          id?: string
+          industry_expertise?: string[]
+          is_supervisor?: boolean
+          last_assignment_timestamp?: string | null
+          leave_end_date?: string | null
+          leave_start_date?: string | null
+          max_concurrent_verifications?: number
+          org_type_expertise?: string[] | null
+          phone?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string
         }
         Relationships: []
       }

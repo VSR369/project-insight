@@ -1,0 +1,22 @@
+/**
+ * Zod schema for Platform Admin profile form (create + edit).
+ */
+
+import { z } from 'zod';
+
+export const platformAdminFormSchema = z.object({
+  full_name: z.string()
+    .min(2, 'Name must be at least 2 characters')
+    .max(100, 'Name must be 100 characters or less')
+    .trim(),
+  email: z.string().email('Invalid email address').max(255),
+  phone: z.string().min(1, 'Phone number is required'),
+  is_supervisor: z.boolean().default(false),
+  industry_expertise: z.array(z.string().uuid()).min(1, 'At least one industry is required'),
+  country_region_expertise: z.array(z.string().uuid()).default([]),
+  org_type_expertise: z.array(z.string()).default([]),
+  max_concurrent_verifications: z.coerce.number().int().min(1).max(100).default(10),
+  assignment_priority: z.coerce.number().int().min(1).max(10).default(5),
+});
+
+export type PlatformAdminFormValues = z.infer<typeof platformAdminFormSchema>;

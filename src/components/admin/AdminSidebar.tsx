@@ -43,7 +43,8 @@ import {
   Activity,
   TestTube2,
   CreditCard,
-  
+  Users2,
+  User,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +98,11 @@ const interviewItems = [
 const seekerItems = [
   { title: 'Org Approvals', icon: UserCheck, path: '/admin/seeker-org-approvals', hasBadge: true },
   { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
+];
+
+const teamManagementItems = [
+  { title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' },
+  { title: 'My Profile', icon: User, path: '/admin/my-profile' },
 ];
 
 const otherItems = [
@@ -241,6 +247,26 @@ export function AdminSidebar() {
                         {pendingSeekerCount}
                       </Badge>
                     )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Team Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {teamManagementItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
+                    isActive={isActive(item.path)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
