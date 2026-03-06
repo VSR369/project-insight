@@ -140,7 +140,7 @@ export function AdminSidebar() {
   // Build team management items based on tier
   const teamManagementItems = [
     ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    { title: 'My Profile', icon: User, path: '/admin/my-profile' },
+    ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
   // Prefetch on hover handler
@@ -250,7 +250,13 @@ export function AdminSidebar() {
           <SidebarGroupLabel>Seeker Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {seekerItems.map((item) => (
+              {seekerItems
+                .filter((item) => {
+                  // Enterprise Agreements requires senior_admin+
+                  if (item.path === '/admin/saas-agreements') return isSupervisor || isSeniorAdmin;
+                  return true;
+                })
+                .map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
@@ -271,25 +277,27 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Team Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {teamManagementItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {canSeeTeamManagement && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Team Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {teamManagementItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.path)}
+                      onMouseEnter={() => handleMouseEnter(item.path)}
+                      isActive={isActive(item.path)}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {canSeeSeekerConfig && (
           <SidebarGroup>
@@ -371,6 +379,19 @@ export function AdminSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+              {/* My Profile — shown here for basic admin since Team Management is hidden */}
+              {!canSeeTeamManagement && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/my-profile')}
+                    onMouseEnter={() => handleMouseEnter('/admin/my-profile')}
+                    isActive={isActive('/admin/my-profile')}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>My Profile</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Other menu items */}
               {otherItems
