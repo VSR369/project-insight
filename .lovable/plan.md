@@ -1,49 +1,42 @@
 
 
-# Platform Admin Sub-Role Tiers — Implementation Complete
+## Plan: Fix Admin Account Seeding and Ensure Role-Based Access Works
 
-## What Was Implemented
+### Root Cause
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+All 3 auth users and `user_roles` records exist, but **`platform_admin_profiles` is empty** for all 3 accounts. The insert fails silently because the `fn_validate_industry_expertise` trigger rejects rows without at least one industry expertise entry (`BR-MPA-003`).
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+Without a profile, `useAdminTier` returns `null`, so:
+- Dashboard shows no tier badge
+- All tier-gated cards are hidden
+- TierGuard redirects everything
+- The admin experience is broken for all three accounts
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+### Fix
 
-## Tier Permission Matrix
+**File: `supabase/functions/seed-admin-test-accounts/index.ts`**
 
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
+Add `industry_expertise` (a text array) to the profile insert with a default value like `['Technology']`. This satisfies the trigger:
 
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+```typescript
+.insert({
+  user_id: userId,
+  email: account.email,
+  full_name: `${account.firstName} ${account.lastName}`,
+  admin_tier: account.adminTier,
+  industry_expertise: ['Technology'],
+})
+```
+
+That's the only change needed. After redeploying, the user clicks "Seed Admin Accounts" on the Smoke Test page, and all 3 profiles will be created with the correct tiers.
+
+### Verification
+
+Once seeded, logging in as each account will show:
+- **Basic Admin** (`basicadmin@test.local`): Dashboard with core cards only (Master Data, Taxonomy, etc.). No Seeker Config, Platform Admins, or Settings in sidebar or dashboard.
+- **Senior Admin** (`senioradmin@test.local`): Everything Basic Admin sees + Seeker Config, Platform Admins (view-only), Settings, Enterprise Agreements.
+- **Supervisor** (`admin@test.local`): Everything Senior Admin sees + Compliance Config, full CRUD on Platform Admins.
+
+### Files Modified
+- `supabase/functions/seed-admin-test-accounts/index.ts` — Add `industry_expertise` to profile insert
+
