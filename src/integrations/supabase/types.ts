@@ -146,6 +146,7 @@ export type Database = {
       }
       admin_access_codes: {
         Row: {
+          admin_tier: string
           code_hash: string
           created_at: string | null
           created_by: string | null
@@ -157,6 +158,7 @@ export type Database = {
           used_by: string | null
         }
         Insert: {
+          admin_tier?: string
           code_hash: string
           created_at?: string | null
           created_by?: string | null
@@ -168,6 +170,7 @@ export type Database = {
           used_by?: string | null
         }
         Update: {
+          admin_tier?: string
           code_hash?: string
           created_at?: string | null
           created_by?: string | null
@@ -3579,6 +3582,7 @@ export type Database = {
       }
       platform_admin_profiles: {
         Row: {
+          admin_tier: string
           assignment_priority: number
           availability_status: string
           country_region_expertise: string[] | null
@@ -3601,6 +3605,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          admin_tier?: string
           assignment_priority?: number
           availability_status?: string
           country_region_expertise?: string[] | null
@@ -3623,6 +3628,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          admin_tier?: string
           assignment_priority?: number
           availability_status?: string
           country_region_expertise?: string[] | null
