@@ -1,11 +1,13 @@
 /**
  * SCR-01-06: Availability Settings Page (self-service)
+ * Fixed: useState bug → useEffect, added BR-MPA-001, leave banners, min-date.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlatformAdminSelf } from '@/hooks/queries/usePlatformAdmins';
 import { useUpdateAvailability } from '@/hooks/mutations/usePlatformAdminMutations';
+import { useAvailableAdminCounts } from '@/hooks/queries/useAvailableAdminCounts';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { LeaveConfirmationModal } from '@/components/admin/platform-admins/LeaveConfirmationModal';
@@ -15,26 +17,31 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Loader2, AlertTriangle, Info } from 'lucide-react';
+import { format } from 'date-fns';
 
 function AvailabilityContent() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = usePlatformAdminSelf();
   const updateAvailability = useUpdateAvailability();
+  const { data: counts } = useAvailableAdminCounts();
 
   const [status, setStatus] = useState<string>('');
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
 
-  // Initialize from profile when loaded
-  useState(() => {
+  // Initialize from profile when loaded (fixed: was using useState incorrectly)
+  useEffect(() => {
     if (profile) {
       setStatus(profile.availability_status);
       setLeaveStart(profile.leave_start_date || '');
       setLeaveEnd(profile.leave_end_date || '');
     }
-  });
+  }, [profile]);
+
+  const today = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
 
   if (isLoading) {
     return (
@@ -51,9 +58,21 @@ function AvailabilityContent() {
 
   const effectiveStatus = status || profile.availability_status;
   const isOnLeave = effectiveStatus === 'On_Leave';
+  const isRestoring = profile.availability_status === 'On_Leave' && effectiveStatus === 'Available';
+
+  // BR-MPA-001: last available admin cannot go on leave
+  const isLastAvailable = profile.availability_status === 'Available' && (counts?.availableCount ?? 2) <= 1;
+  const blockLeave = isLastAvailable && isOnLeave;
+
+  // Determine leave variant
+  const leaveVariant = isRestoring ? 'restore' as const
+    : (leaveStart === today ? 'immediate' as const : 'scheduled' as const);
+
+  // Determine if leave is immediate or scheduled
+  const isImmediate = leaveStart <= today;
 
   const handleSave = () => {
-    if (isOnLeave) {
+    if (isOnLeave || isRestoring) {
       setLeaveModalOpen(true);
     } else {
       doSave();
@@ -81,6 +100,15 @@ function AvailabilityContent() {
         </div>
       </div>
 
+      {/* Active verification count info card */}
+      <Alert>
+        <Info className="h-4 w-4" />
+        <AlertDescription>
+          You currently have <strong>{profile.current_active_verifications}</strong> active verification(s)
+          out of a maximum of {profile.max_concurrent_verifications}.
+        </AlertDescription>
+      </Alert>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -101,26 +129,59 @@ function AvailabilityContent() {
             </Select>
           </div>
 
-          {isOnLeave && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Leave Start Date</Label>
-                <Input
-                  type="date"
-                  value={leaveStart}
-                  onChange={(e) => setLeaveStart(e.target.value)}
-                />
+          {/* BR-MPA-001 block */}
+          {blockLeave && (
+            <Alert variant="destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertDescription>
+                You are the last Available admin. At least one admin must remain Available.
+                Going on leave is blocked until another admin becomes available.
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {isOnLeave && !blockLeave && (
+            <>
+              {/* Immediate vs Scheduled banner */}
+              {leaveStart && (
+                isImmediate ? (
+                  <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Immediate leave:</strong> Your leave starts today. Pending verifications will need to be reassigned.
+                    </AlertDescription>
+                  </Alert>
+                ) : leaveStart > today ? (
+                  <Alert className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
+                    <Info className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>Scheduled leave:</strong> You will continue receiving assignments until {leaveStart}.
+                    </AlertDescription>
+                  </Alert>
+                ) : null
+              )}
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Leave Start Date</Label>
+                  <Input
+                    type="date"
+                    value={leaveStart}
+                    onChange={(e) => setLeaveStart(e.target.value)}
+                    min={today}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Leave End Date</Label>
+                  <Input
+                    type="date"
+                    value={leaveEnd}
+                    onChange={(e) => setLeaveEnd(e.target.value)}
+                    min={leaveStart || today}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label>Leave End Date</Label>
-                <Input
-                  type="date"
-                  value={leaveEnd}
-                  onChange={(e) => setLeaveEnd(e.target.value)}
-                  min={leaveStart}
-                />
-              </div>
-            </div>
+            </>
           )}
 
           <div className="flex justify-end gap-3 pt-2">
@@ -129,7 +190,7 @@ function AvailabilityContent() {
             </Button>
             <Button
               onClick={handleSave}
-              disabled={updateAvailability.isPending || (isOnLeave && (!leaveStart || !leaveEnd))}
+              disabled={updateAvailability.isPending || blockLeave || (isOnLeave && (!leaveStart || !leaveEnd))}
             >
               {updateAvailability.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save
@@ -141,8 +202,10 @@ function AvailabilityContent() {
       <LeaveConfirmationModal
         open={leaveModalOpen}
         onOpenChange={setLeaveModalOpen}
+        variant={leaveVariant}
         leaveStart={leaveStart}
         leaveEnd={leaveEnd}
+        pendingVerifications={profile.current_active_verifications}
         onConfirm={doSave}
         isLoading={updateAvailability.isPending}
       />

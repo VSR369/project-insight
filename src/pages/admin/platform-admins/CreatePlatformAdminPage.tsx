@@ -1,6 +1,6 @@
 /**
  * SCR-01-02: Create Platform Admin Page
- * Supervisor can create any tier. Senior Admin can only create admin tier.
+ * Enhanced: navigates to new admin's profile on success, custom welcome toast.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { useCreatePlatformAdmin } from '@/hooks/mutations/usePlatformAdminMutati
 import { useAdminTier } from '@/hooks/useAdminTier';
 import { PlatformAdminForm } from '@/components/admin/platform-admins/PlatformAdminForm';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { toast } from 'sonner';
 import type { PlatformAdminFormValues } from '@/components/admin/platform-admins/platformAdminForm.schema';
 
 function CreateContent() {
@@ -24,7 +25,7 @@ function CreateContent() {
   }
 
   const handleSubmit = async (data: PlatformAdminFormValues) => {
-    await createMutation.mutateAsync({
+    const result = await createMutation.mutateAsync({
       email: data.email,
       full_name: data.full_name,
       phone: data.phone,
@@ -36,7 +37,14 @@ function CreateContent() {
       max_concurrent_verifications: data.max_concurrent_verifications,
       assignment_priority: data.assignment_priority,
     });
-    navigate('/admin/platform-admins');
+    toast.success(`${data.full_name} has been added as a platform admin. Welcome email sent to ${data.email}.`);
+    // Navigate to the new admin's View Profile page
+    const newAdminId = result?.id;
+    if (newAdminId) {
+      navigate(`/admin/platform-admins/${newAdminId}`);
+    } else {
+      navigate('/admin/platform-admins');
+    }
   };
 
   return (
