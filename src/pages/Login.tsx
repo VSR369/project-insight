@@ -553,36 +553,62 @@ export default function Login() {
             </button>
           </CardHeader>
           {showDevAccounts && (
-            <CardContent className="pt-2">
-              <div className="grid grid-cols-3 lg:grid-cols-6 gap-3">
-                {DEV_ACCOUNTS.map((account) => {
-                  const Icon = account.icon;
-                  return (
-                    <button
-                      key={account.role}
-                      type="button"
-                      disabled={isLoading}
-                      onClick={() => {
-                        // Set the tab to match the test account role
-                        setSelectedRole(account.portal);
-                        // Fill credentials
-                        form.setValue('email', account.email);
-                        form.setValue('password', account.password);
-                        // Auto-submit the form for instant login
-                        form.handleSubmit((data) => onSubmit(data, account.portal))();
-                      }}
-                      className="flex flex-col items-center gap-2 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
-                    >
-                      <Icon className={`h-5 w-5 ${account.color}`} />
-                      <div className="text-center">
-                        <p className="text-xs font-medium">{account.role}</p>
-                        <p className="text-[10px] text-muted-foreground truncate max-w-[100px]">
-                          {account.email}
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
+             <CardContent className="pt-2 space-y-4">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Platform Admins</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {DEV_ACCOUNTS.filter(a => a.portal === 'admin').map((account) => {
+                    const Icon = account.icon;
+                    return (
+                      <button
+                        key={account.role}
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => {
+                          setSelectedRole(account.portal);
+                          form.setValue('email', account.email);
+                          form.setValue('password', account.password);
+                          form.handleSubmit((data) => onSubmit(data, account.portal))();
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      >
+                        <Icon className={`h-5 w-5 ${account.color}`} />
+                        <div className="text-center">
+                          <p className="text-xs font-medium">{account.role}</p>
+                          <p className="text-[10px] text-muted-foreground">{account.email}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Portal Accounts</p>
+                <div className="grid grid-cols-3 gap-3">
+                  {DEV_ACCOUNTS.filter(a => a.portal !== 'admin').map((account) => {
+                    const Icon = account.icon;
+                    return (
+                      <button
+                        key={account.role}
+                        type="button"
+                        disabled={isLoading}
+                        onClick={() => {
+                          setSelectedRole(account.portal);
+                          form.setValue('email', account.email);
+                          form.setValue('password', account.password);
+                          form.handleSubmit((data) => onSubmit(data, account.portal))();
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-3 rounded-lg border border-border/50 hover:border-primary/50 hover:bg-muted/50 transition-colors"
+                      >
+                        <Icon className={`h-5 w-5 ${account.color}`} />
+                        <div className="text-center">
+                          <p className="text-xs font-medium">{account.role}</p>
+                          <p className="text-[10px] text-muted-foreground">{account.email}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </CardContent>
           )}
