@@ -88,7 +88,7 @@ export function useUpdateCheckResult() {
 
       if (error) throw new Error(error.message);
     },
-    onSuccess: (_data, variables) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['verifications', 'detail'] });
     },
   });
@@ -110,7 +110,7 @@ export function useVerificationAction() {
       const { data: { user } } = await supabase.auth.getUser();
       const { data: profile } = await supabase
         .from('platform_admin_profiles')
-        .select('id')
+        .select('id, full_name')
         .eq('user_id', user?.id ?? '')
         .single();
 
@@ -146,7 +146,7 @@ export function useVerificationAction() {
         verification_id: verificationId,
         event_type: action.toUpperCase(),
         from_admin_id: profile?.id,
-        assignment_method: action,
+        initiator: profile?.full_name ?? 'system',
         reason: notes ?? `Verification ${action.toLowerCase()}`,
       });
     },
@@ -210,22 +210,8 @@ export function useRequestReassignment() {
         event_type: 'REASSIGNMENT_REQUESTED',
         from_admin_id: profile?.id,
         to_admin_id: targetAdminId ?? null,
+        initiator: profile?.full_name ?? 'system',
         reason,
-        assignment_method: 'REASSIGNMENT_REQUEST',
-      });
-
-      // Increment reassignment count
-      await supabase.rpc('increment_reassignment_count' as never, {
-        p_verification_id: verificationId,
-      }).catch(() => {
-        // Fallback: direct update
-        return supabase
-          .from('platform_admin_verifications')
-          .update({
-            reassignment_count: undefined, // Will need manual increment
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', verificationId);
       });
 
       // Notify supervisors

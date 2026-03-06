@@ -29,11 +29,7 @@ export function useMyAssignments() {
           id, organization_id, assigned_admin_id, assignment_method,
           status, sla_start_at, sla_paused_duration_hours,
           sla_duration_seconds, sla_breached, sla_breach_tier,
-          reassignment_count, is_current, created_at,
-          seeker_organizations!inner (
-            id, organization_name, country_id,
-            countries!seeker_organizations_country_id_fkey ( name, code )
-          )
+          reassignment_count, is_current, created_at
         `)
         .eq('assigned_admin_id', profile.id)
         .eq('is_current', true)
@@ -41,7 +37,31 @@ export function useMyAssignments() {
         .order('sla_start_at', { ascending: true });
 
       if (error) throw new Error(error.message);
-      return data ?? [];
+
+      // Fetch org details separately to avoid deep type recursion
+      const orgIds = [...new Set((data ?? []).map(d => d.organization_id))];
+      if (orgIds.length === 0) return [];
+
+      const { data: orgs } = await supabase
+        .from('seeker_organizations')
+        .select('id, organization_name, country_id')
+        .in('id', orgIds);
+
+      const countryIds = [...new Set((orgs ?? []).map(o => o.country_id).filter(Boolean))];
+      const { data: countries } = countryIds.length > 0
+        ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
+        : { data: [] };
+
+      const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
+      const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
+        ...o,
+        country: o.country_id ? countryMap[o.country_id] ?? null : null,
+      }]));
+
+      return (data ?? []).map(v => ({
+        ...v,
+        organization: orgMap[v.organization_id] ?? null,
+      }));
     },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
@@ -59,15 +79,7 @@ export function useOpenQueue() {
         .from('open_queue_entries')
         .select(`
           id, verification_id, entered_at, is_critical, is_pinned,
-          sla_deadline, escalation_count, fallback_reason, claimed_by,
-          platform_admin_verifications:verification_id (
-            id, organization_id, status, sla_start_at, sla_paused_duration_hours,
-            sla_duration_seconds, sla_breached, sla_breach_tier,
-            seeker_organizations!inner (
-              id, organization_name, country_id,
-              countries!seeker_organizations_country_id_fkey ( name, code )
-            )
-          )
+          sla_deadline, escalation_count, fallback_reason, claimed_by
         `)
         .is('claimed_by', null)
         .order('is_pinned', { ascending: false })
@@ -75,7 +87,39 @@ export function useOpenQueue() {
         .order('sla_deadline', { ascending: true, nullsFirst: false });
 
       if (error) throw new Error(error.message);
-      return data ?? [];
+      if (!data || data.length === 0) return [];
+
+      // Fetch verification details
+      const verIds = data.map(d => d.verification_id);
+      const { data: verifications } = await supabase
+        .from('platform_admin_verifications')
+        .select('id, organization_id, status, sla_start_at, sla_paused_duration_hours, sla_duration_seconds, sla_breached, sla_breach_tier')
+        .in('id', verIds);
+
+      const orgIds = [...new Set((verifications ?? []).map(v => v.organization_id))];
+      const { data: orgs } = orgIds.length > 0
+        ? await supabase.from('seeker_organizations').select('id, organization_name, country_id').in('id', orgIds)
+        : { data: [] };
+
+      const countryIds = [...new Set((orgs ?? []).map(o => o.country_id).filter(Boolean))];
+      const { data: countries } = countryIds.length > 0
+        ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
+        : { data: [] };
+
+      const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
+      const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
+        ...o,
+        country: o.country_id ? countryMap[o.country_id] ?? null : null,
+      }]));
+      const verMap = Object.fromEntries((verifications ?? []).map(v => [v.id, {
+        ...v,
+        organization: orgMap[v.organization_id] ?? null,
+      }]));
+
+      return data.map(entry => ({
+        ...entry,
+        verification: verMap[entry.verification_id] ?? null,
+      }));
     },
     staleTime: 15 * 1000,
     refetchInterval: 30 * 1000,
@@ -106,19 +150,24 @@ export function useVerificationDetail(verificationId: string | undefined) {
       // Fetch verification
       const { data: verification, error: vErr } = await supabase
         .from('platform_admin_verifications')
-        .select(`
-          *,
-          seeker_organizations!inner (
-            id, organization_name, country_id, organization_type_id,
-            website, registration_number, industry_segment_ids,
-            verification_status, lifecycle_status,
-            countries!seeker_organizations_country_id_fkey ( name, code )
-          )
-        `)
+        .select('*')
         .eq('id', verificationId)
         .single();
 
       if (vErr) throw new Error(vErr.message);
+
+      // Fetch org details separately
+      const { data: org } = await supabase
+        .from('seeker_organizations')
+        .select('id, organization_name, country_id, organization_type_id, website, registration_number, industry_segment_ids, verification_status, lifecycle_status')
+        .eq('id', verification.organization_id)
+        .single();
+
+      let country = null;
+      if (org?.country_id) {
+        const { data: c } = await supabase.from('countries').select('name, code').eq('id', org.country_id).single();
+        country = c;
+      }
 
       // Fetch check results
       const { data: checks, error: cErr } = await supabase
@@ -149,9 +198,9 @@ export function useVerificationDetail(verificationId: string | undefined) {
       // Determine state
       let viewState: 1 | 2 | 3 = 3;
       if (profile && verification.assigned_admin_id === profile.id) {
-        viewState = 1; // EDIT
+        viewState = 1;
       } else if (profile && (profile.is_supervisor || profile.admin_tier === 'supervisor')) {
-        viewState = 2; // READ-ONLY
+        viewState = 2;
       }
 
       // Get assigned admin name if not self
@@ -166,7 +215,7 @@ export function useVerificationDetail(verificationId: string | undefined) {
       }
 
       return {
-        verification,
+        verification: { ...verification, organization: org ? { ...org, country } : null },
         checks: checks ?? [],
         history: history ?? [],
         currentAssignment,
