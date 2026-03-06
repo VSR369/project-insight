@@ -12,6 +12,7 @@ interface AdminAccount {
   adminTier: string;
   firstName: string;
   lastName: string;
+  phone: string;
 }
 
 const ADMIN_ACCOUNTS: AdminAccount[] = [
@@ -21,6 +22,7 @@ const ADMIN_ACCOUNTS: AdminAccount[] = [
     adminTier: "supervisor",
     firstName: "Super",
     lastName: "Visor",
+    phone: "+15550000001",
   },
   {
     email: "senioradmin@test.local",
@@ -28,6 +30,7 @@ const ADMIN_ACCOUNTS: AdminAccount[] = [
     adminTier: "senior_admin",
     firstName: "Senior",
     lastName: "Admin",
+    phone: "+15550000002",
   },
   {
     email: "basicadmin@test.local",
@@ -35,6 +38,7 @@ const ADMIN_ACCOUNTS: AdminAccount[] = [
     adminTier: "admin",
     firstName: "Basic",
     lastName: "Admin",
+    phone: "+15550000003",
   },
 ];
 
@@ -125,6 +129,7 @@ serve(async (req) => {
           email: account.email,
           full_name: `${account.firstName} ${account.lastName}`,
           admin_tier: account.adminTier,
+          phone: account.phone,
           industry_expertise: ['41ee5438-f270-488c-aae1-b46c120bc276'],
         });
         if (profileError) {
