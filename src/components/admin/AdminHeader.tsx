@@ -43,6 +43,7 @@ const pathNames: Record<string, string> = {
   'questions': 'Question Bank',
   'invitations': 'Invitations',
   'settings': 'Settings',
+  'assignment-audit-log': 'Assignment Audit Log',
 };
 
 export function AdminHeader() {
