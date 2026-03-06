@@ -1,4 +1,3 @@
-import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 
 interface WorkloadBarProps {
@@ -10,7 +9,7 @@ interface WorkloadBarProps {
 export function WorkloadBar({ current, max, className }: WorkloadBarProps) {
   const percentage = max > 0 ? Math.min((current / max) * 100, 100) : 0;
 
-  const colorClass =
+  const barColor =
     percentage >= 100
       ? 'bg-destructive'
       : percentage >= 70
@@ -19,11 +18,12 @@ export function WorkloadBar({ current, max, className }: WorkloadBarProps) {
 
   return (
     <div className={cn('flex items-center gap-2', className)}>
-      <Progress
-        value={percentage}
-        className="h-2 w-20"
-        indicatorClassName={colorClass}
-      />
+      <div className="relative h-2 w-20 overflow-hidden rounded-full bg-secondary">
+        <div
+          className={cn('h-full transition-all', barColor)}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
       <span className="text-xs text-muted-foreground whitespace-nowrap">
         {current}/{max}
       </span>
