@@ -255,6 +255,26 @@ export function AdminSidebar() {
         </SidebarGroup>
 
         <SidebarGroup>
+          <SidebarGroupLabel>Team Management</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {teamManagementItems.map((item) => (
+                <SidebarMenuItem key={item.path}>
+                  <SidebarMenuButton
+                    onClick={() => navigate(item.path)}
+                    onMouseEnter={() => handleMouseEnter(item.path)}
+                    isActive={isActive(item.path)}
+                  >
+                    <item.icon className="h-4 w-4" />
+                    <span>{item.title}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
