@@ -1,24 +1,33 @@
 import { AlertTriangle, ShieldAlert } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface AssignedStateBannerProps {
   state: 2 | 3;
   assignedAdminName?: string;
+  onReassignToMe?: () => void;
 }
 
 /**
  * Banner shown on verification detail when user is NOT the assigned admin.
- * STATE 2 (supervisor): Amber read-only
+ * STATE 2 (supervisor): Amber read-only + "Reassign to Me" button (GAP-8)
  * STATE 3 (other admin): Red blocked
  */
-export function AssignedStateBanner({ state, assignedAdminName }: AssignedStateBannerProps) {
+export function AssignedStateBanner({ state, assignedAdminName, onReassignToMe }: AssignedStateBannerProps) {
   if (state === 2) {
     return (
-      <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-        <AlertTriangle className="h-4 w-4 shrink-0" />
-        <span>
-          <strong>Read-Only View.</strong> This verification is assigned to{' '}
-          <strong>{assignedAdminName ?? 'another admin'}</strong>. You can view but not modify.
-        </span>
+      <div className="flex items-center justify-between gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-center gap-2">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>Read-Only View.</strong> This verification is assigned to{' '}
+            <strong>{assignedAdminName ?? 'another admin'}</strong>. You can view but not modify.
+          </span>
+        </div>
+        {onReassignToMe && (
+          <Button size="sm" variant="default" className="shrink-0" onClick={onReassignToMe}>
+            Reassign to Me
+          </Button>
+        )}
       </div>
     );
   }

@@ -1,3 +1,4 @@
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -31,15 +32,22 @@ interface ClaimConfirmationModalProps {
 
 /**
  * MOD-M-01: Claim Confirmation Modal
+ * GAP-12: Navigate to detail page on success
  */
 export function ClaimConfirmationModal({ open, onOpenChange, entry }: ClaimConfirmationModalProps) {
   const claimMutation = useClaimFromQueue();
+  const navigate = useNavigate();
   const ver = entry.verification;
   const orgName = ver?.organization?.organization_name ?? 'Unknown Organization';
 
   const handleClaim = () => {
     claimMutation.mutate(entry.id, {
-      onSuccess: () => onOpenChange(false),
+      onSuccess: (result) => {
+        onOpenChange(false);
+        // GAP-12: Navigate to verification detail page
+        const verificationId = result?.verification_id ?? entry.verification_id;
+        navigate(`/admin/verifications/${verificationId}`);
+      },
     });
   };
 

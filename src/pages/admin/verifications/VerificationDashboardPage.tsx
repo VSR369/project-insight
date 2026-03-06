@@ -1,17 +1,33 @@
-import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useMyAssignments, useOpenQueue } from '@/hooks/queries/useVerificationDashboard';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ClipboardList, ListTodo } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ClipboardList, ListTodo, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { MyAssignmentsTab } from '@/components/admin/verifications/MyAssignmentsTab';
 import { OpenQueueTab } from '@/components/admin/verifications/OpenQueueTab';
 
 /**
  * SCR-03-01 & SCR-03-02: Verification Dashboard
  * Two-tab layout: My Assignments | Open Queue
+ * GAP-1: Tab count badges
+ * GAP-2: Tier warning/breach banners
  */
-export default function VerificationDashboardPage() {
+function VerificationDashboardContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'mine';
+
+  const { data: assignments } = useMyAssignments();
+  const { data: queueEntries } = useOpenQueue();
+
+  const myCount = assignments?.length ?? 0;
+  const queueCount = queueEntries?.length ?? 0;
+
+  // GAP-2: Tier-based banners
+  const tier1Count = assignments?.filter(a => a.sla_breach_tier === 'TIER1').length ?? 0;
+  const tier2PlusCount = assignments?.filter(a =>
+    a.sla_breach_tier === 'TIER2' || a.sla_breach_tier === 'TIER3'
+  ).length ?? 0;
 
   const handleTabChange = (value: string) => {
     setSearchParams({ tab: value });
@@ -26,15 +42,43 @@ export default function VerificationDashboardPage() {
         </p>
       </div>
 
+      {/* GAP-2: Tier warning banners */}
+      {tier1Count > 0 && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{tier1Count}</strong> verification{tier1Count > 1 ? 's' : ''} approaching SLA deadline.
+          </span>
+        </div>
+      )}
+      {tier2PlusCount > 0 && (
+        <div className="flex items-center gap-2 rounded-md border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+          <ShieldAlert className="h-4 w-4 shrink-0" />
+          <span>
+            <strong>{tier2PlusCount}</strong> SLA-breached verification{tier2PlusCount > 1 ? 's' : ''} require immediate attention.
+          </span>
+        </div>
+      )}
+
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
           <TabsTrigger value="mine" className="gap-1.5">
             <ClipboardList className="h-4 w-4" />
             My Assignments
+            {myCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">
+                {myCount}
+              </Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="queue" className="gap-1.5">
             <ListTodo className="h-4 w-4" />
             Open Queue
+            {queueCount > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-[20px] px-1.5 text-[10px]">
+                {queueCount}
+              </Badge>
+            )}
           </TabsTrigger>
         </TabsList>
 
@@ -47,5 +91,13 @@ export default function VerificationDashboardPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+export default function VerificationDashboardPage() {
+  return (
+    <FeatureErrorBoundary featureName="Verification Dashboard">
+      <VerificationDashboardContent />
+    </FeatureErrorBoundary>
   );
 }
