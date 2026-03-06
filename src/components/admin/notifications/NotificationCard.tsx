@@ -1,6 +1,6 @@
 /**
  * NotificationCard — Type-specific card with colored left border.
- * Per MOD-02 SCR-02-01 spec.
+ * Per MOD-02 SCR-02-01 spec. GAP-9: Rich metadata rendering.
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -13,9 +13,13 @@ import {
   ArrowRightLeft,
   Megaphone,
   Mail,
+  Clock,
+  ExternalLink,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import type { AdminNotification, NotificationType } from '@/hooks/queries/useAdminNotifications';
 
 const TYPE_CONFIG: Record<NotificationType, {
@@ -74,6 +78,7 @@ export function NotificationCard({ notification, onMarkRead }: NotificationCardP
   const navigate = useNavigate();
   const config = TYPE_CONFIG[notification.type] ?? TYPE_CONFIG.ASSIGNMENT;
   const Icon = config.icon;
+  const meta = (notification.metadata ?? {}) as Record<string, unknown>;
 
   const handleClick = () => {
     if (!notification.is_read) {
@@ -83,6 +88,13 @@ export function NotificationCard({ notification, onMarkRead }: NotificationCardP
       navigate(notification.deep_link);
     }
   };
+
+  const orgName = meta.org_name as string | undefined;
+  const industries = meta.industry_segments as string[] | undefined;
+  const hqCountry = meta.hq_country as string | undefined;
+  const orgType = meta.org_type as string | undefined;
+  const slaDeadline = meta.sla_deadline as string | undefined;
+  const domainScore = meta.domain_score as number | undefined;
 
   return (
     <button
@@ -100,12 +112,74 @@ export function NotificationCard({ notification, onMarkRead }: NotificationCardP
           <p className={cn('text-sm', !notification.is_read && 'font-semibold')}>
             {notification.title}
           </p>
-          <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-            {notification.body}
-          </p>
+
+          {/* Rich metadata for ASSIGNMENT type (GAP-9) */}
+          {orgName && (
+            <p className="text-sm font-medium mt-0.5">{orgName}</p>
+          )}
+
+          {industries && industries.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {industries.slice(0, 3).map((ind) => (
+                <Badge key={ind} variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {ind}
+                </Badge>
+              ))}
+              {industries.length > 3 && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                  +{industries.length - 3}
+                </Badge>
+              )}
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2 mt-1">
+            {hqCountry && (
+              <span className="text-xs text-muted-foreground">{hqCountry}</span>
+            )}
+            {orgType && (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0">{orgType}</Badge>
+            )}
+            {typeof domainScore === 'number' && (
+              <Badge className="text-[10px] px-1.5 py-0 bg-primary/10 text-primary hover:bg-primary/10">
+                Score: {domainScore}
+              </Badge>
+            )}
+          </div>
+
+          {slaDeadline && (
+            <div className="flex items-center gap-1 mt-1">
+              <Clock className="h-3 w-3 text-muted-foreground" />
+              <span className="text-xs text-muted-foreground">
+                SLA: {format(new Date(slaDeadline), 'MMM d, HH:mm')}
+              </span>
+            </div>
+          )}
+
+          {!orgName && (
+            <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+              {notification.body}
+            </p>
+          )}
+
           <p className="text-xs text-muted-foreground mt-1">
             {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
           </p>
+
+          {notification.deep_link && notification.type === 'ASSIGNMENT' && (
+            <Button
+              variant="link"
+              size="sm"
+              className="h-auto p-0 mt-1 text-xs"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClick();
+              }}
+            >
+              <ExternalLink className="h-3 w-3 mr-1" />
+              View Verification
+            </Button>
+          )}
         </div>
         {!notification.is_read && (
           <div className="h-2 w-2 rounded-full bg-primary shrink-0 mt-1.5" />

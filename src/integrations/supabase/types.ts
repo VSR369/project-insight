@@ -3118,6 +3118,59 @@ export type Database = {
           },
         ]
       }
+      notification_retry_queue: {
+        Row: {
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_retry_at: string
+          notification_audit_log_id: string
+          notification_type: string
+          recipient_email: string
+          retry_count: number
+          status: string
+          updated_at: string | null
+          verification_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          notification_audit_log_id: string
+          notification_type: string
+          recipient_email: string
+          retry_count?: number
+          status?: string
+          updated_at?: string | null
+          verification_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          notification_audit_log_id?: string
+          notification_type?: string
+          recipient_email?: string
+          retry_count?: number
+          status?: string
+          updated_at?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_retry_queue_notification_audit_log_id_fkey"
+            columns: ["notification_audit_log_id"]
+            isOneToOne: false
+            referencedRelation: "notification_audit_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       open_queue_entries: {
         Row: {
           claimed_at: string | null
@@ -8655,9 +8708,15 @@ export type Database = {
           admin_id: string
           admin_tier: string
           assignment_priority: number
+          availability_status: string
           country_score: number
+          current_active: number
+          email: string
           full_name: string
           industry_score: number
+          is_supervisor: boolean
+          last_assignment_timestamp: string
+          max_concurrent: number
           org_type_score: number
           total_score: number
           workload_ratio: number

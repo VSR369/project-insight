@@ -5,6 +5,7 @@ import { NotificationBell } from '@/components/admin/notifications/NotificationB
 import { NotificationDrawer } from '@/components/admin/notifications/NotificationDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ const pathNames: Record<string, string> = {
 export function AdminHeader() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
+  const { tier } = useAdminTier();
   const location = useLocation();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
@@ -111,7 +113,9 @@ export function AdminHeader() {
               </Avatar>
               <div className="hidden sm:flex flex-col items-start">
                 <span className="text-sm font-medium">{firstName} {lastName}</span>
-                <span className="text-xs text-destructive">Platform Admin</span>
+                <span className="text-xs text-destructive">
+                  {tier === 'supervisor' ? 'Supervisor' : tier === 'senior_admin' ? 'Senior Admin' : 'Admin'}
+                </span>
               </div>
               <ChevronDown className="h-4 w-4 text-muted-foreground hidden sm:block" />
             </Button>
@@ -122,7 +126,7 @@ export function AdminHeader() {
                 <span>{firstName} {lastName}</span>
                 <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
                 <Badge variant="destructive" className="mt-1 w-fit text-[10px]">
-                  Platform Admin
+                  {tier === 'supervisor' ? 'Supervisor' : tier === 'senior_admin' ? 'Senior Admin' : 'Admin'}
                 </Badge>
               </div>
             </DropdownMenuLabel>

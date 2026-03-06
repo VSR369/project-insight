@@ -1,6 +1,6 @@
 /**
  * SCR-02-02: Engine Audit Log — Supervisor Only
- * Shows assignment engine decisions with expandable scoring snapshots and CSV export.
+ * GAP-14: Selection Reason column. GAP-15: Org Name column.
  */
 
 import { useState } from 'react';
@@ -35,17 +35,23 @@ function AuditLogContent() {
 
   const handleExportCSV = () => {
     if (logs.length === 0) return;
-    const headers = ['Date/Time', 'Verification ID', 'Event', 'Assigned To', 'Score', 'Reason', 'Initiator'];
-    const rows = logs.map((log) => [
-      format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
-      log.verification_id,
-      log.event_type,
-      (log.scoring_snapshot as Record<string, unknown>)?.selected_admin_name ?? 'N/A',
-      (log.scoring_snapshot as Record<string, unknown>)?.total_score ?? 'N/A',
-      log.reason ?? '',
-      log.initiator,
-    ]);
-    const csv = [headers, ...rows].map((r) => r.join(',')).join('\n');
+    const headers = ['Date/Time', 'Verification ID', 'Org Name', 'Event', 'Assigned To', 'Score', 'Selection Reason', 'Pool Size', 'Reason', 'Initiator'];
+    const rows = logs.map((log) => {
+      const snapshot = (log.scoring_snapshot ?? {}) as Record<string, unknown>;
+      return [
+        format(new Date(log.created_at), 'yyyy-MM-dd HH:mm:ss'),
+        log.verification_id,
+        (snapshot.org_name as string) ?? '',
+        log.event_type,
+        (snapshot.selected_admin_name as string) ?? 'N/A',
+        (snapshot.total_score as number) ?? 'N/A',
+        (snapshot.selection_reason as string) ?? '',
+        (snapshot.pool_size as number) ?? '',
+        log.reason ?? '',
+        log.initiator,
+      ];
+    });
+    const csv = [headers, ...rows].map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -68,6 +74,21 @@ function AuditLogContent() {
       default:
         return <Badge variant="outline">{eventType}</Badge>;
     }
+  };
+
+  const getSelectionReasonBadge = (reason: string | null) => {
+    if (!reason) return <span className="text-muted-foreground">—</span>;
+    const config: Record<string, { label: string; className: string }> = {
+      highest_domain_score: { label: 'Highest Score', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
+      workload_tiebreaker: { label: 'Workload Tie', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
+      priority_tiebreaker: { label: 'Priority Tie', className: 'bg-purple-100 text-purple-800 hover:bg-purple-100' },
+      round_robin: { label: 'Round Robin', className: 'bg-amber-100 text-amber-800 hover:bg-amber-100' },
+      NO_ELIGIBLE_ADMIN: { label: 'No Eligible', className: 'bg-red-100 text-red-800 hover:bg-red-100' },
+      NO_INDUSTRY_MATCH: { label: 'No Match', className: 'bg-red-100 text-red-800 hover:bg-red-100' },
+      AFFINITY_RESUBMISSION: { label: 'Affinity', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
+    };
+    const c = config[reason] ?? { label: reason, className: '' };
+    return <Badge className={`text-[10px] ${c.className}`}>{c.label}</Badge>;
   };
 
   return (
@@ -146,83 +167,83 @@ function AuditLogContent() {
               <p className="text-xs mt-1">Adjust filters or wait for assignments to be processed.</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8" />
-                  <TableHead>Date/Time</TableHead>
-                  <TableHead>Outcome</TableHead>
-                  <TableHead>Assigned To</TableHead>
-                  <TableHead>Domain Score</TableHead>
-                  <TableHead>Method</TableHead>
-                  <TableHead>Pool Size</TableHead>
-                  <TableHead>Reason</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.map((log) => {
-                  const snapshot = (log.scoring_snapshot ?? {}) as Record<string, unknown>;
-                  const isExpanded = expandedRow === log.id;
-                  return (
-                    <>
-                      <TableRow
-                        key={log.id}
-                        className="cursor-pointer"
-                        onClick={() => setExpandedRow(isExpanded ? null : log.id)}
-                      >
-                        <TableCell>
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4" />
-                          )}
-                        </TableCell>
-                        <TableCell className="text-sm whitespace-nowrap">
-                          {format(new Date(log.created_at), 'MMM d, HH:mm')}
-                        </TableCell>
-                        <TableCell>{getOutcomeBadge(log.event_type)}</TableCell>
-                        <TableCell className="text-sm">
-                          {(snapshot.selected_admin_name as string) ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium">
-                              {(snapshot.total_score as number) ?? '—'}
-                            </span>
-                            {typeof snapshot.total_score === 'number' && (
-                              <div className="h-2 w-16 bg-muted rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-primary rounded-full"
-                                  style={{ width: `${Math.min(100, (snapshot.total_score as number))}%` }}
-                                />
-                              </div>
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8" />
+                    <TableHead>Date/Time</TableHead>
+                    <TableHead>Outcome</TableHead>
+                    <TableHead>Assigned To</TableHead>
+                    <TableHead>Domain Score</TableHead>
+                    <TableHead>Selection Reason</TableHead>
+                    <TableHead>Pool Size</TableHead>
+                    <TableHead>Fallback Reason</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {logs.map((log) => {
+                    const snapshot = (log.scoring_snapshot ?? {}) as Record<string, unknown>;
+                    const isExpanded = expandedRow === log.id;
+                    return (
+                      <>
+                        <TableRow
+                          key={log.id}
+                          className="cursor-pointer"
+                          onClick={() => setExpandedRow(isExpanded ? null : log.id)}
+                        >
+                          <TableCell>
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4" />
                             )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-xs">
-                            {(snapshot.method as string) ?? log.event_type}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm">
-                          {(snapshot.pool_size as number) ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
-                          {log.reason ?? '—'}
-                        </TableCell>
-                      </TableRow>
-                      {isExpanded && (
-                        <TableRow key={`${log.id}-detail`}>
-                          <TableCell colSpan={8} className="bg-muted/30 p-0">
-                            <ScoringSnapshotPanel snapshot={snapshot} />
+                          </TableCell>
+                          <TableCell className="text-sm whitespace-nowrap">
+                            {format(new Date(log.created_at), 'MMM d, HH:mm')}
+                          </TableCell>
+                          <TableCell>{getOutcomeBadge(log.event_type)}</TableCell>
+                          <TableCell className="text-sm">
+                            {(snapshot.selected_admin_name as string) ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">
+                                {(snapshot.total_score as number) ?? '—'}
+                              </span>
+                              {typeof snapshot.total_score === 'number' && (
+                                <div className="h-2 w-16 bg-muted rounded-full overflow-hidden">
+                                  <div
+                                    className="h-full bg-primary rounded-full"
+                                    style={{ width: `${Math.min(100, (snapshot.total_score as number))}%` }}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {getSelectionReasonBadge(log.reason)}
+                          </TableCell>
+                          <TableCell className="text-sm">
+                            {(snapshot.pool_size as number) ?? '—'}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground max-w-48 truncate">
+                            {log.event_type === 'FALLBACK_TO_QUEUE' ? (log.reason ?? '—') : '—'}
                           </TableCell>
                         </TableRow>
-                      )}
-                    </>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                        {isExpanded && (
+                          <TableRow key={`${log.id}-detail`}>
+                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                              <ScoringSnapshotPanel snapshot={snapshot} />
+                            </TableCell>
+                          </TableRow>
+                        )}
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>
