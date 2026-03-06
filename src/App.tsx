@@ -11,6 +11,7 @@ import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { AdminShell } from "@/components/admin/AdminShell";
+import { TierGuard } from "@/components/admin/TierGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
@@ -521,7 +522,7 @@ const App = () => (
               <Route path="invitations" element={<InvitationsPage />} />
               <Route path="invitations/panel-reviewers" element={<PanelReviewerInvitationsPage />} />
               <Route path="smoke-test" element={<SmokeTestPage />} />
-              <Route path="settings" element={<AdminSettingsPage />} />
+              <Route path="settings" element={<TierGuard requiredTier="senior_admin"><AdminSettingsPage /></TierGuard>} />
               <Route path="interview/kit" element={<InterviewKitPage />} />
               <Route path="interview/kit/questions" element={<InterviewKitQuestionsPage />} />
               <Route path="interview/quorum-requirements" element={<InterviewRequirementsPage />} />
@@ -529,32 +530,34 @@ const App = () => (
               <Route path="interview/reviewer-availability" element={<ReviewerAvailabilityPage />} />
               <Route path="pulse-social-test" element={<PulseSocialTestPage />} />
               <Route path="regression-test-kit" element={<RegressionTestKitPage />} />
-              <Route path="seeker-config/pricing-overview" element={<PricingOverviewPage />} />
-              <Route path="seeker-config/subscription-tiers" element={<SubscriptionTiersPage />} />
-              <Route path="seeker-config/engagement-models" element={<EngagementModelsPage />} />
-              <Route path="seeker-config/challenge-complexity" element={<ChallengeComplexityPage />} />
-              <Route path="seeker-config/challenge-statuses" element={<ChallengeStatusesPage />} />
-              <Route path="seeker-config/export-control" element={<ExportControlPage />} />
-              <Route path="seeker-config/data-residency" element={<DataResidencyPage />} />
-              <Route path="seeker-config/blocked-domains" element={<BlockedDomainsPage />} />
-              <Route path="seeker-config/platform-terms" element={<PlatformTermsPage />} />
-              <Route path="seeker-config/membership-tiers" element={<MembershipTiersPage />} />
-              <Route path="seeker-config/base-fees" element={<BaseFeesPage />} />
-              <Route path="seeker-config/shadow-pricing" element={<ShadowPricingPage />} />
-              <Route path="seeker-config/platform-fees" element={<PlatformFeesPage />} />
-              <Route path="seeker-config/tax-formats" element={<TaxFormatsPage />} />
-              <Route path="seeker-config/subsidized-pricing" element={<SubsidizedPricingPage />} />
-              <Route path="seeker-config/postal-formats" element={<PostalFormatsPage />} />
-              <Route path="seeker-config/billing-cycles" element={<BillingCyclesPage />} />
-              <Route path="seeker-config/payment-methods" element={<PaymentMethodsPage />} />
+              {/* Seeker Config — senior_admin+ */}
+              <Route path="seeker-config/pricing-overview" element={<TierGuard requiredTier="senior_admin"><PricingOverviewPage /></TierGuard>} />
+              <Route path="seeker-config/subscription-tiers" element={<TierGuard requiredTier="senior_admin"><SubscriptionTiersPage /></TierGuard>} />
+              <Route path="seeker-config/engagement-models" element={<TierGuard requiredTier="senior_admin"><EngagementModelsPage /></TierGuard>} />
+              <Route path="seeker-config/challenge-complexity" element={<TierGuard requiredTier="senior_admin"><ChallengeComplexityPage /></TierGuard>} />
+              <Route path="seeker-config/challenge-statuses" element={<TierGuard requiredTier="senior_admin"><ChallengeStatusesPage /></TierGuard>} />
+              {/* Compliance Config — supervisor only */}
+              <Route path="seeker-config/export-control" element={<TierGuard requiredTier="supervisor"><ExportControlPage /></TierGuard>} />
+              <Route path="seeker-config/data-residency" element={<TierGuard requiredTier="supervisor"><DataResidencyPage /></TierGuard>} />
+              <Route path="seeker-config/blocked-domains" element={<TierGuard requiredTier="supervisor"><BlockedDomainsPage /></TierGuard>} />
+              <Route path="seeker-config/platform-terms" element={<TierGuard requiredTier="senior_admin"><PlatformTermsPage /></TierGuard>} />
+              <Route path="seeker-config/membership-tiers" element={<TierGuard requiredTier="senior_admin"><MembershipTiersPage /></TierGuard>} />
+              <Route path="seeker-config/base-fees" element={<TierGuard requiredTier="senior_admin"><BaseFeesPage /></TierGuard>} />
+              <Route path="seeker-config/shadow-pricing" element={<TierGuard requiredTier="senior_admin"><ShadowPricingPage /></TierGuard>} />
+              <Route path="seeker-config/platform-fees" element={<TierGuard requiredTier="senior_admin"><PlatformFeesPage /></TierGuard>} />
+              <Route path="seeker-config/tax-formats" element={<TierGuard requiredTier="senior_admin"><TaxFormatsPage /></TierGuard>} />
+              <Route path="seeker-config/subsidized-pricing" element={<TierGuard requiredTier="senior_admin"><SubsidizedPricingPage /></TierGuard>} />
+              <Route path="seeker-config/postal-formats" element={<TierGuard requiredTier="senior_admin"><PostalFormatsPage /></TierGuard>} />
+              <Route path="seeker-config/billing-cycles" element={<TierGuard requiredTier="senior_admin"><BillingCyclesPage /></TierGuard>} />
+              <Route path="seeker-config/payment-methods" element={<TierGuard requiredTier="senior_admin"><PaymentMethodsPage /></TierGuard>} />
               <Route path="saas-agreements" element={<SaasAgreementPage />} />
               <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
               <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
-              {/* MOD-01: Platform Admin Management */}
-              <Route path="platform-admins" element={<PlatformAdminListPage />} />
-              <Route path="platform-admins/new" element={<CreatePlatformAdminPage />} />
-              <Route path="platform-admins/:adminId" element={<ViewPlatformAdminPage />} />
-              <Route path="platform-admins/:adminId/edit" element={<EditPlatformAdminPage />} />
+              {/* MOD-01: Platform Admin Management — senior_admin+ */}
+              <Route path="platform-admins" element={<TierGuard requiredTier="senior_admin"><PlatformAdminListPage /></TierGuard>} />
+              <Route path="platform-admins/new" element={<TierGuard requiredTier="senior_admin"><CreatePlatformAdminPage /></TierGuard>} />
+              <Route path="platform-admins/:adminId" element={<TierGuard requiredTier="senior_admin"><ViewPlatformAdminPage /></TierGuard>} />
+              <Route path="platform-admins/:adminId/edit" element={<TierGuard requiredTier="supervisor"><EditPlatformAdminPage /></TierGuard>} />
               <Route path="my-profile" element={<MyProfilePage />} />
               <Route path="availability" element={<AvailabilitySettingsPage />} />
             </Route>
