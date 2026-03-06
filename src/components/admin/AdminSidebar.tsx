@@ -73,15 +73,18 @@ const seekerConfigItems = [
   { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
   { title: 'Shadow Pricing', icon: Activity, path: '/admin/seeker-config/shadow-pricing' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
-  { title: 'Export Control', icon: Shield, path: '/admin/seeker-config/export-control' },
-  { title: 'Data Residency', icon: Globe, path: '/admin/seeker-config/data-residency' },
-  { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
   { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
   { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
   { title: 'Subsidized Pricing', icon: Activity, path: '/admin/seeker-config/subsidized-pricing' },
   { title: 'Postal Formats', icon: Globe, path: '/admin/seeker-config/postal-formats' },
   { title: 'Billing Cycles', icon: CreditCard, path: '/admin/seeker-config/billing-cycles' },
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
+];
+
+const complianceConfigItems = [
+  { title: 'Export Control', icon: Shield, path: '/admin/seeker-config/export-control' },
+  { title: 'Data Residency', icon: Globe, path: '/admin/seeker-config/data-residency' },
+  { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
 ];
 
 const taxonomyItems = [
@@ -293,7 +296,19 @@ export function AdminSidebar() {
             <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {seekerConfigItems.map((item) => (
+              {seekerConfigItems.map((item) => (
+                  <SidebarMenuItem key={item.path}>
+                    <SidebarMenuButton
+                      onClick={() => navigate(item.path)}
+                      onMouseEnter={() => handleMouseEnter(item.path)}
+                      isActive={isActive(item.path)}
+                    >
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+                {isSupervisor && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       onClick={() => navigate(item.path)}
