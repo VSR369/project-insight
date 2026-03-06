@@ -125,10 +125,6 @@ serve(async (req) => {
             email: account.email,
             full_name: `${account.firstName} ${account.lastName}`,
             admin_tier: account.adminTier,
-            status: "active",
-            is_active: true,
-            designation_method: "SELF",
-            admin_type: "PRIMARY",
           });
         if (profileError) {
           phases.push(`❌ Failed to create profile: ${profileError.message}`);
