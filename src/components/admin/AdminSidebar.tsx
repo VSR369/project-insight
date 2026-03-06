@@ -107,8 +107,8 @@ const otherItems = [
   { title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
   { title: 'Social Channel Test', icon: Activity, path: '/admin/pulse-social-test' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
-  { title: 'Settings', icon: Settings, path: '/admin/settings' },
-];
+  { title: 'Settings', icon: Settings, path: '/admin/settings', requiresTier: true },
+] as const;
 
 export function AdminSidebar() {
   const navigate = useNavigate();
@@ -358,7 +358,9 @@ export function AdminSidebar() {
               </Collapsible>
 
               {/* Other menu items */}
-              {otherItems.map((item) => (
+              {otherItems
+                .filter((item) => !('requiresTier' in item && item.requiresTier) || isSupervisor || isSeniorAdmin)
+                .map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}

@@ -1,6 +1,6 @@
 /**
  * SCR-01-03: Edit Platform Admin Page
- * Only supervisors can edit.
+ * Supervisors can edit any profile. Senior Admins can edit admin-tier profiles only.
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
@@ -17,7 +17,7 @@ function EditContent() {
   const navigate = useNavigate();
   const { data: admin, isLoading } = usePlatformAdminProfile(adminId);
   const updateMutation = useUpdatePlatformAdmin();
-  const { isSupervisor } = useAdminTier();
+  const { tier, isSupervisor, isSeniorAdmin } = useAdminTier();
 
   if (isLoading) {
     return (
@@ -29,12 +29,23 @@ function EditContent() {
     );
   }
 
-  if (!isSupervisor) {
-    return <div className="text-center py-12 text-muted-foreground">Only supervisors can edit admin profiles.</div>;
-  }
-
   if (!admin) {
     return <div className="text-center py-12 text-muted-foreground">Admin not found.</div>;
+  }
+
+  const targetTier = (admin as any).admin_tier || (admin.is_supervisor ? 'supervisor' : 'admin');
+
+  // Supervisor can edit anyone; Senior Admin can only edit admin-tier profiles
+  const canEdit = isSupervisor || (isSeniorAdmin && targetTier === 'admin');
+
+  if (!canEdit) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        {isSeniorAdmin
+          ? 'Senior Admins can only edit Admin-tier profiles.'
+          : 'You don\'t have permission to edit admin profiles.'}
+      </div>
+    );
   }
 
   const handleSubmit = async (data: PlatformAdminFormValues) => {
@@ -53,13 +64,13 @@ function EditContent() {
       </div>
       <PlatformAdminForm
         mode="edit"
-        callerTier="supervisor"
+        callerTier={tier || 'admin'}
         defaultValues={{
           full_name: admin.full_name,
           email: admin.email,
           phone: admin.phone,
           is_supervisor: admin.is_supervisor,
-          admin_tier: (admin as any).admin_tier || (admin.is_supervisor ? 'supervisor' : 'admin'),
+          admin_tier: targetTier,
           industry_expertise: admin.industry_expertise,
           country_region_expertise: admin.country_region_expertise ?? [],
           org_type_expertise: admin.org_type_expertise ?? [],
