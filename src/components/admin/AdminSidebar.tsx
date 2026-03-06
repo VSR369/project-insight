@@ -100,6 +100,11 @@ const seekerItems = [
   { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
 ];
 
+const teamManagementItems = [
+  { title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' },
+  { title: 'My Profile', icon: User, path: '/admin/my-profile' },
+];
+
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
