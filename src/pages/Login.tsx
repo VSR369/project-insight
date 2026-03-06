@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils';
 
 // Portal type for routing
 type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
-type AdminSubTier = 'supervisor' | 'senior_admin' | 'admin';
+
 
 // Tab configuration with icons and descriptions
 const LOGIN_TABS: Array<{
@@ -145,7 +145,7 @@ export default function Login() {
   const [isLoading, setIsLoading] = useState(false);
   const [showDevAccounts, setShowDevAccounts] = useState(true);
   const [selectedRole, setSelectedRole] = useState<PortalType>('provider');
-  const [adminSubTier, setAdminSubTier] = useState<AdminSubTier>('admin');
+  
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
@@ -352,9 +352,6 @@ export default function Login() {
         
         // Persist portal choice and admin tier for future sessions/refreshes
         sessionStorage.setItem('activePortal', targetPortal);
-        if (targetPortal === 'admin') {
-          sessionStorage.setItem('adminTier', adminSubTier);
-        }
         
         // Handle pending reviewers - redirect to pending approval page
         if (targetPortal === 'reviewer' && isPendingReviewer) {
