@@ -1,121 +1,105 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# MOD-03 Gap Analysis: Tech Spec & BRD vs Current Implementation
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## What Is Fully Implemented (No Gaps)
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
-
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+- Database: `platform_admin_verifications` table, `verification_check_results` table, all RLS policies, `fn_immutable_sla_start` trigger, `fn_sync_admin_workload` trigger, `fn_seed_verification_checks` trigger
+- RPCs: `claim_from_queue` (atomic FOR UPDATE NOWAIT), `release_to_queue` (window check)
+- Edge Functions: `sla-escalation` (3-tier), `queue-escalation` (unclaimed alerts)
+- UI: All 13 components created, both pages, sidebar nav, lazy routes
+- Modals: MOD-M-01 (Claim), MOD-M-02 (Release), MOD-M-03 (Reassignment)
+- 3-state detail page logic (EDIT/READ-ONLY/BLOCKED)
+- V1-V6 check panel with V6 guard, auto-save, progress bar
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## Gaps Found
 
-## What Was Implemented
+### GAP-1: Missing Tab Count Badges (SCR-03-01 / SCR-03-02)
+**Spec:** Tab labels should show count badges: "My Assignments (7)" and "Open Queue (3)".
+**Current:** Tabs show static text only. No count badges.
+**Fix:** Pass counts from `useMyAssignments` and `useOpenQueue` into tab trigger labels.
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+### GAP-2: Missing Tier Warning/Breach Banners on Dashboard (SCR-03-01)
+**Spec:** Conditional banners above the table: amber "N verification(s) approaching SLA deadline" (Tier 1), red "N SLA-breached verification(s) require immediate attention" (Tier 2+).
+**Current:** No banners. Dashboard goes straight to tabs and table.
+**Fix:** Count Tier 1 and Tier 2+ entries from `useMyAssignments` data, render amber/red Alert banners between header and tabs.
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+### GAP-3: Missing Industry Tags Column (SCR-03-01 & SCR-03-02)
+**Spec:** "Industry Tags" column with up to 2 blue pill chips + "+N" overflow.
+**Current:** MyAssignmentsTab has no Industry Tags column. OpenQueueTab also missing.
+**Fix:** Fetch `industry_segment_ids` from org data, resolve to names, render chips in table.
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+### GAP-4: Missing "Days Remaining" Column (SCR-03-01)
+**Spec:** "Days Remaining" column with signed integer: green positive, amber zero, red negative.
+**Current:** Not present. Only SLA Progress bar and Tier badge shown.
+**Fix:** Calculate days remaining from SLA deadline, render color-coded number.
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+### GAP-5: Missing SLA Deadline Column (SCR-03-01 & SCR-03-02)
+**Spec:** "SLA Deadline" column showing absolute date + relative countdown: "12 Mar 2026 5:00 PM · 2d 4h remaining" or "Breached 6h ago".
+**Current:** SLA progress bar exists but no separate deadline text column.
+**Fix:** Add column computing and displaying deadline date + countdown text.
 
-### MOD-02 Role-Based Access Matrix
+### GAP-6: Missing Org Type Column in Open Queue (SCR-03-02)
+**Spec:** Queue table should include "Org Type" column.
+**Current:** Not present.
+**Fix:** Add org type lookup and column.
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+### GAP-7: Missing "Time in Queue" Color Coding (SCR-03-02)
+**Spec:** Time in Queue text: amber if >2hr, red if >4hr.
+**Current:** Always default muted color via `formatDistanceToNow`.
+**Fix:** Calculate hours, apply amber/red text color classes.
+
+### GAP-8: Supervisor STATE 2 Banner Missing "Reassign to Me" Button
+**Spec:** Amber banner should include "Reassign to Me" blue button for supervisors.
+**Current:** Banner is text-only with no action button.
+**Fix:** Add a "Reassign to Me" or "Force Reassign" button to STATE 2 banner.
+
+### GAP-9: SLA Tier Badges Missing Emoji/Icon Indicators
+**Spec:** T1 = "⚠ T1", T2 = "🔴 T2", T3 = "🚨 T3 CRITICAL".
+**Current:** Shows plain text: "SLA Warning", "SLA Breached", "CRITICAL" without emoji/shortcodes.
+**Fix:** Update `SLAStatusBadge` labels to match spec format.
+
+### GAP-10: Missing "Org Details" and "Registrant Comms" Tabs on Detail Page
+**Spec:** SCR-03-03 has 4 tabs: Org Details | Verification Checks | Assignment History | Registrant Comms.
+**Current:** Only 2 tabs: Verification Checks | Assignment History.
+**Fix:** Add stub/placeholder tabs for Org Details and Registrant Comms.
+
+### GAP-11: Assignment History Missing "From Admin", "To Admin", and "Domain Score" Columns
+**Spec:** Columns: Date/Time, Event, From Admin, To Admin, Reason/Method, Domain Score.
+**Current:** Only 4 columns: Date/Time, Event, Initiator, Reason. Missing From/To admin name resolution and Domain Score from scoring_snapshot.
+**Fix:** Resolve `from_admin_id` / `to_admin_id` to names via lookup, add Domain Score column reading from `scoring_snapshot`.
+
+### GAP-12: Claim Success Should Navigate to Detail Page
+**Spec:** TC-03-005: "Admin redirected to SCR-03-03 STATE 1" after successful claim.
+**Current:** `useClaimFromQueue` only shows toast and closes modal. No navigation.
+**Fix:** On claim success, navigate to `/admin/verifications/${verification_id}`.
+
+### GAP-13: `sla-escalation` Edge Function Not Tier-Aware
+**Spec:** pg_cron calls the function with `{ tier: 1 | 2 | 3 }`, and the function processes only that specific tier.
+**Current:** Function processes ALL tiers in a single pass (checks all thresholds for all verifications). Does not read `tier` from request body.
+**Fix:** Read `tier` from request body and filter logic accordingly, or accept current approach as a valid simplification (processes all tiers per invocation, which is functionally equivalent but less granular).
+
+### GAP-14: Missing Confirm Dialog on Approve/Reject Actions
+**Spec:** Approve click → confirm dialog "Approve [Org Name]?". Reject → opens rejection reason modal.
+**Current:** Approve and Reject fire mutations directly without confirmation dialogs.
+**Fix:** Add confirmation dialogs/modals for Approve and Reject actions with reason textarea for Reject.
+
+### GAP-15: Missing `FeatureErrorBoundary` Wrappers
+**Standard:** All page-level components should be wrapped in `FeatureErrorBoundary`.
+**Current:** Neither dashboard nor detail page has error boundaries.
+**Fix:** Wrap both pages in `FeatureErrorBoundary`.
 
 ---
 
-# MOD-02 Gap Fix Log (Latest)
+## Summary
 
-## What Was Fixed
+| Severity | Count | Gaps |
+|----------|-------|------|
+| Moderate (missing spec columns/features) | 9 | GAPs 1-7, 10, 11 |
+| Moderate (missing interactions) | 4 | GAPs 8, 12, 14, 9 |
+| Minor (standards compliance) | 2 | GAPs 13, 15 |
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
+**Total: 15 gaps.** Core architecture (tables, RPCs, RLS, triggers, edge functions, 3-state logic, modals) is solid. Gaps are primarily UI enrichment: missing table columns, count badges, banners, confirmation dialogs, and admin name resolution in history.
 
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
-
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
-
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
