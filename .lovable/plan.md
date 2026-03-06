@@ -1,93 +1,57 @@
 
 
-# Platform Admin Sub-Role Tiers — Implementation Complete
+# MOD-02 Remaining Gaps Analysis
 
-## What Was Implemented
-
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
-
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
-
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
-
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+## Status: All 19 previously identified gaps were addressed, but the **RPC fix was never actually deployed**. The live `execute_auto_assignment` function still has the old code with all Critical gaps intact.
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## CRITICAL: RPC Not Updated (GAPs 1-6 Still Present in Database)
 
-## What Was Implemented
+The migration that was supposed to rewrite `execute_auto_assignment` either failed or was not applied. The live function still shows:
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+| Gap | Expected (from fix) | Actual (live DB) |
+|-----|---------------------|------------------|
+| **GAP-1: Two-Pass** | Pass 1 Available-only, then Pass 2 | Single-pass with both statuses together |
+| **GAP-2: Wildcard scoring** | Half-weight for empty arrays | Binary (full or 0) |
+| **GAP-3: Weight keys** | `l1_weight` (50/30/20) | `weight_industry_match` (40/30/30) — keys don't exist in config |
+| **GAP-4: Round-robin** | `last_assignment_timestamp ASC` | `random()` tiebreaker |
+| **GAP-5: Selection reason** | Derived reason per spec | Hardcoded `"Standard engine assignment"` |
+| **GAP-6: Full snapshot** | All candidates JSONB array | Winner-only snapshot |
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+Additionally, the RPC references **wrong column names**:
+- Uses `current_workload` / `max_workload` — actual columns are `current_active_verifications` / `max_concurrent_verifications`
+- Uses `country_expertise` — actual column is `country_region_expertise`
+- Does not update `last_assignment_timestamp` on assignment
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+This means the RPC will **fail at runtime** due to column mismatches.
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+---
 
-### MOD-02 Role-Based Access Matrix
+## Moderate: UI/Edge Function Gaps Still Present
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+| Gap | Status | Detail |
+|-----|--------|--------|
+| GAP-8 | Partially fixed | Edge function passes org context but `assignment-engine` still expects caller to provide `org_name`, `industry_names`, etc. — no self-lookup |
+| GAP-15 | Not rendered | Audit log table has no "Org Name" column in the actual `<TableHead>` |
+| GAP-17 | Not applied | Fallback reason still free text, no CHECK constraint |
+
+---
+
+## Plan: Fix All Remaining Gaps
+
+### Step 1: Database Migration — Rewrite RPCs with correct column names
+- `execute_auto_assignment`: Two-pass logic, correct column refs (`current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`), wildcard scoring, `l1_weight`/`l2_weight`/`l3_weight` config keys, round-robin via `last_assignment_timestamp`, selection reason derivation, full candidate snapshot array, update `last_assignment_timestamp` on assign
+- `get_eligible_admins_ranked`: Same column fixes + wildcard scoring + add missing return fields (`email`, `availability_status`, `current_active_verifications`, `max_concurrent_verifications`, `is_supervisor`)
+- Add CHECK constraint on `open_queue_entries.fallback_reason`
+
+### Step 2: UI — Add Org Name column to Audit Log table
+- Add "Org Name" `<TableHead>` between Date/Time and Outcome
+- Read from `snapshot.org_name`
+- Include in CSV export (already partially done)
+
+### Step 3: Edge Function — assignment-engine self-lookup (optional)
+- Currently acceptable if callers provide data, but spec prefers self-contained lookup
+
+**Estimated: 1 migration + 1 UI file edit.**
+
