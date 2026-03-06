@@ -8632,15 +8632,25 @@ export type Database = {
         Args: { p_speciality_ids: string[] }
         Returns: number
       }
-      execute_auto_assignment: {
-        Args: {
-          p_hq_country: string
-          p_industry_segments: string[]
-          p_org_type?: string
-          p_verification_id: string
-        }
-        Returns: Json
-      }
+      execute_auto_assignment:
+        | {
+            Args: {
+              p_hq_country: string
+              p_industry_segments: string[]
+              p_org_type?: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_hq_country: string
+              p_industry_segments: string[]
+              p_org_type?: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
       execute_expertise_change_reset: {
         Args: { p_provider_id: string; p_user_id: string }
         Returns: undefined

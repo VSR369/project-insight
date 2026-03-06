@@ -171,9 +171,10 @@ function AuditLogContent() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-8" />
-                    <TableHead>Date/Time</TableHead>
-                    <TableHead>Outcome</TableHead>
+                     <TableHead className="w-8" />
+                     <TableHead>Date/Time</TableHead>
+                     <TableHead>Org Name</TableHead>
+                     <TableHead>Outcome</TableHead>
                     <TableHead>Assigned To</TableHead>
                     <TableHead>Domain Score</TableHead>
                     <TableHead>Selection Reason</TableHead>
@@ -201,6 +202,9 @@ function AuditLogContent() {
                           </TableCell>
                           <TableCell className="text-sm whitespace-nowrap">
                             {format(new Date(log.created_at), 'MMM d, HH:mm')}
+                          </TableCell>
+                          <TableCell className="text-sm font-medium max-w-40 truncate">
+                            {(snapshot.org_name as string) ?? '—'}
                           </TableCell>
                           <TableCell>{getOutcomeBadge(log.event_type)}</TableCell>
                           <TableCell className="text-sm">
@@ -233,7 +237,7 @@ function AuditLogContent() {
                         </TableRow>
                         {isExpanded && (
                           <TableRow key={`${log.id}-detail`}>
-                            <TableCell colSpan={8} className="bg-muted/30 p-0">
+                            <TableCell colSpan={9} className="bg-muted/30 p-0">
                               <ScoringSnapshotPanel snapshot={snapshot} />
                             </TableCell>
                           </TableRow>
