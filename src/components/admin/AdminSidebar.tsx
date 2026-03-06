@@ -379,6 +379,19 @@ export function AdminSidebar() {
                   </CollapsibleContent>
                 </SidebarMenuItem>
               </Collapsible>
+              {/* My Profile — shown here for basic admin since Team Management is hidden */}
+              {!canSeeTeamManagement && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/my-profile')}
+                    onMouseEnter={() => handleMouseEnter('/admin/my-profile')}
+                    isActive={isActive('/admin/my-profile')}
+                  >
+                    <User className="h-4 w-4" />
+                    <span>My Profile</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
 
               {/* Other menu items */}
               {otherItems
