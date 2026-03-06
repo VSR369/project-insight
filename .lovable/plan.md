@@ -1,36 +1,49 @@
 
 
-## Fix: Seed Admin Test Accounts — Profile Creation Failing
+# Platform Admin Sub-Role Tiers — Implementation Complete
 
-### Root Cause
+## What Was Implemented
 
-The `seed-admin-test-accounts` edge function tries to insert columns that **don't exist** in `platform_admin_profiles`:
-- `status` — not a column
-- `is_active` — not a column  
-- `designation_method` — not a column
-- `admin_type` — not a column
+### Database
+- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
+- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
+- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
+- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
+- Added index `idx_pap_admin_tier`
 
-The actual table only has: `id, user_id, full_name, email, phone, is_supervisor, industry_expertise, country_region_expertise, org_type_expertise, max_concurrent_verifications, current_active_verifications, availability_status, assignment_priority, leave_start_date, leave_end_date, last_assignment_timestamp, created_at, updated_at, created_by, updated_by, admin_tier`.
+### Edge Functions
+- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
+- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
 
-Auth users and `user_roles` records were created successfully. Only the `platform_admin_profiles` insert failed. So the accounts exist but have no profile — causing login to work but admin tier detection (`useAdminTier`) to return null, which breaks tier-based navigation.
+### Frontend
+- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
+- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
+- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
+- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
+- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
+- `EditPlatformAdminPage`: Supervisor only
+- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
+- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
 
-### Fix
+## Tier Permission Matrix
 
-**File: `supabase/functions/seed-admin-test-accounts/index.ts`** (lines 121-133)
+| Feature | Supervisor | Senior Admin | Admin |
+|---------|-----------|--------------|-------|
+| Dashboard | ✅ | ✅ | ✅ |
+| Master Data | ✅ | ✅ | ✅ |
+| Taxonomy | ✅ | ✅ | ✅ |
+| Interview Setup | ✅ | ✅ | ✅ |
+| Seeker Management | ✅ | ✅ | ✅ |
+| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
+| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
+| Edit Admin | ✅ | ❌ | ❌ |
+| Deactivate Admin | ✅ | ❌ | ❌ |
+| Seeker Config | ✅ | ✅ | ❌ |
+| My Profile | ✅ | ✅ | ✅ |
 
-Remove the non-existent columns from the insert. Use only valid columns:
-
-```typescript
-.insert({
-  user_id: userId,
-  email: account.email,
-  full_name: `${account.firstName} ${account.lastName}`,
-  admin_tier: account.adminTier,
-})
-```
-
-Then redeploy the edge function and invoke it again to create the missing profiles for the two new accounts (and fix admin@test.local's profile if it's also missing one).
-
-### Files Modified
-- `supabase/functions/seed-admin-test-accounts/index.ts` — Remove invalid columns from profile insert
-
+## Zero-Impact Areas
+- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
+- `AdminGuard` unchanged
+- `useUserRoles` unchanged
+- `RoleBasedRedirect` unchanged
+- All existing admin CRUD for master data, seekers, etc. untouched
