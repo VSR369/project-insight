@@ -231,6 +231,53 @@ export type Database = {
           },
         ]
       }
+      admin_notifications: {
+        Row: {
+          admin_id: string
+          body: string
+          created_at: string
+          deep_link: string | null
+          id: string
+          is_read: boolean
+          metadata: Json | null
+          read_at: string | null
+          title: string
+          type: string
+        }
+        Insert: {
+          admin_id: string
+          body: string
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          read_at?: string | null
+          title: string
+          type: string
+        }
+        Update: {
+          admin_id?: string
+          body?: string
+          created_at?: string
+          deep_link?: string | null
+          id?: string
+          is_read?: boolean
+          metadata?: Json | null
+          read_at?: string | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_notifications_admin_id_fkey"
+            columns: ["admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_performance_metrics: {
         Row: {
           admin_id: string
@@ -3020,6 +3067,106 @@ export type Database = {
             columns: ["tier_id"]
             isOneToOne: false
             referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notification_audit_log: {
+        Row: {
+          created_at: string
+          email_retry_count: number
+          id: string
+          last_retry_at: string | null
+          notification_type: string
+          recipient_email: string | null
+          recipient_id: string | null
+          sms_status: string | null
+          status: string
+          verification_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          email_retry_count?: number
+          id?: string
+          last_retry_at?: string | null
+          notification_type: string
+          recipient_email?: string | null
+          recipient_id?: string | null
+          sms_status?: string | null
+          status?: string
+          verification_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          email_retry_count?: number
+          id?: string
+          last_retry_at?: string | null
+          notification_type?: string
+          recipient_email?: string | null
+          recipient_id?: string | null
+          sms_status?: string | null
+          status?: string
+          verification_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_audit_log_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      open_queue_entries: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          entered_at: string
+          escalation_count: number
+          fallback_reason: string | null
+          id: string
+          is_critical: boolean
+          is_pinned: boolean
+          last_escalated_at: string | null
+          sla_deadline: string | null
+          verification_id: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          entered_at?: string
+          escalation_count?: number
+          fallback_reason?: string | null
+          id?: string
+          is_critical?: boolean
+          is_pinned?: boolean
+          last_escalated_at?: string | null
+          sla_deadline?: string | null
+          verification_id: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          entered_at?: string
+          escalation_count?: number
+          fallback_reason?: string | null
+          id?: string
+          is_critical?: boolean
+          is_pinned?: boolean
+          last_escalated_at?: string | null
+          sla_deadline?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "open_queue_entries_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -8171,6 +8318,110 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_assignment_log: {
+        Row: {
+          created_at: string
+          event_type: string
+          from_admin_id: string | null
+          id: string
+          initiator: string
+          reason: string | null
+          scoring_snapshot: Json | null
+          to_admin_id: string | null
+          verification_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          from_admin_id?: string | null
+          id?: string
+          initiator: string
+          reason?: string | null
+          scoring_snapshot?: Json | null
+          to_admin_id?: string | null
+          verification_id: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          from_admin_id?: string | null
+          id?: string
+          initiator?: string
+          reason?: string | null
+          scoring_snapshot?: Json | null
+          to_admin_id?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_assignment_log_from_admin_id_fkey"
+            columns: ["from_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "verification_assignment_log_to_admin_id_fkey"
+            columns: ["to_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      verification_assignments: {
+        Row: {
+          assigned_admin_id: string | null
+          assigned_at: string
+          assignment_method: string
+          created_at: string
+          domain_match_score: number | null
+          fallback_reason: string | null
+          id: string
+          is_current: boolean
+          release_reason: string | null
+          released_at: string | null
+          scoring_details: Json | null
+          verification_id: string
+        }
+        Insert: {
+          assigned_admin_id?: string | null
+          assigned_at?: string
+          assignment_method: string
+          created_at?: string
+          domain_match_score?: number | null
+          fallback_reason?: string | null
+          id?: string
+          is_current?: boolean
+          release_reason?: string | null
+          released_at?: string | null
+          scoring_details?: Json | null
+          verification_id: string
+        }
+        Update: {
+          assigned_admin_id?: string | null
+          assigned_at?: string
+          assignment_method?: string
+          created_at?: string
+          domain_match_score?: number | null
+          fallback_reason?: string | null
+          id?: string
+          is_current?: boolean
+          release_reason?: string | null
+          released_at?: string | null
+          scoring_details?: Json | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_assignments_assigned_admin_id_fkey"
+            columns: ["assigned_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       available_composite_slots: {
@@ -8328,6 +8579,15 @@ export type Database = {
         Args: { p_speciality_ids: string[] }
         Returns: number
       }
+      execute_auto_assignment: {
+        Args: {
+          p_hq_country: string
+          p_industry_segments: string[]
+          p_org_type?: string
+          p_verification_id: string
+        }
+        Returns: Json
+      }
       execute_expertise_change_reset: {
         Args: { p_provider_id: string; p_user_id: string }
         Returns: undefined
@@ -8382,6 +8642,25 @@ export type Database = {
           proficiency_areas_count: number
           specialities_count: number
           specialty_proof_points_count: number
+        }[]
+      }
+      get_eligible_admins_ranked: {
+        Args: {
+          p_exclude_admin_id?: string
+          p_hq_country: string
+          p_industry_segments: string[]
+          p_org_type?: string
+        }
+        Returns: {
+          admin_id: string
+          admin_tier: string
+          assignment_priority: number
+          country_score: number
+          full_name: string
+          industry_score: number
+          org_type_score: number
+          total_score: number
+          workload_ratio: number
         }[]
       }
       get_question_count_by_specialities: {
