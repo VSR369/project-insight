@@ -8655,9 +8655,15 @@ export type Database = {
           admin_id: string
           admin_tier: string
           assignment_priority: number
+          availability_status: string
           country_score: number
+          current_active: number
+          email: string
           full_name: string
           industry_score: number
+          is_supervisor: boolean
+          last_assignment_timestamp: string
+          max_concurrent: number
           org_type_score: number
           total_score: number
           workload_ratio: number
