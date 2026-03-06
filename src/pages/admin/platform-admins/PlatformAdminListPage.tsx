@@ -41,7 +41,7 @@ function PlatformAdminListContent() {
   const { data: admins, isLoading } = usePlatformAdmins(statusFilter);
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
   const canCreate = isSupervisor || isSeniorAdmin;
-  const canEdit = isSupervisor;
+  const canEdit = isSupervisor || isSeniorAdmin;
 
   if (isLoading) {
     return (
@@ -139,7 +139,7 @@ function PlatformAdminListContent() {
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      {canEdit && (
+                      {canEdit && (isSupervisor || (admin as any).admin_tier === 'admin') && (
                         <Button
                           variant="ghost"
                           size="icon"

@@ -295,11 +295,11 @@ async function handleUpdate(
     );
   }
 
-  // Senior admins cannot edit supervisors or other senior admins
+  // Senior admins can only edit admin-tier profiles
   const targetTier = (current as Record<string, any>).admin_tier as AdminTier;
-  if (callerTier === "senior_admin" && TIER_RANK[targetTier] >= TIER_RANK["senior_admin"]) {
+  if (callerTier === "senior_admin" && targetTier !== "admin") {
     return new Response(
-      JSON.stringify({ success: false, error: "Senior Admins cannot edit Supervisor or Senior Admin profiles" }),
+      JSON.stringify({ success: false, error: "Senior Admins can only edit Admin-tier profiles" }),
       { status: 403, headers: { ...headers, "Content-Type": "application/json" } }
     );
   }
