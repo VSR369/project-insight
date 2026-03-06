@@ -1,7 +1,8 @@
 /**
  * notify-admin-assignment — MOD-02 Edge Function
- * Inserts in-app notification + audit log entry.
- * Email sending with BR-MPA-046 retry logic (3 attempts x 15min).
+ * GAP-8: Rich notification content with org name, industry, country, SLA.
+ * GAP-19: Correct deep_link to /admin/verifications/:id.
+ * BR-MPA-046: Inserts retry queue entry for email delivery.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -24,7 +25,18 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { admin_id, verification_id, assignment_method, notification_type } = await req.json();
+    const {
+      admin_id,
+      verification_id,
+      assignment_method,
+      notification_type,
+      org_name,
+      industry_segments,
+      hq_country,
+      org_type,
+      domain_score,
+      sla_deadline,
+    } = await req.json();
 
     if (!admin_id || !verification_id) {
       return new Response(
@@ -50,7 +62,7 @@ serve(async (req) => {
       );
     }
 
-    // Build notification content
+    // Build notification content (GAP-8: rich content)
     const titleMap: Record<string, string> = {
       ASSIGNMENT: "New Verification Assigned",
       REASSIGNMENT_IN: "Verification Reassigned to You",
@@ -62,7 +74,33 @@ serve(async (req) => {
     };
 
     const title = titleMap[type] ?? "Notification";
-    const body = `Verification ${verification_id.slice(0, 8)}... has been ${method === "AFFINITY_RESUBMISSION" ? "re-routed via affinity" : "assigned"} to you.`;
+
+    // Rich body with org context
+    const bodyParts: string[] = [];
+    if (org_name) bodyParts.push(`Organization: ${org_name}`);
+    if (industry_segments?.length) bodyParts.push(`Industry: ${industry_segments.join(", ")}`);
+    if (hq_country) bodyParts.push(`Country: ${hq_country}`);
+    if (org_type) bodyParts.push(`Type: ${org_type}`);
+    if (method === "AFFINITY_RESUBMISSION") bodyParts.push("Re-routed via affinity match.");
+
+    const body = bodyParts.length > 0
+      ? bodyParts.join(" · ")
+      : `Verification ${verification_id.slice(0, 8)}... has been assigned to you.`;
+
+    // GAP-8: Rich metadata for NotificationCard rendering
+    const metadata: Record<string, unknown> = {
+      verification_id,
+      assignment_method: method,
+    };
+    if (org_name) metadata.org_name = org_name;
+    if (industry_segments) metadata.industry_segments = industry_segments;
+    if (hq_country) metadata.hq_country = hq_country;
+    if (org_type) metadata.org_type = org_type;
+    if (domain_score !== undefined) metadata.domain_score = domain_score;
+    if (sla_deadline) metadata.sla_deadline = sla_deadline;
+
+    // GAP-19: Correct deep link
+    const deep_link = `/admin/verifications/${verification_id}`;
 
     // Insert in-app notification (bypass RLS via service role)
     const { error: notifErr } = await supabaseClient
@@ -72,8 +110,8 @@ serve(async (req) => {
         type,
         title,
         body,
-        deep_link: `/admin/platform-admins`,
-        metadata: { verification_id, assignment_method: method },
+        deep_link,
+        metadata,
       });
 
     if (notifErr) {
@@ -81,7 +119,7 @@ serve(async (req) => {
     }
 
     // Insert audit log
-    const { error: auditErr } = await supabaseClient
+    const { data: auditRow, error: auditErr } = await supabaseClient
       .from("notification_audit_log")
       .insert({
         notification_type: type,
@@ -89,14 +127,30 @@ serve(async (req) => {
         recipient_email: admin.email,
         verification_id,
         status: "SENT",
-      });
+      })
+      .select("id")
+      .single();
 
     if (auditErr) {
       console.error("Failed to insert audit log:", auditErr);
     }
 
-    // Email sending placeholder — would integrate with Resend/SendGrid here
-    // BR-MPA-046: 3 attempts x 15min retry logic handled by job queue
+    // GAP-7: Insert retry queue entry for email delivery (BR-MPA-046)
+    if (auditRow?.id) {
+      const { error: retryErr } = await supabaseClient
+        .from("notification_retry_queue")
+        .insert({
+          notification_audit_log_id: auditRow.id,
+          recipient_email: admin.email,
+          verification_id,
+          notification_type: type,
+          status: "pending",
+        });
+
+      if (retryErr) {
+        console.error("Failed to insert retry queue entry:", retryErr);
+      }
+    }
 
     return new Response(
       JSON.stringify({ success: true, data: { notification_sent: !notifErr } }),

@@ -1,6 +1,6 @@
 /**
  * assignment-engine — MOD-02 Edge Function
- * Triggered on payment_submitted or resubmission events.
+ * GAP-8/19: Passes org context to notify-admin-assignment for rich notifications.
  * BR-MPA-013: Affinity routing check before standard engine.
  * BR-MPA-010: 4.5s timeout guard.
  * MAX_RETRIES=2 on concurrent conflict (55P03).
@@ -29,7 +29,16 @@ serve(async (req) => {
       { auth: { persistSession: false } }
     );
 
-    const { verification_id, industry_segments, hq_country, org_type } = await req.json();
+    const {
+      verification_id,
+      industry_segments,
+      hq_country,
+      org_type,
+      org_name,
+      industry_names,
+      country_name,
+      org_type_name,
+    } = await req.json();
 
     if (!verification_id || !industry_segments || !hq_country) {
       return new Response(
@@ -43,7 +52,6 @@ serve(async (req) => {
 
     for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
       try {
-        // Execute with timeout guard
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
@@ -59,7 +67,6 @@ serve(async (req) => {
         if (error) throw new Error(error.message);
         result = data;
 
-        // Check if concurrent conflict — retry
         if (result?.method === "CONCURRENT_CONFLICT" && attempt < MAX_RETRIES) {
           await new Promise((r) => setTimeout(r, 200 * (attempt + 1)));
           continue;
@@ -82,14 +89,29 @@ serve(async (req) => {
       );
     }
 
-    // If assignment succeeded, trigger notification
+    // If assignment succeeded, trigger notification with rich context (GAP-8)
     if (result?.success && result?.assigned_to) {
       try {
+        // Calculate SLA deadline from config
+        const { data: slaConfig } = await supabaseClient
+          .from("md_mpa_config")
+          .select("param_value")
+          .eq("param_key", "sla_duration")
+          .single();
+        const slaHours = slaConfig?.param_value ? parseInt(slaConfig.param_value) : 48;
+        const slaDeadline = new Date(Date.now() + slaHours * 60 * 60 * 1000).toISOString();
+
         await supabaseClient.functions.invoke("notify-admin-assignment", {
           body: {
             admin_id: result.assigned_to,
             verification_id,
             assignment_method: result.method,
+            org_name: org_name ?? null,
+            industry_segments: industry_names ?? null,
+            hq_country: country_name ?? null,
+            org_type: org_type_name ?? null,
+            domain_score: result.score ?? null,
+            sla_deadline: slaDeadline,
           },
         });
       } catch (notifyErr) {
