@@ -119,13 +119,14 @@ serve(async (req) => {
 
       if (!existingProfile) {
         const { error: profileError } = await supabaseAdmin
-          .from("platform_admin_profiles")
-          .insert({
-            user_id: userId,
-            email: account.email,
-            full_name: `${account.firstName} ${account.lastName}`,
-            admin_tier: account.adminTier,
-          });
+        .from("platform_admin_profiles")
+        .insert({
+          user_id: userId,
+          email: account.email,
+          full_name: `${account.firstName} ${account.lastName}`,
+          admin_tier: account.adminTier,
+          industry_expertise: ['Technology'],
+        });
         if (profileError) {
           phases.push(`❌ Failed to create profile: ${profileError.message}`);
         } else {
