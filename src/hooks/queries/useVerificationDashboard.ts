@@ -156,7 +156,7 @@ export function useVerificationDetail(verificationId: string | undefined) {
 
       const { data: org } = await supabase
         .from('seeker_organizations')
-        .select('id, organization_name, hq_country_id, organization_type_id, website_url, registration_number, verification_status, lifecycle_status')
+        .select('id, organization_name, hq_country_id, organization_type_id, website_url, registration_number, verification_status')
         .eq('id', verification.organization_id)
         .single();
 
