@@ -125,7 +125,7 @@ serve(async (req) => {
           email: account.email,
           full_name: `${account.firstName} ${account.lastName}`,
           admin_tier: account.adminTier,
-          industry_expertise: ['Technology'],
+          industry_expertise: ['41ee5438-f270-488c-aae1-b46c120bc276'],
         });
         if (profileError) {
           phases.push(`❌ Failed to create profile: ${profileError.message}`);
