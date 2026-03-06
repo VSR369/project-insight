@@ -100,3 +100,9 @@ verify_jwt = false
 
 [functions.seed-admin-test-accounts]
 verify_jwt = false
+
+[functions.sla-escalation]
+verify_jwt = false
+
+[functions.queue-escalation]
+verify_jwt = false
