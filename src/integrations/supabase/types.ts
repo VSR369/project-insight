@@ -3118,6 +3118,59 @@ export type Database = {
           },
         ]
       }
+      notification_retry_queue: {
+        Row: {
+          created_at: string
+          id: string
+          last_error: string | null
+          max_attempts: number
+          next_retry_at: string
+          notification_audit_log_id: string
+          notification_type: string
+          recipient_email: string
+          retry_count: number
+          status: string
+          updated_at: string | null
+          verification_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          notification_audit_log_id: string
+          notification_type: string
+          recipient_email: string
+          retry_count?: number
+          status?: string
+          updated_at?: string | null
+          verification_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          max_attempts?: number
+          next_retry_at?: string
+          notification_audit_log_id?: string
+          notification_type?: string
+          recipient_email?: string
+          retry_count?: number
+          status?: string
+          updated_at?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_retry_queue_notification_audit_log_id_fkey"
+            columns: ["notification_audit_log_id"]
+            isOneToOne: false
+            referencedRelation: "notification_audit_log"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       open_queue_entries: {
         Row: {
           claimed_at: string | null
