@@ -1,9 +1,10 @@
 /**
  * NotificationDrawer — Slide-in sheet with notification list.
- * Per MOD-02 SCR-02-01 spec. All admin tiers, tier-filtered via RLS.
+ * Per MOD-02 SCR-02-01 spec. GAP-10: Load more pagination.
  */
 
-import { Bell, CheckCheck, Inbox } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Bell, CheckCheck, Inbox, Loader2 } from 'lucide-react';
 import {
   Sheet,
   SheetContent,
@@ -19,17 +20,25 @@ import {
   useMarkAllNotificationsRead,
 } from '@/hooks/queries/useAdminNotifications';
 
+const PAGE_SIZE = 20;
+
 interface NotificationDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
 export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerProps) {
-  const { data: notifications = [], isLoading } = useAdminNotifications();
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const { data: notifications = [], isLoading } = useAdminNotifications(limit);
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const hasMore = notifications.length === limit;
+
+  const handleLoadMore = useCallback(() => {
+    setLimit((prev) => prev + PAGE_SIZE);
+  }, []);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
@@ -71,15 +80,31 @@ export function NotificationDrawer({ open, onOpenChange }: NotificationDrawerPro
               <p className="text-xs mt-1">You're all caught up</p>
             </div>
           ) : (
-            <div className="divide-y">
-              {notifications.map((notification) => (
-                <NotificationCard
-                  key={notification.id}
-                  notification={notification}
-                  onMarkRead={(id) => markRead.mutate(id)}
-                />
-              ))}
-            </div>
+            <>
+              <div className="divide-y">
+                {notifications.map((notification) => (
+                  <NotificationCard
+                    key={notification.id}
+                    notification={notification}
+                    onMarkRead={(id) => markRead.mutate(id)}
+                  />
+                ))}
+              </div>
+              {/* GAP-10: Load more pagination */}
+              {hasMore && (
+                <div className="p-4 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleLoadMore}
+                    className="w-full"
+                  >
+                    <Loader2 className="h-4 w-4 mr-1" />
+                    Load more
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </SheetContent>

@@ -1,12 +1,12 @@
 /**
  * React Query hook + Supabase Realtime for admin notifications (MOD-02).
- * Tier-based filtering: Basic/Senior see own; Supervisor sees own + QUEUE_ESCALATION + EMAIL_FAIL.
+ * GAP-11: Toast on real-time notification arrival.
  */
 
 import { useQuery, useQueryClient, useMutation } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAdminTier } from '@/hooks/useAdminTier';
+import { toast } from 'sonner';
 
 export type NotificationType =
   | 'ASSIGNMENT'
@@ -39,7 +39,7 @@ export function useAdminNotifications(limit = 20) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('admin_notifications')
-        .select('*')
+        .select('id, admin_id, type, title, body, deep_link, metadata, is_read, read_at, created_at')
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) throw new Error(error.message);
@@ -56,7 +56,7 @@ export function useUnreadNotificationCount() {
     queryFn: async () => {
       const { count, error } = await supabase
         .from('admin_notifications')
-        .select('*', { count: 'exact', head: true })
+        .select('id', { count: 'exact', head: true })
         .eq('is_read', false);
       if (error) throw new Error(error.message);
       return count ?? 0;
@@ -98,7 +98,7 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
-/** Subscribe to realtime notifications and auto-invalidate queries */
+/** Subscribe to realtime notifications — auto-invalidate + toast (GAP-11) */
 export function useNotificationRealtime() {
   const queryClient = useQueryClient();
 
@@ -108,8 +108,18 @@ export function useNotificationRealtime() {
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'admin_notifications' },
-        () => {
+        (payload) => {
           queryClient.invalidateQueries({ queryKey: NOTIFICATION_QUERY_KEY });
+
+          // GAP-11: Show toast on new notification arrival
+          const newNotif = payload.new as Record<string, unknown>;
+          const title = (newNotif?.title as string) ?? 'New notification';
+          const meta = (newNotif?.metadata ?? {}) as Record<string, unknown>;
+          const orgName = meta.org_name as string | undefined;
+
+          toast.info(orgName ? `${title}: ${orgName}` : title, {
+            duration: 4000,
+          });
         }
       )
       .subscribe();
