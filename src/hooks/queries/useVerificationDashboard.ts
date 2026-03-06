@@ -14,7 +14,6 @@ export function useMyAssignments() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get admin profile id
       const { data: profile } = await supabase
         .from('platform_admin_profiles')
         .select('id')
@@ -38,24 +37,25 @@ export function useMyAssignments() {
 
       if (error) throw new Error(error.message);
 
-      // Fetch org details separately to avoid deep type recursion
       const orgIds = [...new Set((data ?? []).map(d => d.organization_id))];
       if (orgIds.length === 0) return [];
 
       const { data: orgs } = await supabase
         .from('seeker_organizations')
-        .select('id, organization_name, country_id')
+        .select('id, organization_name, hq_country_id')
         .in('id', orgIds);
 
-      const countryIds = [...new Set((orgs ?? []).map(o => o.country_id).filter(Boolean))];
+      const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
       const { data: countries } = countryIds.length > 0
         ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
-        : { data: [] };
+        : { data: [] as { id: string; name: string; code: string }[] };
 
       const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
       const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
-        ...o,
-        country: o.country_id ? countryMap[o.country_id] ?? null : null,
+        id: o.id,
+        organization_name: o.organization_name,
+        hq_country_id: o.hq_country_id,
+        country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
       }]));
 
       return (data ?? []).map(v => ({
@@ -89,7 +89,6 @@ export function useOpenQueue() {
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) return [];
 
-      // Fetch verification details
       const verIds = data.map(d => d.verification_id);
       const { data: verifications } = await supabase
         .from('platform_admin_verifications')
@@ -98,18 +97,20 @@ export function useOpenQueue() {
 
       const orgIds = [...new Set((verifications ?? []).map(v => v.organization_id))];
       const { data: orgs } = orgIds.length > 0
-        ? await supabase.from('seeker_organizations').select('id, organization_name, country_id').in('id', orgIds)
-        : { data: [] };
+        ? await supabase.from('seeker_organizations').select('id, organization_name, hq_country_id').in('id', orgIds)
+        : { data: [] as { id: string; organization_name: string; hq_country_id: string | null }[] };
 
-      const countryIds = [...new Set((orgs ?? []).map(o => o.country_id).filter(Boolean))];
+      const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
       const { data: countries } = countryIds.length > 0
         ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
-        : { data: [] };
+        : { data: [] as { id: string; name: string; code: string }[] };
 
       const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
       const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
-        ...o,
-        country: o.country_id ? countryMap[o.country_id] ?? null : null,
+        id: o.id,
+        organization_name: o.organization_name,
+        hq_country_id: o.hq_country_id,
+        country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
       }]));
       const verMap = Object.fromEntries((verifications ?? []).map(v => [v.id, {
         ...v,
@@ -128,7 +129,6 @@ export function useOpenQueue() {
 
 /**
  * Fetch single verification with check results and assignment history.
- * Also determines the view state (1=edit, 2=readonly, 3=blocked).
  */
 export function useVerificationDetail(verificationId: string | undefined) {
   return useQuery({
@@ -140,14 +140,12 @@ export function useVerificationDetail(verificationId: string | undefined) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get admin profile
       const { data: profile } = await supabase
         .from('platform_admin_profiles')
         .select('id, admin_tier, is_supervisor')
         .eq('user_id', user.id)
         .maybeSingle();
 
-      // Fetch verification
       const { data: verification, error: vErr } = await supabase
         .from('platform_admin_verifications')
         .select('*')
@@ -156,38 +154,30 @@ export function useVerificationDetail(verificationId: string | undefined) {
 
       if (vErr) throw new Error(vErr.message);
 
-      // Fetch org details separately
       const { data: org } = await supabase
         .from('seeker_organizations')
-        .select('id, organization_name, country_id, organization_type_id, website, registration_number, industry_segment_ids, verification_status, lifecycle_status')
+        .select('id, organization_name, hq_country_id, organization_type_id, website_url, registration_number, verification_status, lifecycle_status')
         .eq('id', verification.organization_id)
         .single();
 
-      let country = null;
-      if (org?.country_id) {
-        const { data: c } = await supabase.from('countries').select('name, code').eq('id', org.country_id).single();
+      let country: { name: string; code: string } | null = null;
+      if (org?.hq_country_id) {
+        const { data: c } = await supabase.from('countries').select('name, code').eq('id', org.hq_country_id).single();
         country = c;
       }
 
-      // Fetch check results
-      const { data: checks, error: cErr } = await supabase
+      const { data: checks } = await supabase
         .from('verification_check_results')
         .select('*')
         .eq('verification_id', verificationId)
         .order('check_id');
 
-      if (cErr) throw new Error(cErr.message);
-
-      // Fetch assignment history
-      const { data: history, error: hErr } = await supabase
+      const { data: history } = await supabase
         .from('verification_assignment_log')
         .select('*')
         .eq('verification_id', verificationId)
         .order('created_at', { ascending: false });
 
-      if (hErr) throw new Error(hErr.message);
-
-      // Fetch current assignment details
       const { data: currentAssignment } = await supabase
         .from('verification_assignments')
         .select('id, assigned_at, assignment_method')
@@ -195,7 +185,6 @@ export function useVerificationDetail(verificationId: string | undefined) {
         .eq('is_current', true)
         .maybeSingle();
 
-      // Determine state
       let viewState: 1 | 2 | 3 = 3;
       if (profile && verification.assigned_admin_id === profile.id) {
         viewState = 1;
@@ -203,7 +192,6 @@ export function useVerificationDetail(verificationId: string | undefined) {
         viewState = 2;
       }
 
-      // Get assigned admin name if not self
       let assignedAdminName: string | null = null;
       if (verification.assigned_admin_id && viewState !== 1) {
         const { data: assignedAdmin } = await supabase
@@ -215,7 +203,10 @@ export function useVerificationDetail(verificationId: string | undefined) {
       }
 
       return {
-        verification: { ...verification, organization: org ? { ...org, country } : null },
+        verification: {
+          ...verification,
+          organization: org ? { ...org, country } : null,
+        },
         checks: checks ?? [],
         history: history ?? [],
         currentAssignment,
