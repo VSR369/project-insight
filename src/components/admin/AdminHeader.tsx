@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, User, ChevronDown, Shield, Settings } from 'lucide-react';
+import { NotificationBell } from '@/components/admin/notifications/NotificationBell';
+import { NotificationDrawer } from '@/components/admin/notifications/NotificationDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -41,6 +43,7 @@ const pathNames: Record<string, string> = {
   'questions': 'Question Bank',
   'invitations': 'Invitations',
   'settings': 'Settings',
+  'assignment-audit-log': 'Assignment Audit Log',
 };
 
 export function AdminHeader() {
@@ -48,6 +51,7 @@ export function AdminHeader() {
   const { isAdmin } = useUserRoles();
   const location = useLocation();
   const navigate = useNavigate();
+  const [notifOpen, setNotifOpen] = useState(false);
   const pathSegments = location.pathname.split('/').filter(Boolean);
 
   const firstName = user?.user_metadata?.first_name || 'Admin';
@@ -92,6 +96,10 @@ export function AdminHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* Notification Bell */}
+        <NotificationBell onClick={() => setNotifOpen(true)} />
+        <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />
+
         {/* User menu */}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
