@@ -13,7 +13,17 @@ function CreateContent() {
   const createMutation = useCreatePlatformAdmin();
 
   const handleSubmit = async (data: PlatformAdminFormValues) => {
-    await createMutation.mutateAsync(data);
+    await createMutation.mutateAsync({
+      email: data.email,
+      full_name: data.full_name,
+      phone: data.phone,
+      is_supervisor: data.is_supervisor,
+      industry_expertise: data.industry_expertise,
+      country_region_expertise: data.country_region_expertise,
+      org_type_expertise: data.org_type_expertise,
+      max_concurrent_verifications: data.max_concurrent_verifications,
+      assignment_priority: data.assignment_priority,
+    });
     navigate('/admin/platform-admins');
   };
 
