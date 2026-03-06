@@ -162,6 +162,10 @@ const AvailabilitySettingsPage = lazy(() => import("@/pages/admin/platform-admin
 // MOD-02: Assignment Engine Audit Log (Supervisor only)
 const AssignmentAuditLogPage = lazy(() => import("@/pages/admin/AssignmentAuditLogPage"));
 
+// MOD-03: Verification Dashboard & Detail
+const VerificationDashboardPage = lazy(() => import("@/pages/admin/verifications/VerificationDashboardPage"));
+const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/VerificationDetailPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -565,6 +569,9 @@ const App = () => (
               <Route path="availability" element={<AvailabilitySettingsPage />} />
               {/* MOD-02: Assignment Engine Audit Log — supervisor only */}
               <Route path="assignment-audit-log" element={<TierGuard requiredTier="supervisor"><AssignmentAuditLogPage /></TierGuard>} />
+              {/* MOD-03: Verification Dashboard & Detail — all admin tiers */}
+              <Route path="verifications" element={<VerificationDashboardPage />} />
+              <Route path="verifications/:id" element={<VerificationDetailPage />} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route

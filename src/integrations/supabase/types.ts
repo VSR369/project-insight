@@ -3852,6 +3852,91 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_admin_verifications: {
+        Row: {
+          assigned_admin_id: string | null
+          assignment_method: string | null
+          completed_at: string | null
+          completed_by_admin_id: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_current: boolean
+          organization_id: string
+          reassignment_count: number
+          sla_breach_tier: string
+          sla_breached: boolean
+          sla_duration_seconds: number
+          sla_paused_duration_hours: number
+          sla_start_at: string | null
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          assigned_admin_id?: string | null
+          assignment_method?: string | null
+          completed_at?: string | null
+          completed_by_admin_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          organization_id: string
+          reassignment_count?: number
+          sla_breach_tier?: string
+          sla_breached?: boolean
+          sla_duration_seconds?: number
+          sla_paused_duration_hours?: number
+          sla_start_at?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          assigned_admin_id?: string | null
+          assignment_method?: string | null
+          completed_at?: string | null
+          completed_by_admin_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_current?: boolean
+          organization_id?: string
+          reassignment_count?: number
+          sla_breach_tier?: string
+          sla_breached?: boolean
+          sla_duration_seconds?: number
+          sla_paused_duration_hours?: number
+          sla_start_at?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_admin_verifications_assigned_admin_id_fkey"
+            columns: ["assigned_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_admin_verifications_completed_by_admin_id_fkey"
+            columns: ["completed_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "platform_admin_verifications_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_terms: {
         Row: {
           content: string
@@ -8475,6 +8560,47 @@ export type Database = {
           },
         ]
       }
+      verification_check_results: {
+        Row: {
+          check_id: string
+          created_at: string
+          id: string
+          notes: string | null
+          result: string
+          updated_at: string | null
+          updated_by: string | null
+          verification_id: string
+        }
+        Insert: {
+          check_id: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          result?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          verification_id: string
+        }
+        Update: {
+          check_id?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          result?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "verification_check_results_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_verifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       available_composite_slots: {
@@ -8627,6 +8753,7 @@ export type Database = {
         Returns: boolean
       }
       check_user_limit: { Args: { p_org_id: string }; Returns: boolean }
+      claim_from_queue: { Args: { p_queue_entry_id: string }; Returns: Json }
       cleanup_expired_otps: { Args: never; Returns: number }
       delete_questions_by_specialities: {
         Args: { p_speciality_ids: string[] }
@@ -8732,6 +8859,7 @@ export type Database = {
           workload_ratio: number
         }[]
       }
+      get_my_admin_profile_id: { Args: never; Returns: string }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -8845,6 +8973,10 @@ export type Database = {
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
         Returns: undefined
+      }
+      release_to_queue: {
+        Args: { p_reason?: string; p_verification_id: string }
+        Returns: Json
       }
       reset_challenge_counters: { Args: never; Returns: undefined }
       reset_enrollment_for_expertise_change: {
