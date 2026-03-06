@@ -7,7 +7,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
 const PLATFORM_ADMIN_COLUMNS = 
-  'id, user_id, full_name, email, phone, is_supervisor, industry_expertise, country_region_expertise, org_type_expertise, max_concurrent_verifications, current_active_verifications, availability_status, assignment_priority, leave_start_date, leave_end_date, last_assignment_timestamp, created_at, updated_at';
+  'id, user_id, full_name, email, phone, is_supervisor, admin_tier, industry_expertise, country_region_expertise, org_type_expertise, max_concurrent_verifications, current_active_verifications, availability_status, assignment_priority, leave_start_date, leave_end_date, last_assignment_timestamp, created_at, updated_at';
 
 export function usePlatformAdmins(statusFilter?: string) {
   return useQuery({

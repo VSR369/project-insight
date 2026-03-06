@@ -1,11 +1,13 @@
 /**
  * SCR-01-04: View Platform Admin Page (Tabbed)
+ * Supervisor + Senior Admin can view. Supervisor can edit/deactivate.
  */
 
 import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { usePlatformAdminProfile, usePlatformAdminSelf } from '@/hooks/queries/usePlatformAdmins';
+import { usePlatformAdminProfile } from '@/hooks/queries/usePlatformAdmins';
 import { usePlatformAdminAuditLog } from '@/hooks/queries/usePlatformAdminAuditLog';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
@@ -20,6 +22,12 @@ import { Badge } from '@/components/ui/badge';
 import { Pencil, Shield, ArrowLeft, UserX } from 'lucide-react';
 import { format } from 'date-fns';
 
+const TIER_LABELS: Record<string, string> = {
+  supervisor: 'Supervisor',
+  senior_admin: 'Senior Admin',
+  admin: 'Admin',
+};
+
 function ViewContent() {
   const { adminId } = useParams<{ adminId: string }>();
   const navigate = useNavigate();
@@ -27,9 +35,8 @@ function ViewContent() {
   const [auditPage, setAuditPage] = useState(1);
 
   const { data: admin, isLoading } = usePlatformAdminProfile(adminId);
-  const { data: self } = usePlatformAdminSelf();
+  const { isSupervisor } = useAdminTier();
   const { data: auditData, isLoading: auditLoading } = usePlatformAdminAuditLog(adminId, auditPage);
-  const isSupervisor = self?.is_supervisor === true;
 
   if (isLoading) {
     return (
@@ -44,6 +51,8 @@ function ViewContent() {
     return <div className="text-center py-12 text-muted-foreground">Admin not found.</div>;
   }
 
+  const adminTier = (admin as any).admin_tier || (admin.is_supervisor ? 'supervisor' : 'admin');
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
@@ -56,7 +65,12 @@ function ViewContent() {
               {admin.full_name}
               {admin.is_supervisor && <Shield className="h-5 w-5 text-primary" />}
             </h1>
-            <p className="text-muted-foreground">{admin.email}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-muted-foreground">{admin.email}</p>
+              <Badge variant="outline" className="capitalize text-xs">
+                {TIER_LABELS[adminTier] || 'Admin'}
+              </Badge>
+            </div>
           </div>
         </div>
         {isSupervisor && (
@@ -92,6 +106,7 @@ function ViewContent() {
                 <InfoRow label="Status">
                   <AdminStatusBadge status={admin.availability_status} />
                 </InfoRow>
+                <InfoRow label="Tier" value={TIER_LABELS[adminTier] || 'Admin'} />
                 <InfoRow label="Supervisor" value={admin.is_supervisor ? 'Yes' : 'No'} />
                 <InfoRow label="Priority" value={String(admin.assignment_priority)} />
               </CardContent>

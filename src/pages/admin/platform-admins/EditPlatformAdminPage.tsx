@@ -1,10 +1,12 @@
 /**
  * SCR-01-03: Edit Platform Admin Page
+ * Only supervisors can edit.
  */
 
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePlatformAdminProfile } from '@/hooks/queries/usePlatformAdmins';
 import { useUpdatePlatformAdmin } from '@/hooks/mutations/usePlatformAdminMutations';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { PlatformAdminForm } from '@/components/admin/platform-admins/PlatformAdminForm';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -15,6 +17,7 @@ function EditContent() {
   const navigate = useNavigate();
   const { data: admin, isLoading } = usePlatformAdminProfile(adminId);
   const updateMutation = useUpdatePlatformAdmin();
+  const { isSupervisor } = useAdminTier();
 
   if (isLoading) {
     return (
@@ -26,12 +29,18 @@ function EditContent() {
     );
   }
 
+  if (!isSupervisor) {
+    return <div className="text-center py-12 text-muted-foreground">Only supervisors can edit admin profiles.</div>;
+  }
+
   if (!admin) {
     return <div className="text-center py-12 text-muted-foreground">Admin not found.</div>;
   }
 
   const handleSubmit = async (data: PlatformAdminFormValues) => {
     const { email, ...updates } = data;
+    // Sync is_supervisor with admin_tier
+    updates.is_supervisor = data.admin_tier === 'supervisor';
     await updateMutation.mutateAsync({ admin_id: admin.id, updates });
     navigate(`/admin/platform-admins/${admin.id}`);
   };
@@ -44,11 +53,13 @@ function EditContent() {
       </div>
       <PlatformAdminForm
         mode="edit"
+        callerTier="supervisor"
         defaultValues={{
           full_name: admin.full_name,
           email: admin.email,
           phone: admin.phone,
           is_supervisor: admin.is_supervisor,
+          admin_tier: (admin as any).admin_tier || (admin.is_supervisor ? 'supervisor' : 'admin'),
           industry_expertise: admin.industry_expertise,
           country_region_expertise: admin.country_region_expertise ?? [],
           org_type_expertise: admin.org_type_expertise ?? [],
