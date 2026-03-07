@@ -80,7 +80,7 @@ export function useAdminMetricsDetail(adminId: string | undefined) {
 
       const { data, error } = await supabase
         .from('platform_admin_verifications')
-        .select('id, organization_name, industry_segment_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status')
+        .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name)')
         .eq('completed_by_admin_id', adminId)
         .eq('sla_breached', true)
         .gte('completed_at', ninetyDaysAgo.toISOString())
@@ -88,7 +88,16 @@ export function useAdminMetricsDetail(adminId: string | undefined) {
         .limit(20);
 
       if (error) throw new Error(error.message);
-      return (data || []) as SlaBreachRecord[];
+      return (data || []).map((row: Record<string, unknown>) => ({
+        id: row.id as string,
+        organization_id: row.organization_id as string,
+        organization_name: (row.seeker_organizations as Record<string, unknown> | null)?.organization_name as string | null,
+        sla_breach_tier: row.sla_breach_tier as string | null,
+        completed_at: row.completed_at as string | null,
+        sla_start_at: row.sla_start_at as string | null,
+        sla_paused_duration_hours: row.sla_paused_duration_hours as number | null,
+        status: row.status as string,
+      })) as SlaBreachRecord[];
     },
     enabled: !!adminId,
     staleTime: 60 * 1000,
