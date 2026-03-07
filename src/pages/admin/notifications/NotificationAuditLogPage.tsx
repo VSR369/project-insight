@@ -17,6 +17,8 @@ function NotificationAuditLogContent() {
     type: 'ALL',
     emailStatus: 'ALL',
     recipientSearch: '',
+    dateFrom: null,
+    dateTo: null,
   });
 
   const { data, isLoading, error } = useNotificationAuditLog(filters);

@@ -1,7 +1,7 @@
 /**
  * MOD-04 SCR-04-01: Notification Audit Log data table
  */
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { NotificationTypeBadge } from './NotificationTypeBadge';
@@ -69,7 +69,7 @@ export function NotificationAuditTable({ data, onResend, isResending }: Notifica
             const isExpanded = expandedId === row.id;
             const isExhausted = row.email_status === 'EXHAUSTED';
             return (
-              <>
+              <Fragment key={row.id}>
                 <TableRow
                   key={row.id}
                   className={cn(isExhausted && 'bg-red-50/50 dark:bg-red-950/20')}
@@ -166,7 +166,7 @@ export function NotificationAuditTable({ data, onResend, isResending }: Notifica
                     </TableCell>
                   </TableRow>
                 )}
-              </>
+              </Fragment>
             );
           })}
         </TableBody>
