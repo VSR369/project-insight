@@ -17,6 +17,8 @@ const TYPE_CONFIG: Record<string, { label: string; className: string }> = {
   QUEUE_ESCALATION: { label: 'Queue Escalation', className: 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300' },
   EMAIL_FAIL: { label: 'Email Fail', className: 'border border-red-300 bg-transparent text-red-700 dark:border-red-700 dark:text-red-400' },
   COURTESY_REGISTRANT: { label: 'Courtesy', className: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300' },
+  COURTESY_TIER2: { label: 'Courtesy T2', className: 'bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300' },
+  COURTESY_TIER3: { label: 'Courtesy T3', className: 'bg-teal-200 text-teal-900 dark:bg-teal-900/60 dark:text-teal-200' },
 };
 
 interface NotificationTypeBadgeProps {

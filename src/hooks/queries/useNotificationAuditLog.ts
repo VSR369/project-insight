@@ -44,6 +44,15 @@ export function useNotificationAuditLog(filters: AuditFilters) {
       if (filters.recipientSearch) {
         query = query.or(`recipient_email.ilike.%${filters.recipientSearch}%,recipient_name.ilike.%${filters.recipientSearch}%`);
       }
+      if (filters.dateFrom) {
+        query = query.gte('created_at', filters.dateFrom.toISOString());
+      }
+      if (filters.dateTo) {
+        // Include the full end-of-day
+        const endOfDay = new Date(filters.dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endOfDay.toISOString());
+      }
 
       const { data, error } = await query;
       if (error) throw new Error(error.message);
@@ -73,14 +82,13 @@ export function useResendNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (auditLogId: string) => {
-      // Reset email_status to PENDING and retry count
       const { error } = await supabase
         .from('notification_audit_log')
         .update({
           email_status: 'PENDING',
           email_retry_count: 0,
           updated_at: new Date().toISOString(),
-        } as any)
+        })
         .eq('id', auditLogId);
       if (error) throw new Error(error.message);
     },

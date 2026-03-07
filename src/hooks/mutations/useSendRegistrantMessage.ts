@@ -40,7 +40,7 @@ export function useSendRegistrantMessage() {
           recipient_email: input.recipientEmail,
           recipient_name: input.recipientName ?? null,
           email_status: 'PENDING',
-        } as any);
+        });
 
       if (error) throw new Error(error.message);
     },
