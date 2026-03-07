@@ -119,3 +119,62 @@
 ## Remaining Linter Warnings (Pre-existing)
 - Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
 - Security definer view and function search_path warnings are pre-existing across the project
+
+---
+
+# MOD-05: Performance Metrics Dashboard — Implementation Complete
+
+## What Was Implemented
+
+### Database (Migration)
+- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
+- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
+- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5 from `platform_admin_verifications`, enforces BR-MPA-038 (non-supervisors only see own data)
+- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, batch recalculates M1-M8 via upsert, supervisor-only
+- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
+
+### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
+- **`AllAdminsPerformancePage.tsx`** — Team KPI bar (SLA Rate, Pending, At-Risk, Queue Claims), Admin Performance Table with SLA gauge, workload bars, at-risk badges, CSV export
+- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards with trend indicators
+- **`AdminPerformanceTable.tsx`** — Full table with SLA spark gauge (●●●●○), low-SLA red row highlight, zero-completion grey row, drill-down action
+- **`PerformanceFilters.tsx`** — Availability filter, sort by (SLA/Pending/Completed/Name), CSV export
+- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
+
+### Frontend — SCR-05-02: My Performance (All Admins)
+- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 reassignment cards + workload bar
+- No peer comparison data (BR-MPA-038(a))
+- Route: `/admin/my-performance` — all admin tiers
+
+### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
+- **`AdminPerformanceDetailPage.tsx`** — Admin header card (name, tier, status, domain chips, workload) + 8-metric grid (M1-M8) + SLA Breach History table (90 days)
+- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar
+- **`SlaBreachHistory.tsx`** — Breach table with org name, tier badges, processing time
+- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
+
+### Shared Components
+- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
+
+### Hooks
+- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, staleTime: 30s, refetchInterval: 60s
+- **`useMyMetrics.ts`** — Self-only fetch via RPC, staleTime: 30s
+- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name join
+
+### Navigation
+- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
+- All routes lazy-loaded
+
+## MOD-05 Role-Based Access Matrix
+
+| Feature | Admin (Basic) | Senior Admin | Supervisor |
+|---------|--------------|--------------|------------|
+| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
+| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
+| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
+| Refresh Metrics RPC | ❌ | ❌ | ✅ |
+| CSV Export | ❌ | ❌ | ✅ |
+
+## Zero-Impact Areas
+- All existing RLS policies unchanged
+- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
+- No route conflicts with existing paths
+- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
