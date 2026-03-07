@@ -1,121 +1,150 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# Plan: MOD-05 — Performance Metrics Dashboard
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## Current State
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+**Exists:**
+- `admin_performance_metrics` table with basic columns: `id`, `admin_id`, `verifications_completed`, `avg_processing_hours`, `sla_compliance_rate_pct`, `created_at`, `updated_at`
+- `platform_admin_verifications` with `status`, `sla_start_at`, `sla_paused_duration_hours`, `sla_breached`, `sla_breach_tier`, `completed_at`, `completed_by_admin_id`, `assigned_admin_id`
+- `verification_assignments` with `assignment_method`, `assigned_admin_id`, `assigned_at`, `is_current`
+- `verification_assignment_log` with `event_type`, `from_admin_id`, `to_admin_id`
+- `platform_admin_profiles` with `full_name`, `is_supervisor`, `availability_status`, `max_concurrent_verifications`, `current_active_verifications`, `assignment_priority`, `admin_tier`, `industry_expertise`, `country_region_expertise`, `org_type_expertise`
 
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+**Does Not Exist:**
+- SCR-05-01: All Admins Performance Dashboard (Supervisor)
+- SCR-05-02: My Performance (Self-View, all admins)
+- SCR-05-03: Admin Performance Detail (Supervisor drill-down)
+- `get_realtime_admin_metrics` RPC
+- `refresh_performance_metrics` RPC
+- Additional columns on `admin_performance_metrics` (M6-M8, period fields)
+- React Query hooks: `useAllAdminMetrics`, `useMyMetrics`, `useAdminMetricsDetail`
+- Routes: `/admin/performance`, `/admin/my-performance`, `/admin/performance/:adminId`
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## Implementation Plan
 
-## What Was Implemented
+### 1. Database Migration — Extend `admin_performance_metrics` + Create RPCs
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+**Alter `admin_performance_metrics`** to add spec columns:
+```sql
+ALTER TABLE admin_performance_metrics
+  ADD COLUMN IF NOT EXISTS sla_compliant_count INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS sla_breached_count INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS open_queue_claims INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reassignments_received INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS reassignments_sent INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS period_start DATE,
+  ADD COLUMN IF NOT EXISTS period_end DATE,
+  ADD COLUMN IF NOT EXISTS computed_at TIMESTAMPTZ;
+```
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+**Create `get_realtime_admin_metrics` RPC** (SECURITY DEFINER):
+- Input: `p_admin_id UUID DEFAULT NULL` (NULL = all admins for Supervisor)
+- Returns: `admin_id`, `current_pending` (M4), `sla_at_risk_count` (M5), `m1_completed_live` (M1), `m2_compliance_live` (M2)
+- Queries `platform_admin_verifications` for live counts
+- Enforces BR-MPA-038: non-supervisors can only query their own ID
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+**Create `refresh_performance_metrics` RPC** (SECURITY DEFINER):
+- Recalculates M1-M8 from source tables for all active admins
+- Updates `admin_performance_metrics` rows (upsert by `admin_id`)
+- Computes: `verifications_completed`, `sla_compliant_count`, `sla_breached_count`, `avg_processing_hours`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+**RLS on `admin_performance_metrics`:**
+- Self-view: authenticated user can SELECT where `admin_id` matches their profile
+- Supervisor: can SELECT all rows
 
-### MOD-02 Role-Based Access Matrix
+### 2. SCR-05-01: All Admins Performance Dashboard (Supervisor Only)
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+**Route:** `/admin/performance` — Supervisor only. Non-supervisors redirect to `/admin/my-performance`.
+
+**Components:**
+- `AllAdminsPerformancePage.tsx` — page wrapped in `FeatureErrorBoundary`
+- `TeamSummaryKPIBar.tsx` — 4 cards: Team SLA Rate (amber/green/red), Total Pending, At-Risk, Queue Unclaimed
+- `AdminPerformanceTable.tsx` — table with columns:
+  - Admin Name + availability badge (green/amber/red pill)
+  - SLA Rate (M2) with color-coded spark gauge (●●●●○)
+  - Completed (M1), Avg Time (M3), Pending (M4) with workload bar, At-Risk (M5) red badge, Queue Claims (M6), Reassign In/Out (M7/M8), Actions ("View Detail →")
+- `PerformanceFilters.tsx` — Period selector (7/30/90 days), Sort By, Availability filter, Export CSV
+- Row with SLA < 80% gets light-red background
+- Zero-completion admins show "—" for rate, grey row
+
+**Hook:** `useAllAdminMetrics.ts` — parallel fetch of `admin_performance_metrics` + `get_realtime_admin_metrics` RPC, merged. `staleTime: 30s`, `refetchInterval: 60s`.
+
+### 3. SCR-05-02: My Performance (Self-View, All Admins)
+
+**Route:** `/admin/my-performance` — All platform_admin role users.
+
+**Components:**
+- `MyPerformancePage.tsx` — self-only metrics page
+- 6 personal KPI cards: M1 Completed, M2 SLA Rate, M3 Avg Time, M4 Pending, M5 At-Risk, M6 Queue Claims
+- Workload breakdown: pending list with SLA bars, M7/M8 reassignment counts
+- Period selector (7/30/90 days)
+- No peer comparison data (BR-MPA-038(a))
+
+**Hook:** `useMyMetrics.ts` — fetches own metrics only via `admin_performance_metrics` + `get_realtime_admin_metrics(p_admin_id: ownId)`.
+
+### 4. SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
+
+**Route:** `/admin/performance/:adminId` — Supervisor only.
+
+**Components:**
+- `AdminPerformanceDetailPage.tsx`
+- Admin Header Card: name, supervisor badge, availability, domain chips, workload bar, priority, quick action buttons
+- Full 8-Metric detail panel (M1-M8) in 2×4 grid cards with sub-details
+- SLA Breach History table: org name, industry chips, breach tier badge, completion time, admin processing time, reassignment count (last 90 days, max 20 rows)
+
+**Hook:** `useAdminMetricsDetail.ts` — fetches single admin's metrics + breach history from `platform_admin_verifications` WHERE `sla_breached = TRUE`.
+
+### 5. Sidebar & Routing
+
+**AdminSidebar.tsx:** Add "Performance" entry under Verification group:
+- "All Admins Performance" (supervisor only)
+- "My Performance" (all tiers)
+
+**App.tsx:** Add 3 lazy-loaded routes:
+```tsx
+<Route path="performance" element={<TierGuard requiredTier="supervisor"><AllAdminsPerformancePage /></TierGuard>} />
+<Route path="my-performance" element={<MyPerformancePage />} />
+<Route path="performance/:adminId" element={<TierGuard requiredTier="supervisor"><AdminPerformanceDetailPage /></TierGuard>} />
+```
 
 ---
 
-# MOD-02 Gap Fix Log (Latest)
+## Impact Analysis
 
-## What Was Fixed
+| Area | Risk | Mitigation |
+|------|------|------------|
+| `admin_performance_metrics` table | ALTER adds columns with defaults — no data loss | All new columns have DEFAULT 0 or NULL |
+| Existing `register-platform-admin` / `manage-platform-admin` edge fns | They INSERT into `admin_performance_metrics` with `admin_id` only | New columns have defaults — no breaking change |
+| Existing admin routes | No routes conflict — new paths `/performance`, `/my-performance` | No overlap |
+| RLS on `admin_performance_metrics` | Currently no RLS — adding policies | Enable RLS + add self/supervisor policies |
+| Types file | Auto-updated after migration | No manual edits |
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
+## Files to Create
 
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
+| File | Purpose |
+|------|---------|
+| Migration SQL | Schema extension + RPCs + RLS |
+| `src/pages/admin/performance/AllAdminsPerformancePage.tsx` | SCR-05-01 |
+| `src/pages/admin/performance/MyPerformancePage.tsx` | SCR-05-02 |
+| `src/pages/admin/performance/AdminPerformanceDetailPage.tsx` | SCR-05-03 |
+| `src/components/admin/performance/TeamSummaryKPIBar.tsx` | 4 KPI cards |
+| `src/components/admin/performance/AdminPerformanceTable.tsx` | Main table |
+| `src/components/admin/performance/PerformanceFilters.tsx` | Filters |
+| `src/components/admin/performance/MetricCard.tsx` | Reusable metric card |
+| `src/components/admin/performance/SlaBreachHistory.tsx` | Breach table for SCR-05-03 |
+| `src/components/admin/performance/AdminHeaderCard.tsx` | Header for SCR-05-03 |
+| `src/hooks/queries/useAllAdminMetrics.ts` | Hook for SCR-05-01 |
+| `src/hooks/queries/useMyMetrics.ts` | Hook for SCR-05-02 |
+| `src/hooks/queries/useAdminMetricsDetail.ts` | Hook for SCR-05-03 |
 
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
+## Files to Modify
 
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
+| File | Changes |
+|------|---------|
+| `src/components/admin/AdminSidebar.tsx` | Add Performance entries |
+| `src/App.tsx` | Add 3 routes |
+| `src/integrations/supabase/types.ts` | Auto-updated after migration |
+
