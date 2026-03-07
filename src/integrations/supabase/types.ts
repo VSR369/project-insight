@@ -8755,6 +8755,10 @@ export type Database = {
       check_user_limit: { Args: { p_org_id: string }; Returns: boolean }
       claim_from_queue: { Args: { p_queue_entry_id: string }; Returns: Json }
       cleanup_expired_otps: { Args: never; Returns: number }
+      complete_verification_action: {
+        Args: { p_action: string; p_notes?: string; p_verification_id: string }
+        Returns: Json
+      }
       delete_questions_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -8976,6 +8980,14 @@ export type Database = {
       }
       release_to_queue: {
         Args: { p_reason?: string; p_verification_id: string }
+        Returns: Json
+      }
+      request_reassignment: {
+        Args: {
+          p_reason: string
+          p_target_admin_id?: string
+          p_verification_id: string
+        }
         Returns: Json
       }
       reset_challenge_counters: { Args: never; Returns: undefined }
