@@ -47,6 +47,7 @@ import {
   User,
   ScrollText,
   ClipboardCheck,
+  Bell,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -263,6 +264,18 @@ export function AdminSidebar() {
                   <span>Verifications</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/notifications/audit')}
+                    onMouseEnter={() => handleMouseEnter('/admin/notifications/audit')}
+                    isActive={location.pathname === '/admin/notifications/audit'}
+                  >
+                    <Bell className="h-4 w-4" />
+                    <span>Notification Audit</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

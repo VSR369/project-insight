@@ -154,6 +154,23 @@ serve(async (req) => {
             deep_link: `/admin/verifications/${v.id}`,
           });
         }
+
+        // MOD-04 BR-MPA-036: Send courtesy email to registrant
+        try {
+          await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-registrant-courtesy`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ verification_id: v.id, tier: "TIER2" }),
+            },
+          );
+        } catch (courtesyErr) {
+          console.error("Failed to send TIER2 courtesy:", courtesyErr);
+        }
       }
 
       if (targetTier === "TIER3") {
@@ -175,6 +192,23 @@ serve(async (req) => {
             .from("open_queue_entries")
             .update({ is_critical: true, is_pinned: true })
             .eq("verification_id", v.id);
+        }
+
+        // MOD-04 BR-MPA-036: Send courtesy email to registrant for TIER3
+        try {
+          await fetch(
+            `${Deno.env.get("SUPABASE_URL")}/functions/v1/send-registrant-courtesy`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+              },
+              body: JSON.stringify({ verification_id: v.id, tier: "TIER3" }),
+            },
+          );
+        } catch (courtesyErr) {
+          console.error("Failed to send TIER3 courtesy:", courtesyErr);
         }
       }
 

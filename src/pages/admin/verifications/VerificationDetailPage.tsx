@@ -7,6 +7,7 @@ import { AssignmentMethodBadge } from '@/components/admin/verifications/Assignme
 import { VerificationChecksPanel } from '@/components/admin/verifications/VerificationChecksPanel';
 import { VerificationActionBar } from '@/components/admin/verifications/VerificationActionBar';
 import { AssignmentHistoryTab } from '@/components/admin/verifications/AssignmentHistoryTab';
+import { RegistrantCommThread } from '@/components/admin/verifications/RegistrantCommThread';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -150,9 +151,13 @@ function VerificationDetailContent() {
         </TabsContent>
 
         <TabsContent value="comms">
-          <div className="py-8 text-center text-muted-foreground text-sm">
-            Registrant communications will be available in a future release.
-          </div>
+          <RegistrantCommThread
+            verificationId={verification.id}
+            orgName={org?.organization_name ?? 'Unknown'}
+            recipientEmail={(org as any)?.primary_contact_email}
+            recipientName={(org as any)?.primary_contact_name}
+            canCompose={viewState === 1 || viewState === 2}
+          />
         </TabsContent>
       </Tabs>
 
