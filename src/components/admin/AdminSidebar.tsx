@@ -41,6 +41,7 @@ import {
   Mail,
   ChevronRight,
   Activity,
+  BarChart3,
   TestTube2,
   CreditCard,
   Users2,
@@ -276,6 +277,28 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/performance')}
+                    onMouseEnter={() => handleMouseEnter('/admin/performance')}
+                    isActive={location.pathname === '/admin/performance'}
+                  >
+                    <BarChart3 className="h-4 w-4" />
+                    <span>Team Performance</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/my-performance')}
+                  onMouseEnter={() => handleMouseEnter('/admin/my-performance')}
+                  isActive={location.pathname === '/admin/my-performance'}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>My Performance</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

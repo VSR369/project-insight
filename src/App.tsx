@@ -169,6 +169,11 @@ const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/Ve
 // MOD-04: Notification Audit Log
 const NotificationAuditLogPage = lazy(() => import("@/pages/admin/notifications/NotificationAuditLogPage"));
 
+// MOD-05: Performance Metrics Dashboard
+const AllAdminsPerformancePage = lazy(() => import("@/pages/admin/performance/AllAdminsPerformancePage"));
+const MyPerformancePage = lazy(() => import("@/pages/admin/performance/MyPerformancePage"));
+const AdminPerformanceDetailPage = lazy(() => import("@/pages/admin/performance/AdminPerformanceDetailPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -577,6 +582,10 @@ const App = () => (
               <Route path="verifications/:id" element={<VerificationDetailPage />} />
               {/* MOD-04: Notification Audit Log — supervisor only */}
               <Route path="notifications/audit" element={<TierGuard requiredTier="supervisor"><NotificationAuditLogPage /></TierGuard>} />
+              {/* MOD-05: Performance Metrics Dashboard */}
+              <Route path="performance" element={<TierGuard requiredTier="supervisor"><AllAdminsPerformancePage /></TierGuard>} />
+              <Route path="my-performance" element={<MyPerformancePage />} />
+              <Route path="performance/:adminId" element={<TierGuard requiredTier="supervisor"><AdminPerformanceDetailPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
