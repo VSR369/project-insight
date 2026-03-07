@@ -3074,38 +3074,62 @@ export type Database = {
       notification_audit_log: {
         Row: {
           created_at: string
+          email_error_message: string | null
+          email_provider_id: string | null
           email_retry_count: number
+          email_status: string
           id: string
+          in_app_status: string
           last_retry_at: string | null
           notification_type: string
           recipient_email: string | null
           recipient_id: string | null
+          recipient_name: string | null
+          recipient_type: string
           sms_status: string | null
           status: string
+          triggered_by: string | null
+          updated_at: string
           verification_id: string | null
         }
         Insert: {
           created_at?: string
+          email_error_message?: string | null
+          email_provider_id?: string | null
           email_retry_count?: number
+          email_status?: string
           id?: string
+          in_app_status?: string
           last_retry_at?: string | null
           notification_type: string
           recipient_email?: string | null
           recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_type?: string
           sms_status?: string | null
           status?: string
+          triggered_by?: string | null
+          updated_at?: string
           verification_id?: string | null
         }
         Update: {
           created_at?: string
+          email_error_message?: string | null
+          email_provider_id?: string | null
           email_retry_count?: number
+          email_status?: string
           id?: string
+          in_app_status?: string
           last_retry_at?: string | null
           notification_type?: string
           recipient_email?: string | null
           recipient_id?: string | null
+          recipient_name?: string | null
+          recipient_type?: string
           sms_status?: string | null
           status?: string
+          triggered_by?: string | null
+          updated_at?: string
           verification_id?: string | null
         }
         Relationships: [
@@ -6164,6 +6188,75 @@ export type Database = {
             columns: ["question_id"]
             isOneToOne: false
             referencedRelation: "question_bank"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registrant_communications: {
+        Row: {
+          body_html: string
+          body_text: string | null
+          created_at: string
+          direction: string
+          email_retry_count: number
+          email_status: string
+          id: string
+          last_retry_at: string | null
+          message_type: string
+          recipient_email: string
+          recipient_name: string | null
+          sent_at: string | null
+          sent_by_admin_id: string | null
+          subject: string
+          verification_id: string
+        }
+        Insert: {
+          body_html: string
+          body_text?: string | null
+          created_at?: string
+          direction?: string
+          email_retry_count?: number
+          email_status?: string
+          id?: string
+          last_retry_at?: string | null
+          message_type?: string
+          recipient_email: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          sent_by_admin_id?: string | null
+          subject: string
+          verification_id: string
+        }
+        Update: {
+          body_html?: string
+          body_text?: string | null
+          created_at?: string
+          direction?: string
+          email_retry_count?: number
+          email_status?: string
+          id?: string
+          last_retry_at?: string | null
+          message_type?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          sent_at?: string | null
+          sent_by_admin_id?: string | null
+          subject?: string
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registrant_communications_sent_by_admin_id_fkey"
+            columns: ["sent_by_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registrant_communications_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_verifications"
             referencedColumns: ["id"]
           },
         ]
