@@ -7271,64 +7271,6 @@ export type Database = {
           },
         ]
       }
-      seeker_org_industries: {
-        Row: {
-          created_at: string
-          created_by: string | null
-          id: string
-          industry_id: string
-          is_primary: boolean
-          organization_id: string
-          tenant_id: string
-          updated_at: string | null
-          updated_by: string | null
-        }
-        Insert: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          industry_id: string
-          is_primary?: boolean
-          organization_id: string
-          tenant_id: string
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Update: {
-          created_at?: string
-          created_by?: string | null
-          id?: string
-          industry_id?: string
-          is_primary?: boolean
-          organization_id?: string
-          tenant_id?: string
-          updated_at?: string | null
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "seeker_org_industries_industry_id_fkey"
-            columns: ["industry_id"]
-            isOneToOne: false
-            referencedRelation: "industry_segments"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seeker_org_industries_organization_id_fkey"
-            columns: ["organization_id"]
-            isOneToOne: false
-            referencedRelation: "seeker_organizations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "seeker_org_industries_tenant_id_fkey"
-            columns: ["tenant_id"]
-            isOneToOne: false
-            referencedRelation: "seeker_organizations"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       seeker_org_operating_geographies: {
         Row: {
           country_id: string
@@ -9000,6 +8942,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      supervisor_reassign_to_self: {
+        Args: { p_verification_id: string }
+        Returns: Json
+      }
       validate_tax_id: {
         Args: { p_country_id: string; p_tax_id: string }
         Returns: boolean
