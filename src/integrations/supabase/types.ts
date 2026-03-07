@@ -282,27 +282,51 @@ export type Database = {
         Row: {
           admin_id: string
           avg_processing_hours: number | null
+          computed_at: string | null
           created_at: string
           id: string
+          open_queue_claims: number
+          period_end: string | null
+          period_start: string | null
+          reassignments_received: number
+          reassignments_sent: number
+          sla_breached_count: number
           sla_compliance_rate_pct: number | null
+          sla_compliant_count: number
           updated_at: string | null
           verifications_completed: number
         }
         Insert: {
           admin_id: string
           avg_processing_hours?: number | null
+          computed_at?: string | null
           created_at?: string
           id?: string
+          open_queue_claims?: number
+          period_end?: string | null
+          period_start?: string | null
+          reassignments_received?: number
+          reassignments_sent?: number
+          sla_breached_count?: number
           sla_compliance_rate_pct?: number | null
+          sla_compliant_count?: number
           updated_at?: string | null
           verifications_completed?: number
         }
         Update: {
           admin_id?: string
           avg_processing_hours?: number | null
+          computed_at?: string | null
           created_at?: string
           id?: string
+          open_queue_claims?: number
+          period_end?: string | null
+          period_start?: string | null
+          reassignments_received?: number
+          reassignments_sent?: number
+          sla_breached_count?: number
           sla_compliance_rate_pct?: number | null
+          sla_compliant_count?: number
           updated_at?: string | null
           verifications_completed?: number
         }
@@ -8961,6 +8985,23 @@ export type Database = {
         Args: { p_speciality_ids: string[] }
         Returns: number
       }
+      get_realtime_admin_metrics: {
+        Args: { p_admin_id?: string }
+        Returns: {
+          admin_id: string
+          admin_tier: string
+          assignment_priority: number
+          availability_status: string
+          completed_total: number
+          current_active_verifications: number
+          current_pending: number
+          full_name: string
+          max_concurrent_verifications: number
+          sla_at_risk_count: number
+          sla_breached_total: number
+          sla_compliant_total: number
+        }[]
+      }
       get_reviewer_days_idle: {
         Args: { p_reviewer_id: string }
         Returns: number
@@ -9071,6 +9112,7 @@ export type Database = {
         Args: { p_end_at: string; p_start_at: string }
         Returns: undefined
       }
+      refresh_performance_metrics: { Args: never; Returns: undefined }
       release_to_queue: {
         Args: { p_reason?: string; p_verification_id: string }
         Returns: Json
