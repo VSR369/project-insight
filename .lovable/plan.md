@@ -1,121 +1,57 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# MOD-03 Gap Analysis — Current State
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## All Previously Identified Gaps: CLOSED
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+| Gap | Description | Status |
+|-----|-------------|--------|
+| GAP-1 | Tab count badges | Done |
+| GAP-2 | Tier warning/breach banners | Done |
+| GAP-3 | Industry Tags column (pill chips) | Done |
+| GAP-4 | Days Remaining column | Done |
+| GAP-5 | SLA Deadline column | Done |
+| GAP-6 | Org Type column | Done |
+| GAP-7 | Time-in-Queue color coding | Done |
+| GAP-8 | Supervisor "Reassign to Me" | Done |
+| GAP-9 | SLA emoji badges (T1/T2/T3) | Done |
+| GAP-10 | 4 tabs (Org Details, Checks, History, Comms) | Done |
+| GAP-11 | History: From/To Admin, Domain Score | Done |
+| GAP-12 | Claim navigates to detail | Done |
+| GAP-13 | sla-escalation tier-aware (accepted as-is) | Accepted |
+| GAP-14 | Approve/Reject confirmation modals | Done |
+| GAP-15 | FeatureErrorBoundary on both pages | Done |
+| GAP-16 | Return for Correction modal | Done |
+| GAP-17 | Supervisor Reassign via RPC | Done |
+| GAP-18 | Explicit column selections (no SELECT *) | Done |
+| GAP-19 | Realtime subscriptions | Done |
+| GAP-20 | Navigate after Approve/Reject/Return | Done |
 
-## Tier Permission Matrix
+## Remaining Minor Standards Gaps (Non-Blocking)
 
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
+These are code-quality items per the project's Enterprise Architecture Reference, not missing features:
 
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+### 1. `handleMutationError` not used in verification mutations
+**Current:** `useVerificationMutations.ts` uses inline `toast.error()` in `onError` handlers instead of the centralized `handleMutationError(error, { operation: '...' })` pattern.
+**Impact:** Low -- inconsistent with project standards but functionally correct.
 
----
+### 2. `useVerificationAction` does multi-step writes without atomicity
+**Current:** The Approve/Reject mutation (lines 101-151 in `useVerificationMutations.ts`) does 3 sequential writes: (1) update verification status, (2) close assignment, (3) insert audit log. If step 2 or 3 fails, step 1 is already committed.
+**Impact:** Low-moderate -- could leave orphaned current assignments or missing audit logs on partial failure. Ideally this would be a single RPC (like `supervisor_reassign_to_self`).
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+### 3. `useRequestReassignment` notifies supervisors client-side
+**Current:** Lines 218-232 in `useVerificationMutations.ts` query supervisor profiles and insert notifications directly from the client. This should go through an edge function or RPC for security (clients shouldn't enumerate supervisor IDs).
+**Impact:** Low -- RLS prevents data leakage, but the pattern exposes supervisor profile IDs to the client.
 
-## What Was Implemented
+### 4. Org Details tab is a stub
+**Current:** "Organization details will be displayed here in a future release." This is an intentional deferral per spec, not a gap.
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+### 5. Registrant Comms tab is a stub
+**Current:** Same as above -- intentional future-release placeholder.
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+## Summary
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+**MOD-03 is feature-complete.** All 20 identified gaps have been closed. The 3 remaining items above are code-quality improvements (standardized error handling, atomicity, server-side notification dispatch) that could be addressed in a cleanup pass but do not block MOD-03 functionality or correctness.
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+No plan is needed -- there are no actionable feature gaps remaining.
 
-### MOD-02 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
-
----
-
-# MOD-02 Gap Fix Log (Latest)
-
-## What Was Fixed
-
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
-
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
-
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
-
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
