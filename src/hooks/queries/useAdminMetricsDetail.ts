@@ -8,8 +8,8 @@ import type { AdminMetricRow } from './useAllAdminMetrics';
 
 export interface SlaBreachRecord {
   id: string;
+  organization_id: string;
   organization_name: string | null;
-  industry_segment_id: string | null;
   sla_breach_tier: string | null;
   completed_at: string | null;
   sla_start_at: string | null;
