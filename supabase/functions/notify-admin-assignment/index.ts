@@ -114,19 +114,26 @@ serve(async (req) => {
         metadata,
       });
 
+    // Note: in_app_status tracked in audit log below
+
     if (notifErr) {
       console.error("Failed to insert notification:", notifErr);
     }
 
-    // Insert audit log
+    // Insert audit log with MOD-04 columns
     const { data: auditRow, error: auditErr } = await supabaseClient
       .from("notification_audit_log")
       .insert({
         notification_type: type,
         recipient_id: admin_id,
         recipient_email: admin.email,
+        recipient_type: "ADMIN",
+        recipient_name: admin.full_name,
         verification_id,
         status: "SENT",
+        email_status: "PENDING",
+        in_app_status: notifErr ? "SKIPPED" : "SENT",
+        triggered_by: method,
       })
       .select("id")
       .single();

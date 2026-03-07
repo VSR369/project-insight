@@ -166,6 +166,9 @@ const AssignmentAuditLogPage = lazy(() => import("@/pages/admin/AssignmentAuditL
 const VerificationDashboardPage = lazy(() => import("@/pages/admin/verifications/VerificationDashboardPage"));
 const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/VerificationDetailPage"));
 
+// MOD-04: Notification Audit Log
+const NotificationAuditLogPage = lazy(() => import("@/pages/admin/notifications/NotificationAuditLogPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -572,6 +575,8 @@ const App = () => (
               {/* MOD-03: Verification Dashboard & Detail — all admin tiers */}
               <Route path="verifications" element={<VerificationDashboardPage />} />
               <Route path="verifications/:id" element={<VerificationDetailPage />} />
+              {/* MOD-04: Notification Audit Log — supervisor only */}
+              <Route path="notifications/audit" element={<TierGuard requiredTier="supervisor"><NotificationAuditLogPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
