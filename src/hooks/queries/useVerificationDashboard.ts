@@ -1,8 +1,40 @@
 /**
  * React Query hooks for MOD-03: Verification Dashboard
+ * GAP-3: Industry tags fetching
+ * GAP-6: Org type fetching
+ * GAP-18: Explicit column selections (no SELECT *)
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+
+/** Helper: fetch industry tags for a set of org IDs */
+async function fetchIndustryTags(orgIds: string[]): Promise<Record<string, string[]>> {
+  if (orgIds.length === 0) return {};
+  const { data } = await supabase
+    .from('seeker_org_industries')
+    .select('organization_id, industry_id, industry_segments:industry_id(name)')
+    .in('organization_id', orgIds);
+
+  const map: Record<string, string[]> = {};
+  for (const row of data ?? []) {
+    const orgId = row.organization_id;
+    const name = (row as any).industry_segments?.name;
+    if (!name) continue;
+    if (!map[orgId]) map[orgId] = [];
+    map[orgId].push(name);
+  }
+  return map;
+}
+
+/** Helper: fetch org type names for a set of type IDs */
+async function fetchOrgTypeMap(typeIds: string[]): Promise<Record<string, string>> {
+  if (typeIds.length === 0) return {};
+  const { data } = await supabase
+    .from('organization_types')
+    .select('id, name')
+    .in('id', typeIds);
+  return Object.fromEntries((data ?? []).map(t => [t.id, t.name]));
+}
 
 /**
  * Fetch current admin's assigned verifications (My Assignments tab)
@@ -42,7 +74,7 @@ export function useMyAssignments() {
 
       const { data: orgs } = await supabase
         .from('seeker_organizations')
-        .select('id, organization_name, hq_country_id')
+        .select('id, organization_name, hq_country_id, organization_type_id')
         .in('id', orgIds);
 
       const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
@@ -50,12 +82,21 @@ export function useMyAssignments() {
         ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
         : { data: [] as { id: string; name: string; code: string }[] };
 
+      // GAP-6: Org type resolution
+      const typeIds = [...new Set((orgs ?? []).map(o => o.organization_type_id).filter(Boolean))] as string[];
+      const orgTypeMap = await fetchOrgTypeMap(typeIds);
+
+      // GAP-3: Industry tags
+      const industryMap = await fetchIndustryTags(orgIds);
+
       const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
       const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
         id: o.id,
         organization_name: o.organization_name,
         hq_country_id: o.hq_country_id,
         country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
+        org_type: o.organization_type_id ? orgTypeMap[o.organization_type_id] ?? null : null,
+        industry_tags: industryMap[o.id] ?? [],
       }]));
 
       return (data ?? []).map(v => ({
@@ -64,7 +105,6 @@ export function useMyAssignments() {
       }));
     },
     staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
   });
 }
 
@@ -97,13 +137,20 @@ export function useOpenQueue() {
 
       const orgIds = [...new Set((verifications ?? []).map(v => v.organization_id))];
       const { data: orgs } = orgIds.length > 0
-        ? await supabase.from('seeker_organizations').select('id, organization_name, hq_country_id').in('id', orgIds)
-        : { data: [] as { id: string; organization_name: string; hq_country_id: string | null }[] };
+        ? await supabase.from('seeker_organizations').select('id, organization_name, hq_country_id, organization_type_id').in('id', orgIds)
+        : { data: [] as { id: string; organization_name: string; hq_country_id: string | null; organization_type_id: string | null }[] };
 
       const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
       const { data: countries } = countryIds.length > 0
         ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
         : { data: [] as { id: string; name: string; code: string }[] };
+
+      // GAP-6: Org type resolution
+      const typeIds = [...new Set((orgs ?? []).map(o => o.organization_type_id).filter(Boolean))] as string[];
+      const orgTypeMap = await fetchOrgTypeMap(typeIds);
+
+      // GAP-3: Industry tags
+      const industryMap = await fetchIndustryTags(orgIds);
 
       const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
       const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
@@ -111,6 +158,8 @@ export function useOpenQueue() {
         organization_name: o.organization_name,
         hq_country_id: o.hq_country_id,
         country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
+        org_type: o.organization_type_id ? orgTypeMap[o.organization_type_id] ?? null : null,
+        industry_tags: industryMap[o.id] ?? [],
       }]));
       const verMap = Object.fromEntries((verifications ?? []).map(v => [v.id, {
         ...v,
@@ -123,12 +172,12 @@ export function useOpenQueue() {
       }));
     },
     staleTime: 15 * 1000,
-    refetchInterval: 30 * 1000,
   });
 }
 
 /**
  * Fetch single verification with check results and assignment history.
+ * GAP-18: Explicit column selections
  */
 export function useVerificationDetail(verificationId: string | undefined) {
   return useQuery({
@@ -148,7 +197,13 @@ export function useVerificationDetail(verificationId: string | undefined) {
 
       const { data: verification, error: vErr } = await supabase
         .from('platform_admin_verifications')
-        .select('*')
+        .select(`
+          id, organization_id, assigned_admin_id, assignment_method,
+          status, sla_start_at, sla_paused_duration_hours,
+          sla_duration_seconds, sla_breached, sla_breach_tier,
+          reassignment_count, is_current, created_at, updated_at,
+          completed_at, completed_by_admin_id
+        `)
         .eq('id', verificationId)
         .single();
 
@@ -168,13 +223,13 @@ export function useVerificationDetail(verificationId: string | undefined) {
 
       const { data: checks } = await supabase
         .from('verification_check_results')
-        .select('*')
+        .select('id, verification_id, check_id, result, notes, updated_by, updated_at, created_at')
         .eq('verification_id', verificationId)
         .order('check_id');
 
       const { data: history } = await supabase
         .from('verification_assignment_log')
-        .select('*')
+        .select('id, verification_id, event_type, from_admin_id, to_admin_id, reason, initiator, scoring_snapshot, created_at')
         .eq('verification_id', verificationId)
         .order('created_at', { ascending: false });
 

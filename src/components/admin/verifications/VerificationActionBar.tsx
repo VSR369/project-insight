@@ -1,9 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useVerificationAction } from '@/hooks/queries/useVerificationMutations';
 import { ReleaseToQueueModal } from './ReleaseToQueueModal';
 import { RequestReassignmentModal } from './RequestReassignmentModal';
 import { ApproveConfirmModal } from './ApproveConfirmModal';
 import { RejectReasonModal } from './RejectReasonModal';
+import { ReturnForCorrectionModal } from './ReturnForCorrectionModal';
 import { ReleaseWindowCountdown } from './ReleaseWindowCountdown';
 import { Button } from '@/components/ui/button';
 import { CheckCircle2, XCircle, RotateCcw, ArrowRightLeft, Undo2 } from 'lucide-react';
@@ -18,6 +20,8 @@ interface VerificationActionBarProps {
 
 /**
  * GAP-14: Approve/Reject confirmation dialogs
+ * GAP-16: Return for Correction confirmation dialog
+ * GAP-20: Navigate to dashboard after terminal actions
  */
 export function VerificationActionBar({
   verificationId,
@@ -26,11 +30,13 @@ export function VerificationActionBar({
   reassignmentCount,
   currentAssignment,
 }: VerificationActionBarProps) {
+  const navigate = useNavigate();
   const actionMutation = useVerificationAction();
   const [showRelease, setShowRelease] = useState(false);
   const [showReassign, setShowReassign] = useState(false);
   const [showApprove, setShowApprove] = useState(false);
   const [showReject, setShowReject] = useState(false);
+  const [showReturn, setShowReturn] = useState(false);
 
   const v6Check = checks.find(c => c.check_id === 'V6');
   const canApprove = v6Check?.result === 'Pass';
@@ -38,6 +44,20 @@ export function VerificationActionBar({
   const showReleaseButton = currentAssignment?.assigned_at
     ? (Date.now() - new Date(currentAssignment.assigned_at).getTime()) < 2 * 3600 * 1000
     : false;
+
+  const handleTerminalAction = (
+    action: 'Approved' | 'Rejected' | 'Returned_for_Correction',
+    notes?: string,
+  ) => {
+    actionMutation.mutate(
+      { verificationId, action, notes },
+      {
+        onSuccess: () => {
+          navigate('/admin/verifications');
+        },
+      },
+    );
+  };
 
   return (
     <>
@@ -75,7 +95,7 @@ export function VerificationActionBar({
               variant="outline"
               size="sm"
               className="gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
-              onClick={() => actionMutation.mutate({ verificationId, action: 'Returned_for_Correction' })}
+              onClick={() => setShowReturn(true)}
               disabled={actionMutation.isPending}
             >
               <RotateCcw className="h-3.5 w-3.5" />
@@ -127,7 +147,7 @@ export function VerificationActionBar({
         onOpenChange={setShowApprove}
         orgName={orgName}
         onConfirm={() => {
-          actionMutation.mutate({ verificationId, action: 'Approved' });
+          handleTerminalAction('Approved');
           setShowApprove(false);
         }}
         isPending={actionMutation.isPending}
@@ -137,8 +157,18 @@ export function VerificationActionBar({
         open={showReject}
         onOpenChange={setShowReject}
         onConfirm={(notes) => {
-          actionMutation.mutate({ verificationId, action: 'Rejected', notes });
+          handleTerminalAction('Rejected', notes);
           setShowReject(false);
+        }}
+        isPending={actionMutation.isPending}
+      />
+
+      <ReturnForCorrectionModal
+        open={showReturn}
+        onOpenChange={setShowReturn}
+        onConfirm={(notes) => {
+          handleTerminalAction('Returned_for_Correction', notes);
+          setShowReturn(false);
         }}
         isPending={actionMutation.isPending}
       />
