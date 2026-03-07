@@ -1,121 +1,106 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# Plan: Close All Remaining MOD-03 Gaps
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## Gap Status Summary
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+| Gap | Description | Can Close Now? | Reason |
+|-----|-------------|----------------|--------|
+| GAP-3 | Industry Tags column | **Yes** | Requires new `seeker_org_industries` join table + UI |
+| GAP-6 | Org Type column in Open Queue | **Yes** | `organization_type_id` exists on `seeker_organizations` |
+| GAP-13 | sla-escalation tier-aware | **Accepted** | Functionally equivalent, no change needed |
+| GAP-16 | Return for Correction confirmation | **Yes** | Add modal |
+| GAP-17 | Supervisor Reassign bypasses engine | **Yes** | Create RPC |
+| GAP-18 | `SELECT *` in useVerificationDetail | **Yes** | Replace with explicit columns |
+| GAP-19 | Realtime subscriptions | **Yes** | Add Supabase channel |
+| GAP-20 | Navigate after Approve/Reject | **Yes** | Add `onSuccess` navigation |
 
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+**7 gaps to close** (GAP-13 accepted as-is).
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## Implementation
 
-## What Was Implemented
+### 1. Database Migration: GAP-3 + GAP-17
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+**GAP-3: `seeker_org_industries` join table**
+```sql
+CREATE TABLE seeker_org_industries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  organization_id UUID NOT NULL REFERENCES seeker_organizations(id) ON DELETE CASCADE,
+  industry_segment_id UUID NOT NULL REFERENCES industry_segments(id),
+  is_primary BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(organization_id, industry_segment_id)
+);
+CREATE INDEX idx_seeker_org_industries_org ON seeker_org_industries(organization_id);
+ALTER TABLE seeker_org_industries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "admins_read_org_industries" ON seeker_org_industries
+  FOR SELECT TO authenticated USING (true);
+```
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+Seed industry data for existing test orgs (3-4 per org) using INSERT statements so dashboards show pill chips.
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+**GAP-17: `supervisor_reassign_to_self` RPC**
+```sql
+CREATE OR REPLACE FUNCTION supervisor_reassign_to_self(p_verification_id UUID)
+RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
+-- 1. Validate caller is supervisor
+-- 2. Close current verification_assignments row (is_current=false, released_at, release_reason)
+-- 3. Insert new verification_assignments row for self
+-- 4. Update platform_admin_verifications.assigned_admin_id
+-- 5. Insert verification_assignment_log entry (SUPERVISOR_REASSIGN)
+-- 6. Workload trigger fires automatically
+-- Returns {success: true}
+$$;
+```
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+### 2. GAP-6: Org Type Column in Both Tabs
 
-### MOD-02 Role-Based Access Matrix
+**`useMyAssignments` + `useOpenQueue`**: Add `organization_type_id` to org SELECT, fetch `organization_types` table, resolve names into org map.
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+**`MyAssignmentsTab`**: Add "Org Type" column header + cell.
+
+**`OpenQueueTab`**: Add "Org Type" column header + cell.
+
+### 3. GAP-3: Industry Tags Column in Both Tabs
+
+**`useMyAssignments` + `useOpenQueue`**: After fetching orgs, query `seeker_org_industries` for those org IDs, then resolve `industry_segment_id` → name via `industry_segments`. Attach `industryTags: string[]` to each org in the map.
+
+**Both tabs**: Add "Industry Tags" column rendering up to 2 blue `Badge` pills + "+N" overflow chip.
+
+### 4. GAP-16: Return for Correction Modal
+
+Create `ReturnForCorrectionModal.tsx` — simple confirmation dialog with optional notes textarea. Wire into `VerificationActionBar.tsx` replacing the direct mutation call on line 78.
+
+### 5. GAP-17: Rewrite Supervisor Reassign (UI)
+
+In `VerificationDetailPage.tsx`, replace the raw `supabase.from().update()` in `handleReassignToMe` with `supabase.rpc('supervisor_reassign_to_self', { p_verification_id: id })`. Handle success/error with toast + refetch.
+
+### 6. GAP-18: Replace SELECT * in useVerificationDetail
+
+Replace `.select('*')` on `platform_admin_verifications` (line 151) and `verification_check_results` (line 170) and `verification_assignment_log` (line 176) with explicit column lists.
+
+### 7. GAP-19: Realtime Subscriptions on Dashboard
+
+In `VerificationDashboardPage.tsx`, add a `useEffect` subscribing to Supabase Realtime channels on `platform_admin_verifications` and `open_queue_entries` tables. On any `postgres_changes` event, invalidate the relevant React Query keys. Remove `refetchInterval` from the hooks (Realtime replaces polling).
+
+### 8. GAP-20: Navigate After Approve/Reject/Return
+
+In `VerificationActionBar.tsx`, pass `useNavigate()` and on mutation `onSuccess` for Approve/Reject/Return, call `navigate('/admin/verifications')`.
 
 ---
 
-# MOD-02 Gap Fix Log (Latest)
+## Files Changed
 
-## What Was Fixed
+| File | Changes |
+|------|---------|
+| New migration SQL | GAP-3 join table, GAP-17 RPC |
+| New: `ReturnForCorrectionModal.tsx` | GAP-16 |
+| `useVerificationDashboard.ts` | GAP-3 (industry fetch), GAP-6 (org type fetch), GAP-18 (explicit columns), remove `refetchInterval` (GAP-19) |
+| `MyAssignmentsTab.tsx` | GAP-3 + GAP-6 columns |
+| `OpenQueueTab.tsx` | GAP-3 + GAP-6 columns |
+| `VerificationActionBar.tsx` | GAP-16 (modal), GAP-20 (navigate) |
+| `VerificationDetailPage.tsx` | GAP-17 (RPC call) |
+| `VerificationDashboardPage.tsx` | GAP-19 (Realtime subscription) |
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
-
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
-
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
-
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
