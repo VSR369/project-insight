@@ -3,6 +3,7 @@ import { useOpenQueue } from '@/hooks/queries/useVerificationDashboard';
 import { useClaimFromQueue, usePinQueueEntry } from '@/hooks/queries/useVerificationMutations';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import { SLAStatusBadge } from './SLAStatusBadge';
+import { IndustryTagChips } from './IndustryTagChips';
 import { ClaimConfirmationModal } from './ClaimConfirmationModal';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,7 @@ import { formatDistanceToNow } from 'date-fns';
 
 /**
  * SCR-03-02: Open Queue Tab
+ * GAP-3: Industry Tags column
  * GAP-6: Org Type column
  * GAP-7: Time in Queue color coding
  */
@@ -48,7 +50,9 @@ export function OpenQueueTab() {
             <TableRow>
               <TableHead className="w-8"></TableHead>
               <TableHead>Organization</TableHead>
+              <TableHead>Org Type</TableHead>
               <TableHead>HQ Country</TableHead>
+              <TableHead>Industry Tags</TableHead>
               <TableHead>Time in Queue</TableHead>
               <TableHead>Tier</TableHead>
               <TableHead>Reason</TableHead>
@@ -117,7 +121,13 @@ function QueueRow({
         {org?.organization_name ?? 'Unknown'}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
+        {org?.org_type ?? '—'}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
         {org?.country?.name ?? '—'}
+      </TableCell>
+      <TableCell>
+        <IndustryTagChips tags={org?.industry_tags ?? []} />
       </TableCell>
       <TableCell className={`text-sm ${timeColor}`}>
         {timeText}

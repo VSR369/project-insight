@@ -9000,6 +9000,10 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      supervisor_reassign_to_self: {
+        Args: { p_verification_id: string }
+        Returns: Json
+      }
       validate_tax_id: {
         Args: { p_country_id: string; p_tax_id: string }
         Returns: boolean

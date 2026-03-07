@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useMyAssignments, useOpenQueue } from '@/hooks/queries/useVerificationDashboard';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -6,19 +8,46 @@ import { Badge } from '@/components/ui/badge';
 import { ClipboardList, ListTodo, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { MyAssignmentsTab } from '@/components/admin/verifications/MyAssignmentsTab';
 import { OpenQueueTab } from '@/components/admin/verifications/OpenQueueTab';
+import { supabase } from '@/integrations/supabase/client';
 
 /**
  * SCR-03-01 & SCR-03-02: Verification Dashboard
- * Two-tab layout: My Assignments | Open Queue
  * GAP-1: Tab count badges
  * GAP-2: Tier warning/breach banners
+ * GAP-19: Realtime subscriptions
  */
 function VerificationDashboardContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'mine';
+  const queryClient = useQueryClient();
 
   const { data: assignments } = useMyAssignments();
   const { data: queueEntries } = useOpenQueue();
+
+  // GAP-19: Realtime subscriptions replace polling
+  useEffect(() => {
+    const channel = supabase
+      .channel('verification-dashboard-realtime')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'platform_admin_verifications',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['verifications', 'my-assignments'] });
+      })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'open_queue_entries',
+      }, () => {
+        queryClient.invalidateQueries({ queryKey: ['verifications', 'open-queue'] });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const myCount = assignments?.length ?? 0;
   const queueCount = queueEntries?.length ?? 0;

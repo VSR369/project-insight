@@ -1,6 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerificationDetail } from '@/hooks/queries/useVerificationDashboard';
-import { useVerificationAction } from '@/hooks/queries/useVerificationMutations';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { SLATimelineBar } from '@/components/admin/verifications/SLATimelineBar';
 import { AssignedStateBanner } from '@/components/admin/verifications/AssignedStateBanner';
@@ -17,8 +16,7 @@ import { toast } from 'sonner';
 
 /**
  * SCR-03-03: Verification Detail Page
- * Supports 3 states: EDIT (1), READ-ONLY (2), BLOCKED (3)
- * GAP-8: Supervisor "Reassign to Me" via banner
+ * GAP-8: Supervisor "Reassign to Me" via RPC (GAP-17 fix)
  * GAP-10: Org Details and Registrant Comms stub tabs
  * GAP-15: FeatureErrorBoundary wrapper
  */
@@ -52,18 +50,16 @@ function VerificationDetailContent() {
   const org = verification.organization;
   const isEditable = viewState === 1;
 
-  // GAP-8: Supervisor reassign to self
+  // GAP-17: Supervisor reassign via RPC (proper engine path)
   const handleReassignToMe = async () => {
-    if (!currentAdminProfileId || !id) return;
+    if (!id) return;
     try {
-      const { error: err } = await supabase
-        .from('platform_admin_verifications')
-        .update({
-          assigned_admin_id: currentAdminProfileId,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
-      if (err) throw err;
+      const { data: result, error: rpcErr } = await supabase.rpc('supervisor_reassign_to_self', {
+        p_verification_id: id,
+      });
+      if (rpcErr) throw rpcErr;
+      const res = result as { success: boolean; error?: string; assigned_to?: string };
+      if (!res.success) throw new Error(res.error ?? 'Reassign failed');
       toast.success('Verification reassigned to you');
       refetch();
     } catch (e: any) {
@@ -160,7 +156,7 @@ function VerificationDetailContent() {
         </TabsContent>
       </Tabs>
 
-      {/* Action Bar — STATE 1 only, GAP-14: orgName passed for confirm dialog */}
+      {/* Action Bar — STATE 1 only */}
       {isEditable && (
         <VerificationActionBar
           verificationId={verification.id}

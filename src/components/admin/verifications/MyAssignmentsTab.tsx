@@ -3,6 +3,7 @@ import { useMyAssignments } from '@/hooks/queries/useVerificationDashboard';
 import { SLATimelineBar } from './SLATimelineBar';
 import { SLAStatusBadge } from './SLAStatusBadge';
 import { AssignmentMethodBadge } from './AssignmentMethodBadge';
+import { IndustryTagChips } from './IndustryTagChips';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle2 } from 'lucide-react';
@@ -10,8 +11,10 @@ import { useMemo } from 'react';
 
 /**
  * SCR-03-01: My Assignments Tab
+ * GAP-3: Industry Tags column
  * GAP-4: Days Remaining column
  * GAP-5: SLA Deadline column
+ * GAP-6: Org Type column
  */
 export function MyAssignmentsTab() {
   const navigate = useNavigate();
@@ -41,7 +44,9 @@ export function MyAssignmentsTab() {
         <TableHeader>
           <TableRow>
             <TableHead>Organization</TableHead>
+            <TableHead>Org Type</TableHead>
             <TableHead>HQ Country</TableHead>
+            <TableHead>Industry Tags</TableHead>
             <TableHead>Method</TableHead>
             <TableHead className="min-w-[200px]">SLA Progress</TableHead>
             <TableHead>SLA Deadline</TableHead>
@@ -96,7 +101,13 @@ function AssignmentRow({ item, onClick }: { item: any; onClick: () => void }) {
         {item.organization?.organization_name ?? 'Unknown'}
       </TableCell>
       <TableCell className="text-sm text-muted-foreground">
+        {item.organization?.org_type ?? '—'}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
         {item.organization?.country?.name ?? '—'}
+      </TableCell>
+      <TableCell>
+        <IndustryTagChips tags={item.organization?.industry_tags ?? []} />
       </TableCell>
       <TableCell>
         <AssignmentMethodBadge method={item.assignment_method} />
