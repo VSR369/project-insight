@@ -74,13 +74,30 @@ export function BulkReassignConfirmModal({
   const handleConfirm = async () => {
     setIsPending(true);
     try {
-      // Update availability status — the DB trigger will fire bulk-reassign edge function
+      // Step 1: Update availability status
       const { error } = await supabase
         .from('platform_admin_profiles')
         .update({ availability_status: targetStatus })
         .eq('id', adminId);
 
       if (error) throw error;
+
+      // Step 2: BR-MPA-044 / BR-MPA-005(e) — Invoke bulk-reassign edge function
+      // to process all active verifications through the Auto-Assignment Engine
+      try {
+        const { error: fnError } = await supabase.functions.invoke('bulk-reassign', {
+          body: {
+            departing_admin_id: adminId,
+            trigger: targetStatus === 'On_Leave' ? 'LEAVE' : 'DEACTIVATION',
+          },
+        });
+        if (fnError) {
+          console.error('Bulk reassign invocation error:', fnError);
+          // Non-blocking — status is already updated, reassignment is best-effort
+        }
+      } catch (fnErr) {
+        console.error('Bulk reassign function error:', fnErr);
+      }
 
       toast.success(
         targetStatus === 'On_Leave'
