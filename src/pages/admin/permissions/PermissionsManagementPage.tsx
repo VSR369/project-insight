@@ -247,7 +247,7 @@ function PermissionsContent() {
                               {entry.previous_value ? (
                                 <Badge variant="destructive" className="text-[10px] h-5 px-1.5">Enabled → Disabled</Badge>
                               ) : (
-                                <Badge className="text-[10px] h-5 px-1.5 bg-green-600">Disabled → Enabled</Badge>
+                                <Badge className="text-[10px] h-5 px-1.5 bg-primary">Disabled → Enabled</Badge>
                               )}
                             </span>
                           </TableCell>
