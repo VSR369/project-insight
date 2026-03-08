@@ -115,7 +115,7 @@ const seekerItems = [
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
-  { title: 'System Config', icon: Settings, path: '/admin/system-config', requiresSupervisor: true },
+  
   { title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
   { title: 'Social Channel Test', icon: Activity, path: '/admin/pulse-social-test' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
@@ -333,6 +333,19 @@ export function AdminSidebar() {
                   <span>My Availability</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* System Config — supervisor only */}
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/system-config')}
+                    onMouseEnter={() => handleMouseEnter('/admin/system-config')}
+                    isActive={location.pathname.startsWith('/admin/system-config')}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>System Config</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {/* GAP-2: Permissions Management — supervisor only */}
               {isSupervisor && (
                 <SidebarMenuItem>
