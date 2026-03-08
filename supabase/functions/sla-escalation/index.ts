@@ -8,13 +8,13 @@ const corsHeaders = {
 
 /**
  * SLA Escalation Edge Function (MOD-03)
- * 
+ *
  * Called by pg_cron on schedule. Processes verifications that have breached
  * SLA thresholds and applies tiered escalation:
- * 
+ *
  * - Tier 1 (80%): Notify assigned admin
  * - Tier 2 (100%): Notify admin + supervisors + registrant; set sla_breached
- * - Tier 3 (150%): Auto-reassign to supervisor; if none, pin CRITICAL to queue
+ * - Tier 3 (150%): Auto-reassign to supervisor (BR-MPA-035); if none, pin CRITICAL to queue
  *
  * Config keys aligned with MOD-07 canonical names.
  */
@@ -139,7 +139,6 @@ serve(async (req) => {
       }
 
       if (targetTier === "TIER2") {
-        // Notify assigned admin
         if (v.assigned_admin_id) {
           notifications.push({
             admin_id: v.assigned_admin_id,
@@ -150,7 +149,6 @@ serve(async (req) => {
             metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
           });
         }
-        // Notify all supervisors
         for (const supId of supervisorIds) {
           notifications.push({
             admin_id: supId,
@@ -162,7 +160,6 @@ serve(async (req) => {
           });
         }
 
-        // Notify executive escalation contact if configured
         if (executiveContactId) {
           notifications.push({
             admin_id: executiveContactId,
@@ -193,19 +190,108 @@ serve(async (req) => {
       }
 
       if (targetTier === "TIER3") {
+        // ========================================================
+        // BR-MPA-035: Auto-reassign to best-matching supervisor
+        // ========================================================
+        let reassigned = false;
+        const originalAdminId = v.assigned_admin_id;
+
+        if (v.assigned_admin_id) {
+          try {
+            // Get ranked eligible supervisors via the scoring RPC
+            const { data: ranked } = await supabaseAdmin.rpc("get_eligible_admins_ranked", {
+              p_verification_id: v.id,
+            });
+
+            // Filter to supervisors only who are not the current assignee
+            const eligibleSupervisors = (ranked ?? []).filter(
+              (r: { admin_id: string; admin_tier: string }) =>
+                r.admin_tier === "supervisor" && r.admin_id !== v.assigned_admin_id,
+            );
+
+            if (eligibleSupervisors.length > 0) {
+              const bestSupervisor = eligibleSupervisors[0];
+
+              // Execute atomic reassignment via RPC
+              const { data: reassignResult, error: reassignErr } = await supabaseAdmin.rpc(
+                "reassign_verification",
+                {
+                  p_verification_id: v.id,
+                  p_to_admin_id: bestSupervisor.admin_id,
+                  p_reason: `TIER3 SLA escalation — auto-reassigned at ${Math.round(elapsedPct)}% elapsed`,
+                  p_initiator: "SYSTEM",
+                  p_trigger: "ESCALATION",
+                  p_ip_address: "0.0.0.0", // System-initiated
+                },
+              );
+
+              if (reassignErr) {
+                console.error(`TIER3 reassignment RPC error for ${v.id}:`, reassignErr);
+              } else if (reassignResult?.success) {
+                reassigned = true;
+                console.log(`TIER3: Reassigned ${v.id} to supervisor ${bestSupervisor.admin_id}`);
+              } else {
+                console.error(`TIER3 reassignment failed for ${v.id}:`, reassignResult?.error);
+              }
+            }
+
+            // If no supervisor available or reassignment failed, place in Open Queue with CRITICAL badge
+            if (!reassigned) {
+              const { data: placeResult, error: placeErr } = await supabaseAdmin.rpc(
+                "place_in_open_queue",
+                {
+                  p_verification_id: v.id,
+                  p_reason: `TIER3 SLA escalation — no supervisor available at ${Math.round(elapsedPct)}% elapsed`,
+                  p_ip_address: "0.0.0.0",
+                },
+              );
+
+              if (placeErr) {
+                console.error(`TIER3 queue placement error for ${v.id}:`, placeErr);
+              } else if (placeResult?.success) {
+                // Pin as critical
+                await supabaseAdmin
+                  .from("open_queue_entries")
+                  .update({ is_critical: true, is_pinned: true })
+                  .eq("verification_id", v.id);
+                console.log(`TIER3: Placed ${v.id} in Open Queue as CRITICAL (no supervisor)`);
+              }
+            }
+          } catch (tier3Err) {
+            console.error(`TIER3 auto-reassignment error for ${v.id}:`, tier3Err);
+          }
+
+          // Notify original admin that their verification was escalated away
+          if (originalAdminId) {
+            notifications.push({
+              admin_id: originalAdminId,
+              type: "TIER3_ESCALATION_REMOVED",
+              title: `Verification Escalated: ${orgName}`,
+              body: `Your verification for ${orgName} has been escalated due to critical SLA breach (${Math.round(elapsedPct)}%). ${reassigned ? "It has been reassigned to a supervisor." : "It has been placed in the Open Queue."}`,
+              deep_link: `/admin/verifications/${v.id}`,
+              metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct), reassigned },
+            });
+          }
+        } else {
+          // Unassigned — pin as critical in open queue
+          await supabaseAdmin
+            .from("open_queue_entries")
+            .update({ is_critical: true, is_pinned: true })
+            .eq("verification_id", v.id);
+        }
+
         // Notify all supervisors of critical escalation
         for (const supId of supervisorIds) {
           notifications.push({
             admin_id: supId,
             type: "TIER3_CRITICAL",
             title: `CRITICAL SLA Escalation: ${orgName}`,
-            body: `Verification for ${orgName} has exceeded ${Math.round(elapsedPct)}% of SLA. Auto-reassignment triggered.`,
+            body: `Verification for ${orgName} has exceeded ${Math.round(elapsedPct)}% of SLA. ${reassigned ? "Auto-reassigned to a supervisor." : "Placed in Open Queue as CRITICAL."}`,
             deep_link: `/admin/verifications/${v.id}`,
-            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct), reassigned },
           });
         }
 
-        // Notify executive escalation contact if configured
         if (executiveContactId) {
           notifications.push({
             admin_id: executiveContactId,
@@ -215,14 +301,6 @@ serve(async (req) => {
             deep_link: `/admin/verifications/${v.id}`,
             metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct), executive_escalation: true },
           });
-        }
-
-        // Pin as critical in open queue if unassigned
-        if (!v.assigned_admin_id) {
-          await supabaseAdmin
-            .from("open_queue_entries")
-            .update({ is_critical: true, is_pinned: true })
-            .eq("verification_id", v.id);
         }
 
         // MOD-04 BR-MPA-036: Send courtesy email to registrant for TIER3
