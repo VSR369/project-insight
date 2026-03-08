@@ -38,18 +38,18 @@ function useExpertiseLabels(ids: string[], type: 'industry' | 'country' | 'org_t
   return useQuery({
     queryKey: ['expertise-labels', type, ids],
     queryFn: async () => {
-      if (type === 'org_type') {
-        return ids; // org_type values are already labels
-      }
+      const table = type === 'industry'
+        ? 'industry_segments'
+        : type === 'country'
+          ? 'countries'
+          : 'organization_types';
 
-      const table = type === 'industry' ? 'industry_segments' : 'countries';
       const { data, error } = await supabase
         .from(table)
         .select('id, name')
         .in('id', ids);
 
       if (error) return ids;
-      // Maintain original order
       const map = new Map(data.map((d) => [d.id, d.name]));
       return ids.map((id) => map.get(id) || id);
     },
