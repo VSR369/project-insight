@@ -1,25 +1,19 @@
 /**
  * Hook for SCR-05-02: My Performance (Self-View)
  * Fetches own metrics only via RPC + stored metrics
+ * Uses cached admin profile to eliminate redundant auth lookups
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCurrentAdminProfile } from './useCurrentAdminProfile';
 import type { AdminMetricRow } from './useAllAdminMetrics';
 
 export function useMyMetrics(periodDays: number = 30) {
+  const { data: profile } = useCurrentAdminProfile();
+
   return useQuery({
-    queryKey: ['admin-metrics', 'self', periodDays],
+    queryKey: ['admin-metrics', 'self', periodDays, profile?.id],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile, error: profileErr } = await supabase
-        .from('platform_admin_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (profileErr) throw new Error(profileErr.message);
       if (!profile) throw new Error('No admin profile found');
 
       const [realtimeResult, storedResult] = await Promise.all([
@@ -58,7 +52,8 @@ export function useMyMetrics(periodDays: number = 30) {
         reassignments_sent: stored?.reassignments_sent ?? 0,
       } as AdminMetricRow;
     },
-    staleTime: 300_000,   // 5 min — metrics recalculated daily, no need for frequent refetch
+    enabled: !!profile?.id,
+    staleTime: 300_000,
     gcTime: 600_000,
     refetchInterval: 300_000,
   });

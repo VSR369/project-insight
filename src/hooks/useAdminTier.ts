@@ -1,11 +1,13 @@
 /**
  * Hook to get the current platform admin's tier (supervisor, senior_admin, admin)
  * and their effective permissions from the tier_permissions table.
+ * 
+ * Derives admin_tier from useCurrentAdminProfile (cached) to avoid duplicate profile lookups.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useCurrentAdminProfile } from '@/hooks/queries/useCurrentAdminProfile';
 
 export type AdminTier = 'supervisor' | 'senior_admin' | 'admin';
 
@@ -20,55 +22,43 @@ interface AdminTierResult {
 }
 
 export function useAdminTier(): AdminTierResult {
-  const { user } = useAuth();
-  const userId = user?.id;
+  const { data: profile, isLoading: profileLoading } = useCurrentAdminProfile();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['platform-admins', 'self-tier-with-permissions'],
+  const tier = (profile?.admin_tier as AdminTier) ?? null;
+
+  // Only fetch tier_permissions (the genuinely separate data)
+  const { data: permissions, isLoading: permsLoading } = useQuery({
+    queryKey: ['tier-permissions', tier],
     queryFn: async () => {
-      // userId is guaranteed non-null by the enabled guard below
-      const [profileResult, permissionsResult] = await Promise.all([
-        supabase
-          .from('platform_admin_profiles')
-          .select('admin_tier')
-          .eq('user_id', userId!)
-          .maybeSingle(),
-        supabase
-          .from('tier_permissions')
-          .select('permission_key, is_enabled, tier'),
-      ]);
+      const { data, error } = await supabase
+        .from('tier_permissions')
+        .select('permission_key, is_enabled, tier');
 
-      if (profileResult.error) throw new Error(profileResult.error.message);
-      if (permissionsResult.error) throw new Error(permissionsResult.error.message);
+      if (error) throw new Error(error.message);
 
-      const tier = (profileResult.data?.admin_tier as AdminTier) ?? null;
-
-      // Build permissions map for the user's tier
       const perms: Record<string, boolean> = {};
-      if (tier && permissionsResult.data) {
-        for (const p of permissionsResult.data) {
+      if (tier && data) {
+        for (const p of data) {
           if (p.tier === tier) {
             perms[p.permission_key] = p.is_enabled;
           }
         }
       }
-
-      return { tier, permissions: perms };
+      return perms;
     },
-    enabled: !!userId,
-    staleTime: 5 * 60 * 1000,   // 5 minutes — tier/permissions rarely change mid-session
+    enabled: !!tier,
+    staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
 
-  const tier = data?.tier ?? null;
-  const permissions = data?.permissions ?? {};
+  const permsMap = permissions ?? {};
 
   return {
     tier,
     isSupervisor: tier === 'supervisor',
     isSeniorAdmin: tier === 'senior_admin',
-    isLoading,
-    hasPermission: (key: string) => permissions[key] ?? false,
-    permissions,
+    isLoading: profileLoading || permsLoading,
+    hasPermission: (key: string) => permsMap[key] ?? false,
+    permissions: permsMap,
   };
 }
