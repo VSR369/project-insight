@@ -1,4 +1,3 @@
-import * as React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
@@ -30,16 +29,11 @@ const STATUS_STYLES: Record<string, { label: string; classes: string }> = {
   },
 };
 
-const AdminStatusBadge = React.forwardRef<HTMLDivElement, AdminStatusBadgeProps>(
-  ({ status, className }, ref) => {
-    const style = STATUS_STYLES[status] || STATUS_STYLES.Inactive;
-    return (
-      <Badge ref={ref} variant="secondary" className={cn(style.classes, className)}>
-        {style.label}
-      </Badge>
-    );
-  }
-);
-AdminStatusBadge.displayName = 'AdminStatusBadge';
-
-export { AdminStatusBadge };
+export function AdminStatusBadge({ status, className }: AdminStatusBadgeProps) {
+  const style = STATUS_STYLES[status] || STATUS_STYLES.Inactive;
+  return (
+    <Badge variant="secondary" className={cn(style.classes, className)}>
+      {style.label}
+    </Badge>
+  );
+}
