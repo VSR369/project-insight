@@ -246,11 +246,11 @@ export function AudioRecorder({
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("[AudioRecorder] Recording stopped, validating...");
+        logDebug("[AudioRecorder] Recording stopped, validating...", { operation: "audio_recording" });
         setState("validating");
         
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
-        console.log("[AudioRecorder] Total recorded:", totalSize, "bytes");
+        logDebug("[AudioRecorder] Total recorded: " + totalSize + " bytes", { operation: "audio_recording" });
         
         if (totalSize === 0) {
           setError("Recording failed - no audio data captured. Please check your microphone.");
