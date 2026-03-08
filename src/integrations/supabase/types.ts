@@ -9394,6 +9394,16 @@ export type Database = {
         }
         Returns: Json
       }
+      update_domain_weights: {
+        Args: {
+          p_change_reason?: string
+          p_ip_address?: string
+          p_l1: number
+          p_l2: number
+          p_l3: number
+        }
+        Returns: Json
+      }
       validate_tax_id: {
         Args: { p_country_id: string; p_tax_id: string }
         Returns: boolean
