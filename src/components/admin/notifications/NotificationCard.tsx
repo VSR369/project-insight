@@ -13,6 +13,8 @@ import {
   ArrowRightLeft,
   Megaphone,
   Mail,
+  CalendarClock,
+  MessageSquare,
   Clock,
   ExternalLink,
 } from 'lucide-react';
