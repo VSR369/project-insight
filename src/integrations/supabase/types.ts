@@ -6216,6 +6216,74 @@ export type Database = {
           },
         ]
       }
+      reassignment_requests: {
+        Row: {
+          actioned_at: string | null
+          actioned_by_id: string | null
+          created_at: string
+          decline_reason: string | null
+          id: string
+          reason: string
+          requesting_admin_id: string
+          status: string
+          suggested_admin_id: string | null
+          verification_id: string
+        }
+        Insert: {
+          actioned_at?: string | null
+          actioned_by_id?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          reason: string
+          requesting_admin_id: string
+          status?: string
+          suggested_admin_id?: string | null
+          verification_id: string
+        }
+        Update: {
+          actioned_at?: string | null
+          actioned_by_id?: string | null
+          created_at?: string
+          decline_reason?: string | null
+          id?: string
+          reason?: string
+          requesting_admin_id?: string
+          status?: string
+          suggested_admin_id?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reassignment_requests_actioned_by_id_fkey"
+            columns: ["actioned_by_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reassignment_requests_requesting_admin_id_fkey"
+            columns: ["requesting_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reassignment_requests_suggested_admin_id_fkey"
+            columns: ["suggested_admin_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reassignment_requests_verification_id_fkey"
+            columns: ["verification_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_verifications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       registrant_communications: {
         Row: {
           body_html: string
@@ -8811,6 +8879,10 @@ export type Database = {
           row_index: number
         }[]
       }
+      bulk_reassign_admin: {
+        Args: { p_departing_admin_id: string; p_trigger?: string }
+        Returns: Json
+      }
       bulk_upsert_capability_tags: {
         Args: { p_tag_names: string[] }
         Returns: {
@@ -9125,6 +9197,18 @@ export type Database = {
         Returns: number
       }
       pulse_update_streak: { Args: { p_provider_id: string }; Returns: number }
+      reassign_verification: {
+        Args: {
+          p_initiator?: string
+          p_reason?: string
+          p_requesting_admin_id?: string
+          p_supervisor_id?: string
+          p_to_admin_id?: string
+          p_trigger?: string
+          p_verification_id: string
+        }
+        Returns: Json
+      }
       refresh_all_composite_slots: { Args: never; Returns: number }
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
