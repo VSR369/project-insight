@@ -322,6 +322,17 @@ export function AdminSidebar() {
                   <span>My Performance</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* GAP-3: My Availability as distinct sidebar item */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/availability')}
+                  onMouseEnter={() => handleMouseEnter('/admin/availability')}
+                  isActive={isActive('/admin/availability')}
+                >
+                  <CalendarHeart className="h-4 w-4" />
+                  <span>My Availability</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
