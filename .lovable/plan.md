@@ -1,261 +1,96 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# Screen Audit: Figma Screenshots + BRD + Tech Specs vs. Codebase
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## Screens from Figma Document (13 pages)
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
-
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+| # | Figma Screen | BRD/Tech Spec Ref | Status | Notes |
+|---|---|---|---|---|
+| 1 | **Supervisor Sidebar** — Full sidebar with all menu items | SCR-01-01 | IMPLEMENTED | Sidebar correctly shows/hides items by tier |
+| 2 | **Dashboard — Team Overview** (Active Admins, Team SLA, Pending Reassignments, Open Queue stats) | SCR-03-01 | PARTIAL GAP | See GAP-1 below |
+| 3 | **Open Queue (7)** — Table with Org Name, Industries, Country, SLA Due, SLA Deadline | SCR-03-02 | IMPLEMENTED | `OpenQueueTab` component |
+| 4 | **My Performance** — SLA Rate, Completed, Avg Time, Pending, At-Risk, Queue Claims, SLA Timeline chart, Workload Breakdown, Reassignment Summary | SCR-05-02 | IMPLEMENTED | `MyPerformancePage.tsx` |
+| 5 | **My Profile** (read-only) — Personal details, Availability, Domain Expertise (locked), Capacity, Supervisor info, quick action links | SCR-01-05 | IMPLEMENTED | `MyProfilePage.tsx` |
+| 6 | **My Availability** — Status selector, leave dates, last-admin guard | SCR-01-06 | IMPLEMENTED | `AvailabilitySettingsPage.tsx` at `/admin/availability` |
+| 7 | **Platform Admins** — List table with Full Name, Status, Workload, Industry, Priority, Last Assignment, Actions | SCR-01-01 | IMPLEMENTED | `PlatformAdminListPage.tsx` |
+| 8 | **Create New Admin** — Form with Personal Details, Domain Expertise, Capacity & Routing, Supervisor toggle | SCR-01-02 | IMPLEMENTED | `CreatePlatformAdminPage.tsx` |
+| 9 | **Team Performance Dashboard** — Team SLA Rate, Total Pending, At-Risk, Queue Unclaimed, sortable admin table with SLA gauges | SCR-05-01 | IMPLEMENTED | `AllAdminsPerformancePage.tsx` |
+| 10 | **Reassignment Requests** — Pending/Approved/Declined tabs, request cards with reason, eligible admin picker | SCR-06-01 | IMPLEMENTED | `ReassignmentInboxPage.tsx` |
+| 11 | **Reassign Verification Modal** — Org context, SLA badge, current admin info, reason field, eligible admins ranked table, "Place in Open Queue" option | MOD-M-04 | IMPLEMENTED | `SupervisorReassignModal` |
+| 12 | **System Configuration** — Domain Weights, Admin Capacity, Open Queue params, SLA Escalation thresholds, Executive Contact, Reassignment & Leave params, Audit History | SCR-07-01 | IMPLEMENTED | `SystemConfigPage.tsx` + `DomainWeightsPage.tsx` |
+| 13 | **Permissions Management** — Role list (Platform Admin, Senior Admin, Supervisor), permission toggles per role category (Verification, Admin Management, Supervisor) | Figma only | **NOT IMPLEMENTED** | See GAP-2 below |
+| 14 | **Notification Delivery Audit Log** — Summary badges (Delivered, Retry Queued, Exhausted), table with Timestamp, Type, Recipient, Verification, In-App/Email status, Retries, Actions (Re-send) | SCR-04-01 | IMPLEMENTED | `NotificationAuditLogPage.tsx` |
+| 15 | **Assignment Engine Audit Log** — Date filter, admin filter, outcome filter, table with Org Name, Outcome, Assigned To, Domain Score, Selection Reason | SCR-02-02 | IMPLEMENTED | `AssignmentAuditLogPage.tsx` |
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## GAPS IDENTIFIED
 
-## What Was Implemented
+### GAP-1: MEDIUM — Verification Dashboard Missing "Team Overview" Summary Cards (Supervisor View)
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+**Figma shows:** The supervisor's Verification Dashboard has a top row of 4 summary KPI cards: "Active Admins" (12/15), "Team SLA" (91.5%), "Pending Reassignments" (8), "Open Queue" (23).
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+**Current code:** `VerificationDashboardPage.tsx` shows tier-based SLA warning/breach banners and tab count badges, but does NOT display these 4 team-level KPI summary cards at the top for supervisors.
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+**Fix:** Add a supervisor-only summary card row at the top of the Verification Dashboard showing Active Admins count, Team SLA Rate, Pending Reassignment count, and Open Queue count. Data sources already exist via `useMyAssignments`, `useOpenQueue`, and `usePendingReassignmentCount`.
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+### GAP-2: MEDIUM — Permissions Management Screen Not Implemented
 
-### MOD-02 Role-Based Access Matrix
+**Figma shows (Pages 9-11):** A dedicated "Permissions Management" screen at `/admin/permissions` where supervisors can view and configure role-based permissions for each tier (Platform Admin, Senior Admin, Supervisor). Shows permission categories: Verification (View Dashboard, Claim, Complete, Request Reassignment), Admin Management (View All, Create, Edit, Deactivate), Supervisor (Approve Reassignments, View Performance, Configure System, View Audit Logs) with Enabled/Disabled toggles.
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+**Current code:** No `PermissionsPage` or `PermissionsManagement` component exists. The sidebar has no "Permissions" menu item. Permission enforcement is hardcoded via `useAdminTier` and `TierGuard`.
+
+**Assessment:** The BRD does NOT explicitly require a Permissions Management UI — it defines a fixed tier hierarchy (Supervisor > Senior Admin > Admin). The Figma screenshots show it as a configuration screen, but the current hardcoded approach is architecturally sound and matches the BRD's fixed hierarchy model. This is a **Figma-only feature** not mandated by the BRD.
+
+**Recommendation:** This screen would provide visibility into the permission matrix but doesn't need to be dynamic/editable since the BRD defines a fixed hierarchy. Implement as a read-only reference screen if desired, or skip as non-BRD-required.
+
+### GAP-3: LOW — "My Availability" Not in Sidebar as Separate Item
+
+**Figma shows (Page 3):** "My Availability" appears as a distinct sidebar menu item under the Verification group, separate from "My Profile".
+
+**Current code:** Availability is accessible via a button on the My Profile page (`/admin/availability`), but there's no dedicated sidebar entry for "My Availability". The route exists and works.
+
+**Fix:** Add "My Availability" as a sidebar menu item visible to all admin tiers, pointing to `/admin/availability`.
 
 ---
 
-# MOD-02 Gap Fix Log (Latest)
+## FULLY IMPLEMENTED SCREENS (No Gaps)
 
-## What Was Fixed
+All other screens from the Figma screenshots, BRD sections, and Tech Specs are confirmed implemented:
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
+- Admin Dashboard with tier-gated card visibility
+- Platform Admin List (SCR-01-01) with all columns
+- Create/Edit/View Admin forms (SCR-01-02/03/04)
+- My Profile read-only view (SCR-01-05)
+- Availability Settings with leave modals (SCR-01-06)
+- Verification Dashboard with My Assignments + Open Queue tabs (SCR-03-01/02)
+- Verification Detail with V1-V6 checks, action bar, concurrent access control (SCR-03-03)
+- My Performance with all 8 metrics, SLA timeline chart, workload breakdown (SCR-05-02)
+- Team Performance with sortable admin table and SLA gauges (SCR-05-01)
+- Admin Performance Detail drill-down (SCR-05-03)
+- Reassignment Inbox with Pending/Approved/Declined tabs (SCR-06-01)
+- Supervisor Reassign Modal with eligible admin ranking (MOD-M-04)
+- System Configuration with all 14 parameters + audit history (SCR-07-01/02)
+- Domain Weights page with score preview (SCR-07-02)
+- Notification Delivery Audit Log with re-send action (SCR-04-01)
+- Assignment Engine Audit Log with scoring breakdowns (SCR-02-02)
+- All modals: Deactivate (MOD-M-05), Leave Confirmation (MOD-M-08), Bulk Reassign, Release to Queue, Request Reassignment, Approve/Reject/Return for Correction
 
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
+## IMPLEMENTATION PLAN
 
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
+### Phase 1 — Add Team Overview Cards to Verification Dashboard (GAP-1)
 
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
+Add a supervisor-only row of 4 summary cards at the top of `VerificationDashboardPage.tsx`:
+- Active Admins (count of Available + Partially_Available / total active)
+- Team SLA Rate (from performance metrics)
+- Pending Reassignments (from `usePendingReassignmentCount`)
+- Open Queue count (from `useOpenQueue`)
 
----
+### Phase 2 — Add "My Availability" to Sidebar (GAP-3)
 
-# MOD-05: Performance Metrics Dashboard — Implementation Complete
+Add a sidebar entry for "My Availability" in the Verification group, visible to all tiers, pointing to `/admin/availability`.
 
-## What Was Implemented
+### Phase 3 — Optional: Permissions Reference Screen (GAP-2)
 
-### Database (Migration)
-- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
-- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
-- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
-- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
-- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
+If desired, create a read-only Permissions Management page showing the fixed tier-permission matrix. This is Figma-only and not BRD-mandated.
 
-### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
-- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
-- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
-- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
-- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
-- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
-
-### Frontend — SCR-05-02: My Performance (All Admins)
-- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
-- No peer comparison data (BR-MPA-038(a))
-- Route: `/admin/my-performance` — all admin tiers
-
-### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
-- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
-- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
-- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
-- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
-
-### Shared Components
-- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
-
-### Hooks
-- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
-- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
-- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
-
-### Navigation
-- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
-- All routes lazy-loaded
-
-## MOD-05 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
-| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
-| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
-| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
-| CSV Export | ❌ | ❌ | ✅ |
-
-## All 10 Gaps — Closed
-
-| Gap | Fix |
-|-----|-----|
-| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
-| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
-| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
-| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
-| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
-| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
-| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
-| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
-| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
-| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
-- No route conflicts with existing paths
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
-
----
-
-# MOD-06: Reassignment Workflow — Implementation Complete
-
-## What Was Implemented
-
-### Database (Migration)
-- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
-- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
-- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
-- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
-- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
-- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
-
-### Edge Functions
-- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
-
-### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
-- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
-- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
-- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
-- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Reassignments" with pending count badge (supervisor only)
-
-### Frontend — MOD-M-04: Supervisor Reassign Modal
-- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
-- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
-- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
-- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
-
-### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
-- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
-- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
-
-### Frontend — SCR-06-02: Extensions
-- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
-- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
-
-## MOD-06 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
-| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
-| Approve/Decline Requests | ❌ | ❌ | ✅ |
-| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
-| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
-
-## Business Rules Cross-Reference
-
-| BR | Enforcement | Status |
-|----|------------|--------|
-| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
-| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
-| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
-| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
-| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
-| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
-- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
-- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
-- No route conflicts with existing paths
