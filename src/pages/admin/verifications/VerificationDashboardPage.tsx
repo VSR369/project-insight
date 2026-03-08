@@ -22,6 +22,7 @@ function VerificationDashboardContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'mine';
   const queryClient = useQueryClient();
+  const { isSupervisor } = useAdminTier();
 
   const { data: assignments } = useMyAssignments();
   const { data: queueEntries } = useOpenQueue();
