@@ -74,6 +74,9 @@ function VerificationDashboardContent() {
         </p>
       </div>
 
+      {/* GAP-1: Supervisor Team Overview KPI cards */}
+      {isSupervisor && <TeamOverviewCards openQueueCount={queueCount} />}
+
       {/* GAP-2: Tier warning banners */}
       {tier1Count > 0 && (
         <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
