@@ -25,7 +25,7 @@ function NotificationAuditLogContent() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading, error } = useNotificationAuditLog(filters);
-  const summary = useAuditSummary(data);
+  const summary = computeAuditSummary(data);
   const resendMutation = useResendNotification();
 
   // Reset page when filters change

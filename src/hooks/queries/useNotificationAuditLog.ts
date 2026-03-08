@@ -84,13 +84,14 @@ export function useResendNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (auditLogId: string) => {
+      const withAudit = await withUpdatedBy({
+        email_status: 'PENDING',
+        email_retry_count: 0,
+        updated_at: new Date().toISOString(),
+      });
       const { error } = await supabase
         .from('notification_audit_log')
-        .update({
-          email_status: 'PENDING',
-          email_retry_count: 0,
-          updated_at: new Date().toISOString(),
-        })
+        .update(withAudit)
         .eq('id', auditLogId);
       if (error) throw new Error(error.message);
     },

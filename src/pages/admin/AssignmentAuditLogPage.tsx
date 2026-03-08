@@ -258,13 +258,13 @@ function AuditLogContent() {
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
-                      <TableRow key={`${log.id}-detail`}>
+                      <TableRow>
                         <TableCell colSpan={8} className="bg-muted/30 p-0">
                           <ScoringSnapshotPanel snapshot={snapshot} />
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
