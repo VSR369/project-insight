@@ -8,6 +8,8 @@ interface PerformanceFiltersProps {
   onAvailabilityChange: (v: string) => void;
   sortBy: string;
   onSortByChange: (v: string) => void;
+  period: number;
+  onPeriodChange: (v: number) => void;
   data: AdminMetricRow[];
 }
 
@@ -31,9 +33,20 @@ function exportCsv(data: AdminMetricRow[]) {
   URL.revokeObjectURL(url);
 }
 
-export function PerformanceFilters({ availability, onAvailabilityChange, sortBy, onSortByChange, data }: PerformanceFiltersProps) {
+export function PerformanceFilters({ availability, onAvailabilityChange, sortBy, onSortByChange, period, onPeriodChange, data }: PerformanceFiltersProps) {
   return (
     <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3">
+      <Select value={String(period)} onValueChange={(v) => onPeriodChange(Number(v))}>
+        <SelectTrigger className="w-full lg:w-[160px]">
+          <SelectValue placeholder="Period" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="7">Last 7 days</SelectItem>
+          <SelectItem value="30">Last 30 days</SelectItem>
+          <SelectItem value="90">Last 90 days</SelectItem>
+        </SelectContent>
+      </Select>
+
       <Select value={availability} onValueChange={onAvailabilityChange}>
         <SelectTrigger className="w-full lg:w-[180px]">
           <SelectValue placeholder="Availability" />
@@ -56,6 +69,8 @@ export function PerformanceFilters({ availability, onAvailabilityChange, sortBy,
           <SelectItem value="sla_desc">SLA Rate ↓</SelectItem>
           <SelectItem value="pending_desc">Pending ↓</SelectItem>
           <SelectItem value="completed_desc">Completed ↓</SelectItem>
+          <SelectItem value="at_risk_desc">At-Risk ↓</SelectItem>
+          <SelectItem value="avg_time_desc">Avg Time ↓</SelectItem>
           <SelectItem value="name_asc">Name A-Z</SelectItem>
         </SelectContent>
       </Select>

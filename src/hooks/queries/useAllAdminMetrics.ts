@@ -18,7 +18,6 @@ export interface AdminMetricRow {
   completed_total: number;
   sla_compliant_total: number;
   sla_breached_total: number;
-  // From admin_performance_metrics
   avg_processing_hours: number | null;
   sla_compliance_rate_pct: number | null;
   open_queue_claims: number;
@@ -26,13 +25,12 @@ export interface AdminMetricRow {
   reassignments_sent: number;
 }
 
-export function useAllAdminMetrics() {
+export function useAllAdminMetrics(periodDays: number = 30) {
   return useQuery({
-    queryKey: ['admin-metrics', 'all'],
+    queryKey: ['admin-metrics', 'all', periodDays],
     queryFn: async () => {
-      // Parallel fetch: realtime RPC + stored metrics
       const [realtimeResult, storedResult] = await Promise.all([
-        supabase.rpc('get_realtime_admin_metrics', {}),
+        supabase.rpc('get_realtime_admin_metrics', { p_period_days: periodDays }),
         supabase
           .from('admin_performance_metrics')
           .select('admin_id, avg_processing_hours, sla_compliance_rate_pct, open_queue_claims, reassignments_received, reassignments_sent'),

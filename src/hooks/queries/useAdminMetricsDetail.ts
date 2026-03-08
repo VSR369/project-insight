@@ -1,6 +1,6 @@
 /**
  * Hook for SCR-05-03: Admin Performance Detail (Supervisor drill-down)
- * Fetches single admin metrics + SLA breach history
+ * Fetches single admin metrics + SLA breach history with enriched data
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,16 +15,20 @@ export interface SlaBreachRecord {
   sla_start_at: string | null;
   sla_paused_duration_hours: number | null;
   status: string;
+  sla_target_hours: number;
+  reassignment_count: number;
 }
 
-export function useAdminMetricsDetail(adminId: string | undefined) {
+const SLA_TARGET_HOURS = 72; // Default SLA target
+
+export function useAdminMetricsDetail(adminId: string | undefined, periodDays: number = 30) {
   const metricsQuery = useQuery({
-    queryKey: ['admin-metrics', 'detail', adminId],
+    queryKey: ['admin-metrics', 'detail', adminId, periodDays],
     queryFn: async () => {
       if (!adminId) return null;
 
       const [realtimeResult, storedResult, profileResult] = await Promise.all([
-        supabase.rpc('get_realtime_admin_metrics', { p_admin_id: adminId }),
+        supabase.rpc('get_realtime_admin_metrics', { p_admin_id: adminId, p_period_days: periodDays }),
         supabase
           .from('admin_performance_metrics')
           .select('admin_id, avg_processing_hours, sla_compliance_rate_pct, open_queue_claims, reassignments_received, reassignments_sent')
@@ -78,6 +82,7 @@ export function useAdminMetricsDetail(adminId: string | undefined) {
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
+      // Fetch breaches
       const { data, error } = await supabase
         .from('platform_admin_verifications')
         .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name)')
@@ -88,6 +93,26 @@ export function useAdminMetricsDetail(adminId: string | undefined) {
         .limit(20);
 
       if (error) throw new Error(error.message);
+
+      // Fetch reassignment counts for these verifications
+      const verificationIds = (data || []).map((r: Record<string, unknown>) => r.id as string);
+      let reassignmentMap = new Map<string, number>();
+
+      if (verificationIds.length > 0) {
+        const { data: logData } = await supabase
+          .from('verification_assignment_log')
+          .select('verification_id')
+          .in('verification_id', verificationIds)
+          .eq('event_type', 'reassignment');
+
+        if (logData) {
+          for (const log of logData) {
+            const vid = (log as Record<string, unknown>).verification_id as string;
+            reassignmentMap.set(vid, (reassignmentMap.get(vid) || 0) + 1);
+          }
+        }
+      }
+
       return (data || []).map((row: Record<string, unknown>) => ({
         id: row.id as string,
         organization_id: row.organization_id as string,
@@ -97,6 +122,8 @@ export function useAdminMetricsDetail(adminId: string | undefined) {
         sla_start_at: row.sla_start_at as string | null,
         sla_paused_duration_hours: row.sla_paused_duration_hours as number | null,
         status: row.status as string,
+        sla_target_hours: SLA_TARGET_HOURS,
+        reassignment_count: reassignmentMap.get(row.id as string) || 0,
       })) as SlaBreachRecord[];
     },
     enabled: !!adminId,

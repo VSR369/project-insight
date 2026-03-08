@@ -17,7 +17,7 @@ export function TeamSummaryKPIBar({ data }: TeamSummaryKPIBarProps) {
   const totalAtRisk = data.reduce((s, d) => s + d.sla_at_risk_count, 0);
   const totalQueueClaims = data.reduce((s, d) => s + d.open_queue_claims, 0);
 
-  const slaTrend = teamSlaRate >= 90 ? 'positive' as const
+  const slaTrend = teamSlaRate >= 95 ? 'positive' as const
     : teamSlaRate >= 80 ? 'neutral' as const
     : 'negative' as const;
 

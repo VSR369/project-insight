@@ -16,6 +16,18 @@ const TIER_COLORS: Record<string, string> = {
   TIER3: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100',
 };
 
+function formatCompletionTime(row: SlaBreachRecord): string {
+  if (!row.completed_at || !row.sla_start_at) return '—';
+  const totalHours =
+    (new Date(row.completed_at).getTime() - new Date(row.sla_start_at).getTime()) / 3600000
+    - (row.sla_paused_duration_hours ?? 0);
+  const days = (totalHours / 24).toFixed(1);
+  const pctOfSla = row.sla_target_hours > 0
+    ? Math.round((totalHours / row.sla_target_hours) * 100)
+    : 0;
+  return `${days}d (${pctOfSla}% of SLA)`;
+}
+
 export function SlaBreachHistory({ data, isLoading }: SlaBreachHistoryProps) {
   if (isLoading) {
     return <div className="text-center py-8 text-muted-foreground">Loading breach history…</div>;
@@ -26,26 +38,19 @@ export function SlaBreachHistory({ data, isLoading }: SlaBreachHistoryProps) {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Organization</TableHead>
-          <TableHead>Breach Tier</TableHead>
-          <TableHead>Completed</TableHead>
-          <TableHead className="text-right">Processing Time</TableHead>
-          <TableHead>Status</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {data.map((row) => {
-          const processingHours = row.completed_at && row.sla_start_at
-            ? Math.round(
-                (new Date(row.completed_at).getTime() - new Date(row.sla_start_at).getTime()) / 3600000
-                - (row.sla_paused_duration_hours ?? 0)
-              )
-            : null;
-
-          return (
+    <div className="relative w-full overflow-auto">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Organization</TableHead>
+            <TableHead>Breach Tier</TableHead>
+            <TableHead>Completed</TableHead>
+            <TableHead className="text-right">Completion Time</TableHead>
+            <TableHead className="text-right">Reassigned</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.map((row) => (
             <TableRow key={row.id}>
               <TableCell className="font-medium text-sm">
                 {row.organization_name || '—'}
@@ -59,15 +64,19 @@ export function SlaBreachHistory({ data, isLoading }: SlaBreachHistoryProps) {
                 {row.completed_at ? format(new Date(row.completed_at), 'dd MMM yyyy') : '—'}
               </TableCell>
               <TableCell className="text-right font-mono text-sm">
-                {processingHours !== null ? `${processingHours}h` : '—'}
+                {formatCompletionTime(row)}
               </TableCell>
-              <TableCell>
-                <Badge variant="outline" className="text-xs">{row.status}</Badge>
+              <TableCell className="text-right font-mono text-sm">
+                {row.reassignment_count > 0 ? (
+                  <Badge variant="outline" className="text-xs">{row.reassignment_count}×</Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
             </TableRow>
-          );
-        })}
-      </TableBody>
-    </Table>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }

@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useMyMetrics } from '@/hooks/queries/useMyMetrics';
 import { MetricCard } from '@/components/admin/performance/MetricCard';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CheckCircle, ShieldCheck, Clock, Loader2, AlertTriangle, Inbox,
@@ -9,7 +11,8 @@ import {
 } from 'lucide-react';
 
 function MyPerformanceContent() {
-  const { data, isLoading } = useMyMetrics();
+  const [period, setPeriod] = useState(30);
+  const { data, isLoading } = useMyMetrics(period);
 
   if (isLoading) {
     return (
@@ -35,15 +38,27 @@ function MyPerformanceContent() {
     : null;
 
   const slaTrend = slaRate === null ? 'neutral' as const
-    : slaRate >= 90 ? 'positive' as const
+    : slaRate >= 95 ? 'positive' as const
     : slaRate >= 80 ? 'neutral' as const
     : 'negative' as const;
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <div>
-        <h1 className="text-2xl font-bold">My Performance</h1>
-        <p className="text-sm text-muted-foreground">Your personal verification metrics</p>
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">My Performance</h1>
+          <p className="text-sm text-muted-foreground">Your personal verification metrics</p>
+        </div>
+        <Select value={String(period)} onValueChange={(v) => setPeriod(Number(v))}>
+          <SelectTrigger className="w-full lg:w-[160px]">
+            <SelectValue placeholder="Period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Last 7 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
@@ -63,6 +78,7 @@ function MyPerformanceContent() {
         <MetricCard
           label="Avg Time (M3)"
           value={data.avg_processing_hours !== null ? `${data.avg_processing_hours}h` : '—'}
+          subtitle="Updated daily"
           icon={Clock}
           trend="neutral"
         />
@@ -81,6 +97,7 @@ function MyPerformanceContent() {
         <MetricCard
           label="Queue Claims (M6)"
           value={data.open_queue_claims}
+          subtitle="Updated daily"
           icon={Inbox}
           trend="neutral"
         />
@@ -90,12 +107,14 @@ function MyPerformanceContent() {
         <MetricCard
           label="Reassignments Received (M7)"
           value={data.reassignments_received}
+          subtitle="Updated daily"
           icon={ArrowDownLeft}
           trend="neutral"
         />
         <MetricCard
           label="Reassignments Sent (M8)"
           value={data.reassignments_sent}
+          subtitle="Updated daily"
           icon={ArrowUpRight}
           trend="neutral"
         />
