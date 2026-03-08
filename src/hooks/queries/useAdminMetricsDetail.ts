@@ -82,10 +82,10 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-      // Fetch breaches
+      // Fetch breaches with org name and industry
       const { data, error } = await supabase
         .from('platform_admin_verifications')
-        .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name)')
+        .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name, industry_segment_id, industry_segments:industry_segment_id(name))')
         .eq('completed_by_admin_id', adminId)
         .eq('sla_breached', true)
         .gte('completed_at', ninetyDaysAgo.toISOString())
