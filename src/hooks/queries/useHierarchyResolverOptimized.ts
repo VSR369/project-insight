@@ -291,7 +291,18 @@ export function useQuestionsWithHierarchy(specialityId?: string) {
         let query = supabase
           .from("question_bank")
           .select(`
-            *,
+            id,
+            question_text,
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+            correct_option,
+            difficulty_level,
+            usage_mode,
+            speciality_id,
+            is_active,
+            created_at,
             specialities!inner (
               id,
               name,

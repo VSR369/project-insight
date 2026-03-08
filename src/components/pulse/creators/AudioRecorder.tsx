@@ -368,7 +368,7 @@ export function AudioRecorder({
   };
 
   const stopRecording = useCallback(() => {
-    console.log("[AudioRecorder] stopRecording called, state:", state);
+    logDebug("[AudioRecorder] stopRecording called, state: " + state, { operation: "audio_recording" });
     
     if (timerRef.current) {
       clearInterval(timerRef.current);

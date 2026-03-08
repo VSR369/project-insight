@@ -6,6 +6,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { checkReinterviewEligibility } from '@/services/interviewRetakeService';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 
 /**
  * Hook to check re-interview eligibility for an enrollment
@@ -14,11 +15,13 @@ import { checkReinterviewEligibility } from '@/services/interviewRetakeService';
  * @returns Query result with eligibility details
  */
 export function useReinterviewEligibility(enrollmentId: string | undefined) {
+  const refetchInterval = useVisibilityPollingInterval(60 * 1000);
+
   return useQuery({
     queryKey: ['reinterview-eligibility', enrollmentId],
     queryFn: () => checkReinterviewEligibility(enrollmentId!),
     enabled: !!enrollmentId,
-    staleTime: 60 * 1000, // 1 minute - re-fetch frequently as countdown changes
-    refetchInterval: 60 * 1000, // Auto-refetch every minute
+    staleTime: 60 * 1000,
+    refetchInterval,
   });
 }
