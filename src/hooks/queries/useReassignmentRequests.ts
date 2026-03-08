@@ -135,7 +135,8 @@ export function usePendingReassignmentCount() {
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
-    staleTime: 30_000,
+    staleTime: 20_000,
+    gcTime: 300_000,
   });
 }
 
