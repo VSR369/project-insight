@@ -601,6 +601,8 @@ const App = () => (
               {/* MOD-07: System Configuration — supervisor only */}
               <Route path="system-config" element={<TierGuard requiredTier="supervisor"><SystemConfigPage /></TierGuard>} />
               <Route path="system-config/domain-weights" element={<TierGuard requiredTier="supervisor"><DomainWeightsPage /></TierGuard>} />
+              {/* Permissions Management — supervisor only, read-only reference */}
+              <Route path="permissions" element={<TierGuard requiredTier="supervisor"><PermissionsManagementPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
