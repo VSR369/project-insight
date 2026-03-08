@@ -132,10 +132,12 @@ function DomainWeightsContent() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      // Save all three weights sequentially (server validates sum)
-      await updateConfig.mutateAsync({ paramKey: 'domain_weight_l1_industry', newValue: String(effectiveL1), changeReason: reason || undefined });
-      await updateConfig.mutateAsync({ paramKey: 'domain_weight_l2_country', newValue: String(effectiveL2), changeReason: reason || undefined });
-      await updateConfig.mutateAsync({ paramKey: 'domain_weight_l3_org_type', newValue: String(effectiveL3), changeReason: reason || undefined });
+      await updateWeights.mutateAsync({
+        l1: effectiveL1,
+        l2: effectiveL2,
+        l3: effectiveL3,
+        changeReason: reason || undefined,
+      });
       setL1(null); setL2(null); setL3(null); setReason('');
     } catch {
       // Error handled by mutation
