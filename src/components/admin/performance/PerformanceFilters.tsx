@@ -31,6 +31,7 @@ function exportCsv(data: AdminMetricRow[], period: number) {
   a.download = `admin-performance-${period}d-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
+}
 
 export function PerformanceFilters({ availability, onAvailabilityChange, sortBy, onSortByChange, period, onPeriodChange, data }: PerformanceFiltersProps) {
   return (
