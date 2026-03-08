@@ -124,6 +124,7 @@ export function AdminSidebar() {
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
   const { data: pendingSeekerCount } = usePendingSeekerCount();
+  const { data: pendingReassignmentCount } = usePendingReassignmentCount();
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
 
   // Prefetch top admin routes on mount

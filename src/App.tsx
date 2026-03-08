@@ -589,6 +589,8 @@ const App = () => (
               <Route path="performance" element={<TierGuard requiredTier="supervisor"><AllAdminsPerformancePage /></TierGuard>} />
               <Route path="my-performance" element={<MyPerformancePage />} />
               <Route path="performance/:adminId" element={<TierGuard requiredTier="supervisor"><AdminPerformanceDetailPage /></TierGuard>} />
+              {/* MOD-06: Reassignment Workflow — supervisor only */}
+              <Route path="reassignments" element={<TierGuard requiredTier="supervisor"><ReassignmentInboxPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
