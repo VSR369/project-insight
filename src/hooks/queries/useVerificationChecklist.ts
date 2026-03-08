@@ -28,7 +28,8 @@ export function useVerificationChecklistResults(orgId: string | undefined) {
       return (data?.verification_checklist_results as ChecklistResults) ?? {};
     },
     enabled: !!orgId,
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    gcTime: 300_000,
   });
 }
 

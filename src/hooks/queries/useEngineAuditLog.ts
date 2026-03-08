@@ -66,7 +66,7 @@ export function useEngineAuditLog(filters: AuditLogFilters = {}) {
       if (error) throw new Error(error.message);
       return (data ?? []) as AuditLogEntry[];
     },
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 60_000,
+    gcTime: 300_000,
   });
 }

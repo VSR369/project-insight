@@ -42,7 +42,7 @@ export function ProfileMiniCard({ providerId, userId, className }: ProfileMiniCa
       if (!userId) return null;
       const { data, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select('user_id, first_name, last_name, avatar_url')
         .eq('user_id', userId)
         .single();
       if (error) throw error;

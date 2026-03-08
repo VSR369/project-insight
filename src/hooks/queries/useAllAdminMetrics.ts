@@ -66,7 +66,7 @@ export function useAllAdminMetrics(periodDays: number = 30) {
         };
       });
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 60_000,
+    gcTime: 300_000,
   });
 }

@@ -104,7 +104,9 @@ export function useMyAssignments() {
         organization: orgMap[v.organization_id] ?? null,
       }));
     },
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    gcTime: 300_000,
+    refetchInterval: 60_000,
   });
 }
 
@@ -171,7 +173,8 @@ export function useOpenQueue() {
         verification: verMap[entry.verification_id] ?? null,
       }));
     },
-    staleTime: 15 * 1000,
+    staleTime: 15_000,
+    gcTime: 300_000,
   });
 }
 
@@ -306,6 +309,7 @@ export function useVerificationDetail(verificationId: string | undefined) {
         isFullyLoaded,
       };
     },
-    staleTime: 15 * 1000,
+    staleTime: 15_000,
+    gcTime: 300_000,
   });
 }
