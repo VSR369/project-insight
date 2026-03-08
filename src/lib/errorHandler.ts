@@ -266,6 +266,11 @@ export function getUserFacingMessage(technicalMessage: string, operation: string
     return technicalMessage;
   }
   
+  // Internal infrastructure errors (e.g. pg_net missing secrets)
+  if (lowerMessage.includes('http_request_queue') || lowerMessage.includes('net.http_post')) {
+    return 'A background process could not be dispatched. The save may have succeeded — please refresh and verify. Contact support if the issue persists.';
+  }
+
   // Constraint errors
   if (lowerMessage.includes('constraint') || lowerMessage.includes('unique') || lowerMessage.includes('foreign key') || lowerMessage.includes('check constraint')) {
     return 'A data constraint prevented this action. Please check your input and try again.';
