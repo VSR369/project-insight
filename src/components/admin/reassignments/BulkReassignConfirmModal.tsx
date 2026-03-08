@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { logWarning } from '@/lib/errorHandler';
 
 interface BulkReassignConfirmModalProps {
   open: boolean;
@@ -92,11 +93,11 @@ export function BulkReassignConfirmModal({
           },
         });
         if (fnError) {
-          console.error('Bulk reassign invocation error:', fnError);
+          logWarning('Bulk reassign invocation error: ' + String(fnError), { operation: 'bulk_reassign', component: 'BulkReassignConfirmModal' });
           // Non-blocking — status is already updated, reassignment is best-effort
         }
       } catch (fnErr) {
-        console.error('Bulk reassign function error:', fnErr);
+        logWarning('Bulk reassign function error: ' + String(fnErr), { operation: 'bulk_reassign', component: 'BulkReassignConfirmModal' });
       }
 
       toast.success(

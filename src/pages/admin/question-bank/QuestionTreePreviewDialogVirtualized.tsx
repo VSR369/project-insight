@@ -25,7 +25,7 @@ import {
   Loader2,
   Database,
 } from "lucide-react";
-import { useQuestionsWithHierarchy } from "@/hooks/queries/useHierarchyResolver";
+import { useQuestionsWithHierarchy } from "@/hooks/queries/useHierarchyResolverOptimized";
 import { QuestionPreviewDialog } from "./QuestionPreviewDialog";
 import { cn } from "@/lib/utils";
 import { getDifficultyDisplay, QuestionDifficulty } from "@/hooks/queries/useQuestionBank";

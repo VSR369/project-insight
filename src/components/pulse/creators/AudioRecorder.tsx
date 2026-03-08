@@ -181,7 +181,7 @@ export function AudioRecorder({
       setDuration(0);
       durationRef.current = 0;
 
-      console.log("[AudioRecorder] Requesting microphone permission...");
+      logDebug("[AudioRecorder] Requesting microphone permission...", { operation: "audio_recording" });
       
       // Build constraints with optional device selection
       const audioConstraints: MediaTrackConstraints = {
@@ -192,7 +192,7 @@ export function AudioRecorder({
       
       if (selectedDeviceId) {
         audioConstraints.deviceId = { exact: selectedDeviceId };
-        console.log("[AudioRecorder] Using selected device:", selectedDeviceId);
+        logDebug("[AudioRecorder] Using selected device: " + selectedDeviceId, { operation: "audio_recording" });
       }
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
@@ -209,12 +209,7 @@ export function AudioRecorder({
       audioTrack.enabled = true;
       
       const trackLabel = audioTrack.label;
-      console.log("[AudioRecorder] Audio track:", {
-        label: trackLabel,
-        readyState: audioTrack.readyState,
-        enabled: audioTrack.enabled,
-        muted: audioTrack.muted,
-      });
+      logDebug(`[AudioRecorder] Audio track: ${trackLabel}, state: ${audioTrack.readyState}`, { operation: "audio_recording" });
       
       // Warn if suspicious device
       if (isSuspiciousDevice(trackLabel)) {
@@ -232,7 +227,7 @@ export function AudioRecorder({
       mimeTypeRef.current = mimeType;
       extensionRef.current = extension;
       
-      console.log("[AudioRecorder] Using MIME type:", mimeType, "Extension:", extension);
+      logDebug(`[AudioRecorder] Using MIME type: ${mimeType}, Extension: ${extension}`, { operation: "audio_recording" });
       
       // Create MediaRecorder with or without explicit mimeType
       const recorderOptions: MediaRecorderOptions = {};
@@ -244,18 +239,18 @@ export function AudioRecorder({
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log("[AudioRecorder] Chunk received:", event.data.size, "bytes");
+        logDebug("[AudioRecorder] Chunk received: " + event.data.size + " bytes", { operation: "audio_recording" });
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
       };
 
       mediaRecorder.onstop = async () => {
-        console.log("[AudioRecorder] Recording stopped, validating...");
+        logDebug("[AudioRecorder] Recording stopped, validating...", { operation: "audio_recording" });
         setState("validating");
         
         const totalSize = chunksRef.current.reduce((sum, chunk) => sum + chunk.size, 0);
-        console.log("[AudioRecorder] Total recorded:", totalSize, "bytes");
+        logDebug("[AudioRecorder] Total recorded: " + totalSize + " bytes", { operation: "audio_recording" });
         
         if (totalSize === 0) {
           setError("Recording failed - no audio data captured. Please check your microphone.");
@@ -270,7 +265,7 @@ export function AudioRecorder({
         const baseMime = actualMimeType.split(";")[0] || "audio/webm";
         const audioBlob = new Blob(chunksRef.current, { type: baseMime });
         
-        console.log("[AudioRecorder] Created blob:", audioBlob.size, "bytes, type:", baseMime);
+        logDebug(`[AudioRecorder] Created blob: ${audioBlob.size} bytes, type: ${baseMime}`, { operation: "audio_recording" });
         
         // Validate the recording has actual audio
         const validation = await validateRecordedAudio(audioBlob);
@@ -373,7 +368,7 @@ export function AudioRecorder({
   };
 
   const stopRecording = useCallback(() => {
-    console.log("[AudioRecorder] stopRecording called, state:", state);
+    logDebug("[AudioRecorder] stopRecording called, state: " + state, { operation: "audio_recording" });
     
     if (timerRef.current) {
       clearInterval(timerRef.current);
