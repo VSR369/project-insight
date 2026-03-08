@@ -150,6 +150,7 @@ function PlatformAdminListContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead className={HEAD_CLASS}>Full Name</TableHead>
+                  {tierFilter === 'all' && <TableHead className={HEAD_CLASS}>Tier</TableHead>}
                   <TableHead className={HEAD_CLASS}>Availability Status</TableHead>
                   <TableHead className={HEAD_CLASS}>Workload</TableHead>
                   <TableHead className={HEAD_CLASS}>Industry Expertise</TableHead>
