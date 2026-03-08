@@ -41,7 +41,7 @@ export function AdminCredentialsCard({ orgUsers, org, contacts, adminDelegation 
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <UserCheck className="h-5 w-5" />
-          Admin Credentials
+          Primary Admin Credentials
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
