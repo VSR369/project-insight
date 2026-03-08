@@ -6,15 +6,32 @@
 import { AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 interface ExecutiveContactWarningProps {
   /** Compact mode for header bar */
   compact?: boolean;
 }
 
+function scrollToEscalation() {
+  const el = document.getElementById('config-group-ESCALATION');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
 export function ExecutiveContactWarning({ compact = false }: ExecutiveContactWarningProps) {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleClick = () => {
+    if (location.pathname === '/admin/system-config') {
+      scrollToEscalation();
+    } else {
+      navigate('/admin/system-config');
+      setTimeout(scrollToEscalation, 300);
+    }
+  };
 
   if (compact) {
     return (
@@ -25,7 +42,7 @@ export function ExecutiveContactWarning({ compact = false }: ExecutiveContactWar
           variant="link"
           size="sm"
           className="text-destructive h-auto p-0 font-semibold"
-          onClick={() => navigate('/admin/system-config')}
+          onClick={handleClick}
         >
           Configure now →
         </Button>
@@ -46,7 +63,7 @@ export function ExecutiveContactWarning({ compact = false }: ExecutiveContactWar
           variant="outline"
           size="sm"
           className="shrink-0 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
-          onClick={() => navigate('/admin/system-config')}
+          onClick={handleClick}
         >
           Configure now →
         </Button>

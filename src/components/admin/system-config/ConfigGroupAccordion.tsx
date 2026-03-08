@@ -30,7 +30,7 @@ export function ConfigGroupAccordion({
   children,
 }: ConfigGroupAccordionProps) {
   return (
-    <AccordionItem value={groupKey}>
+    <AccordionItem value={groupKey} id={`config-group-${groupKey}`}>
       <AccordionTrigger className="hover:no-underline">
         <div className="flex items-center gap-2">
           <span className="font-semibold">{title}</span>
