@@ -209,12 +209,7 @@ export function AudioRecorder({
       audioTrack.enabled = true;
       
       const trackLabel = audioTrack.label;
-      console.log("[AudioRecorder] Audio track:", {
-        label: trackLabel,
-        readyState: audioTrack.readyState,
-        enabled: audioTrack.enabled,
-        muted: audioTrack.muted,
-      });
+      logDebug(`[AudioRecorder] Audio track: ${trackLabel}, state: ${audioTrack.readyState}`, { operation: "audio_recording" });
       
       // Warn if suspicious device
       if (isSuspiciousDevice(trackLabel)) {
