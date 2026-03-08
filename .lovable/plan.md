@@ -285,3 +285,26 @@
 - Currently `TEXT NOT NULL DEFAULT 'ALL'` — adequate for PRIMARY admin (full scope)
 - When Delegated Admin feature is built, MUST convert to JSONB with UUID references to existing master data tables: `industry_segments.id`, `proficiency_areas.id`, `specialities.id`
 - **No new lookup tables or JSON string lists** — reuse existing master data exclusively
+
+---
+
+## Auto-Assignment Engine Wiring (Completed)
+
+### Rules (BRD Section 3.1 + user override)
+- **Trigger**: DB trigger fires on `verification_status` → `payment_submitted`
+- **Scoring**: L1 Industry (50pts, hard gate), L2 Country (30pts, wildcard=15), L3 Org Type (20pts, wildcard=10)
+- **2-pass system**: Pass 1 = Available only, Pass 2 = Available + Partially Available
+- **Tiebreakers**: Total score DESC → Workload ratio ASC → Assignment Priority ASC → Round-robin
+- **Fallback**: Open Queue if no candidate scores > 0 on L1
+- **Supervisor exclusion** (user override): `admin_tier != 'supervisor'` in all candidate queries
+- Senior Admins and Basic Admins compete equally (no tier priority)
+
+### Database Changes
+1. **`execute_auto_assignment` RPC**: Added `AND pap.admin_tier != 'supervisor'` to affinity check, both scoring passes, and fallback eligibility check
+2. **`get_eligible_admins_ranked` RPC**: Added `AND pap.admin_tier != 'supervisor'` filter
+3. **`fn_auto_assign_on_payment_submitted` trigger function**: Creates `platform_admin_verifications` record, collects org industries/country/type, calls `execute_auto_assignment`, updates verification on success
+4. **`trg_seeker_org_auto_assign` trigger**: AFTER UPDATE OF `verification_status` ON `seeker_organizations`
+
+### Frontend Changes
+1. **`useSeekerOrgApprovals.ts`**: Added `useMyAssignedOrgIds` hook; `useSeekerOrgList` now accepts `assignedOrgIds` filter and `showUnassigned` flag
+2. **`SeekerOrgApprovalsPage.tsx`**: Uses `useCurrentAdminProfile` to detect tier; non-supervisors see only their assigned orgs; supervisors see all + "Unassigned" tab for open queue items
