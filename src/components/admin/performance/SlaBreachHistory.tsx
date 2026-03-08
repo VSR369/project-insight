@@ -43,6 +43,7 @@ export function SlaBreachHistory({ data, isLoading }: SlaBreachHistoryProps) {
         <TableHeader>
           <TableRow>
             <TableHead>Organization</TableHead>
+            <TableHead>Industry</TableHead>
             <TableHead>Breach Tier</TableHead>
             <TableHead>Completed</TableHead>
             <TableHead className="text-right">Completion Time</TableHead>
@@ -54,6 +55,13 @@ export function SlaBreachHistory({ data, isLoading }: SlaBreachHistoryProps) {
             <TableRow key={row.id}>
               <TableCell className="font-medium text-sm">
                 {row.organization_name || '—'}
+              </TableCell>
+              <TableCell className="text-sm">
+                {row.industry_segment_name ? (
+                  <Badge variant="outline" className="text-xs">{row.industry_segment_name}</Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
               </TableCell>
               <TableCell>
                 <Badge variant="secondary" className={TIER_COLORS[row.sla_breach_tier ?? ''] || ''}>

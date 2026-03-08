@@ -74,7 +74,7 @@ export function PerformanceFilters({ availability, onAvailabilityChange, sortBy,
         </SelectContent>
       </Select>
 
-      <Button variant="outline" size="sm" className="ml-auto" onClick={() => exportCsv(data)}>
+      <Button variant="outline" size="sm" className="ml-auto" onClick={() => exportCsv(data, period)}>
         <Download className="h-4 w-4 mr-1" />
         <span className="hidden lg:inline">Export CSV</span>
       </Button>
