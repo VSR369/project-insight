@@ -271,6 +271,23 @@ export function AdminSidebar() {
               {isSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
+                    onClick={() => navigate('/admin/reassignments')}
+                    onMouseEnter={() => handleMouseEnter('/admin/reassignments')}
+                    isActive={location.pathname === '/admin/reassignments'}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    <span className="flex-1">Reassignments</span>
+                    {pendingReassignmentCount && pendingReassignmentCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingReassignmentCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
                     onClick={() => navigate('/admin/notifications/audit')}
                     onMouseEnter={() => handleMouseEnter('/admin/notifications/audit')}
                     isActive={location.pathname === '/admin/notifications/audit'}

@@ -106,3 +106,6 @@ verify_jwt = false
 
 [functions.queue-escalation]
 verify_jwt = false
+
+[functions.bulk-reassign]
+verify_jwt = false
