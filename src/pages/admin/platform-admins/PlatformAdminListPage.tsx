@@ -43,6 +43,12 @@ const PAGE_SIZE = 20;
 
 const HEAD_CLASS = 'uppercase text-xs tracking-wider';
 
+const TIER_LABELS: Record<string, string> = {
+  supervisor: 'Supervisor',
+  senior_admin: 'Senior Admin',
+  admin: 'Admin',
+};
+
 function PlatformAdminListContent() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
