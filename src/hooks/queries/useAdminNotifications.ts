@@ -16,7 +16,9 @@ export type NotificationType =
   | 'REASSIGNMENT_IN'
   | 'REASSIGNMENT_OUT'
   | 'QUEUE_ESCALATION'
-  | 'EMAIL_FAIL';
+  | 'EMAIL_FAIL'
+  | 'LEAVE_REMINDER'
+  | 'REGISTRANT_COURTESY';
 
 export interface AdminNotification {
   id: string;

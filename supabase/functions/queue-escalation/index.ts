@@ -12,6 +12,8 @@ const corsHeaders = {
  * Called by pg_cron every 30 minutes. Finds unclaimed queue entries that
  * have been waiting longer than the configured threshold (default 4hr)
  * and notifies all supervisors.
+ *
+ * Config keys aligned with MOD-07 canonical names.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -24,11 +26,11 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // Read configurable thresholds
+    // Read configurable thresholds — using MOD-07 canonical keys
     const { data: configs } = await supabaseAdmin
       .from("md_mpa_config")
       .select("param_key, param_value")
-      .in("param_key", ["queue_unclaimed_sla_hours", "queue_escalation_repeat_hours"]);
+      .in("param_key", ["queue_unclaimed_sla_hours", "queue_escalation_interval_hours"]);
 
     const configMap: Record<string, string> = {};
     (configs ?? []).forEach((c: { param_key: string; param_value: string }) => {
@@ -36,7 +38,7 @@ serve(async (req) => {
     });
 
     const UNCLAIMED_THRESHOLD_HOURS = parseFloat(configMap.queue_unclaimed_sla_hours ?? "4");
-    const REPEAT_INTERVAL_HOURS = parseFloat(configMap.queue_escalation_repeat_hours ?? "2");
+    const REPEAT_INTERVAL_HOURS = parseFloat(configMap.queue_escalation_interval_hours ?? "2");
 
     const thresholdTime = new Date(Date.now() - UNCLAIMED_THRESHOLD_HOURS * 3600 * 1000).toISOString();
     const repeatCutoff = new Date(Date.now() - REPEAT_INTERVAL_HOURS * 3600 * 1000).toISOString();
@@ -67,11 +69,11 @@ serve(async (req) => {
       });
     }
 
-    // Get all supervisors
+    // Get all supervisors — using admin_tier only
     const { data: supervisors } = await supabaseAdmin
       .from("platform_admin_profiles")
       .select("id")
-      .or("is_supervisor.eq.true,admin_tier.eq.supervisor");
+      .eq("admin_tier", "supervisor");
 
     const supervisorIds = (supervisors ?? []).map((s: { id: string }) => s.id);
     if (supervisorIds.length === 0) {
@@ -111,6 +113,7 @@ serve(async (req) => {
       title: string;
       body: string;
       deep_link: string;
+      metadata: Record<string, unknown>;
     }> = [];
 
     const updateIds: string[] = [];
@@ -126,6 +129,7 @@ serve(async (req) => {
           title: `Unclaimed Verification: ${orgName}`,
           body: `Verification for ${orgName} has been unclaimed in the queue for ${hoursInQueue}h. Escalation #${entry.escalation_count + 1}.`,
           deep_link: `/admin/verifications?tab=queue`,
+          metadata: { org_name: orgName, hours_in_queue: hoursInQueue, escalation_count: entry.escalation_count + 1 },
         });
       }
       updateIds.push(entry.id);

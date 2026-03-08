@@ -15,6 +15,8 @@ const corsHeaders = {
  * - Tier 1 (80%): Notify assigned admin
  * - Tier 2 (100%): Notify admin + supervisors + registrant; set sla_breached
  * - Tier 3 (150%): Auto-reassign to supervisor; if none, pin CRITICAL to queue
+ *
+ * Config keys aligned with MOD-07 canonical names.
  */
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -27,13 +29,13 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
     );
 
-    // Read config thresholds
+    // Read config thresholds — using MOD-07 canonical keys
     const { data: configs } = await supabaseAdmin
       .from("md_mpa_config")
       .select("param_key, param_value")
       .in("param_key", [
-        "sla_tier1_pct", "sla_tier2_pct", "sla_tier3_pct",
-        "sla_default_duration_seconds",
+        "sla_tier1_threshold_pct", "sla_tier2_threshold_pct", "sla_tier3_threshold_pct",
+        "sla_default_duration_seconds", "executive_escalation_contact_id",
       ]);
 
     const configMap: Record<string, string> = {};
@@ -41,9 +43,10 @@ serve(async (req) => {
       configMap[c.param_key] = c.param_value;
     });
 
-    const TIER1_PCT = parseFloat(configMap.sla_tier1_pct ?? "80");
-    const TIER2_PCT = parseFloat(configMap.sla_tier2_pct ?? "100");
-    const TIER3_PCT = parseFloat(configMap.sla_tier3_pct ?? "150");
+    const TIER1_PCT = parseFloat(configMap.sla_tier1_threshold_pct ?? "80");
+    const TIER2_PCT = parseFloat(configMap.sla_tier2_threshold_pct ?? "100");
+    const TIER3_PCT = parseFloat(configMap.sla_tier3_threshold_pct ?? "150");
+    const executiveContactId = configMap.executive_escalation_contact_id ?? null;
 
     // Get all active verifications with SLA running
     const { data: verifications, error: vErr } = await supabaseAdmin
@@ -63,11 +66,11 @@ serve(async (req) => {
     const now = Date.now();
     let processed = 0;
 
-    // Get all supervisors for Tier 2/3 notifications
+    // Get all supervisors for Tier 2/3 notifications — using admin_tier only
     const { data: supervisors } = await supabaseAdmin
       .from("platform_admin_profiles")
       .select("id, email, full_name")
-      .or("is_supervisor.eq.true,admin_tier.eq.supervisor");
+      .eq("admin_tier", "supervisor");
 
     const supervisorIds = (supervisors ?? []).map((s: { id: string }) => s.id);
 
@@ -121,15 +124,17 @@ serve(async (req) => {
         title: string;
         body: string;
         deep_link: string;
+        metadata: Record<string, unknown>;
       }> = [];
 
       if (targetTier === "TIER1" && v.assigned_admin_id) {
         notifications.push({
           admin_id: v.assigned_admin_id,
-          type: "SLA_WARNING",
+          type: "TIER1_WARNING",
           title: `SLA Warning: ${orgName}`,
           body: `Verification for ${orgName} has reached ${Math.round(elapsedPct)}% of SLA. Please complete your review.`,
           deep_link: `/admin/verifications/${v.id}`,
+          metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
         });
       }
 
@@ -138,20 +143,34 @@ serve(async (req) => {
         if (v.assigned_admin_id) {
           notifications.push({
             admin_id: v.assigned_admin_id,
-            type: "SLA_BREACH",
+            type: "TIER2_BREACH",
             title: `SLA Breached: ${orgName}`,
             body: `Verification for ${orgName} has breached its SLA deadline (${Math.round(elapsedPct)}%). Immediate action required.`,
             deep_link: `/admin/verifications/${v.id}`,
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
           });
         }
         // Notify all supervisors
         for (const supId of supervisorIds) {
           notifications.push({
             admin_id: supId,
-            type: "SLA_BREACH",
+            type: "TIER2_BREACH",
             title: `SLA Breach Alert: ${orgName}`,
             body: `Verification for ${orgName} has breached its SLA (${Math.round(elapsedPct)}%). Assigned admin may need assistance.`,
             deep_link: `/admin/verifications/${v.id}`,
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
+          });
+        }
+
+        // Notify executive escalation contact if configured
+        if (executiveContactId) {
+          notifications.push({
+            admin_id: executiveContactId,
+            type: "TIER2_BREACH",
+            title: `Executive Alert — SLA Breach: ${orgName}`,
+            body: `Verification for ${orgName} has breached its SLA (${Math.round(elapsedPct)}%). Executive visibility required.`,
+            deep_link: `/admin/verifications/${v.id}`,
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct), executive_escalation: true },
           });
         }
 
@@ -174,15 +193,27 @@ serve(async (req) => {
       }
 
       if (targetTier === "TIER3") {
-        // Auto-reassign: attempt to call execute_auto_assignment
-        // For now, notify all supervisors of critical escalation
+        // Notify all supervisors of critical escalation
         for (const supId of supervisorIds) {
           notifications.push({
             admin_id: supId,
-            type: "SLA_CRITICAL",
+            type: "TIER3_CRITICAL",
             title: `CRITICAL SLA Escalation: ${orgName}`,
             body: `Verification for ${orgName} has exceeded ${Math.round(elapsedPct)}% of SLA. Auto-reassignment triggered.`,
             deep_link: `/admin/verifications/${v.id}`,
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct) },
+          });
+        }
+
+        // Notify executive escalation contact if configured
+        if (executiveContactId) {
+          notifications.push({
+            admin_id: executiveContactId,
+            type: "TIER3_CRITICAL",
+            title: `Executive Alert — CRITICAL: ${orgName}`,
+            body: `Verification for ${orgName} has exceeded ${Math.round(elapsedPct)}% of SLA. Critical escalation in effect.`,
+            deep_link: `/admin/verifications/${v.id}`,
+            metadata: { org_name: orgName, elapsed_pct: Math.round(elapsedPct), executive_escalation: true },
           });
         }
 
