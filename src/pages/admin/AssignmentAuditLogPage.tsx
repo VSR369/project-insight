@@ -204,9 +204,8 @@ function AuditLogContent() {
                 const totalScore = snapshot.total_score as number | undefined;
                 const poolSize = snapshot.pool_size as number | undefined;
                 return (
-                  <>
+                  <Fragment key={log.id}>
                     <TableRow
-                      key={log.id}
                       className="cursor-pointer"
                       onClick={() => setExpandedRow(isExpanded ? null : log.id)}
                     >
