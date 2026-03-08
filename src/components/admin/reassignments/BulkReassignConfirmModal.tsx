@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AlertTriangle, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useState } from 'react';
+import { logWarning } from '@/lib/errorHandler';
 
 interface BulkReassignConfirmModalProps {
   open: boolean;
