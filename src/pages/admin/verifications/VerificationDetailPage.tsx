@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerificationDetail } from '@/hooks/queries/useVerificationDashboard';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -8,6 +9,7 @@ import { VerificationChecksPanel } from '@/components/admin/verifications/Verifi
 import { VerificationActionBar } from '@/components/admin/verifications/VerificationActionBar';
 import { AssignmentHistoryTab } from '@/components/admin/verifications/AssignmentHistoryTab';
 import { RegistrantCommThread } from '@/components/admin/verifications/RegistrantCommThread';
+import { SupervisorReassignModal } from '@/components/admin/reassignments/SupervisorReassignModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -25,6 +27,7 @@ function VerificationDetailContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useVerificationDetail(id);
+  const [showForceReassign, setShowForceReassign] = useState(false);
 
   if (isLoading) {
     return (
@@ -86,6 +89,7 @@ function VerificationDetailContent() {
           state={viewState}
           assignedAdminName={assignedAdminName ?? undefined}
           onReassignToMe={viewState === 2 ? handleReassignToMe : undefined}
+          onForceReassign={viewState === 2 ? () => setShowForceReassign(true) : undefined}
         />
       )}
 
@@ -169,6 +173,15 @@ function VerificationDetailContent() {
           checks={checks}
           reassignmentCount={verification.reassignment_count}
           currentAssignment={currentAssignment}
+        />
+      )}
+      {/* Force Reassign Modal — SCR-06-02 */}
+      {showForceReassign && id && (
+        <SupervisorReassignModal
+          open={showForceReassign}
+          onOpenChange={setShowForceReassign}
+          verificationId={id}
+          orgName={org?.organization_name ?? 'Unknown'}
         />
       )}
     </div>

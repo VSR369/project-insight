@@ -49,11 +49,13 @@ import {
   ScrollText,
   ClipboardCheck,
   Bell,
+  ArrowRightLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
+import { usePendingReassignmentCount } from '@/hooks/queries/useReassignmentRequests';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
@@ -122,6 +124,7 @@ export function AdminSidebar() {
   const location = useLocation();
   const { data: pendingCount } = usePendingReviewerCount();
   const { data: pendingSeekerCount } = usePendingSeekerCount();
+  const { data: pendingReassignmentCount } = usePendingReassignmentCount();
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
 
   // Prefetch top admin routes on mount
@@ -265,6 +268,23 @@ export function AdminSidebar() {
                   <span>Verifications</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/reassignments')}
+                    onMouseEnter={() => handleMouseEnter('/admin/reassignments')}
+                    isActive={location.pathname === '/admin/reassignments'}
+                  >
+                    <ArrowRightLeft className="h-4 w-4" />
+                    <span className="flex-1">Reassignments</span>
+                    {pendingReassignmentCount && pendingReassignmentCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingReassignmentCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {isSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
