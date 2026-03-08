@@ -65,7 +65,7 @@ export function useNotificationAuditLog(filters: AuditFilters) {
 }
 
 /** Compute summary stats from fetched data */
-export function useAuditSummary(data: AuditLogEntry[] | undefined) {
+export function computeAuditSummary(data: AuditLogEntry[] | undefined) {
   if (!data) return { totalToday: 0, sentPct: 0, retryQueued: 0, exhausted: 0 };
 
   const today = new Date().toISOString().slice(0, 10);
