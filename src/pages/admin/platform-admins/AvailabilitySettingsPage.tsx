@@ -1,6 +1,7 @@
 /**
  * SCR-01-06: Availability Settings Page (self-service)
  * GAP-6: Wire BulkReassignConfirmModal when going On_Leave/Inactive with active verifications
+ * Enhanced: Current leave summary card, auto-status explanation, restore button
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -19,9 +20,101 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ArrowLeft, Loader2, AlertTriangle, Info } from 'lucide-react';
-import { format } from 'date-fns';
+import { ArrowLeft, Loader2, AlertTriangle, Info, Calendar, CheckCircle } from 'lucide-react';
+import { format, differenceInDays, parseISO } from 'date-fns';
 
+/* ─── Current Leave Summary Card ─── */
+function CurrentLeaveSummary({
+  leaveStart,
+  leaveEnd,
+  onRestore,
+  isLoading,
+}: {
+  leaveStart: string;
+  leaveEnd: string;
+  onRestore: () => void;
+  isLoading: boolean;
+}) {
+  const startDate = parseISO(leaveStart);
+  const endDate = parseISO(leaveEnd);
+  const today = new Date();
+  const totalDays = differenceInDays(endDate, startDate) + 1;
+  const remainingDays = Math.max(0, differenceInDays(endDate, today) + 1);
+
+  return (
+    <Card className="border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-950">
+      <CardContent className="p-5">
+        <div className="flex items-start gap-3">
+          <Calendar className="h-5 w-5 mt-0.5 text-blue-600 dark:text-blue-400 shrink-0" />
+          <div className="flex-1 space-y-3">
+            <div>
+              <h3 className="font-semibold text-blue-900 dark:text-blue-200">Currently On Leave</h3>
+              <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <span className="text-blue-700 dark:text-blue-300">From</span>
+                <span className="font-medium text-blue-900 dark:text-blue-100">
+                  {format(startDate, 'dd MMM yyyy')}
+                </span>
+                <span className="text-blue-700 dark:text-blue-300">To</span>
+                <span className="font-medium text-blue-900 dark:text-blue-100">
+                  {format(endDate, 'dd MMM yyyy')}
+                </span>
+                <span className="text-blue-700 dark:text-blue-300">Duration</span>
+                <span className="font-medium text-blue-900 dark:text-blue-100">
+                  {totalDays} day{totalDays !== 1 ? 's' : ''} ({remainingDays} remaining)
+                </span>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              onClick={onRestore}
+              disabled={isLoading}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              <CheckCircle className="mr-1.5 h-4 w-4" />
+              Restore to Available
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ─── Auto-Status Explanation Banner ─── */
+function AutoStatusBanner({
+  status,
+  currentActive,
+  maxConcurrent,
+}: {
+  status: string;
+  currentActive: number;
+  maxConcurrent: number;
+}) {
+  if (status !== 'Partially_Available' && status !== 'Fully_Loaded') return null;
+
+  const isFullyLoaded = status === 'Fully_Loaded';
+
+  return (
+    <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+      <Info className="h-4 w-4" />
+      <AlertDescription>
+        <strong>Auto-calculated status:</strong> Your status is{' '}
+        <strong>{isFullyLoaded ? 'Fully Loaded' : 'Partially Available'}</strong> because you have{' '}
+        <strong>{currentActive}/{maxConcurrent}</strong> active verifications.
+        {isFullyLoaded
+          ? ' No new assignments will be routed to you until you complete existing work.'
+          : ' You may still receive assignments up to your capacity limit.'}
+        <br />
+        <span className="text-xs mt-1 block opacity-80">
+          This status is managed automatically by the system and cannot be changed manually.
+        </span>
+      </AlertDescription>
+    </Alert>
+  );
+}
+
+/* ─── Main Content ─── */
 function AvailabilityContent() {
   const navigate = useNavigate();
   const { data: profile, isLoading } = usePlatformAdminSelf();
@@ -32,9 +125,9 @@ function AvailabilityContent() {
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
 
-  // Initialize from profile when loaded
   useEffect(() => {
     if (profile) {
       setStatus(profile.availability_status);
@@ -58,42 +151,57 @@ function AvailabilityContent() {
     return <div className="text-center py-12 text-muted-foreground">No admin profile found.</div>;
   }
 
-  const effectiveStatus = status || profile.availability_status;
-  const isOnLeave = effectiveStatus === 'On_Leave';
-  const isRestoring = profile.availability_status === 'On_Leave' && effectiveStatus === 'Available';
+  const profileStatus = profile.availability_status;
+  const isCurrentlyOnLeave = profileStatus === 'On_Leave';
+  const isAutoStatus = profileStatus === 'Partially_Available' || profileStatus === 'Fully_Loaded';
+
+  const effectiveStatus = status || profileStatus;
+  const isGoingOnLeave = effectiveStatus === 'On_Leave' && !isCurrentlyOnLeave;
+  const isRestoring = isCurrentlyOnLeave && effectiveStatus === 'Available';
 
   // BR-MPA-001: last available admin cannot go on leave
-  const isLastAvailable = profile.availability_status === 'Available' && (counts?.availableCount ?? 2) <= 1;
-  const blockLeave = isLastAvailable && isOnLeave;
+  const isLastAvailable = profileStatus === 'Available' && (counts?.availableCount ?? 2) <= 1;
+  const blockLeave = isLastAvailable && effectiveStatus === 'On_Leave';
 
-  // Determine leave variant
   const leaveVariant = isRestoring ? 'restore' as const
-    : (leaveStart === today ? 'immediate' as const : 'scheduled' as const);
+    : (leaveStart <= today ? 'immediate' as const : 'scheduled' as const);
 
-  // Determine if leave is immediate or scheduled
   const isImmediate = leaveStart <= today;
 
-  // GAP-6: Check if admin needs bulk reassign modal (has active verifications + going On_Leave/Inactive)
+  // GAP-6: Check if admin needs bulk reassign modal
   const needsBulkReassign = profile.current_active_verifications > 0
     && (effectiveStatus === 'On_Leave' || effectiveStatus === 'Inactive')
-    && profile.availability_status !== effectiveStatus;
+    && profileStatus !== effectiveStatus;
 
   const handleSave = () => {
     if (needsBulkReassign) {
-      // GAP-6: Show bulk reassign confirmation first
       setBulkReassignOpen(true);
-    } else if (isOnLeave || isRestoring) {
+    } else if (effectiveStatus === 'On_Leave' || isRestoring) {
       setLeaveModalOpen(true);
     } else {
       doSave();
     }
   };
 
+  const handleRestore = () => {
+    setStatus('Available');
+    setRestoreModalOpen(true);
+  };
+
   const doSave = async () => {
     await updateAvailability.mutateAsync({
       availability_status: effectiveStatus,
-      leave_start_date: isOnLeave ? leaveStart : null,
-      leave_end_date: isOnLeave ? leaveEnd : null,
+      leave_start_date: effectiveStatus === 'On_Leave' ? leaveStart : null,
+      leave_end_date: effectiveStatus === 'On_Leave' ? leaveEnd : null,
+    });
+    navigate('/admin/my-profile');
+  };
+
+  const doRestore = async () => {
+    await updateAvailability.mutateAsync({
+      availability_status: 'Available',
+      leave_start_date: null,
+      leave_end_date: null,
     });
     navigate('/admin/my-profile');
   };
@@ -110,6 +218,23 @@ function AvailabilityContent() {
         </div>
       </div>
 
+      {/* Enhancement 1: Current Leave Summary Card */}
+      {isCurrentlyOnLeave && profile.leave_start_date && profile.leave_end_date && (
+        <CurrentLeaveSummary
+          leaveStart={profile.leave_start_date}
+          leaveEnd={profile.leave_end_date}
+          onRestore={handleRestore}
+          isLoading={updateAvailability.isPending}
+        />
+      )}
+
+      {/* Enhancement 2: Auto-Status Explanation Banner */}
+      <AutoStatusBanner
+        status={profileStatus}
+        currentActive={profile.current_active_verifications}
+        maxConcurrent={profile.max_concurrent_verifications}
+      />
+
       {/* Active verification count info card */}
       <Alert>
         <Info className="h-4 w-4" />
@@ -119,96 +244,111 @@ function AvailabilityContent() {
         </AlertDescription>
       </Alert>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Current Status: <AdminStatusBadge status={profile.availability_status} />
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label>New Status</Label>
-            <Select value={effectiveStatus} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Available">Available</SelectItem>
-                <SelectItem value="On_Leave">On Leave</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+      {/* Don't show the status change card for auto-calculated statuses */}
+      {!isAutoStatus && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              Current Status: <AdminStatusBadge status={profileStatus} />
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isCurrentlyOnLeave && (
+              <>
+                <div className="space-y-2">
+                  <Label>New Status</Label>
+                  <Select value={effectiveStatus} onValueChange={setStatus}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Available">Available</SelectItem>
+                      <SelectItem value="On_Leave">On Leave</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-          {/* BR-MPA-001 block */}
-          {blockLeave && (
-            <Alert variant="destructive">
-              <AlertTriangle className="h-4 w-4" />
-              <AlertDescription>
-                You are the last Available admin. At least one admin must remain Available.
-                Going on leave is blocked until another admin becomes available.
-              </AlertDescription>
-            </Alert>
-          )}
-
-          {isOnLeave && !blockLeave && (
-            <>
-              {/* Immediate vs Scheduled banner */}
-              {leaveStart && (
-                isImmediate ? (
-                  <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                {/* BR-MPA-001 block */}
+                {blockLeave && (
+                  <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      <strong>Immediate leave:</strong> Your leave starts today. Pending verifications will need to be reassigned.
+                      You are the last Available admin. At least one admin must remain Available.
+                      Going on leave is blocked until another admin becomes available.
                     </AlertDescription>
                   </Alert>
-                ) : leaveStart > today ? (
-                  <Alert className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      <strong>Scheduled leave:</strong> You will continue receiving assignments until {leaveStart}.
-                    </AlertDescription>
-                  </Alert>
-                ) : null
-              )}
+                )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Leave Start Date</Label>
-                  <Input
-                    type="date"
-                    value={leaveStart}
-                    onChange={(e) => setLeaveStart(e.target.value)}
-                    min={today}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Leave End Date</Label>
-                  <Input
-                    type="date"
-                    value={leaveEnd}
-                    onChange={(e) => setLeaveEnd(e.target.value)}
-                    min={leaveStart || today}
-                  />
-                </div>
+                {isGoingOnLeave && !blockLeave && (
+                  <>
+                    {leaveStart && (
+                      isImmediate ? (
+                        <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                          <AlertTriangle className="h-4 w-4" />
+                          <AlertDescription>
+                            <strong>Immediate leave:</strong> Your leave starts today. Pending verifications will need to be reassigned.
+                          </AlertDescription>
+                        </Alert>
+                      ) : leaveStart > today ? (
+                        <Alert className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
+                          <Info className="h-4 w-4" />
+                          <AlertDescription>
+                            <strong>Scheduled leave:</strong> You will continue receiving assignments until {leaveStart}.
+                          </AlertDescription>
+                        </Alert>
+                      ) : null
+                    )}
+
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Leave Start Date</Label>
+                        <Input
+                          type="date"
+                          value={leaveStart}
+                          onChange={(e) => setLeaveStart(e.target.value)}
+                          min={today}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Leave End Date</Label>
+                        <Input
+                          type="date"
+                          value={leaveEnd}
+                          onChange={(e) => setLeaveEnd(e.target.value)}
+                          min={leaveStart || today}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+              </>
+            )}
+
+            {isCurrentlyOnLeave && (
+              <p className="text-sm text-muted-foreground">
+                You are currently on leave. Use the <strong>"Restore to Available"</strong> button above to return.
+              </p>
+            )}
+
+            {!isCurrentlyOnLeave && (
+              <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" onClick={() => navigate('/admin/my-profile')}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSave}
+                  disabled={updateAvailability.isPending || blockLeave || (isGoingOnLeave && (!leaveStart || !leaveEnd))}
+                >
+                  {updateAvailability.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Save
+                </Button>
               </div>
-            </>
-          )}
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-          <div className="flex justify-end gap-3 pt-2">
-            <Button variant="outline" onClick={() => navigate('/admin/my-profile')}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={updateAvailability.isPending || blockLeave || (isOnLeave && (!leaveStart || !leaveEnd))}
-            >
-              {updateAvailability.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
+      {/* Leave confirmation (going on leave) */}
       <LeaveConfirmationModal
         open={leaveModalOpen}
         onOpenChange={setLeaveModalOpen}
@@ -217,6 +357,15 @@ function AvailabilityContent() {
         leaveEnd={leaveEnd}
         pendingVerifications={profile.current_active_verifications}
         onConfirm={doSave}
+        isLoading={updateAvailability.isPending}
+      />
+
+      {/* Restore confirmation modal */}
+      <LeaveConfirmationModal
+        open={restoreModalOpen}
+        onOpenChange={setRestoreModalOpen}
+        variant="restore"
+        onConfirm={doRestore}
         isLoading={updateAvailability.isPending}
       />
 
