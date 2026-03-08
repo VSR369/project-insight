@@ -69,6 +69,16 @@ const TYPE_CONFIG: Record<NotificationType, {
     icon: Mail,
     iconClass: 'text-red-400',
   },
+  LEAVE_REMINDER: {
+    borderClass: 'border-l-sky-500',
+    icon: CalendarClock,
+    iconClass: 'text-sky-500',
+  },
+  REGISTRANT_COURTESY: {
+    borderClass: 'border-l-teal-500',
+    icon: MessageSquare,
+    iconClass: 'text-teal-500',
+  },
 };
 
 interface NotificationCardProps {
