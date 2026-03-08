@@ -2,7 +2,7 @@
  * MOD-04 SCR-04-01: Notification Delivery Audit Log Page
  * Supervisor-only. Shows all notification delivery records with filters, badges, and CSV export.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { NotificationAuditFilters, type AuditFilters } from '@/components/admin/notifications/NotificationAuditFilters';
 import { NotificationAuditTable } from '@/components/admin/notifications/NotificationAuditTable';
@@ -10,7 +10,9 @@ import { AuditSummaryCards } from '@/components/admin/notifications/AuditSummary
 import { useNotificationAuditLog, useAuditSummary, useResendNotification } from '@/hooks/queries/useNotificationAuditLog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, Bell } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+const PAGE_SIZE = 5;
 
 function NotificationAuditLogContent() {
   const [filters, setFilters] = useState<AuditFilters>({
@@ -20,10 +22,26 @@ function NotificationAuditLogContent() {
     dateFrom: null,
     dateTo: null,
   });
+  const [currentPage, setCurrentPage] = useState(1);
 
   const { data, isLoading, error } = useNotificationAuditLog(filters);
   const summary = useAuditSummary(data);
   const resendMutation = useResendNotification();
+
+  // Reset page when filters change
+  const handleFiltersChange = useCallback((newFilters: AuditFilters) => {
+    setFilters(newFilters);
+    setCurrentPage(1);
+  }, []);
+
+  // Pagination
+  const totalItems = data?.length ?? 0;
+  const totalPages = Math.max(1, Math.ceil(totalItems / PAGE_SIZE));
+  const paginatedData = useMemo(() => {
+    if (!data) return [];
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return data.slice(start, start + PAGE_SIZE);
+  }, [data, currentPage]);
 
   const handleExportCsv = useCallback(() => {
     if (!data || data.length === 0) return;
@@ -58,18 +76,23 @@ function NotificationAuditLogContent() {
     );
   }
 
+  // Generate page numbers for pagination
+  const pageNumbers = useMemo(() => {
+    const pages: number[] = [];
+    const maxVisible = 5;
+    let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+    const end = Math.min(totalPages, start + maxVisible - 1);
+    start = Math.max(1, end - maxVisible + 1);
+    for (let i = start; i <= end; i++) pages.push(i);
+    return pages;
+  }, [currentPage, totalPages]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div className="flex items-center gap-2">
-          <Bell className="h-5 w-5 text-primary" />
-          <h1 className="text-2xl font-semibold">Notification Audit Log</h1>
-        </div>
-        <Button variant="outline" size="sm" onClick={handleExportCsv} disabled={!data?.length}>
-          <Download className="h-4 w-4 mr-1" />
-          <span className="hidden lg:inline">Export CSV</span>
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold">Notification Delivery Audit Log</h1>
+        <p className="text-sm text-muted-foreground mt-1">Monitor notification delivery status and retry attempts</p>
       </div>
 
       {/* Summary Cards */}
@@ -83,8 +106,8 @@ function NotificationAuditLogContent() {
         <AuditSummaryCards {...summary} />
       )}
 
-      {/* Filters */}
-      <NotificationAuditFilters filters={filters} onChange={setFilters} />
+      {/* Filters — includes Export CSV */}
+      <NotificationAuditFilters filters={filters} onChange={handleFiltersChange} onExportCsv={handleExportCsv} hasData={!!data?.length} />
 
       {/* Table */}
       {isLoading ? (
@@ -95,10 +118,50 @@ function NotificationAuditLogContent() {
         </div>
       ) : (
         <NotificationAuditTable
-          data={data ?? []}
+          data={paginatedData}
           onResend={(id) => resendMutation.mutate(id)}
           isResending={resendMutation.isPending}
         />
+      )}
+
+      {/* Pagination Footer */}
+      {!isLoading && totalItems > 0 && (
+        <div className="flex items-center justify-between pt-2">
+          <p className="text-sm text-muted-foreground">
+            Showing {Math.min((currentPage - 1) * PAGE_SIZE + 1, totalItems)}–{Math.min(currentPage * PAGE_SIZE, totalItems)} of {totalItems} notifications
+          </p>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => p - 1)}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            {pageNumbers.map((n) => (
+              <Button
+                key={n}
+                variant={n === currentPage ? 'default' : 'outline'}
+                size="icon"
+                className="h-8 w-8 text-xs"
+                onClick={() => setCurrentPage(n)}
+              >
+                {n}
+              </Button>
+            ))}
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-8 w-8"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => p + 1)}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );
