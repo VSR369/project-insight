@@ -13,7 +13,7 @@ interface PerformanceFiltersProps {
   data: AdminMetricRow[];
 }
 
-function exportCsv(data: AdminMetricRow[]) {
+function exportCsv(data: AdminMetricRow[], period: number) {
   const headers = ['Admin', 'Tier', 'Status', 'Completed', 'SLA Rate %', 'Avg Hours', 'Pending', 'At-Risk', 'Queue Claims', 'Reassign In', 'Reassign Out'];
   const rows = data.map((d) => [
     d.full_name, d.admin_tier, d.availability_status,
@@ -28,10 +28,9 @@ function exportCsv(data: AdminMetricRow[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `admin-performance-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `admin-performance-${period}d-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
-}
 
 export function PerformanceFilters({ availability, onAvailabilityChange, sortBy, onSortByChange, period, onPeriodChange, data }: PerformanceFiltersProps) {
   return (
