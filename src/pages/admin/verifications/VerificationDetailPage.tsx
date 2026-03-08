@@ -48,7 +48,7 @@ function VerificationDetailContent() {
     );
   }
 
-  const { verification, checks, history, currentAssignment, viewState, assignedAdminName, currentAdminProfileId } = data;
+  const { verification, checks, history, currentAssignment, viewState, assignedAdminName, currentAdminProfileId, isFullyLoaded } = data;
   const org = verification.organization;
   const isEditable = viewState === 1;
 
