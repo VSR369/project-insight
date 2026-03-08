@@ -193,3 +193,69 @@
 - `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
 - No route conflicts with existing paths
 - `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+
+---
+
+# MOD-06: Reassignment Workflow — Implementation Complete
+
+## What Was Implemented
+
+### Database (Migration)
+- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
+- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
+- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
+- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
+- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
+- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
+
+### Edge Functions
+- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
+
+### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
+- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
+- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
+- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
+- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
+- Sidebar: "Reassignments" with pending count badge (supervisor only)
+
+### Frontend — MOD-M-04: Supervisor Reassign Modal
+- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
+- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
+- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
+- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
+
+### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
+- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
+- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
+
+### Frontend — SCR-06-02: Extensions
+- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
+- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
+
+## MOD-06 Role-Based Access Matrix
+
+| Feature | Admin (Basic) | Senior Admin | Supervisor |
+|---------|--------------|--------------|------------|
+| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
+| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
+| Approve/Decline Requests | ❌ | ❌ | ✅ |
+| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
+| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
+
+## Business Rules Cross-Reference
+
+| BR | Enforcement | Status |
+|----|------------|--------|
+| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
+| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
+| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
+| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
+| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
+| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
+
+## Zero-Impact Areas
+- All existing RLS policies unchanged
+- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
+- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
+- No route conflicts with existing paths
