@@ -239,7 +239,7 @@ export function AudioRecorder({
       mediaRecorderRef.current = mediaRecorder;
 
       mediaRecorder.ondataavailable = (event) => {
-        console.log("[AudioRecorder] Chunk received:", event.data.size, "bytes");
+        logDebug("[AudioRecorder] Chunk received: " + event.data.size + " bytes", { operation: "audio_recording" });
         if (event.data.size > 0) {
           chunksRef.current.push(event.data);
         }
