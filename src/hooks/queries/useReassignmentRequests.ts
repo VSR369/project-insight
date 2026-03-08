@@ -149,6 +149,13 @@ export function useDeclineReassignment() {
         .eq('user_id', (await supabase.auth.getUser()).data.user?.id ?? '')
         .single();
 
+      // Get the request to find requesting admin
+      const { data: request } = await supabase
+        .from('reassignment_requests')
+        .select('requesting_admin_id, verification_id')
+        .eq('id', requestId)
+        .single();
+
       const { error } = await supabase
         .from('reassignment_requests')
         .update({
@@ -159,6 +166,18 @@ export function useDeclineReassignment() {
         })
         .eq('id', requestId);
       if (error) throw new Error(error.message);
+
+      // GAP-5: Notify requesting admin (TC-06-013)
+      if (request?.requesting_admin_id) {
+        await supabase.from('admin_notifications').insert({
+          admin_id: request.requesting_admin_id,
+          type: 'REASSIGNMENT_DECLINED',
+          title: 'Reassignment Request Declined',
+          body: `Your reassignment request was declined. Reason: ${declineReason}`,
+          deep_link: `/admin/verifications/${request.verification_id}`,
+          metadata: { request_id: requestId, decline_reason: declineReason },
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reassignment-requests'] });

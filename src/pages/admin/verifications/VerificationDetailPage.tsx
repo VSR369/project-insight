@@ -19,9 +19,7 @@ import { toast } from 'sonner';
 
 /**
  * SCR-03-03: Verification Detail Page
- * GAP-8: Supervisor "Reassign to Me" via RPC (GAP-17 fix)
- * GAP-10: Org Details and Registrant Comms stub tabs
- * GAP-15: FeatureErrorBoundary wrapper
+ * GAP-7: Pass full org context to SupervisorReassignModal
  */
 function VerificationDetailContent() {
   const { id } = useParams<{ id: string }>();
@@ -175,13 +173,25 @@ function VerificationDetailContent() {
           currentAssignment={currentAssignment}
         />
       )}
-      {/* Force Reassign Modal — SCR-06-02 */}
+
+      {/* GAP-7: Force Reassign Modal with full org context */}
       {showForceReassign && id && (
         <SupervisorReassignModal
           open={showForceReassign}
           onOpenChange={setShowForceReassign}
           verificationId={id}
           orgName={org?.organization_name ?? 'Unknown'}
+          hqCountry={org?.hq_country_id ?? ''}
+          hqCountryName={org?.country?.name}
+          industrySegments={(verification as any).industrySegmentIds ?? []}
+          industryNames={(verification as any).industryNames ?? []}
+          orgType={org?.organization_type_id ?? undefined}
+          currentAdminId={verification.assigned_admin_id ?? undefined}
+          currentAdminName={assignedAdminName ?? undefined}
+          reassignmentCount={verification.reassignment_count}
+          slaBreachTier={verification.sla_breach_tier ?? undefined}
+          slaStartAt={verification.sla_start_at}
+          slaDurationSeconds={verification.sla_duration_seconds}
         />
       )}
     </div>
