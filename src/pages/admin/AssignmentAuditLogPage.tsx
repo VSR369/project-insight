@@ -81,11 +81,11 @@ function AuditLogContent() {
   const getSelectionReasonBadge = (reason: string | null) => {
     if (!reason) return <span className="text-muted-foreground">—</span>;
     const config: Record<string, { label: string; className: string }> = {
-      highest_domain_score: { label: 'Highest Score', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
-      workload_tiebreaker: { label: 'Workload Tie', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
+      highest_domain_score: { label: 'highest score', className: 'bg-green-100 text-green-800 hover:bg-green-100' },
+      workload_tiebreaker: { label: 'workload tiebreaker', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
       priority_tiebreaker: { label: 'Priority Tie', className: 'bg-purple-100 text-purple-800 hover:bg-purple-100' },
       round_robin: { label: 'Round Robin', className: 'bg-amber-100 text-amber-800 hover:bg-amber-100' },
-      NO_ELIGIBLE_ADMIN: { label: 'No Eligible', className: 'bg-red-100 text-red-800 hover:bg-red-100' },
+      NO_ELIGIBLE_ADMIN: { label: 'NO ELIGIBLE ADMIN', className: 'border-red-300 text-red-700' },
       NO_INDUSTRY_MATCH: { label: 'No Match', className: 'bg-red-100 text-red-800 hover:bg-red-100' },
       AFFINITY_RESUBMISSION: { label: 'Affinity', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
     };
