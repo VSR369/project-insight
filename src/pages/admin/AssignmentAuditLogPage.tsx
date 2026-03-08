@@ -90,7 +90,8 @@ function AuditLogContent() {
       AFFINITY_RESUBMISSION: { label: 'Affinity', className: 'bg-blue-100 text-blue-800 hover:bg-blue-100' },
     };
     const c = config[reason] ?? { label: reason, className: '' };
-    return <Badge className={`text-[10px] ${c.className}`}>{c.label}</Badge>;
+    const isOutline = reason === 'NO_ELIGIBLE_ADMIN';
+    return <Badge variant={isOutline ? 'outline' : 'default'} className={`text-[10px] ${c.className}`}>{c.label}</Badge>;
   };
 
   return (
