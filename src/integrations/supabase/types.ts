@@ -9198,6 +9198,7 @@ export type Database = {
         }[]
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
+      get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
