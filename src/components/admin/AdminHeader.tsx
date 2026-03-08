@@ -47,6 +47,8 @@ const pathNames: Record<string, string> = {
   'invitations': 'Invitations',
   'settings': 'Settings',
   'assignment-audit-log': 'Assignment Audit Log',
+  'system-config': 'System Config',
+  'domain-weights': 'Domain Match Weights',
 };
 
 export function AdminHeader() {
