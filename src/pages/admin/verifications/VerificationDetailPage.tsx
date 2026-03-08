@@ -175,6 +175,15 @@ function VerificationDetailContent() {
           currentAssignment={currentAssignment}
         />
       )}
+      {/* Force Reassign Modal — SCR-06-02 */}
+      {showForceReassign && id && (
+        <SupervisorReassignModal
+          open={showForceReassign}
+          onOpenChange={setShowForceReassign}
+          verificationId={id}
+          orgName={org?.organization_name ?? 'Unknown'}
+        />
+      )}
     </div>
   );
 }
