@@ -9110,25 +9110,7 @@ export type Database = {
               p_hq_country: string
               p_industry_segments: string[]
               p_org_type?: string
-              p_verification_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_hq_country: string
-              p_industry_segments: string[]
-              p_org_type?: string
               p_skip_admin_id?: string
-              p_verification_id: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              p_hq_country: string
-              p_industry_segments: string[]
-              p_org_type?: string
               p_verification_id: string
             }
             Returns: Json
@@ -9198,7 +9180,6 @@ export type Database = {
           p_org_type?: string
         }
         Returns: {
-          admin_id: string
           admin_tier: string
           assignment_priority: number
           availability_status: string
@@ -9206,6 +9187,7 @@ export type Database = {
           current_active: number
           email: string
           full_name: string
+          id: string
           industry_score: number
           is_supervisor: boolean
           last_assignment_timestamp: string
