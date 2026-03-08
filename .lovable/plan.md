@@ -259,3 +259,29 @@
 - Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
 - `VerificationActionBar` unchanged (already has "Request Reassignment" button)
 - No route conflicts with existing paths
+
+---
+
+# Master Data Consistency Fix — Implementation Complete
+
+## What Was Fixed
+
+### Database Migration
+- **`org_type_expertise`** column on `platform_admin_profiles`: Converted from `TEXT[]` (hardcoded strings like "Corporation") to `UUID[]` (references to `organization_types` master data table)
+- **Data migration**: Mapped existing text values to `organization_types.id` UUIDs (e.g., "Corporation" → CORPORATE UUID)
+- **Cleaned up overloaded RPCs**: Dropped all duplicate `execute_auto_assignment` and `get_eligible_admins_ranked` function signatures; recreated each with a single clean signature using `p_org_type UUID`
+
+### Frontend
+- **`OrgTypeExpertisePicker.tsx`**: Rewritten from 7 hardcoded checkbox strings to a searchable Command popover querying `organization_types` master data via `useOrganizationTypes()` hook — same pattern as Industry and Country pickers
+- **`ExpertiseTags.tsx`**: Updated `org_type` branch to query `organization_types` table by UUID instead of returning raw strings
+- **`platformAdminForm.schema.ts`**: Changed `org_type_expertise` Zod validation from `z.array(z.string())` to `z.array(z.string().uuid())`
+- **`IndustryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useIndustrySegments()` hook from `useMasterData.ts`
+- **`CountryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useCountries()` hook from `useMasterData.ts`
+
+## Scoring Engine Impact
+- L3 (Org Type) scoring in `execute_auto_assignment` and `get_eligible_admins_ranked` now correctly compares UUID-to-UUID, fixing the silent mismatch where text strings never matched seeker org type UUIDs
+
+## Future: `seeking_org_admins.domain_scope`
+- Currently `TEXT NOT NULL DEFAULT 'ALL'` — adequate for PRIMARY admin (full scope)
+- When Delegated Admin feature is built, MUST convert to JSONB with UUID references to existing master data tables: `industry_segments.id`, `proficiency_areas.id`, `specialities.id`
+- **No new lookup tables or JSON string lists** — reuse existing master data exclusively
