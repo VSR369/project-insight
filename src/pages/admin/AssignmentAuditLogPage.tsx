@@ -3,7 +3,7 @@
  * Aligned with Figma design: inline filters, admin dropdown, no card wrappers.
  */
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { format, subDays } from 'date-fns';
 import { Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
