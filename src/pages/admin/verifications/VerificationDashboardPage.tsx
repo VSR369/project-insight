@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { ClipboardList, ListTodo, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { MyAssignmentsTab } from '@/components/admin/verifications/MyAssignmentsTab';
 import { OpenQueueTab } from '@/components/admin/verifications/OpenQueueTab';
+import { TeamOverviewCards } from '@/components/admin/verifications/TeamOverviewCards';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
@@ -20,6 +22,7 @@ function VerificationDashboardContent() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get('tab') || 'mine';
   const queryClient = useQueryClient();
+  const { isSupervisor } = useAdminTier();
 
   const { data: assignments } = useMyAssignments();
   const { data: queueEntries } = useOpenQueue();
@@ -70,6 +73,9 @@ function VerificationDashboardContent() {
           Manage organization verifications and open queue entries.
         </p>
       </div>
+
+      {/* GAP-1: Supervisor Team Overview KPI cards */}
+      {isSupervisor && <TeamOverviewCards openQueueCount={queueCount} />}
 
       {/* GAP-2: Tier warning banners */}
       {tier1Count > 0 && (

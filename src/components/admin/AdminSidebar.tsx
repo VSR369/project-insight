@@ -50,6 +50,8 @@ import {
   ClipboardCheck,
   Bell,
   ArrowRightLeft,
+  CalendarHeart,
+  KeyRound,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -320,6 +322,30 @@ export function AdminSidebar() {
                   <span>My Performance</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* GAP-3: My Availability as distinct sidebar item */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/availability')}
+                  onMouseEnter={() => handleMouseEnter('/admin/availability')}
+                  isActive={isActive('/admin/availability')}
+                >
+                  <CalendarHeart className="h-4 w-4" />
+                  <span>My Availability</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* GAP-2: Permissions Management — supervisor only */}
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/permissions')}
+                    onMouseEnter={() => handleMouseEnter('/admin/permissions')}
+                    isActive={isActive('/admin/permissions')}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    <span>Permissions</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
