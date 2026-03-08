@@ -91,6 +91,12 @@ export function prefetchAdminRoutes(): void {
     '/admin/master-data/expertise-levels',
     '/admin/seeker-config/pricing-overview',
     '/admin/seeker-config/subscription-tiers',
+    // MPA screens — frequently navigated by platform admins
+    '/admin/questions',
+    '/admin/capability-tags',
+    '/admin/invitations',
+    '/admin/reviewer-approvals',
+    '/admin/settings',
   ];
 
   const prefetchBatch = () => {

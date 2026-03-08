@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export type AdminTier = 'supervisor' | 'senior_admin' | 'admin';
 
@@ -19,18 +20,18 @@ interface AdminTierResult {
 }
 
 export function useAdminTier(): AdminTierResult {
+  const { user } = useAuth();
+  const userId = user?.id;
+
   const { data, isLoading } = useQuery({
     queryKey: ['platform-admins', 'self-tier-with-permissions'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Fetch tier and permissions in parallel
+      // userId is guaranteed non-null by the enabled guard below
       const [profileResult, permissionsResult] = await Promise.all([
         supabase
           .from('platform_admin_profiles')
           .select('admin_tier')
-          .eq('user_id', user.id)
+          .eq('user_id', userId!)
           .maybeSingle(),
         supabase
           .from('tier_permissions')
@@ -54,8 +55,9 @@ export function useAdminTier(): AdminTierResult {
 
       return { tier, permissions: perms };
     },
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000,   // 5 minutes — tier/permissions rarely change mid-session
+    gcTime: 10 * 60 * 1000,
   });
 
   const tier = data?.tier ?? null;
