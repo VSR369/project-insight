@@ -226,6 +226,11 @@ export function classifyErrorSeverity(error: unknown, _operation: string): Error
 export function getUserFacingMessage(technicalMessage: string, operation: string): string {
   const lowerMessage = technicalMessage.toLowerCase();
   
+  // RLS / row-level security policy errors
+  if (lowerMessage.includes('row-level security') || lowerMessage.includes('row level security') || lowerMessage.includes('rls')) {
+    return 'Permission denied: your account does not have the required access level for this action. Please contact a supervisor.';
+  }
+  
   // Network errors
   if (lowerMessage.includes('network') || lowerMessage.includes('fetch')) {
     return 'Connection failed. Please check your internet and try again.';
@@ -256,9 +261,14 @@ export function getUserFacingMessage(technicalMessage: string, operation: string
     return `The requested ${operation.toLowerCase()} could not be found.`;
   }
   
-  // Validation errors - pass through as they're usually user-friendly
-  if (lowerMessage.includes('validation') || lowerMessage.includes('invalid') || lowerMessage.includes('required')) {
+  // Business validation errors - pass through as they're usually user-friendly
+  if (lowerMessage.includes('violation') || lowerMessage.includes('validation') || lowerMessage.includes('invalid') || lowerMessage.includes('required')) {
     return technicalMessage;
+  }
+  
+  // Constraint errors
+  if (lowerMessage.includes('constraint') || lowerMessage.includes('unique') || lowerMessage.includes('foreign key') || lowerMessage.includes('check constraint')) {
+    return 'A data constraint prevented this action. Please check your input and try again.';
   }
   
   // Default message
