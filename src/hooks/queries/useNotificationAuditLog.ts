@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
+import { withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
 import type { AuditFilters } from '@/components/admin/notifications/NotificationAuditFilters';
 
