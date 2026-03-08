@@ -8630,6 +8630,66 @@ export type Database = {
         }
         Relationships: []
       }
+      tier_permissions: {
+        Row: {
+          id: string
+          is_enabled: boolean
+          permission_key: string
+          tier: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          is_enabled?: boolean
+          permission_key: string
+          tier: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          is_enabled?: boolean
+          permission_key?: string
+          tier?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      tier_permissions_audit: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by_id: string
+          id: string
+          new_value: boolean
+          permission_key: string
+          previous_value: boolean | null
+          tier: string
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by_id: string
+          id?: string
+          new_value: boolean
+          permission_key: string
+          previous_value?: boolean | null
+          tier: string
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by_id?: string
+          id?: string
+          new_value?: boolean
+          permission_key?: string
+          previous_value?: boolean | null
+          tier?: string
+        }
+        Relationships: []
+      }
       user_invitations: {
         Row: {
           accepted_at: string | null
