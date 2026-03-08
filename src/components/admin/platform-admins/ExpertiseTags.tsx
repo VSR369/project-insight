@@ -1,3 +1,4 @@
+import React from 'react';
 import { Badge } from '@/components/ui/badge';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -8,31 +9,35 @@ interface ExpertiseTagsProps {
   max?: number;
 }
 
-export function ExpertiseTags({ ids, type, max = 3 }: ExpertiseTagsProps) {
-  const { data: labels } = useExpertiseLabels(ids, type);
+export const ExpertiseTags = React.forwardRef<HTMLDivElement, ExpertiseTagsProps>(
+  ({ ids, type, max = 3 }, ref) => {
+    const { data: labels } = useExpertiseLabels(ids, type);
 
-  if (!ids?.length) {
-    return <span className="text-xs text-muted-foreground">None</span>;
+    if (!ids?.length) {
+      return <span className="text-xs text-muted-foreground">None</span>;
+    }
+
+    const displayed = labels?.slice(0, max) ?? [];
+    const remaining = (labels?.length ?? 0) - max;
+
+    return (
+      <div ref={ref} className="flex flex-wrap gap-1">
+        {displayed.map((label, i) => (
+          <Badge key={i} variant="outline" className="text-xs">
+            {label}
+          </Badge>
+        ))}
+        {remaining > 0 && (
+          <Badge variant="secondary" className="text-xs">
+            +{remaining}
+          </Badge>
+        )}
+      </div>
+    );
   }
+);
 
-  const displayed = labels?.slice(0, max) ?? [];
-  const remaining = (labels?.length ?? 0) - max;
-
-  return (
-    <div className="flex flex-wrap gap-1">
-      {displayed.map((label, i) => (
-        <Badge key={i} variant="outline" className="text-xs">
-          {label}
-        </Badge>
-      ))}
-      {remaining > 0 && (
-        <Badge variant="secondary" className="text-xs">
-          +{remaining}
-        </Badge>
-      )}
-    </div>
-  );
-}
+ExpertiseTags.displayName = 'ExpertiseTags';
 
 function useExpertiseLabels(ids: string[], type: 'industry' | 'country' | 'org_type') {
   return useQuery({

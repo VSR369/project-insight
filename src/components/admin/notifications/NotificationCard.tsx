@@ -13,6 +13,8 @@ import {
   ArrowRightLeft,
   Megaphone,
   Mail,
+  CalendarClock,
+  MessageSquare,
   Clock,
   ExternalLink,
 } from 'lucide-react';
@@ -66,6 +68,16 @@ const TYPE_CONFIG: Record<NotificationType, {
     borderClass: 'border-l-red-400',
     icon: Mail,
     iconClass: 'text-red-400',
+  },
+  LEAVE_REMINDER: {
+    borderClass: 'border-l-sky-500',
+    icon: CalendarClock,
+    iconClass: 'text-sky-500',
+  },
+  REGISTRANT_COURTESY: {
+    borderClass: 'border-l-teal-500',
+    icon: MessageSquare,
+    iconClass: 'text-teal-500',
   },
 };
 
