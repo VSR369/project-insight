@@ -333,6 +333,19 @@ export function AdminSidebar() {
                   <span>My Availability</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              {/* System Config — supervisor only */}
+              {isSupervisor && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/system-config')}
+                    onMouseEnter={() => handleMouseEnter('/admin/system-config')}
+                    isActive={location.pathname.startsWith('/admin/system-config')}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>System Config</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {/* GAP-2: Permissions Management — supervisor only */}
               {isSupervisor && (
                 <SidebarMenuItem>
