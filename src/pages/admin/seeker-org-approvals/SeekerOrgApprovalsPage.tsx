@@ -7,7 +7,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useSeekerOrgList } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSeekerOrgList, useMyAssignedOrgIds } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useCurrentAdminProfile } from '@/hooks/queries/useCurrentAdminProfile';
 import { format } from 'date-fns';
 import type { SeekerOrgListItem } from './types';
 
@@ -27,8 +28,29 @@ const statusColors: Record<string, string> = {
 export default function SeekerOrgApprovalsPage() {
   const [tab, setTab] = useState('payment_submitted');
   const [page, setPage] = useState(0);
-  const { data: orgs, isLoading } = useSeekerOrgList(tab);
   const navigate = useNavigate();
+
+  const { data: profile, isLoading: profileLoading } = useCurrentAdminProfile();
+  const isSupervisor = profile?.admin_tier === 'supervisor';
+
+  // For non-supervisors: get their assigned org IDs
+  const { data: assignedOrgIds, isLoading: assignedLoading } = useMyAssignedOrgIds(
+    !isSupervisor && profile?.id ? profile.id : undefined
+  );
+
+  // Determine filtering
+  const isUnassignedTab = tab === 'unassigned';
+  const effectiveStatus = isUnassignedTab ? 'payment_submitted' : tab;
+
+  const { data: orgs, isLoading: orgsLoading } = useSeekerOrgList(
+    effectiveStatus,
+    // Non-supervisors: filter to assigned orgs (except on unassigned tab which is supervisor-only)
+    isSupervisor ? null : (assignedOrgIds ?? null),
+    // Unassigned tab: filter to orgs without an admin
+    isUnassignedTab ? true : false
+  );
+
+  const isLoading = profileLoading || assignedLoading || orgsLoading;
 
   const handleTabChange = (value: string) => {
     setTab(value);
@@ -44,7 +66,9 @@ export default function SeekerOrgApprovalsPage() {
     <div>
       <PageHeader
         title="Organization Approvals"
-        description="Review and verify seeker organization registrations"
+        description={isSupervisor
+          ? 'Review and verify seeker organization registrations (all orgs)'
+          : 'Review and verify your assigned seeker organization registrations'}
       />
 
       <Tabs value={tab} onValueChange={handleTabChange}>
@@ -56,6 +80,9 @@ export default function SeekerOrgApprovalsPage() {
           <TabsTrigger value="active">Active</TabsTrigger>
           <TabsTrigger value="suspended">Suspended</TabsTrigger>
           <TabsTrigger value="rejected">Rejected</TabsTrigger>
+          {isSupervisor && (
+            <TabsTrigger value="unassigned">Unassigned</TabsTrigger>
+          )}
           <TabsTrigger value="all">All</TabsTrigger>
         </TabsList>
 
@@ -66,7 +93,9 @@ export default function SeekerOrgApprovalsPage() {
             </div>
           ) : !allOrgs.length ? (
             <div className="text-center py-12 text-muted-foreground">
-              No organizations found.
+              {isUnassignedTab
+                ? 'No unassigned organizations in the queue.'
+                : 'No organizations found.'}
             </div>
           ) : (
             <>

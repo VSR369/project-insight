@@ -22,10 +22,30 @@ export function usePendingSeekerCount() {
   });
 }
 
-// ─── List orgs by verification status ───
-export function useSeekerOrgList(status?: string) {
+// ─── Get org IDs assigned to the current admin ───
+export function useMyAssignedOrgIds(adminId?: string) {
   return useQuery({
-    queryKey: ['seeker-orgs', 'list', status],
+    queryKey: ['seeker-orgs', 'my-assigned-ids', adminId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('platform_admin_verifications')
+        .select('organization_id')
+        .eq('assigned_admin_id', adminId!)
+        .eq('is_current', true);
+      if (error) throw new Error(error.message);
+      return (data ?? []).map(d => d.organization_id);
+    },
+    enabled: !!adminId,
+    staleTime: 30_000,
+  });
+}
+
+// ─── List orgs by verification status ───
+// assignedOrgIds: if provided, filter to only these org IDs (for non-supervisors)
+// showUnassigned: if true, show only orgs NOT in platform_admin_verifications (open queue)
+export function useSeekerOrgList(status?: string, assignedOrgIds?: string[] | null, showUnassigned?: boolean) {
+  return useQuery({
+    queryKey: ['seeker-orgs', 'list', status, assignedOrgIds, showUnassigned],
     queryFn: async () => {
       let query = supabase
         .from('seeker_organizations')
@@ -43,8 +63,31 @@ export function useSeekerOrgList(status?: string) {
         query = query.eq('verification_status', status as any);
       }
 
+      // For non-supervisors: filter to only their assigned orgs
+      if (assignedOrgIds !== undefined && assignedOrgIds !== null) {
+        if (assignedOrgIds.length === 0) {
+          return []; // No assignments = no results
+        }
+        query = query.in('id', assignedOrgIds);
+      }
+
       const { data, error } = await query;
       if (error) throw new Error(error.message);
+
+      // For "Unassigned" tab: filter out orgs that have a current verification assignment
+      if (showUnassigned && data) {
+        const orgIds = data.map(d => d.id);
+        if (orgIds.length === 0) return data;
+        const { data: assigned } = await supabase
+          .from('platform_admin_verifications')
+          .select('organization_id')
+          .in('organization_id', orgIds)
+          .eq('is_current', true)
+          .not('assigned_admin_id', 'is', null);
+        const assignedSet = new Set((assigned ?? []).map(a => a.organization_id));
+        return data.filter(d => !assignedSet.has(d.id));
+      }
+
       return data;
     },
     staleTime: 30 * 1000,
