@@ -1,7 +1,7 @@
 /**
  * SCR-01-01: Platform Admin List Page
- * Enhanced: count badge, assignment priority, last assignment, deactivate action,
- * row click nav, pagination (20 default, 50 max), improved empty state.
+ * Figma-aligned: combined name/email column, tier filter, uppercase headers,
+ * redesigned pagination, updated labels.
  */
 
 import { useState, useMemo } from 'react';
@@ -20,11 +20,11 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, Eye, Pencil, Shield, UserX } from 'lucide-react';
+import { Plus, Pencil, UserX, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
+  { value: 'all', label: 'All' },
   { value: 'Available', label: 'Available' },
   { value: 'Partially_Available', label: 'Partially Available' },
   { value: 'Fully_Loaded', label: 'Fully Loaded' },
@@ -32,17 +32,21 @@ const STATUS_OPTIONS = [
   { value: 'Inactive', label: 'Inactive' },
 ];
 
-const TIER_LABELS: Record<string, string> = {
-  supervisor: 'Supervisor',
-  senior_admin: 'Senior Admin',
-  admin: 'Admin',
-};
+const TIER_OPTIONS = [
+  { value: 'all', label: 'All Tiers' },
+  { value: 'supervisor', label: 'Supervisor' },
+  { value: 'senior_admin', label: 'Senior Admin' },
+  { value: 'admin', label: 'Admin' },
+];
 
 const PAGE_SIZE = 20;
+
+const HEAD_CLASS = 'uppercase text-xs tracking-wider';
 
 function PlatformAdminListContent() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
+  const [tierFilter, setTierFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [deactivateTarget, setDeactivateTarget] = useState<any>(null);
 
@@ -51,17 +55,25 @@ function PlatformAdminListContent() {
   const canCreate = isSupervisor || isSeniorAdmin;
   const canEdit = isSupervisor || isSeniorAdmin;
 
-  const totalCount = admins?.length ?? 0;
+  // Apply tier filter client-side
+  const filteredAdmins = useMemo(() => {
+    if (!admins) return [];
+    if (tierFilter === 'all') return admins;
+    return admins.filter((a: any) => a.admin_tier === tierFilter);
+  }, [admins, tierFilter]);
+
+  const totalCount = filteredAdmins.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
   const paginatedAdmins = useMemo(() => {
-    if (!admins) return [];
     const start = (page - 1) * PAGE_SIZE;
-    return admins.slice(start, start + PAGE_SIZE);
-  }, [admins, page]);
+    return filteredAdmins.slice(start, start + PAGE_SIZE);
+  }, [filteredAdmins, page]);
 
-  // Reset page when filter changes
-  const handleStatusChange = (value: string) => {
-    setStatusFilter(value);
+  const showingFrom = totalCount === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
+  const showingTo = Math.min(page * PAGE_SIZE, totalCount);
+
+  const handleFilterChange = (setter: (v: string) => void) => (value: string) => {
+    setter(value);
     setPage(1);
   };
 
@@ -78,28 +90,37 @@ function PlatformAdminListContent() {
 
   return (
     <div className="space-y-4">
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-2">
           <h1 className="text-2xl font-bold">Platform Admins</h1>
           <Badge variant="secondary" className="text-sm">{totalCount}</Badge>
         </div>
         <div className="flex items-center gap-3">
-          <Select value={statusFilter} onValueChange={handleStatusChange}>
+          <Select value={tierFilter} onValueChange={handleFilterChange(setTierFilter)}>
+            <SelectTrigger className="w-40">
+              <SelectValue placeholder="All Tiers" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIER_OPTIONS.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={statusFilter} onValueChange={handleFilterChange(setStatusFilter)}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Filter by status" />
             </SelectTrigger>
             <SelectContent>
               {STATUS_OPTIONS.map((opt) => (
-                <SelectItem key={opt.value} value={opt.value}>
-                  {opt.label}
-                </SelectItem>
+                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}
             </SelectContent>
           </Select>
           {canCreate && (
             <Button onClick={() => navigate('/admin/platform-admins/new')}>
               <Plus className="mr-2 h-4 w-4" />
-              <span className="hidden lg:inline">Add Admin</span>
+              <span className="hidden lg:inline">Add Platform Admin</span>
             </Button>
           )}
         </div>
@@ -107,13 +128,12 @@ function PlatformAdminListContent() {
 
       <ExecutiveContactWarningBanner />
 
-      {!admins?.length ? (
+      {!filteredAdmins.length ? (
         <div className="text-center py-12 text-muted-foreground space-y-3">
           <p>No platform admins found.</p>
           {canCreate && (
             <Button variant="outline" onClick={() => navigate('/admin/platform-admins/new')}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add your first admin
+              <Plus className="mr-2 h-4 w-4" /> Add your first admin
             </Button>
           )}
         </div>
@@ -123,16 +143,13 @@ function PlatformAdminListContent() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Tier</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Supervisor</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Workload</TableHead>
-                  <TableHead>Last Assignment</TableHead>
-                  <TableHead>Industries</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead className={HEAD_CLASS}>Full Name</TableHead>
+                  <TableHead className={HEAD_CLASS}>Availability Status</TableHead>
+                  <TableHead className={HEAD_CLASS}>Workload</TableHead>
+                  <TableHead className={HEAD_CLASS}>Industry Expertise</TableHead>
+                  <TableHead className={HEAD_CLASS}>Priority</TableHead>
+                  <TableHead className={HEAD_CLASS}>Last Assignment</TableHead>
+                  <TableHead className={`${HEAD_CLASS} text-right`}>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -142,27 +159,27 @@ function PlatformAdminListContent() {
                     className="cursor-pointer"
                     onClick={() => navigate(`/admin/platform-admins/${admin.id}`)}
                   >
-                    <TableCell className="font-medium">{admin.full_name}</TableCell>
-                    <TableCell>{admin.email}</TableCell>
+                    {/* Full Name + Email stacked */}
                     <TableCell>
-                      <Badge variant="outline" className="capitalize">
-                        {TIER_LABELS[(admin as any).admin_tier] || 'Admin'}
-                      </Badge>
+                      <div className="flex flex-col">
+                        <span className="font-semibold">{admin.full_name}</span>
+                        <span className="text-xs text-muted-foreground">{admin.email}</span>
+                      </div>
                     </TableCell>
                     <TableCell>
                       <AdminStatusBadge status={admin.availability_status} />
-                    </TableCell>
-                    <TableCell>
-                      {admin.is_supervisor && <Shield className="h-4 w-4 text-primary" />}
-                    </TableCell>
-                    <TableCell>
-                      <AssignmentPriorityBadge priority={admin.assignment_priority} />
                     </TableCell>
                     <TableCell>
                       <WorkloadBar
                         current={admin.current_active_verifications}
                         max={admin.max_concurrent_verifications}
                       />
+                    </TableCell>
+                    <TableCell>
+                      <ExpertiseTags ids={admin.industry_expertise} type="industry" max={2} />
+                    </TableCell>
+                    <TableCell>
+                      <AssignmentPriorityBadge priority={admin.assignment_priority} />
                     </TableCell>
                     <TableCell>
                       {admin.last_assignment_timestamp ? (
@@ -173,19 +190,8 @@ function PlatformAdminListContent() {
                         <span className="text-sm text-muted-foreground italic">Never assigned</span>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <ExpertiseTags ids={admin.industry_expertise} type="industry" max={2} />
-                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/admin/platform-admins/${admin.id}`)}
-                          title="View"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
                         {canEdit && (isSupervisor || (admin as any).admin_tier === 'admin') && (
                           <Button
                             variant="ghost"
@@ -215,29 +221,32 @@ function PlatformAdminListContent() {
           </div>
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {page} of {totalPages}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={page >= totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          )}
+          <div className="flex flex-col lg:flex-row justify-between items-center gap-2 pt-2">
+            <span className="text-sm text-muted-foreground">
+              Showing {showingFrom} to {showingTo} of {totalCount} results
+            </span>
+            {totalPages > 1 && (
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                  <Button
+                    key={p}
+                    variant={p === page ? 'default' : 'outline'}
+                    size="icon"
+                    className="h-8 w-8"
+                    onClick={() => setPage(p)}
+                  >
+                    {p}
+                  </Button>
+                ))}
+                <Button variant="outline" size="icon" className="h-8 w-8" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
         </>
       )}
 

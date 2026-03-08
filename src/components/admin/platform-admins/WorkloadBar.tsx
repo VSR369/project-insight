@@ -17,16 +17,16 @@ export function WorkloadBar({ current, max, className }: WorkloadBarProps) {
         : 'bg-green-500';
 
   return (
-    <div className={cn('flex items-center gap-2', className)}>
+    <div className={cn('flex flex-col gap-1', className)}>
+      <span className="text-xs font-medium text-foreground">
+        {current}/{max}
+      </span>
       <div className="relative h-2 w-20 overflow-hidden rounded-full bg-secondary">
         <div
           className={cn('h-full transition-all', barColor)}
           style={{ width: `${percentage}%` }}
         />
       </div>
-      <span className="text-xs text-muted-foreground whitespace-nowrap">
-        {current}/{max}
-      </span>
     </div>
   );
 }
