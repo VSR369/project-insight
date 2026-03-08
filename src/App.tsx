@@ -181,6 +181,9 @@ const ReassignmentInboxPage = lazy(() => import("@/pages/admin/reassignments/Rea
 const SystemConfigPage = lazy(() => import("@/pages/admin/system-config/SystemConfigPage"));
 const DomainWeightsPage = lazy(() => import("@/pages/admin/system-config/DomainWeightsPage"));
 
+// Permissions Management (read-only reference)
+const PermissionsManagementPage = lazy(() => import("@/pages/admin/permissions/PermissionsManagementPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
