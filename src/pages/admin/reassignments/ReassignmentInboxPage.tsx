@@ -23,6 +23,9 @@ function ReassignmentInboxContent() {
     requestId: string;
     adminReason: string;
     currentAdminId: string | null;
+    currentAdminName: string | null;
+    currentAdminAvailability: string | null;
+    currentAdminPendingCount: number | null;
     hqCountry: string;
     reassignmentCount: number;
     slaBreachTier?: string;
