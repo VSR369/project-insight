@@ -55,6 +55,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
+import { usePendingReassignmentCount } from '@/hooks/queries/useReassignmentRequests';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
