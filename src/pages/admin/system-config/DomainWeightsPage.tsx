@@ -7,7 +7,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useMpaConfig } from '@/hooks/queries/useMpaConfig';
-import { useUpdateConfig } from '@/hooks/queries/useUpdateConfig';
+import { useUpdateDomainWeights } from '@/hooks/queries/useUpdateDomainWeights';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { WeightSliders } from '@/components/admin/system-config/WeightSliders';

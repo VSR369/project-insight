@@ -3,9 +3,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useMpaConfigValue } from '@/hooks/queries/useMpaConfig';
 
 export function ExecutiveContactWarningBanner() {
-  const { data: escalationEmail, isLoading } = useMpaConfigValue('executive_escalation_email');
+  const { data: escalationContact, isLoading } = useMpaConfigValue('executive_escalation_contact_id');
 
-  if (isLoading || escalationEmail) return null;
+  if (isLoading || escalationContact) return null;
 
   return (
     <Alert variant="destructive" className="mb-4">
