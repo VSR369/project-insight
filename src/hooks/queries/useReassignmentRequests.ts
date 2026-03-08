@@ -78,13 +78,13 @@ export function useReassignmentRequests(status: 'PENDING' | 'APPROVED' | 'DECLIN
 
       // Fetch org names
       const orgIds = [...new Set((verificationsRes.data ?? []).map(v => v.organization_id).filter(Boolean))];
-      let orgMap = new Map<string, { organization_name: string; country_id: string | null }>();
+      let orgMap = new Map<string, { organization_name: string; hq_country_id: string | null }>();
       if (orgIds.length > 0) {
         const { data: orgs } = await supabase
           .from('seeker_organizations')
-          .select('id, organization_name, country_id')
+          .select('id, organization_name, hq_country_id')
           .in('id', orgIds);
-        orgMap = new Map((orgs ?? []).map(o => [o.id, { organization_name: o.organization_name, country_id: o.country_id }]));
+        orgMap = new Map((orgs ?? []).map(o => [o.id, { organization_name: o.organization_name, hq_country_id: o.hq_country_id }]));
       }
 
       return data.map(r => {
