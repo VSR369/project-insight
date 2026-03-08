@@ -177,6 +177,10 @@ const AdminPerformanceDetailPage = lazy(() => import("@/pages/admin/performance/
 // MOD-06: Reassignment Workflow
 const ReassignmentInboxPage = lazy(() => import("@/pages/admin/reassignments/ReassignmentInboxPage"));
 
+// MOD-07: System Configuration
+const SystemConfigPage = lazy(() => import("@/pages/admin/system-config/SystemConfigPage"));
+const DomainWeightsPage = lazy(() => import("@/pages/admin/system-config/DomainWeightsPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -591,6 +595,9 @@ const App = () => (
               <Route path="performance/:adminId" element={<TierGuard requiredTier="supervisor"><AdminPerformanceDetailPage /></TierGuard>} />
               {/* MOD-06: Reassignment Workflow — supervisor only */}
               <Route path="reassignments" element={<TierGuard requiredTier="supervisor"><ReassignmentInboxPage /></TierGuard>} />
+              {/* MOD-07: System Configuration — supervisor only */}
+              <Route path="system-config" element={<TierGuard requiredTier="supervisor"><SystemConfigPage /></TierGuard>} />
+              <Route path="system-config/domain-weights" element={<TierGuard requiredTier="supervisor"><DomainWeightsPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route

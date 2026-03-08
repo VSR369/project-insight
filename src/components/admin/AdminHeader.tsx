@@ -3,9 +3,11 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { LogOut, User, ChevronDown, Shield, Settings } from 'lucide-react';
 import { NotificationBell } from '@/components/admin/notifications/NotificationBell';
 import { NotificationDrawer } from '@/components/admin/notifications/NotificationDrawer';
+import { ExecutiveContactWarning } from '@/components/admin/system-config/ExecutiveContactWarning';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { useMpaConfigValue } from '@/hooks/queries/useMpaConfig';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Separator } from '@/components/ui/separator';
 import { Button } from '@/components/ui/button';
@@ -45,16 +47,21 @@ const pathNames: Record<string, string> = {
   'invitations': 'Invitations',
   'settings': 'Settings',
   'assignment-audit-log': 'Assignment Audit Log',
+  'system-config': 'System Config',
+  'domain-weights': 'Domain Match Weights',
 };
 
 export function AdminHeader() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
-  const { tier } = useAdminTier();
+  const { tier, isSupervisor } = useAdminTier();
   const location = useLocation();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const { data: escalationContactId, isLoading: configLoading } = useMpaConfigValue('executive_escalation_contact_id');
   const pathSegments = location.pathname.split('/').filter(Boolean);
+
+  const showEscalationWarning = isSupervisor && !configLoading && (!escalationContactId || escalationContactId === 'NULL');
 
   const firstName = user?.user_metadata?.first_name || 'Admin';
   const lastName = user?.user_metadata?.last_name || '';
@@ -67,7 +74,9 @@ export function AdminHeader() {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
+    <>
+      {showEscalationWarning && <ExecutiveContactWarning compact />}
+      <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
       <SidebarTrigger className="-ml-1" />
       <Separator orientation="vertical" className="mr-2 h-4" />
       <Breadcrumb>
@@ -148,5 +157,6 @@ export function AdminHeader() {
         </DropdownMenu>
       </div>
     </header>
+    </>
   );
 }

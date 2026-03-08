@@ -113,6 +113,7 @@ const seekerItems = [
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
+  { title: 'System Config', icon: Settings, path: '/admin/system-config', requiresSupervisor: true },
   { title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
   { title: 'Social Channel Test', icon: Activity, path: '/admin/pulse-social-test' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
@@ -472,7 +473,11 @@ export function AdminSidebar() {
 
               {/* Other menu items */}
               {otherItems
-                .filter((item) => !('requiresTier' in item && item.requiresTier) || isSupervisor || isSeniorAdmin)
+                .filter((item) => {
+                  if ('requiresSupervisor' in item && item.requiresSupervisor) return isSupervisor;
+                  if ('requiresTier' in item && item.requiresTier) return isSupervisor || isSeniorAdmin;
+                  return true;
+                })
                 .map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
