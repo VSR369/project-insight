@@ -8,12 +8,13 @@ interface MetricCardProps {
   subtitle?: string;
   icon: LucideIcon;
   trend?: 'positive' | 'negative' | 'neutral';
+  borderColor?: string;
   className?: string;
 }
 
-export function MetricCard({ label, value, subtitle, icon: Icon, trend, className }: MetricCardProps) {
+export function MetricCard({ label, value, subtitle, icon: Icon, trend, borderColor, className }: MetricCardProps) {
   return (
-    <Card className={cn('relative overflow-hidden', className)}>
+    <Card className={cn('relative overflow-hidden', borderColor && `border-l-4 ${borderColor}`, className)}>
       <CardContent className="p-4 lg:p-6">
         <div className="flex items-start justify-between">
           <div className="space-y-1">
