@@ -106,7 +106,7 @@ function PermissionsContent() {
         </p>
       </div>
 
-      <div className="flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+      <div className="flex items-center gap-2 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-primary">
         <Shield className="h-4 w-4 shrink-0" />
         <span>
           {isSupervisor
