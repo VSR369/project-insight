@@ -147,12 +147,12 @@ function DomainWeightsContent() {
   const handleReset = () => { setL1(50); setL2(30); setL3(20); };
   const handleCancel = () => { setL1(null); setL2(null); setL3(null); setReason(''); navigate('/admin/system-config'); };
 
-  const adminProfiles = useMemo(() => (admins ?? []).map((a) => ({
+  const adminProfiles = useMemo(() => (admins ?? []).map((a: any) => ({
     id: a.id,
     full_name: a.full_name ?? 'Unknown',
-    expertise_industry_ids: a.expertise_industry_ids ?? [],
-    expertise_country_ids: a.expertise_country_ids ?? [],
-    expertise_org_type_ids: a.expertise_org_type_ids ?? [],
+    expertise_industry_ids: a.industry_expertise ?? [],
+    expertise_country_ids: a.country_region_expertise ?? [],
+    expertise_org_type_ids: a.org_type_expertise ?? [],
   })), [admins]);
 
   if (isLoading) {
