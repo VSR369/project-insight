@@ -1,51 +1,55 @@
 
 
-# Audit: Hardcoded Values in Admin Modules
+# Assignment Engine Audit Log — Figma vs Current Implementation
 
-## Assessment
+## Differences Identified
 
-After a thorough search across the supervisor, senior admin, and basic admin modules, here is the current state:
+| # | Figma Design | Current Implementation | Fix |
+|---|-------------|----------------------|-----|
+| 1 | **"Supervisor Only" badge** top-right | Missing | Add badge next to header |
+| 2 | Description: "View detailed logs of all assignment engine decisions and scoring" | "Review auto-assignment decisions, scoring snapshots, and fallback reasons." | Update text |
+| 3 | **Filters inline** — From Date, To Date, Admin, Outcome, Export CSV all in one row, no Card wrapper | Wrapped in a Card with "Filters" header | Remove Card, make inline row |
+| 4 | **Admin dropdown** filter ("All Admins") | Missing entirely | Add admin filter dropdown using `platform_admin_profiles` |
+| 5 | Date format: `2026-03-06 14:32:15` | `MMM d, HH:mm` (e.g., "Mar 6, 14:32") | Change to `yyyy-MM-dd HH:mm:ss` |
+| 6 | Domain Score: **"85/100"** with progress bar | Shows bare number + progress bar | Format as `{score}/100` |
+| 7 | Selection Reason reads from **snapshot** | Uses `log.reason` (wrong field — that's fallback reason) | Read `snapshot.selection_reason` instead |
+| 8 | Pool Size: **"5 candidates"** | Just the number | Append " candidates" text |
+| 9 | **No "Fallback Reason" column** in main table | Extra column exists | Remove column |
+| 10 | Org Name shown as **blue clickable link** | Plain text | Make clickable link to verification |
+| 11 | Fallback outcome: **"Fallback: Queue"** | Just "Fallback" | Update badge text |
+| 12 | Expanded section: **"Candidate Scoring Snapshot"** with subtitle "Detailed breakdown of all candidates evaluated by the assignment engine" | "Candidate Scoring Breakdown", no subtitle | Update title + add subtitle |
+| 13 | Snapshot columns: **"Admin Name", "L1 Score", "L2 Score", "L3 Score"** — no Tier column | Has "Admin", "Tier", "L1 (Industry)", "L2 (Country)", "L3 (Org Type)" | Remove Tier column, rename headers |
+| 14 | Eliminated rows: **strikethrough on admin name** | No strikethrough | Add `line-through` class |
+| 15 | Outcome badges: **"Winner"** (green), **"Runner-up"**, **"Eliminated"** (red) | "WINNER", "L1=0", "Runner-up" | Match Figma labels exactly |
+| 16 | Snapshot panel: no summary row (Method/Pass/Pool/Winner) | Has a 5-column summary grid | Remove summary grid — Figma shows only the candidate table |
+| 17 | Main table has **no Card wrapper** | Wrapped in Card | Remove Card, use clean table |
 
----
+## Files to Change
 
-## ALREADY FIXED (from last session)
-These three pickers now correctly use master data via shared hooks:
-- **IndustryExpertisePicker** → `useIndustrySegments()` from `useMasterData.ts`
-- **CountryExpertisePicker** → `useCountries()` from `useMasterData.ts`
-- **OrgTypeExpertisePicker** → `useOrganizationTypes()` from `useMasterData.ts`
-- **ExpertiseTags** → looks up all three types by UUID from master data tables
+### 1. `src/pages/admin/AssignmentAuditLogPage.tsx`
+- Add "Supervisor Only" badge beside title
+- Update description text
+- Remove Card wrapper from filters — make inline row with From Date, To Date, Admin dropdown, Outcome dropdown, Export CSV button
+- Add Admin filter: fetch admin list from `usePlatformAdmins()`, populate Select dropdown
+- Remove "Fallback Reason" column (column 9)
+- Fix date format to `yyyy-MM-dd HH:mm:ss`
+- Fix Domain Score to show `{score}/100`
+- Fix Selection Reason to use `snapshot.selection_reason` not `log.reason`
+- Fix Pool Size to append " candidates"
+- Make Org Name a blue link navigating to `/admin/verifications/{verification_id}`
+- Update Fallback badge text to "Fallback: Queue"
+- Remove Card wrapper from table
+- Update colSpan from 9 to 8 in expanded row
 
-**No remaining hardcoded master data references in the expertise/profile management area.**
+### 2. `src/components/admin/assignment-audit/ScoringSnapshotPanel.tsx`
+- Remove the 5-column summary grid (Method/Pass/Pool/Selection Reason/Winner)
+- Update title to "Candidate Scoring Snapshot"
+- Add subtitle: "Detailed breakdown of all candidates evaluated by the assignment engine"
+- Remove "Tier" column
+- Rename headers: "Admin Name", "L1 Score", "L2 Score", "L3 Score", "Total", "Workload %", "Priority", "Outcome"
+- Add `line-through` text decoration on eliminated candidate names
+- Change outcome badge labels: "WINNER" → "Winner", "L1=0" → "Eliminated", keep "Runner-up"
 
----
-
-## APPROPRIATELY HARDCODED (no action needed)
-
-These items are **internal system states** defined by database CHECK constraints, not user-managed master data. Hardcoding them in the UI is correct:
-
-| Item | Location | Why it's OK |
-|------|----------|-------------|
-| Availability statuses (`Available`, `Partially_Available`, `Fully_Loaded`, `On_Leave`, `Inactive`) | `AdminStatusBadge.tsx`, `PerformanceFilters.tsx` | DB CHECK constraint — not user-editable, tied to trigger logic |
-| Admin tiers (`supervisor`, `senior_admin`, `admin`) | `platformAdminForm.schema.ts` | DB CHECK constraint + trigger-enforced hierarchy |
-| Notification types (`ASSIGNMENT`, `SLA_WARNING`, etc.) | `NotificationAuditFilters.tsx`, `NotificationCard.tsx`, `NotificationTypeBadge.tsx` | System-generated event types, not user-managed |
-| Email delivery statuses (`SENT`, `PENDING`, `FAILED`, etc.) | `NotificationAuditFilters.tsx` | Internal delivery pipeline states |
-| Permission keys in `PERMISSION_CATEGORIES` | `PermissionsManagementPage.tsx` | These are hardcoded category groupings for display — the actual permission data comes from the `tier_permissions` DB table |
-
----
-
-## ONE MINOR INCONSISTENCY FOUND
-
-**`PermissionsManagementPage.tsx` — hardcoded permission key list may drift from DB**
-
-The `PERMISSION_CATEGORIES` array hardcodes 16 permission keys (e.g., `verification.view_dashboard`, `admin_management.create_admin`). If a new permission is added to the `tier_permissions` table, it won't appear in the UI unless this array is also updated manually.
-
-**Options:**
-- **Option A (recommended):** Keep as-is. Permission keys are structural (like routes) and change infrequently. The hardcoded categories provide meaningful grouping that can't easily be derived from flat DB rows.
-- **Option B:** Add a `category` column to `tier_permissions` and build the matrix dynamically. More flexible but adds complexity for a rarely-changing dataset.
-
----
-
-## CONCLUSION
-
-**No remaining hardcoded values that should reference master data.** All three expertise pickers (Industry, Country, Org Type) now use UUID references to their respective master data tables via shared hooks. The remaining hardcoded strings are internal system states governed by DB constraints and triggers — hardcoding them in UI display components is the correct pattern.
+### 3. `src/hooks/queries/useEngineAuditLog.ts`
+- Add `adminId` filter support (already exists, just needs the Admin dropdown in the UI to pass it)
 
