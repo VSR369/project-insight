@@ -9300,6 +9300,7 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      is_supervisor_tier: { Args: { p_user_id: string }; Returns: boolean }
       place_in_open_queue: {
         Args: {
           p_ip_address?: string
