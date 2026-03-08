@@ -9404,6 +9404,10 @@ export type Database = {
         }
         Returns: Json
       }
+      validate_domain_weights: {
+        Args: { p_l1: number; p_l2: number; p_l3: number }
+        Returns: Json
+      }
       validate_tax_id: {
         Args: { p_country_id: string; p_tax_id: string }
         Returns: boolean

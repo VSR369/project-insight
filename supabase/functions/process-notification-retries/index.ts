@@ -102,7 +102,7 @@ serve(async (req) => {
         const { data: supervisors } = await supabaseAdmin
           .from("platform_admin_profiles")
           .select("id")
-          .or("is_supervisor.eq.true,admin_tier.eq.supervisor");
+          .eq("admin_tier", "supervisor");
 
         if (supervisors && supervisors.length > 0) {
           const notifications = supervisors.map((s: { id: string }) => ({
