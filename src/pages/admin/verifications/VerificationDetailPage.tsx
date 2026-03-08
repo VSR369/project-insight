@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useVerificationDetail } from '@/hooks/queries/useVerificationDashboard';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
@@ -8,6 +9,7 @@ import { VerificationChecksPanel } from '@/components/admin/verifications/Verifi
 import { VerificationActionBar } from '@/components/admin/verifications/VerificationActionBar';
 import { AssignmentHistoryTab } from '@/components/admin/verifications/AssignmentHistoryTab';
 import { RegistrantCommThread } from '@/components/admin/verifications/RegistrantCommThread';
+import { SupervisorReassignModal } from '@/components/admin/reassignments/SupervisorReassignModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
