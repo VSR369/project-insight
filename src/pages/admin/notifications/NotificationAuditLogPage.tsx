@@ -7,7 +7,7 @@ import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { NotificationAuditFilters, type AuditFilters } from '@/components/admin/notifications/NotificationAuditFilters';
 import { NotificationAuditTable } from '@/components/admin/notifications/NotificationAuditTable';
 import { AuditSummaryCards } from '@/components/admin/notifications/AuditSummaryCards';
-import { useNotificationAuditLog, useAuditSummary, useResendNotification } from '@/hooks/queries/useNotificationAuditLog';
+import { useNotificationAuditLog, computeAuditSummary, useResendNotification } from '@/hooks/queries/useNotificationAuditLog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
