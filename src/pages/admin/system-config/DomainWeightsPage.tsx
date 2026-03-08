@@ -38,8 +38,8 @@ function useAdminProfiles() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('platform_admin_profiles')
-        .select('id, full_name, expertise_industry_ids, expertise_country_ids, expertise_org_type_ids')
-        .eq('is_active', true);
+        .select('id, full_name, industry_expertise, country_region_expertise, org_type_expertise')
+        .eq('availability_status', 'available');
       if (error) throw new Error(error.message);
       return data ?? [];
     },
