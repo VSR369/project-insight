@@ -473,7 +473,11 @@ export function AdminSidebar() {
 
               {/* Other menu items */}
               {otherItems
-                .filter((item) => !('requiresTier' in item && item.requiresTier) || isSupervisor || isSeniorAdmin)
+                .filter((item) => {
+                  if ('requiresSupervisor' in item && item.requiresSupervisor) return isSupervisor;
+                  if ('requiresTier' in item && item.requiresTier) return isSupervisor || isSeniorAdmin;
+                  return true;
+                })
                 .map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
