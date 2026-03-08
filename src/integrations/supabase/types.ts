@@ -9137,6 +9137,14 @@ export type Database = {
         Args: { p_provider_id: string }
         Returns: boolean
       }
+      place_in_open_queue: {
+        Args: {
+          p_ip_address?: string
+          p_reason?: string
+          p_verification_id: string
+        }
+        Returns: Json
+      }
       process_membership_expiry: { Args: never; Returns: undefined }
       process_pending_downgrades: { Args: never; Returns: undefined }
       pulse_award_xp: {
@@ -9197,18 +9205,30 @@ export type Database = {
         Returns: number
       }
       pulse_update_streak: { Args: { p_provider_id: string }; Returns: number }
-      reassign_verification: {
-        Args: {
-          p_initiator?: string
-          p_reason?: string
-          p_requesting_admin_id?: string
-          p_supervisor_id?: string
-          p_to_admin_id?: string
-          p_trigger?: string
-          p_verification_id: string
-        }
-        Returns: Json
-      }
+      reassign_verification:
+        | {
+            Args: {
+              p_initiator?: string
+              p_ip_address?: string
+              p_reason?: string
+              p_to_admin_id?: string
+              p_trigger?: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_initiator?: string
+              p_reason?: string
+              p_requesting_admin_id?: string
+              p_supervisor_id?: string
+              p_to_admin_id?: string
+              p_trigger?: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
       refresh_all_composite_slots: { Args: never; Returns: number }
       refresh_composite_slots_for_time: {
         Args: { p_end_at: string; p_start_at: string }
