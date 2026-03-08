@@ -173,7 +173,8 @@ export function useOpenQueue() {
         verification: verMap[entry.verification_id] ?? null,
       }));
     },
-    staleTime: 15 * 1000,
+    staleTime: 15_000,
+    gcTime: 300_000,
   });
 }
 
