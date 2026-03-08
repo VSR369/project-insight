@@ -43,6 +43,12 @@ const PAGE_SIZE = 20;
 
 const HEAD_CLASS = 'uppercase text-xs tracking-wider';
 
+const TIER_LABELS: Record<string, string> = {
+  supervisor: 'Supervisor',
+  senior_admin: 'Senior Admin',
+  admin: 'Admin',
+};
+
 function PlatformAdminListContent() {
   const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState('all');
@@ -144,6 +150,7 @@ function PlatformAdminListContent() {
               <TableHeader>
                 <TableRow>
                   <TableHead className={HEAD_CLASS}>Full Name</TableHead>
+                  {tierFilter === 'all' && <TableHead className={HEAD_CLASS}>Tier</TableHead>}
                   <TableHead className={HEAD_CLASS}>Availability Status</TableHead>
                   <TableHead className={HEAD_CLASS}>Workload</TableHead>
                   <TableHead className={HEAD_CLASS}>Industry Expertise</TableHead>
@@ -166,6 +173,13 @@ function PlatformAdminListContent() {
                         <span className="text-xs text-muted-foreground">{admin.email}</span>
                       </div>
                     </TableCell>
+                    {tierFilter === 'all' && (
+                      <TableCell>
+                        <Badge variant="outline" className="text-xs font-medium">
+                          {TIER_LABELS[(admin as any).admin_tier] ?? (admin as any).admin_tier}
+                        </Badge>
+                      </TableCell>
+                    )}
                     <TableCell>
                       <AdminStatusBadge status={admin.availability_status} />
                     </TableCell>
