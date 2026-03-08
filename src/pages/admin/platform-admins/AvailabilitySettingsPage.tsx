@@ -1,6 +1,6 @@
 /**
  * SCR-01-06: Availability Settings Page (self-service)
- * Fixed: useState bug → useEffect, added BR-MPA-001, leave banners, min-date.
+ * GAP-6: Wire BulkReassignConfirmModal when going On_Leave/Inactive with active verifications
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -11,6 +11,7 @@ import { useAvailableAdminCounts } from '@/hooks/queries/useAvailableAdminCounts
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { LeaveConfirmationModal } from '@/components/admin/platform-admins/LeaveConfirmationModal';
+import { BulkReassignConfirmModal } from '@/components/admin/reassignments/BulkReassignConfirmModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -31,8 +32,9 @@ function AvailabilityContent() {
   const [leaveStart, setLeaveStart] = useState('');
   const [leaveEnd, setLeaveEnd] = useState('');
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
+  const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
 
-  // Initialize from profile when loaded (fixed: was using useState incorrectly)
+  // Initialize from profile when loaded
   useEffect(() => {
     if (profile) {
       setStatus(profile.availability_status);
@@ -71,8 +73,16 @@ function AvailabilityContent() {
   // Determine if leave is immediate or scheduled
   const isImmediate = leaveStart <= today;
 
+  // GAP-6: Check if admin needs bulk reassign modal (has active verifications + going On_Leave/Inactive)
+  const needsBulkReassign = profile.current_active_verifications > 0
+    && (effectiveStatus === 'On_Leave' || effectiveStatus === 'Inactive')
+    && profile.availability_status !== effectiveStatus;
+
   const handleSave = () => {
-    if (isOnLeave || isRestoring) {
+    if (needsBulkReassign) {
+      // GAP-6: Show bulk reassign confirmation first
+      setBulkReassignOpen(true);
+    } else if (isOnLeave || isRestoring) {
       setLeaveModalOpen(true);
     } else {
       doSave();
@@ -208,6 +218,19 @@ function AvailabilityContent() {
         pendingVerifications={profile.current_active_verifications}
         onConfirm={doSave}
         isLoading={updateAvailability.isPending}
+      />
+
+      {/* GAP-6: Bulk Reassign Confirmation Modal */}
+      <BulkReassignConfirmModal
+        open={bulkReassignOpen}
+        onOpenChange={setBulkReassignOpen}
+        adminId={profile.id}
+        targetStatus={effectiveStatus as 'On_Leave' | 'Inactive'}
+        leaveStartDate={leaveStart || undefined}
+        leaveEndDate={leaveEnd || undefined}
+        onConfirmed={() => {
+          navigate('/admin/my-profile');
+        }}
       />
     </div>
   );
