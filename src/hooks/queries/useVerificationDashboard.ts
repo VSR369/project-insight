@@ -104,7 +104,9 @@ export function useMyAssignments() {
         organization: orgMap[v.organization_id] ?? null,
       }));
     },
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    gcTime: 300_000,
+    refetchInterval: 60_000,
   });
 }
 
