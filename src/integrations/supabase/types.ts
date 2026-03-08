@@ -8985,23 +8985,41 @@ export type Database = {
         Args: { p_speciality_ids: string[] }
         Returns: number
       }
-      get_realtime_admin_metrics: {
-        Args: { p_admin_id?: string }
-        Returns: {
-          admin_id: string
-          admin_tier: string
-          assignment_priority: number
-          availability_status: string
-          completed_total: number
-          current_active_verifications: number
-          current_pending: number
-          full_name: string
-          max_concurrent_verifications: number
-          sla_at_risk_count: number
-          sla_breached_total: number
-          sla_compliant_total: number
-        }[]
-      }
+      get_realtime_admin_metrics:
+        | {
+            Args: { p_admin_id?: string }
+            Returns: {
+              admin_id: string
+              admin_tier: string
+              assignment_priority: number
+              availability_status: string
+              completed_total: number
+              current_active_verifications: number
+              current_pending: number
+              full_name: string
+              max_concurrent_verifications: number
+              sla_at_risk_count: number
+              sla_breached_total: number
+              sla_compliant_total: number
+            }[]
+          }
+        | {
+            Args: { p_admin_id?: string; p_period_days?: number }
+            Returns: {
+              admin_id: string
+              admin_tier: string
+              assignment_priority: number
+              availability_status: string
+              completed_total: number
+              current_active_verifications: number
+              current_pending: number
+              full_name: string
+              max_concurrent_verifications: number
+              sla_at_risk_count: number
+              sla_breached_total: number
+              sla_compliant_total: number
+            }[]
+          }
       get_reviewer_days_idle: {
         Args: { p_reviewer_id: string }
         Returns: number

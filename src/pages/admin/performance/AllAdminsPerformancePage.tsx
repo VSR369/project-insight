@@ -7,7 +7,8 @@ import { PerformanceFilters } from '@/components/admin/performance/PerformanceFi
 import { Skeleton } from '@/components/ui/skeleton';
 
 function AllAdminsPerformanceContent() {
-  const { data, isLoading } = useAllAdminMetrics();
+  const [period, setPeriod] = useState(30);
+  const { data, isLoading } = useAllAdminMetrics(period);
   const [availability, setAvailability] = useState('all');
   const [sortBy, setSortBy] = useState('sla_asc');
 
@@ -23,14 +24,19 @@ function AllAdminsPerformanceContent() {
       const slaA = a.completed_total > 0 ? (a.sla_compliant_total / a.completed_total) * 100 : -1;
       const slaB = b.completed_total > 0 ? (b.sla_compliant_total / b.completed_total) * 100 : -1;
 
+      let primary = 0;
       switch (sortBy) {
-        case 'sla_asc': return slaA - slaB;
-        case 'sla_desc': return slaB - slaA;
-        case 'pending_desc': return b.current_pending - a.current_pending;
-        case 'completed_desc': return b.completed_total - a.completed_total;
-        case 'name_asc': return a.full_name.localeCompare(b.full_name);
-        default: return 0;
+        case 'sla_asc': primary = slaA - slaB; break;
+        case 'sla_desc': primary = slaB - slaA; break;
+        case 'pending_desc': primary = b.current_pending - a.current_pending; break;
+        case 'completed_desc': primary = b.completed_total - a.completed_total; break;
+        case 'at_risk_desc': primary = b.sla_at_risk_count - a.sla_at_risk_count; break;
+        case 'avg_time_desc': primary = (b.avg_processing_hours ?? 0) - (a.avg_processing_hours ?? 0); break;
+        case 'name_asc': primary = a.full_name.localeCompare(b.full_name); break;
+        default: primary = 0;
       }
+      // Secondary sort by full_name ASC
+      return primary !== 0 ? primary : a.full_name.localeCompare(b.full_name);
     });
 
     return result;
@@ -62,6 +68,8 @@ function AllAdminsPerformanceContent() {
         onAvailabilityChange={setAvailability}
         sortBy={sortBy}
         onSortByChange={setSortBy}
+        period={period}
+        onPeriodChange={setPeriod}
         data={filtered}
       />
 

@@ -1,8 +1,11 @@
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
 import { ExpertiseTags } from '@/components/admin/platform-admins/ExpertiseTags';
+import { Pencil, RefreshCw, UserCog } from 'lucide-react';
 
 interface AdminHeaderCardProps {
   profile: {
@@ -26,10 +29,12 @@ const TIER_LABELS: Record<string, string> = {
 };
 
 export function AdminHeaderCard({ profile }: AdminHeaderCardProps) {
+  const navigate = useNavigate();
+
   return (
-    <Card>
+    <Card className="flex-1">
       <CardContent className="p-4 lg:p-6">
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4">
           <div className="flex-1 space-y-2">
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="text-lg font-semibold">{profile.full_name}</h2>
@@ -67,6 +72,25 @@ export function AdminHeaderCard({ profile }: AdminHeaderCardProps) {
                 <ExpertiseTags ids={profile.org_type_expertise || []} type="org_type" max={5} />
               </div>
             </div>
+          </div>
+
+          <div className="flex flex-row lg:flex-col gap-2 shrink-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/admin/platform-admins/${profile.id}`)}
+            >
+              <Pencil className="h-4 w-4 mr-1" />
+              <span className="hidden lg:inline">Edit Profile</span>
+            </Button>
+            <Button variant="outline" size="sm" disabled title="Reassign all pending verifications">
+              <RefreshCw className="h-4 w-4 mr-1" />
+              <span className="hidden lg:inline">Reassign All</span>
+            </Button>
+            <Button variant="outline" size="sm" disabled title="Adjust availability status">
+              <UserCog className="h-4 w-4 mr-1" />
+              <span className="hidden lg:inline">Adjust Availability</span>
+            </Button>
           </div>
         </div>
       </CardContent>

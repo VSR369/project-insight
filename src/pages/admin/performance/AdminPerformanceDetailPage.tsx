@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useAdminMetricsDetail } from '@/hooks/queries/useAdminMetricsDetail';
@@ -5,6 +6,7 @@ import { AdminHeaderCard } from '@/components/admin/performance/AdminHeaderCard'
 import { MetricCard } from '@/components/admin/performance/MetricCard';
 import { SlaBreachHistory } from '@/components/admin/performance/SlaBreachHistory';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   CheckCircle, ShieldCheck, Clock, Loader2, AlertTriangle, Inbox,
@@ -13,7 +15,8 @@ import {
 
 function DetailContent() {
   const { adminId } = useParams<{ adminId: string }>();
-  const { metricsQuery, breachQuery } = useAdminMetricsDetail(adminId);
+  const [period, setPeriod] = useState(30);
+  const { metricsQuery, breachQuery } = useAdminMetricsDetail(adminId, period);
 
   if (metricsQuery.isLoading) {
     return (
@@ -37,13 +40,25 @@ function DetailContent() {
     : null;
 
   const slaTrend = slaRate === null ? 'neutral' as const
-    : slaRate >= 90 ? 'positive' as const
+    : slaRate >= 95 ? 'positive' as const
     : slaRate >= 80 ? 'neutral' as const
     : 'negative' as const;
 
   return (
     <div className="space-y-6 p-4 lg:p-6">
-      <AdminHeaderCard profile={profile} />
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <AdminHeaderCard profile={profile} />
+        <Select value={String(period)} onValueChange={(v) => setPeriod(Number(v))}>
+          <SelectTrigger className="w-full lg:w-[160px]">
+            <SelectValue placeholder="Period" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="7">Last 7 days</SelectItem>
+            <SelectItem value="30">Last 30 days</SelectItem>
+            <SelectItem value="90">Last 90 days</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         <MetricCard label="Completed (M1)" value={metrics.completed_total} icon={CheckCircle} trend="neutral" />
@@ -57,6 +72,7 @@ function DetailContent() {
         <MetricCard
           label="Avg Time (M3)"
           value={metrics.avg_processing_hours !== null ? `${metrics.avg_processing_hours}h` : '—'}
+          subtitle="Updated daily"
           icon={Clock}
           trend="neutral"
         />
@@ -72,9 +88,9 @@ function DetailContent() {
           icon={AlertTriangle}
           trend={metrics.sla_at_risk_count > 0 ? 'negative' : 'positive'}
         />
-        <MetricCard label="Queue Claims (M6)" value={metrics.open_queue_claims} icon={Inbox} trend="neutral" />
-        <MetricCard label="Reassign In (M7)" value={metrics.reassignments_received} icon={ArrowDownLeft} trend="neutral" />
-        <MetricCard label="Reassign Out (M8)" value={metrics.reassignments_sent} icon={ArrowUpRight} trend="neutral" />
+        <MetricCard label="Queue Claims (M6)" value={metrics.open_queue_claims} subtitle="Updated daily" icon={Inbox} trend="neutral" />
+        <MetricCard label="Reassign In (M7)" value={metrics.reassignments_received} subtitle="Updated daily" icon={ArrowDownLeft} trend="neutral" />
+        <MetricCard label="Reassign Out (M8)" value={metrics.reassignments_sent} subtitle="Updated daily" icon={ArrowUpRight} trend="neutral" />
       </div>
 
       <Card>

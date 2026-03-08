@@ -6,14 +6,13 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import type { AdminMetricRow } from './useAllAdminMetrics';
 
-export function useMyMetrics() {
+export function useMyMetrics(periodDays: number = 30) {
   return useQuery({
-    queryKey: ['admin-metrics', 'self'],
+    queryKey: ['admin-metrics', 'self', periodDays],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      // Get own admin profile ID
       const { data: profile, error: profileErr } = await supabase
         .from('platform_admin_profiles')
         .select('id')
@@ -24,7 +23,7 @@ export function useMyMetrics() {
       if (!profile) throw new Error('No admin profile found');
 
       const [realtimeResult, storedResult] = await Promise.all([
-        supabase.rpc('get_realtime_admin_metrics', { p_admin_id: profile.id }),
+        supabase.rpc('get_realtime_admin_metrics', { p_admin_id: profile.id, p_period_days: periodDays }),
         supabase
           .from('admin_performance_metrics')
           .select('admin_id, avg_processing_hours, sla_compliance_rate_pct, open_queue_claims, reassignments_received, reassignments_sent')
