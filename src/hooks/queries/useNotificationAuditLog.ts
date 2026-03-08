@@ -4,6 +4,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { handleMutationError } from '@/lib/errorHandler';
+import { withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
 import type { AuditFilters } from '@/components/admin/notifications/NotificationAuditFilters';
 
@@ -64,7 +65,7 @@ export function useNotificationAuditLog(filters: AuditFilters) {
 }
 
 /** Compute summary stats from fetched data */
-export function useAuditSummary(data: AuditLogEntry[] | undefined) {
+export function computeAuditSummary(data: AuditLogEntry[] | undefined) {
   if (!data) return { totalToday: 0, sentPct: 0, retryQueued: 0, exhausted: 0 };
 
   const today = new Date().toISOString().slice(0, 10);
@@ -83,13 +84,14 @@ export function useResendNotification() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (auditLogId: string) => {
+      const withAudit = await withUpdatedBy({
+        email_status: 'PENDING',
+        email_retry_count: 0,
+        updated_at: new Date().toISOString(),
+      });
       const { error } = await supabase
         .from('notification_audit_log')
-        .update({
-          email_status: 'PENDING',
-          email_retry_count: 0,
-          updated_at: new Date().toISOString(),
-        })
+        .update(withAudit)
         .eq('id', auditLogId);
       if (error) throw new Error(error.message);
     },

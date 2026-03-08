@@ -3,7 +3,7 @@
  * Aligned with Figma design: inline filters, admin dropdown, no card wrappers.
  */
 
-import { useState } from 'react';
+import { useState, Fragment } from 'react';
 import { format, subDays } from 'date-fns';
 import { Download, ChevronDown, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -36,7 +36,7 @@ function AuditLogContent() {
   const { data: logs = [], isLoading } = useEngineAuditLog(filters);
   const { data: admins = [] } = usePlatformAdmins();
 
-  const handleExportCSV = () => {
+  const handleExportCsv = () => {
     if (logs.length === 0) return;
     const headers = ['Date/Time', 'Verification ID', 'Org Name', 'Event', 'Assigned To', 'Score', 'Selection Reason', 'Pool Size', 'Initiator'];
     const rows = logs.map((log) => {
@@ -164,7 +164,7 @@ function AuditLogContent() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" onClick={handleExportCSV} disabled={logs.length === 0} className="shrink-0">
+        <Button variant="outline" onClick={handleExportCsv} disabled={logs.length === 0} className="shrink-0">
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
@@ -204,9 +204,8 @@ function AuditLogContent() {
                 const totalScore = snapshot.total_score as number | undefined;
                 const poolSize = snapshot.pool_size as number | undefined;
                 return (
-                  <>
+                  <Fragment key={log.id}>
                     <TableRow
-                      key={log.id}
                       className="cursor-pointer"
                       onClick={() => setExpandedRow(isExpanded ? null : log.id)}
                     >
@@ -259,13 +258,13 @@ function AuditLogContent() {
                       </TableCell>
                     </TableRow>
                     {isExpanded && (
-                      <TableRow key={`${log.id}-detail`}>
+                      <TableRow>
                         <TableCell colSpan={8} className="bg-muted/30 p-0">
                           <ScoringSnapshotPanel snapshot={snapshot} />
                         </TableCell>
                       </TableRow>
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
             </TableBody>
