@@ -265,7 +265,7 @@ export function AudioRecorder({
         const baseMime = actualMimeType.split(";")[0] || "audio/webm";
         const audioBlob = new Blob(chunksRef.current, { type: baseMime });
         
-        console.log("[AudioRecorder] Created blob:", audioBlob.size, "bytes, type:", baseMime);
+        logDebug(`[AudioRecorder] Created blob: ${audioBlob.size} bytes, type: ${baseMime}`, { operation: "audio_recording" });
         
         // Validate the recording has actual audio
         const validation = await validateRecordedAudio(audioBlob);
