@@ -100,7 +100,8 @@ export function useReassignmentRequests(status: 'PENDING' | 'APPROVED' | 'DECLIN
         } as ReassignmentRequest;
       });
     },
-    staleTime: 30_000,
+    staleTime: 20_000,
+    gcTime: 300_000,
   });
 
   // Realtime subscription
