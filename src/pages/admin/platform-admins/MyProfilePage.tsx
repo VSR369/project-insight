@@ -13,7 +13,7 @@ import { InitialsAvatar } from '@/components/admin/platform-admins/InitialsAvata
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Shield, Calendar, Lock } from 'lucide-react';
+import { Shield, Calendar, Lock, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 
 function MyProfileContent() {
@@ -41,6 +41,7 @@ function MyProfileContent() {
 
   return (
     <div className="max-w-3xl space-y-6">
+      {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
         <div className="flex items-center gap-3">
           <InitialsAvatar name={profile.full_name} size="lg" />
@@ -64,6 +65,7 @@ function MyProfileContent() {
         </Button>
       </div>
 
+      {/* General Info + Availability */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader><CardTitle>General Info</CardTitle></CardHeader>
@@ -92,33 +94,86 @@ function MyProfileContent() {
             )}
           </CardContent>
         </Card>
-        <Card className="lg:col-span-2">
-          <CardHeader><CardTitle>Expertise</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
+      </div>
+
+      {/* Domain Expertise */}
+      <Card>
+        <CardHeader><CardTitle>Domain Expertise</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <p className="text-sm font-medium">Industry Expertise</p>
+              <Lock className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <ExpertiseTags ids={profile.industry_expertise} type="industry" max={10} />
+            <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify routing attributes.</p>
+          </div>
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <p className="text-sm font-medium">Country/Region Expertise</p>
+              <Lock className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <ExpertiseTags ids={profile.country_region_expertise ?? []} type="country" max={10} />
+            <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify routing attributes.</p>
+          </div>
+          <div>
+            <div className="flex items-center gap-1 mb-1">
+              <p className="text-sm font-medium">Org Type Expertise</p>
+              <Lock className="h-3 w-3 text-muted-foreground" />
+            </div>
+            <ExpertiseTags ids={profile.org_type_expertise ?? []} type="org_type" max={10} />
+            <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify routing attributes.</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Capacity */}
+      <Card>
+        <CardHeader><CardTitle>Capacity</CardTitle></CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-6">
             <div>
               <div className="flex items-center gap-1 mb-1">
+                <p className="text-sm text-muted-foreground">Max Concurrent Verifications</p>
                 <Lock className="h-3 w-3 text-muted-foreground" />
-                <p className="text-sm font-medium">Industry</p>
               </div>
-              <ExpertiseTags ids={profile.industry_expertise} type="industry" max={10} />
-              <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify this field.</p>
+              <p className="text-3xl font-bold">{profile.max_concurrent_verifications}</p>
             </div>
             <div>
               <div className="flex items-center gap-1 mb-1">
+                <p className="text-sm text-muted-foreground">Assignment Priority</p>
                 <Lock className="h-3 w-3 text-muted-foreground" />
-                <p className="text-sm font-medium">Country/Region</p>
               </div>
-              <ExpertiseTags ids={profile.country_region_expertise ?? []} type="country" max={10} />
-              <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify this field.</p>
+              <p className="text-3xl font-bold">{profile.assignment_priority}</p>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Quick Action Links */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card
+          className="cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => navigate('/admin/my-performance')}
+        >
+          <CardContent className="p-4 flex items-center justify-between">
             <div>
-              <div className="flex items-center gap-1 mb-1">
-                <Lock className="h-3 w-3 text-muted-foreground" />
-                <p className="text-sm font-medium">Organization Types</p>
-              </div>
-              <ExpertiseTags ids={profile.org_type_expertise ?? []} type="org_type" max={10} />
-              <p className="text-xs text-muted-foreground italic mt-1">Only a Supervisor can modify this field.</p>
+              <p className="font-semibold">View My Performance</p>
+              <p className="text-sm text-muted-foreground">See your metrics and analytics</p>
             </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
+        <Card
+          className="cursor-pointer hover:border-primary/50 transition-colors"
+          onClick={() => navigate('/admin/verifications')}
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="font-semibold">View Assignment History</p>
+              <p className="text-sm text-muted-foreground">Review your verification log</p>
+            </div>
+            <ArrowRight className="h-5 w-5 text-muted-foreground" />
           </CardContent>
         </Card>
       </div>
