@@ -129,35 +129,35 @@
 ### Database (Migration)
 - **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
 - **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
-- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5 from `platform_admin_verifications`, enforces BR-MPA-038 (non-supervisors only see own data)
-- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, batch recalculates M1-M8 via upsert, supervisor-only
+- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
+- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
 - **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
 
 ### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
-- **`AllAdminsPerformancePage.tsx`** — Team KPI bar (SLA Rate, Pending, At-Risk, Queue Claims), Admin Performance Table with SLA gauge, workload bars, at-risk badges, CSV export
-- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards with trend indicators
-- **`AdminPerformanceTable.tsx`** — Full table with SLA spark gauge (●●●●○), low-SLA red row highlight, zero-completion grey row, drill-down action
-- **`PerformanceFilters.tsx`** — Availability filter, sort by (SLA/Pending/Completed/Name), CSV export
+- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
+- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
+- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
+- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
 - Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
 
 ### Frontend — SCR-05-02: My Performance (All Admins)
-- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 reassignment cards + workload bar
+- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
 - No peer comparison data (BR-MPA-038(a))
 - Route: `/admin/my-performance` — all admin tiers
 
 ### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
-- **`AdminPerformanceDetailPage.tsx`** — Admin header card (name, tier, status, domain chips, workload) + 8-metric grid (M1-M8) + SLA Breach History table (90 days)
-- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar
-- **`SlaBreachHistory.tsx`** — Breach table with org name, tier badges, processing time
+- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
+- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
+- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
 - Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
 
 ### Shared Components
 - **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
 
 ### Hooks
-- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, staleTime: 30s, refetchInterval: 60s
-- **`useMyMetrics.ts`** — Self-only fetch via RPC, staleTime: 30s
-- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name join
+- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
+- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
+- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
 
 ### Navigation
 - Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
@@ -170,8 +170,23 @@
 | My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
 | Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
 | Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
-| Refresh Metrics RPC | ❌ | ❌ | ✅ |
+| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
 | CSV Export | ❌ | ❌ | ✅ |
+
+## All 10 Gaps — Closed
+
+| Gap | Fix |
+|-----|-----|
+| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
+| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
+| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
+| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
+| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
+| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
+| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
+| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
+| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
+| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
 
 ## Zero-Impact Areas
 - All existing RLS policies unchanged
