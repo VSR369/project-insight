@@ -192,7 +192,7 @@ export function AudioRecorder({
       
       if (selectedDeviceId) {
         audioConstraints.deviceId = { exact: selectedDeviceId };
-        console.log("[AudioRecorder] Using selected device:", selectedDeviceId);
+        logDebug("[AudioRecorder] Using selected device: " + selectedDeviceId, { operation: "audio_recording" });
       }
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
