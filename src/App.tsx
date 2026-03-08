@@ -174,6 +174,9 @@ const AllAdminsPerformancePage = lazy(() => import("@/pages/admin/performance/Al
 const MyPerformancePage = lazy(() => import("@/pages/admin/performance/MyPerformancePage"));
 const AdminPerformanceDetailPage = lazy(() => import("@/pages/admin/performance/AdminPerformanceDetailPage"));
 
+// MOD-06: Reassignment Workflow
+const ReassignmentInboxPage = lazy(() => import("@/pages/admin/reassignments/ReassignmentInboxPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
