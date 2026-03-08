@@ -155,5 +155,6 @@ export function AdminHeader() {
         </DropdownMenu>
       </div>
     </header>
+    </>
   );
 }
