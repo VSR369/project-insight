@@ -58,7 +58,8 @@ export function useMyMetrics(periodDays: number = 30) {
         reassignments_sent: stored?.reassignments_sent ?? 0,
       } as AdminMetricRow;
     },
-    staleTime: 30 * 1000,
-    refetchInterval: 60 * 1000,
+    staleTime: 60_000,
+    gcTime: 300_000,
+    refetchInterval: 60_000,
   });
 }

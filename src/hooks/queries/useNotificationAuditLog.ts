@@ -58,7 +58,8 @@ export function useNotificationAuditLog(filters: AuditFilters) {
       if (error) throw new Error(error.message);
       return (data ?? []) as AuditLogEntry[];
     },
-    staleTime: 30 * 1000,
+    staleTime: 30_000,
+    gcTime: 300_000,
   });
 }
 

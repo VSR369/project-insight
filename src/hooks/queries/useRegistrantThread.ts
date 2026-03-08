@@ -56,7 +56,8 @@ export function useRegistrantThread(verificationId: string | undefined) {
         admin_name: m.sent_by_admin_id ? adminMap[m.sent_by_admin_id] ?? 'Admin' : undefined,
       })) as RegistrantMessage[];
     },
-    staleTime: 15 * 1000,
+    staleTime: 15_000,
+    gcTime: 300_000,
   });
 
   // Realtime subscription

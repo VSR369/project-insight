@@ -50,7 +50,8 @@ export function useReassignmentRequests(status: 'PENDING' | 'APPROVED' | 'DECLIN
           reason, status, actioned_by_id, actioned_at, decline_reason, created_at
         `)
         .eq('status', status)
-        .order('created_at', { ascending: status === 'PENDING' });
+        .order('created_at', { ascending: status === 'PENDING' })
+        .limit(100);
 
       if (error) throw new Error(error.message);
       if (!data || data.length === 0) return [] as ReassignmentRequest[];

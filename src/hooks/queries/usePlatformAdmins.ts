@@ -16,7 +16,8 @@ export function usePlatformAdmins(statusFilter?: string) {
       let query = supabase
         .from('platform_admin_profiles')
         .select(PLATFORM_ADMIN_COLUMNS)
-        .order('full_name');
+        .order('full_name')
+        .limit(100);
 
       if (statusFilter && statusFilter !== 'all') {
         query = query.eq('availability_status', statusFilter);

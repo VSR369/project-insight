@@ -72,7 +72,8 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
       };
     },
     enabled: !!adminId,
-    staleTime: 30 * 1000,
+    staleTime: 60_000,
+    gcTime: 300_000,
   });
 
   const breachQuery = useQuery({

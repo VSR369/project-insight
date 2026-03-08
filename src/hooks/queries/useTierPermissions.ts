@@ -100,7 +100,8 @@ export function usePermissionAuditLog() {
         admin_name: adminMap[entry.changed_by_id] ?? 'Unknown',
       })) as PermissionAuditEntry[];
     },
-    staleTime: 30 * 1000,
+    staleTime: 60_000,
+    gcTime: 300_000,
   });
 }
 

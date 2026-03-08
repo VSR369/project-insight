@@ -81,14 +81,14 @@ export function useSeekerOrgDetail(orgId?: string) {
       if (orgErr) throw new Error(orgErr.message);
 
       const [contacts, compliance, subscription, billing, documents, industries, geographies, orgUsers, adminDelegation] = await Promise.all([
-        supabase.from('seeker_contacts').select('*').eq('organization_id', orgId).eq('is_deleted', false),
-        supabase.from('seeker_compliance').select('*, md_export_control_statuses(name), md_data_residency(name)').eq('organization_id', orgId).maybeSingle(),
-        supabase.from('seeker_subscriptions').select(`*, md_subscription_tiers!seeker_subscriptions_tier_id_fkey(name, code), md_billing_cycles(name, months), md_engagement_models(name)`).eq('organization_id', orgId).maybeSingle(),
-        supabase.from('seeker_billing_info').select(`*, countries!seeker_billing_info_billing_country_id_fkey(name)`).eq('organization_id', orgId).maybeSingle(),
-        supabase.from('seeker_org_documents').select('*').eq('organization_id', orgId).order('created_at'),
-        supabase.from('seeker_org_industries').select('*, industry_segments(name)').eq('organization_id', orgId),
-        supabase.from('seeker_org_operating_geographies').select('*, countries(name)').eq('organization_id', orgId),
-        supabase.from('org_users').select('*').eq('organization_id', orgId).eq('is_active', true),
+        supabase.from('seeker_contacts').select('id, first_name, last_name, email, phone_number, phone_country_code, job_title, department, contact_type, is_primary, is_decision_maker, is_active, organization_id, created_at').eq('organization_id', orgId).eq('is_deleted', false),
+        supabase.from('seeker_compliance').select('id, organization_id, export_control_status_id, data_residency_id, sanctions_screening_status, aml_status, created_at, updated_at, md_export_control_statuses(name), md_data_residency(name)').eq('organization_id', orgId).maybeSingle(),
+        supabase.from('seeker_subscriptions').select('id, organization_id, tier_id, billing_cycle_id, engagement_model_id, start_date, end_date, is_active, created_at, md_subscription_tiers!seeker_subscriptions_tier_id_fkey(name, code), md_billing_cycles(name, months), md_engagement_models(name)').eq('organization_id', orgId).maybeSingle(),
+        supabase.from('seeker_billing_info').select('id, organization_id, billing_contact_name, billing_email, billing_phone, billing_address_line1, billing_address_line2, billing_city, billing_state_province, billing_postal_code, billing_country_id, payment_method, bank_transaction_id, bank_name, payment_received_date, billing_verification_status, billing_verified_at, billing_verified_by, billing_verification_notes, billing_rejection_reason, created_at, updated_at, countries!seeker_billing_info_billing_country_id_fkey(name)').eq('organization_id', orgId).maybeSingle(),
+        supabase.from('seeker_org_documents').select('id, organization_id, document_type, file_name, file_size, mime_type, storage_path, verification_status, verified_at, verified_by, rejection_reason, expires_at, created_at').eq('organization_id', orgId).order('created_at'),
+        supabase.from('seeker_org_industries').select('id, organization_id, industry_id, industry_segments(name)').eq('organization_id', orgId),
+        supabase.from('seeker_org_operating_geographies').select('id, organization_id, country_id, countries(name)').eq('organization_id', orgId),
+        supabase.from('org_users').select('id, user_id, organization_id, role, is_active, joined_at, invitation_status').eq('organization_id', orgId).eq('is_active', true),
         supabase.from('org_admin_change_requests').select('new_admin_name, new_admin_email, new_admin_phone, new_admin_title, new_admin_relationship_to_org, lifecycle_status').eq('organization_id', orgId).eq('request_type', 'registration_delegate').maybeSingle(),
       ]);
 
