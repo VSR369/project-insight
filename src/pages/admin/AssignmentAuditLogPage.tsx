@@ -164,7 +164,7 @@ function AuditLogContent() {
             </SelectContent>
           </Select>
         </div>
-        <Button variant="outline" onClick={handleExportCSV} disabled={logs.length === 0} className="shrink-0">
+        <Button variant="outline" onClick={handleExportCsv} disabled={logs.length === 0} className="shrink-0">
           <Download className="h-4 w-4 mr-2" />
           Export CSV
         </Button>
