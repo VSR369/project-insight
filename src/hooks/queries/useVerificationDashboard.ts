@@ -1,11 +1,10 @@
 /**
  * React Query hooks for MOD-03: Verification Dashboard
- * GAP-3: Industry tags fetching
- * GAP-6: Org type fetching
- * GAP-18: Explicit column selections (no SELECT *)
+ * PERFORMANCE: Parallelized queries, cached admin profile
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useCurrentAdminProfile } from './useCurrentAdminProfile';
 
 /** Helper: fetch industry tags for a set of org IDs */
 async function fetchIndustryTags(orgIds: string[]): Promise<Record<string, string[]>> {
@@ -36,24 +35,49 @@ async function fetchOrgTypeMap(typeIds: string[]): Promise<Record<string, string
   return Object.fromEntries((data ?? []).map(t => [t.id, t.name]));
 }
 
+/** Helper: resolve orgs with country, type, and industry in parallel */
+async function resolveOrgDetails(orgIds: string[]) {
+  if (orgIds.length === 0) return new Map<string, any>();
+
+  const { data: orgs } = await supabase
+    .from('seeker_organizations')
+    .select('id, organization_name, hq_country_id, organization_type_id')
+    .in('id', orgIds);
+
+  const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
+  const typeIds = [...new Set((orgs ?? []).map(o => o.organization_type_id).filter(Boolean))] as string[];
+
+  // Parallel: countries + org types + industry tags
+  const [countriesRes, orgTypeMap, industryMap] = await Promise.all([
+    countryIds.length > 0
+      ? supabase.from('countries').select('id, name, code').in('id', countryIds)
+      : Promise.resolve({ data: [] as { id: string; name: string; code: string }[] }),
+    fetchOrgTypeMap(typeIds),
+    fetchIndustryTags(orgIds),
+  ]);
+
+  const countryMap = Object.fromEntries((countriesRes.data ?? []).map(c => [c.id, c]));
+  return new Map((orgs ?? []).map(o => [o.id, {
+    id: o.id,
+    organization_name: o.organization_name,
+    hq_country_id: o.hq_country_id,
+    country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
+    org_type: o.organization_type_id ? orgTypeMap[o.organization_type_id] ?? null : null,
+    industry_tags: industryMap[o.id] ?? [],
+  }]));
+}
+
 /**
  * Fetch current admin's assigned verifications (My Assignments tab)
+ * Uses cached admin profile to eliminate redundant auth lookups
  */
 export function useMyAssignments() {
+  const { data: profile } = useCurrentAdminProfile();
+
   return useQuery({
-    queryKey: ['verifications', 'my-assignments'],
+    queryKey: ['verifications', 'my-assignments', profile?.id],
+    enabled: !!profile?.id,
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('platform_admin_profiles')
-        .select('id')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (!profile) return [];
-
       const { data, error } = await supabase
         .from('platform_admin_verifications')
         .select(`
@@ -62,46 +86,20 @@ export function useMyAssignments() {
           sla_duration_seconds, sla_breached, sla_breach_tier,
           reassignment_count, is_current, created_at
         `)
-        .eq('assigned_admin_id', profile.id)
+        .eq('assigned_admin_id', profile!.id)
         .eq('is_current', true)
         .in('status', ['Under_Verification', 'Pending_Assignment'])
         .order('sla_start_at', { ascending: true });
 
       if (error) throw new Error(error.message);
+      if (!data || data.length === 0) return [];
 
-      const orgIds = [...new Set((data ?? []).map(d => d.organization_id))];
-      if (orgIds.length === 0) return [];
+      const orgIds = [...new Set(data.map(d => d.organization_id))];
+      const orgMap = await resolveOrgDetails(orgIds);
 
-      const { data: orgs } = await supabase
-        .from('seeker_organizations')
-        .select('id, organization_name, hq_country_id, organization_type_id')
-        .in('id', orgIds);
-
-      const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
-      const { data: countries } = countryIds.length > 0
-        ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
-        : { data: [] as { id: string; name: string; code: string }[] };
-
-      // GAP-6: Org type resolution
-      const typeIds = [...new Set((orgs ?? []).map(o => o.organization_type_id).filter(Boolean))] as string[];
-      const orgTypeMap = await fetchOrgTypeMap(typeIds);
-
-      // GAP-3: Industry tags
-      const industryMap = await fetchIndustryTags(orgIds);
-
-      const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
-      const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
-        id: o.id,
-        organization_name: o.organization_name,
-        hq_country_id: o.hq_country_id,
-        country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
-        org_type: o.organization_type_id ? orgTypeMap[o.organization_type_id] ?? null : null,
-        industry_tags: industryMap[o.id] ?? [],
-      }]));
-
-      return (data ?? []).map(v => ({
+      return data.map(v => ({
         ...v,
-        organization: orgMap[v.organization_id] ?? null,
+        organization: orgMap.get(v.organization_id) ?? null,
       }));
     },
     staleTime: 30_000,
@@ -138,34 +136,11 @@ export function useOpenQueue() {
         .in('id', verIds);
 
       const orgIds = [...new Set((verifications ?? []).map(v => v.organization_id))];
-      const { data: orgs } = orgIds.length > 0
-        ? await supabase.from('seeker_organizations').select('id, organization_name, hq_country_id, organization_type_id').in('id', orgIds)
-        : { data: [] as { id: string; organization_name: string; hq_country_id: string | null; organization_type_id: string | null }[] };
+      const orgMap = await resolveOrgDetails(orgIds);
 
-      const countryIds = [...new Set((orgs ?? []).map(o => o.hq_country_id).filter(Boolean))] as string[];
-      const { data: countries } = countryIds.length > 0
-        ? await supabase.from('countries').select('id, name, code').in('id', countryIds)
-        : { data: [] as { id: string; name: string; code: string }[] };
-
-      // GAP-6: Org type resolution
-      const typeIds = [...new Set((orgs ?? []).map(o => o.organization_type_id).filter(Boolean))] as string[];
-      const orgTypeMap = await fetchOrgTypeMap(typeIds);
-
-      // GAP-3: Industry tags
-      const industryMap = await fetchIndustryTags(orgIds);
-
-      const countryMap = Object.fromEntries((countries ?? []).map(c => [c.id, c]));
-      const orgMap = Object.fromEntries((orgs ?? []).map(o => [o.id, {
-        id: o.id,
-        organization_name: o.organization_name,
-        hq_country_id: o.hq_country_id,
-        country: o.hq_country_id ? countryMap[o.hq_country_id] ?? null : null,
-        org_type: o.organization_type_id ? orgTypeMap[o.organization_type_id] ?? null : null,
-        industry_tags: industryMap[o.id] ?? [],
-      }]));
       const verMap = Object.fromEntries((verifications ?? []).map(v => [v.id, {
         ...v,
-        organization: orgMap[v.organization_id] ?? null,
+        organization: orgMap.get(v.organization_id) ?? null,
       }]));
 
       return data.map(entry => ({
@@ -180,23 +155,16 @@ export function useOpenQueue() {
 
 /**
  * Fetch single verification with check results and assignment history.
- * GAP-18: Explicit column selections
+ * PERFORMANCE: Parallelized all independent queries via Promise.all
  */
 export function useVerificationDetail(verificationId: string | undefined) {
+  const { data: profile } = useCurrentAdminProfile();
+
   return useQuery({
     queryKey: ['verifications', 'detail', verificationId],
-    enabled: !!verificationId,
+    enabled: !!verificationId && profile !== undefined,
     queryFn: async () => {
       if (!verificationId) throw new Error('No verification ID');
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      const { data: profile } = await supabase
-        .from('platform_admin_profiles')
-        .select('id, admin_tier, is_supervisor')
-        .eq('user_id', user.id)
-        .maybeSingle();
 
       const { data: verification, error: vErr } = await supabase
         .from('platform_admin_verifications')
@@ -212,56 +180,57 @@ export function useVerificationDetail(verificationId: string | undefined) {
 
       if (vErr) throw new Error(vErr.message);
 
-      const { data: org } = await supabase
-        .from('seeker_organizations')
-        .select('id, organization_name, hq_country_id, organization_type_id, website_url, registration_number, verification_status')
-        .eq('id', verification.organization_id)
-        .single();
+      // ALL independent queries in parallel
+      const [orgRes, checksRes, historyRes, assignmentRes] = await Promise.all([
+        supabase
+          .from('seeker_organizations')
+          .select('id, organization_name, hq_country_id, organization_type_id, website_url, registration_number, verification_status')
+          .eq('id', verification.organization_id)
+          .single(),
+        supabase
+          .from('verification_check_results')
+          .select('id, verification_id, check_id, result, notes, updated_by, updated_at, created_at')
+          .eq('verification_id', verificationId)
+          .order('check_id'),
+        supabase
+          .from('verification_assignment_log')
+          .select('id, verification_id, event_type, from_admin_id, to_admin_id, reason, initiator, scoring_snapshot, created_at')
+          .eq('verification_id', verificationId)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('verification_assignments')
+          .select('id, assigned_at, assignment_method')
+          .eq('verification_id', verificationId)
+          .eq('is_current', true)
+          .maybeSingle(),
+      ]);
 
-      let country: { name: string; code: string } | null = null;
-      if (org?.hq_country_id) {
-        const { data: c } = await supabase.from('countries').select('name, code').eq('id', org.hq_country_id).single();
-        country = c;
-      }
+      const org = orgRes.data;
 
-      // GAP-C: Fetch industry segments for org
-      let industrySegmentIds: string[] = [];
-      let industryNames: string[] = [];
-      if (verification.organization_id) {
-        const { data: orgIndustries } = await supabase
+      // Second parallel batch: country, industries, assigned admin name
+      const [countryRes, orgIndustriesRes, assignedAdminRes] = await Promise.all([
+        org?.hq_country_id
+          ? supabase.from('countries').select('name, code').eq('id', org.hq_country_id).single()
+          : Promise.resolve({ data: null }),
+        supabase
           .from('seeker_org_industries')
           .select('industry_id')
-          .eq('organization_id', verification.organization_id);
-        
-        industrySegmentIds = (orgIndustries ?? []).map(oi => oi.industry_id);
-        
-        if (industrySegmentIds.length > 0) {
-          const { data: segments } = await supabase
-            .from('industry_segments')
-            .select('id, name')
-            .in('id', industrySegmentIds);
-          industryNames = (segments ?? []).map(s => s.name);
-        }
+          .eq('organization_id', verification.organization_id),
+        verification.assigned_admin_id && profile && verification.assigned_admin_id !== profile.id
+          ? supabase.from('platform_admin_profiles').select('full_name').eq('id', verification.assigned_admin_id).single()
+          : Promise.resolve({ data: null }),
+      ]);
+
+      const country = countryRes.data;
+      const industrySegmentIds = (orgIndustriesRes.data ?? []).map(oi => oi.industry_id);
+      let industryNames: string[] = [];
+      if (industrySegmentIds.length > 0) {
+        const { data: segments } = await supabase
+          .from('industry_segments')
+          .select('id, name')
+          .in('id', industrySegmentIds);
+        industryNames = (segments ?? []).map(s => s.name);
       }
-
-      const { data: checks } = await supabase
-        .from('verification_check_results')
-        .select('id, verification_id, check_id, result, notes, updated_by, updated_at, created_at')
-        .eq('verification_id', verificationId)
-        .order('check_id');
-
-      const { data: history } = await supabase
-        .from('verification_assignment_log')
-        .select('id, verification_id, event_type, from_admin_id, to_admin_id, reason, initiator, scoring_snapshot, created_at')
-        .eq('verification_id', verificationId)
-        .order('created_at', { ascending: false });
-
-      const { data: currentAssignment } = await supabase
-        .from('verification_assignments')
-        .select('id, assigned_at, assignment_method')
-        .eq('verification_id', verificationId)
-        .eq('is_current', true)
-        .maybeSingle();
 
       let viewState: 1 | 2 | 3 = 3;
       if (profile && verification.assigned_admin_id === profile.id) {
@@ -270,28 +239,9 @@ export function useVerificationDetail(verificationId: string | undefined) {
         viewState = 2;
       }
 
-      let assignedAdminName: string | null = null;
-      if (verification.assigned_admin_id && viewState !== 1) {
-        const { data: assignedAdmin } = await supabase
-          .from('platform_admin_profiles')
-          .select('full_name')
-          .eq('id', verification.assigned_admin_id)
-          .single();
-        assignedAdminName = assignedAdmin?.full_name ?? null;
-      }
-
-      // GAP-F: Fetch supervisor's own workload for isFullyLoaded
-      let isFullyLoaded = false;
-      if (profile) {
-        const { data: selfProfile } = await supabase
-          .from('platform_admin_profiles')
-          .select('current_active_verifications, max_concurrent_verifications')
-          .eq('id', profile.id)
-          .single();
-        if (selfProfile) {
-          isFullyLoaded = selfProfile.current_active_verifications >= selfProfile.max_concurrent_verifications;
-        }
-      }
+      const isFullyLoaded = profile
+        ? profile.current_active_verifications >= profile.max_concurrent_verifications
+        : false;
 
       return {
         verification: {
@@ -300,11 +250,11 @@ export function useVerificationDetail(verificationId: string | undefined) {
           industrySegmentIds,
           industryNames,
         },
-        checks: checks ?? [],
-        history: history ?? [],
-        currentAssignment,
+        checks: checksRes.data ?? [],
+        history: historyRes.data ?? [],
+        currentAssignment: assignmentRes.data,
         viewState,
-        assignedAdminName,
+        assignedAdminName: assignedAdminRes.data?.full_name ?? null,
         currentAdminProfileId: profile?.id ?? null,
         isFullyLoaded,
       };

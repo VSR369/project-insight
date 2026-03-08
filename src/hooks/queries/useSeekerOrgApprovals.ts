@@ -18,7 +18,7 @@ export function usePendingSeekerCount() {
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
-    staleTime: 30 * 1000,
+    staleTime: 120_000,  // 2 minutes — badge count, low priority
   });
 }
 
