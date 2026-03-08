@@ -36,7 +36,7 @@ function AuditLogContent() {
   const { data: logs = [], isLoading } = useEngineAuditLog(filters);
   const { data: admins = [] } = usePlatformAdmins();
 
-  const handleExportCSV = () => {
+  const handleExportCsv = () => {
     if (logs.length === 0) return;
     const headers = ['Date/Time', 'Verification ID', 'Org Name', 'Event', 'Assigned To', 'Score', 'Selection Reason', 'Pool Size', 'Initiator'];
     const rows = logs.map((log) => {
