@@ -23,6 +23,11 @@ function ReassignmentInboxContent() {
     requestId: string;
     adminReason: string;
     currentAdminId: string | null;
+    hqCountry: string;
+    reassignmentCount: number;
+    slaBreachTier?: string;
+    slaStartAt?: string | null;
+    slaDurationSeconds?: number | null;
   } | null>(null);
 
   const filtered = atRiskOnly
