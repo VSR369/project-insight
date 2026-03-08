@@ -113,18 +113,23 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
         }
       }
 
-      return (data || []).map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        organization_id: row.organization_id as string,
-        organization_name: (row.seeker_organizations as Record<string, unknown> | null)?.organization_name as string | null,
-        sla_breach_tier: row.sla_breach_tier as string | null,
-        completed_at: row.completed_at as string | null,
-        sla_start_at: row.sla_start_at as string | null,
-        sla_paused_duration_hours: row.sla_paused_duration_hours as number | null,
-        status: row.status as string,
-        sla_target_hours: SLA_TARGET_HOURS,
-        reassignment_count: reassignmentMap.get(row.id as string) || 0,
-      })) as SlaBreachRecord[];
+      return (data || []).map((row: Record<string, unknown>) => {
+        const org = row.seeker_organizations as Record<string, unknown> | null;
+        const industryObj = org?.industry_segments as Record<string, unknown> | null;
+        return {
+          id: row.id as string,
+          organization_id: row.organization_id as string,
+          organization_name: org?.organization_name as string | null,
+          industry_segment_name: industryObj?.name as string | null,
+          sla_breach_tier: row.sla_breach_tier as string | null,
+          completed_at: row.completed_at as string | null,
+          sla_start_at: row.sla_start_at as string | null,
+          sla_paused_duration_hours: row.sla_paused_duration_hours as number | null,
+          status: row.status as string,
+          sla_target_hours: SLA_TARGET_HOURS,
+          reassignment_count: reassignmentMap.get(row.id as string) || 0,
+        };
+      }) as SlaBreachRecord[];
     },
     enabled: !!adminId,
     staleTime: 60 * 1000,
