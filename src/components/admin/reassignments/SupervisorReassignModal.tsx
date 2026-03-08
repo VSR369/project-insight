@@ -1,6 +1,8 @@
 /**
  * MOD-M-04: Supervisor Reassign Modal
  * Entry points: "Assign →" on SCR-06-01, "Force Reassign" on SCR-06-02
+ * GAP-8: Current Admin info row
+ * GAP-9: Org summary with industry chips, HQ country, tier badge, SLA bar
  */
 import { useState } from 'react';
 import {
@@ -13,10 +15,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
 import { EligibleAdminsTable } from './EligibleAdminsTable';
+import { IndustryTagChips } from '@/components/admin/verifications/IndustryTagChips';
 import { useEligibleAdmins } from '@/hooks/queries/useEligibleAdmins';
 import { useReassignVerification } from '@/hooks/queries/useReassignVerification';
-import { AlertTriangle, Inbox } from 'lucide-react';
+import { AlertTriangle, Inbox, Globe, User } from 'lucide-react';
 
 interface SupervisorReassignModalProps {
   open: boolean;
@@ -29,10 +33,46 @@ interface SupervisorReassignModalProps {
   adminReason?: string;
   /** Org context for eligible admins RPC */
   hqCountry?: string;
+  hqCountryName?: string;
   industrySegments?: string[];
+  industryNames?: string[];
   orgType?: string;
   currentAdminId?: string;
+  currentAdminName?: string;
+  currentAdminAvailability?: string;
+  currentAdminPendingCount?: number;
   reassignmentCount?: number;
+  /** SLA context */
+  slaBreachTier?: string;
+  slaStartAt?: string | null;
+  slaDurationSeconds?: number | null;
+}
+
+function getTierBadge(tier: string | null | undefined) {
+  if (!tier || tier === 'NONE') return null;
+  const config: Record<string, { label: string; className: string }> = {
+    TIER1: { label: '⚠ T1', className: 'bg-amber-100 text-amber-800 border-amber-300' },
+    TIER2: { label: '🔴 T2', className: 'bg-red-100 text-red-800 border-red-300' },
+    TIER3: { label: '🚨 T3', className: 'bg-red-200 text-red-900 border-red-400' },
+  };
+  const c = config[tier];
+  return c ? <Badge variant="outline" className={c.className}>{c.label}</Badge> : null;
+}
+
+function CompactSLABar({ slaStartAt, slaDurationSeconds }: { slaStartAt: string | null; slaDurationSeconds: number | null }) {
+  if (!slaStartAt || !slaDurationSeconds) return null;
+  const elapsed = (Date.now() - new Date(slaStartAt).getTime()) / 1000;
+  const pct = Math.min((elapsed / slaDurationSeconds) * 100, 100);
+  const isBreached = elapsed > slaDurationSeconds;
+
+  return (
+    <div className="w-[100px] h-1.5 rounded-full bg-muted overflow-hidden">
+      <div
+        className={`h-full rounded-full ${isBreached ? 'bg-red-500' : pct > 80 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+        style={{ width: `${pct}%` }}
+      />
+    </div>
+  );
 }
 
 export function SupervisorReassignModal({
@@ -43,10 +83,18 @@ export function SupervisorReassignModal({
   requestId,
   adminReason,
   hqCountry = '',
+  hqCountryName,
   industrySegments = [],
+  industryNames = [],
   orgType,
   currentAdminId,
+  currentAdminName,
+  currentAdminAvailability,
+  currentAdminPendingCount,
   reassignmentCount = 0,
+  slaBreachTier,
+  slaStartAt,
+  slaDurationSeconds,
 }: SupervisorReassignModalProps) {
   const [selectedAdminId, setSelectedAdminId] = useState<string | null>(null);
   const [useQueue, setUseQueue] = useState(false);
@@ -88,10 +136,43 @@ export function SupervisorReassignModal({
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto space-y-4 py-2">
-          {/* Org summary */}
-          <div className="rounded-md border bg-muted/30 p-3">
-            <p className="font-medium text-sm">{orgName}</p>
+          {/* GAP-9: Org summary with industry, country, tier, SLA */}
+          <div className="rounded-md border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="font-medium text-sm">{orgName}</p>
+              <div className="flex items-center gap-2">
+                {getTierBadge(slaBreachTier)}
+                <CompactSLABar slaStartAt={slaStartAt ?? null} slaDurationSeconds={slaDurationSeconds ?? null} />
+              </div>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap text-xs text-muted-foreground">
+              {hqCountryName && (
+                <span className="flex items-center gap-1">
+                  <Globe className="h-3 w-3" />
+                  {hqCountryName}
+                </span>
+              )}
+              {industryNames.length > 0 && (
+                <IndustryTagChips tags={industryNames} maxVisible={3} />
+              )}
+            </div>
           </div>
+
+          {/* GAP-8: Current admin info row */}
+          {currentAdminName && (
+            <div className="rounded-md border bg-muted/20 p-3 flex items-center gap-3 text-sm">
+              <User className="h-4 w-4 text-muted-foreground shrink-0" />
+              <span>
+                Currently assigned to <strong>{currentAdminName}</strong>
+                {currentAdminAvailability && (
+                  <> · <Badge variant="outline" className="text-[10px] px-1.5 py-0">{currentAdminAvailability}</Badge></>
+                )}
+                {currentAdminPendingCount !== undefined && (
+                  <> · {currentAdminPendingCount} pending</>
+                )}
+              </span>
+            </div>
+          )}
 
           {/* Admin's original reason (from inbox) */}
           {adminReason && (
