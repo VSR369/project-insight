@@ -184,8 +184,8 @@ function VerificationDetailContent() {
           orgName={org?.organization_name ?? 'Unknown'}
           hqCountry={org?.hq_country_id ?? ''}
           hqCountryName={org?.country?.name}
-          industrySegments={(verification as any).industrySegmentIds ?? []}
-          industryNames={(verification as any).industryNames ?? []}
+          industrySegments={verification.industrySegmentIds ?? []}
+          industryNames={verification.industryNames ?? []}
           orgType={org?.organization_type_id ?? undefined}
           currentAdminId={verification.assigned_admin_id ?? undefined}
           currentAdminName={assignedAdminName ?? undefined}

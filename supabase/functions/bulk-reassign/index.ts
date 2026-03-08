@@ -81,7 +81,7 @@ serve(async (req) => {
       const { data: supervisors } = await supabase
         .from("platform_admin_profiles")
         .select("id")
-        .or("admin_tier.eq.supervisor,is_supervisor.eq.true");
+        .eq("admin_tier", "supervisor");
 
       if (supervisors && supervisors.length > 0) {
         const notifications = supervisors.map((sup) => ({

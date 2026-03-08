@@ -69,7 +69,7 @@ export function useReassignmentRequests(status: 'PENDING' | 'APPROVED' | 'DECLIN
           .in('id', verificationIds),
         supabase
           .from('platform_admin_profiles')
-          .select('id, full_name, availability_status')
+          .select('id, full_name, availability_status, current_active_verifications')
           .in('id', adminIds),
       ]);
 
