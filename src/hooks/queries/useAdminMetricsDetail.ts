@@ -10,6 +10,7 @@ export interface SlaBreachRecord {
   id: string;
   organization_id: string;
   organization_name: string | null;
+  industry_segment_name: string | null;
   sla_breach_tier: string | null;
   completed_at: string | null;
   sla_start_at: string | null;
@@ -82,10 +83,10 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
       const ninetyDaysAgo = new Date();
       ninetyDaysAgo.setDate(ninetyDaysAgo.getDate() - 90);
 
-      // Fetch breaches
+      // Fetch breaches with org name
       const { data, error } = await supabase
         .from('platform_admin_verifications')
-        .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name)')
+        .select('id, organization_id, sla_breach_tier, completed_at, sla_start_at, sla_paused_duration_hours, status, seeker_organizations(organization_name, industry_segment_id)')
         .eq('completed_by_admin_id', adminId)
         .eq('sla_breached', true)
         .gte('completed_at', ninetyDaysAgo.toISOString())
@@ -94,9 +95,37 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
 
       if (error) throw new Error(error.message);
 
-      // Fetch reassignment counts for these verifications
-      const verificationIds = (data || []).map((r: Record<string, unknown>) => r.id as string);
-      let reassignmentMap = new Map<string, number>();
+      const rows = (data || []) as unknown as Array<{
+        id: string;
+        organization_id: string;
+        sla_breach_tier: string | null;
+        completed_at: string | null;
+        sla_start_at: string | null;
+        sla_paused_duration_hours: number | null;
+        status: string;
+        seeker_organizations: { organization_name: string | null; industry_segment_id: string | null } | null;
+      }>;
+
+      // Collect unique industry segment IDs for name resolution
+      const industryIds = [...new Set(
+        rows.map(r => r.seeker_organizations?.industry_segment_id).filter(Boolean) as string[]
+      )];
+      let industryMap = new Map<string, string>();
+      if (industryIds.length > 0) {
+        const { data: segments } = await supabase
+          .from('industry_segments')
+          .select('id, name')
+          .in('id', industryIds);
+        if (segments) {
+          for (const s of segments) {
+            industryMap.set(s.id, s.name);
+          }
+        }
+      }
+
+      // Fetch reassignment counts
+      const verificationIds = rows.map(r => r.id);
+      const reassignmentMap = new Map<string, number>();
 
       if (verificationIds.length > 0) {
         const { data: logData } = await supabase
@@ -113,18 +142,22 @@ export function useAdminMetricsDetail(adminId: string | undefined, periodDays: n
         }
       }
 
-      return (data || []).map((row: Record<string, unknown>) => ({
-        id: row.id as string,
-        organization_id: row.organization_id as string,
-        organization_name: (row.seeker_organizations as Record<string, unknown> | null)?.organization_name as string | null,
-        sla_breach_tier: row.sla_breach_tier as string | null,
-        completed_at: row.completed_at as string | null,
-        sla_start_at: row.sla_start_at as string | null,
-        sla_paused_duration_hours: row.sla_paused_duration_hours as number | null,
-        status: row.status as string,
-        sla_target_hours: SLA_TARGET_HOURS,
-        reassignment_count: reassignmentMap.get(row.id as string) || 0,
-      })) as SlaBreachRecord[];
+      return rows.map((row): SlaBreachRecord => {
+        const indId = row.seeker_organizations?.industry_segment_id;
+        return {
+          id: row.id,
+          organization_id: row.organization_id,
+          organization_name: row.seeker_organizations?.organization_name ?? null,
+          industry_segment_name: indId ? (industryMap.get(indId) ?? null) : null,
+          sla_breach_tier: row.sla_breach_tier,
+          completed_at: row.completed_at,
+          sla_start_at: row.sla_start_at,
+          sla_paused_duration_hours: row.sla_paused_duration_hours,
+          status: row.status,
+          sla_target_hours: SLA_TARGET_HOURS,
+          reassignment_count: reassignmentMap.get(row.id) || 0,
+        };
+      });
     },
     enabled: !!adminId,
     staleTime: 60 * 1000,
