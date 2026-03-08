@@ -88,6 +88,7 @@ function VerificationDetailContent() {
           assignedAdminName={assignedAdminName ?? undefined}
           onReassignToMe={viewState === 2 ? handleReassignToMe : undefined}
           onForceReassign={viewState === 2 ? () => setShowForceReassign(true) : undefined}
+          isFullyLoaded={isFullyLoaded}
         />
       )}
 
