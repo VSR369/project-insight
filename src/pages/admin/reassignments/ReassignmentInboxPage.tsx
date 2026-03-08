@@ -123,6 +123,12 @@ function ReassignmentInboxContent() {
           orgName={assignModal.orgName}
           requestId={assignModal.requestId}
           adminReason={assignModal.adminReason}
+          hqCountry={assignModal.hqCountry}
+          currentAdminId={assignModal.currentAdminId ?? undefined}
+          reassignmentCount={assignModal.reassignmentCount}
+          slaBreachTier={assignModal.slaBreachTier}
+          slaStartAt={assignModal.slaStartAt}
+          slaDurationSeconds={assignModal.slaDurationSeconds}
         />
       )}
     </div>
