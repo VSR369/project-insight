@@ -48,7 +48,7 @@ function VerificationDetailContent() {
     );
   }
 
-  const { verification, checks, history, currentAssignment, viewState, assignedAdminName, currentAdminProfileId } = data;
+  const { verification, checks, history, currentAssignment, viewState, assignedAdminName, currentAdminProfileId, isFullyLoaded } = data;
   const org = verification.organization;
   const isEditable = viewState === 1;
 
@@ -88,6 +88,7 @@ function VerificationDetailContent() {
           assignedAdminName={assignedAdminName ?? undefined}
           onReassignToMe={viewState === 2 ? handleReassignToMe : undefined}
           onForceReassign={viewState === 2 ? () => setShowForceReassign(true) : undefined}
+          isFullyLoaded={isFullyLoaded}
         />
       )}
 
@@ -183,8 +184,8 @@ function VerificationDetailContent() {
           orgName={org?.organization_name ?? 'Unknown'}
           hqCountry={org?.hq_country_id ?? ''}
           hqCountryName={org?.country?.name}
-          industrySegments={(verification as any).industrySegmentIds ?? []}
-          industryNames={(verification as any).industryNames ?? []}
+          industrySegments={verification.industrySegmentIds ?? []}
+          industryNames={verification.industryNames ?? []}
           orgType={org?.organization_type_id ?? undefined}
           currentAdminId={verification.assigned_admin_id ?? undefined}
           currentAdminName={assignedAdminName ?? undefined}

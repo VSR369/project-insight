@@ -23,6 +23,9 @@ function ReassignmentInboxContent() {
     requestId: string;
     adminReason: string;
     currentAdminId: string | null;
+    currentAdminName: string | null;
+    currentAdminAvailability: string | null;
+    currentAdminPendingCount: number | null;
     hqCountry: string;
     reassignmentCount: number;
     slaBreachTier?: string;
@@ -101,6 +104,9 @@ function ReassignmentInboxContent() {
                       requestId: request.id,
                       adminReason: request.reason,
                       currentAdminId: request.requesting_admin_id,
+                      currentAdminName: request.requesting_admin?.full_name ?? null,
+                      currentAdminAvailability: request.requesting_admin?.availability_status ?? null,
+                      currentAdminPendingCount: (request.requesting_admin as any)?.current_active_verifications ?? null,
                       hqCountry: request.verification?.organization?.hq_country_id ?? '',
                       reassignmentCount: request.verification?.reassignment_count ?? 0,
                       slaBreachTier: request.verification?.sla_breach_tier ?? undefined,
@@ -125,6 +131,9 @@ function ReassignmentInboxContent() {
           adminReason={assignModal.adminReason}
           hqCountry={assignModal.hqCountry}
           currentAdminId={assignModal.currentAdminId ?? undefined}
+          currentAdminName={assignModal.currentAdminName ?? undefined}
+          currentAdminAvailability={assignModal.currentAdminAvailability ?? undefined}
+          currentAdminPendingCount={assignModal.currentAdminPendingCount ?? undefined}
           reassignmentCount={assignModal.reassignmentCount}
           slaBreachTier={assignModal.slaBreachTier}
           slaStartAt={assignModal.slaStartAt}

@@ -8697,6 +8697,8 @@ export type Database = {
           assigned_admin_id: string | null
           assigned_at: string
           assignment_method: string
+          close_reason: string | null
+          closed_at: string | null
           created_at: string
           domain_match_score: number | null
           fallback_reason: string | null
@@ -8711,6 +8713,8 @@ export type Database = {
           assigned_admin_id?: string | null
           assigned_at?: string
           assignment_method: string
+          close_reason?: string | null
+          closed_at?: string | null
           created_at?: string
           domain_match_score?: number | null
           fallback_reason?: string | null
@@ -8725,6 +8729,8 @@ export type Database = {
           assigned_admin_id?: string | null
           assigned_at?: string
           assignment_method?: string
+          close_reason?: string | null
+          closed_at?: string | null
           created_at?: string
           domain_match_score?: number | null
           fallback_reason?: string | null
@@ -8958,6 +8964,16 @@ export type Database = {
               p_hq_country: string
               p_industry_segments: string[]
               p_org_type?: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_hq_country: string
+              p_industry_segments: string[]
+              p_org_type?: string
+              p_skip_admin_id?: string
               p_verification_id: string
             }
             Returns: Json

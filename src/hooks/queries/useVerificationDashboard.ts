@@ -221,6 +221,26 @@ export function useVerificationDetail(verificationId: string | undefined) {
         country = c;
       }
 
+      // GAP-C: Fetch industry segments for org
+      let industrySegmentIds: string[] = [];
+      let industryNames: string[] = [];
+      if (verification.organization_id) {
+        const { data: orgIndustries } = await supabase
+          .from('seeker_org_industries')
+          .select('industry_id')
+          .eq('organization_id', verification.organization_id);
+        
+        industrySegmentIds = (orgIndustries ?? []).map(oi => oi.industry_id);
+        
+        if (industrySegmentIds.length > 0) {
+          const { data: segments } = await supabase
+            .from('industry_segments')
+            .select('id, name')
+            .in('id', industrySegmentIds);
+          industryNames = (segments ?? []).map(s => s.name);
+        }
+      }
+
       const { data: checks } = await supabase
         .from('verification_check_results')
         .select('id, verification_id, check_id, result, notes, updated_by, updated_at, created_at')
@@ -257,10 +277,25 @@ export function useVerificationDetail(verificationId: string | undefined) {
         assignedAdminName = assignedAdmin?.full_name ?? null;
       }
 
+      // GAP-F: Fetch supervisor's own workload for isFullyLoaded
+      let isFullyLoaded = false;
+      if (profile) {
+        const { data: selfProfile } = await supabase
+          .from('platform_admin_profiles')
+          .select('current_active_verifications, max_concurrent_verifications')
+          .eq('id', profile.id)
+          .single();
+        if (selfProfile) {
+          isFullyLoaded = selfProfile.current_active_verifications >= selfProfile.max_concurrent_verifications;
+        }
+      }
+
       return {
         verification: {
           ...verification,
           organization: org ? { ...org, country } : null,
+          industrySegmentIds,
+          industryNames,
         },
         checks: checks ?? [],
         history: history ?? [],
@@ -268,6 +303,7 @@ export function useVerificationDetail(verificationId: string | undefined) {
         viewState,
         assignedAdminName,
         currentAdminProfileId: profile?.id ?? null,
+        isFullyLoaded,
       };
     },
     staleTime: 15 * 1000,
