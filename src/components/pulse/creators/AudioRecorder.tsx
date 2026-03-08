@@ -181,7 +181,7 @@ export function AudioRecorder({
       setDuration(0);
       durationRef.current = 0;
 
-      console.log("[AudioRecorder] Requesting microphone permission...");
+      logDebug("[AudioRecorder] Requesting microphone permission...", { operation: "audio_recording" });
       
       // Build constraints with optional device selection
       const audioConstraints: MediaTrackConstraints = {
