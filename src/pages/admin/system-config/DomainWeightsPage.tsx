@@ -101,7 +101,7 @@ function useOrgTypes() {
 function DomainWeightsContent() {
   const navigate = useNavigate();
   const { data: config, isLoading } = useMpaConfig();
-  const updateConfig = useUpdateConfig();
+  const updateWeights = useUpdateDomainWeights();
   const { data: admins } = useAdminProfiles();
   const { data: industries } = useIndustrySegments();
   const { data: countries } = useCountries();
