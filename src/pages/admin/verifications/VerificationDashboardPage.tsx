@@ -8,6 +8,8 @@ import { Badge } from '@/components/ui/badge';
 import { ClipboardList, ListTodo, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { MyAssignmentsTab } from '@/components/admin/verifications/MyAssignmentsTab';
 import { OpenQueueTab } from '@/components/admin/verifications/OpenQueueTab';
+import { TeamOverviewCards } from '@/components/admin/verifications/TeamOverviewCards';
+import { useAdminTier } from '@/hooks/useAdminTier';
 import { supabase } from '@/integrations/supabase/client';
 
 /**
