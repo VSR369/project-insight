@@ -100,9 +100,12 @@ function ReassignmentInboxContent() {
                       orgName: request.verification?.organization?.organization_name ?? 'Unknown',
                       requestId: request.id,
                       adminReason: request.reason,
-                      currentAdminId: request.verification?.id
-                        ? null
-                        : null,
+                      currentAdminId: request.requesting_admin_id,
+                      hqCountry: request.verification?.organization?.hq_country_id ?? '',
+                      reassignmentCount: request.verification?.reassignment_count ?? 0,
+                      slaBreachTier: request.verification?.sla_breach_tier ?? undefined,
+                      slaStartAt: request.verification?.sla_start_at,
+                      slaDurationSeconds: request.verification?.sla_duration_seconds,
                     })
                   }
                 />
