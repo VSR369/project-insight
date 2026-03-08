@@ -2406,32 +2406,108 @@ export type Database = {
           created_by: string | null
           description: string | null
           id: string
+          is_critical: boolean
+          label: string
+          max_value: string | null
+          min_value: string | null
+          param_group: string
           param_key: string
+          param_type: string
           param_value: string | null
+          requires_restart: boolean
+          unit: string | null
           updated_at: string | null
           updated_by: string | null
+          updated_by_id: string | null
         }
         Insert: {
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          is_critical?: boolean
+          label?: string
+          max_value?: string | null
+          min_value?: string | null
+          param_group?: string
           param_key: string
+          param_type?: string
           param_value?: string | null
+          requires_restart?: boolean
+          unit?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_id?: string | null
         }
         Update: {
           created_at?: string
           created_by?: string | null
           description?: string | null
           id?: string
+          is_critical?: boolean
+          label?: string
+          max_value?: string | null
+          min_value?: string | null
+          param_group?: string
           param_key?: string
+          param_type?: string
           param_value?: string | null
+          requires_restart?: boolean
+          unit?: string | null
           updated_at?: string | null
           updated_by?: string | null
+          updated_by_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "md_mpa_config_updated_by_id_fkey"
+            columns: ["updated_by_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_mpa_config_audit: {
+        Row: {
+          change_reason: string | null
+          changed_at: string
+          changed_by_id: string
+          id: string
+          ip_address: string | null
+          new_value: string
+          param_key: string
+          previous_value: string | null
+        }
+        Insert: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by_id: string
+          id?: string
+          ip_address?: string | null
+          new_value: string
+          param_key: string
+          previous_value?: string | null
+        }
+        Update: {
+          change_reason?: string | null
+          changed_at?: string
+          changed_by_id?: string
+          id?: string
+          ip_address?: string | null
+          new_value?: string
+          param_key?: string
+          previous_value?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_mpa_config_audit_changed_by_id_fkey"
+            columns: ["changed_by_id"]
+            isOneToOne: false
+            referencedRelation: "platform_admin_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       md_org_types: {
         Row: {
@@ -8961,6 +9037,16 @@ export type Database = {
       execute_auto_assignment:
         | {
             Args: {
+              p_assignment_method?: string
+              p_hq_country_id: string
+              p_industry_segment_id: string
+              p_org_type_id: string
+              p_verification_id: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
               p_hq_country: string
               p_industry_segments: string[]
               p_org_type?: string
@@ -9043,6 +9129,7 @@ export type Database = {
           specialty_proof_points_count: number
         }[]
       }
+      get_config: { Args: never; Returns: Json }
       get_eligible_admins_ranked: {
         Args: {
           p_exclude_admin_id?: string
@@ -9226,6 +9313,15 @@ export type Database = {
             Args: {
               p_initiator?: string
               p_ip_address?: string
+              p_reason: string
+              p_verification_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_initiator?: string
+              p_ip_address?: string
               p_reason?: string
               p_to_admin_id?: string
               p_trigger?: string
@@ -9287,6 +9383,15 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       supervisor_reassign_to_self: {
         Args: { p_verification_id: string }
+        Returns: Json
+      }
+      update_config_param: {
+        Args: {
+          p_change_reason?: string
+          p_ip_address?: string
+          p_new_value: string
+          p_param_key: string
+        }
         Returns: Json
       }
       validate_tax_id: {
