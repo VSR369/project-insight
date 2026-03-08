@@ -25,7 +25,7 @@ export const platformAdminFormSchema = z.object({
   admin_tier: z.enum(['supervisor', 'senior_admin', 'admin']).default('admin'),
   industry_expertise: z.array(z.string().uuid()).min(1, 'At least one industry is required'),
   country_region_expertise: z.array(z.string().uuid()).default([]),
-  org_type_expertise: z.array(z.string()).default([]),
+  org_type_expertise: z.array(z.string().uuid()).default([]),
   max_concurrent_verifications: z.coerce.number().int().min(1).max(100).default(10),
   assignment_priority: z.coerce.number().int().min(1).max(10).default(5),
 });

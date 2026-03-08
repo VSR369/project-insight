@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -17,6 +15,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useState } from 'react';
+import { useIndustrySegments } from '@/hooks/queries/useMasterData';
 
 interface IndustryExpertisePickerProps {
   value: string[];
@@ -26,20 +25,7 @@ interface IndustryExpertisePickerProps {
 
 export function IndustryExpertisePicker({ value, onChange, disabled }: IndustryExpertisePickerProps) {
   const [open, setOpen] = useState(false);
-
-  const { data: industries } = useQuery({
-    queryKey: ['industry-segments-picker'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('industry_segments')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: industries } = useIndustrySegments();
 
   const selectedNames = industries?.filter((i) => value.includes(i.id)) ?? [];
 

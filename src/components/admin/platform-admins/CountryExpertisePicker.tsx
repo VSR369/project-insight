@@ -1,5 +1,3 @@
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { X } from 'lucide-react';
@@ -17,6 +15,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { useState } from 'react';
+import { useCountries } from '@/hooks/queries/useMasterData';
 
 interface CountryExpertisePickerProps {
   value: string[];
@@ -26,20 +25,7 @@ interface CountryExpertisePickerProps {
 
 export function CountryExpertisePicker({ value, onChange, disabled }: CountryExpertisePickerProps) {
   const [open, setOpen] = useState(false);
-
-  const { data: countries } = useQuery({
-    queryKey: ['countries-picker'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('countries')
-        .select('id, name')
-        .eq('is_active', true)
-        .order('name');
-      if (error) throw error;
-      return data;
-    },
-    staleTime: 5 * 60 * 1000,
-  });
+  const { data: countries } = useCountries();
 
   const selectedNames = countries?.filter((c) => value.includes(c.id)) ?? [];
 
