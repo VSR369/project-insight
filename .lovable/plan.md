@@ -1,261 +1,159 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# BRD Compliance Audit: CB-MPA-2026-001 vs. Codebase
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
-
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
-
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+Comprehensive analysis of all business rules, data model requirements, and UX specifications against the implemented code.
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## FULLY IMPLEMENTED (Compliant)
 
-## What Was Implemented
+The following BRD requirements are confirmed as correctly implemented:
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
-
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
-
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
-
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
-
-### MOD-02 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
-
----
-
-# MOD-02 Gap Fix Log (Latest)
-
-## What Was Fixed
-
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
-
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
-
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
-
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
+| Rule | Requirement | Implementation |
+|------|------------|----------------|
+| DD-MPA-001/002 | Auto-Assignment + Open Queue fallback | `assignment-engine` edge function + `open_queue_entries` table + `claim_from_queue` RPC |
+| DD-MPA-003 | Domain expertise profile (Industry, Country, OrgType) | `platform_admin_profiles` with `industry_expertise`, `country_region_expertise`, `org_type_expertise` JSONB arrays |
+| DD-MPA-005 | Supervisor designation, minimum one | `fn_guard_min_admins` trigger enforces BR-MPA-001/002 |
+| REQ-MPA-001/002 | Profile CRUD with tier-gated access | `manage-platform-admin` edge function + `TierGuard` component |
+| BR-MPA-001 | Minimum one Available admin | `fn_guard_min_admins` BEFORE UPDATE trigger blocks last-admin status change |
+| BR-MPA-002 | Minimum one Supervisor | Same trigger checks supervisor count |
+| BR-MPA-003 | Industry expertise mandatory | `fn_validate_industry_expertise` trigger |
+| BR-MPA-004 | Auto-calculated availability status | `fn_sync_admin_workload` trigger manages Available/Partially_Available/Fully_Loaded transitions |
+| BR-MPA-006 | Profile audit logging | `platform_admin_profile_audit_log` table with IP, actor, field, old/new values |
+| BR-MPA-010 | Assignment within 5s | `TIMEOUT_MS = 4500` in assignment-engine with retry logic |
+| BR-MPA-011 | Industry match hard gate | `execute_auto_assignment` RPC eliminates candidates with 0 L1 score |
+| BR-MPA-012 | Partially Available de-prioritization | Two-pass algorithm (Available first, then Partially Available fallback) in RPC |
+| BR-MPA-013 | Affinity routing on resubmission | `assignment-engine` checks original admin before standard engine |
+| BR-MPA-014 | Configurable scoring weights | `md_mpa_config` params `domain_weight_l1/l2/l3` + `update_domain_weights` RPC |
+| BR-MPA-015 | Assignment notification with context | `notify-admin-assignment` edge function with org name, industry, country, SLA deadline, deep-link |
+| BR-MPA-016 | Assignment audit log with scoring details | `verification_assignment_log` with `scoring_snapshot` JSONB |
+| BR-MPA-020 | Queue visibility for Available/Partially Available admins | RLS policy `oqe_select` on `open_queue_entries` |
+| BR-MPA-021 | Queue unclaimed SLA + repeat escalation | `queue-escalation` edge function with configurable thresholds |
+| BR-MPA-022 | Atomic claim with optimistic locking | `claim_from_queue` RPC with conflict detection, `ALREADY_CLAIMED` error |
+| BR-MPA-023 | No SLA reset on queue | SLA clock continues from `sla_start_at` (= payment_submitted_at) |
+| BR-MPA-024 | Admin release window (2hr configurable) | `release_to_queue` RPC with window check; `ReleaseToQueueModal` + `ReleaseWindowCountdown` |
+| BR-MPA-025 | Queue priority ordering (SLA urgency first) | Open queue query orders by `is_pinned DESC, is_critical DESC, sla_deadline ASC` |
+| BR-MPA-030 | SLA starts at Payment Submitted | `sla_start_at` set at verification creation, never reset |
+| BR-MPA-031 | SLA pauses during Return for Correction | `sla_paused_duration_hours` column tracked and subtracted |
+| BR-MPA-033 | Tier 1 warning at 80% | `sla-escalation` edge function, configurable via `sla_tier1_threshold_pct` |
+| BR-MPA-034 | Tier 2 breach at 100% | Notifications to admin + supervisors + courtesy email via `send-registrant-courtesy` |
+| BR-MPA-036 | Registrant courtesy notification | `send-registrant-courtesy` edge function for both Tier 2 and Tier 3 |
+| BR-MPA-037 | Configurable escalation thresholds | `sla_tier1/2/3_threshold_pct` in `md_mpa_config` |
+| BR-MPA-038 | Metrics visibility (self vs supervisor) | `useMyMetrics` (self) vs `useAllAdminMetrics` (supervisor), SCR-05-01/02 |
+| BR-MPA-039 | Concurrent access control (3 view states) | `viewState` 1/2/3 in `useVerificationDetail` (EDIT/READ-ONLY/BLOCKED) |
+| BR-MPA-040 | SLA continuity on reassignment | `reassign_verification` RPC preserves `sla_start_at` |
+| BR-MPA-042 | Reassignment notifications (both parties) | `REASSIGNMENT_OUT` / `REASSIGNMENT_IN` notifications in reassign RPCs |
+| BR-MPA-043 | Chain-of-custody audit with IP | `reassign_verification` RPC accepts `p_ip_address`; client captures via `getClientIP()` |
+| BR-MPA-044 | Bulk reassignment on leave | `bulk-reassign` edge function + `bulk_reassign_admin` RPC |
+| BR-MPA-045 | Reassignment limit (3 max) | `reassignment_count` tracked; `Request Reassignment` button disabled at >= 3 |
+| BR-MPA-046 | Notification retry handling | `process-notification-retries` edge function with 3 retries at 15-min intervals |
+| Section 8 | All 14 configurable master data parameters | `md_mpa_config` table with all required parameters seeded |
+| Section 9.1 | All 5 new entities created | `platform_admin_profiles`, `verification_assignments`, `verification_assignment_log`, `admin_performance_metrics`, `open_queue_entries` |
+| Section 9.3 | All triggers and constraints | Triggers for workload sync, industry validation, min-admins guard, leave date validation |
+| Section 9.4 | RLS policies per spec | Policies on all MPA tables with correct tenant/role scoping |
 
 ---
 
-# MOD-05: Performance Metrics Dashboard — Implementation Complete
+## GAPS FOUND (Not Fully Implemented)
 
-## What Was Implemented
+### GAP-1: CRITICAL — Tier 3 Auto-Reassignment Not Executed (BR-MPA-035)
 
-### Database (Migration)
-- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
-- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
-- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
-- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
-- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
+**BRD says:** "At 150% SLA elapsed, the system automatically reassigns the verification to the Supervisor with the highest domain match score."
 
-### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
-- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
-- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
-- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
-- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
-- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
+**Current code:** The `sla-escalation` function sends TIER3 notifications and pins unassigned entries as CRITICAL, but **does NOT actually execute the auto-reassignment**. The assigned admin keeps the verification. The comment says "Auto-reassignment triggered" in the notification text, but no `reassign_verification` RPC call is made.
 
-### Frontend — SCR-05-02: My Performance (All Admins)
-- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
-- No peer comparison data (BR-MPA-038(a))
-- Route: `/admin/my-performance` — all admin tiers
+**Fix:** After TIER3 detection for assigned verifications, the function should:
+1. Call `get_eligible_admins_ranked` filtering to supervisors only
+2. Call `reassign_verification` to the best-matching supervisor
+3. If no supervisor has capacity, move to Open Queue with CRITICAL badge
+4. Notify the original admin that the verification was escalated
 
-### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
-- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
-- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
-- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
-- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
+### GAP-2: HIGH — Open Queue Visibility Doesn't Filter On Leave/Inactive Admins (BR-MPA-020)
 
-### Shared Components
-- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
+**BRD says:** "The Open Queue is visible to ALL Platform Admins with status = Available or Partially Available. Admins On Leave or Inactive cannot see or claim from the queue."
 
-### Hooks
-- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
-- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
-- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
+**Current RLS:** The `oqe_select` policy only checks `has_role(auth.uid(), 'platform_admin')`. It does NOT filter by the admin's `availability_status`. An admin On Leave can still see and potentially claim queue entries.
 
-### Navigation
-- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
-- All routes lazy-loaded
+**Fix:** Add a subquery to the SELECT and UPDATE policies that checks the admin's `availability_status` is in ('Available', 'Partially_Available') OR they are a supervisor (for monitoring per the BRD exception).
 
-## MOD-05 Role-Based Access Matrix
+### GAP-3: HIGH — Open Queue Claim Doesn't Check Admin Capacity (BR-MPA-004/020)
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
-| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
-| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
-| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
-| CSV Export | ❌ | ❌ | ✅ |
+**BRD says:** Fully Loaded admins are ineligible. The claim RLS policy and `claim_from_queue` RPC should verify the claiming admin isn't at max capacity.
 
-## All 10 Gaps — Closed
+**Current code:** The `useClaimFromQueue` hook shows an `AT_CAPACITY` error message, suggesting the RPC *may* check this, but the RLS policy on `open_queue_entries` does not enforce it. Need to verify the `claim_from_queue` RPC includes a capacity check.
 
-| Gap | Fix |
-|-----|-----|
-| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
-| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
-| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
-| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
-| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
-| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
-| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
-| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
-| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
-| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
+### GAP-4: MEDIUM — BR-MPA-005(d) Leave Reminder Missing Scheduled Job
 
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
-- No route conflicts with existing paths
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+**BRD says:** "Send a reminder to the admin 1 business day before Leave Start Date listing their pending verifications and suggesting reassignment."
+
+**Current code:** The `leave-reminder` edge function exists but no `pg_cron` job is configured to actually invoke it. The function is dead code until a cron schedule is created.
+
+**Fix:** Add a `pg_cron` job: `SELECT cron.schedule('leave-reminder-daily', '0 8 * * *', $$SELECT ...$$)` or document that the user must configure this manually in the Supabase SQL editor.
+
+### GAP-5: MEDIUM — BR-MPA-005(e) Immediate Leave Doesn't Auto-Trigger Bulk Reassignment from UI
+
+**BRD says:** "If Leave Start Date is set to today's date, or if the admin sets availability status directly to On Leave without specifying a Leave Start Date, the system SHALL immediately stop routing new auto-assignments to this admin and trigger bulk reassignment."
+
+**Current code:** The `manage-platform-admin` edge function handles profile updates but the leave confirmation modal (MOD-M-08) for IMMEDIATE leave must invoke `bulk-reassign` after the status change. Need to verify the LeaveConfirmationModal triggers the bulk-reassign function for the IMMEDIATE variant.
+
+### GAP-6: MEDIUM — BR-MPA-032 SLA Individual Admin Responsibility Missing
+
+**BRD says:** "The SLA is tracked against the individual admin, not the platform collectively."
+
+**Current code:** `sla_duration_seconds` is on the verification record, not per-admin. The performance metrics track SLA compliance per admin, but the SLA configuration is global (one `sla_default_duration_seconds`). This is architecturally correct per the BRD (SLA is per-verification, tracked per-admin), so this is compliant. No gap.
+
+### GAP-7: LOW — Supervisor Pin Queue Feature (BR-MPA-025)
+
+**BRD says:** "Supervisors can pin specific verifications to the top of the queue."
+
+**Current code:** `usePinQueueEntry` mutation exists and `is_pinned` ordering is in the query. Confirmed implemented.
+
+### GAP-8: LOW — Performance Metric M3 (Average Processing Time) Calculation
+
+**BRD says:** "Mean elapsed admin-processing-time (excluding registrant correction periods)."
+
+**Current code:** `avg_processing_hours` is stored in `admin_performance_metrics` and displayed in the dashboard. The `refresh_performance_metrics` RPC presumably calculates this. Need to verify it subtracts `sla_paused_duration_hours`. This is likely correct but not fully verified without seeing the RPC body.
+
+### GAP-9: LOW — Executive Escalation Contact Fallback Warning
+
+**BRD says:** "If not configured at the time of a Tier 3 escalation event, the system SHALL notify ALL Supervisors. The system should display a persistent warning on login."
+
+**Current code:** `ExecutiveContactWarningBanner` exists on the dashboard and `AdminHeader`. The `sla-escalation` function sends Tier 2/3 notifications to all supervisors even when the contact IS configured (in addition to the executive). When not configured, supervisors still get notified. The persistent login warning is implemented. Compliant.
 
 ---
 
-# MOD-06: Reassignment Workflow — Implementation Complete
+## SUMMARY
 
-## What Was Implemented
+| Severity | Count | Description |
+|----------|-------|-------------|
+| CRITICAL | 1 | Tier 3 auto-reassignment not executed (notifications sent but no actual reassignment) |
+| HIGH | 2 | Open Queue visibility not filtered by admin status; claim capacity check in RLS |
+| MEDIUM | 2 | Leave reminder cron job missing; immediate leave bulk-reassign trigger verification needed |
+| LOW | 2 | Processing time calculation verification; minor consistency items |
 
-### Database (Migration)
-- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
-- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
-- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
-- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
-- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
-- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
+## IMPLEMENTATION PLAN
 
-### Edge Functions
-- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
+### Phase 1 — Critical: Tier 3 Auto-Reassignment (GAP-1)
 
-### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
-- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
-- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
-- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
-- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Reassignments" with pending count badge (supervisor only)
+Update `supabase/functions/sla-escalation/index.ts` to actually execute the reassignment when `targetTier === "TIER3"` and the verification is still assigned:
+- Look up eligible supervisors via `get_eligible_admins_ranked` RPC filtered to supervisors
+- Call `reassign_verification` with `p_initiator='SYSTEM'`, `p_trigger='ESCALATION'`
+- If no supervisor available, place in Open Queue with CRITICAL badge
+- Notify original admin of escalation removal
 
-### Frontend — MOD-M-04: Supervisor Reassign Modal
-- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
-- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
-- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
-- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
+### Phase 2 — High: Open Queue RLS Hardening (GAP-2, GAP-3)
 
-### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
-- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
-- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
+Create a migration to update Open Queue RLS policies:
+- `oqe_select`: Add availability status check (Available/Partially_Available OR supervisor)
+- `oqe_claim`: Add availability status check (Available/Partially_Available only)
+- Verify `claim_from_queue` RPC includes capacity check
 
-### Frontend — SCR-06-02: Extensions
-- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
-- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
+### Phase 3 — Medium: Leave Reminder Activation (GAP-4)
 
-## MOD-06 Role-Based Access Matrix
+Create a migration adding a `pg_cron` schedule to invoke the `leave-reminder` edge function daily at 8 AM UTC.
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
-| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
-| Approve/Decline Requests | ❌ | ❌ | ✅ |
-| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
-| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
+### Phase 4 — Medium: Immediate Leave Bulk-Reassign (GAP-5)
 
-## Business Rules Cross-Reference
+Verify and fix the leave confirmation modal to call `bulk-reassign` for IMMEDIATE leave transitions. This may already work via the database trigger on `availability_status` change, but needs confirmation.
 
-| BR | Enforcement | Status |
-|----|------------|--------|
-| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
-| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
-| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
-| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
-| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
-| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
-- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
-- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
-- No route conflicts with existing paths
