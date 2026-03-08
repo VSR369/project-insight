@@ -113,6 +113,7 @@ const seekerItems = [
 const otherItems = [
   { title: 'Question Bank', icon: FileQuestion, path: '/admin/questions' },
   { title: 'Capability Tags', icon: Tags, path: '/admin/capability-tags' },
+  { title: 'System Config', icon: Settings, path: '/admin/system-config', requiresSupervisor: true },
   { title: 'Regression Test Kit', icon: TestTube2, path: '/admin/regression-test-kit' },
   { title: 'Social Channel Test', icon: Activity, path: '/admin/pulse-social-test' },
   { title: 'Smoke Test', icon: Shield, path: '/admin/smoke-test' },
