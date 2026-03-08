@@ -227,7 +227,7 @@ export function AudioRecorder({
       mimeTypeRef.current = mimeType;
       extensionRef.current = extension;
       
-      console.log("[AudioRecorder] Using MIME type:", mimeType, "Extension:", extension);
+      logDebug(`[AudioRecorder] Using MIME type: ${mimeType}, Extension: ${extension}`, { operation: "audio_recording" });
       
       // Create MediaRecorder with or without explicit mimeType
       const recorderOptions: MediaRecorderOptions = {};
