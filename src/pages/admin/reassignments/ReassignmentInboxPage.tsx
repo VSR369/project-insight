@@ -13,8 +13,8 @@ import { InboxIcon } from 'lucide-react';
 
 function ReassignmentInboxContent() {
   const [tab, setTab] = useState<'PENDING' | 'APPROVED' | 'DECLINED'>('PENDING');
-  const [atRiskOnly, setAtRiskOnly] = useState(false);
   const { data: requests, isLoading } = useReassignmentRequests(tab);
+  const { data: pendingRequests } = useReassignmentRequests('PENDING');
 
   // Modal state
   const [assignModal, setAssignModal] = useState<{
@@ -33,12 +33,8 @@ function ReassignmentInboxContent() {
     slaDurationSeconds?: number | null;
   } | null>(null);
 
-  const filtered = atRiskOnly
-    ? (requests ?? []).filter(r => r.verification?.sla_breach_tier && r.verification.sla_breach_tier !== 'NONE')
-    : (requests ?? []);
-
   // Sort: breach tier DESC, then created_at ASC for PENDING
-  const sorted = [...filtered].sort((a, b) => {
+  const sorted = [...(requests ?? [])].sort((a, b) => {
     const tierOrder: Record<string, number> = { TIER3: 3, TIER2: 2, TIER1: 1, NONE: 0 };
     const aTier = tierOrder[a.verification?.sla_breach_tier ?? 'NONE'] ?? 0;
     const bTier = tierOrder[b.verification?.sla_breach_tier ?? 'NONE'] ?? 0;
@@ -46,39 +42,25 @@ function ReassignmentInboxContent() {
     return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
   });
 
-  const pendingCount = tab === 'PENDING' ? sorted.length : undefined;
+  const pendingCount = pendingRequests?.length ?? 0;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Reassignment Requests</h1>
-        {pendingCount !== undefined && pendingCount > 0 && (
-          <p className="text-sm text-muted-foreground mt-1">
-            {pendingCount} pending request{pendingCount !== 1 ? 's' : ''}
-          </p>
+      <h1 className="text-2xl font-bold">
+        Reassignment Requests
+        {pendingCount > 0 && (
+          <span className="text-muted-foreground font-normal text-lg ml-2">
+            ({pendingCount} pending)
+          </span>
         )}
-      </div>
+      </h1>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
-        <div className="flex items-center justify-between gap-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="PENDING">Pending</TabsTrigger>
-            <TabsTrigger value="APPROVED">Approved</TabsTrigger>
-            <TabsTrigger value="DECLINED">Declined</TabsTrigger>
-          </TabsList>
-
-          {tab === 'PENDING' && (
-            <label className="flex items-center gap-2 text-sm cursor-pointer">
-              <input
-                type="checkbox"
-                checked={atRiskOnly}
-                onChange={(e) => setAtRiskOnly(e.target.checked)}
-                className="rounded border-input"
-              />
-              At-Risk Only
-            </label>
-          )}
-        </div>
+        <TabsList>
+          <TabsTrigger value="PENDING">Pending{pendingCount > 0 ? ` (${pendingCount})` : ''}</TabsTrigger>
+          <TabsTrigger value="APPROVED">Approved</TabsTrigger>
+          <TabsTrigger value="DECLINED">Declined</TabsTrigger>
+        </TabsList>
 
         <TabsContent value={tab} className="mt-4">
           {isLoading ? (
