@@ -20,7 +20,7 @@ export function AssignmentPriorityBadge({ priority }: AssignmentPriorityBadgePro
 
   return (
     <Badge variant="secondary" className={cn(colorClass, 'font-mono')}>
-      {priority}
+      Priority {priority}
     </Badge>
   );
 }
