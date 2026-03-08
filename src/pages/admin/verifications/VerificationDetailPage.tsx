@@ -27,6 +27,7 @@ function VerificationDetailContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { data, isLoading, error, refetch } = useVerificationDetail(id);
+  const [showForceReassign, setShowForceReassign] = useState(false);
 
   if (isLoading) {
     return (
