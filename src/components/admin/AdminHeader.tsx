@@ -52,11 +52,14 @@ const pathNames: Record<string, string> = {
 export function AdminHeader() {
   const { user, signOut } = useAuth();
   const { isAdmin } = useUserRoles();
-  const { tier } = useAdminTier();
+  const { tier, isSupervisor } = useAdminTier();
   const location = useLocation();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const { data: escalationContactId, isLoading: configLoading } = useMpaConfigValue('executive_escalation_contact_id');
   const pathSegments = location.pathname.split('/').filter(Boolean);
+
+  const showEscalationWarning = isSupervisor && !configLoading && (!escalationContactId || escalationContactId === 'NULL');
 
   const firstName = user?.user_metadata?.first_name || 'Admin';
   const lastName = user?.user_metadata?.last_name || '';
