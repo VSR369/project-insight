@@ -32,7 +32,7 @@ export interface ReassignmentRequest {
     reassignment_count: number;
     organization?: {
       organization_name: string;
-      country_id: string | null;
+      hq_country_id: string | null;
     };
   };
 }
