@@ -44,6 +44,14 @@ export default function CreateDelegatedAdminPage() {
   const createAdmin = useCreateDelegatedAdmin();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
   const { data: expiryHours = 72 } = useActivationExpiryHours();
+  const { enabled: delegationEnabled } = useOrgDelegationEnabled();
+
+  // Redirect if delegation is disabled
+  useEffect(() => {
+    if (!delegationEnabled) {
+      navigate('/org/dashboard', { replace: true });
+    }
+  }, [delegationEnabled, navigate]);
 
   const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
