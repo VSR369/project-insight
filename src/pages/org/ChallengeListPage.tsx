@@ -52,11 +52,11 @@ export default function ChallengeListPage() {
   );
 
   return (
-    <OrgLayout
-      title="Challenges"
-      description="Manage your organization's challenges"
-      breadcrumbs={[{ label: 'Challenges' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Challenges</h1>
+        <p className="text-muted-foreground mt-1">Manage your organization's challenges</p>
+      </div>
       <div className="space-y-4">
         {/* Actions bar */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
