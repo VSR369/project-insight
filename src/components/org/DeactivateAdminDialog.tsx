@@ -73,12 +73,12 @@ export function DeactivateAdminDialog({ admin, organizationId, onClose }: Deacti
                   <p>
                     Are you sure you want to deactivate <strong>{admin?.full_name ?? admin?.email}</strong>?
                   </p>
-                  {scopeCount > 0 && (
-                    <p className="text-sm">
-                      This admin manages <strong>{scopeCount} scope assignment(s)</strong> which will be reassigned
-                      to the Primary admin.
-                    </p>
-                  )}
+                   {scopeCount > 0 && (
+                     <p className="text-sm">
+                       Deactivating <strong>{admin?.full_name ?? admin?.email}</strong> will reassign{' '}
+                       <strong>{scopeCount} role{scopeCount !== 1 ? 's' : ''}</strong> to you.
+                     </p>
+                   )}
                   <p className="text-sm text-destructive">
                     This will revoke their access to the organization portal. This action cannot be undone.
                   </p>

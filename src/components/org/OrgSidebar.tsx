@@ -78,7 +78,7 @@ export function OrgSidebar() {
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    navigate('/login');
+    navigate('/org/login');
   };
 
   const renderMenuSection = (items: typeof mainItems) => (
