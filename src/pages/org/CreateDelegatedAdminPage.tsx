@@ -3,7 +3,7 @@
  * Includes scope overlap warning (MOD-M-SOA-01), email blur validation, config-driven expiry.
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
