@@ -157,7 +157,7 @@ function PermissionsContent() {
                   {cat.permissions.map((perm) => (
                     <TableRow key={perm.key}>
                       <TableCell className="font-medium text-sm">{perm.label}</TableCell>
-                      {TIERS.map((tier) => {
+                      {visibleTiers.map((tier) => {
                         const entry = permMap[perm.key]?.[tier.key];
                         const enabled = entry?.is_enabled ?? false;
                         const isLocked = tier.key === 'supervisor';
