@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { supabase } from '@/integrations/supabase/client';
 
 export function OrgSidebar() {
