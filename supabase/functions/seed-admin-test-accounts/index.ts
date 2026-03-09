@@ -290,7 +290,6 @@ serve(async (req) => {
           .insert({
             user_id: soUserId,
             organization_id: orgId,
-            tenant_id: tenantId,
             admin_tier: "PRIMARY",
             status: "active",
             designation_method: "SELF",
