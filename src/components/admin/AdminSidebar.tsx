@@ -274,7 +274,7 @@ export function AdminSidebar() {
                   <span>Verifications</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/reassignments')}
