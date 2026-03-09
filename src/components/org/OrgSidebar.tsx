@@ -43,6 +43,7 @@ export function OrgSidebar() {
   const location = useLocation();
   const { orgName, tierCode, organizationId } = useOrgContext();
   const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
+  const { enabled: delegationEnabled } = useOrgDelegationEnabled();
 
   const isSOAdmin = !!currentAdmin;
   const isPrimary = currentAdmin?.admin_tier === 'PRIMARY';
