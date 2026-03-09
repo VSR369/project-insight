@@ -1,22 +1,31 @@
 /**
  * CreateDelegatedAdminPage — Form to create a new delegated admin with domain scope.
- * Includes scope overlap warning (MOD-M-SOA-01).
+ * Includes scope overlap warning (MOD-M-SOA-01), email blur validation, config-driven expiry.
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useCreateDelegatedAdmin, useDelegatedAdmins, checkScopeOverlap, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
+import {
+  useCreateDelegatedAdmin,
+  useDelegatedAdmins,
+  useActivationExpiryHours,
+  checkScopeOverlap,
+  checkEmailUniqueness,
+  EMPTY_SCOPE,
+  type DomainScope,
+} from '@/hooks/queries/useDelegatedAdmins';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
 import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
-import { ArrowLeft, Loader2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
@@ -32,11 +41,14 @@ export default function CreateDelegatedAdminPage() {
   const { organizationId } = useOrgContext();
   const createAdmin = useCreateDelegatedAdmin();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
+  const { data: expiryHours = 72 } = useActivationExpiryHours();
 
   const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
   const [overlappingAdmins, setOverlappingAdmins] = useState<{ name: string; email: string }[]>([]);
   const [pendingFormData, setPendingFormData] = useState<FormValues | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [inlineScopeOverlap, setInlineScopeOverlap] = useState<{ name: string; email: string }[]>([]);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
@@ -49,6 +61,28 @@ export default function CreateDelegatedAdminPage() {
     return `Temp${Date.now().toString(36).slice(-4)}!${Array.from(array, (b) => b.toString(36)).join('').slice(0, 8)}`;
   }, []);
 
+  // Email blur uniqueness check (Gap 8)
+  const handleEmailBlur = useCallback(async () => {
+    const email = form.getValues('email');
+    if (!email || !z.string().email().safeParse(email).success) return;
+    const isUnique = await checkEmailUniqueness(organizationId, email);
+    setEmailError(isUnique ? null : 'An admin with this email already exists in your organization');
+  }, [form, organizationId]);
+
+  // Scope change handler — check overlap on change (Gap 7)
+  const handleScopeChange = useCallback(
+    (newScope: DomainScope) => {
+      setScope(newScope);
+      if (newScope.industry_segment_ids.length > 0) {
+        const overlaps = checkScopeOverlap(newScope, existingAdmins);
+        setInlineScopeOverlap(overlaps);
+      } else {
+        setInlineScopeOverlap([]);
+      }
+    },
+    [existingAdmins]
+  );
+
   const doCreate = async (data: FormValues) => {
     await createAdmin.mutateAsync({
       organization_id: organizationId,
@@ -58,14 +92,16 @@ export default function CreateDelegatedAdminPage() {
       title: data.title,
       domain_scope: scope,
       temp_password: tempPassword,
+      expiry_hours: expiryHours,
     });
     navigate('/org/admin-management');
   };
 
   const onSubmit = async (data: FormValues) => {
     if (scope.industry_segment_ids.length === 0) return;
+    if (emailError) return;
 
-    // Check for scope overlap
+    // Final overlap check on submit
     const overlaps = checkScopeOverlap(scope, existingAdmins);
     if (overlaps.length > 0) {
       setOverlappingAdmins(overlaps);
@@ -128,8 +164,21 @@ export default function CreateDelegatedAdminPage() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Email *</FormLabel>
-                        <FormControl><Input {...field} type="email" placeholder="jane@company.com" /></FormControl>
+                        <FormControl>
+                          <Input
+                            {...field}
+                            type="email"
+                            placeholder="jane@company.com"
+                            onBlur={() => {
+                              field.onBlur();
+                              handleEmailBlur();
+                            }}
+                          />
+                        </FormControl>
                         <FormMessage />
+                        {emailError && (
+                          <p className="text-xs text-destructive mt-1">{emailError}</p>
+                        )}
                       </FormItem>
                     )}
                   />
@@ -161,9 +210,18 @@ export default function CreateDelegatedAdminPage() {
               {/* Domain Scope */}
               <div className="space-y-4 border-t pt-4">
                 <h3 className="text-sm font-semibold text-foreground">Domain Scope</h3>
-                <ScopeMultiSelect value={scope} onChange={setScope} />
+                <ScopeMultiSelect value={scope} onChange={handleScopeChange} />
                 {industryMissing && (
                   <p className="text-xs text-destructive">At least one industry segment is required.</p>
+                )}
+                {/* Inline scope overlap warning (Gap 7) */}
+                {inlineScopeOverlap.length > 0 && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Scope overlaps with: {inlineScopeOverlap.map((a) => a.name).join(', ')}. You can still proceed.
+                    </AlertDescription>
+                  </Alert>
                 )}
               </div>
 
@@ -171,7 +229,7 @@ export default function CreateDelegatedAdminPage() {
                 <Button type="button" variant="outline" onClick={() => navigate('/org/admin-management')}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createAdmin.isPending || industryMissing}>
+                <Button type="submit" disabled={createAdmin.isPending || industryMissing || !!emailError}>
                   {createAdmin.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                   Create Admin
                 </Button>

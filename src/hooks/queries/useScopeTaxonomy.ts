@@ -6,7 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-const CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000 };
+const CACHE = { staleTime: 5 * 60 * 1000, gcTime: 30 * 60 * 1000, refetchOnWindowFocus: false as const };
 
 /** Fetch proficiency areas for given industry segment IDs (all expertise levels) */
 export function useProficiencyAreasBySegments(industrySegmentIds: string[]) {

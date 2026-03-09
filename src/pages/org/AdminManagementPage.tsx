@@ -1,21 +1,22 @@
 /**
  * AdminManagementPage — Delegated Admin Management Console
  * PRIMARY admin can view, create, edit, and deactivate delegated admins.
+ * Uses DomainScopeDisplay for resolved scope names (Gap 11).
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useDelegatedAdmins, useMaxDelegatedAdmins, useCurrentSeekerAdmin, useDeactivateDelegatedAdmin } from '@/hooks/queries/useDelegatedAdmins';
-import { useIndustrySegments } from '@/hooks/queries/useMasterData';
+import { useDelegatedAdmins, useMaxDelegatedAdmins, useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Search, Edit, UserMinus, Loader2, Users, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Search, Edit, UserMinus, Users, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
+import { DomainScopeDisplay } from '@/components/org/DomainScopeDisplay';
 import type { DelegatedAdmin } from '@/hooks/queries/useDelegatedAdmins';
 
 const STATUS_STYLES: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
@@ -31,7 +32,6 @@ export default function AdminManagementPage() {
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
   const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
-  const { data: industries = [] } = useIndustrySegments();
 
   const [search, setSearch] = useState('');
   const [deactivateTarget, setDeactivateTarget] = useState<DelegatedAdmin | null>(null);
@@ -47,14 +47,6 @@ export default function AdminManagementPage() {
 
   const activeCount = (admins ?? []).filter((a) => a.status !== 'deactivated').length;
   const canAdd = activeCount < maxAdmins;
-
-  const resolveIndustryNames = (scope: any): string => {
-    const ids = scope?.industry_segment_ids ?? [];
-    if (ids.length === 0) return 'All';
-    return ids
-      .map((id: string) => industries.find((i) => i.id === id)?.name ?? id.slice(0, 8))
-      .join(', ');
-  };
 
   return (
     <div className="space-y-6">
@@ -115,60 +107,62 @@ export default function AdminManagementPage() {
               <p className="text-xs mt-1">Add delegated admins to help manage your organization</p>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Industry Scope</TableHead>
-                  <TableHead className="hidden lg:table-cell">Created</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredAdmins.map((admin) => {
-                  const style = STATUS_STYLES[admin.status] ?? STATUS_STYLES.deactivated;
-                  return (
-                    <TableRow key={admin.id}>
-                      <TableCell className="font-medium">{admin.full_name ?? '—'}</TableCell>
-                      <TableCell className="font-mono text-sm">{admin.email ?? '—'}</TableCell>
-                      <TableCell>
-                        <Badge variant={style.variant}>{style.label}</Badge>
-                      </TableCell>
-                      <TableCell className="max-w-[200px] truncate text-sm">
-                        {resolveIndustryNames(admin.domain_scope)}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                        {new Date(admin.created_at).toLocaleDateString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex gap-1 justify-end">
-                          {admin.status !== 'deactivated' && (
-                            <>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => navigate(`/org/admin-management/${admin.id}/edit`)}
-                              >
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setDeactivateTarget(admin)}
-                              >
-                                <UserMinus className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
+            <div className="relative w-full overflow-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Scope</TableHead>
+                    <TableHead className="hidden lg:table-cell">Created</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAdmins.map((admin) => {
+                    const style = STATUS_STYLES[admin.status] ?? STATUS_STYLES.deactivated;
+                    return (
+                      <TableRow key={admin.id}>
+                        <TableCell className="font-medium">{admin.full_name ?? '—'}</TableCell>
+                        <TableCell className="font-mono text-sm">{admin.email ?? '—'}</TableCell>
+                        <TableCell>
+                          <Badge variant={style.variant}>{style.label}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DomainScopeDisplay scope={admin.domain_scope} compact />
+                        </TableCell>
+                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                          {new Date(admin.created_at).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex gap-1 justify-end">
+                            {admin.status !== 'deactivated' && (
+                              <>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/org/admin-management/${admin.id}/edit`)}
+                                >
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => setDeactivateTarget(admin)}
+                                >
+                                  <UserMinus className="h-4 w-4 text-destructive" />
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
           )}
         </CardContent>
       </Card>

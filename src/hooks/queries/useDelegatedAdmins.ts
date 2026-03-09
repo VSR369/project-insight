@@ -6,7 +6,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
-import { handleMutationError } from '@/lib/errorHandler';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 
 export interface DomainScope {
   industry_segment_ids: string[];
@@ -59,6 +59,7 @@ export function useDelegatedAdmins(organizationId?: string) {
     },
     enabled: !!organizationId,
     staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -70,7 +71,7 @@ export function useCurrentSeekerAdmin(organizationId?: string) {
       if (!organizationId) return null;
       const { data, error } = await supabase
         .from('seeking_org_admins')
-        .select('id, admin_tier, status, full_name, email')
+        .select('id, admin_tier, status, full_name, email, user_id')
         .eq('organization_id', organizationId)
         .eq('admin_tier', 'PRIMARY')
         .maybeSingle();
@@ -79,6 +80,7 @@ export function useCurrentSeekerAdmin(organizationId?: string) {
     },
     enabled: !!organizationId,
     staleTime: 60_000,
+    refetchOnWindowFocus: false,
   });
 }
 
@@ -96,7 +98,41 @@ export function useMaxDelegatedAdmins() {
       return parseInt(data?.param_value ?? '5', 10);
     },
     staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
+}
+
+// ─── Get activation link expiry hours from config ───
+export function useActivationExpiryHours() {
+  return useQuery({
+    queryKey: ['mpa-config', 'activation_link_expiry_hours'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('md_mpa_config')
+        .select('param_value')
+        .eq('param_key', 'activation_link_expiry_hours')
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      return parseInt(data?.param_value ?? '72', 10);
+    },
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+}
+
+// ─── Check email uniqueness within org (for blur validation) ───
+export async function checkEmailUniqueness(
+  organizationId: string,
+  email: string
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('seeking_org_admins')
+    .select('id')
+    .eq('organization_id', organizationId)
+    .eq('email', email)
+    .neq('status', 'deactivated')
+    .limit(1);
+  return (data?.length ?? 0) === 0;
 }
 
 // ─── Create delegated admin ───
@@ -111,17 +147,11 @@ export function useCreateDelegatedAdmin() {
       title?: string;
       domain_scope: DomainScope;
       temp_password: string;
+      expiry_hours?: number;
     }) => {
       // 1. Check for duplicate email in this org
-      const { data: existing } = await supabase
-        .from('seeking_org_admins')
-        .select('id')
-        .eq('organization_id', params.organization_id)
-        .eq('email', params.email)
-        .neq('status', 'deactivated')
-        .limit(1);
-
-      if (existing && existing.length > 0) {
+      const isUnique = await checkEmailUniqueness(params.organization_id, params.email);
+      if (!isUnique) {
         throw new Error('An admin with this email already exists in your organization');
       }
 
@@ -158,21 +188,43 @@ export function useCreateDelegatedAdmin() {
         },
       });
       if (efError) {
-        console.error('create-org-admin failed for delegated admin:', efError);
+        logWarning('create-org-admin edge function failed for delegated admin', {
+          operation: 'create_delegated_admin',
+          additionalData: { email: params.email },
+        });
       }
 
-      // 4. Generate activation link
-      const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+      // 4. Generate activation link (config-driven expiry)
+      const expiryHours = params.expiry_hours ?? 72;
+      const expiresAt = new Date(Date.now() + expiryHours * 60 * 60 * 1000).toISOString();
+
+      // Generate SHA-256 hashed token
+      const rawToken = crypto.randomUUID() + '-' + crypto.randomUUID();
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(rawToken));
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const tokenHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
       await supabase
         .from('admin_activation_links')
         .insert({
           organization_id: params.organization_id,
           admin_id: soaRecord.id,
+          token: tokenHash,
           expires_at: expiresAt,
           status: 'pending',
         } as any);
 
-      return soaRecord;
+      // 5. Write audit log
+      await supabase.from('org_state_audit_log').insert({
+        organization_id: params.organization_id,
+        previous_status: 'none',
+        new_status: 'pending_activation',
+        change_reason: `Delegated admin created: ${params.full_name} (${params.email})`,
+        metadata: { admin_id: soaRecord.id, action: 'delegated_admin_created' },
+      } as any);
+
+      return { ...soaRecord, activation_token: rawToken };
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['delegated-admins', variables.organization_id] });
@@ -210,9 +262,13 @@ export function useUpdateDelegatedAdminScope() {
 export function useDeactivateDelegatedAdmin() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ adminId, organizationId }: { adminId: string; organizationId: string }) => {
+    mutationFn: async ({ adminId, organizationId, actorUserId }: {
+      adminId: string;
+      organizationId: string;
+      actorUserId?: string;
+    }) => {
       const { data, error } = await supabase.functions.invoke('deactivate-delegated-admin', {
-        body: { admin_id: adminId },
+        body: { admin_id: adminId, actor_user_id: actorUserId },
       });
       if (error) throw error;
       const result = data as { success: boolean; error?: { message: string } };
@@ -239,7 +295,6 @@ export function checkScopeOverlap(
 
   for (const admin of activeAdmins) {
     const existingScope = admin.domain_scope ?? EMPTY_SCOPE;
-    // Overlap if any industry_segment_ids intersect
     const industryOverlap = scope.industry_segment_ids.some(
       (id) => existingScope.industry_segment_ids.includes(id)
     );
@@ -252,4 +307,25 @@ export function checkScopeOverlap(
   }
 
   return overlapping;
+}
+
+// ─── Detect scope narrowing (edit context) ───
+export function detectScopeNarrowing(
+  oldScope: DomainScope,
+  newScope: DomainScope
+): { isNarrowed: boolean; removedCount: number } {
+  let removedCount = 0;
+  const fields: (keyof DomainScope)[] = [
+    'industry_segment_ids',
+    'proficiency_area_ids',
+    'sub_domain_ids',
+    'speciality_ids',
+    'department_ids',
+    'functional_area_ids',
+  ];
+  for (const field of fields) {
+    const removed = oldScope[field].filter((id) => !newScope[field].includes(id));
+    removedCount += removed.length;
+  }
+  return { isNarrowed: removedCount > 0, removedCount };
 }

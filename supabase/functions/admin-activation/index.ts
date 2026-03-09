@@ -2,10 +2,12 @@
  * admin-activation Edge Function (EF-SOA-03)
  *
  * Handles the /activate?token= flow:
- * 1. Validates token (not expired, not used)
+ * 1. Validates token (SHA-256 hashed, not expired, not used)
  * 2. Sets the user's password
  * 3. Updates seeking_org_admins.status to 'active'
  * 4. Marks activation link as used
+ * 5. Inserts tc_acceptances record with IP address
+ * 6. Logs audit trail
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -16,6 +18,14 @@ const corsHeaders = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
+
+async function sha256(message: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -45,14 +55,30 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // 1. Look up the activation link
-    const { data: link, error: linkError } = await supabaseAdmin
+    // Hash the incoming token for lookup (supports both plain UUID tokens and SHA-256 hashed tokens)
+    const tokenHash = await sha256(token);
+
+    // 1. Look up the activation link — try hashed first, then plain for backward compatibility
+    let link: any = null;
+    const { data: hashedLink, error: hashLinkError } = await supabaseAdmin
       .from("admin_activation_links")
       .select("id, admin_id, organization_id, expires_at, status, used_at")
-      .eq("token", token)
+      .eq("token", tokenHash)
       .single();
 
-    if (linkError || !link) {
+    if (!hashLinkError && hashedLink) {
+      link = hashedLink;
+    } else {
+      // Fallback: try plain token for backward compatibility
+      const { data: plainLink } = await supabaseAdmin
+        .from("admin_activation_links")
+        .select("id, admin_id, organization_id, expires_at, status, used_at")
+        .eq("token", token)
+        .single();
+      link = plainLink;
+    }
+
+    if (!link) {
       return new Response(
         JSON.stringify({ success: false, error: { code: "INVALID_TOKEN", message: "Activation link not found or invalid" } }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -105,6 +131,7 @@ serve(async (req) => {
     }
 
     const now = new Date().toISOString();
+    const clientIP = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
 
     // 6. Update seeking_org_admins status to active
     const { error: statusError } = await supabaseAdmin
@@ -146,6 +173,46 @@ serve(async (req) => {
     if (orgError) {
       console.error("Org status update failed:", orgError.message);
     }
+
+    // 9. Insert tc_acceptances record
+    if (adminRecord.user_id) {
+      // Get current active platform terms
+      const { data: activeTerm } = await supabaseAdmin
+        .from("platform_terms")
+        .select("id")
+        .eq("is_active", true)
+        .order("effective_date", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeTerm) {
+        // Generate acceptance hash
+        const acceptanceData = `${adminRecord.user_id}:${activeTerm.id}:${now}`;
+        const acceptanceHash = await sha256(acceptanceData);
+
+        await supabaseAdmin.from("tc_acceptances").insert({
+          user_id: adminRecord.user_id,
+          platform_terms_id: activeTerm.id,
+          accepted_at: now,
+          ip_address: clientIP,
+          acceptance_hash: acceptanceHash,
+        });
+      }
+    }
+
+    // 10. Write audit log
+    await supabaseAdmin.from("org_state_audit_log").insert({
+      organization_id: adminRecord.organization_id,
+      previous_status: "pending_activation",
+      new_status: "active",
+      changed_by: adminRecord.user_id,
+      change_reason: "Admin account activated via activation link",
+      metadata: {
+        action: "admin_activated",
+        admin_id: adminRecord.id,
+        ip_address: clientIP,
+      },
+    });
 
     return new Response(
       JSON.stringify({
