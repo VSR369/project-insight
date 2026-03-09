@@ -8621,6 +8621,44 @@ export type Database = {
         }
         Relationships: []
       }
+      tc_acceptances: {
+        Row: {
+          acceptance_hash: string | null
+          accepted_at: string
+          created_at: string
+          id: string
+          ip_address: string | null
+          platform_terms_id: string
+          user_id: string
+        }
+        Insert: {
+          acceptance_hash?: string | null
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          platform_terms_id: string
+          user_id: string
+        }
+        Update: {
+          acceptance_hash?: string | null
+          accepted_at?: string
+          created_at?: string
+          id?: string
+          ip_address?: string | null
+          platform_terms_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tc_acceptances_platform_terms_id_fkey"
+            columns: ["platform_terms_id"]
+            isOneToOne: false
+            referencedRelation: "platform_terms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tc_versions: {
         Row: {
           content_url: string | null
