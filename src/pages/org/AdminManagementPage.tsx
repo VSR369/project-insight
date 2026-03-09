@@ -177,10 +177,10 @@ export default function AdminManagementPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAdmins.map((admin, index) => {
+                    {paginatedAdmins.map((admin, index) => {
                       const statusCfg = STATUS_CONFIG[admin.status] ?? STATUS_CONFIG.deactivated;
                       const scope: DomainScope = (admin.domain_scope as DomainScope | null) ?? EMPTY_SCOPE;
-                      const colorClass = AVATAR_COLORS[index % AVATAR_COLORS.length];
+                      const colorClass = AVATAR_COLORS[(startIdx + index) % AVATAR_COLORS.length];
 
                       return (
                         <TableRow key={admin.id}>
@@ -249,9 +249,34 @@ export default function AdminManagementPage() {
                 </Table>
               </div>
 
-              {/* Footer count */}
-              <div className="pt-3 text-xs text-muted-foreground">
-                Showing {filteredAdmins.length} of {(admins ?? []).length} admins
+              {/* Footer count + pagination */}
+              <div className="flex items-center justify-between pt-3">
+                <span className="text-xs text-muted-foreground">
+                  Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, totalFiltered)} of {totalFiltered} admins
+                </span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}
