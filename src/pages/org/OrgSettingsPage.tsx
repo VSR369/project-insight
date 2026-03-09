@@ -16,17 +16,15 @@ import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
-import { OrgLayout } from '@/components/org/OrgLayout';
-
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
 
   return (
-    <OrgLayout
-      title="Organization Settings"
-      description="Manage your organization profile, admin, subscription, and engagement model."
-      breadcrumbs={[{ label: 'Settings' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Organization Settings</h1>
+        <p className="text-muted-foreground mt-1">Manage your organization profile, admin, subscription, and engagement model.</p>
+      </div>
       <FeatureErrorBoundary featureName="Org Settings Tabs">
         <Tabs defaultValue="profile" className="w-full">
         <TabsList className="grid w-full grid-cols-5">
