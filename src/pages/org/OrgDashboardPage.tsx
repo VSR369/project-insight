@@ -41,7 +41,11 @@ export default function OrgDashboardPage() {
 
   return (
     <FeatureErrorBoundary featureName="OrgDashboard">
-    <OrgLayout title="Dashboard" description={`Welcome to ${orgName}`}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Welcome to {orgName}</p>
+      </div>
       {/* T&C Re-acceptance / First-login modal */}
       <TcReAcceptanceModal
         orgId={organizationId}
