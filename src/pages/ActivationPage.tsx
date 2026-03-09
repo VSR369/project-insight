@@ -62,19 +62,21 @@ export default function ActivationPage() {
     validateToken();
   }, [token]);
 
+  const hasUpper = /[A-Z]/.test(password);
+  const hasLower = /[a-z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+  const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+  const meetsAllRules = password.length >= 8 && hasUpper && hasLower && hasNumber && hasSpecial;
+
   const passwordStrength = (() => {
     if (password.length < 8) return { label: 'Too short', color: 'text-destructive' };
-    const hasUpper = /[A-Z]/.test(password);
-    const hasLower = /[a-z]/.test(password);
-    const hasNumber = /[0-9]/.test(password);
-    const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
     const score = [hasUpper, hasLower, hasNumber, hasSpecial].filter(Boolean).length;
-    if (score <= 2) return { label: 'Weak', color: 'text-orange-500' };
-    if (score === 3) return { label: 'Good', color: 'text-yellow-500' };
+    if (score <= 2) return { label: 'Weak', color: 'text-destructive' };
+    if (score === 3) return { label: 'Good', color: 'text-orange-500' };
     return { label: 'Strong', color: 'text-green-500' };
   })();
 
-  const canSubmit = password.length >= 8 && password === confirmPassword && tcAccepted && !isSubmitting;
+  const canSubmit = meetsAllRules && password === confirmPassword && tcAccepted && !isSubmitting;
 
   const handleActivate = async () => {
     if (!canSubmit || !token) return;
