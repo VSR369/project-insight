@@ -1,12 +1,13 @@
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 /**
  * OrgDashboardPage — Dashboard hub for the Seeker Organization portal.
- * Shows usage gauges, tier info, quick actions, registration data summary.
+ * Renders role-specific dashboard for Primary SO Admins, generic for others.
  */
 
-
 import { TcReAcceptanceModal } from '@/components/org/TcReAcceptanceModal';
+import { PrimaryAdminDashboard } from '@/components/org/dashboard';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
 import { useOrgSubscription as useOrgSubBilling } from '@/hooks/queries/useBillingData';
 import { useOrgUsers } from '@/hooks/queries/useTeamData';
 import { useOrgProfile, useOrgSubscription as useOrgSubSettings } from '@/hooks/queries/useOrgSettings';
@@ -23,6 +24,8 @@ import { format } from 'date-fns';
 
 export default function OrgDashboardPage() {
   const { organizationId, orgName, tierCode, verificationStatus, tcVersionAccepted } = useOrgContext();
+  const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
+  const isPrimarySOAdmin = currentAdmin?.admin_tier === 'PRIMARY';
   const navigate = useNavigate();
 
   const { data: billingSubscription, isLoading: subLoading } = useOrgSubBilling(organizationId);
@@ -38,6 +41,21 @@ export default function OrgDashboardPage() {
         billingSubscription.per_challenge_fee_snapshot ?? 0
       )
     : null;
+
+  if (isPrimarySOAdmin) {
+    return (
+      <FeatureErrorBoundary featureName="OrgDashboard">
+        <>
+          <TcReAcceptanceModal
+            orgId={organizationId}
+            orgVerificationStatus={verificationStatus ?? ''}
+            currentTcVersion={tcVersionAccepted}
+          />
+          <PrimaryAdminDashboard />
+        </>
+      </FeatureErrorBoundary>
+    );
+  }
 
   return (
     <FeatureErrorBoundary featureName="OrgDashboard">
