@@ -81,10 +81,9 @@ const PAGE_SIZE = 20;
 
 export default function AdminManagementPage() {
   const navigate = useNavigate();
-  const { organizationId, orgName } = useOrgContext();
+  const { organizationId } = useOrgContext();
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
-  const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
   const { data: industries = [] } = useIndustrySegments();
 
   const [search, setSearch] = useState('');
