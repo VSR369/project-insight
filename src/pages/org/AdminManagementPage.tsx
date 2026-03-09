@@ -113,14 +113,7 @@ export default function AdminManagementPage() {
   return (
     <div className="space-y-6">
       {/* Context Banner */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ShieldCheck className="h-4 w-4" />
-        <span>{currentAdmin?.full_name ?? 'Admin'}</span>
-        <span className="text-muted-foreground/50">|</span>
-        <span>Organisation: {orgName}</span>
-        <span className="text-muted-foreground/50">|</span>
-        <Badge variant="outline" className="text-xs">Primary</Badge>
-      </div>
+      <SessionContextBanner />
 
       <Card>
         <CardHeader>
