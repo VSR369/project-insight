@@ -12,7 +12,7 @@ import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUs
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
 import { validateUserInvite } from '@/services/teamService';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { Users, UserPlus, Shield, Crown, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
