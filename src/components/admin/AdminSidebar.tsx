@@ -59,6 +59,7 @@ import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
 import { usePendingReassignmentCount } from '@/hooks/queries/useReassignmentRequests';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
 const masterDataItems = [
