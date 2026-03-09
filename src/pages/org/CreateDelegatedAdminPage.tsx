@@ -1,21 +1,22 @@
 /**
  * CreateDelegatedAdminPage — Form to create a new delegated admin with domain scope.
+ * Includes scope overlap warning (MOD-M-SOA-01).
  */
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useCreateDelegatedAdmin, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
+import { useCreateDelegatedAdmin, useDelegatedAdmins, checkScopeOverlap, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
+import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { ArrowLeft, Loader2, UserPlus } from 'lucide-react';
-import { useState } from 'react';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
@@ -30,7 +31,12 @@ export default function CreateDelegatedAdminPage() {
   const navigate = useNavigate();
   const { organizationId } = useOrgContext();
   const createAdmin = useCreateDelegatedAdmin();
+  const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
+
   const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
+  const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
+  const [overlappingAdmins, setOverlappingAdmins] = useState<{ name: string; email: string }[]>([]);
+  const [pendingFormData, setPendingFormData] = useState<FormValues | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
@@ -43,11 +49,7 @@ export default function CreateDelegatedAdminPage() {
     return `Temp${Date.now().toString(36).slice(-4)}!${Array.from(array, (b) => b.toString(36)).join('').slice(0, 8)}`;
   }, []);
 
-  const onSubmit = async (data: FormValues) => {
-    if (scope.industry_segment_ids.length === 0) {
-      return;
-    }
-
+  const doCreate = async (data: FormValues) => {
     await createAdmin.mutateAsync({
       organization_id: organizationId,
       full_name: data.full_name,
@@ -57,8 +59,30 @@ export default function CreateDelegatedAdminPage() {
       domain_scope: scope,
       temp_password: tempPassword,
     });
-
     navigate('/org/admin-management');
+  };
+
+  const onSubmit = async (data: FormValues) => {
+    if (scope.industry_segment_ids.length === 0) return;
+
+    // Check for scope overlap
+    const overlaps = checkScopeOverlap(scope, existingAdmins);
+    if (overlaps.length > 0) {
+      setOverlappingAdmins(overlaps);
+      setPendingFormData(data);
+      setOverlapWarningOpen(true);
+      return;
+    }
+
+    await doCreate(data);
+  };
+
+  const handleOverlapConfirm = async () => {
+    setOverlapWarningOpen(false);
+    if (pendingFormData) {
+      await doCreate(pendingFormData);
+      setPendingFormData(null);
+    }
   };
 
   const industryMissing = scope.industry_segment_ids.length === 0;
@@ -156,6 +180,16 @@ export default function CreateDelegatedAdminPage() {
           </Form>
         </CardContent>
       </Card>
+
+      <ScopeOverlapWarning
+        open={overlapWarningOpen}
+        overlappingAdmins={overlappingAdmins}
+        onConfirm={handleOverlapConfirm}
+        onCancel={() => {
+          setOverlapWarningOpen(false);
+          setPendingFormData(null);
+        }}
+      />
     </div>
   );
 }
