@@ -42,6 +42,21 @@ export default function OrgDashboardPage() {
       )
     : null;
 
+  if (isPrimarySOAdmin) {
+    return (
+      <FeatureErrorBoundary featureName="OrgDashboard">
+        <>
+          <TcReAcceptanceModal
+            orgId={organizationId}
+            orgVerificationStatus={verificationStatus ?? ''}
+            currentTcVersion={tcVersionAccepted}
+          />
+          <PrimaryAdminDashboard />
+        </>
+      </FeatureErrorBoundary>
+    );
+  }
+
   return (
     <FeatureErrorBoundary featureName="OrgDashboard">
     <>
