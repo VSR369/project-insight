@@ -58,6 +58,8 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
   const [reason, setReason] = useState('');
   const updateConfig = useUpdateConfig();
   const isUuidType = entry.param_type === 'UUID';
+  const enumOptions = ENUM_OPTIONS[entry.param_key];
+  const isEnumType = !!enumOptions;
   const { data: adminOptions } = useAdminOptions();
 
   const handleSave = () => {
