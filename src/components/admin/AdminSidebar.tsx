@@ -436,7 +436,7 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-                {isSupervisor && complianceConfigItems.map((item) => (
+                {effectiveSupervisor && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       onClick={() => navigate(item.path)}
