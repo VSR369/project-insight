@@ -169,7 +169,7 @@ export function AdminSidebar() {
           <Shield className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
             <span className="text-lg font-semibold">Admin Panel</span>
-            {!tierLoading && tier && (
+            {!tierLoading && tier && depth > 1 && (
               <span className="text-xs text-muted-foreground capitalize">
                 {tier === 'senior_admin' ? 'Senior Admin' : tier}
               </span>
