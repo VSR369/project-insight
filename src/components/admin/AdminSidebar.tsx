@@ -516,8 +516,8 @@ export function AdminSidebar() {
               {/* Other menu items */}
               {otherItems
                 .filter((item) => {
-                  if ('requiresSupervisor' in item && item.requiresSupervisor) return isSupervisor;
-                  if ('requiresTier' in item && item.requiresTier) return isSupervisor || isSeniorAdmin;
+                  if ('requiresSupervisor' in item && item.requiresSupervisor) return effectiveSupervisor;
+                  if ('requiresTier' in item && item.requiresTier) return effectiveSupervisor || isSeniorAdmin;
                   return true;
                 })
                 .map((item) => (
