@@ -350,7 +350,7 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
               {/* GAP-2: Permissions Management — supervisor only */}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/permissions')}
