@@ -303,7 +303,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/performance')}
