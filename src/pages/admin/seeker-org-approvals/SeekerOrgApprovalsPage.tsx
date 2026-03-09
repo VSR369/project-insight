@@ -7,8 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useSeekerOrgList, useMyAssignedOrgIds } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSeekerOrgList } from '@/hooks/queries/useSeekerOrgApprovals';
 import { useCurrentAdminProfile } from '@/hooks/queries/useCurrentAdminProfile';
+import { useMpaConfigValue } from '@/hooks/queries/useMpaConfig';
 import { format } from 'date-fns';
 import type { SeekerOrgListItem } from './types';
 
@@ -32,25 +33,22 @@ export default function SeekerOrgApprovalsPage() {
 
   const { data: profile, isLoading: profileLoading } = useCurrentAdminProfile();
   const isSupervisor = profile?.admin_tier === 'supervisor';
-
-  // For non-supervisors: get their assigned org IDs
-  const { data: assignedOrgIds, isLoading: assignedLoading } = useMyAssignedOrgIds(
-    !isSupervisor && profile?.id ? profile.id : undefined
-  );
+  const { data: assignmentMode } = useMpaConfigValue('org_verification_assignment_mode');
+  const isOpenClaimMode = assignmentMode !== 'auto_assign';
 
   // Determine filtering
   const isUnassignedTab = tab === 'unassigned';
   const effectiveStatus = isUnassignedTab ? 'payment_submitted' : tab;
 
+  // In open_claim mode: all admins see all orgs (shared inbox)
+  // In auto_assign mode: non-supervisors see only assigned orgs
   const { data: orgs, isLoading: orgsLoading } = useSeekerOrgList(
     effectiveStatus,
-    // Non-supervisors: filter to assigned orgs (except on unassigned tab which is supervisor-only)
-    isSupervisor ? null : (assignedOrgIds ?? null),
-    // Unassigned tab: filter to orgs without an admin
+    null, // No assignment filtering on this page — it's a browse inbox
     isUnassignedTab ? true : false
   );
 
-  const isLoading = profileLoading || assignedLoading || orgsLoading;
+  const isLoading = profileLoading || orgsLoading;
 
   const handleTabChange = (value: string) => {
     setTab(value);

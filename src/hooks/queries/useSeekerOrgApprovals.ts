@@ -496,6 +496,39 @@ export function useStartVerification() {
   });
 }
 
+// ─── Atomic claim for open_claim mode (concurrency-safe) ───
+export function useClaimOrgForVerification() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ orgId, adminId }: { orgId: string; adminId: string }) => {
+      const { data, error } = await supabase.rpc('claim_org_for_verification', {
+        p_org_id: orgId,
+        p_admin_id: adminId,
+      });
+      if (error) throw new Error(error.message);
+      const result = data as unknown as { success: boolean; error?: string; claimed_by?: string; verification_id?: string };
+      if (!result.success) {
+        const err = new Error(result.error ?? 'Claim failed') as Error & { claimedBy?: string };
+        if (result.error === 'already_claimed') {
+          err.claimedBy = result.claimed_by;
+        }
+        throw err;
+      }
+      return result;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
+    },
+    onError: (error: Error & { claimedBy?: string }) => {
+      if (error.claimedBy) {
+        // Don't use generic error handler — caller handles this specially
+        return;
+      }
+      handleMutationError(error, { operation: 'claim_org_for_verification', component: 'seeker-org-approvals' });
+    },
+  });
+}
+
 // ─── Duplicate check for verification ───
 export function useDuplicateCheck(orgName: string, countryId: string | null) {
   return useQuery({
