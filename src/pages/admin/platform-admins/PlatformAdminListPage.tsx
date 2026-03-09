@@ -219,7 +219,7 @@ function PlatformAdminListContent() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        {canEdit && (isSupervisor || (admin as any).admin_tier === 'admin') && (
+                        {canEdit && (effectiveSupervisor || (admin as any).admin_tier === 'admin') && (
                           <Button
                             variant="ghost"
                             size="icon"
