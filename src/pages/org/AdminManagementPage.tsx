@@ -88,6 +88,7 @@ export default function AdminManagementPage() {
   const { data: industries = [] } = useIndustrySegments();
 
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [deactivateTarget, setDeactivateTarget] = useState<DelegatedAdmin | null>(null);
 
   const filteredAdmins = (admins ?? []).filter((a) => {
