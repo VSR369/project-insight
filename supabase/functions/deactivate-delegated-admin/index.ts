@@ -2,9 +2,10 @@
  * deactivate-delegated-admin Edge Function (EF-SOA-04)
  *
  * Deactivates a delegated seeking org admin:
- * 1. Updates seeking_org_admins.status to 'deactivated'
- * 2. Deactivates the org_users record
- * 3. Logs audit trail
+ * 1. Validates actor is not self-deactivating
+ * 2. Updates seeking_org_admins.status to 'deactivated'
+ * 3. Deactivates the org_users record
+ * 4. Logs audit trail to org_state_audit_log
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -22,7 +23,7 @@ serve(async (req) => {
   }
 
   try {
-    const { admin_id, reason } = await req.json();
+    const { admin_id, actor_user_id, reason } = await req.json();
 
     if (!admin_id) {
       return new Response(
@@ -40,7 +41,7 @@ serve(async (req) => {
     // 1. Get the admin record
     const { data: adminRecord, error: fetchError } = await supabaseAdmin
       .from("seeking_org_admins")
-      .select("id, user_id, organization_id, admin_tier, status")
+      .select("id, user_id, organization_id, admin_tier, status, full_name, email")
       .eq("id", admin_id)
       .single();
 
@@ -59,9 +60,18 @@ serve(async (req) => {
       );
     }
 
-    const now = new Date().toISOString();
+    // 3. Prevent self-deactivation
+    if (actor_user_id && adminRecord.user_id && actor_user_id === adminRecord.user_id) {
+      return new Response(
+        JSON.stringify({ success: false, error: { code: "SELF_DEACTIVATION_BLOCKED", message: "You cannot deactivate your own account" } }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
 
-    // 3. Deactivate seeking_org_admins record
+    const now = new Date().toISOString();
+    const clientIP = req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip") ?? "unknown";
+
+    // 4. Deactivate seeking_org_admins record
     const { error: deactError } = await supabaseAdmin
       .from("seeking_org_admins")
       .update({ status: "deactivated", updated_at: now })
@@ -69,7 +79,7 @@ serve(async (req) => {
 
     if (deactError) throw new Error(deactError.message);
 
-    // 4. Deactivate org_users record if user exists
+    // 5. Deactivate org_users record if user exists
     if (adminRecord.user_id) {
       await supabaseAdmin
         .from("org_users")
@@ -77,6 +87,20 @@ serve(async (req) => {
         .eq("user_id", adminRecord.user_id)
         .eq("organization_id", adminRecord.organization_id);
     }
+
+    // 6. Write audit log
+    await supabaseAdmin.from("org_state_audit_log").insert({
+      organization_id: adminRecord.organization_id,
+      previous_status: adminRecord.status,
+      new_status: "deactivated",
+      changed_by: actor_user_id ?? null,
+      change_reason: reason ?? `Delegated admin deactivated: ${adminRecord.full_name ?? adminRecord.email}`,
+      metadata: {
+        action: "delegated_admin_deactivated",
+        admin_id: admin_id,
+        ip_address: clientIP,
+      },
+    });
 
     return new Response(
       JSON.stringify({ success: true, data: { deactivated_admin_id: admin_id } }),

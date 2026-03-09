@@ -1,5 +1,6 @@
 /**
  * OrgAdminLoginPage — SCR-SOA-06: Dedicated login for Org Admins at /org/login
+ * Handles deactivated/suspended status messages (Gap 12).
  */
 
 import { useState } from 'react';
@@ -68,13 +69,12 @@ export default function OrgAdminLoginPage() {
         return;
       }
 
-      // Check seeking_org_admins status
+      // Check seeking_org_admins status — include deactivated/suspended for specific messages
       const { data: adminRecord } = await supabase
         .from('seeking_org_admins')
         .select('admin_tier, status')
         .eq('organization_id', orgUser.organization_id)
         .eq('email', email)
-        .in('status', ['active', 'pending_activation'])
         .limit(1)
         .maybeSingle();
 
@@ -84,9 +84,28 @@ export default function OrgAdminLoginPage() {
         return;
       }
 
+      // Status-specific messages
+      if (adminRecord.status === 'deactivated') {
+        await supabase.auth.signOut();
+        toast.error('Your account has been deactivated. Contact your Primary Admin or Platform Admin.');
+        return;
+      }
+
+      if (adminRecord.status === 'suspended') {
+        await supabase.auth.signOut();
+        toast.error('Your account has been suspended. Contact your Primary Admin or Platform Admin.');
+        return;
+      }
+
       if (adminRecord.status === 'pending_activation') {
         await supabase.auth.signOut();
         toast.error('Your account is pending activation. Please check your email for the activation link.');
+        return;
+      }
+
+      if (adminRecord.status !== 'active') {
+        await supabase.auth.signOut();
+        toast.error('Your account is not active. Contact your organization administrator.');
         return;
       }
 
