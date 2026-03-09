@@ -14,6 +14,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { TierGuard } from "@/components/admin/TierGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
+import { OrgShell } from "@/components/org/OrgShell";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";

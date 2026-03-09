@@ -282,6 +282,6 @@ export default function OrgBillingPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </OrgLayout>
+    </>
   );
 }

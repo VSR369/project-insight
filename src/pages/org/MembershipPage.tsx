@@ -337,6 +337,6 @@ export default function MembershipPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </OrgLayout>
+    </>
   );
 }

@@ -71,6 +71,6 @@ export default function OrgSettingsPage() {
         </TabsContent>
         </Tabs>
       </FeatureErrorBoundary>
-    </OrgLayout>
+    </>
   );
 }

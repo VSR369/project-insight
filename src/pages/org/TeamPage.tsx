@@ -205,6 +205,6 @@ export default function TeamPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </OrgLayout>
+    </>
   );
 }
