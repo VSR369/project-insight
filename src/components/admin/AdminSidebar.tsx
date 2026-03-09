@@ -130,6 +130,7 @@ export function AdminSidebar() {
   const { data: pendingSeekerCount } = usePendingSeekerCount();
   const { data: pendingReassignmentCount } = usePendingReassignmentCount();
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
+  const { depth } = usePlatformTierDepth();
 
   // Prefetch top admin routes on mount
   useEffect(() => {
@@ -144,9 +145,10 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
-  // Tier-based visibility
-  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
-  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
+  // Tier-based visibility — depth=1 means everyone is effectively supervisor
+  const effectiveSupervisor = isSupervisor || depth === 1;
+  const canSeeTeamManagement = effectiveSupervisor || isSeniorAdmin;
+  const canSeeSeekerConfig = effectiveSupervisor || isSeniorAdmin;
 
   // Build team management items based on tier
   const teamManagementItems = [
