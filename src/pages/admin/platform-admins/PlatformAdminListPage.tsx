@@ -114,13 +114,13 @@ function PlatformAdminListContent() {
           <Badge variant="secondary" className="text-sm">{totalCount}</Badge>
         </div>
         <div className="flex items-center gap-3">
-          {isSupervisor && (
+          {effectiveSupervisor && depth > 1 && (
             <Select value={tierFilter} onValueChange={handleFilterChange(setTierFilter)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Tiers" />
               </SelectTrigger>
               <SelectContent>
-                {TIER_OPTIONS.map((opt) => (
+                {activeTierOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
