@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { useOrgContext } from '@/contexts/OrgContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
