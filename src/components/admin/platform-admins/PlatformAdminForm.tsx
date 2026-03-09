@@ -75,8 +75,12 @@ export function PlatformAdminForm({
     await onSubmit(data);
   };
 
-  // Determine which tier options the caller can assign
+  // Determine which tier options the caller can assign, filtered by tier depth
   const allowedTierOptions = ADMIN_TIER_OPTIONS.filter((opt) => {
+    // Filter by tier depth config first
+    if (depth === 1 && opt.value !== 'supervisor') return false;
+    if (depth === 2 && opt.value === 'admin') return false;
+    // Then filter by caller's tier
     if (callerTier === 'supervisor') return true;
     if (callerTier === 'senior_admin') return opt.value === 'admin';
     return false;
