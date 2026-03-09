@@ -141,7 +141,7 @@ function PermissionsContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[250px]">Permission</TableHead>
-                    {TIERS.map((tier) => (
+                    {visibleTiers.map((tier) => (
                       <TableHead key={tier.key} className="text-center w-[150px]">
                         <div className="flex items-center justify-center gap-1.5">
                           {tier.label}
