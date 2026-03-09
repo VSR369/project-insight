@@ -8,6 +8,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlatformAdmins } from '@/hooks/queries/usePlatformAdmins';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
