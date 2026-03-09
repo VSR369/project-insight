@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { useOrgContext } from '@/contexts/OrgContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
