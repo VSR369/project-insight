@@ -218,6 +218,10 @@ const SeekerOrgReviewPage = lazy(() => import("@/pages/admin/seeker-org-approval
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
 const ChallengeCreatePage = lazy(() => import("@/pages/org/ChallengeCreatePage"));
 const OrgBillingPage = lazy(() => import("@/pages/org/OrgBillingPage"));
+const AdminManagementPage = lazy(() => import("@/pages/org/AdminManagementPage"));
+const CreateDelegatedAdminPage = lazy(() => import("@/pages/org/CreateDelegatedAdminPage"));
+const EditDelegatedAdminPage = lazy(() => import("@/pages/org/EditDelegatedAdminPage"));
+const ActivationPage = lazy(() => import("@/pages/ActivationPage"));
 const OnboardingCompletePage = lazy(() => import("@/pages/registration/OnboardingCompletePage"));
 
 import { queryClient } from "@/lib/queryClient";
