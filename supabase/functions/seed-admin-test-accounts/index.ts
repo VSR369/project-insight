@@ -302,7 +302,7 @@ serve(async (req) => {
             admin_tier: "PRIMARY",
             status: "active",
             designation_method: "SELF",
-            domain_scope: "ALL",
+            domain_scope: JSON.stringify("ALL"),
             full_name: `${SO_ADMIN_ACCOUNT.firstName} ${SO_ADMIN_ACCOUNT.lastName}`,
             email: SO_ADMIN_ACCOUNT.email,
             phone: SO_ADMIN_ACCOUNT.phone,
