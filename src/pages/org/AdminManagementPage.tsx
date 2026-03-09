@@ -85,6 +85,7 @@ export default function AdminManagementPage() {
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
   const { data: industries = [] } = useIndustrySegments();
+  const { enabled: delegationEnabled, isLoading: delegationLoading } = useOrgDelegationEnabled();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
