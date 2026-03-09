@@ -373,7 +373,7 @@ export function AdminSidebar() {
               {seekerItems
                 .filter((item) => {
                   // Enterprise Agreements requires senior_admin+
-                  if (item.path === '/admin/saas-agreements') return isSupervisor || isSeniorAdmin;
+                  if (item.path === '/admin/saas-agreements') return effectiveSupervisor || isSeniorAdmin;
                   return true;
                 })
                 .map((item) => (
