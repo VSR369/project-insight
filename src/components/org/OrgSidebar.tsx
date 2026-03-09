@@ -62,10 +62,9 @@ export function OrgSidebar() {
 
   // Organization section — scoped by admin tier
   const orgItems = isSOAdmin
-    ? [
-        { title: 'Settings', icon: Building2, path: '/org/settings' },
-        ...(isPrimary ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }] : []),
-      ]
+    ? (isPrimary
+        ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }]
+        : [])
     : [
         { title: 'Settings', icon: Building2, path: '/org/settings' },
         { title: 'Team', icon: Users, path: '/org/team' },
