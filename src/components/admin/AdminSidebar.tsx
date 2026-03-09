@@ -153,7 +153,7 @@ export function AdminSidebar() {
   // Build team management items based on tier
   const teamManagementItems = [
     ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    ...(isSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
+    ...(effectiveSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
     ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
