@@ -50,6 +50,7 @@ export function OrgSidebar() {
   const orgItems = [
     { title: 'Settings', icon: Building2, path: '/org/settings' },
     { title: 'Team', icon: Users, path: '/org/team' },
+    { title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' },
     { title: 'Membership', icon: Crown, path: '/org/membership' },
     { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
   ];
