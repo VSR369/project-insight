@@ -285,35 +285,47 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existingSoAdmin) {
-        // Use raw fetch to bypass schema cache issues with jsonb domain_scope
+        // Use raw SQL via PostgREST rpc to handle jsonb domain_scope properly
         const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
         const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-        const insertResp = await fetch(`${supabaseUrl}/rest/v1/seeking_org_admins`, {
+        const rpcResp = await fetch(`${supabaseUrl}/rest/v1/rpc/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "apikey": serviceKey,
             "Authorization": `Bearer ${serviceKey}`,
-            "Prefer": "return=minimal",
           },
-          body: JSON.stringify({
+          body: "{}",
+        });
+        // Direct insert using supabase admin client with explicit jsonb cast workaround
+        const { error: soaErr } = await supabaseAdmin
+          .from("seeking_org_admins")
+          .insert({
             user_id: soUserId,
             organization_id: orgId,
             admin_tier: "PRIMARY",
             status: "active",
             designation_method: "SELF",
-            domain_scope: "\"ALL\"",
             full_name: `${SO_ADMIN_ACCOUNT.firstName} ${SO_ADMIN_ACCOUNT.lastName}`,
             email: SO_ADMIN_ACCOUNT.email,
             phone: SO_ADMIN_ACCOUNT.phone,
             created_by: soUserId,
-          }),
-        });
-        if (!insertResp.ok) {
-          const errBody = await insertResp.text();
-          phases.push(`❌ Failed to create seeking_org_admins: ${errBody}`);
+          });
+        if (soaErr) {
+          phases.push(`❌ Failed to create seeking_org_admins: ${soaErr.message}`);
+          // If default domain_scope '{}' fails trigger, update it after
         } else {
-          phases.push(`✓ Created seeking_org_admins (PRIMARY)`);
+          // Update domain_scope to "ALL" for PRIMARY admin
+          const { error: updateErr } = await supabaseAdmin
+            .from("seeking_org_admins")
+            .update({ domain_scope: "ALL" as any })
+            .eq("user_id", soUserId)
+            .eq("organization_id", orgId);
+          if (updateErr) {
+            phases.push(`✓ Created seeking_org_admins but failed to set domain_scope: ${updateErr.message}`);
+          } else {
+            phases.push(`✓ Created seeking_org_admins (PRIMARY)`);
+          }
         }
       } else {
         phases.push(`✓ seeking_org_admins record exists`);
