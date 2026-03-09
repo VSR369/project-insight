@@ -78,6 +78,23 @@ function SeekerOrgReviewContent() {
     }
   }, [data?.org?.verification_status, orgId, profile?.id, isOpenClaimMode]);
 
+  // Show claim conflict dialog
+  if (claimConflict) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 gap-4">
+        <AlertTriangle className="h-12 w-12 text-amber-500" />
+        <h2 className="text-lg font-semibold">Already Being Reviewed</h2>
+        <p className="text-muted-foreground text-center max-w-md">
+          This organization is currently being reviewed by <strong>{claimConflict}</strong>. 
+          Please select a different organization to review.
+        </p>
+        <Button onClick={() => navigate('/admin/seeker-org-approvals')}>
+          <ArrowLeft className="h-4 w-4 mr-1" /> Back to Approvals
+        </Button>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="flex justify-center py-12">
