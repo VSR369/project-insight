@@ -64,7 +64,7 @@ export function OrgSidebar() {
 
   // Organization section — scoped by admin tier
   const orgItems = isSOAdmin
-    ? (isPrimary
+    ? (isPrimary && delegationEnabled
         ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }]
         : [])
     : [
