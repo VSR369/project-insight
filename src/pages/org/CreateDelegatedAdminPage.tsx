@@ -126,6 +126,8 @@ export default function CreateDelegatedAdminPage() {
 
   return (
     <div className="space-y-6 max-w-2xl">
+      <SessionContextBanner />
+
       <Button variant="ghost" size="sm" onClick={() => navigate('/org/admin-management')}>
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to Admin Management
