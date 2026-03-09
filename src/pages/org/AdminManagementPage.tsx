@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useDelegatedAdmins, useMaxDelegatedAdmins } from '@/hooks/queries/useDelegatedAdmins';
+import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
