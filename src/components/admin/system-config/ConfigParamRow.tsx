@@ -23,6 +23,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import type { MpaConfigEntry } from '@/hooks/queries/useMpaConfig';
 
+/** Enum-style options for TEXT params with fixed valid values */
+const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  org_verification_assignment_mode: [
+    { value: 'open_claim', label: 'Open Claim (First-Come-First-Served)' },
+    { value: 'auto_assign', label: 'Auto-Assignment (Scoring Engine)' },
+  ],
+};
+
 interface ConfigParamRowProps {
   entry: MpaConfigEntry;
   adminNameMap?: Record<string, string>;
@@ -50,6 +58,8 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
   const [reason, setReason] = useState('');
   const updateConfig = useUpdateConfig();
   const isUuidType = entry.param_type === 'UUID';
+  const enumOptions = ENUM_OPTIONS[entry.param_key];
+  const isEnumType = !!enumOptions;
   const { data: adminOptions } = useAdminOptions();
 
   const handleSave = () => {
@@ -77,7 +87,9 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
     ? (adminNameMap?.[entry.param_value] ??
        adminOptions?.find((a) => a.id === entry.param_value)?.full_name ??
        entry.param_value)
-    : (entry.param_value ?? 'NULL');
+    : isEnumType && entry.param_value
+      ? (enumOptions.find((o) => o.value === entry.param_value)?.label ?? entry.param_value)
+      : (entry.param_value ?? 'NULL');
 
   return (
     <div className="flex flex-col gap-2 py-3 px-1 border-b border-border last:border-b-0">
@@ -127,6 +139,19 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
                   {(adminOptions ?? []).map((admin) => (
                     <SelectItem key={admin.id} value={admin.id}>
                       {admin.full_name} ({admin.admin_tier})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : isEnumType ? (
+              <Select value={editValue} onValueChange={setEditValue}>
+                <SelectTrigger className="w-72 h-8 text-sm">
+                  <SelectValue placeholder="Select option..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {enumOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
