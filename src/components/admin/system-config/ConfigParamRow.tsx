@@ -87,7 +87,9 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
     ? (adminNameMap?.[entry.param_value] ??
        adminOptions?.find((a) => a.id === entry.param_value)?.full_name ??
        entry.param_value)
-    : (entry.param_value ?? 'NULL');
+    : isEnumType && entry.param_value
+      ? (enumOptions.find((o) => o.value === entry.param_value)?.label ?? entry.param_value)
+      : (entry.param_value ?? 'NULL');
 
   return (
     <div className="flex flex-col gap-2 py-3 px-1 border-b border-border last:border-b-0">
