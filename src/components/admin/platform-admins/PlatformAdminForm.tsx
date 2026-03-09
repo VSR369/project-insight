@@ -49,6 +49,7 @@ export function PlatformAdminForm({
 }: PlatformAdminFormProps) {
   const [supervisorModalOpen, setSupervisorModalOpen] = useState(false);
   const [pendingSupervisorTier, setPendingSupervisorTier] = useState<string | null>(null);
+  const { depth } = usePlatformTierDepth();
 
   const form = useForm<PlatformAdminFormValues>({
     resolver: zodResolver(platformAdminFormSchema),
