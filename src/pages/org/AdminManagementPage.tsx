@@ -8,9 +8,8 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useDelegatedAdmins, useMaxDelegatedAdmins, useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { useDelegatedAdmins, useMaxDelegatedAdmins } from '@/hooks/queries/useDelegatedAdmins';
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
-import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
