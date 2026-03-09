@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { platformAdminFormSchema, ADMIN_TIER_OPTIONS, type PlatformAdminFormValues, type AdminTierValue } from './platformAdminForm.schema';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { SupervisorFlagToggleModal } from './SupervisorFlagToggleModal';
 import {
   Form,
