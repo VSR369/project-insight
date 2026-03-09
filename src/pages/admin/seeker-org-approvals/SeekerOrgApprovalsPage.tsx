@@ -64,9 +64,11 @@ export default function SeekerOrgApprovalsPage() {
     <div>
       <PageHeader
         title="Organization Approvals"
-        description={isSupervisor
-          ? 'Review and verify seeker organization registrations (all orgs)'
-          : 'Review and verify your assigned seeker organization registrations'}
+        description={isOpenClaimMode
+          ? 'Shared inbox — first admin to open claims the verification'
+          : isSupervisor
+            ? 'Review and verify seeker organization registrations (all orgs)'
+            : 'Review and verify your assigned seeker organization registrations'}
       />
 
       <Tabs value={tab} onValueChange={handleTabChange}>
