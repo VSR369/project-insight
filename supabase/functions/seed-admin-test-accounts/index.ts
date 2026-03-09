@@ -285,9 +285,18 @@ serve(async (req) => {
         .maybeSingle();
 
       if (!existingSoAdmin) {
-        const { error: soaErr } = await supabaseAdmin
-          .from("seeking_org_admins")
-          .insert({
+        // Use raw fetch to bypass schema cache issues with jsonb domain_scope
+        const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+        const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+        const insertResp = await fetch(`${supabaseUrl}/rest/v1/seeking_org_admins`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "apikey": serviceKey,
+            "Authorization": `Bearer ${serviceKey}`,
+            "Prefer": "return=minimal",
+          },
+          body: JSON.stringify({
             user_id: soUserId,
             organization_id: orgId,
             admin_tier: "PRIMARY",
@@ -298,8 +307,14 @@ serve(async (req) => {
             email: SO_ADMIN_ACCOUNT.email,
             phone: SO_ADMIN_ACCOUNT.phone,
             created_by: soUserId,
-          });
-        phases.push(soaErr ? `❌ Failed to create seeking_org_admins: ${soaErr.message}` : `✓ Created seeking_org_admins (PRIMARY)`);
+          }),
+        });
+        if (!insertResp.ok) {
+          const errBody = await insertResp.text();
+          phases.push(`❌ Failed to create seeking_org_admins: ${errBody}`);
+        } else {
+          phases.push(`✓ Created seeking_org_admins (PRIMARY)`);
+        }
       } else {
         phases.push(`✓ seeking_org_admins record exists`);
       }
