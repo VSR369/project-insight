@@ -4,7 +4,7 @@ import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
  * Shows usage gauges, tier info, quick actions, registration data summary.
  */
 
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { TcReAcceptanceModal } from '@/components/org/TcReAcceptanceModal';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useOrgSubscription as useOrgSubBilling } from '@/hooks/queries/useBillingData';
