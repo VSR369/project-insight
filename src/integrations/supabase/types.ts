@@ -9085,6 +9085,10 @@ export type Database = {
       }
       check_user_limit: { Args: { p_org_id: string }; Returns: boolean }
       claim_from_queue: { Args: { p_queue_entry_id: string }; Returns: Json }
+      claim_org_for_verification: {
+        Args: { p_admin_id: string; p_org_id: string }
+        Returns: Json
+      }
       cleanup_expired_otps: { Args: never; Returns: number }
       complete_verification_action: {
         Args: { p_action: string; p_notes?: string; p_verification_id: string }
