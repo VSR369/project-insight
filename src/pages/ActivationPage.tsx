@@ -192,9 +192,18 @@ export default function ActivationPage() {
               </Button>
             </div>
             {password.length > 0 && (
-              <p className={`text-xs ${passwordStrength.color}`}>
-                Strength: {passwordStrength.label}
-              </p>
+              <div className="space-y-1">
+                <p className={`text-xs ${passwordStrength.color}`}>
+                  Strength: {passwordStrength.label}
+                </p>
+                <ul className="text-xs text-muted-foreground space-y-0.5">
+                  <li className={password.length >= 8 ? 'text-green-600' : ''}>• At least 8 characters</li>
+                  <li className={hasUpper ? 'text-green-600' : ''}>• One uppercase letter</li>
+                  <li className={hasLower ? 'text-green-600' : ''}>• One lowercase letter</li>
+                  <li className={hasNumber ? 'text-green-600' : ''}>• One number</li>
+                  <li className={hasSpecial ? 'text-green-600' : ''}>• One special character</li>
+                </ul>
+              </div>
             )}
           </div>
 
