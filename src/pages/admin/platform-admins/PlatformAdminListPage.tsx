@@ -8,6 +8,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePlatformAdmins } from '@/hooks/queries/usePlatformAdmins';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { AdminStatusBadge } from '@/components/admin/platform-admins/AdminStatusBadge';
 import { WorkloadBar } from '@/components/admin/platform-admins/WorkloadBar';
@@ -58,8 +59,18 @@ function PlatformAdminListContent() {
 
   const { data: admins, isLoading } = usePlatformAdmins(statusFilter);
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
-  const canCreate = isSupervisor || isSeniorAdmin;
-  const canEdit = isSupervisor || isSeniorAdmin;
+  const { depth } = usePlatformTierDepth();
+  const effectiveSupervisor = isSupervisor || depth === 1;
+  const canCreate = effectiveSupervisor || isSeniorAdmin;
+  const canEdit = effectiveSupervisor || isSeniorAdmin;
+
+  // Filter tier options based on depth
+  const activeTierOptions = TIER_OPTIONS.filter((opt) => {
+    if (opt.value === 'all') return true;
+    if (depth === 1) return opt.value === 'supervisor';
+    if (depth === 2) return opt.value !== 'admin';
+    return true;
+  });
 
   // Apply tier filter client-side
   const filteredAdmins = useMemo(() => {
@@ -103,13 +114,13 @@ function PlatformAdminListContent() {
           <Badge variant="secondary" className="text-sm">{totalCount}</Badge>
         </div>
         <div className="flex items-center gap-3">
-          {isSupervisor && (
+          {effectiveSupervisor && depth > 1 && (
             <Select value={tierFilter} onValueChange={handleFilterChange(setTierFilter)}>
               <SelectTrigger className="w-40">
                 <SelectValue placeholder="All Tiers" />
               </SelectTrigger>
               <SelectContent>
-                {TIER_OPTIONS.map((opt) => (
+                {activeTierOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                 ))}
               </SelectContent>
@@ -208,7 +219,7 @@ function PlatformAdminListContent() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1" onClick={(e) => e.stopPropagation()}>
-                        {canEdit && (isSupervisor || (admin as any).admin_tier === 'admin') && (
+                        {canEdit && (effectiveSupervisor || (admin as any).admin_tier === 'admin') && (
                           <Button
                             variant="ghost"
                             size="icon"
@@ -218,7 +229,7 @@ function PlatformAdminListContent() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
-                        {isSupervisor && admin.availability_status !== 'Inactive' && (
+                        {effectiveSupervisor && admin.availability_status !== 'Inactive' && (
                           <Button
                             variant="ghost"
                             size="icon"

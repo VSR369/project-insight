@@ -3,7 +3,7 @@
  * Includes scope overlap warning (MOD-M-SOA-01), email blur validation, config-driven expiry.
  */
 
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -27,6 +27,7 @@ import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
@@ -43,6 +44,14 @@ export default function CreateDelegatedAdminPage() {
   const createAdmin = useCreateDelegatedAdmin();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
   const { data: expiryHours = 72 } = useActivationExpiryHours();
+  const { enabled: delegationEnabled } = useOrgDelegationEnabled();
+
+  // Redirect if delegation is disabled
+  useEffect(() => {
+    if (!delegationEnabled) {
+      navigate('/org/dashboard', { replace: true });
+    }
+  }, [delegationEnabled, navigate]);
 
   const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);

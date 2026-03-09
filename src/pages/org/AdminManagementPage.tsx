@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useDelegatedAdmins, useMaxDelegatedAdmins } from '@/hooks/queries/useDelegatedAdmins';
+import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,7 @@ export default function AdminManagementPage() {
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
   const { data: industries = [] } = useIndustrySegments();
+  const { enabled: delegationEnabled, isLoading: delegationLoading } = useOrgDelegationEnabled();
 
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -107,6 +109,24 @@ export default function AdminManagementPage() {
   const currentPage = Math.min(page, totalPages);
   const startIdx = (currentPage - 1) * PAGE_SIZE;
   const paginatedAdmins = filteredAdmins.slice(startIdx, startIdx + PAGE_SIZE);
+
+  // Show info when delegation is disabled
+  if (!delegationLoading && !delegationEnabled) {
+    return (
+      <div className="space-y-6">
+        <SessionContextBanner />
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center justify-center py-8 text-muted-foreground">
+              <Users className="h-10 w-10 mb-3 opacity-40" />
+              <p className="text-sm font-medium">Delegated admin management is not enabled</p>
+              <p className="text-xs mt-1">Contact platform support to enable this feature for your organization.</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

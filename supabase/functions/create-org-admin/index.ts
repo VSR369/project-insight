@@ -55,6 +55,23 @@ serve(async (req) => {
     let userId: string;
     let isExistingUser = false;
 
+    // 0. Check if delegation is enabled (config-driven)
+    const { data: delegationConfig } = await supabaseAdmin
+      .from("md_mpa_config")
+      .select("param_value")
+      .eq("param_key", "org_admin_delegation_enabled")
+      .maybeSingle();
+
+    if (delegationConfig?.param_value === "false") {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          error: { code: "DELEGATION_DISABLED", message: "Delegated admin creation is not enabled for this platform" },
+        }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // 1. Try to create auth user
     const { data: authData, error: authError } =
       await supabaseAdmin.auth.admin.createUser({

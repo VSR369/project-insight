@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, XCircle, Shield, History, Lock } from 'lucide-react';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import {
   useTierPermissions,
   useUpdateTierPermission,
@@ -74,6 +75,7 @@ const TIERS = [
 
 function PermissionsContent() {
   const { isSupervisor, isLoading: tierLoading } = useAdminTier();
+  const { depth } = usePlatformTierDepth();
   const { data: permissions, isLoading: permLoading } = useTierPermissions();
   const updatePermission = useUpdateTierPermission();
   const { data: auditLog, isLoading: auditLoading } = usePermissionAuditLog();
@@ -90,6 +92,13 @@ function PermissionsContent() {
   }
 
   const permMap = buildPermissionMap(permissions ?? []);
+
+  // Filter visible tiers based on depth config
+  const visibleTiers = TIERS.filter((t) => {
+    if (depth === 1) return t.key === 'supervisor'; // Single tier only
+    if (depth === 2) return t.key !== 'admin';      // Hide basic admin column
+    return true;                                     // Full hierarchy
+  });
 
   const handleToggle = (id: string, currentValue: boolean) => {
     updatePermission.mutate({ id, is_enabled: !currentValue });
@@ -132,7 +141,7 @@ function PermissionsContent() {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-[250px]">Permission</TableHead>
-                    {TIERS.map((tier) => (
+                    {visibleTiers.map((tier) => (
                       <TableHead key={tier.key} className="text-center w-[150px]">
                         <div className="flex items-center justify-center gap-1.5">
                           {tier.label}
@@ -148,7 +157,7 @@ function PermissionsContent() {
                   {cat.permissions.map((perm) => (
                     <TableRow key={perm.key}>
                       <TableCell className="font-medium text-sm">{perm.label}</TableCell>
-                      {TIERS.map((tier) => {
+                      {visibleTiers.map((tier) => {
                         const entry = permMap[perm.key]?.[tier.key];
                         const enabled = entry?.is_enabled ?? false;
                         const isLocked = tier.key === 'supervisor';

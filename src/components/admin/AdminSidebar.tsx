@@ -59,6 +59,7 @@ import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
 import { usePendingReassignmentCount } from '@/hooks/queries/useReassignmentRequests';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
 const masterDataItems = [
@@ -129,6 +130,7 @@ export function AdminSidebar() {
   const { data: pendingSeekerCount } = usePendingSeekerCount();
   const { data: pendingReassignmentCount } = usePendingReassignmentCount();
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
+  const { depth } = usePlatformTierDepth();
 
   // Prefetch top admin routes on mount
   useEffect(() => {
@@ -143,14 +145,15 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
-  // Tier-based visibility
-  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
-  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
+  // Tier-based visibility — depth=1 means everyone is effectively supervisor
+  const effectiveSupervisor = isSupervisor || depth === 1;
+  const canSeeTeamManagement = effectiveSupervisor || isSeniorAdmin;
+  const canSeeSeekerConfig = effectiveSupervisor || isSeniorAdmin;
 
   // Build team management items based on tier
   const teamManagementItems = [
     ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    ...(isSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
+    ...(effectiveSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
     ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
@@ -166,7 +169,7 @@ export function AdminSidebar() {
           <Shield className="h-6 w-6 text-primary" />
           <div className="flex flex-col">
             <span className="text-lg font-semibold">Admin Panel</span>
-            {!tierLoading && tier && (
+            {!tierLoading && tier && depth > 1 && (
               <span className="text-xs text-muted-foreground capitalize">
                 {tier === 'senior_admin' ? 'Senior Admin' : tier}
               </span>
@@ -271,7 +274,7 @@ export function AdminSidebar() {
                   <span>Verifications</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/reassignments')}
@@ -288,7 +291,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/notifications/audit')}
@@ -300,7 +303,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/performance')}
@@ -334,7 +337,7 @@ export function AdminSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {/* System Config — supervisor only */}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/system-config')}
@@ -347,7 +350,7 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
               {/* GAP-2: Permissions Management — supervisor only */}
-              {isSupervisor && (
+              {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/permissions')}
@@ -370,7 +373,7 @@ export function AdminSidebar() {
               {seekerItems
                 .filter((item) => {
                   // Enterprise Agreements requires senior_admin+
-                  if (item.path === '/admin/saas-agreements') return isSupervisor || isSeniorAdmin;
+                  if (item.path === '/admin/saas-agreements') return effectiveSupervisor || isSeniorAdmin;
                   return true;
                 })
                 .map((item) => (
@@ -433,7 +436,7 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-                {isSupervisor && complianceConfigItems.map((item) => (
+                {effectiveSupervisor && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       onClick={() => navigate(item.path)}
@@ -513,8 +516,8 @@ export function AdminSidebar() {
               {/* Other menu items */}
               {otherItems
                 .filter((item) => {
-                  if ('requiresSupervisor' in item && item.requiresSupervisor) return isSupervisor;
-                  if ('requiresTier' in item && item.requiresTier) return isSupervisor || isSeniorAdmin;
+                  if ('requiresSupervisor' in item && item.requiresSupervisor) return effectiveSupervisor;
+                  if ('requiresTier' in item && item.requiresTier) return effectiveSupervisor || isSeniorAdmin;
                   return true;
                 })
                 .map((item) => (
