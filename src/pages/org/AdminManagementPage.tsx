@@ -8,17 +8,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useDelegatedAdmins, useMaxDelegatedAdmins, useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { useDelegatedAdmins, useMaxDelegatedAdmins } from '@/hooks/queries/useDelegatedAdmins';
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
-import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Search, Edit, UserMinus, Users, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Search, Edit, UserMinus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
+import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
 
@@ -76,15 +76,17 @@ function ProficiencyAreasCount({ scope }: { scope: DomainScope }) {
   return <span className="text-sm">{count} area{count !== 1 ? 's' : ''}</span>;
 }
 
+const PAGE_SIZE = 20;
+
 export default function AdminManagementPage() {
   const navigate = useNavigate();
-  const { organizationId, orgName } = useOrgContext();
+  const { organizationId } = useOrgContext();
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
-  const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
   const { data: industries = [] } = useIndustrySegments();
 
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [deactivateTarget, setDeactivateTarget] = useState<DelegatedAdmin | null>(null);
 
   const filteredAdmins = (admins ?? []).filter((a) => {
@@ -99,17 +101,17 @@ export default function AdminManagementPage() {
   const activeCount = (admins ?? []).filter((a) => a.status !== 'deactivated').length;
   const canAdd = activeCount < maxAdmins;
 
+  // Reset page when search changes
+  const totalFiltered = filteredAdmins.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const paginatedAdmins = filteredAdmins.slice(startIdx, startIdx + PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Context Banner */}
-      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-        <ShieldCheck className="h-4 w-4" />
-        <span>{currentAdmin?.full_name ?? 'Admin'}</span>
-        <span className="text-muted-foreground/50">|</span>
-        <span>Organisation: {orgName}</span>
-        <span className="text-muted-foreground/50">|</span>
-        <Badge variant="outline" className="text-xs">Primary</Badge>
-      </div>
+      <SessionContextBanner />
 
       <Card>
         <CardHeader>
@@ -129,7 +131,7 @@ export default function AdminManagementPage() {
                 <Input
                   placeholder="Search by name or email..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   className="pl-9 w-full lg:w-64"
                 />
               </div>
@@ -173,10 +175,10 @@ export default function AdminManagementPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAdmins.map((admin, index) => {
+                    {paginatedAdmins.map((admin, index) => {
                       const statusCfg = STATUS_CONFIG[admin.status] ?? STATUS_CONFIG.deactivated;
                       const scope: DomainScope = (admin.domain_scope as DomainScope | null) ?? EMPTY_SCOPE;
-                      const colorClass = AVATAR_COLORS[index % AVATAR_COLORS.length];
+                      const colorClass = AVATAR_COLORS[(startIdx + index) % AVATAR_COLORS.length];
 
                       return (
                         <TableRow key={admin.id}>
@@ -245,9 +247,34 @@ export default function AdminManagementPage() {
                 </Table>
               </div>
 
-              {/* Footer count */}
-              <div className="pt-3 text-xs text-muted-foreground">
-                Showing {filteredAdmins.length} of {(admins ?? []).length} admins
+              {/* Footer count + pagination */}
+              <div className="flex items-center justify-between pt-3">
+                <span className="text-xs text-muted-foreground">
+                  Showing {startIdx + 1}–{Math.min(startIdx + PAGE_SIZE, totalFiltered)} of {totalFiltered} admins
+                </span>
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      Page {currentPage} of {totalPages}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      <ChevronRight className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             </>
           )}
