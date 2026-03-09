@@ -856,6 +856,9 @@ const App = () => (
                 </SeekerGuard>
               }
             />
+            <Route path="/org/admin-management" element={<SeekerGuard><LazyRoute><AdminManagementPage /></LazyRoute></SeekerGuard>} />
+            <Route path="/org/admin-management/create" element={<SeekerGuard><LazyRoute><CreateDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
+            <Route path="/org/admin-management/:adminId/edit" element={<SeekerGuard><LazyRoute><EditDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
             <Route
               path="/registration/complete"
               element={
