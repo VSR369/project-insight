@@ -103,6 +103,13 @@ export default function AdminManagementPage() {
   const activeCount = (admins ?? []).filter((a) => a.status !== 'deactivated').length;
   const canAdd = activeCount < maxAdmins;
 
+  // Reset page when search changes
+  const totalFiltered = filteredAdmins.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / PAGE_SIZE));
+  const currentPage = Math.min(page, totalPages);
+  const startIdx = (currentPage - 1) * PAGE_SIZE;
+  const paginatedAdmins = filteredAdmins.slice(startIdx, startIdx + PAGE_SIZE);
+
   return (
     <div className="space-y-6">
       {/* Context Banner */}
