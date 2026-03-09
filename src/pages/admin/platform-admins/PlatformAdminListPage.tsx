@@ -229,7 +229,7 @@ function PlatformAdminListContent() {
                             <Pencil className="h-4 w-4" />
                           </Button>
                         )}
-                        {isSupervisor && admin.availability_status !== 'Inactive' && (
+                        {effectiveSupervisor && admin.availability_status !== 'Inactive' && (
                           <Button
                             variant="ghost"
                             size="icon"
