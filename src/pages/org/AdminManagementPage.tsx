@@ -131,7 +131,7 @@ export default function AdminManagementPage() {
                 <Input
                   placeholder="Search by name or email..."
                   value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+                  onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                   className="pl-9 w-full lg:w-64"
                 />
               </div>
