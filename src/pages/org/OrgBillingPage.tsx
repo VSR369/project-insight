@@ -15,7 +15,7 @@ import { computeUsageSummary, validateTopUp } from '@/services/billingService';
 import { InternalBillingNotice } from '@/components/registration/InternalBillingNotice';
 import { ShadowUsageSummary } from '@/components/org-settings/ShadowUsageSummary';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { CreditCard, Receipt, TrendingUp, Package, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 
