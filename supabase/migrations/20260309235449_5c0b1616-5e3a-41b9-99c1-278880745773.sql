@@ -1,0 +1,1 @@
+UPDATE md_mpa_config SET param_group = 'GOVERNANCE' WHERE param_key IN ('platform_admin_tier_depth', 'org_admin_delegation_enabled');
