@@ -53,11 +53,11 @@ export default function OrgBillingPage() {
   };
 
   return (
-    <OrgLayout
-      title="Billing & Usage"
-      description="Monitor challenge usage, invoices, and purchase top-ups"
-      breadcrumbs={[{ label: 'Billing' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Billing & Usage</h1>
+        <p className="text-muted-foreground mt-1">Monitor challenge usage, invoices, and purchase top-ups</p>
+      </div>
       {!isInternalDepartment && (
         <div className="flex justify-end mb-4">
           <Button onClick={() => setTopUpOpen(true)}>
