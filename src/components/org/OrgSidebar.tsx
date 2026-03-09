@@ -1,5 +1,6 @@
 /**
  * OrgSidebar — Sidebar for the Seeker Organization portal.
+ * Admin Management is only visible to PRIMARY admins.
  */
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -30,11 +31,15 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
 
 export function OrgSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { orgName, tierCode } = useOrgContext();
+  const { orgName, tierCode, organizationId } = useOrgContext();
+  const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
+
+  const isPrimary = currentAdmin?.admin_tier === 'PRIMARY';
 
   const isActive = (path: string) => location.pathname === path;
 
@@ -50,7 +55,7 @@ export function OrgSidebar() {
   const orgItems = [
     { title: 'Settings', icon: Building2, path: '/org/settings' },
     { title: 'Team', icon: Users, path: '/org/team' },
-    { title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' },
+    ...(isPrimary ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }] : []),
     { title: 'Membership', icon: Crown, path: '/org/membership' },
     { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
   ];

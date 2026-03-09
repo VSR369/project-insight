@@ -222,6 +222,7 @@ const AdminManagementPage = lazy(() => import("@/pages/org/AdminManagementPage")
 const CreateDelegatedAdminPage = lazy(() => import("@/pages/org/CreateDelegatedAdminPage"));
 const EditDelegatedAdminPage = lazy(() => import("@/pages/org/EditDelegatedAdminPage"));
 const ActivationPage = lazy(() => import("@/pages/ActivationPage"));
+const OrgAdminLoginPage = lazy(() => import("@/pages/org/OrgAdminLoginPage"));
 const OnboardingCompletePage = lazy(() => import("@/pages/registration/OnboardingCompletePage"));
 
 import { queryClient } from "@/lib/queryClient";
@@ -257,6 +258,7 @@ const App = () => (
             <Route path="/manager-portal" element={<ManagerPortal />} />
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
             <Route path="/activate" element={<LazyRoute><ActivationPage /></LazyRoute>} />
+            <Route path="/org/login" element={<LazyRoute><OrgAdminLoginPage /></LazyRoute>} />
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>

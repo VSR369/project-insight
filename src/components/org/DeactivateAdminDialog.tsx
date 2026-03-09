@@ -1,5 +1,6 @@
 /**
  * DeactivateAdminDialog — Confirmation dialog for deactivating a delegated admin.
+ * Shows count of roles that will be reassigned to Primary admin.
  */
 
 import {
@@ -14,7 +15,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useDeactivateDelegatedAdmin } from '@/hooks/queries/useDelegatedAdmins';
 import type { DelegatedAdmin } from '@/hooks/queries/useDelegatedAdmins';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface DeactivateAdminDialogProps {
   admin: DelegatedAdmin | null;
@@ -33,14 +34,40 @@ export function DeactivateAdminDialog({ admin, organizationId, onClose }: Deacti
     );
   };
 
+  const scopeCount = (() => {
+    if (!admin?.domain_scope) return 0;
+    const s = admin.domain_scope;
+    return (
+      s.industry_segment_ids.length +
+      s.proficiency_area_ids.length +
+      s.department_ids.length +
+      s.functional_area_ids.length
+    );
+  })();
+
   return (
     <AlertDialog open={!!admin} onOpenChange={(open) => !open && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Deactivate Delegated Admin</AlertDialogTitle>
-          <AlertDialogDescription>
-            Are you sure you want to deactivate <strong>{admin?.full_name ?? admin?.email}</strong>?
-            This will revoke their access to the organization portal. This action cannot be undone.
+          <AlertDialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Deactivate Delegated Admin
+          </AlertDialogTitle>
+          <AlertDialogDescription asChild>
+            <div className="space-y-2">
+              <p>
+                Are you sure you want to deactivate <strong>{admin?.full_name ?? admin?.email}</strong>?
+              </p>
+              {scopeCount > 0 && (
+                <p className="text-sm">
+                  This admin manages <strong>{scopeCount} scope assignment(s)</strong> which will be reassigned
+                  to the Primary admin.
+                </p>
+              )}
+              <p className="text-sm text-destructive">
+                This will revoke their access to the organization portal. This action cannot be undone.
+              </p>
+            </div>
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

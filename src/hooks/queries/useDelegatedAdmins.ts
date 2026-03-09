@@ -225,3 +225,31 @@ export function useDeactivateDelegatedAdmin() {
     onError: (error: Error) => handleMutationError(error, { operation: 'deactivate_delegated_admin' }),
   });
 }
+
+// ─── Check scope overlap with existing admins ───
+export function checkScopeOverlap(
+  scope: DomainScope,
+  existingAdmins: DelegatedAdmin[],
+  excludeAdminId?: string
+): { name: string; email: string }[] {
+  const overlapping: { name: string; email: string }[] = [];
+  const activeAdmins = existingAdmins.filter(
+    (a) => a.status !== 'deactivated' && a.id !== excludeAdminId
+  );
+
+  for (const admin of activeAdmins) {
+    const existingScope = admin.domain_scope ?? EMPTY_SCOPE;
+    // Overlap if any industry_segment_ids intersect
+    const industryOverlap = scope.industry_segment_ids.some(
+      (id) => existingScope.industry_segment_ids.includes(id)
+    );
+    if (industryOverlap) {
+      overlapping.push({
+        name: admin.full_name ?? 'Unknown',
+        email: admin.email ?? '',
+      });
+    }
+  }
+
+  return overlapping;
+}
