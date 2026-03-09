@@ -1,13 +1,16 @@
 /**
  * AdminManagementPage — Delegated Admin Management Console
  * PRIMARY admin can view, create, edit, and deactivate delegated admins.
- * Uses DomainScopeDisplay for resolved scope names (Gap 11).
+ * Matches Figma reference: avatar initials, colored status badges,
+ * Industry Segments + Proficiency Areas columns, footer count.
  */
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useDelegatedAdmins, useMaxDelegatedAdmins, useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { useIndustrySegments } from '@/hooks/queries/useMasterData';
+import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -16,15 +19,62 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Search, Edit, UserMinus, Users, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
-import { DomainScopeDisplay } from '@/components/org/DomainScopeDisplay';
-import type { DelegatedAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
+import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
 
-const STATUS_STYLES: Record<string, { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
-  pending_activation: { label: 'Pending Activation', variant: 'outline' },
-  active: { label: 'Active', variant: 'default' },
-  suspended: { label: 'Suspended', variant: 'destructive' },
-  deactivated: { label: 'Deactivated', variant: 'secondary' },
+/* ── Avatar color palette ── */
+const AVATAR_COLORS = [
+  'bg-emerald-100 text-emerald-700',
+  'bg-blue-100 text-blue-700',
+  'bg-amber-100 text-amber-700',
+  'bg-purple-100 text-purple-700',
+  'bg-teal-100 text-teal-700',
+  'bg-rose-100 text-rose-700',
+];
+
+function getInitials(name: string | null): string {
+  if (!name) return '??';
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('');
+}
+
+/* ── Status badge config ── */
+const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
+  active: { label: 'Active', className: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  pending_activation: { label: 'Pending Activation', className: 'bg-amber-100 text-amber-700 border-amber-200' },
+  suspended: { label: 'Suspended', className: 'bg-red-100 text-red-700 border-red-200' },
+  deactivated: { label: 'Deactivated', className: 'bg-muted text-muted-foreground border-border' },
 };
+
+/* ── Scope resolution helpers ── */
+function IndustrySegmentBadges({ scope, industries }: { scope: DomainScope; industries: { id: string; name: string }[] }) {
+  const names = scope.industry_segment_ids
+    .map((id) => industries.find((i) => i.id === id)?.name)
+    .filter(Boolean) as string[];
+
+  if (names.length === 0) return <span className="text-xs text-muted-foreground">All</span>;
+
+  return (
+    <div className="flex flex-wrap gap-1 max-w-[220px]">
+      {names.slice(0, 2).map((name) => (
+        <Badge key={name} variant="outline" className="text-[10px] font-normal">{name}</Badge>
+      ))}
+      {names.length > 2 && (
+        <Badge variant="secondary" className="text-[10px]">+{names.length - 2}</Badge>
+      )}
+    </div>
+  );
+}
+
+function ProficiencyAreasCount({ scope }: { scope: DomainScope }) {
+  const count = scope.proficiency_area_ids.length;
+  if (count === 0) return <span className="text-xs text-muted-foreground">All</span>;
+  return <span className="text-sm">{count} area{count !== 1 ? 's' : ''}</span>;
+}
 
 export default function AdminManagementPage() {
   const navigate = useNavigate();
@@ -32,6 +82,7 @@ export default function AdminManagementPage() {
   const { data: admins, isLoading } = useDelegatedAdmins(organizationId);
   const { data: maxAdmins = 5 } = useMaxDelegatedAdmins();
   const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
+  const { data: industries = [] } = useIndustrySegments();
 
   const [search, setSearch] = useState('');
   const [deactivateTarget, setDeactivateTarget] = useState<DelegatedAdmin | null>(null);
@@ -69,7 +120,7 @@ export default function AdminManagementPage() {
                 Delegated Admins
               </CardTitle>
               <CardDescription>
-                {activeCount} of {maxAdmins} delegated admin slots used
+                Manage your organisation's Delegated Administrators and their domain scopes
               </CardDescription>
             </div>
             <div className="flex flex-col lg:flex-row gap-3">
@@ -107,62 +158,98 @@ export default function AdminManagementPage() {
               <p className="text-xs mt-1">Add delegated admins to help manage your organization</p>
             </div>
           ) : (
-            <div className="relative w-full overflow-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Scope</TableHead>
-                    <TableHead className="hidden lg:table-cell">Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredAdmins.map((admin) => {
-                    const style = STATUS_STYLES[admin.status] ?? STATUS_STYLES.deactivated;
-                    return (
-                      <TableRow key={admin.id}>
-                        <TableCell className="font-medium">{admin.full_name ?? '—'}</TableCell>
-                        <TableCell className="font-mono text-sm">{admin.email ?? '—'}</TableCell>
-                        <TableCell>
-                          <Badge variant={style.variant}>{style.label}</Badge>
-                        </TableCell>
-                        <TableCell>
-                          <DomainScopeDisplay scope={admin.domain_scope} compact />
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
-                          {new Date(admin.created_at).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex gap-1 justify-end">
-                            {admin.status !== 'deactivated' && (
-                              <>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => navigate(`/org/admin-management/${admin.id}/edit`)}
-                                >
-                                  <Edit className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setDeactivateTarget(admin)}
-                                >
-                                  <UserMinus className="h-4 w-4 text-destructive" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
+            <>
+              <div className="relative w-full overflow-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Industry Segments</TableHead>
+                      <TableHead>Proficiency Areas</TableHead>
+                      <TableHead className="hidden lg:table-cell">Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAdmins.map((admin, index) => {
+                      const statusCfg = STATUS_CONFIG[admin.status] ?? STATUS_CONFIG.deactivated;
+                      const scope: DomainScope = (admin.domain_scope as DomainScope | null) ?? EMPTY_SCOPE;
+                      const colorClass = AVATAR_COLORS[index % AVATAR_COLORS.length];
+
+                      return (
+                        <TableRow key={admin.id}>
+                          {/* Name with avatar */}
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold shrink-0 ${colorClass}`}>
+                                {getInitials(admin.full_name)}
+                              </div>
+                              <span className="font-medium">{admin.full_name ?? '—'}</span>
+                            </div>
+                          </TableCell>
+
+                          {/* Email */}
+                          <TableCell className="font-mono text-sm">{admin.email ?? '—'}</TableCell>
+
+                          {/* Status */}
+                          <TableCell>
+                            <span className={`inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold ${statusCfg.className}`}>
+                              {statusCfg.label}
+                            </span>
+                          </TableCell>
+
+                          {/* Industry Segments */}
+                          <TableCell>
+                            <IndustrySegmentBadges scope={scope} industries={industries} />
+                          </TableCell>
+
+                          {/* Proficiency Areas */}
+                          <TableCell>
+                            <ProficiencyAreasCount scope={scope} />
+                          </TableCell>
+
+                          {/* Created */}
+                          <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
+                            {new Date(admin.created_at).toLocaleDateString()}
+                          </TableCell>
+
+                          {/* Actions */}
+                          <TableCell className="text-right">
+                            <div className="flex gap-1 justify-end">
+                              {admin.status !== 'deactivated' && (
+                                <>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => navigate(`/org/admin-management/${admin.id}/edit`)}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => setDeactivateTarget(admin)}
+                                  >
+                                    <UserMinus className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+
+              {/* Footer count */}
+              <div className="pt-3 text-xs text-muted-foreground">
+                Showing {filteredAdmins.length} of {(admins ?? []).length} admins
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
