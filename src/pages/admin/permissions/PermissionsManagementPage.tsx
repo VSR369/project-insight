@@ -5,6 +5,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, XCircle, Shield, History, Lock } from 'lucide-react';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import {
   useTierPermissions,
   useUpdateTierPermission,
