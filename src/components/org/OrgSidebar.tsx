@@ -1,6 +1,8 @@
 /**
  * OrgSidebar — Sidebar for the Seeker Organization portal.
- * Admin Management is only visible to PRIMARY admins.
+ * - PRIMARY admins see: Dashboard, Settings, Admin Management
+ * - DELEGATED admins see: Dashboard only
+ * - Non-admin org users see the full sidebar (preserves existing behavior)
  */
 
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -27,11 +29,13 @@ import {
   ArrowLeft,
   Network,
   ShieldCheck,
+  LogOut,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentSeekerAdmin } from '@/hooks/queries/useDelegatedAdmins';
+import { supabase } from '@/integrations/supabase/client';
 
 export function OrgSidebar() {
   const navigate = useNavigate();
@@ -39,30 +43,57 @@ export function OrgSidebar() {
   const { orgName, tierCode, organizationId } = useOrgContext();
   const { data: currentAdmin } = useCurrentSeekerAdmin(organizationId);
 
+  const isSOAdmin = !!currentAdmin;
   const isPrimary = currentAdmin?.admin_tier === 'PRIMARY';
 
   const isActive = (path: string) => location.pathname === path;
+
+  // --- Navigation items ---
 
   const mainItems = [
     { title: 'Dashboard', icon: LayoutDashboard, path: '/org/dashboard' },
   ];
 
+  // Only shown when NOT an SO Admin (regular org users)
   const challengeItems = [
     { title: 'All Challenges', icon: Briefcase, path: '/org/challenges' },
     { title: 'Create Challenge', icon: PlusCircle, path: '/org/challenges/create' },
   ];
 
-  const orgItems = [
-    { title: 'Settings', icon: Building2, path: '/org/settings' },
-    { title: 'Team', icon: Users, path: '/org/team' },
-    ...(isPrimary ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }] : []),
-    { title: 'Membership', icon: Crown, path: '/org/membership' },
-    { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
-  ];
+  // Organization section — scoped by admin tier
+  const orgItems = isSOAdmin
+    ? [
+        { title: 'Settings', icon: Building2, path: '/org/settings' },
+        ...(isPrimary ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }] : []),
+      ]
+    : [
+        { title: 'Settings', icon: Building2, path: '/org/settings' },
+        { title: 'Team', icon: Users, path: '/org/team' },
+        { title: 'Membership', icon: Crown, path: '/org/membership' },
+        { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
+      ];
 
   const billingItems = [
     { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
   ];
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
+  const renderMenuSection = (items: typeof mainItems) => (
+    <SidebarMenu>
+      {items.map((item) => (
+        <SidebarMenuItem key={item.path}>
+          <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)}>
+            <item.icon className="h-4 w-4" />
+            <span>{item.title}</span>
+          </SidebarMenuButton>
+        </SidebarMenuItem>
+      ))}
+    </SidebarMenu>
+  );
 
   return (
     <Sidebar className="border-r">
@@ -81,75 +112,54 @@ export function OrgSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* Main — always visible */}
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {mainItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            {renderMenuSection(mainItems)}
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Challenges</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {challengeItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Challenges — hidden for SO Admins */}
+        {!isSOAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Challenges</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(challengeItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
+        {/* Organization — scoped items */}
         <SidebarGroup>
           <SidebarGroupLabel>Organization</SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {orgItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            {renderMenuSection(orgItems)}
           </SidebarGroupContent>
         </SidebarGroup>
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Billing</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {billingItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton onClick={() => navigate(item.path)} isActive={isActive(item.path)}>
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* Billing — hidden for SO Admins */}
+        {!isSOAdmin && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Billing</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(billingItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
-        <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to App
-        </Button>
+        {isSOAdmin ? (
+          <Button variant="outline" className="w-full" onClick={handleSignOut}>
+            <LogOut className="mr-2 h-4 w-4" />
+            Sign Out
+          </Button>
+        ) : (
+          <Button variant="outline" className="w-full" onClick={() => navigate('/dashboard')}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to App
+          </Button>
+        )}
       </SidebarFooter>
     </Sidebar>
   );
