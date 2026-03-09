@@ -38,6 +38,7 @@ function useAdminNameMap() {
 }
 
 const GROUP_META: Record<string, { title: string; description?: string }> = {
+  GOVERNANCE: { title: 'Governance & Scaling', description: 'Platform admin tier depth and org admin delegation controls for scaling operations.' },
   ASSIGNMENT: { title: 'Assignment Mode', description: 'Controls whether seeker org verifications are auto-assigned or open for first-come-first-served claiming.' },
   DOMAIN_WEIGHTS: { title: 'Domain Match Weights', description: 'Controls how industry, country, and org type matches are scored during auto-assignment.' },
   CAPACITY: { title: 'Admin Capacity', description: 'Concurrent verification limits and availability thresholds.' },
