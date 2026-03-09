@@ -93,6 +93,13 @@ function PermissionsContent() {
 
   const permMap = buildPermissionMap(permissions ?? []);
 
+  // Filter visible tiers based on depth config
+  const visibleTiers = TIERS.filter((t) => {
+    if (depth === 1) return t.key === 'supervisor'; // Single tier only
+    if (depth === 2) return t.key !== 'admin';      // Hide basic admin column
+    return true;                                     // Full hierarchy
+  });
+
   const handleToggle = (id: string, currentValue: boolean) => {
     updatePermission.mutate({ id, is_enabled: !currentValue });
   };
