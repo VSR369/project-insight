@@ -77,6 +77,8 @@ function ProficiencyAreasCount({ scope }: { scope: DomainScope }) {
   return <span className="text-sm">{count} area{count !== 1 ? 's' : ''}</span>;
 }
 
+const PAGE_SIZE = 20;
+
 export default function AdminManagementPage() {
   const navigate = useNavigate();
   const { organizationId, orgName } = useOrgContext();
