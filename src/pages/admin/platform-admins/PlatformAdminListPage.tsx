@@ -59,8 +59,18 @@ function PlatformAdminListContent() {
 
   const { data: admins, isLoading } = usePlatformAdmins(statusFilter);
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
-  const canCreate = isSupervisor || isSeniorAdmin;
-  const canEdit = isSupervisor || isSeniorAdmin;
+  const { depth } = usePlatformTierDepth();
+  const effectiveSupervisor = isSupervisor || depth === 1;
+  const canCreate = effectiveSupervisor || isSeniorAdmin;
+  const canEdit = effectiveSupervisor || isSeniorAdmin;
+
+  // Filter tier options based on depth
+  const activeTierOptions = TIER_OPTIONS.filter((opt) => {
+    if (opt.value === 'all') return true;
+    if (depth === 1) return opt.value === 'supervisor';
+    if (depth === 2) return opt.value !== 'admin';
+    return true;
+  });
 
   // Apply tier filter client-side
   const filteredAdmins = useMemo(() => {
