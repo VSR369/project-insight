@@ -1,0 +1,135 @@
+/**
+ * EditDelegatedAdminPage — Edit scope of an existing delegated admin.
+ */
+
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useOrgContext } from '@/contexts/OrgContext';
+import { useUpdateDelegatedAdminScope, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
+import { ArrowLeft, Loader2, Edit, User } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+export default function EditDelegatedAdminPage() {
+  const navigate = useNavigate();
+  const { adminId } = useParams<{ adminId: string }>();
+  const { organizationId } = useOrgContext();
+  const updateScope = useUpdateDelegatedAdminScope();
+
+  const { data: admin, isLoading } = useQuery({
+    queryKey: ['delegated-admin-detail', adminId],
+    queryFn: async () => {
+      if (!adminId) return null;
+      const { data, error } = await supabase
+        .from('seeking_org_admins')
+        .select('id, full_name, email, phone, title, domain_scope, status, admin_tier')
+        .eq('id', adminId)
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    enabled: !!adminId,
+  });
+
+  const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
+  const [initialized, setInitialized] = useState(false);
+
+  useEffect(() => {
+    if (admin && !initialized) {
+      const existing = (admin.domain_scope ?? {}) as any;
+      setScope({
+        industry_segment_ids: existing.industry_segment_ids ?? [],
+        proficiency_area_ids: existing.proficiency_area_ids ?? [],
+        sub_domain_ids: existing.sub_domain_ids ?? [],
+        speciality_ids: existing.speciality_ids ?? [],
+        department_ids: existing.department_ids ?? [],
+        functional_area_ids: existing.functional_area_ids ?? [],
+      });
+      setInitialized(true);
+    }
+  }, [admin, initialized]);
+
+  const handleSave = async () => {
+    if (!adminId) return;
+    await updateScope.mutateAsync({
+      adminId,
+      organizationId,
+      domain_scope: scope,
+    });
+    navigate('/org/admin-management');
+  };
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4 max-w-2xl">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (!admin) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        Admin not found
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 max-w-2xl">
+      <Button variant="ghost" size="sm" onClick={() => navigate('/org/admin-management')}>
+        <ArrowLeft className="h-4 w-4 mr-1" />
+        Back to Admin Management
+      </Button>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Edit className="h-5 w-5" />
+            Edit Admin Scope
+          </CardTitle>
+          <CardDescription>
+            Update the domain scope for this delegated admin.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Admin info (read-only) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 bg-muted/40 rounded-lg p-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Name</p>
+              <p className="text-sm font-medium flex items-center gap-1">
+                <User className="h-3 w-3" />
+                {admin.full_name ?? '—'}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Email</p>
+              <p className="text-sm font-mono">{admin.email ?? '—'}</p>
+            </div>
+          </div>
+
+          {/* Scope editor */}
+          <div className="space-y-4 border-t pt-4">
+            <h3 className="text-sm font-semibold text-foreground">Domain Scope</h3>
+            <ScopeMultiSelect value={scope} onChange={setScope} />
+          </div>
+
+          <div className="flex gap-3 justify-end border-t pt-4">
+            <Button variant="outline" onClick={() => navigate('/org/admin-management')}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={updateScope.isPending || scope.industry_segment_ids.length === 0}>
+              {updateScope.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+              Save Changes
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

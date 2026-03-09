@@ -218,6 +218,10 @@ const SeekerOrgReviewPage = lazy(() => import("@/pages/admin/seeker-org-approval
 const TeamPage = lazy(() => import("@/pages/org/TeamPage"));
 const ChallengeCreatePage = lazy(() => import("@/pages/org/ChallengeCreatePage"));
 const OrgBillingPage = lazy(() => import("@/pages/org/OrgBillingPage"));
+const AdminManagementPage = lazy(() => import("@/pages/org/AdminManagementPage"));
+const CreateDelegatedAdminPage = lazy(() => import("@/pages/org/CreateDelegatedAdminPage"));
+const EditDelegatedAdminPage = lazy(() => import("@/pages/org/EditDelegatedAdminPage"));
+const ActivationPage = lazy(() => import("@/pages/ActivationPage"));
 const OnboardingCompletePage = lazy(() => import("@/pages/registration/OnboardingCompletePage"));
 
 import { queryClient } from "@/lib/queryClient";
@@ -252,6 +256,7 @@ const App = () => (
             <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/manager-portal" element={<ManagerPortal />} />
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
+            <Route path="/activate" element={<LazyRoute><ActivationPage /></LazyRoute>} />
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>
@@ -851,6 +856,9 @@ const App = () => (
                 </SeekerGuard>
               }
             />
+            <Route path="/org/admin-management" element={<SeekerGuard><LazyRoute><AdminManagementPage /></LazyRoute></SeekerGuard>} />
+            <Route path="/org/admin-management/create" element={<SeekerGuard><LazyRoute><CreateDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
+            <Route path="/org/admin-management/:adminId/edit" element={<SeekerGuard><LazyRoute><EditDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
             <Route
               path="/registration/complete"
               element={

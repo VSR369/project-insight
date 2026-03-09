@@ -152,26 +152,82 @@ export function useSeekerOrgDetail(orgId?: string) {
   });
 }
 
-// ─── Approve organization ───
+// ─── Approve organization + auto-provision PRIMARY admin ───
 export function useApproveOrg() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (orgId: string) => {
+    mutationFn: async ({ orgId, adminDelegation }: { orgId: string; adminDelegation?: { new_admin_name?: string; new_admin_email?: string; new_admin_phone?: string } | null }) => {
       const updateData = await withUpdatedBy({
         verification_status: 'verified' as any,
         verified_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
-      // Set verified_by to same user as updated_by
+      const adminUserId = updateData.updated_by;
+
+      // 1. Set verified status
       const { error } = await supabase
         .from('seeker_organizations')
-        .update({ ...updateData, verified_by: updateData.updated_by })
+        .update({ ...updateData, verified_by: adminUserId })
         .eq('id', orgId);
       if (error) throw new Error(error.message);
+
+      // 2. Determine designation method and admin details
+      const isSeparate = !!adminDelegation?.new_admin_email;
+      const designationMethod = isSeparate ? 'SEPARATE' : 'SELF';
+
+      // 3. Fetch org_users to find the user_id for this org
+      const { data: orgUser } = await supabase
+        .from('org_users')
+        .select('user_id')
+        .eq('organization_id', orgId)
+        .eq('role', 'tenant_admin')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+
+      // 4. Insert seeking_org_admins PRIMARY record
+      const { data: soaRecord, error: soaError } = await supabase
+        .from('seeking_org_admins')
+        .insert({
+          organization_id: orgId,
+          user_id: orgUser?.user_id ?? null,
+          admin_tier: 'PRIMARY',
+          status: 'pending_activation',
+          designation_method: designationMethod,
+          designated_by: adminUserId,
+          domain_scope: {},
+          full_name: isSeparate ? (adminDelegation?.new_admin_name ?? null) : null,
+          email: isSeparate ? adminDelegation?.new_admin_email : null,
+          phone: isSeparate ? (adminDelegation?.new_admin_phone ?? null) : null,
+          created_by: adminUserId,
+        } as any)
+        .select('id')
+        .single();
+
+      if (soaError) {
+        console.error('Failed to create seeking_org_admins record:', soaError.message);
+        // Non-fatal — org is already verified
+      }
+
+      // 5. Generate activation link (72h expiry)
+      if (soaRecord) {
+        const expiresAt = new Date(Date.now() + 72 * 60 * 60 * 1000).toISOString();
+        const { error: linkError } = await supabase
+          .from('admin_activation_links')
+          .insert({
+            organization_id: orgId,
+            admin_id: soaRecord.id,
+            expires_at: expiresAt,
+            status: 'pending',
+          } as any);
+        if (linkError) {
+          console.error('Failed to create activation link:', linkError.message);
+        }
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seeker-orgs'] });
-      toast.success('Organization approved successfully');
+      toast.success('Organization approved — Primary Admin provisioned');
     },
     onError: (error: Error) => handleMutationError(error, { operation: 'approve_organization', component: 'seeker-org-approvals' }),
   });

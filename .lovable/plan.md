@@ -1,185 +1,310 @@
+# Platform Admin Sub-Role Tiers — Implementation Complete
 
+## What Was Implemented
 
-## Revised Implementation Plan: Seeking Org Admin Provisioning (SOA Module)
+### Database
+- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
+- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
+- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
+- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
+- Added index `idx_pap_admin_tier`
 
-### Key Simplifications from User Feedback
+### Edge Functions
+- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
+- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
 
-1. **No Senior Admin vs Basic Admin distinction for approval** -- ALL platform admins (any tier) can approve/decline seeking orgs, regardless of SELF vs SEPARATE PERSON flow. No escalation modal needed.
-2. **Post-approval provisioning chain** is partially implemented -- `useApproveOrg` sets `verified`, `AdminCredentialsCard` handles welcome emails with temp passwords. What's missing: automatically creating a `seeking_org_admins` PRIMARY record on approval.
-3. **Delegated Admin Management** is the main new build -- Primary Seeking Org Admin (once activated and logged in) can optionally create Delegated Admins with domain scope including **Departments** and **Functional Areas** (in addition to Industry Segments, Proficiency Areas, Sub-domains, Specialities).
-4. **Assignment workflow is done** -- `open_claim` / `auto_assign` toggle already works via `md_mpa_config`.
+### Frontend
+- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
+- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
+- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
+- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
+- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
+- `EditPlatformAdminPage`: Supervisor only
+- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
+- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
 
-### What Already Exists
+## Tier Permission Matrix
 
-| Feature | Status |
-|---------|--------|
-| Verification review page (SeekerOrgReviewPage) | Done |
-| Approve/Reject/Return/Suspend/Reinstate actions | Done |
-| V-check workflow, document review, billing verification | Done |
-| AdminCredentialsCard with welcome email (SELF + SEPARATE) | Done |
-| `create-org-admin` edge function (auth user + org_users mapping) | Done |
-| `send-seeker-welcome-email` edge function | Done |
-| `seeking_org_admins` table schema | Done |
-| `admin_activation_links` table | Done |
-| Open Claim / Auto-Assign config toggle | Done |
-| `claim_org_for_verification` atomic RPC | Done |
-| Org portal layout (OrgLayout, OrgSidebar, OrgDashboard) | Done |
-| Master data hooks: useDepartments, useFunctionalAreas, useIndustrySegments | Done |
+| Feature | Supervisor | Senior Admin | Admin |
+|---------|-----------|--------------|-------|
+| Dashboard | ✅ | ✅ | ✅ |
+| Master Data | ✅ | ✅ | ✅ |
+| Taxonomy | ✅ | ✅ | ✅ |
+| Interview Setup | ✅ | ✅ | ✅ |
+| Seeker Management | ✅ | ✅ | ✅ |
+| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
+| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
+| Edit Admin | ✅ | ❌ | ❌ |
+| Deactivate Admin | ✅ | ❌ | ❌ |
+| Seeker Config | ✅ | ✅ | ❌ |
+| My Profile | ✅ | ✅ | ✅ |
 
-### What Needs to Be Built
-
----
-
-### Phase 1: Complete Post-Approval Provisioning Chain
-
-**1a. Enhance `useApproveOrg` mutation**
-
-After setting `verification_status = 'verified'`, automatically:
-- Insert a `seeking_org_admins` record: `admin_tier = 'PRIMARY'`, `status = 'pending_activation'`, `designation_method` = SELF or SEPARATE (based on `adminDelegation` existence), `domain_scope = '{}'` (ALL access)
-- Generate an activation token and insert into `admin_activation_links` (72-hour expiry from `md_mpa_config`)
-
-This replaces the current manual "send welcome email" step -- the provisioning chain fires on approval.
-
-**1b. Create `admin-activation` edge function (EF-SOA-03)**
-
-Handles the `/activate?token=` flow:
-- Validates token (not expired, not used)
-- Sets the user's password
-- Records T&C acceptance
-- Updates `seeking_org_admins.status` to `active`, sets `activated_at`
-- Updates `admin_activation_links.used_at`
-- Returns success with redirect to `/org/login`
-
-**1c. Create Activation Page (`/activate`)**
-
-Public route (no auth required). UI:
-- Token validation on mount (valid/expired/already-used states)
-- Password set form (with strength meter, confirm password)
-- T&C acceptance checkbox
-- Success state with "Go to Login" button pointing to `/org/login` (existing login flow)
+## Zero-Impact Areas
+- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
+- `AdminGuard` unchanged
+- `useUserRoles` unchanged
+- `RoleBasedRedirect` unchanged
+- All existing admin CRUD for master data, seekers, etc. untouched
 
 ---
 
-### Phase 2: Org Admin Portal -- Admin Management
+# MOD-02: Auto-Assignment Engine — Implementation Complete
 
-**2a. Add routes and sidebar items**
+## What Was Implemented
 
-New routes under `/org/**` (wrapped in `SeekerGuard`):
-- `/org/admin-management` -- Delegated Admin list (PRIMARY admin only)
-- `/org/admin-management/create` -- Create Delegated Admin form
-- `/org/admin-management/:adminId/edit` -- Edit scope
+### Database (Migration)
+- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
+- **`verification_assignments`** — Assignment records with scoring details, domain match scores
+- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
+- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
+- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
+- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
+- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
+- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
+- All tables have RLS enabled with proper policies
 
-Update `OrgSidebar.tsx`:
-- Add "Admin Management" (visible to PRIMARY admin only)
-- Add "Role Management" (placeholder, coming soon)
-- Add "Knowledge Centre" link
+### Edge Functions
+- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
+- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
 
-**2b. Admin Management Console page (`/org/admin-management`)**
+### Frontend — SCR-02-01: Notification Panel (All Tiers)
+- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
+- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
+- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
+- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
+- Integrated into `AdminHeader.tsx` for all admin tiers
 
-Per Figma (image-255):
-- Session context banner: `[Admin Name] | Organisation: [Org Name] | Primary`
-- Table of delegated admins with columns: Name, Email, Status, Industry Segments, Proficiency Areas, Created, Actions (Edit/Deactivate)
-- Search bar
-- "+ Add Delegated Admin" button (disabled when at `max_delegated_admins_per_org` limit)
-- Status badges: `pending_activation` (amber), `active` (green), `suspended` (orange), `deactivated` (grey)
+### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
+- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
+- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
+- **`useEngineAuditLog.ts`** — React Query hook with filtering support
+- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
+- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
 
-Data source: `seeking_org_admins` WHERE `organization_id` = current org AND `admin_tier` = 'DELEGATED'
+### MOD-02 Role-Based Access Matrix
 
-**2c. Create Delegated Admin form (`/org/admin-management/create`)**
-
-Per Figma (image-256):
-- Personal Details: Full Name*, Email*, Phone Number*, Title/Role
-- Domain Scope section with cascading multi-select pickers:
-  - **Industry Segments*** (required)
-  - **Proficiency Areas** (optional, filtered by selected industries)
-  - **Sub-domains** (optional, filtered by proficiency areas)
-  - **Specialities** (optional, filtered by sub-domains)
-  - **Departments** (optional, new addition)
-  - **Functional Areas** (optional, filtered by selected departments)
-- Help text: "Industry Segments are required. All other scope fields are optional -- empty = ALL."
-- On submit:
-  1. Validate email not duplicate in org
-  2. Check scope overlap with existing delegated admins (warning, not blocking)
-  3. Insert `seeking_org_admins` record: `admin_tier = 'DELEGATED'`, `status = 'pending_activation'`, `domain_scope` = JSONB with selected UUIDs
-  4. Call `create-org-admin` edge function to create auth user
-  5. Generate activation link
-  6. Send activation email
-  7. Toast: "Delegated Admin created. Activation email sent to [email]."
-
-**2d. Edit Delegated Admin scope (`/org/admin-management/:adminId/edit`)**
-
-- Pre-populated scope pickers
-- Warning if narrowing scope affects existing assignments
-- Update `domain_scope` JSONB on save
-
-**2e. Deactivate Delegated Admin**
-
-- Confirmation modal
-- Updates `seeking_org_admins.status = 'deactivated'`
-- Calls `deactivate-delegated-admin` edge function (revokes auth, logs audit)
+| Feature | Admin (Basic) | Senior Admin | Supervisor |
+|---------|--------------|--------------|------------|
+| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
+| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
+| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
+| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
 
 ---
 
-### Phase 3: Supporting Infrastructure
+# MOD-02 Gap Fix Log (Latest)
 
-**3a. `domain_scope` JSONB structure**
+## What Was Fixed
 
-```json
-{
-  "industry_segment_ids": ["uuid1", "uuid2"],
-  "proficiency_area_ids": ["uuid3"],
-  "sub_domain_ids": [],
-  "speciality_ids": [],
-  "department_ids": ["uuid4"],
-  "functional_area_ids": ["uuid5", "uuid6"]
-}
-```
+### Database: `execute_auto_assignment` RPC Rewritten
+- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
+- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
+- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
+- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
+- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
+- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
+- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
+- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
+- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
+- Availability status values match actual data: `'Available'`, `'Partially Available'`
 
-Empty array = ALL access for that dimension.
+### Database: `get_eligible_admins_ranked` — Already Correct
+- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
 
-**3b. Hooks for Delegated Admin CRUD**
+### UI: Audit Log Org Name Column (GAP-15)
+- Added "Org Name" column between Date/Time and Outcome in the audit log table
+- Reads from `snapshot.org_name`
+- Already included in CSV export
 
-New file: `src/hooks/queries/useDelegatedAdmins.ts`
-- `useDelegatedAdmins(orgId)` -- list for org
-- `useCreateDelegatedAdmin()` -- insert + edge function + activation link
-- `useUpdateDelegatedAdminScope()` -- update domain_scope
-- `useDeactivateDelegatedAdmin()` -- soft deactivate
-
-**3c. `md_mpa_config` parameters to add**
-
-- `activation_link_expiry_hours` (default: 72)
-- `max_delegated_admins_per_org` (default: 5)
-
-**3d. `ScopeMultiSelect` component**
-
-Reusable cascading multi-select for domain scope. Uses existing master data hooks:
-- `useIndustrySegments()`, proficiency areas from taxonomy, sub-domains, specialities
-- `useDepartments()`, `useFunctionalAreas()` (filtered by department)
+## Remaining Linter Warnings (Pre-existing)
+- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
+- Security definer view and function search_path warnings are pre-existing across the project
 
 ---
 
-### Implementation Order
+# MOD-05: Performance Metrics Dashboard — Implementation Complete
 
-| Step | Description | Files |
-|------|-------------|-------|
-| 1 | Migration: add config params, alter `domain_scope` to JSONB if needed | New migration |
-| 2 | Enhance `useApproveOrg` to create `seeking_org_admins` + activation link | `useSeekerOrgApprovals.ts` |
-| 3 | Create `admin-activation` edge function | `supabase/functions/admin-activation/` |
-| 4 | Create `/activate` page | `src/pages/ActivationPage.tsx` |
-| 5 | Build `ScopeMultiSelect` component | `src/components/org/ScopeMultiSelect.tsx` |
-| 6 | Build `useDelegatedAdmins` hooks | `src/hooks/queries/useDelegatedAdmins.ts` |
-| 7 | Build Admin Management Console page | `src/pages/org/AdminManagementPage.tsx` |
-| 8 | Build Create Delegated Admin page | `src/pages/org/CreateDelegatedAdminPage.tsx` |
-| 9 | Build Edit Delegated Admin page | `src/pages/org/EditDelegatedAdminPage.tsx` |
-| 10 | Update OrgSidebar + App.tsx routes | `OrgSidebar.tsx`, `App.tsx` |
-| 11 | Build Deactivate modal + edge function | Components + `supabase/functions/deactivate-delegated-admin/` |
+## What Was Implemented
 
-### What Is NOT In Scope (Deferred)
+### Database (Migration)
+- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
+- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
+- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
+- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
+- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
 
-- Session isolation (separate JWT `session_type` claim) -- current auth model works for now
-- Separate `/org/login` page -- existing login flow handles org admin access
-- Role Management page (placeholder already exists per Figma image-257)
-- BR-PAR role-based approval gating (user confirmed all admins can approve)
-- Escalation modal (not needed per user feedback)
-- pg_cron activation reminders
+### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
+- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
+- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
+- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
+- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
+- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
 
+### Frontend — SCR-05-02: My Performance (All Admins)
+- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
+- No peer comparison data (BR-MPA-038(a))
+- Route: `/admin/my-performance` — all admin tiers
+
+### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
+- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
+- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
+- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
+- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
+
+### Shared Components
+- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
+
+### Hooks
+- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
+- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
+- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
+
+### Navigation
+- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
+- All routes lazy-loaded
+
+## MOD-05 Role-Based Access Matrix
+
+| Feature | Admin (Basic) | Senior Admin | Supervisor |
+|---------|--------------|--------------|------------|
+| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
+| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
+| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
+| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
+| CSV Export | ❌ | ❌ | ✅ |
+
+## All 10 Gaps — Closed
+
+| Gap | Fix |
+|-----|-----|
+| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
+| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
+| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
+| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
+| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
+| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
+| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
+| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
+| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
+| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
+
+## Zero-Impact Areas
+- All existing RLS policies unchanged
+- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
+- No route conflicts with existing paths
+- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+
+---
+
+# MOD-06: Reassignment Workflow — Implementation Complete
+
+## What Was Implemented
+
+### Database (Migration)
+- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
+- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
+- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
+- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
+- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
+- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
+
+### Edge Functions
+- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
+
+### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
+- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
+- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
+- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
+- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
+- Sidebar: "Reassignments" with pending count badge (supervisor only)
+
+### Frontend — MOD-M-04: Supervisor Reassign Modal
+- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
+- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
+- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
+- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
+
+### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
+- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
+- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
+
+### Frontend — SCR-06-02: Extensions
+- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
+- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
+
+## MOD-06 Role-Based Access Matrix
+
+| Feature | Admin (Basic) | Senior Admin | Supervisor |
+|---------|--------------|--------------|------------|
+| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
+| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
+| Approve/Decline Requests | ❌ | ❌ | ✅ |
+| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
+| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
+
+## Business Rules Cross-Reference
+
+| BR | Enforcement | Status |
+|----|------------|--------|
+| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
+| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
+| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
+| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
+| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
+| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
+
+## Zero-Impact Areas
+- All existing RLS policies unchanged
+- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
+- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
+- No route conflicts with existing paths
+
+---
+
+# Master Data Consistency Fix — Implementation Complete
+
+## What Was Fixed
+
+### Database Migration
+- **`org_type_expertise`** column on `platform_admin_profiles`: Converted from `TEXT[]` (hardcoded strings like "Corporation") to `UUID[]` (references to `organization_types` master data table)
+- **Data migration**: Mapped existing text values to `organization_types.id` UUIDs (e.g., "Corporation" → CORPORATE UUID)
+- **Cleaned up overloaded RPCs**: Dropped all duplicate `execute_auto_assignment` and `get_eligible_admins_ranked` function signatures; recreated each with a single clean signature using `p_org_type UUID`
+
+### Frontend
+- **`OrgTypeExpertisePicker.tsx`**: Rewritten from 7 hardcoded checkbox strings to a searchable Command popover querying `organization_types` master data via `useOrganizationTypes()` hook — same pattern as Industry and Country pickers
+- **`ExpertiseTags.tsx`**: Updated `org_type` branch to query `organization_types` table by UUID instead of returning raw strings
+- **`platformAdminForm.schema.ts`**: Changed `org_type_expertise` Zod validation from `z.array(z.string())` to `z.array(z.string().uuid())`
+- **`IndustryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useIndustrySegments()` hook from `useMasterData.ts`
+- **`CountryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useCountries()` hook from `useMasterData.ts`
+
+## Scoring Engine Impact
+- L3 (Org Type) scoring in `execute_auto_assignment` and `get_eligible_admins_ranked` now correctly compares UUID-to-UUID, fixing the silent mismatch where text strings never matched seeker org type UUIDs
+
+## Future: `seeking_org_admins.domain_scope`
+- Currently `TEXT NOT NULL DEFAULT 'ALL'` — adequate for PRIMARY admin (full scope)
+- When Delegated Admin feature is built, MUST convert to JSONB with UUID references to existing master data tables: `industry_segments.id`, `proficiency_areas.id`, `specialities.id`
+- **No new lookup tables or JSON string lists** — reuse existing master data exclusively
+
+---
+
+## Auto-Assignment Engine Wiring (Completed)
+
+### Rules (BRD Section 3.1 + user override)
+- **Trigger**: DB trigger fires on `verification_status` → `payment_submitted`
+- **Scoring**: L1 Industry (50pts, hard gate), L2 Country (30pts, wildcard=15), L3 Org Type (20pts, wildcard=10)
+- **2-pass system**: Pass 1 = Available only, Pass 2 = Available + Partially Available
+- **Tiebreakers**: Total score DESC → Workload ratio ASC → Assignment Priority ASC → Round-robin
+- **Fallback**: Open Queue if no candidate scores > 0 on L1
+- **Supervisor exclusion** (user override): `admin_tier != 'supervisor'` in all candidate queries
+- Senior Admins and Basic Admins compete equally (no tier priority)
+
+### Database Changes
+1. **`execute_auto_assignment` RPC**: Added `AND pap.admin_tier != 'supervisor'` to affinity check, both scoring passes, and fallback eligibility check
+2. **`get_eligible_admins_ranked` RPC**: Added `AND pap.admin_tier != 'supervisor'` filter
+3. **`fn_auto_assign_on_payment_submitted` trigger function**: Creates `platform_admin_verifications` record, collects org industries/country/type, calls `execute_auto_assignment`, updates verification on success
+4. **`trg_seeker_org_auto_assign` trigger**: AFTER UPDATE OF `verification_status` ON `seeker_organizations`
+
+### Frontend Changes
+1. **`useSeekerOrgApprovals.ts`**: Added `useMyAssignedOrgIds` hook; `useSeekerOrgList` now accepts `assignedOrgIds` filter and `showUnassigned` flag
+2. **`SeekerOrgApprovalsPage.tsx`**: Uses `useCurrentAdminProfile` to detect tier; non-supervisors see only their assigned orgs; supervisors see all + "Unassigned" tab for open queue items

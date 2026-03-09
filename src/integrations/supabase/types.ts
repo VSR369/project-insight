@@ -193,6 +193,7 @@ export type Database = {
           reminders_sent: number
           status: string
           token: string
+          used_at: string | null
         }
         Insert: {
           admin_id?: string | null
@@ -203,6 +204,7 @@ export type Database = {
           reminders_sent?: number
           status?: string
           token?: string
+          used_at?: string | null
         }
         Update: {
           admin_id?: string | null
@@ -213,6 +215,7 @@ export type Database = {
           reminders_sent?: number
           status?: string
           token?: string
+          used_at?: string | null
         }
         Relationships: [
           {
@@ -8051,10 +8054,14 @@ export type Database = {
           created_by: string | null
           designated_by: string | null
           designation_method: string | null
-          domain_scope: string
+          domain_scope: Json
+          email: string | null
+          full_name: string | null
           id: string
           organization_id: string
+          phone: string | null
           status: string
+          title: string | null
           updated_at: string | null
           updated_by: string | null
           user_id: string | null
@@ -8066,10 +8073,14 @@ export type Database = {
           created_by?: string | null
           designated_by?: string | null
           designation_method?: string | null
-          domain_scope?: string
+          domain_scope?: Json
+          email?: string | null
+          full_name?: string | null
           id?: string
           organization_id: string
+          phone?: string | null
           status?: string
+          title?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null
@@ -8081,10 +8092,14 @@ export type Database = {
           created_by?: string | null
           designated_by?: string | null
           designation_method?: string | null
-          domain_scope?: string
+          domain_scope?: Json
+          email?: string | null
+          full_name?: string | null
           id?: string
           organization_id?: string
+          phone?: string | null
           status?: string
+          title?: string | null
           updated_at?: string | null
           updated_by?: string | null
           user_id?: string | null

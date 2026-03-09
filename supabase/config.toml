@@ -112,3 +112,9 @@ verify_jwt = false
 
 [functions.leave-reminder]
 verify_jwt = false
+
+[functions.admin-activation]
+verify_jwt = false
+
+[functions.deactivate-delegated-admin]
+verify_jwt = false
