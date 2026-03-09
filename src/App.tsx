@@ -256,6 +256,7 @@ const App = () => (
             <Route path="/invite/:token" element={<InviteAccept />} />
             <Route path="/manager-portal" element={<ManagerPortal />} />
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
+            <Route path="/activate" element={<LazyRoute><ActivationPage /></LazyRoute>} />
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>
