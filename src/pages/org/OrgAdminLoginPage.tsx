@@ -25,8 +25,45 @@ export default function OrgAdminLoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [failureCount, setFailureCount] = useState(0);
   const [lockedUntil, setLockedUntil] = useState<Date | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
 
   const isLocked = lockedUntil && new Date() < lockedUntil;
+
+  // GAP 5: Redirect if already logged in as an active SO admin
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.user) {
+        setSessionChecked(true);
+        return;
+      }
+      const { data: orgUser } = await supabase
+        .from('org_users')
+        .select('organization_id')
+        .eq('user_id', session.user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+      if (!orgUser) {
+        setSessionChecked(true);
+        return;
+      }
+      const { data: adminRecord } = await supabase
+        .from('seeking_org_admins')
+        .select('status')
+        .eq('organization_id', orgUser.organization_id)
+        .eq('user_id', session.user.id)
+        .eq('status', 'active')
+        .limit(1)
+        .maybeSingle();
+      if (adminRecord) {
+        navigate('/org/dashboard', { replace: true });
+        return;
+      }
+      setSessionChecked(true);
+    };
+    checkExistingSession();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
