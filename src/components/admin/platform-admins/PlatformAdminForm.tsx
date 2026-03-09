@@ -175,40 +175,42 @@ export function PlatformAdminForm({
               )}
             />
 
-            {/* Admin Tier */}
-            <FormField
-              control={form.control}
-              name="admin_tier"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Admin Tier</FormLabel>
-                  <Select
-                    onValueChange={handleTierChange}
-                    value={field.value}
-                    disabled={allowedTierOptions.length <= 1}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select tier" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {allowedTierOptions.map((opt) => (
-                        <SelectItem key={opt.value} value={opt.value}>
-                          {opt.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    {callerTier === 'senior_admin'
-                      ? 'Senior Admins can only create Admin-tier accounts.'
-                      : 'Supervisor, Senior Admin, or Admin access level.'}
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Admin Tier — hidden when depth=1 (single tier) */}
+            {depth > 1 && (
+              <FormField
+                control={form.control}
+                name="admin_tier"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Admin Tier</FormLabel>
+                    <Select
+                      onValueChange={handleTierChange}
+                      value={field.value}
+                      disabled={allowedTierOptions.length <= 1}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select tier" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {allowedTierOptions.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormDescription>
+                      {callerTier === 'senior_admin'
+                        ? 'Senior Admins can only create Admin-tier accounts.'
+                        : 'Supervisor, Senior Admin, or Admin access level.'}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             {/* Max Concurrent Verifications */}
             <FormField
