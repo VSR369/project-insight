@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { useOrgContext } from '@/contexts/OrgContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -90,11 +90,11 @@ export default function MembershipPage() {
   };
 
   return (
-    <OrgLayout
-      title="Membership Management"
-      description="Manage your organization's membership tier, discounts, and renewal settings"
-      breadcrumbs={[{ label: 'Membership' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Membership Management</h1>
+        <p className="text-muted-foreground mt-1">Manage your organization's membership tier, discounts, and renewal settings</p>
+      </div>
       <div className="space-y-6">
         {/* Current Membership Status */}
         <Card>
@@ -337,6 +337,6 @@ export default function MembershipPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </OrgLayout>
+    </>
   );
 }

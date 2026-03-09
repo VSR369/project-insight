@@ -5,7 +5,7 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { useOrgContext } from '@/contexts/OrgContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
@@ -52,11 +52,11 @@ export default function ChallengeListPage() {
   );
 
   return (
-    <OrgLayout
-      title="Challenges"
-      description="Manage your organization's challenges"
-      breadcrumbs={[{ label: 'Challenges' }]}
-    >
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Challenges</h1>
+        <p className="text-muted-foreground mt-1">Manage your organization's challenges</p>
+      </div>
       <div className="space-y-4">
         {/* Actions bar */}
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
@@ -125,6 +125,6 @@ export default function ChallengeListPage() {
           </CardContent>
         </Card>
       </div>
-    </OrgLayout>
+    </>
   );
 }

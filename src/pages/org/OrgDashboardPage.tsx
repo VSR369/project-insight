@@ -4,7 +4,7 @@ import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
  * Shows usage gauges, tier info, quick actions, registration data summary.
  */
 
-import { OrgLayout } from '@/components/org/OrgLayout';
+
 import { TcReAcceptanceModal } from '@/components/org/TcReAcceptanceModal';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useOrgSubscription as useOrgSubBilling } from '@/hooks/queries/useBillingData';
@@ -41,7 +41,11 @@ export default function OrgDashboardPage() {
 
   return (
     <FeatureErrorBoundary featureName="OrgDashboard">
-    <OrgLayout title="Dashboard" description={`Welcome to ${orgName}`}>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
+        <p className="text-muted-foreground mt-1">Welcome to {orgName}</p>
+      </div>
       {/* T&C Re-acceptance / First-login modal */}
       <TcReAcceptanceModal
         orgId={organizationId}
@@ -306,7 +310,7 @@ export default function OrgDashboardPage() {
           </CardContent>
         </Card>
       </div>
-      </OrgLayout>
+      </>
     </FeatureErrorBoundary>
   );
 }

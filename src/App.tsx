@@ -14,6 +14,7 @@ import { AdminShell } from "@/components/admin/AdminShell";
 import { TierGuard } from "@/components/admin/TierGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
+import { OrgShell } from "@/components/org/OrgShell";
 import { EnrollmentRequiredGuard } from "@/components/auth/EnrollmentRequiredGuard";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { RoleBasedRedirect } from "@/components/routing/RoleBasedRedirect";
@@ -793,74 +794,20 @@ const App = () => (
               }
             />
 
-            {/* Seeker Organization Routes (wrapped in SeekerGuard) */}
-            <Route
-              path="/org/dashboard"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><OrgDashboardPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/challenges"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><ChallengeListPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/settings"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><OrgSettingsPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/membership"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><MembershipPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/parent-dashboard"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><ParentDashboardPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/team"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><TeamPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/challenges/create"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><ChallengeCreatePage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route
-              path="/org/billing"
-              element={
-                <SeekerGuard>
-                  <LazyRoute><OrgBillingPage /></LazyRoute>
-                </SeekerGuard>
-              }
-            />
-            <Route path="/org/admin-management" element={<SeekerGuard><LazyRoute><AdminManagementPage /></LazyRoute></SeekerGuard>} />
-            <Route path="/org/admin-management/create" element={<SeekerGuard><LazyRoute><CreateDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
-            <Route path="/org/admin-management/:adminId/edit" element={<SeekerGuard><LazyRoute><EditDelegatedAdminPage /></LazyRoute></SeekerGuard>} />
+            {/* Seeker Organization Routes — nested under OrgShell for persistent sidebar */}
+            <Route path="/org" element={<SeekerGuard><OrgShell /></SeekerGuard>}>
+              <Route path="dashboard" element={<OrgDashboardPage />} />
+              <Route path="challenges" element={<ChallengeListPage />} />
+              <Route path="challenges/create" element={<ChallengeCreatePage />} />
+              <Route path="settings" element={<OrgSettingsPage />} />
+              <Route path="membership" element={<MembershipPage />} />
+              <Route path="parent-dashboard" element={<ParentDashboardPage />} />
+              <Route path="team" element={<TeamPage />} />
+              <Route path="billing" element={<OrgBillingPage />} />
+              <Route path="admin-management" element={<AdminManagementPage />} />
+              <Route path="admin-management/create" element={<CreateDelegatedAdminPage />} />
+              <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
+            </Route>
             <Route
               path="/registration/complete"
               element={
