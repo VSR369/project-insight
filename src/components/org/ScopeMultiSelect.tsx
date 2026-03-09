@@ -7,6 +7,7 @@
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
 import { useDepartments } from '@/hooks/queries/usePrimaryContactData';
 import { useFunctionalAreas } from '@/hooks/queries/useFunctionalAreas';
+import { useProficiencyAreasBySegments, useSubDomainsByAreas, useSpecialitiesBySubDomains } from '@/hooks/queries/useScopeTaxonomy';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -89,6 +90,11 @@ export function ScopeMultiSelect({ value, onChange }: ScopeMultiSelectProps) {
   const { data: departments = [] } = useDepartments();
   const { data: functionalAreas = [] } = useFunctionalAreas();
 
+  // Cascading taxonomy hooks
+  const { data: proficiencyAreas = [] } = useProficiencyAreasBySegments(value.industry_segment_ids);
+  const { data: subDomains = [] } = useSubDomainsByAreas(value.proficiency_area_ids);
+  const { data: specialities = [] } = useSpecialitiesBySubDomains(value.sub_domain_ids);
+
   // Filter functional areas by selected departments
   const filteredFAs = value.department_ids.length > 0
     ? functionalAreas.filter((fa) => value.department_ids.includes(fa.department_id))
@@ -108,16 +114,99 @@ export function ScopeMultiSelect({ value, onChange }: ScopeMultiSelectProps) {
 
   return (
     <div className="space-y-4">
+      {/* Industry Segments (required) */}
       <MultiSelectField
         label="Industry Segments"
         required
         items={industries.map((i) => ({ id: i.id, name: i.name }))}
         selectedIds={value.industry_segment_ids}
         onAdd={addTo('industry_segment_ids')}
-        onRemove={removeFrom('industry_segment_ids')}
+        onRemove={(id) => {
+          // Cascade: remove proficiency areas from this segment
+          const paIdsToRemove = proficiencyAreas
+            .filter((pa) => pa.industry_segment_id === id)
+            .map((pa) => pa.id);
+          const sdIdsToRemove = subDomains
+            .filter((sd) => paIdsToRemove.includes(sd.proficiency_area_id))
+            .map((sd) => sd.id);
+          const spIdsToRemove = specialities
+            .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
+            .map((sp) => sp.id);
+          onChange({
+            ...value,
+            industry_segment_ids: value.industry_segment_ids.filter((v) => v !== id),
+            proficiency_area_ids: value.proficiency_area_ids.filter((v) => !paIdsToRemove.includes(v)),
+            sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
+            speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+          });
+        }}
         placeholder="Select industry segments..."
       />
 
+      {/* Proficiency Areas (filtered by industry segments) */}
+      {value.industry_segment_ids.length > 0 && (
+        <MultiSelectField
+          label="Proficiency Areas"
+          items={proficiencyAreas.map((pa) => ({ id: pa.id, name: pa.name }))}
+          selectedIds={value.proficiency_area_ids}
+          onAdd={addTo('proficiency_area_ids')}
+          onRemove={(id) => {
+            // Cascade: remove sub-domains from this area
+            const sdIdsToRemove = subDomains
+              .filter((sd) => sd.proficiency_area_id === id)
+              .map((sd) => sd.id);
+            const spIdsToRemove = specialities
+              .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
+              .map((sp) => sp.id);
+            onChange({
+              ...value,
+              proficiency_area_ids: value.proficiency_area_ids.filter((v) => v !== id),
+              sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
+              speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+            });
+          }}
+          placeholder="Select proficiency areas..."
+          helpText="Optional — empty means ALL proficiency areas within selected industries"
+        />
+      )}
+
+      {/* Sub-domains (filtered by proficiency areas) */}
+      {value.proficiency_area_ids.length > 0 && (
+        <MultiSelectField
+          label="Sub-domains"
+          items={subDomains.map((sd) => ({ id: sd.id, name: sd.name }))}
+          selectedIds={value.sub_domain_ids}
+          onAdd={addTo('sub_domain_ids')}
+          onRemove={(id) => {
+            // Cascade: remove specialities from this sub-domain
+            const spIdsToRemove = specialities
+              .filter((sp) => sp.sub_domain_id === id)
+              .map((sp) => sp.id);
+            onChange({
+              ...value,
+              sub_domain_ids: value.sub_domain_ids.filter((v) => v !== id),
+              speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+            });
+          }}
+          placeholder="Select sub-domains..."
+          helpText="Optional — empty means ALL sub-domains within selected proficiency areas"
+        />
+      )}
+
+      {/* Specialities (filtered by sub-domains) */}
+      {value.sub_domain_ids.length > 0 && (
+        <MultiSelectField
+          label="Specialities"
+          items={specialities.map((sp) => ({ id: sp.id, name: sp.name }))}
+          selectedIds={value.speciality_ids}
+          onAdd={addTo('speciality_ids')}
+          onRemove={removeFrom('speciality_ids')}
+          placeholder="Select specialities..."
+          helpText="Optional — empty means ALL specialities within selected sub-domains"
+        />
+      )}
+
+      {/* Departments */}
       <MultiSelectField
         label="Departments"
         items={departments.map((d) => ({ id: d.id, name: d.name }))}
@@ -138,6 +227,7 @@ export function ScopeMultiSelect({ value, onChange }: ScopeMultiSelectProps) {
         helpText="Optional — empty means ALL departments"
       />
 
+      {/* Functional Areas (filtered by departments) */}
       {value.department_ids.length > 0 && (
         <MultiSelectField
           label="Functional Areas"
