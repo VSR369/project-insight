@@ -143,6 +143,19 @@ export function ConfigParamRow({ entry, adminNameMap }: ConfigParamRowProps) {
                   ))}
                 </SelectContent>
               </Select>
+            ) : isEnumType ? (
+              <Select value={editValue} onValueChange={setEditValue}>
+                <SelectTrigger className="w-72 h-8 text-sm">
+                  <SelectValue placeholder="Select option..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {enumOptions.map((opt) => (
+                    <SelectItem key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             ) : (
               <Input
                 type={entry.param_type === 'INTEGER' || entry.param_type === 'DECIMAL' ? 'number' : 'text'}
