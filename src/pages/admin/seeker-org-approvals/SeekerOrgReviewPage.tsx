@@ -338,7 +338,7 @@ function SeekerOrgReviewContent() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => { approveOrg.mutate({ orgId: orgId!, adminDelegation: detail?.adminDelegation }); setApproveConfirmOpen(false); }}>
+            <AlertDialogAction onClick={() => { approveOrg.mutate({ orgId: orgId!, adminDelegation }); setApproveConfirmOpen(false); }}>
               Confirm Approval
             </AlertDialogAction>
           </AlertDialogFooter>
