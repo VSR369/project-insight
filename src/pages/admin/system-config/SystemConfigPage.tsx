@@ -38,6 +38,7 @@ function useAdminNameMap() {
 }
 
 const GROUP_META: Record<string, { title: string; description?: string }> = {
+  ASSIGNMENT: { title: 'Assignment Mode', description: 'Controls whether seeker org verifications are auto-assigned or open for first-come-first-served claiming.' },
   DOMAIN_WEIGHTS: { title: 'Domain Match Weights', description: 'Controls how industry, country, and org type matches are scored during auto-assignment.' },
   CAPACITY: { title: 'Admin Capacity', description: 'Concurrent verification limits and availability thresholds.' },
   QUEUE: { title: 'Open Queue', description: 'Timing controls for unclaimed verifications and escalation intervals.' },
@@ -46,7 +47,7 @@ const GROUP_META: Record<string, { title: string; description?: string }> = {
   REASSIGNMENT: { title: 'Reassignment & Leave', description: 'Limits on reassignments and leave notification timing.' },
 };
 
-const GROUP_ORDER = ['DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT'];
+const GROUP_ORDER = ['ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT'];
 
 function SystemConfigContent() {
   const { data: config, isLoading } = useMpaConfig();
