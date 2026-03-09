@@ -75,6 +75,7 @@ const TIERS = [
 
 function PermissionsContent() {
   const { isSupervisor, isLoading: tierLoading } = useAdminTier();
+  const { depth } = usePlatformTierDepth();
   const { data: permissions, isLoading: permLoading } = useTierPermissions();
   const updatePermission = useUpdateTierPermission();
   const { data: auditLog, isLoading: auditLoading } = usePermissionAuditLog();
