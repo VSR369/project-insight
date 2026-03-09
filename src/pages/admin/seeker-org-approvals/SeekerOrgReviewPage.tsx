@@ -3,7 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/admin/PageHeader';
 import { Button } from '@/components/ui/button';
 import { Loader2, ArrowLeft, CheckCircle, XCircle, AlertTriangle, Info, FileCheck, CreditCard, ShieldCheck, Mail, RotateCcw, Ban, Clock } from 'lucide-react';
-import { useSeekerOrgDetail, useApproveOrg, useStartVerification } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useSeekerOrgDetail, useApproveOrg, useStartVerification, useClaimOrgForVerification } from '@/hooks/queries/useSeekerOrgApprovals';
+import { useCurrentAdminProfile } from '@/hooks/queries/useCurrentAdminProfile';
+import { useMpaConfigValue } from '@/hooks/queries/useMpaConfig';
 import { useSystemConfig, getConfigValue } from '@/hooks/queries/useSystemConfig';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { OrgDetailCard } from './OrgDetailCard';
@@ -35,6 +37,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
 
 function SeekerOrgReviewContent() {
   const { orgId } = useParams<{ orgId: string }>();
@@ -42,21 +45,38 @@ function SeekerOrgReviewContent() {
   const { data, isLoading } = useSeekerOrgDetail(orgId);
   const approveOrg = useApproveOrg();
   const startVerification = useStartVerification();
+  const claimOrg = useClaimOrgForVerification();
+  const { data: profile } = useCurrentAdminProfile();
+  const { data: assignmentMode } = useMpaConfigValue('org_verification_assignment_mode');
+  const isOpenClaimMode = assignmentMode !== 'auto_assign';
   const { data: sysConfig } = useSystemConfig();
   const [rejectOpen, setRejectOpen] = useState(false);
   const [approveConfirmOpen, setApproveConfirmOpen] = useState(false);
   const [returnOpen, setReturnOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
   const [reinstateOpen, setReinstateOpen] = useState(false);
+  const [claimConflict, setClaimConflict] = useState<string | null>(null);
   const autoTransitioned = useRef(false);
 
   // Auto-transition: payment_submitted → under_verification when admin opens
   useEffect(() => {
-    if (data?.org && data.org.verification_status === 'payment_submitted' && !autoTransitioned.current && orgId) {
+    if (data?.org && data.org.verification_status === 'payment_submitted' && !autoTransitioned.current && orgId && profile?.id) {
       autoTransitioned.current = true;
-      startVerification.mutate(orgId);
+      if (isOpenClaimMode) {
+        // Open claim mode: use atomic claim RPC
+        claimOrg.mutate({ orgId, adminId: profile.id }, {
+          onError: (error: Error & { claimedBy?: string }) => {
+            if (error.claimedBy) {
+              setClaimConflict(error.claimedBy);
+            }
+          },
+        });
+      } else {
+        // Auto-assign mode: admin is pre-assigned, just transition status
+        startVerification.mutate(orgId);
+      }
     }
-  }, [data?.org?.verification_status, orgId]);
+  }, [data?.org?.verification_status, orgId, profile?.id, isOpenClaimMode]);
 
   if (isLoading) {
     return (
