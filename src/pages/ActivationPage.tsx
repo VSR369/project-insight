@@ -130,7 +130,7 @@ export default function ActivationPage() {
           </CardHeader>
           <CardContent className="text-center">
             <Button asChild>
-              <Link to="/login">Go to Login</Link>
+              <Link to="/org/login">Go to Login</Link>
             </Button>
           </CardContent>
         </Card>
