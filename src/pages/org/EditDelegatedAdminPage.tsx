@@ -1,5 +1,6 @@
 /**
  * EditDelegatedAdminPage — Edit scope of an existing delegated admin.
+ * Includes scope overlap warning (MOD-M-SOA-01).
  */
 
 import { useState, useEffect } from 'react';
@@ -7,10 +8,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useOrgContext } from '@/contexts/OrgContext';
-import { useUpdateDelegatedAdminScope, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
+import { useUpdateDelegatedAdminScope, useDelegatedAdmins, checkScopeOverlap, EMPTY_SCOPE, type DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
+import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { ArrowLeft, Loader2, Edit, User } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -19,6 +21,7 @@ export default function EditDelegatedAdminPage() {
   const { adminId } = useParams<{ adminId: string }>();
   const { organizationId } = useOrgContext();
   const updateScope = useUpdateDelegatedAdminScope();
+  const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
 
   const { data: admin, isLoading } = useQuery({
     queryKey: ['delegated-admin-detail', adminId],
@@ -37,6 +40,8 @@ export default function EditDelegatedAdminPage() {
 
   const [scope, setScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [initialized, setInitialized] = useState(false);
+  const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
+  const [overlappingAdmins, setOverlappingAdmins] = useState<{ name: string; email: string }[]>([]);
 
   useEffect(() => {
     if (admin && !initialized) {
@@ -53,7 +58,7 @@ export default function EditDelegatedAdminPage() {
     }
   }, [admin, initialized]);
 
-  const handleSave = async () => {
+  const doSave = async () => {
     if (!adminId) return;
     await updateScope.mutateAsync({
       adminId,
@@ -61,6 +66,22 @@ export default function EditDelegatedAdminPage() {
       domain_scope: scope,
     });
     navigate('/org/admin-management');
+  };
+
+  const handleSave = async () => {
+    // Check for scope overlap (exclude current admin)
+    const overlaps = checkScopeOverlap(scope, existingAdmins, adminId);
+    if (overlaps.length > 0) {
+      setOverlappingAdmins(overlaps);
+      setOverlapWarningOpen(true);
+      return;
+    }
+    await doSave();
+  };
+
+  const handleOverlapConfirm = async () => {
+    setOverlapWarningOpen(false);
+    await doSave();
   };
 
   if (isLoading) {
@@ -130,6 +151,13 @@ export default function EditDelegatedAdminPage() {
           </div>
         </CardContent>
       </Card>
+
+      <ScopeOverlapWarning
+        open={overlapWarningOpen}
+        overlappingAdmins={overlappingAdmins}
+        onConfirm={handleOverlapConfirm}
+        onCancel={() => setOverlapWarningOpen(false)}
+      />
     </div>
   );
 }
