@@ -35,11 +35,28 @@ export default function ActivationPage() {
     }
 
     const validateToken = async () => {
-      const { data, error } = await supabase
+      // Hash the token for lookup (supports both hashed and plain tokens)
+      const encoder = new TextEncoder();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', encoder.encode(token));
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const tokenHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      // Try hashed token first, then plain for backward compatibility
+      let result = await supabase
         .from('admin_activation_links')
         .select('id, expires_at, status, used_at')
-        .eq('token', token)
+        .eq('token', tokenHash)
         .maybeSingle();
+
+      if (!result.data) {
+        result = await supabase
+          .from('admin_activation_links')
+          .select('id, expires_at, status, used_at')
+          .eq('token', token)
+          .maybeSingle();
+      }
+
+      const { data, error } = result;
 
       if (error || !data) {
         setPageState('invalid');
