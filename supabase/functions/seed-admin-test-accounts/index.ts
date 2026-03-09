@@ -42,6 +42,14 @@ const ADMIN_ACCOUNTS: AdminAccount[] = [
   },
 ];
 
+const SO_ADMIN_ACCOUNT = {
+  email: "soadmin@test.local",
+  password: "SOAdmin123!",
+  firstName: "Primary",
+  lastName: "OrgAdmin",
+  phone: "+15550000010",
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -63,10 +71,10 @@ serve(async (req) => {
     const phases: string[] = [];
     const results: { email: string; tier: string; status: string }[] = [];
 
+    // ─── Platform Admin Accounts ───
     for (const account of ADMIN_ACCOUNTS) {
       phases.push(`--- Processing ${account.email} (${account.adminTier}) ---`);
 
-      // 1. Auth user
       let userId: string;
       const existing = existingUsers?.users?.find((u) => u.email === account.email);
 
@@ -93,7 +101,7 @@ serve(async (req) => {
         phases.push(`✓ Created auth user: ${userId}`);
       }
 
-      // 2. user_roles
+      // user_roles
       const { data: existingRole } = await supabaseAdmin
         .from("user_roles")
         .select("id")
@@ -114,7 +122,7 @@ serve(async (req) => {
         phases.push(`✓ Role already assigned`);
       }
 
-      // 3. platform_admin_profiles
+      // platform_admin_profiles
       const { data: existingProfile } = await supabaseAdmin
         .from("platform_admin_profiles")
         .select("id, admin_tier")
@@ -123,22 +131,21 @@ serve(async (req) => {
 
       if (!existingProfile) {
         const { error: profileError } = await supabaseAdmin
-        .from("platform_admin_profiles")
-        .insert({
-          user_id: userId,
-          email: account.email,
-          full_name: `${account.firstName} ${account.lastName}`,
-          admin_tier: account.adminTier,
-          phone: account.phone,
-          industry_expertise: ['41ee5438-f270-488c-aae1-b46c120bc276'],
-        });
+          .from("platform_admin_profiles")
+          .insert({
+            user_id: userId,
+            email: account.email,
+            full_name: `${account.firstName} ${account.lastName}`,
+            admin_tier: account.adminTier,
+            phone: account.phone,
+            industry_expertise: ['41ee5438-f270-488c-aae1-b46c120bc276'],
+          });
         if (profileError) {
           phases.push(`❌ Failed to create profile: ${profileError.message}`);
         } else {
           phases.push(`✓ Created platform_admin_profiles (tier: ${account.adminTier})`);
         }
       } else {
-        // Ensure tier is correct
         if (existingProfile.admin_tier !== account.adminTier) {
           const { error: updateError } = await supabaseAdmin
             .from("platform_admin_profiles")
@@ -157,16 +164,166 @@ serve(async (req) => {
       results.push({ email: account.email, tier: account.adminTier, status: "ready" });
     }
 
+    // ─── Primary SO Admin Account ───
+    phases.push(`--- Processing ${SO_ADMIN_ACCOUNT.email} (Primary SO Admin) ---`);
+
+    let soUserId: string;
+    const existingSoUser = existingUsers?.users?.find((u) => u.email === SO_ADMIN_ACCOUNT.email);
+
+    if (existingSoUser) {
+      soUserId = existingSoUser.id;
+      phases.push(`✓ Auth user exists: ${soUserId}`);
+    } else {
+      const { data: newSoUser, error: soCreateError } = await supabaseAdmin.auth.admin.createUser({
+        email: SO_ADMIN_ACCOUNT.email,
+        password: SO_ADMIN_ACCOUNT.password,
+        email_confirm: true,
+        user_metadata: {
+          first_name: SO_ADMIN_ACCOUNT.firstName,
+          last_name: SO_ADMIN_ACCOUNT.lastName,
+          role_type: "seeker",
+        },
+      });
+      if (soCreateError) {
+        phases.push(`❌ Failed to create SO admin auth user: ${soCreateError.message}`);
+        results.push({ email: SO_ADMIN_ACCOUNT.email, tier: "PRIMARY", status: "failed" });
+      } else {
+        soUserId = newSoUser.user.id;
+        phases.push(`✓ Created auth user: ${soUserId}`);
+      }
+    }
+
+    // Only proceed if we have a userId
+    if (soUserId!) {
+      // 1. user_roles → seeker
+      const { data: existingSoRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("id")
+        .eq("user_id", soUserId)
+        .eq("role", "seeker")
+        .maybeSingle();
+
+      if (!existingSoRole) {
+        const { error: roleErr } = await supabaseAdmin
+          .from("user_roles")
+          .insert({ user_id: soUserId, role: "seeker" });
+        phases.push(roleErr ? `❌ Failed to assign seeker role: ${roleErr.message}` : `✓ Assigned seeker role`);
+      } else {
+        phases.push(`✓ Seeker role already assigned`);
+      }
+
+      // 2. Find or create a seeker_organizations record
+      let orgId: string;
+      let tenantId: string;
+
+      const { data: existingOrg } = await supabaseAdmin
+        .from("seeker_organizations")
+        .select("id, tenant_id")
+        .limit(1)
+        .maybeSingle();
+
+      if (existingOrg) {
+        orgId = existingOrg.id;
+        tenantId = existingOrg.tenant_id ?? existingOrg.id;
+        phases.push(`✓ Using existing org: ${orgId}`);
+      } else {
+        const { data: newOrg, error: orgErr } = await supabaseAdmin
+          .from("seeker_organizations")
+          .insert({
+            organization_name: "Test Seeking Org",
+            status: "verified",
+            created_by: soUserId,
+          })
+          .select("id, tenant_id")
+          .single();
+        if (orgErr || !newOrg) {
+          phases.push(`❌ Failed to create org: ${orgErr?.message}`);
+          results.push({ email: SO_ADMIN_ACCOUNT.email, tier: "PRIMARY", status: "failed" });
+          // Return early for SO admin but continue with response
+          return new Response(
+            JSON.stringify({ success: true, accounts: results, phases, credentials: ADMIN_ACCOUNTS.map((a) => ({ email: a.email, password: a.password, tier: a.adminTier })) }),
+            { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
+          );
+        }
+        orgId = newOrg.id;
+        tenantId = newOrg.tenant_id ?? newOrg.id;
+        phases.push(`✓ Created org: ${orgId}`);
+      }
+
+      // 3. org_users mapping
+      const { data: existingOrgUser } = await supabaseAdmin
+        .from("org_users")
+        .select("id")
+        .eq("user_id", soUserId)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+
+      if (!existingOrgUser) {
+        const { error: ouErr } = await supabaseAdmin
+          .from("org_users")
+          .insert({
+            user_id: soUserId,
+            organization_id: orgId,
+            tenant_id: tenantId,
+            role: "tenant_admin",
+            is_active: true,
+            invitation_status: "active",
+            joined_at: new Date().toISOString(),
+            created_by: soUserId,
+          });
+        phases.push(ouErr ? `❌ Failed to create org_users: ${ouErr.message}` : `✓ Created org_users mapping`);
+      } else {
+        phases.push(`✓ org_users mapping exists`);
+      }
+
+      // 4. seeking_org_admins record
+      const { data: existingSoAdmin } = await supabaseAdmin
+        .from("seeking_org_admins")
+        .select("id")
+        .eq("user_id", soUserId)
+        .eq("organization_id", orgId)
+        .maybeSingle();
+
+      if (!existingSoAdmin) {
+        const { error: soaErr } = await supabaseAdmin
+          .from("seeking_org_admins")
+          .insert({
+            user_id: soUserId,
+            organization_id: orgId,
+            tenant_id: tenantId,
+            admin_tier: "PRIMARY",
+            status: "active",
+            designation_method: "SELF",
+            full_name: `${SO_ADMIN_ACCOUNT.firstName} ${SO_ADMIN_ACCOUNT.lastName}`,
+            email: SO_ADMIN_ACCOUNT.email,
+            phone: SO_ADMIN_ACCOUNT.phone,
+            created_by: soUserId,
+          });
+        phases.push(soaErr ? `❌ Failed to create seeking_org_admins: ${soaErr.message}` : `✓ Created seeking_org_admins (PRIMARY)`);
+      } else {
+        phases.push(`✓ seeking_org_admins record exists`);
+      }
+
+      results.push({ email: SO_ADMIN_ACCOUNT.email, tier: "PRIMARY", status: "ready" });
+    }
+
     return new Response(
       JSON.stringify({
         success: true,
         accounts: results,
         phases,
-        credentials: ADMIN_ACCOUNTS.map((a) => ({
-          email: a.email,
-          password: a.password,
-          tier: a.adminTier,
-        })),
+        credentials: [
+          ...ADMIN_ACCOUNTS.map((a) => ({
+            email: a.email,
+            password: a.password,
+            tier: a.adminTier,
+          })),
+          {
+            email: SO_ADMIN_ACCOUNT.email,
+            password: SO_ADMIN_ACCOUNT.password,
+            tier: "PRIMARY (SO Admin)",
+          },
+        ],
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 200 }
     );
