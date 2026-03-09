@@ -23,6 +23,14 @@ import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import type { MpaConfigEntry } from '@/hooks/queries/useMpaConfig';
 
+/** Enum-style options for TEXT params with fixed valid values */
+const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  org_verification_assignment_mode: [
+    { value: 'open_claim', label: 'Open Claim (First-Come-First-Served)' },
+    { value: 'auto_assign', label: 'Auto-Assignment (Scoring Engine)' },
+  ],
+};
+
 interface ConfigParamRowProps {
   entry: MpaConfigEntry;
   adminNameMap?: Record<string, string>;
