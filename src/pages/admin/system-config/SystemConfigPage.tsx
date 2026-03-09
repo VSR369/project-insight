@@ -48,7 +48,7 @@ const GROUP_META: Record<string, { title: string; description?: string }> = {
   REASSIGNMENT: { title: 'Reassignment & Leave', description: 'Limits on reassignments and leave notification timing.' },
 };
 
-const GROUP_ORDER = ['ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT'];
+const GROUP_ORDER = ['GOVERNANCE', 'ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT'];
 
 function SystemConfigContent() {
   const { data: config, isLoading } = useMpaConfig();
