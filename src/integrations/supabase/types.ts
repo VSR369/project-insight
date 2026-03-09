@@ -9324,6 +9324,7 @@ export type Database = {
         Returns: boolean
       }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
+      is_primary_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       is_pulse_provider_owner: {
         Args: { p_provider_id: string }
         Returns: boolean
