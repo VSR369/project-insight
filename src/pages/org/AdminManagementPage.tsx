@@ -16,9 +16,10 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { PlusCircle, Search, Edit, UserMinus, Users, ShieldCheck } from 'lucide-react';
+import { PlusCircle, Search, Edit, UserMinus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
+import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
 
