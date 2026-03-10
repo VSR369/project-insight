@@ -30,10 +30,12 @@ export function IndustryExpertisePicker({ value, onChange, disabled, maxItems }:
 
   const selectedNames = industries?.filter((i) => value.includes(i.id)) ?? [];
 
+  const isAtCap = maxItems != null && value.length >= maxItems;
+
   const toggle = (id: string) => {
     if (value.includes(id)) {
       onChange(value.filter((v) => v !== id));
-    } else {
+    } else if (!isAtCap) {
       onChange([...value, id]);
     }
   };

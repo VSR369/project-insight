@@ -30,10 +30,12 @@ export function CountryExpertisePicker({ value, onChange, disabled, maxItems }: 
 
   const selectedNames = countries?.filter((c) => value.includes(c.id)) ?? [];
 
+  const isAtCap = maxItems != null && value.length >= maxItems;
+
   const toggle = (id: string) => {
     if (value.includes(id)) {
       onChange(value.filter((v) => v !== id));
-    } else {
+    } else if (!isAtCap) {
       onChange([...value, id]);
     }
   };

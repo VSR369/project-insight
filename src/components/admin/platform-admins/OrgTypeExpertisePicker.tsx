@@ -30,10 +30,12 @@ export function OrgTypeExpertisePicker({ value, onChange, disabled, maxItems }: 
 
   const selectedItems = orgTypes?.filter((ot) => value.includes(ot.id)) ?? [];
 
+  const isAtCap = maxItems != null && value.length >= maxItems;
+
   const toggle = (id: string) => {
     if (value.includes(id)) {
       onChange(value.filter((v) => v !== id));
-    } else {
+    } else if (!isAtCap) {
       onChange([...value, id]);
     }
   };
