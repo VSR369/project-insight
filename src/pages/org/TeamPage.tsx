@@ -57,11 +57,21 @@ export default function TeamPage() {
         <p className="text-muted-foreground mt-1">Manage your organization's team members and roles</p>
       </div>
       <div className="flex justify-end mb-4">
-        <Button onClick={() => setInviteOpen(true)} disabled={!validation.canInvite}>
+        <Button onClick={() => setInviteOpen(true)} disabled={!validation.canInvite || (!isPrimary && !isDelegated)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Add Member
         </Button>
       </div>
+
+      {/* Delegated Admin Scope Banner */}
+      {isDelegated && (
+        <Alert className="mb-4">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            You are a <strong>Delegated Admin</strong>. You can assign existing roles to team members within your domain scope, but cannot create custom roles or remove members outside your scope.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Usage Card */}
       <Card>
