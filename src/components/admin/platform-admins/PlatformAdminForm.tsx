@@ -292,7 +292,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Country/Region Expertise</FormLabel>
                 <FormControl>
-                  <CountryExpertisePicker value={field.value} onChange={field.onChange} />
+                  <CountryExpertisePicker value={field.value} onChange={field.onChange} maxItems={countryCap} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
