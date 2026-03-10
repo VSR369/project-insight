@@ -1,19 +1,12 @@
 /**
  * Zod validation schema for Pool Member form (SCR-02)
  * BRD Ref: BR-PP-004 — mandatory role + industry + proficiency
+ * 
+ * Role codes are fetched from md_slm_role_codes master data table.
+ * No hardcoded role codes or labels — all driven by DB.
  */
 
 import { z } from "zod";
-
-export const SLM_ROLE_CODES = ["R3", "R5_MP", "R6_MP", "R7_MP"] as const;
-export type SlmRoleCode = (typeof SLM_ROLE_CODES)[number];
-
-export const SLM_ROLE_LABELS: Record<SlmRoleCode, string> = {
-  R3: "Challenge Architect",
-  R5_MP: "Challenge Curator/MP",
-  R6_MP: "Innovation Director/MP",
-  R7_MP: "Expert Reviewer/MP",
-};
 
 export const poolMemberSchema = z.object({
   full_name: z
@@ -24,7 +17,7 @@ export const poolMemberSchema = z.object({
   email: z.string().trim().email("Valid email required").max(255),
   phone: z.string().trim().max(20).optional().or(z.literal("")),
   role_codes: z
-    .array(z.enum(SLM_ROLE_CODES))
+    .array(z.string().min(1))
     .min(1, "At least one SLM role is required"),
   industry_ids: z
     .array(z.string().uuid())

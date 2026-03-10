@@ -1,5 +1,6 @@
 /**
  * PoolFilterBar — 4-dropdown filter bar for Resource Pool list (BR-POOL-003)
+ * All options fetched from master data tables — no hardcoded values.
  */
 
 import {
@@ -11,7 +12,8 @@ import {
 } from "@/components/ui/select";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
-import { SLM_ROLE_LABELS, type SlmRoleCode } from "@/lib/validations/poolMember";
+import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import type { PoolMemberFilters } from "@/hooks/queries/usePoolMembers";
 
 interface PoolFilterBarProps {
@@ -19,15 +21,11 @@ interface PoolFilterBarProps {
   onChange: (filters: PoolMemberFilters) => void;
 }
 
-const AVAILABILITY_OPTIONS = [
-  { value: "available", label: "Available" },
-  { value: "partially_available", label: "Partially Available" },
-  { value: "fully_booked", label: "Fully Booked" },
-];
-
 export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
   const { data: industries } = useIndustrySegments();
   const { data: proficiencies } = useProficiencyLevels();
+  const { data: roleCodes } = useSlmRoleCodes();
+  const { data: availabilityStatuses } = useAvailabilityStatuses();
 
   const setFilter = (key: keyof PoolMemberFilters, value: string) => {
     onChange({ ...filters, [key]: value === "all" ? undefined : value });
@@ -41,8 +39,8 @@ export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Roles</SelectItem>
-          {(Object.entries(SLM_ROLE_LABELS) as [SlmRoleCode, string][]).map(([code, label]) => (
-            <SelectItem key={code} value={code}>{label}</SelectItem>
+          {roleCodes?.map((r) => (
+            <SelectItem key={r.code} value={r.code}>{r.display_name}</SelectItem>
           ))}
         </SelectContent>
       </Select>
@@ -77,8 +75,8 @@ export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Availability</SelectItem>
-          {AVAILABILITY_OPTIONS.map((opt) => (
-            <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+          {availabilityStatuses?.map((s) => (
+            <SelectItem key={s.code} value={s.code}>{s.display_name}</SelectItem>
           ))}
         </SelectContent>
       </Select>

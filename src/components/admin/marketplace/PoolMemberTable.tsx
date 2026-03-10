@@ -1,6 +1,7 @@
 /**
  * PoolMemberTable — Data table for Resource Pool list (SCR-01b)
  * BRD Ref: BR-POOL-001, BR-PP-003 (Basic Admin read-only)
+ * Role and availability labels resolved from master data hooks.
  */
 
 import {
@@ -17,6 +18,8 @@ import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { Skeleton } from "@/components/ui/skeleton";
 import type { PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 
@@ -37,9 +40,13 @@ export function PoolMemberTable({
 }: PoolMemberTableProps) {
   const { data: industries } = useIndustrySegments();
   const { data: proficiencies } = useProficiencyLevels();
+  const { data: roleCodes } = useSlmRoleCodes();
+  const { data: availabilityStatuses } = useAvailabilityStatuses();
 
   const industryMap = new Map(industries?.map((i) => [i.id, i.name]) ?? []);
   const proficiencyMap = new Map(proficiencies?.map((p) => [p.id, p.name]) ?? []);
+  const roleMap = new Map(roleCodes?.map((r) => [r.code, r.display_name]) ?? []);
+  const availabilityMap = new Map(availabilityStatuses?.map((s) => [s.code, s.display_name]) ?? []);
 
   if (isLoading) {
     return (
@@ -94,7 +101,7 @@ export function PoolMemberTable({
               <TableCell>
                 <div className="flex flex-wrap gap-1">
                   {member.role_codes.map((code) => (
-                    <RoleBadge key={code} code={code} />
+                    <RoleBadge key={code} code={code} label={roleMap.get(code) ?? code} />
                   ))}
                 </div>
               </TableCell>
@@ -116,7 +123,10 @@ export function PoolMemberTable({
               <TableCell className="text-center">{member.current_assignments}</TableCell>
               <TableCell className="text-center">{member.max_concurrent}</TableCell>
               <TableCell>
-                <AvailabilityBadge status={member.availability_status} />
+                <AvailabilityBadge
+                  status={member.availability_status}
+                  label={availabilityMap.get(member.availability_status) ?? member.availability_status}
+                />
               </TableCell>
               {canWrite && (
                 <TableCell className="text-right">

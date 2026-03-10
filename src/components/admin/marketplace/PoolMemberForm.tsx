@@ -1,6 +1,7 @@
 /**
  * PoolMemberForm — Add/Edit Pool Member side-sheet form (SCR-02)
  * BRD Ref: BR-PP-004 (mandatory fields), BR-PP-005 (audit)
+ * Role codes fetched from md_slm_role_codes master data.
  */
 
 import { useForm } from "react-hook-form";
@@ -34,6 +35,7 @@ import { Badge } from "@/components/ui/badge";
 import { Lock, X } from "lucide-react";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import {
   useCreatePoolMember,
   useUpdatePoolMember,
@@ -42,8 +44,6 @@ import {
 import {
   poolMemberSchema,
   type PoolMemberFormValues,
-  SLM_ROLE_CODES,
-  SLM_ROLE_LABELS,
 } from "@/lib/validations/poolMember";
 import { useEffect } from "react";
 
@@ -57,6 +57,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
   const isEdit = !!editMember;
   const { data: industries } = useIndustrySegments();
   const { data: proficiencies } = useProficiencyLevels();
+  const { data: roleCodes } = useSlmRoleCodes();
   const createMutation = useCreatePoolMember();
   const updateMutation = useUpdatePoolMember();
 
@@ -80,7 +81,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
         full_name: editMember.full_name,
         email: editMember.email,
         phone: editMember.phone ?? "",
-        role_codes: editMember.role_codes as PoolMemberFormValues["role_codes"],
+        role_codes: editMember.role_codes,
         industry_ids: editMember.industry_ids,
         proficiency_id: editMember.proficiency_id ?? "",
         max_concurrent: editMember.max_concurrent,
@@ -193,7 +194,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
               )}
             />
 
-            {/* Roles — checkbox group */}
+            {/* Roles — checkbox group from master data */}
             <FormField
               control={form.control}
               name="role_codes"
@@ -201,26 +202,26 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
                 <FormItem>
                   <FormLabel>Role(s) <span className="text-destructive">*</span></FormLabel>
                   <div className="space-y-2">
-                    {SLM_ROLE_CODES.map((code) => (
+                    {roleCodes?.map((role) => (
                       <FormField
-                        key={code}
+                        key={role.code}
                         control={form.control}
                         name="role_codes"
                         render={({ field }) => (
                           <FormItem className="flex items-center space-x-2 space-y-0">
                             <FormControl>
                               <Checkbox
-                                checked={field.value?.includes(code)}
+                                checked={field.value?.includes(role.code)}
                                 onCheckedChange={(checked) => {
                                   const updated = checked
-                                    ? [...(field.value ?? []), code]
-                                    : (field.value ?? []).filter((v) => v !== code);
+                                    ? [...(field.value ?? []), role.code]
+                                    : (field.value ?? []).filter((v) => v !== role.code);
                                   field.onChange(updated);
                                 }}
                               />
                             </FormControl>
                             <FormLabel className="text-sm font-normal cursor-pointer">
-                              {SLM_ROLE_LABELS[code]}
+                              {role.display_name}
                             </FormLabel>
                           </FormItem>
                         )}
