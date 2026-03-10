@@ -20,7 +20,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage,
 } from '@/components/ui/form';
-import { Shield, Plus, Loader2 } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Shield, Plus, Loader2, Lock } from 'lucide-react';
 
 const PERMISSION_GROUPS = {
   challenges: {
@@ -68,6 +69,7 @@ type CustomRoleFormValues = z.infer<typeof customRoleSchema>;
 
 interface CustomRoleBuilderProps {
   isPremium: boolean;
+  canCreateRoles?: boolean;
   existingRoles?: { id: string; name: string; is_system_role: boolean; description?: string | null }[];
   onCreateRole?: (role: { name: string; description?: string; permissions: string[] }) => void;
   isCreating?: boolean;
@@ -75,6 +77,7 @@ interface CustomRoleBuilderProps {
 
 export function CustomRoleBuilder({
   isPremium,
+  canCreateRoles = true,
   existingRoles = [],
   onCreateRole,
   isCreating = false,
@@ -146,9 +149,26 @@ export function CustomRoleBuilder({
               </CardTitle>
               <CardDescription>Create roles with specific permissions for your team</CardDescription>
             </div>
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> New Role
-            </Button>
+            {canCreateRoles ? (
+              <Button size="sm" onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> New Role
+              </Button>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button size="sm" disabled>
+                        <Lock className="h-4 w-4 mr-1" /> New Role
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Only Primary admins can create custom roles</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         </CardHeader>
         <CardContent>

@@ -8,16 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUser, useOrgRoles } from '@/hooks/queries/useTeamData';
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
 import { validateUserInvite } from '@/services/teamService';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { useCurrentAdminTier } from '@/hooks/useCurrentAdminTier';
 
-import { Users, UserPlus, Shield, Crown, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, Shield, Crown, AlertTriangle, Info } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function TeamPage() {
   const { organizationId, tenantId } = useOrgContext();
+  const { isPrimary, isDelegated, isLoading: tierLoading } = useCurrentAdminTier();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
@@ -54,11 +57,21 @@ export default function TeamPage() {
         <p className="text-muted-foreground mt-1">Manage your organization's team members and roles</p>
       </div>
       <div className="flex justify-end mb-4">
-        <Button onClick={() => setInviteOpen(true)} disabled={!validation.canInvite}>
+        <Button onClick={() => setInviteOpen(true)} disabled={!validation.canInvite || (!isPrimary && !isDelegated)}>
           <UserPlus className="h-4 w-4 mr-2" />
           Add Member
         </Button>
       </div>
+
+      {/* Delegated Admin Scope Banner */}
+      {isDelegated && (
+        <Alert className="mb-4">
+          <Info className="h-4 w-4" />
+          <AlertDescription>
+            You are a <strong>Delegated Admin</strong>. You can assign existing roles to team members within your domain scope, but cannot create custom roles or remove members outside your scope.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* Usage Card */}
       <Card>
@@ -134,7 +147,7 @@ export default function TeamPage() {
                           {format(new Date(user.joined_at), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
-                          {user.role !== 'owner' && (
+                          {user.role !== 'owner' && isPrimary && (
                             <Button
                               variant="ghost"
                               size="sm"
