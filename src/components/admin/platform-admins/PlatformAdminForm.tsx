@@ -51,6 +51,17 @@ export function PlatformAdminForm({
   const [supervisorModalOpen, setSupervisorModalOpen] = useState(false);
   const [pendingSupervisorTier, setPendingSupervisorTier] = useState<string | null>(null);
   const { depth } = usePlatformTierDepth();
+  const { data: maxIndustries } = useMpaConfigValue('basic_admin_max_industries');
+  const { data: maxCountries } = useMpaConfigValue('basic_admin_max_countries');
+  const { data: maxOrgTypes } = useMpaConfigValue('basic_admin_max_org_types');
+
+  const watchedTier = form.watch('admin_tier');
+  const isBasicAdmin = watchedTier === 'admin';
+
+  // Caps only apply to Basic Admin tier; Supervisor/Senior are uncapped
+  const industryCap = isBasicAdmin ? parseInt(maxIndustries ?? '3', 10) : undefined;
+  const countryCap = isBasicAdmin ? parseInt(maxCountries ?? '3', 10) : undefined;
+  const orgTypeCap = isBasicAdmin ? parseInt(maxOrgTypes ?? '3', 10) : undefined;
 
   const form = useForm<PlatformAdminFormValues>({
     resolver: zodResolver(platformAdminFormSchema),
