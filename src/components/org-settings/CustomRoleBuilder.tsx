@@ -69,6 +69,7 @@ type CustomRoleFormValues = z.infer<typeof customRoleSchema>;
 
 interface CustomRoleBuilderProps {
   isPremium: boolean;
+  canCreateRoles?: boolean;
   existingRoles?: { id: string; name: string; is_system_role: boolean; description?: string | null }[];
   onCreateRole?: (role: { name: string; description?: string; permissions: string[] }) => void;
   isCreating?: boolean;
