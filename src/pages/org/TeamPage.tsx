@@ -20,6 +20,7 @@ import { format } from 'date-fns';
 
 export default function TeamPage() {
   const { organizationId, tenantId } = useOrgContext();
+  const { isPrimary, isDelegated, isLoading: tierLoading } = useCurrentAdminTier();
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
