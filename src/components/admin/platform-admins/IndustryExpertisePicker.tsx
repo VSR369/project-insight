@@ -56,14 +56,22 @@ export function IndustryExpertisePicker({ value, onChange, disabled, maxItems }:
             <CommandList>
               <CommandEmpty>No industries found.</CommandEmpty>
               <CommandGroup>
-                {industries?.map((industry) => (
-                  <CommandItem
-                    key={industry.id}
-                    onSelect={() => toggle(industry.id)}
-                    className="cursor-pointer"
-                  >
-                    <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${value.includes(industry.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {value.includes(industry.id) && <span className="text-primary-foreground text-xs">✓</span>}
+                {industries?.map((industry) => {
+                  const isSelected = value.includes(industry.id);
+                  const isDisabledItem = !isSelected && isAtCap;
+                  return (
+                    <CommandItem
+                      key={industry.id}
+                      onSelect={() => !isDisabledItem && toggle(industry.id)}
+                      className={isDisabledItem ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    >
+                      <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {isSelected && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      {industry.name}
+                    </CommandItem>
+                  );
+                })}
                     </div>
                     {industry.name}
                   </CommandItem>
