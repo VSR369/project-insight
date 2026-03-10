@@ -39,7 +39,7 @@ export function PoolMemberTable({
   onDeactivate,
 }: PoolMemberTableProps) {
   const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyLevels();
+  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availabilityStatuses } = useAvailabilityStatuses();
 
