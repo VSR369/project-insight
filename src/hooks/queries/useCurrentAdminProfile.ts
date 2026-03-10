@@ -15,6 +15,9 @@ export interface CurrentAdminProfile {
   full_name: string | null;
   current_active_verifications: number;
   max_concurrent_verifications: number;
+  industry_expertise: string[] | null;
+  country_region_expertise: string[] | null;
+  org_type_expertise: string[] | null;
 }
 
 export function useCurrentAdminProfile() {
