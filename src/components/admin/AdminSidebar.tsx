@@ -42,6 +42,7 @@ import {
   ChevronRight,
   Activity,
   BarChart3,
+  Store,
   TestTube2,
   CreditCard,
   Users2,
