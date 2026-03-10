@@ -29,6 +29,15 @@ const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: 'open_claim', label: 'Open Claim (First-Come-First-Served)' },
     { value: 'auto_assign', label: 'Auto-Assignment (Scoring Engine)' },
   ],
+  platform_admin_tier_depth: [
+    { value: '1', label: 'Supervisor Only (Single Operator)' },
+    { value: '2', label: 'Supervisor + Senior Admin' },
+    { value: '3', label: 'Full Hierarchy (Supervisor + Senior + Admin)' },
+  ],
+  org_admin_delegation_enabled: [
+    { value: 'true', label: 'Enabled — PRIMARY + DELEGATED admins' },
+    { value: 'false', label: 'Disabled — PRIMARY admin only' },
+  ],
 };
 
 interface ConfigParamRowProps {
