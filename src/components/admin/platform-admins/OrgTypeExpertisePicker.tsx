@@ -21,9 +21,10 @@ interface OrgTypeExpertisePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  maxItems?: number;
 }
 
-export function OrgTypeExpertisePicker({ value, onChange, disabled }: OrgTypeExpertisePickerProps) {
+export function OrgTypeExpertisePicker({ value, onChange, disabled, maxItems }: OrgTypeExpertisePickerProps) {
   const [open, setOpen] = useState(false);
   const { data: orgTypes } = useOrganizationTypes();
 

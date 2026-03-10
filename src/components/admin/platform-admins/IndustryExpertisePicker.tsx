@@ -21,9 +21,10 @@ interface IndustryExpertisePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  maxItems?: number;
 }
 
-export function IndustryExpertisePicker({ value, onChange, disabled }: IndustryExpertisePickerProps) {
+export function IndustryExpertisePicker({ value, onChange, disabled, maxItems }: IndustryExpertisePickerProps) {
   const [open, setOpen] = useState(false);
   const { data: industries } = useIndustrySegments();
 

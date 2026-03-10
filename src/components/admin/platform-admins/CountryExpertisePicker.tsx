@@ -21,9 +21,10 @@ interface CountryExpertisePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  maxItems?: number;
 }
 
-export function CountryExpertisePicker({ value, onChange, disabled }: CountryExpertisePickerProps) {
+export function CountryExpertisePicker({ value, onChange, disabled, maxItems }: CountryExpertisePickerProps) {
   const [open, setOpen] = useState(false);
   const { data: countries } = useCountries();
 
