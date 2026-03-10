@@ -1,0 +1,1 @@
+UPDATE md_mpa_config SET label = 'Seeking Org Admin Delegation' WHERE param_key = 'org_admin_delegation_enabled';
