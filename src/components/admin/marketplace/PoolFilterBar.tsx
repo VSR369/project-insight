@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import type { PoolMemberFilters } from "@/hooks/queries/usePoolMembers";
