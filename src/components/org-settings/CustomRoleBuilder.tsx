@@ -77,6 +77,7 @@ interface CustomRoleBuilderProps {
 
 export function CustomRoleBuilder({
   isPremium,
+  canCreateRoles = true,
   existingRoles = [],
   onCreateRole,
   isCreating = false,
