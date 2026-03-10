@@ -147,7 +147,7 @@ export default function TeamPage() {
                           {format(new Date(user.joined_at), 'MMM d, yyyy')}
                         </TableCell>
                         <TableCell className="text-right">
-                          {user.role !== 'owner' && (
+                          {user.role !== 'owner' && isPrimary && (
                             <Button
                               variant="ghost"
                               size="sm"
