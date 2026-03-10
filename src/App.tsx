@@ -185,6 +185,10 @@ const DomainWeightsPage = lazy(() => import("@/pages/admin/system-config/DomainW
 // Permissions Management (read-only reference)
 const PermissionsManagementPage = lazy(() => import("@/pages/admin/permissions/PermissionsManagementPage"));
 
+// RBAC MOD-01: Marketplace Resource Pool Management
+const MarketplaceDashboard = lazy(() => import("@/pages/admin/marketplace/MarketplaceDashboard"));
+const ResourcePoolPage = lazy(() => import("@/pages/admin/marketplace/ResourcePoolPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
