@@ -35,8 +35,8 @@ const ENUM_OPTIONS: Record<string, { value: string; label: string }[]> = {
     { value: '3', label: 'Full Hierarchy (Supervisor + Senior + Admin)' },
   ],
   org_admin_delegation_enabled: [
-    { value: 'true', label: 'Enabled — PRIMARY + DELEGATED admins' },
-    { value: 'false', label: 'Disabled — PRIMARY admin only' },
+    { value: 'true', label: 'Enabled — PRIMARY + DELEGATED seeking org admins' },
+    { value: 'false', label: 'Disabled — PRIMARY seeking org admin only' },
   ],
 };
 
