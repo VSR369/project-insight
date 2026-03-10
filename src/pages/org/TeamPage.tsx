@@ -8,12 +8,14 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgUsers, useInviteOrgUser, useUpdateOrgUserRole, useDeactivateOrgUser, useOrgRoles } from '@/hooks/queries/useTeamData';
 import { useOrgSubscription } from '@/hooks/queries/useBillingData';
 import { validateUserInvite } from '@/services/teamService';
 import { useOrgContext } from '@/contexts/OrgContext';
+import { useCurrentAdminTier } from '@/hooks/useCurrentAdminTier';
 
-import { Users, UserPlus, Shield, Crown, AlertTriangle } from 'lucide-react';
+import { Users, UserPlus, Shield, Crown, AlertTriangle, Info } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function TeamPage() {
