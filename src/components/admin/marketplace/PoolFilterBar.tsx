@@ -59,10 +59,10 @@ export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
 
       <Select value={filters.proficiency ?? "all"} onValueChange={(v) => setFilter("proficiency", v)}>
         <SelectTrigger className="w-full lg:w-[200px]">
-          <SelectValue placeholder="All Proficiency Levels" />
+          <SelectValue placeholder="All Proficiency Areas" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Proficiency Levels</SelectItem>
+          <SelectItem value="all">All Proficiency Areas</SelectItem>
           {proficiencies?.map((p) => (
             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
           ))}

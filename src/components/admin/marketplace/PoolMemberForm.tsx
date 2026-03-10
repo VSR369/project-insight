@@ -288,17 +288,17 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
               )}
             />
 
-            {/* Proficiency Level */}
+            {/* Proficiency Area */}
             <FormField
               control={form.control}
               name="proficiency_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Proficiency Level <span className="text-destructive">*</span></FormLabel>
+                  <FormLabel>Proficiency Area <span className="text-destructive">*</span></FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select proficiency level" />
+                        <SelectValue placeholder="Select proficiency area" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

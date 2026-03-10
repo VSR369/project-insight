@@ -22,7 +22,7 @@ export const poolMemberSchema = z.object({
   industry_ids: z
     .array(z.string().uuid())
     .min(1, "At least one Industry Segment is required"),
-  proficiency_id: z.string().uuid({ message: "Proficiency Level is required" }),
+  proficiency_id: z.string().uuid({ message: "Proficiency Area is required" }),
   max_concurrent: z.coerce
     .number()
     .int()

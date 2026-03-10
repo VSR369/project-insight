@@ -82,7 +82,7 @@ export function PoolMemberTable({
             <TableHead>Full Name</TableHead>
             <TableHead>Assigned Roles</TableHead>
             <TableHead className="hidden lg:table-cell">Industry Segments</TableHead>
-            <TableHead>Proficiency</TableHead>
+            <TableHead>Proficiency Area</TableHead>
             <TableHead className="text-center">Active</TableHead>
             <TableHead className="text-center">Max</TableHead>
             <TableHead>Availability</TableHead>
