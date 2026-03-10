@@ -72,6 +72,12 @@ export function PlatformAdminForm({
     },
   });
 
+  const watchedTier = form.watch('admin_tier');
+  const isBasicAdmin = watchedTier === 'admin';
+  const industryCap = isBasicAdmin ? parseInt(maxIndustries ?? '3', 10) : undefined;
+  const countryCap = isBasicAdmin ? parseInt(maxCountries ?? '3', 10) : undefined;
+  const orgTypeCap = isBasicAdmin ? parseInt(maxOrgTypes ?? '3', 10) : undefined;
+
   const watchedMaxConcurrent = form.watch('max_concurrent_verifications');
   const showCapacityWarning = mode === 'edit' && watchedMaxConcurrent < currentActiveVerifications;
 
