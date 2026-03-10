@@ -78,6 +78,10 @@ export function OrgTypeExpertisePicker({ value, onChange, disabled, maxItems }: 
         </PopoverContent>
       </Popover>
 
+      {isAtCap && (
+        <p className="text-xs text-muted-foreground">Maximum {maxItems} allowed for this tier.</p>
+      )}
+
       {selectedItems.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedItems.map((ot) => (

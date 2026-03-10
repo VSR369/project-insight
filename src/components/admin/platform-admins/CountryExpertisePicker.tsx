@@ -78,6 +78,10 @@ export function CountryExpertisePicker({ value, onChange, disabled, maxItems }: 
         </PopoverContent>
       </Popover>
 
+      {isAtCap && (
+        <p className="text-xs text-muted-foreground">Maximum {maxItems} allowed for this tier.</p>
+      )}
+
       {selectedNames.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedNames.map((c) => (

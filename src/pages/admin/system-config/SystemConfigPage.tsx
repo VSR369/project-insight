@@ -46,9 +46,10 @@ const GROUP_META: Record<string, { title: string; description?: string }> = {
   SLA_THRESHOLDS: { title: 'SLA Escalation', description: 'Percentage thresholds that trigger SLA warning tiers.' },
   ESCALATION: { title: 'Escalation Routing', description: 'Executive fallback contact for Tier 3 escalations.' },
   REASSIGNMENT: { title: 'Reassignment & Leave', description: 'Limits on reassignments and leave notification timing.' },
+  EXPERTISE_CAPS: { title: 'Expertise Caps', description: 'Maximum number of industry, country, and org type selections allowed for Basic Admin tier profiles.' },
 };
 
-const GROUP_ORDER = ['GOVERNANCE', 'ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT'];
+const GROUP_ORDER = ['GOVERNANCE', 'ASSIGNMENT', 'DOMAIN_WEIGHTS', 'CAPACITY', 'QUEUE', 'SLA_THRESHOLDS', 'ESCALATION', 'REASSIGNMENT', 'EXPERTISE_CAPS'];
 
 function SystemConfigContent() {
   const { data: config, isLoading } = useMpaConfig();

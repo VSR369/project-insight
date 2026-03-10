@@ -307,7 +307,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Organization Type Expertise</FormLabel>
                 <FormControl>
-                  <OrgTypeExpertisePicker value={field.value} onChange={field.onChange} />
+                  <OrgTypeExpertisePicker value={field.value} onChange={field.onChange} maxItems={orgTypeCap} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
