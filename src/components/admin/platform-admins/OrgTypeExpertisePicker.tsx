@@ -21,18 +21,21 @@ interface OrgTypeExpertisePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  maxItems?: number;
 }
 
-export function OrgTypeExpertisePicker({ value, onChange, disabled }: OrgTypeExpertisePickerProps) {
+export function OrgTypeExpertisePicker({ value, onChange, disabled, maxItems }: OrgTypeExpertisePickerProps) {
   const [open, setOpen] = useState(false);
   const { data: orgTypes } = useOrganizationTypes();
 
   const selectedItems = orgTypes?.filter((ot) => value.includes(ot.id)) ?? [];
 
+  const isAtCap = maxItems != null && value.length >= maxItems;
+
   const toggle = (id: string) => {
     if (value.includes(id)) {
       onChange(value.filter((v) => v !== id));
-    } else {
+    } else if (!isAtCap) {
       onChange([...value, id]);
     }
   };
@@ -42,7 +45,9 @@ export function OrgTypeExpertisePicker({ value, onChange, disabled }: OrgTypeExp
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" className="w-full justify-start" disabled={disabled}>
-            {value.length > 0 ? `${value.length} selected` : 'Select organization types...'}
+            {value.length > 0
+              ? `${value.length}${maxItems ? `/${maxItems}` : ''} selected`
+              : 'Select organization types...'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-0" align="start">
@@ -51,23 +56,31 @@ export function OrgTypeExpertisePicker({ value, onChange, disabled }: OrgTypeExp
             <CommandList>
               <CommandEmpty>No organization types found.</CommandEmpty>
               <CommandGroup>
-                {orgTypes?.map((ot) => (
-                  <CommandItem
-                    key={ot.id}
-                    onSelect={() => toggle(ot.id)}
-                    className="cursor-pointer"
-                  >
-                    <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${value.includes(ot.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {value.includes(ot.id) && <span className="text-primary-foreground text-xs">✓</span>}
-                    </div>
-                    {ot.name}
-                  </CommandItem>
-                ))}
+                {orgTypes?.map((ot) => {
+                  const isSelected = value.includes(ot.id);
+                  const isDisabledItem = !isSelected && isAtCap;
+                  return (
+                    <CommandItem
+                      key={ot.id}
+                      onSelect={() => !isDisabledItem && toggle(ot.id)}
+                      className={isDisabledItem ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    >
+                      <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {isSelected && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      {ot.name}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
+
+      {isAtCap && (
+        <p className="text-xs text-muted-foreground">Maximum {maxItems} allowed for this tier.</p>
+      )}
 
       {selectedItems.length > 0 && (
         <div className="flex flex-wrap gap-1">

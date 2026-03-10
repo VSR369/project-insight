@@ -15,6 +15,9 @@ export interface CurrentAdminProfile {
   full_name: string | null;
   current_active_verifications: number;
   max_concurrent_verifications: number;
+  industry_expertise: string[] | null;
+  country_region_expertise: string[] | null;
+  org_type_expertise: string[] | null;
 }
 
 export function useCurrentAdminProfile() {
@@ -25,7 +28,7 @@ export function useCurrentAdminProfile() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('platform_admin_profiles')
-        .select('id, admin_tier, is_supervisor, full_name, current_active_verifications, max_concurrent_verifications')
+        .select('id, admin_tier, is_supervisor, full_name, current_active_verifications, max_concurrent_verifications, industry_expertise, country_region_expertise, org_type_expertise')
         .eq('user_id', user!.id)
         .maybeSingle();
 

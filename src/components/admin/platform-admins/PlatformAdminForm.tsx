@@ -8,6 +8,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { platformAdminFormSchema, ADMIN_TIER_OPTIONS, type PlatformAdminFormValues, type AdminTierValue } from './platformAdminForm.schema';
 import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
+import { useMpaConfigValue } from '@/hooks/queries/useMpaConfig';
 import { SupervisorFlagToggleModal } from './SupervisorFlagToggleModal';
 import {
   Form,
@@ -50,6 +51,9 @@ export function PlatformAdminForm({
   const [supervisorModalOpen, setSupervisorModalOpen] = useState(false);
   const [pendingSupervisorTier, setPendingSupervisorTier] = useState<string | null>(null);
   const { depth } = usePlatformTierDepth();
+  const { data: maxIndustries } = useMpaConfigValue('basic_admin_max_industries');
+  const { data: maxCountries } = useMpaConfigValue('basic_admin_max_countries');
+  const { data: maxOrgTypes } = useMpaConfigValue('basic_admin_max_org_types');
 
   const form = useForm<PlatformAdminFormValues>({
     resolver: zodResolver(platformAdminFormSchema),
@@ -67,6 +71,12 @@ export function PlatformAdminForm({
       ...defaultValues,
     },
   });
+
+  const watchedTier = form.watch('admin_tier');
+  const isBasicAdmin = watchedTier === 'admin';
+  const industryCap = isBasicAdmin ? parseInt(maxIndustries ?? '3', 10) : undefined;
+  const countryCap = isBasicAdmin ? parseInt(maxCountries ?? '3', 10) : undefined;
+  const orgTypeCap = isBasicAdmin ? parseInt(maxOrgTypes ?? '3', 10) : undefined;
 
   const watchedMaxConcurrent = form.watch('max_concurrent_verifications');
   const showCapacityWarning = mode === 'edit' && watchedMaxConcurrent < currentActiveVerifications;
@@ -264,7 +274,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Industry Expertise *</FormLabel>
                 <FormControl>
-                  <IndustryExpertisePicker value={field.value} onChange={field.onChange} />
+                  <IndustryExpertisePicker value={field.value} onChange={field.onChange} maxItems={industryCap} />
                 </FormControl>
                 <FormDescription>At least one industry is required.</FormDescription>
                 <FormMessage />
@@ -280,7 +290,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Country/Region Expertise</FormLabel>
                 <FormControl>
-                  <CountryExpertisePicker value={field.value} onChange={field.onChange} />
+                  <CountryExpertisePicker value={field.value} onChange={field.onChange} maxItems={countryCap} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -295,7 +305,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Organization Type Expertise</FormLabel>
                 <FormControl>
-                  <OrgTypeExpertisePicker value={field.value} onChange={field.onChange} />
+                  <OrgTypeExpertisePicker value={field.value} onChange={field.onChange} maxItems={orgTypeCap} />
                 </FormControl>
                 <FormMessage />
               </FormItem>

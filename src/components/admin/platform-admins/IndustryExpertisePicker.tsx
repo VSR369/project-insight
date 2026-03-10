@@ -21,18 +21,21 @@ interface IndustryExpertisePickerProps {
   value: string[];
   onChange: (value: string[]) => void;
   disabled?: boolean;
+  maxItems?: number;
 }
 
-export function IndustryExpertisePicker({ value, onChange, disabled }: IndustryExpertisePickerProps) {
+export function IndustryExpertisePicker({ value, onChange, disabled, maxItems }: IndustryExpertisePickerProps) {
   const [open, setOpen] = useState(false);
   const { data: industries } = useIndustrySegments();
 
   const selectedNames = industries?.filter((i) => value.includes(i.id)) ?? [];
 
+  const isAtCap = maxItems != null && value.length >= maxItems;
+
   const toggle = (id: string) => {
     if (value.includes(id)) {
       onChange(value.filter((v) => v !== id));
-    } else {
+    } else if (!isAtCap) {
       onChange([...value, id]);
     }
   };
@@ -42,7 +45,9 @@ export function IndustryExpertisePicker({ value, onChange, disabled }: IndustryE
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" className="w-full justify-start" disabled={disabled}>
-            {value.length > 0 ? `${value.length} selected` : 'Select industries...'}
+            {value.length > 0
+              ? `${value.length}${maxItems ? `/${maxItems}` : ''} selected`
+              : 'Select industries...'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-0" align="start">
@@ -51,23 +56,31 @@ export function IndustryExpertisePicker({ value, onChange, disabled }: IndustryE
             <CommandList>
               <CommandEmpty>No industries found.</CommandEmpty>
               <CommandGroup>
-                {industries?.map((industry) => (
-                  <CommandItem
-                    key={industry.id}
-                    onSelect={() => toggle(industry.id)}
-                    className="cursor-pointer"
-                  >
-                    <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${value.includes(industry.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {value.includes(industry.id) && <span className="text-primary-foreground text-xs">✓</span>}
-                    </div>
-                    {industry.name}
-                  </CommandItem>
-                ))}
+                {industries?.map((industry) => {
+                  const isSelected = value.includes(industry.id);
+                  const isDisabledItem = !isSelected && isAtCap;
+                  return (
+                    <CommandItem
+                      key={industry.id}
+                      onSelect={() => !isDisabledItem && toggle(industry.id)}
+                      className={isDisabledItem ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    >
+                      <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {isSelected && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      {industry.name}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
         </PopoverContent>
       </Popover>
+
+      {isAtCap && (
+        <p className="text-xs text-muted-foreground">Maximum {maxItems} allowed for this tier.</p>
+      )}
 
       {selectedNames.length > 0 && (
         <div className="flex flex-wrap gap-1">
