@@ -615,6 +615,9 @@ const App = () => (
               <Route path="system-config/domain-weights" element={<TierGuard requiredTier="supervisor"><DomainWeightsPage /></TierGuard>} />
               {/* Permissions Management — supervisor only, read-only reference */}
               <Route path="permissions" element={<TierGuard requiredTier="supervisor"><PermissionsManagementPage /></TierGuard>} />
+              {/* RBAC MOD-01: Marketplace Resource Pool — senior_admin+ */}
+              <Route path="marketplace" element={<TierGuard requiredTier="senior_admin"><MarketplaceDashboard /></TierGuard>} />
+              <Route path="marketplace/resource-pool" element={<TierGuard requiredTier="senior_admin"><ResourcePoolPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
