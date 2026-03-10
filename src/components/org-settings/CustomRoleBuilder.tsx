@@ -149,9 +149,26 @@ export function CustomRoleBuilder({
               </CardTitle>
               <CardDescription>Create roles with specific permissions for your team</CardDescription>
             </div>
-            <Button size="sm" onClick={() => setDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-1" /> New Role
-            </Button>
+            {canCreateRoles ? (
+              <Button size="sm" onClick={() => setDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" /> New Role
+              </Button>
+            ) : (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span>
+                      <Button size="sm" disabled>
+                        <Lock className="h-4 w-4 mr-1" /> New Role
+                      </Button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Only Primary admins can create custom roles</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
           </div>
         </CardHeader>
         <CardContent>
