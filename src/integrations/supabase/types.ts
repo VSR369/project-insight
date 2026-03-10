@@ -1828,6 +1828,45 @@ export type Database = {
         }
         Relationships: []
       }
+      md_availability_statuses: {
+        Row: {
+          code: string
+          color_class: string | null
+          created_at: string
+          created_by: string | null
+          display_name: string
+          display_order: number | null
+          id: string
+          is_active: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          color_class?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          color_class?: string | null
+          created_at?: string
+          created_by?: string | null
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_billing_cycles: {
         Row: {
           code: string
