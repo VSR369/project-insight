@@ -56,18 +56,22 @@ export function OrgTypeExpertisePicker({ value, onChange, disabled, maxItems }: 
             <CommandList>
               <CommandEmpty>No organization types found.</CommandEmpty>
               <CommandGroup>
-                {orgTypes?.map((ot) => (
-                  <CommandItem
-                    key={ot.id}
-                    onSelect={() => toggle(ot.id)}
-                    className="cursor-pointer"
-                  >
-                    <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${value.includes(ot.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {value.includes(ot.id) && <span className="text-primary-foreground text-xs">✓</span>}
-                    </div>
-                    {ot.name}
-                  </CommandItem>
-                ))}
+                {orgTypes?.map((ot) => {
+                  const isSelected = value.includes(ot.id);
+                  const isDisabledItem = !isSelected && isAtCap;
+                  return (
+                    <CommandItem
+                      key={ot.id}
+                      onSelect={() => !isDisabledItem && toggle(ot.id)}
+                      className={isDisabledItem ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    >
+                      <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {isSelected && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      {ot.name}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
