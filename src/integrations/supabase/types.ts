@@ -4298,10 +4298,10 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "platform_provider_pool_proficiency_id_fkey"
+            foreignKeyName: "platform_provider_pool_proficiency_area_fkey"
             columns: ["proficiency_id"]
             isOneToOne: false
-            referencedRelation: "md_proficiency_levels"
+            referencedRelation: "proficiency_areas"
             referencedColumns: ["id"]
           },
         ]
