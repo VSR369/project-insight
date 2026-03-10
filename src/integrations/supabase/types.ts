@@ -663,6 +663,72 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_role_assignments: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          pool_member_id: string
+          reassigned_at: string | null
+          reassignment_reason: string | null
+          replaced_by: string | null
+          role_code: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          pool_member_id: string
+          reassigned_at?: string | null
+          reassignment_reason?: string | null
+          replaced_by?: string | null
+          role_code: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          pool_member_id?: string
+          reassigned_at?: string | null
+          reassignment_reason?: string | null
+          replaced_by?: string | null
+          role_code?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_role_assignments_pool_member_id_fkey"
+            columns: ["pool_member_id"]
+            isOneToOne: false
+            referencedRelation: "platform_provider_pool"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_role_assignments_replaced_by_fkey"
+            columns: ["replaced_by"]
+            isOneToOne: false
+            referencedRelation: "challenge_role_assignments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenges: {
         Row: {
           complexity_id: string | null
@@ -2716,6 +2782,42 @@ export type Database = {
           },
         ]
       }
+      md_proficiency_levels: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number | null
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       md_shadow_pricing: {
         Row: {
           country_id: string | null
@@ -2775,6 +2877,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      md_slm_role_codes: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_name: string
+          display_order: number | null
+          id: string
+          is_active: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
       }
       md_states_provinces: {
         Row: {
@@ -4060,6 +4201,68 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      platform_provider_pool: {
+        Row: {
+          availability_status: string
+          created_at: string
+          created_by: string | null
+          current_assignments: number
+          email: string
+          full_name: string
+          id: string
+          industry_ids: string[]
+          is_active: boolean
+          max_concurrent: number
+          phone: string | null
+          proficiency_id: string | null
+          role_codes: string[]
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          availability_status?: string
+          created_at?: string
+          created_by?: string | null
+          current_assignments?: number
+          email: string
+          full_name: string
+          id?: string
+          industry_ids?: string[]
+          is_active?: boolean
+          max_concurrent?: number
+          phone?: string | null
+          proficiency_id?: string | null
+          role_codes?: string[]
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          availability_status?: string
+          created_at?: string
+          created_by?: string | null
+          current_assignments?: number
+          email?: string
+          full_name?: string
+          id?: string
+          industry_ids?: string[]
+          is_active?: boolean
+          max_concurrent?: number
+          phone?: string | null
+          proficiency_id?: string | null
+          role_codes?: string[]
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_provider_pool_proficiency_id_fkey"
+            columns: ["proficiency_id"]
+            isOneToOne: false
+            referencedRelation: "md_proficiency_levels"
             referencedColumns: ["id"]
           },
         ]
@@ -6503,6 +6706,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      role_audit_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_state: Json | null
+          before_state: Json | null
+          created_at: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_state?: Json | null
+          before_state?: Json | null
+          created_at?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+        }
+        Relationships: []
       }
       saas_agreements: {
         Row: {

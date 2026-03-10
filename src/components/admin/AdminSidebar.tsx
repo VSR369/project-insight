@@ -42,6 +42,7 @@ import {
   ChevronRight,
   Activity,
   BarChart3,
+  Store,
   TestTube2,
   CreditCard,
   Users2,
@@ -366,8 +367,38 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {/* MARKETPLACE — senior_admin+ */}
+        {canSeeTeamManagement && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Marketplace</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/marketplace')}
+                    onMouseEnter={() => handleMouseEnter('/admin/marketplace')}
+                    isActive={location.pathname === '/admin/marketplace'}
+                  >
+                    <Store className="h-4 w-4" />
+                    <span>Dashboard</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/marketplace/resource-pool')}
+                    onMouseEnter={() => handleMouseEnter('/admin/marketplace/resource-pool')}
+                    isActive={location.pathname === '/admin/marketplace/resource-pool'}
+                  >
+                    <Users className="h-4 w-4" />
+                    <span>Resource Pool</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         <SidebarGroup>
-          <SidebarGroupLabel>Seeker Management</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {seekerItems
