@@ -276,7 +276,7 @@ export function PlatformAdminForm({
               <FormItem>
                 <FormLabel>Industry Expertise *</FormLabel>
                 <FormControl>
-                  <IndustryExpertisePicker value={field.value} onChange={field.onChange} />
+                  <IndustryExpertisePicker value={field.value} onChange={field.onChange} maxItems={industryCap} />
                 </FormControl>
                 <FormDescription>At least one industry is required.</FormDescription>
                 <FormMessage />
