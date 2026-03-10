@@ -72,10 +72,6 @@ export function IndustryExpertisePicker({ value, onChange, disabled, maxItems }:
                     </CommandItem>
                   );
                 })}
-                    </div>
-                    {industry.name}
-                  </CommandItem>
-                ))}
               </CommandGroup>
             </CommandList>
           </Command>
