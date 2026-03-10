@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Lock, X } from "lucide-react";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import {
   useCreatePoolMember,
