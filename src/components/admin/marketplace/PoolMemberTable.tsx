@@ -17,7 +17,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -39,7 +39,7 @@ export function PoolMemberTable({
   onDeactivate,
 }: PoolMemberTableProps) {
   const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyLevels();
+  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availabilityStatuses } = useAvailabilityStatuses();
 
@@ -82,7 +82,7 @@ export function PoolMemberTable({
             <TableHead>Full Name</TableHead>
             <TableHead>Assigned Roles</TableHead>
             <TableHead className="hidden lg:table-cell">Industry Segments</TableHead>
-            <TableHead>Proficiency</TableHead>
+            <TableHead>Proficiency Area</TableHead>
             <TableHead className="text-center">Active</TableHead>
             <TableHead className="text-center">Max</TableHead>
             <TableHead>Availability</TableHead>

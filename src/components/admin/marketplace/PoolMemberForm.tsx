@@ -34,7 +34,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Lock, X } from "lucide-react";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import {
   useCreatePoolMember,
@@ -56,7 +56,7 @@ interface PoolMemberFormProps {
 export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFormProps) {
   const isEdit = !!editMember;
   const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyLevels();
+  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const createMutation = useCreatePoolMember();
   const updateMutation = useUpdatePoolMember();
@@ -288,17 +288,17 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
               )}
             />
 
-            {/* Proficiency Level */}
+            {/* Proficiency Area */}
             <FormField
               control={form.control}
               name="proficiency_id"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Proficiency Level <span className="text-destructive">*</span></FormLabel>
+                  <FormLabel>Proficiency Area <span className="text-destructive">*</span></FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="Select proficiency level" />
+                        <SelectValue placeholder="Select proficiency area" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>

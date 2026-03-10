@@ -11,7 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import type { PoolMemberFilters } from "@/hooks/queries/usePoolMembers";
@@ -23,7 +23,7 @@ interface PoolFilterBarProps {
 
 export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
   const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyLevels();
+  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availabilityStatuses } = useAvailabilityStatuses();
 
@@ -59,10 +59,10 @@ export function PoolFilterBar({ filters, onChange }: PoolFilterBarProps) {
 
       <Select value={filters.proficiency ?? "all"} onValueChange={(v) => setFilter("proficiency", v)}>
         <SelectTrigger className="w-full lg:w-[200px]">
-          <SelectValue placeholder="All Proficiency Levels" />
+          <SelectValue placeholder="All Proficiency Areas" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="all">All Proficiency Levels</SelectItem>
+          <SelectItem value="all">All Proficiency Areas</SelectItem>
           {proficiencies?.map((p) => (
             <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
           ))}
