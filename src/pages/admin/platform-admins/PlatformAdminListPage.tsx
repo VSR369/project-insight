@@ -61,7 +61,7 @@ function PlatformAdminListContent() {
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
   const { depth } = usePlatformTierDepth();
   const effectiveSupervisor = isSupervisor || depth === 1;
-  const canCreate = effectiveSupervisor || isSeniorAdmin;
+  const canCreate = depth > 1 && (effectiveSupervisor || isSeniorAdmin);
   const canEdit = effectiveSupervisor || isSeniorAdmin;
 
   // Filter tier options based on depth

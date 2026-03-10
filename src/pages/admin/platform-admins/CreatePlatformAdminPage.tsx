@@ -6,15 +6,34 @@
 import { useNavigate } from 'react-router-dom';
 import { useCreatePlatformAdmin } from '@/hooks/mutations/usePlatformAdminMutations';
 import { useAdminTier } from '@/hooks/useAdminTier';
+import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { PlatformAdminForm } from '@/components/admin/platform-admins/PlatformAdminForm';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { PlatformAdminFormValues } from '@/components/admin/platform-admins/platformAdminForm.schema';
 
 function CreateContent() {
   const navigate = useNavigate();
   const createMutation = useCreatePlatformAdmin();
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
+  const { depth, isLoading: depthLoading } = usePlatformTierDepth();
+
+  if (depthLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Skeleton className="h-8 w-48" />
+      </div>
+    );
+  }
+
+  if (depth === 1) {
+    return (
+      <div className="text-center py-12 text-muted-foreground">
+        Admin creation is disabled in single-operator mode. Only the Supervisor role exists at the current tier depth.
+      </div>
+    );
+  }
 
   if (!isSupervisor && !isSeniorAdmin) {
     return (
