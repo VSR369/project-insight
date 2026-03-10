@@ -56,18 +56,22 @@ export function CountryExpertisePicker({ value, onChange, disabled, maxItems }: 
             <CommandList>
               <CommandEmpty>No countries found.</CommandEmpty>
               <CommandGroup>
-                {countries?.map((country) => (
-                  <CommandItem
-                    key={country.id}
-                    onSelect={() => toggle(country.id)}
-                    className="cursor-pointer"
-                  >
-                    <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${value.includes(country.id) ? 'bg-primary border-primary' : 'border-input'}`}>
-                      {value.includes(country.id) && <span className="text-primary-foreground text-xs">✓</span>}
-                    </div>
-                    {country.name}
-                  </CommandItem>
-                ))}
+                {countries?.map((country) => {
+                  const isSelected = value.includes(country.id);
+                  const isDisabledItem = !isSelected && isAtCap;
+                  return (
+                    <CommandItem
+                      key={country.id}
+                      onSelect={() => !isDisabledItem && toggle(country.id)}
+                      className={isDisabledItem ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                    >
+                      <div className={`mr-2 h-4 w-4 border rounded flex items-center justify-center ${isSelected ? 'bg-primary border-primary' : 'border-input'}`}>
+                        {isSelected && <span className="text-primary-foreground text-xs">✓</span>}
+                      </div>
+                      {country.name}
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             </CommandList>
           </Command>
