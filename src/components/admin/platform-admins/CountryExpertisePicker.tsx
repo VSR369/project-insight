@@ -45,7 +45,9 @@ export function CountryExpertisePicker({ value, onChange, disabled, maxItems }: 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button variant="outline" className="w-full justify-start" disabled={disabled}>
-            {value.length > 0 ? `${value.length} selected` : 'Select countries...'}
+            {value.length > 0
+              ? `${value.length}${maxItems ? `/${maxItems}` : ''} selected`
+              : 'Select countries...'}
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-80 p-0" align="start">
