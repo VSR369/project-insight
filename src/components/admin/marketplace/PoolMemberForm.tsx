@@ -56,7 +56,7 @@ interface PoolMemberFormProps {
 export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFormProps) {
   const isEdit = !!editMember;
   const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyLevels();
+  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const createMutation = useCreatePoolMember();
   const updateMutation = useUpdatePoolMember();
