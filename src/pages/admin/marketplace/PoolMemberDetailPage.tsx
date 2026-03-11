@@ -188,7 +188,7 @@ export default function PoolMemberDetailPage() {
                   <p className="text-xs text-muted-foreground mb-1.5">Assigned Roles</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(member.role_codes as string[]).map((code) => (
-                      <RoleBadge key={code} roleCode={code} label={getRoleLabel(code)} />
+                      <RoleBadge key={code} code={code} label={getRoleLabel(code)} />
                     ))}
                   </div>
                 </div>
