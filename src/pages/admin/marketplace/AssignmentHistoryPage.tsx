@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Clock, UserPlus, Users } from "lucide-react";
-import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
-import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow, type TeamComposition } from "@/hooks/queries/useSolutionRequests";
+import { useSlmRoleCodes, useSlmPoolRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
@@ -24,13 +24,14 @@ export default function AssignmentHistoryPage() {
   const [searchParams] = useSearchParams();
   const highlightChallengeId = searchParams.get("challenge");
 
-  const { data: requests, isLoading: reqLoading } = useSolutionRequests();
+  const { data: mpRoles } = useSlmPoolRoles();
+  const { data: requests, isLoading: reqLoading } = useSolutionRequests(mpRoles ?? []);
   const { data: allAssignments, isLoading: assignLoading } = useAllChallengeAssignments();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availStatuses } = useAvailabilityStatuses();
 
   const [reassignTarget, setReassignTarget] = useState<{ assignment: ChallengeAssignmentRow; challengeTitle: string } | null>(null);
-  const [assignTarget, setAssignTarget] = useState<{ challengeId: string; challengeTitle: string; missingRoles: { role: string; required: number; assigned: number }[] } | null>(null);
+  const [assignTarget, setAssignTarget] = useState<{ challengeId: string; challengeTitle: string; missingRoles: TeamComposition["missingRoles"] } | null>(null);
 
   const isLoading = reqLoading || assignLoading;
 
@@ -49,53 +50,53 @@ export default function AssignmentHistoryPage() {
     return found ? `${found.display_name} (${code})` : code;
   };
 
-  const getAvailLabel = (code: string) => {
-    const found = availStatuses?.find((s) => s.code === code);
-    return found?.display_name ?? code;
+  const getAvailLabel = (status: string) => {
+    const found = availStatuses?.find((s) => s.code === status);
+    return found?.display_name ?? status;
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+      {/* Back link */}
+      <button
+        onClick={() => navigate("/admin/marketplace/solution-requests")}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Solution Requests
+      </button>
+
       {/* Header */}
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-        <div>
-          <nav className="text-xs text-muted-foreground mb-1">
-            Platform Admin &gt; Marketplace &gt; Assignment History
-          </nav>
-          <h1 className="text-2xl font-bold text-foreground">Assignment History</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            View assigned challenge teams and manage reassignments.
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/admin/marketplace/solution-requests")}
-          className="self-start"
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Solution Requests
-        </Button>
+      <div>
+        <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+          <Clock className="h-6 w-6 text-primary" />
+          Assignment History
+        </h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          View all challenge role assignments and team compositions.
+        </p>
       </div>
 
-      {/* Challenge Cards */}
       {isLoading ? (
         <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
+          {[1, 2, 3].map((i) => (
             <Card key={i}>
-              <CardHeader><Skeleton className="h-5 w-64" /></CardHeader>
-              <CardContent><Skeleton className="h-20 w-full" /></CardContent>
+              <CardHeader>
+                <Skeleton className="h-5 w-48" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-16 w-full" />
+              </CardContent>
             </Card>
           ))}
         </div>
-      ) : !challengesWithAssignments.length ? (
+      ) : challengesWithAssignments.length === 0 ? (
         <Card>
-          <CardContent className="py-12">
-            <div className="flex flex-col items-center justify-center text-center">
-              <Users className="h-8 w-8 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">
-                No challenge assignments found yet. Assign teams from the Solution Requests queue.
-              </p>
-            </div>
+          <CardContent className="py-12 text-center">
+            <Users className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+            <p className="text-sm text-muted-foreground">
+              No challenge assignments found yet. Assign teams from the Solution Requests queue.
+            </p>
           </CardContent>
         </Card>
       ) : (
@@ -104,7 +105,8 @@ export default function AssignmentHistoryPage() {
             const assignments = grouped[challenge.id] ?? [];
             const isHighlighted = highlightChallengeId === challenge.id;
             const team = computeTeamComposition(
-              assignments.map((a) => ({ role_code: a.role_code, pool_member_id: a.pool_member_id }))
+              assignments.map((a) => ({ role_code: a.role_code, pool_member_id: a.pool_member_id })),
+              mpRoles ?? []
             );
 
             return (
