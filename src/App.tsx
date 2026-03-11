@@ -830,6 +830,7 @@ const App = () => (
               <Route path="admin-management" element={<AdminManagementPage />} />
               <Route path="admin-management/create" element={<CreateDelegatedAdminPage />} />
               <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
+              <Route path="role-management" element={<RoleManagementDashboard />} />
             </Route>
             <Route
               path="/registration/complete"
