@@ -2,15 +2,19 @@
  * ScopeMultiSelect — Cascading multi-select for domain scope.
  * Industry Segments (required) → Proficiency Areas → Sub-domains → Specialities
  * Departments → Functional Areas (hidden when hideDepartments=true)
+ *
+ * When allowAll=true, each level gets an "All" toggle switch.
+ * "All" = empty array = covers everything at that level.
  */
 
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
 import { useDepartments } from '@/hooks/queries/usePrimaryContactData';
 import { useFunctionalAreas } from '@/hooks/queries/useFunctionalAreas';
-import { useProficiencyAreasBySegments, useSubDomainsByAreas, useSpecialitiesBySubDomains } from '@/hooks/queries/useScopeTaxonomy';
+import { useProficiencyAreasBySegments, useSubDomainsByAreas, useSpecialitiesBySubDomains, useAllProficiencyAreas } from '@/hooks/queries/useScopeTaxonomy';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
 import { X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { DomainScope } from '@/hooks/queries/useDelegatedAdmins';
@@ -20,6 +24,8 @@ interface ScopeMultiSelectProps {
   onChange: (scope: DomainScope) => void;
   /** Hide Department and Functional Area fields (e.g., for Pool Members) */
   hideDepartments?: boolean;
+  /** Show "All" toggle switches at each scope level (e.g., for Pool Members) */
+  allowAll?: boolean;
 }
 
 function MultiSelectField({
@@ -87,15 +93,25 @@ function MultiSelectField({
   );
 }
 
-export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: ScopeMultiSelectProps) {
+export function ScopeMultiSelect({ value, onChange, hideDepartments = false, allowAll = false }: ScopeMultiSelectProps) {
   const { data: industries = [] } = useIndustrySegments();
   const { data: departments = [] } = useDepartments();
   const { data: functionalAreas = [] } = useFunctionalAreas();
 
+  // Derived "All" states — empty array means ALL
+  const allIndustries = allowAll && value.industry_segment_ids.length === 0;
+  const allProficiency = allowAll && value.proficiency_area_ids.length === 0;
+  const allSubDomains = allowAll && value.sub_domain_ids.length === 0;
+  const allSpecialities = allowAll && value.speciality_ids.length === 0;
+
   // Cascading taxonomy hooks
-  const { data: proficiencyAreas = [] } = useProficiencyAreasBySegments(value.industry_segment_ids);
+  const { data: proficiencyAreasBySegment = [] } = useProficiencyAreasBySegments(value.industry_segment_ids);
+  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(allIndustries);
   const { data: subDomains = [] } = useSubDomainsByAreas(value.proficiency_area_ids);
   const { data: specialities = [] } = useSpecialitiesBySubDomains(value.sub_domain_ids);
+
+  // Use segment-scoped or global proficiency areas depending on ALL Industries toggle
+  const proficiencyAreas = allIndustries ? allProficiencyAreas : proficiencyAreasBySegment;
 
   // Filter functional areas by selected departments
   const filteredFAs = value.department_ids.length > 0
@@ -114,98 +130,211 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: S
     updateField(field, value[field].filter((v) => v !== id));
   };
 
+  // Toggle handlers for "All" switches
+  const toggleAllIndustries = (checked: boolean) => {
+    if (checked) {
+      // Set ALL — clear industry selections and cascade clear children
+      onChange({
+        ...value,
+        industry_segment_ids: [],
+        proficiency_area_ids: [],
+        sub_domain_ids: [],
+        speciality_ids: [],
+      });
+    } else {
+      // Turning off ALL — keep empty (user must now pick at least one)
+      // Arrays are already empty, no change needed
+    }
+  };
+
+  const toggleAllProficiency = (checked: boolean) => {
+    if (checked) {
+      onChange({
+        ...value,
+        proficiency_area_ids: [],
+        sub_domain_ids: [],
+        speciality_ids: [],
+      });
+    }
+  };
+
+  const toggleAllSubDomains = (checked: boolean) => {
+    if (checked) {
+      onChange({
+        ...value,
+        sub_domain_ids: [],
+        speciality_ids: [],
+      });
+    }
+  };
+
+  const toggleAllSpecialities = (checked: boolean) => {
+    if (checked) {
+      onChange({
+        ...value,
+        speciality_ids: [],
+      });
+    }
+  };
+
+  // Determine visibility of cascading sections
+  const showProficiency = allIndustries || value.industry_segment_ids.length > 0;
+  const showSubDomains = !allProficiency && value.proficiency_area_ids.length > 0;
+  const showSpecialities = !allSubDomains && value.sub_domain_ids.length > 0;
+
   return (
     <div className="space-y-4">
-      {/* Industry Segments (required) */}
-      <MultiSelectField
-        label="Industry Segments"
-        required
-        items={industries.map((i) => ({ id: i.id, name: i.name }))}
-        selectedIds={value.industry_segment_ids}
-        onAdd={addTo('industry_segment_ids')}
-        onRemove={(id) => {
-          // Cascade: remove proficiency areas from this segment
-          const paIdsToRemove = proficiencyAreas
-            .filter((pa) => pa.industry_segment_id === id)
-            .map((pa) => pa.id);
-          const sdIdsToRemove = subDomains
-            .filter((sd) => paIdsToRemove.includes(sd.proficiency_area_id))
-            .map((sd) => sd.id);
-          const spIdsToRemove = specialities
-            .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
-            .map((sp) => sp.id);
-          onChange({
-            ...value,
-            industry_segment_ids: value.industry_segment_ids.filter((v) => v !== id),
-            proficiency_area_ids: value.proficiency_area_ids.filter((v) => !paIdsToRemove.includes(v)),
-            sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
-            speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
-          });
-        }}
-        placeholder="Select industry segments..."
-      />
+      {/* Industry Segments */}
+      <div className="space-y-2">
+        {allowAll && (
+          <div className="flex items-center gap-2">
+            <Switch
+              id="all-industries"
+              checked={allIndustries}
+              onCheckedChange={toggleAllIndustries}
+            />
+            <Label htmlFor="all-industries" className="text-sm font-medium cursor-pointer">
+              All Industries
+            </Label>
+          </div>
+        )}
+        {!allIndustries && (
+          <MultiSelectField
+            label="Industry Segments"
+            required={!allowAll}
+            items={industries.map((i) => ({ id: i.id, name: i.name }))}
+            selectedIds={value.industry_segment_ids}
+            onAdd={addTo('industry_segment_ids')}
+            onRemove={(id) => {
+              const paIdsToRemove = proficiencyAreas
+                .filter((pa) => pa.industry_segment_id === id)
+                .map((pa) => pa.id);
+              const sdIdsToRemove = subDomains
+                .filter((sd) => paIdsToRemove.includes(sd.proficiency_area_id))
+                .map((sd) => sd.id);
+              const spIdsToRemove = specialities
+                .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
+                .map((sp) => sp.id);
+              onChange({
+                ...value,
+                industry_segment_ids: value.industry_segment_ids.filter((v) => v !== id),
+                proficiency_area_ids: value.proficiency_area_ids.filter((v) => !paIdsToRemove.includes(v)),
+                sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
+                speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+              });
+            }}
+            placeholder="Select industry segments..."
+          />
+        )}
+      </div>
 
-      {/* Proficiency Areas (filtered by industry segments) */}
-      {value.industry_segment_ids.length > 0 && (
-        <MultiSelectField
-          label="Proficiency Areas"
-          items={proficiencyAreas.map((pa) => ({ id: pa.id, name: pa.name }))}
-          selectedIds={value.proficiency_area_ids}
-          onAdd={addTo('proficiency_area_ids')}
-          onRemove={(id) => {
-            // Cascade: remove sub-domains from this area
-            const sdIdsToRemove = subDomains
-              .filter((sd) => sd.proficiency_area_id === id)
-              .map((sd) => sd.id);
-            const spIdsToRemove = specialities
-              .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
-              .map((sp) => sp.id);
-            onChange({
-              ...value,
-              proficiency_area_ids: value.proficiency_area_ids.filter((v) => v !== id),
-              sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
-              speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
-            });
-          }}
-          placeholder="Select proficiency areas..."
-          helpText="Optional — empty means ALL proficiency areas within selected industries"
-        />
+      {/* Proficiency Areas */}
+      {showProficiency && (
+        <div className="space-y-2">
+          {allowAll && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="all-proficiency"
+                checked={allProficiency}
+                onCheckedChange={toggleAllProficiency}
+              />
+              <Label htmlFor="all-proficiency" className="text-sm font-medium cursor-pointer">
+                All Proficiency Areas
+              </Label>
+            </div>
+          )}
+          {!allProficiency && (
+            <MultiSelectField
+              label="Proficiency Areas"
+              items={proficiencyAreas.map((pa) => ({ id: pa.id, name: pa.name }))}
+              selectedIds={value.proficiency_area_ids}
+              onAdd={addTo('proficiency_area_ids')}
+              onRemove={(id) => {
+                const sdIdsToRemove = subDomains
+                  .filter((sd) => sd.proficiency_area_id === id)
+                  .map((sd) => sd.id);
+                const spIdsToRemove = specialities
+                  .filter((sp) => sdIdsToRemove.includes(sp.sub_domain_id))
+                  .map((sp) => sp.id);
+                onChange({
+                  ...value,
+                  proficiency_area_ids: value.proficiency_area_ids.filter((v) => v !== id),
+                  sub_domain_ids: value.sub_domain_ids.filter((v) => !sdIdsToRemove.includes(v)),
+                  speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+                });
+              }}
+              placeholder="Select proficiency areas..."
+              helpText={allowAll ? undefined : "Optional — empty means ALL proficiency areas within selected industries"}
+            />
+          )}
+        </div>
       )}
 
-      {/* Sub-domains (filtered by proficiency areas) */}
-      {value.proficiency_area_ids.length > 0 && (
-        <MultiSelectField
-          label="Sub-domains"
-          items={subDomains.map((sd) => ({ id: sd.id, name: sd.name }))}
-          selectedIds={value.sub_domain_ids}
-          onAdd={addTo('sub_domain_ids')}
-          onRemove={(id) => {
-            // Cascade: remove specialities from this sub-domain
-            const spIdsToRemove = specialities
-              .filter((sp) => sp.sub_domain_id === id)
-              .map((sp) => sp.id);
-            onChange({
-              ...value,
-              sub_domain_ids: value.sub_domain_ids.filter((v) => v !== id),
-              speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
-            });
-          }}
-          placeholder="Select sub-domains..."
-          helpText="Optional — empty means ALL sub-domains within selected proficiency areas"
-        />
+      {/* Sub-domains */}
+      {showSubDomains && (
+        <div className="space-y-2">
+          {allowAll && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="all-sub-domains"
+                checked={allSubDomains}
+                onCheckedChange={toggleAllSubDomains}
+              />
+              <Label htmlFor="all-sub-domains" className="text-sm font-medium cursor-pointer">
+                All Sub-domains
+              </Label>
+            </div>
+          )}
+          {!allSubDomains && (
+            <MultiSelectField
+              label="Sub-domains"
+              items={subDomains.map((sd) => ({ id: sd.id, name: sd.name }))}
+              selectedIds={value.sub_domain_ids}
+              onAdd={addTo('sub_domain_ids')}
+              onRemove={(id) => {
+                const spIdsToRemove = specialities
+                  .filter((sp) => sp.sub_domain_id === id)
+                  .map((sp) => sp.id);
+                onChange({
+                  ...value,
+                  sub_domain_ids: value.sub_domain_ids.filter((v) => v !== id),
+                  speciality_ids: value.speciality_ids.filter((v) => !spIdsToRemove.includes(v)),
+                });
+              }}
+              placeholder="Select sub-domains..."
+              helpText={allowAll ? undefined : "Optional — empty means ALL sub-domains within selected proficiency areas"}
+            />
+          )}
+        </div>
       )}
 
-      {/* Specialities (filtered by sub-domains) */}
-      {value.sub_domain_ids.length > 0 && (
-        <MultiSelectField
-          label="Specialities"
-          items={specialities.map((sp) => ({ id: sp.id, name: sp.name }))}
-          selectedIds={value.speciality_ids}
-          onAdd={addTo('speciality_ids')}
-          onRemove={removeFrom('speciality_ids')}
-          placeholder="Select specialities..."
-          helpText="Optional — empty means ALL specialities within selected sub-domains"
-        />
+      {/* Specialities */}
+      {showSpecialities && (
+        <div className="space-y-2">
+          {allowAll && (
+            <div className="flex items-center gap-2">
+              <Switch
+                id="all-specialities"
+                checked={allSpecialities}
+                onCheckedChange={toggleAllSpecialities}
+              />
+              <Label htmlFor="all-specialities" className="text-sm font-medium cursor-pointer">
+                All Specialities
+              </Label>
+            </div>
+          )}
+          {!allSpecialities && (
+            <MultiSelectField
+              label="Specialities"
+              items={specialities.map((sp) => ({ id: sp.id, name: sp.name }))}
+              selectedIds={value.speciality_ids}
+              onAdd={addTo('speciality_ids')}
+              onRemove={removeFrom('speciality_ids')}
+              placeholder="Select specialities..."
+              helpText={allowAll ? undefined : "Optional — empty means ALL specialities within selected sub-domains"}
+            />
+          )}
+        </div>
       )}
 
       {/* Departments — only shown when hideDepartments is false */}
@@ -217,7 +346,6 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: S
             selectedIds={value.department_ids}
             onAdd={addTo('department_ids')}
             onRemove={(id) => {
-              // Also remove functional areas from this department
               const faIdsToRemove = functionalAreas
                 .filter((fa) => fa.department_id === id)
                 .map((fa) => fa.id);
@@ -231,7 +359,6 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: S
             helpText="Optional — empty means ALL departments"
           />
 
-          {/* Functional Areas (filtered by departments) */}
           {value.department_ids.length > 0 && (
             <MultiSelectField
               label="Functional Areas"
@@ -247,7 +374,9 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: S
       )}
 
       <p className="text-xs text-muted-foreground border-t pt-3">
-        Industry Segments are required. All other scope fields are optional — empty means ALL access for that dimension.
+        {allowAll
+          ? "Toggle \"All\" to cover every option at that level, or select specific items. Empty = ALL access for that dimension."
+          : "Industry Segments are required. All other scope fields are optional — empty means ALL access for that dimension."}
       </p>
     </div>
   );
