@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User, ChevronDown, Shield, Settings } from 'lucide-react';
+import { LogOut, User, ChevronDown, Shield, Settings, ShieldAlert } from 'lucide-react';
 import { NotificationBell } from '@/components/admin/notifications/NotificationBell';
 import { NotificationDrawer } from '@/components/admin/notifications/NotificationDrawer';
+import { RoleReadinessNotifications } from '@/components/admin/notifications/RoleReadinessNotifications';
 import { ExecutiveContactWarning } from '@/components/admin/system-config/ExecutiveContactWarning';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
