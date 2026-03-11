@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useEffect } from 'react';
 import type { DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 
 interface ScopeMultiSelectProps {
