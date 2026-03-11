@@ -19,6 +19,7 @@ export function useProficiencyAreasLookup() {
         .from("proficiency_areas")
         .select("id, name")
         .eq("is_active", true)
+        .not("name", "like", "__SMOKE_TEST_%")
         .order("display_order", { ascending: true });
       if (error) throw new Error(error.message);
       return (data ?? []) as ProficiencyAreaOption[];

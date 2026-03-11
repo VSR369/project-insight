@@ -79,6 +79,7 @@ export function useProficiencyTaxonomy(industrySegmentId?: string, expertiseLeve
         .eq('industry_segment_id', industrySegmentId)
         .eq('expertise_level_id', expertiseLevelId)
         .eq('is_active', true)
+        .not('name', 'like', '__SMOKE_TEST_%')
         .order('display_order', { ascending: true });
       
       if (areasError) throw areasError;

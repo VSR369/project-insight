@@ -83,6 +83,7 @@ export function useAllProficiencyAreas(enabled: boolean) {
         .from('proficiency_areas')
         .select('id, name, industry_segment_id')
         .eq('is_active', true)
+        .not('name', 'like', '__SMOKE_TEST_%')
         .order('display_order', { ascending: true });
       if (error) throw new Error(error.message);
       // Deduplicate by name
