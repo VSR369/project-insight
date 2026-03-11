@@ -230,6 +230,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
                       value={field.value}
                       onChange={field.onChange}
                       hideDepartments
+                      allowAll
                     />
                   </FormControl>
                   <FormMessage />
