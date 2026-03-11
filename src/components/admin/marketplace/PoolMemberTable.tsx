@@ -86,7 +86,7 @@ export function PoolMemberTable({
             <TableHead className="text-center">Active</TableHead>
             <TableHead className="text-center">Max</TableHead>
             <TableHead>Availability</TableHead>
-            {canWrite && <TableHead className="text-right">Actions</TableHead>}
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
