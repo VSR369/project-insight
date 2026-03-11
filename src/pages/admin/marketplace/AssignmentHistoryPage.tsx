@@ -30,6 +30,7 @@ export default function AssignmentHistoryPage() {
   const { data: availStatuses } = useAvailabilityStatuses();
 
   const [reassignTarget, setReassignTarget] = useState<{ assignment: ChallengeAssignmentRow; challengeTitle: string } | null>(null);
+  const [assignTarget, setAssignTarget] = useState<{ challengeId: string; challengeTitle: string; missingRoles: { role: string; required: number; assigned: number }[] } | null>(null);
 
   const isLoading = reqLoading || assignLoading;
 
