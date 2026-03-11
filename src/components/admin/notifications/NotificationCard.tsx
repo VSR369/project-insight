@@ -79,6 +79,16 @@ const TYPE_CONFIG: Record<NotificationType, {
     icon: MessageSquare,
     iconClass: 'text-teal-500',
   },
+  ROLE_NOT_READY: {
+    borderClass: 'border-l-red-600',
+    icon: ShieldAlert,
+    iconClass: 'text-red-600',
+  },
+  ROLE_READY: {
+    borderClass: 'border-l-green-600',
+    icon: ClipboardList,
+    iconClass: 'text-green-600',
+  },
 };
 
 interface NotificationCardProps {
