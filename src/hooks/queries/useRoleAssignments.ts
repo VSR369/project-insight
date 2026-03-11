@@ -35,7 +35,7 @@ export interface CreateRoleAssignmentInput {
   user_name?: string;
   user_id?: string;
   status?: string;
-  domain_tags?: Record<string, unknown>;
+  domain_tags?: Json;
   model_applicability?: string;
 }
 
