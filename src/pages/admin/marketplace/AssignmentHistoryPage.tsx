@@ -9,13 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Clock, Users } from "lucide-react";
+import { ArrowLeft, Clock, UserPlus, Users } from "lucide-react";
 import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
 import { TeamCompletionBanner } from "@/components/admin/marketplace/TeamCompletionBanner";
+import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberModal";
 import { format } from "date-fns";
 
 export default function AssignmentHistoryPage() {
