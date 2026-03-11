@@ -137,7 +137,7 @@ export default function AssignmentHistoryPage() {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Team Completion Banner */}
-                  <TeamCompletionBanner team={team} />
+                  <TeamCompletionBanner team={team} challengeId={challenge.id} challengeTitle={challenge.title} />
 
                   <div className="space-y-3">
                     {assignments.map((a) => (
