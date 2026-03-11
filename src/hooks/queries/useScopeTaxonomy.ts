@@ -21,7 +21,12 @@ export function useProficiencyAreasBySegments(industrySegmentIds: string[]) {
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (error) throw new Error(error.message);
-      return data;
+      // Deduplicate by name — same area appears once per expertise level
+      const seen = new Map<string, typeof data[0]>();
+      for (const row of data) {
+        if (!seen.has(row.name)) seen.set(row.name, row);
+      }
+      return Array.from(seen.values());
     },
     enabled: industrySegmentIds.length > 0,
     ...CACHE,
