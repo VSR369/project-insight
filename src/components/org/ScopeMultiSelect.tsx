@@ -332,7 +332,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             <div className="flex items-center gap-2">
               <Switch
                 id="all-specialities"
-                checked={allSpecialities}
+                checked={isAllSpecialities}
                 onCheckedChange={toggleAllSpecialities}
               />
               <Label htmlFor="all-specialities" className="text-sm font-medium cursor-pointer">
