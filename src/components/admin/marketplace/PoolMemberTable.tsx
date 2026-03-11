@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
