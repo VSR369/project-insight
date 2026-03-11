@@ -11,6 +11,7 @@ import type { AdminMetricRow } from './useAllAdminMetrics';
 
 export function useMyMetrics(periodDays: number = 30) {
   const { data: profile } = useCurrentAdminProfile();
+  const refetchInterval = useVisibilityPollingInterval(300_000);
 
   return useQuery({
     queryKey: ['admin-metrics', 'self', periodDays, profile?.id],
