@@ -7,6 +7,7 @@
  */
 
 import { z } from "zod";
+import type { DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 export const domainScopeSchema = z.object({
   industry_segment_ids: z
@@ -38,4 +39,11 @@ export const poolMemberSchema = z.object({
     .max(20, "Max 20 concurrent challenges"),
 });
 
-export type PoolMemberFormValues = z.infer<typeof poolMemberSchema>;
+export interface PoolMemberFormValues {
+  full_name: string;
+  email: string;
+  phone?: string;
+  role_codes: string[];
+  domain_scope: DomainScope;
+  max_concurrent: number;
+}
