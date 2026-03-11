@@ -102,6 +102,7 @@ export default function AdminManagementPage() {
 
   const activeCount = (admins ?? []).filter((a) => a.status !== 'deactivated').length;
   const canAdd = activeCount < maxAdmins;
+  const atEightyPercent = activeCount >= Math.floor(maxAdmins * 0.8) && activeCount < maxAdmins;
 
   // Reset page when search changes
   const totalFiltered = filteredAdmins.length;
