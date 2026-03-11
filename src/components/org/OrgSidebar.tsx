@@ -62,6 +62,11 @@ export function OrgSidebar() {
     { title: 'Create Challenge', icon: PlusCircle, path: '/org/challenges/create' },
   ];
 
+  // Role Management — visible to SO Admins (both PRIMARY and DELEGATED)
+  const roleManagementItems = isSOAdmin
+    ? [{ title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' }]
+    : [];
+
   // Organization section — scoped by admin tier
   const orgItems = isSOAdmin
     ? (isPrimary && delegationEnabled
@@ -130,13 +135,25 @@ export function OrgSidebar() {
           </SidebarGroup>
         )}
 
+        {/* Role Management — SO Admins only */}
+        {isSOAdmin && roleManagementItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Role Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(roleManagementItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Organization — scoped items */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Organization</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderMenuSection(orgItems)}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {orgItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Organization</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(orgItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Billing — hidden for SO Admins */}
         {!isSOAdmin && (

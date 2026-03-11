@@ -69,7 +69,7 @@ export default function AdminContactProfilePage() {
       <div className="space-y-6 p-6">
         {/* Back link */}
         <button
-          onClick={() => navigate("/admin/marketplace/roles")}
+          onClick={() => navigate("/admin/marketplace")}
           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />

@@ -37,14 +37,6 @@ const MANAGEMENT_CONSOLES = [
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
   },
   {
-    title: "Role Management",
-    description: "Configure core and model-specific roles across Marketplace and Aggregator models.",
-    icon: Shield,
-    path: "/admin/marketplace/roles",
-    color: "text-teal-600 dark:text-teal-400",
-    bgColor: "bg-teal-100 dark:bg-teal-900/30",
-  },
-  {
     title: "Delegated Admins",
     description: "Create and manage Delegated Seeking Org Admins with scoped authority.",
     icon: UserCheck,
