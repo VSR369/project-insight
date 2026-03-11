@@ -189,6 +189,10 @@ const PermissionsManagementPage = lazy(() => import("@/pages/admin/permissions/P
 const MarketplaceDashboard = lazy(() => import("@/pages/admin/marketplace/MarketplaceDashboard"));
 const ResourcePoolPage = lazy(() => import("@/pages/admin/marketplace/ResourcePoolPage"));
 
+// RBAC MOD-02: Solution Requests & Assignment History
+const SolutionRequestsPage = lazy(() => import("@/pages/admin/marketplace/SolutionRequestsPage"));
+const AssignmentHistoryPage = lazy(() => import("@/pages/admin/marketplace/AssignmentHistoryPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
