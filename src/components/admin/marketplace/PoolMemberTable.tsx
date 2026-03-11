@@ -4,6 +4,7 @@
  * Role and availability labels resolved from master data hooks.
  */
 
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
@@ -38,6 +39,7 @@ export function PoolMemberTable({
   onEdit,
   onDeactivate,
 }: PoolMemberTableProps) {
+  const navigate = useNavigate();
   const { data: industries } = useIndustrySegments();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availabilityStatuses } = useAvailabilityStatuses();
@@ -84,7 +86,7 @@ export function PoolMemberTable({
             <TableHead className="text-center">Active</TableHead>
             <TableHead className="text-center">Max</TableHead>
             <TableHead>Availability</TableHead>
-            {canWrite && <TableHead className="text-right">Actions</TableHead>}
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -139,9 +141,17 @@ export function PoolMemberTable({
                     label={availabilityMap.get(member.availability_status) ?? member.availability_status}
                   />
                 </TableCell>
-                {canWrite && (
+                {canWrite ? (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/admin/marketplace/resource-pool/${member.id}`)}
+                        aria-label={`View ${member.full_name}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -160,6 +170,17 @@ export function PoolMemberTable({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                  </TableCell>
+                ) : (
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(`/admin/marketplace/resource-pool/${member.id}`)}
+                      aria-label={`View ${member.full_name}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>

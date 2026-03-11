@@ -102,6 +102,7 @@ export default function AdminManagementPage() {
 
   const activeCount = (admins ?? []).filter((a) => a.status !== 'deactivated').length;
   const canAdd = activeCount < maxAdmins;
+  const atEightyPercent = activeCount >= Math.floor(maxAdmins * 0.8) && activeCount < maxAdmins;
 
   // Reset page when search changes
   const totalFiltered = filteredAdmins.length;
@@ -132,6 +133,16 @@ export default function AdminManagementPage() {
     <div className="space-y-6">
       {/* Context Banner */}
       <SessionContextBanner />
+
+      {/* 80% capacity warning (BR-SOA-005) */}
+      {atEightyPercent && (
+        <div className="flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800/40 px-4 py-2.5">
+          <span className="text-amber-600 text-sm">⚠</span>
+          <p className="text-xs text-amber-800 dark:text-amber-300">
+            You have used <strong>{activeCount}</strong> of <strong>{maxAdmins}</strong> delegated admin slots ({Math.round((activeCount / maxAdmins) * 100)}%). Consider reviewing existing admins before adding more.
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>
