@@ -58,7 +58,7 @@ export function useSolutionRequests() {
         .from("challenges")
         .select(`
           id, title, status, organization_id, engagement_model_id, created_at,
-          seeker_organizations!challenges_organization_id_fkey ( legal_name )
+          seeker_organizations!challenges_organization_id_fkey ( organization_name )
         `)
         .eq("is_active", true)
         .eq("is_deleted", false)
@@ -94,7 +94,7 @@ export function useSolutionRequests() {
         title: c.title,
         status: c.status,
         organization_id: c.organization_id,
-        org_name: c.seeker_organizations?.legal_name ?? "Unknown Organization",
+        org_name: c.seeker_organizations?.organization_name ?? "Unknown Organization",
         engagement_model_id: c.engagement_model_id,
         created_at: c.created_at,
         assignment_count: assignmentCounts[c.id] ?? 0,
