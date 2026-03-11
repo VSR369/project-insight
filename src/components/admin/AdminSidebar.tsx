@@ -393,6 +393,16 @@ export function AdminSidebar() {
                     <span>Resource Pool</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/marketplace/solution-requests')}
+                    onMouseEnter={() => handleMouseEnter('/admin/marketplace/solution-requests')}
+                    isActive={location.pathname === '/admin/marketplace/solution-requests'}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    <span>Solution Requests</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
