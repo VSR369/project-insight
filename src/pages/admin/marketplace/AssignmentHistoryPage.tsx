@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Clock, Users } from "lucide-react";
-import { useSolutionRequests, useAllChallengeAssignments, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
+import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
+import { TeamCompletionBanner } from "@/components/admin/marketplace/TeamCompletionBanner";
 import { format } from "date-fns";
 
 export default function AssignmentHistoryPage() {
@@ -100,6 +101,9 @@ export default function AssignmentHistoryPage() {
           {challengesWithAssignments.map((challenge) => {
             const assignments = grouped[challenge.id] ?? [];
             const isHighlighted = highlightChallengeId === challenge.id;
+            const team = computeTeamComposition(
+              assignments.map((a) => ({ role_code: a.role_code, pool_member_id: a.pool_member_id }))
+            );
 
             return (
               <Card
@@ -119,7 +123,10 @@ export default function AssignmentHistoryPage() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="space-y-4">
+                  {/* Team Completion Banner */}
+                  <TeamCompletionBanner team={team} />
+
                   <div className="space-y-3">
                     {assignments.map((a) => (
                       <div

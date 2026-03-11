@@ -18,17 +18,15 @@ import {
 } from "@/components/ui/table";
 import { ArrowRight, Clock, History } from "lucide-react";
 import { useSolutionRequests } from "@/hooks/queries/useSolutionRequests";
-import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
 import { format } from "date-fns";
+import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
-/** Minimum team size for "Assigned" status (R3×1 + R5_MP×1 + R6_MP×1 + R7_MP×2 = 5) */
-const MIN_TEAM_SIZE = 5;
-
-function getAssignmentStatus(assignmentCount: number) {
-  if (assignmentCount >= MIN_TEAM_SIZE) {
+function getAssignmentStatus(team: TeamComposition) {
+  if (team.isComplete) {
     return { label: "Assigned", variant: "default" as const, className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300 border-emerald-200" };
   }
-  if (assignmentCount > 0) {
+  if (team.total > 0) {
     return { label: "Partially Assigned", variant: "outline" as const, className: "border-amber-300 text-amber-700 dark:text-amber-400" };
   }
   return { label: "Pending Assignment", variant: "outline" as const, className: "border-blue-300 text-blue-700 dark:text-blue-400" };
@@ -60,6 +58,11 @@ export default function SolutionRequestsPage() {
           View Assignment History
         </Button>
       </div>
+
+      {/* Stale Incomplete Team Reminder */}
+      {!isLoading && requests && (
+        <TeamCompletionReminder requests={requests} />
+      )}
 
       {/* Main Table */}
       <Card>
@@ -102,7 +105,7 @@ export default function SolutionRequestsPage() {
                   </TableRow>
                 ) : (
                   requests.map((req) => {
-                    const statusInfo = getAssignmentStatus(req.assignment_count);
+                    const statusInfo = getAssignmentStatus(req.team);
                     return (
                       <TableRow
                         key={req.id}
@@ -110,9 +113,7 @@ export default function SolutionRequestsPage() {
                         onClick={() => navigate(`/admin/marketplace/assignment-history?challenge=${req.id}`)}
                       >
                         <TableCell>
-                          <div>
-                            <span className="font-medium text-foreground">{req.org_name}</span>
-                          </div>
+                          <span className="font-medium text-foreground">{req.org_name}</span>
                         </TableCell>
                         <TableCell>
                           <span className="text-foreground">{req.title}</span>
