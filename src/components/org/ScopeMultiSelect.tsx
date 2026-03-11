@@ -260,7 +260,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
               </Label>
             </div>
           )}
-          {!allProficiency && (
+          {!isAllProficiency && (
             <MultiSelectField
               label="Proficiency Areas"
               items={proficiencyAreas.map((pa) => ({ id: pa.id, name: pa.name }))}
