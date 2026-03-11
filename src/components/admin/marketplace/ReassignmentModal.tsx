@@ -22,9 +22,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, AlertTriangle } from "lucide-react";
 import { reassignmentSchema, type ReassignmentValues } from "@/lib/validations/challengeAssignment";
-import { useReassignMember, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
+import { useReassignMember, useChallengeAssignments, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
 import { usePoolMembers } from "@/hooks/queries/usePoolMembers";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 
@@ -38,6 +38,7 @@ interface ReassignmentModalProps {
 export function ReassignmentModal({ assignment, challengeTitle, open, onOpenChange }: ReassignmentModalProps) {
   const { data: poolMembers } = usePoolMembers({ role: assignment.role_code });
   const { data: roleCodes } = useSlmRoleCodes();
+  const { data: challengeAssignments } = useChallengeAssignments(assignment.challenge_id);
   const reassignMutation = useReassignMember();
 
   const form = useForm<ReassignmentValues>({
@@ -52,14 +53,28 @@ export function ReassignmentModal({ assignment, challengeTitle, open, onOpenChan
 
   const roleLabel = roleCodes?.find((r) => r.code === assignment.role_code)?.display_name ?? assignment.role_code;
 
-  // Filter out the current assignee and fully booked members
+  // Get pool member IDs already assigned to the SAME role on this challenge (excluding current assignment being replaced)
+  const existingMemberIdsForRole = (challengeAssignments ?? [])
+    .filter((a) => a.role_code === assignment.role_code && a.id !== assignment.id)
+    .map((a) => a.pool_member_id);
+
+  // Filter out the current assignee, fully booked members, AND members already holding this role on this challenge
   const candidates = (poolMembers ?? []).filter(
-    (m) => m.id !== assignment.pool_member_id && m.availability_status !== "fully_booked"
+    (m) =>
+      m.id !== assignment.pool_member_id &&
+      m.availability_status !== "fully_booked" &&
+      !existingMemberIdsForRole.includes(m.id)
   );
 
   const reasonLength = form.watch("reason")?.length ?? 0;
+  const selectedMemberId = form.watch("new_pool_member_id");
+
+  // Extra guard: check if selected member is already assigned to same role
+  const isDuplicateRoleAssignment = existingMemberIdsForRole.includes(selectedMemberId);
 
   const onSubmit = async (values: ReassignmentValues) => {
+    if (isDuplicateRoleAssignment) return;
+
     await reassignMutation.mutateAsync({
       assignmentId: assignment.id,
       newPoolMemberId: values.new_pool_member_id,
@@ -119,6 +134,12 @@ export function ReassignmentModal({ assignment, challengeTitle, open, onOpenChan
               {form.formState.errors.new_pool_member_id && (
                 <p className="text-xs text-destructive">{form.formState.errors.new_pool_member_id.message}</p>
               )}
+              {isDuplicateRoleAssignment && (
+                <div className="flex items-center gap-1.5 text-xs text-destructive">
+                  <AlertTriangle className="h-3 w-3" />
+                  This member is already assigned as {roleLabel} on this challenge.
+                </div>
+              )}
             </div>
 
             {/* Reason */}
@@ -146,7 +167,7 @@ export function ReassignmentModal({ assignment, challengeTitle, open, onOpenChan
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={reassignMutation.isPending}>
+            <Button type="submit" disabled={reassignMutation.isPending || isDuplicateRoleAssignment}>
               {reassignMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
               Save
             </Button>
