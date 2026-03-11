@@ -39,6 +39,7 @@ export function PoolMemberTable({
   onEdit,
   onDeactivate,
 }: PoolMemberTableProps) {
+  const navigate = useNavigate();
   const { data: industries } = useIndustrySegments();
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availabilityStatuses } = useAvailabilityStatuses();
