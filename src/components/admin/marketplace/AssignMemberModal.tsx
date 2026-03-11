@@ -43,6 +43,7 @@ export function AssignMemberModal({
   onOpenChange,
 }: AssignMemberModalProps) {
   const { data: roleCodes } = useSlmRoleCodes();
+  const navigate = useNavigate();
   const assignMutation = useAssignMember();
 
   // Auto-select if only one missing role
