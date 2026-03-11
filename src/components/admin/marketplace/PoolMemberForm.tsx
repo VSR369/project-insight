@@ -2,6 +2,7 @@
  * PoolMemberForm — Add/Edit Pool Member side-sheet form (SCR-02)
  * BRD Ref: BR-PP-004 (mandatory fields), BR-PP-005 (audit)
  * Role codes fetched from md_slm_role_codes master data.
+ * Domain scope uses cascading ScopeMultiSelect (Industry → Proficiency → Sub-domain → Speciality).
  */
 
 import { useForm } from "react-hook-form";
@@ -24,17 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Lock, X } from "lucide-react";
-import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
-import { useProficiencyAreasLookup } from "@/hooks/queries/useProficiencyAreasLookup";
+import { Lock } from "lucide-react";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import {
   useCreatePoolMember,
@@ -45,6 +36,8 @@ import {
   poolMemberSchema,
   type PoolMemberFormValues,
 } from "@/lib/validations/poolMember";
+import { EMPTY_SCOPE } from "@/hooks/queries/useDelegatedAdmins";
+import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
 import { useEffect } from "react";
 
 interface PoolMemberFormProps {
@@ -55,8 +48,6 @@ interface PoolMemberFormProps {
 
 export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFormProps) {
   const isEdit = !!editMember;
-  const { data: industries } = useIndustrySegments();
-  const { data: proficiencies } = useProficiencyAreasLookup();
   const { data: roleCodes } = useSlmRoleCodes();
   const createMutation = useCreatePoolMember();
   const updateMutation = useUpdatePoolMember();
@@ -68,8 +59,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
       email: "",
       phone: "",
       role_codes: [],
-      industry_ids: [],
-      proficiency_id: "",
+      domain_scope: { ...EMPTY_SCOPE },
       max_concurrent: 1,
     },
   });
@@ -82,8 +72,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
         email: editMember.email,
         phone: editMember.phone ?? "",
         role_codes: editMember.role_codes,
-        industry_ids: editMember.industry_ids,
-        proficiency_id: editMember.proficiency_id ?? "",
+        domain_scope: editMember.domain_scope ?? { ...EMPTY_SCOPE },
         max_concurrent: editMember.max_concurrent,
       });
     } else {
@@ -92,8 +81,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
         email: "",
         phone: "",
         role_codes: [],
-        industry_ids: [],
-        proficiency_id: "",
+        domain_scope: { ...EMPTY_SCOPE },
         max_concurrent: 1,
       });
     }
@@ -106,8 +94,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
         full_name: data.full_name,
         phone: data.phone || undefined,
         role_codes: data.role_codes,
-        industry_ids: data.industry_ids,
-        proficiency_id: data.proficiency_id,
+        domain_scope: data.domain_scope,
         max_concurrent: data.max_concurrent,
       });
     } else {
@@ -116,15 +103,13 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
         email: data.email,
         phone: data.phone || undefined,
         role_codes: data.role_codes,
-        industry_ids: data.industry_ids,
-        proficiency_id: data.proficiency_id,
+        domain_scope: data.domain_scope,
         max_concurrent: data.max_concurrent,
       });
     }
     onOpenChange(false);
   };
 
-  const selectedIndustries = form.watch("industry_ids");
   const isSubmitting = createMutation.isPending || updateMutation.isPending;
 
   return (
@@ -233,82 +218,20 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
               )}
             />
 
-            {/* Industry Segments — multi-select chips */}
+            {/* Domain Scope — cascading Industry → Proficiency → Sub-domain → Speciality */}
             <FormField
               control={form.control}
-              name="industry_ids"
+              name="domain_scope"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Industry Segment(s) <span className="text-destructive">*</span></FormLabel>
-                  <Select
-                    onValueChange={(value) => {
-                      if (!field.value?.includes(value)) {
-                        field.onChange([...(field.value ?? []), value]);
-                      }
-                    }}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select industry segments" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {industries
-                        ?.filter((ind) => !selectedIndustries?.includes(ind.id))
-                        .map((ind) => (
-                          <SelectItem key={ind.id} value={ind.id}>
-                            {ind.name}
-                          </SelectItem>
-                        ))}
-                    </SelectContent>
-                  </Select>
-                  {selectedIndustries && selectedIndustries.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-2">
-                      {selectedIndustries.map((id) => {
-                        const ind = industries?.find((i) => i.id === id);
-                        return (
-                          <Badge key={id} variant="secondary" className="gap-1">
-                            {ind?.name ?? id}
-                            <button
-                              type="button"
-                              onClick={() =>
-                                field.onChange(field.value?.filter((v) => v !== id))
-                              }
-                              className="ml-0.5 hover:text-destructive"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            {/* Proficiency Area */}
-            <FormField
-              control={form.control}
-              name="proficiency_id"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Proficiency Area <span className="text-destructive">*</span></FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select proficiency area" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {proficiencies?.map((p) => (
-                        <SelectItem key={p.id} value={p.id}>
-                          {p.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormLabel>Domain Scope <span className="text-destructive">*</span></FormLabel>
+                  <FormControl>
+                    <ScopeMultiSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      hideDepartments
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

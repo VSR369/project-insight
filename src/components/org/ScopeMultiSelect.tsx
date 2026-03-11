@@ -1,7 +1,7 @@
 /**
  * ScopeMultiSelect — Cascading multi-select for domain scope.
  * Industry Segments (required) → Proficiency Areas → Sub-domains → Specialities
- * Departments → Functional Areas
+ * Departments → Functional Areas (hidden when hideDepartments=true)
  */
 
 import { useIndustrySegments } from '@/hooks/queries/useMasterData';
@@ -18,6 +18,8 @@ import type { DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 interface ScopeMultiSelectProps {
   value: DomainScope;
   onChange: (scope: DomainScope) => void;
+  /** Hide Department and Functional Area fields (e.g., for Pool Members) */
+  hideDepartments?: boolean;
 }
 
 function MultiSelectField({
@@ -85,7 +87,7 @@ function MultiSelectField({
   );
 }
 
-export function ScopeMultiSelect({ value, onChange }: ScopeMultiSelectProps) {
+export function ScopeMultiSelect({ value, onChange, hideDepartments = false }: ScopeMultiSelectProps) {
   const { data: industries = [] } = useIndustrySegments();
   const { data: departments = [] } = useDepartments();
   const { data: functionalAreas = [] } = useFunctionalAreas();
@@ -206,38 +208,42 @@ export function ScopeMultiSelect({ value, onChange }: ScopeMultiSelectProps) {
         />
       )}
 
-      {/* Departments */}
-      <MultiSelectField
-        label="Departments"
-        items={departments.map((d) => ({ id: d.id, name: d.name }))}
-        selectedIds={value.department_ids}
-        onAdd={addTo('department_ids')}
-        onRemove={(id) => {
-          // Also remove functional areas from this department
-          const faIdsToRemove = functionalAreas
-            .filter((fa) => fa.department_id === id)
-            .map((fa) => fa.id);
-          onChange({
-            ...value,
-            department_ids: value.department_ids.filter((v) => v !== id),
-            functional_area_ids: value.functional_area_ids.filter((v) => !faIdsToRemove.includes(v)),
-          });
-        }}
-        placeholder="Select departments..."
-        helpText="Optional — empty means ALL departments"
-      />
+      {/* Departments — only shown when hideDepartments is false */}
+      {!hideDepartments && (
+        <>
+          <MultiSelectField
+            label="Departments"
+            items={departments.map((d) => ({ id: d.id, name: d.name }))}
+            selectedIds={value.department_ids}
+            onAdd={addTo('department_ids')}
+            onRemove={(id) => {
+              // Also remove functional areas from this department
+              const faIdsToRemove = functionalAreas
+                .filter((fa) => fa.department_id === id)
+                .map((fa) => fa.id);
+              onChange({
+                ...value,
+                department_ids: value.department_ids.filter((v) => v !== id),
+                functional_area_ids: value.functional_area_ids.filter((v) => !faIdsToRemove.includes(v)),
+              });
+            }}
+            placeholder="Select departments..."
+            helpText="Optional — empty means ALL departments"
+          />
 
-      {/* Functional Areas (filtered by departments) */}
-      {value.department_ids.length > 0 && (
-        <MultiSelectField
-          label="Functional Areas"
-          items={filteredFAs.map((fa) => ({ id: fa.id, name: fa.name }))}
-          selectedIds={value.functional_area_ids}
-          onAdd={addTo('functional_area_ids')}
-          onRemove={removeFrom('functional_area_ids')}
-          placeholder="Select functional areas..."
-          helpText="Optional — empty means ALL functional areas within selected departments"
-        />
+          {/* Functional Areas (filtered by departments) */}
+          {value.department_ids.length > 0 && (
+            <MultiSelectField
+              label="Functional Areas"
+              items={filteredFAs.map((fa) => ({ id: fa.id, name: fa.name }))}
+              selectedIds={value.functional_area_ids}
+              onAdd={addTo('functional_area_ids')}
+              onRemove={removeFrom('functional_area_ids')}
+              placeholder="Select functional areas..."
+              helpText="Optional — empty means ALL functional areas within selected departments"
+            />
+          )}
+        </>
       )}
 
       <p className="text-xs text-muted-foreground border-t pt-3">

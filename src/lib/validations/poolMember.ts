@@ -1,12 +1,23 @@
 /**
  * Zod validation schema for Pool Member form (SCR-02)
- * BRD Ref: BR-PP-004 — mandatory role + industry + proficiency
+ * BRD Ref: BR-PP-004 — mandatory industry segments via domain_scope
  * 
  * Role codes are fetched from md_slm_role_codes master data table.
  * No hardcoded role codes or labels — all driven by DB.
  */
 
 import { z } from "zod";
+
+export const domainScopeSchema = z.object({
+  industry_segment_ids: z
+    .array(z.string().uuid())
+    .min(1, "At least one Industry Segment is required"),
+  proficiency_area_ids: z.array(z.string().uuid()).default([]),
+  sub_domain_ids: z.array(z.string().uuid()).default([]),
+  speciality_ids: z.array(z.string().uuid()).default([]),
+  department_ids: z.array(z.string().uuid()).default([]),
+  functional_area_ids: z.array(z.string().uuid()).default([]),
+});
 
 export const poolMemberSchema = z.object({
   full_name: z
@@ -19,10 +30,7 @@ export const poolMemberSchema = z.object({
   role_codes: z
     .array(z.string().min(1))
     .min(1, "At least one SLM role is required"),
-  industry_ids: z
-    .array(z.string().uuid())
-    .min(1, "At least one Industry Segment is required"),
-  proficiency_id: z.string().uuid({ message: "Proficiency Area is required" }),
+  domain_scope: domainScopeSchema,
   max_concurrent: z.coerce
     .number()
     .int()
