@@ -4,6 +4,7 @@
  * Role and availability labels resolved from master data hooks.
  */
 
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -13,7 +14,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
