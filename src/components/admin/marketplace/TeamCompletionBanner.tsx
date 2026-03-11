@@ -4,7 +4,8 @@
  */
 
 import { useState } from "react";
-import { AlertTriangle, UserPlus } from "lucide-react";
+import { AlertTriangle, UserPlus, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
@@ -44,7 +45,15 @@ export function TeamCompletionBanner({ team, challengeId, challengeTitle }: Team
                 </span>
               ))}
               <span className="block text-xs mt-1 text-amber-700 dark:text-amber-400">
-                Assign different team members to proceed.
+                Assign team members to proceed. If no eligible members are available,{" "}
+                <Link
+                  to="/admin/marketplace/resource-pool"
+                  className="underline underline-offset-2 font-medium hover:text-amber-900 dark:hover:text-amber-200 inline-flex items-center gap-0.5"
+                >
+                  add new members in the Resource Pool
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+                {" "}first.
               </span>
             </div>
             <Button
