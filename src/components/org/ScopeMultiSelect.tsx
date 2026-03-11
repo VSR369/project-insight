@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { X } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useState, useEffect } from 'react';
 import type { DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 
 interface ScopeMultiSelectProps {
@@ -98,20 +99,30 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
   const { data: departments = [] } = useDepartments();
   const { data: functionalAreas = [] } = useFunctionalAreas();
 
-  // Derived "All" states — empty array means ALL
-  const allIndustries = allowAll && value.industry_segment_ids.length === 0;
-  const allProficiency = allowAll && value.proficiency_area_ids.length === 0;
-  const allSubDomains = allowAll && value.sub_domain_ids.length === 0;
-  const allSpecialities = allowAll && value.speciality_ids.length === 0;
+  // Local state booleans for "All" toggles — decoupled from array contents
+  const [isAllIndustries, setIsAllIndustries] = useState(allowAll && value.industry_segment_ids.length === 0);
+  const [isAllProficiency, setIsAllProficiency] = useState(allowAll && value.proficiency_area_ids.length === 0);
+  const [isAllSubDomains, setIsAllSubDomains] = useState(allowAll && value.sub_domain_ids.length === 0);
+  const [isAllSpecialities, setIsAllSpecialities] = useState(allowAll && value.speciality_ids.length === 0);
+
+  // Sync local toggle state when value prop changes externally (e.g., form reset)
+  useEffect(() => {
+    if (allowAll) {
+      setIsAllIndustries(value.industry_segment_ids.length === 0);
+      setIsAllProficiency(value.proficiency_area_ids.length === 0);
+      setIsAllSubDomains(value.sub_domain_ids.length === 0);
+      setIsAllSpecialities(value.speciality_ids.length === 0);
+    }
+  }, [allowAll, value]);
 
   // Cascading taxonomy hooks
   const { data: proficiencyAreasBySegment = [] } = useProficiencyAreasBySegments(value.industry_segment_ids);
-  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(allIndustries);
+  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(isAllIndustries);
   const { data: subDomains = [] } = useSubDomainsByAreas(value.proficiency_area_ids);
   const { data: specialities = [] } = useSpecialitiesBySubDomains(value.sub_domain_ids);
 
   // Use segment-scoped or global proficiency areas depending on ALL Industries toggle
-  const proficiencyAreas = allIndustries ? allProficiencyAreas : proficiencyAreasBySegment;
+  const proficiencyAreas = isAllIndustries ? allProficiencyAreas : proficiencyAreasBySegment;
 
   // Filter functional areas by selected departments
   const filteredFAs = value.department_ids.length > 0
@@ -132,8 +143,8 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
 
   // Toggle handlers for "All" switches
   const toggleAllIndustries = (checked: boolean) => {
+    setIsAllIndustries(checked);
     if (checked) {
-      // Set ALL — clear industry selections and cascade clear children
       onChange({
         ...value,
         industry_segment_ids: [],
@@ -141,13 +152,14 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
         sub_domain_ids: [],
         speciality_ids: [],
       });
-    } else {
-      // Turning off ALL — keep empty (user must now pick at least one)
-      // Arrays are already empty, no change needed
+      setIsAllProficiency(true);
+      setIsAllSubDomains(true);
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllProficiency = (checked: boolean) => {
+    setIsAllProficiency(checked);
     if (checked) {
       onChange({
         ...value,
@@ -155,20 +167,25 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
         sub_domain_ids: [],
         speciality_ids: [],
       });
+      setIsAllSubDomains(true);
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllSubDomains = (checked: boolean) => {
+    setIsAllSubDomains(checked);
     if (checked) {
       onChange({
         ...value,
         sub_domain_ids: [],
         speciality_ids: [],
       });
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllSpecialities = (checked: boolean) => {
+    setIsAllSpecialities(checked);
     if (checked) {
       onChange({
         ...value,
@@ -178,9 +195,9 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
   };
 
   // Determine visibility of cascading sections
-  const showProficiency = allIndustries || value.industry_segment_ids.length > 0;
-  const showSubDomains = !allProficiency && value.proficiency_area_ids.length > 0;
-  const showSpecialities = !allSubDomains && value.sub_domain_ids.length > 0;
+  const showProficiency = isAllIndustries || value.industry_segment_ids.length > 0;
+  const showSubDomains = !isAllProficiency && value.proficiency_area_ids.length > 0;
+  const showSpecialities = !isAllSubDomains && value.sub_domain_ids.length > 0;
 
   return (
     <div className="space-y-4">
@@ -190,7 +207,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
           <div className="flex items-center gap-2">
             <Switch
               id="all-industries"
-              checked={allIndustries}
+              checked={isAllIndustries}
               onCheckedChange={toggleAllIndustries}
             />
             <Label htmlFor="all-industries" className="text-sm font-medium cursor-pointer">
@@ -198,7 +215,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             </Label>
           </div>
         )}
-        {!allIndustries && (
+        {!isAllIndustries && (
           <MultiSelectField
             label="Industry Segments"
             required={!allowAll}
@@ -235,7 +252,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             <div className="flex items-center gap-2">
               <Switch
                 id="all-proficiency"
-                checked={allProficiency}
+                checked={isAllProficiency}
                 onCheckedChange={toggleAllProficiency}
               />
               <Label htmlFor="all-proficiency" className="text-sm font-medium cursor-pointer">
@@ -243,7 +260,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
               </Label>
             </div>
           )}
-          {!allProficiency && (
+          {!isAllProficiency && (
             <MultiSelectField
               label="Proficiency Areas"
               items={proficiencyAreas.map((pa) => ({ id: pa.id, name: pa.name }))}
@@ -277,7 +294,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             <div className="flex items-center gap-2">
               <Switch
                 id="all-sub-domains"
-                checked={allSubDomains}
+                checked={isAllSubDomains}
                 onCheckedChange={toggleAllSubDomains}
               />
               <Label htmlFor="all-sub-domains" className="text-sm font-medium cursor-pointer">
@@ -285,7 +302,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
               </Label>
             </div>
           )}
-          {!allSubDomains && (
+          {!isAllSubDomains && (
             <MultiSelectField
               label="Sub-domains"
               items={subDomains.map((sd) => ({ id: sd.id, name: sd.name }))}
@@ -315,7 +332,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             <div className="flex items-center gap-2">
               <Switch
                 id="all-specialities"
-                checked={allSpecialities}
+                checked={isAllSpecialities}
                 onCheckedChange={toggleAllSpecialities}
               />
               <Label htmlFor="all-specialities" className="text-sm font-medium cursor-pointer">
@@ -323,7 +340,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
               </Label>
             </div>
           )}
-          {!allSpecialities && (
+          {!isAllSpecialities && (
             <MultiSelectField
               label="Specialities"
               items={specialities.map((sp) => ({ id: sp.id, name: sp.name }))}
