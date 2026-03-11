@@ -4111,6 +4111,62 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_challenge_refs: {
+        Row: {
+          blocking_reason: string
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          engagement_model: string
+          id: string
+          is_resolved: boolean
+          missing_role_codes: string[]
+          org_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          blocking_reason?: string
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          engagement_model?: string
+          id?: string
+          is_resolved?: boolean
+          missing_role_codes?: string[]
+          org_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          blocking_reason?: string
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          engagement_model?: string
+          id?: string
+          is_resolved?: boolean
+          missing_role_codes?: string[]
+          org_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pending_challenge_refs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       platform_admin_profile_audit_log: {
         Row: {
           actor_id: string | null
@@ -9588,6 +9644,10 @@ export type Database = {
       cancel_interview_booking: {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
+      }
+      check_delegated_scope: {
+        Args: { p_admin_id: string; p_entity_scope: Json }
+        Returns: boolean
       }
       check_duplicate_organization: {
         Args: {
