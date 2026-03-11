@@ -13,6 +13,7 @@ export function useProficiencyAreas(industrySegmentId?: string, expertiseLevelId
         .eq('industry_segment_id', industrySegmentId)
         .eq('expertise_level_id', expertiseLevelId)
         .eq('is_active', true)
+        .not('name', 'like', '__SMOKE_TEST_%')
         .order('display_order', { ascending: true });
       
       if (error) throw error;
