@@ -43,7 +43,6 @@ const MANAGEMENT_CONSOLES = [
     path: "/admin/marketplace/roles",
     color: "text-teal-600 dark:text-teal-400",
     bgColor: "bg-teal-100 dark:bg-teal-900/30",
-    comingSoon: true,
   },
   {
     title: "Delegated Admins",

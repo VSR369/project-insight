@@ -193,6 +193,11 @@ const ResourcePoolPage = lazy(() => import("@/pages/admin/marketplace/ResourcePo
 const SolutionRequestsPage = lazy(() => import("@/pages/admin/marketplace/SolutionRequestsPage"));
 const AssignmentHistoryPage = lazy(() => import("@/pages/admin/marketplace/AssignmentHistoryPage"));
 
+// RBAC MOD-03: Role Management Dashboard, Admin Contact, Email Templates
+const RoleManagementDashboard = lazy(() => import("@/pages/rbac/RoleManagementDashboard"));
+const AdminContactProfilePage = lazy(() => import("@/pages/admin/marketplace/AdminContactProfilePage"));
+const EmailTemplatesPage = lazy(() => import("@/pages/admin/marketplace/EmailTemplatesPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -625,6 +630,10 @@ const App = () => (
               {/* RBAC MOD-02: Solution Requests & Assignment History — senior_admin+ */}
               <Route path="marketplace/solution-requests" element={<TierGuard requiredTier="senior_admin"><SolutionRequestsPage /></TierGuard>} />
               <Route path="marketplace/assignment-history" element={<TierGuard requiredTier="senior_admin"><AssignmentHistoryPage /></TierGuard>} />
+              {/* RBAC MOD-03: Role Management, Admin Contact, Email Templates — senior_admin+ */}
+              <Route path="marketplace/roles" element={<TierGuard requiredTier="senior_admin"><RoleManagementDashboard /></TierGuard>} />
+              <Route path="marketplace/admin-contact" element={<TierGuard requiredTier="senior_admin"><AdminContactProfilePage /></TierGuard>} />
+              <Route path="marketplace/email-templates" element={<TierGuard requiredTier="senior_admin"><EmailTemplatesPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
@@ -821,6 +830,7 @@ const App = () => (
               <Route path="admin-management" element={<AdminManagementPage />} />
               <Route path="admin-management/create" element={<CreateDelegatedAdminPage />} />
               <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
+              <Route path="role-management" element={<RoleManagementDashboard />} />
             </Route>
             <Route
               path="/registration/complete"
