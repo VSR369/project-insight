@@ -62,6 +62,11 @@ export function OrgSidebar() {
     { title: 'Create Challenge', icon: PlusCircle, path: '/org/challenges/create' },
   ];
 
+  // Role Management — visible to SO Admins (both PRIMARY and DELEGATED)
+  const roleManagementItems = isSOAdmin
+    ? [{ title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' }]
+    : [];
+
   // Organization section — scoped by admin tier
   const orgItems = isSOAdmin
     ? (isPrimary && delegationEnabled
