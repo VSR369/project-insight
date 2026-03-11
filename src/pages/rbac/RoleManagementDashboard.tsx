@@ -129,6 +129,7 @@ export default function RoleManagementDashboard() {
             <TabsList className="mb-4">
               <TabsTrigger value="slm-pool">SLM Roles (Marketplace)</TabsTrigger>
               <TabsTrigger value="org-core">Org Core Roles</TabsTrigger>
+              <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
             </TabsList>
 
             <TabsContent value="slm-pool">
@@ -149,6 +150,23 @@ export default function RoleManagementDashboard() {
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
+            </TabsContent>
+
+            <TabsContent value="agg-challenge">
+              {canManageAgg === false ? (
+                <AggBlockedScreen onBack={() => {
+                  const tabsList = document.querySelector('[data-value="slm-pool"]');
+                  if (tabsList instanceof HTMLElement) tabsList.click();
+                }} />
+              ) : (
+                <RoleTable
+                  roles={aggChallengeRoles}
+                  assignments={assignments ?? []}
+                  onInvite={(code) => handleInvite(code, "agg")}
+                  onDeactivate={handleDeactivate}
+                  isDeactivating={deactivate.isPending}
+                />
+              )}
             </TabsContent>
           </Tabs>
         )}
