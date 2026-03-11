@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, User, ChevronDown, Shield, Settings } from 'lucide-react';
+import { LogOut, User, ChevronDown, Shield, Settings, ShieldAlert } from 'lucide-react';
 import { NotificationBell } from '@/components/admin/notifications/NotificationBell';
 import { NotificationDrawer } from '@/components/admin/notifications/NotificationDrawer';
+import { RoleReadinessNotifications } from '@/components/admin/notifications/RoleReadinessNotifications';
 import { ExecutiveContactWarning } from '@/components/admin/system-config/ExecutiveContactWarning';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserRoles } from '@/hooks/useUserRoles';
@@ -58,6 +59,7 @@ export function AdminHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [readinessOpen, setReadinessOpen] = useState(false);
   const { data: escalationContactId, isLoading: configLoading } = useMpaConfigValue('executive_escalation_contact_id');
   const pathSegments = location.pathname.split('/').filter(Boolean);
 
@@ -107,6 +109,18 @@ export function AdminHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* Role Readiness Alerts (SCR-12) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-9 w-9"
+          title="Role Readiness Alerts"
+          onClick={() => setReadinessOpen(true)}
+        >
+          <ShieldAlert className="h-4 w-4" />
+        </Button>
+        <RoleReadinessNotifications open={readinessOpen} onOpenChange={setReadinessOpen} />
+
         {/* Notification Bell */}
         <NotificationBell onClick={() => setNotifOpen(true)} />
         <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />

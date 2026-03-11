@@ -18,7 +18,9 @@ export type NotificationType =
   | 'QUEUE_ESCALATION'
   | 'EMAIL_FAIL'
   | 'LEAVE_REMINDER'
-  | 'REGISTRANT_COURTESY';
+  | 'REGISTRANT_COURTESY'
+  | 'ROLE_NOT_READY'
+  | 'ROLE_READY';
 
 export interface AdminNotification {
   id: string;
