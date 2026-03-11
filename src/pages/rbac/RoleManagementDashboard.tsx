@@ -15,7 +15,7 @@ import { RoleTable } from "@/components/rbac/roles/RoleTable";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useCoreRoleCodes, useChallengeRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useSlmPoolRoles, useOrgCoreRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -39,16 +39,16 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
-  const { data: coreRoles, isLoading: coreLoading } = useCoreRoleCodes();
-  const { data: challengeRoles, isLoading: challengeLoading } = useChallengeRoleCodes("mp");
+  const { data: slmPoolRoles, isLoading: poolLoading } = useSlmPoolRoles();
+  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4: Derived state
   // ══════════════════════════════════════
-  const isLoading = coreLoading || challengeLoading || assignmentsLoading;
-  const availableRolesForSheet = assignContext === "core" ? coreRoles : challengeRoles;
+  const isLoading = poolLoading || orgCoreLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : slmPoolRoles;
 
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
@@ -121,27 +121,27 @@ export default function RoleManagementDashboard() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <Tabs defaultValue="core">
+          <Tabs defaultValue="slm-pool">
             <TabsList className="mb-4">
-              <TabsTrigger value="core">Core Roles</TabsTrigger>
-              <TabsTrigger value="challenge">Challenge Roles</TabsTrigger>
+              <TabsTrigger value="slm-pool">SLM Roles (Marketplace)</TabsTrigger>
+              <TabsTrigger value="org-core">Org Core Roles</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="core">
+            <TabsContent value="slm-pool">
               <RoleTable
-                roles={coreRoles}
+                roles={slmPoolRoles}
                 assignments={assignments ?? []}
-                onInvite={(code) => handleInvite(code, "core")}
+                onInvite={(code) => handleInvite(code, "challenge")}
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
             </TabsContent>
 
-            <TabsContent value="challenge">
+            <TabsContent value="org-core">
               <RoleTable
-                roles={challengeRoles}
+                roles={orgCoreRoles}
                 assignments={assignments ?? []}
-                onInvite={(code) => handleInvite(code, "challenge")}
+                onInvite={(code) => handleInvite(code, "core")}
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
