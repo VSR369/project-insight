@@ -42,7 +42,8 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
         .from("platform_provider_pool")
         .select("id, full_name, email, phone, role_codes, domain_scope, max_concurrent, current_assignments, availability_status, is_active, created_at, updated_at, created_by, updated_by")
         .eq("is_active", true)
-        .order("full_name", { ascending: true });
+        .order("full_name", { ascending: true })
+        .limit(200);
 
       if (filters.availability) {
         query = query.eq("availability_status", filters.availability);

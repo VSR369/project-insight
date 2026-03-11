@@ -110,7 +110,8 @@ export function useMyAssignments() {
 /**
  * Fetch open queue entries (Open Queue tab)
  */
-export function useOpenQueue() {
+export function useOpenQueue(options?: { enabled?: boolean }) {
+  const isEnabled = options?.enabled ?? true;
   return useQuery({
     queryKey: ['verifications', 'open-queue'],
     queryFn: async () => {
@@ -147,6 +148,7 @@ export function useOpenQueue() {
         verification: verMap[entry.verification_id] ?? null,
       }));
     },
+    enabled: isEnabled,
     staleTime: 15_000,
     gcTime: 300_000,
   });

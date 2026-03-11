@@ -56,9 +56,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
-import { usePendingSeekerCount } from '@/hooks/queries/useSeekerOrgApprovals';
-import { usePendingReassignmentCount } from '@/hooks/queries/useReassignmentRequests';
+import { useAdminSidebarCounts } from '@/hooks/queries/useAdminSidebarCounts';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
@@ -127,9 +125,10 @@ const otherItems = [
 export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: pendingCount } = usePendingReviewerCount();
-  const { data: pendingSeekerCount } = usePendingSeekerCount();
-  const { data: pendingReassignmentCount } = usePendingReassignmentCount();
+  const { data: sidebarCounts } = useAdminSidebarCounts();
+  const pendingCount = sidebarCounts?.pendingReviewers;
+  const pendingSeekerCount = sidebarCounts?.pendingSeekers;
+  const pendingReassignmentCount = sidebarCounts?.pendingReassignments;
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
   const { depth } = usePlatformTierDepth();
 

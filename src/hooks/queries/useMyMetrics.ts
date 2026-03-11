@@ -6,10 +6,12 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentAdminProfile } from './useCurrentAdminProfile';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 import type { AdminMetricRow } from './useAllAdminMetrics';
 
 export function useMyMetrics(periodDays: number = 30) {
   const { data: profile } = useCurrentAdminProfile();
+  const refetchInterval = useVisibilityPollingInterval(300_000);
 
   return useQuery({
     queryKey: ['admin-metrics', 'self', periodDays, profile?.id],
@@ -55,6 +57,6 @@ export function useMyMetrics(periodDays: number = 30) {
     enabled: !!profile?.id,
     staleTime: 300_000,
     gcTime: 600_000,
-    refetchInterval: 300_000,
+    refetchInterval,
   });
 }
