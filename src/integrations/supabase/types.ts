@@ -9610,6 +9610,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_model_authority: {
+        Args: { p_engagement_model: string; p_user_id: string }
+        Returns: boolean
+      }
       check_reviewer_time_conflict: {
         Args: {
           p_end_at: string

@@ -15,8 +15,10 @@ import { RoleTable } from "@/components/rbac/roles/RoleTable";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useSlmPoolRoles, useOrgCoreRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { useSlmPoolRoles, useOrgCoreRoles, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useModelAuthority } from "@/hooks/queries/useModelAuthority";
+import { AggBlockedScreen } from "@/components/rbac/AggBlockedScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Demo org ID — in production, this would come from auth context
@@ -28,7 +30,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
-  const [assignContext, setAssignContext] = useState<"core" | "challenge">("core");
+  const [assignContext, setAssignContext] = useState<"core" | "challenge" | "agg">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   // ══════════════════════════════════════
@@ -41,19 +43,21 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   const { data: slmPoolRoles, isLoading: poolLoading } = useSlmPoolRoles();
   const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
+  const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
+  const { data: canManageAgg } = useModelAuthority("agg");
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4: Derived state
   // ══════════════════════════════════════
-  const isLoading = poolLoading || orgCoreLoading || assignmentsLoading;
-  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : slmPoolRoles;
+  const isLoading = poolLoading || orgCoreLoading || aggLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : assignContext === "challenge" ? slmPoolRoles : aggChallengeRoles;
 
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
   // ══════════════════════════════════════
-  const handleInvite = (roleCode: string, context: "core" | "challenge") => {
+  const handleInvite = (roleCode: string, context: "core" | "challenge" | "agg") => {
     setAssignRoleCode(roleCode);
     setAssignContext(context);
     setAssignSheetOpen(true);
@@ -125,6 +129,7 @@ export default function RoleManagementDashboard() {
             <TabsList className="mb-4">
               <TabsTrigger value="slm-pool">SLM Roles (Marketplace)</TabsTrigger>
               <TabsTrigger value="org-core">Org Core Roles</TabsTrigger>
+              <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
             </TabsList>
 
             <TabsContent value="slm-pool">
@@ -145,6 +150,23 @@ export default function RoleManagementDashboard() {
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
+            </TabsContent>
+
+            <TabsContent value="agg-challenge">
+              {canManageAgg === false ? (
+                <AggBlockedScreen onBack={() => {
+                  const tabsList = document.querySelector('[data-value="slm-pool"]');
+                  if (tabsList instanceof HTMLElement) tabsList.click();
+                }} />
+              ) : (
+                <RoleTable
+                  roles={aggChallengeRoles}
+                  assignments={assignments ?? []}
+                  onInvite={(code) => handleInvite(code, "agg")}
+                  onDeactivate={handleDeactivate}
+                  isDeactivating={deactivate.isPending}
+                />
+              )}
             </TabsContent>
           </Tabs>
         )}
