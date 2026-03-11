@@ -27,7 +27,7 @@ export default function AssignmentHistoryPage() {
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availStatuses } = useAvailabilityStatuses();
 
-  const [reassignTarget, setReassignTarget] = useState<ChallengeAssignmentRow | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ assignment: ChallengeAssignmentRow; challengeTitle: string } | null>(null);
 
   const isLoading = reqLoading || assignLoading;
 
