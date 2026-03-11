@@ -141,9 +141,17 @@ export function PoolMemberTable({
                     label={availabilityMap.get(member.availability_status) ?? member.availability_status}
                   />
                 </TableCell>
-                {canWrite && (
+                {canWrite ? (
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => navigate(`/admin/marketplace/resource-pool/${member.id}`)}
+                        aria-label={`View ${member.full_name}`}
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
                       <Button
                         variant="ghost"
                         size="icon"
@@ -162,6 +170,17 @@ export function PoolMemberTable({
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
+                  </TableCell>
+                ) : (
+                  <TableCell className="text-right">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => navigate(`/admin/marketplace/resource-pool/${member.id}`)}
+                      aria-label={`View ${member.full_name}`}
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 )}
               </TableRow>
