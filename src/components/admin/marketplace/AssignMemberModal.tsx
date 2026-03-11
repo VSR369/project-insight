@@ -158,7 +158,7 @@ export function AssignMemberModal({
                   ))}
                   {!candidates.length && (
                     <div className="px-3 py-2 text-sm text-muted-foreground">
-                      No eligible pool members found for this role.
+                      No eligible pool members found.
                     </div>
                   )}
                 </SelectContent>
