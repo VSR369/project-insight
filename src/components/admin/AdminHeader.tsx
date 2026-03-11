@@ -59,6 +59,7 @@ export function AdminHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const [notifOpen, setNotifOpen] = useState(false);
+  const [readinessOpen, setReadinessOpen] = useState(false);
   const { data: escalationContactId, isLoading: configLoading } = useMpaConfigValue('executive_escalation_contact_id');
   const pathSegments = location.pathname.split('/').filter(Boolean);
 
