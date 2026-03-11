@@ -193,6 +193,11 @@ const ResourcePoolPage = lazy(() => import("@/pages/admin/marketplace/ResourcePo
 const SolutionRequestsPage = lazy(() => import("@/pages/admin/marketplace/SolutionRequestsPage"));
 const AssignmentHistoryPage = lazy(() => import("@/pages/admin/marketplace/AssignmentHistoryPage"));
 
+// RBAC MOD-03: Role Management Dashboard, Admin Contact, Email Templates
+const RoleManagementDashboard = lazy(() => import("@/pages/rbac/RoleManagementDashboard"));
+const AdminContactProfilePage = lazy(() => import("@/pages/admin/marketplace/AdminContactProfilePage"));
+const EmailTemplatesPage = lazy(() => import("@/pages/admin/marketplace/EmailTemplatesPage"));
+
 // Tools Pages (lazy loaded)
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
