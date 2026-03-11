@@ -25,7 +25,7 @@ function VerificationDashboardContent() {
   const { isSupervisor } = useAdminTier();
 
   const { data: assignments } = useMyAssignments();
-  const { data: queueEntries } = useOpenQueue();
+  const { data: queueEntries } = useOpenQueue({ enabled: activeTab === 'queue' });
 
   // GAP-19: Realtime subscriptions replace polling
   useEffect(() => {
