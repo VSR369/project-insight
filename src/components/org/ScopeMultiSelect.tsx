@@ -99,20 +99,30 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
   const { data: departments = [] } = useDepartments();
   const { data: functionalAreas = [] } = useFunctionalAreas();
 
-  // Derived "All" states — empty array means ALL
-  const allIndustries = allowAll && value.industry_segment_ids.length === 0;
-  const allProficiency = allowAll && value.proficiency_area_ids.length === 0;
-  const allSubDomains = allowAll && value.sub_domain_ids.length === 0;
-  const allSpecialities = allowAll && value.speciality_ids.length === 0;
+  // Local state booleans for "All" toggles — decoupled from array contents
+  const [isAllIndustries, setIsAllIndustries] = useState(allowAll && value.industry_segment_ids.length === 0);
+  const [isAllProficiency, setIsAllProficiency] = useState(allowAll && value.proficiency_area_ids.length === 0);
+  const [isAllSubDomains, setIsAllSubDomains] = useState(allowAll && value.sub_domain_ids.length === 0);
+  const [isAllSpecialities, setIsAllSpecialities] = useState(allowAll && value.speciality_ids.length === 0);
+
+  // Sync local toggle state when value prop changes externally (e.g., form reset)
+  useEffect(() => {
+    if (allowAll) {
+      setIsAllIndustries(value.industry_segment_ids.length === 0);
+      setIsAllProficiency(value.proficiency_area_ids.length === 0);
+      setIsAllSubDomains(value.sub_domain_ids.length === 0);
+      setIsAllSpecialities(value.speciality_ids.length === 0);
+    }
+  }, [allowAll, value]);
 
   // Cascading taxonomy hooks
   const { data: proficiencyAreasBySegment = [] } = useProficiencyAreasBySegments(value.industry_segment_ids);
-  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(allIndustries);
+  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(isAllIndustries);
   const { data: subDomains = [] } = useSubDomainsByAreas(value.proficiency_area_ids);
   const { data: specialities = [] } = useSpecialitiesBySubDomains(value.sub_domain_ids);
 
   // Use segment-scoped or global proficiency areas depending on ALL Industries toggle
-  const proficiencyAreas = allIndustries ? allProficiencyAreas : proficiencyAreasBySegment;
+  const proficiencyAreas = isAllIndustries ? allProficiencyAreas : proficiencyAreasBySegment;
 
   // Filter functional areas by selected departments
   const filteredFAs = value.department_ids.length > 0
