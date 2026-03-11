@@ -57,7 +57,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
   // ══════════════════════════════════════
-  const handleInvite = (roleCode: string, context: "core" | "challenge") => {
+  const handleInvite = (roleCode: string, context: "core" | "challenge" | "agg") => {
     setAssignRoleCode(roleCode);
     setAssignContext(context);
     setAssignSheetOpen(true);
