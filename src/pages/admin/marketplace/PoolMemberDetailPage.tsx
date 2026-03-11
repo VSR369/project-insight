@@ -248,7 +248,7 @@ export default function PoolMemberDetailPage() {
                         {assignments.map((a) => (
                           <TableRow key={a.id}>
                             <TableCell>
-                              <RoleBadge roleCode={a.role_code} label={getRoleLabel(a.role_code)} />
+                              <RoleBadge code={a.role_code} label={getRoleLabel(a.role_code)} />
                             </TableCell>
                             <TableCell>
                               <Badge variant={a.status === "active" ? "default" : "secondary"} className="text-xs">

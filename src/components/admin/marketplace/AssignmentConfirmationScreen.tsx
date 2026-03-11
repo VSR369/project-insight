@@ -71,7 +71,7 @@ export function AssignmentConfirmationScreen({
               return (
                 <div key={role.code} className="flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4 p-3 rounded-md border bg-muted/20">
                   <div className="flex items-center gap-2 min-w-[180px]">
-                    <RoleBadge roleCode={role.code} label={role.display_name} />
+                    <RoleBadge code={role.code} label={role.display_name} />
                     <Badge
                       variant="outline"
                       className={`text-[10px] ${isFilled ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300"}`}
