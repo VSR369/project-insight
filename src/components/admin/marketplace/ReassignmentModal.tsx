@@ -1,9 +1,8 @@
 /**
- * ReassignmentModal — SCR-07 Reassignment
+ * ReassignmentModal — SCR-07 Mid-Challenge Reassignment
  * BRD Ref: BR-MP-ASSIGN-005, MOD-02 Tech Spec
  */
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -23,7 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { reassignmentSchema, type ReassignmentValues } from "@/lib/validations/challengeAssignment";
 import { useReassignMember, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
@@ -32,11 +30,12 @@ import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 
 interface ReassignmentModalProps {
   assignment: ChallengeAssignmentRow;
+  challengeTitle: string;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-export function ReassignmentModal({ assignment, open, onOpenChange }: ReassignmentModalProps) {
+export function ReassignmentModal({ assignment, challengeTitle, open, onOpenChange }: ReassignmentModalProps) {
   const { data: poolMembers } = usePoolMembers({ role: assignment.role_code });
   const { data: roleCodes } = useSlmRoleCodes();
   const reassignMutation = useReassignMember();
@@ -53,10 +52,12 @@ export function ReassignmentModal({ assignment, open, onOpenChange }: Reassignme
 
   const roleLabel = roleCodes?.find((r) => r.code === assignment.role_code)?.display_name ?? assignment.role_code;
 
-  // Filter out the current assignee from candidates
+  // Filter out the current assignee and fully booked members
   const candidates = (poolMembers ?? []).filter(
     (m) => m.id !== assignment.pool_member_id && m.availability_status !== "fully_booked"
   );
+
+  const reasonLength = form.watch("reason")?.length ?? 0;
 
   const onSubmit = async (values: ReassignmentValues) => {
     await reassignMutation.mutateAsync({
@@ -73,34 +74,39 @@ export function ReassignmentModal({ assignment, open, onOpenChange }: Reassignme
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Reassign Team Member</DialogTitle>
+          <DialogTitle>Mid-Challenge Reassignment</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1 min-h-0">
-          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-4">
-            {/* Current Assignee (read-only) */}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Current Assignee</Label>
-              <div className="flex items-center gap-2 p-3 rounded-md bg-muted/50 border">
-                <span className="text-sm text-muted-foreground">{assignment.member_name}</span>
-                <Badge variant="outline" className="text-xs">{roleLabel}</Badge>
-              </div>
+          <div className="flex-1 min-h-0 overflow-y-auto py-4 space-y-5">
+            {/* Current Assignee — read-only card */}
+            <div className="rounded-md border bg-muted/30 p-4 space-y-0.5">
+              <p className="text-xs text-muted-foreground font-medium">Current Assignee</p>
+              <p className="text-sm font-semibold text-foreground">{assignment.member_name}</p>
+              <p className="text-xs text-muted-foreground">
+                {roleLabel} ({assignment.role_code})
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Challenge: {challengeTitle}
+              </p>
             </div>
 
             {/* New Member Select */}
             <div className="space-y-1.5">
-              <Label htmlFor="new_member">Replacement Member *</Label>
+              <Label htmlFor="new_member">
+                New Member <span className="text-destructive">*</span>
+              </Label>
               <Select
                 value={form.watch("new_pool_member_id")}
                 onValueChange={(val) => form.setValue("new_pool_member_id", val, { shouldValidate: true })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a pool member…" />
+                  <SelectValue placeholder="Select a member" />
                 </SelectTrigger>
                 <SelectContent>
                   {candidates.map((m) => (
                     <SelectItem key={m.id} value={m.id}>
-                      {m.full_name} — {m.availability_status === "available" ? "Available" : "Partially Available"}
+                      {m.full_name}
                     </SelectItem>
                   ))}
                   {!candidates.length && (
@@ -117,29 +123,32 @@ export function ReassignmentModal({ assignment, open, onOpenChange }: Reassignme
 
             {/* Reason */}
             <div className="space-y-1.5">
-              <Label htmlFor="reason">Reason for Reassignment *</Label>
+              <Label htmlFor="reason">
+                Reason for Reassignment <span className="text-destructive">*</span>
+              </Label>
               <Textarea
                 id="reason"
-                placeholder="Provide a reason for this reassignment (min 10 characters)…"
+                placeholder="Minimum 10 characters"
                 className="min-h-[100px]"
                 {...form.register("reason")}
               />
-              {form.formState.errors.reason && (
+              {form.formState.errors.reason ? (
                 <p className="text-xs text-destructive">{form.formState.errors.reason.message}</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  {reasonLength} / 10 minimum characters
+                </p>
               )}
-              <p className="text-xs text-muted-foreground text-right">
-                {form.watch("reason")?.length ?? 0}/500
-              </p>
             </div>
           </div>
 
-          <DialogFooter className="shrink-0 pt-4 border-t">
+          <DialogFooter className="shrink-0 pt-4">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button type="submit" disabled={reassignMutation.isPending}>
               {reassignMutation.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
-              Confirm Reassignment
+              Save
             </Button>
           </DialogFooter>
         </form>
