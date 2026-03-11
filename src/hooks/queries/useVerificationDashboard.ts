@@ -148,6 +148,7 @@ export function useOpenQueue(options?: { enabled?: boolean }) {
         verification: verMap[entry.verification_id] ?? null,
       }));
     },
+    enabled: isEnabled,
     staleTime: 15_000,
     gcTime: 300_000,
   });
