@@ -1,8 +1,9 @@
 /**
- * SolutionRequestsPage — SCR-04 Solution Requests Queue
- * BRD Ref: BR-MP-ASSIGN-001, MOD-02
+ * SolutionRequestsPage — SCR-04 Solution Requests Queue + SCR-05 Assignment Panel
+ * BRD Ref: BR-MP-ASSIGN-001–004, MOD-02
  */
 
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,12 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ArrowRight, Clock, History } from "lucide-react";
-import { useSolutionRequests } from "@/hooks/queries/useSolutionRequests";
+import { ArrowRight, ArrowLeft, Clock, History } from "lucide-react";
+import { useSolutionRequests, useChallengeAssignments, computeTeamComposition } from "@/hooks/queries/useSolutionRequests";
 import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
+import { ChallengeAssignmentPanel } from "@/components/admin/marketplace/ChallengeAssignmentPanel";
 import { useSlmPoolRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { format } from "date-fns";
-import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
+import type { TeamComposition, SolutionRequestRow } from "@/hooks/queries/useSolutionRequests";
 
 function getAssignmentStatus(team: TeamComposition) {
   if (team.isComplete) {
@@ -33,10 +35,60 @@ function getAssignmentStatus(team: TeamComposition) {
   return { label: "Pending Assignment", variant: "outline" as const, className: "border-blue-300 text-blue-700 dark:text-blue-400" };
 }
 
+function AssignmentPanelView({
+  challenge,
+  mpRoles,
+  onBack,
+}: {
+  challenge: SolutionRequestRow;
+  mpRoles: import("@/hooks/queries/useSlmRoleCodes").SlmRoleCode[];
+  onBack: () => void;
+}) {
+  const { data: assignments } = useChallengeAssignments(challenge.id);
+  const team = computeTeamComposition(
+    (assignments ?? []).map((a) => ({ role_code: a.role_code, pool_member_id: a.pool_member_id })),
+    mpRoles
+  );
+
+  return (
+    <div className="space-y-4">
+      <button
+        onClick={onBack}
+        className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <ArrowLeft className="h-4 w-4" />
+        Back to Queue
+      </button>
+      <ChallengeAssignmentPanel
+        challengeId={challenge.id}
+        challengeTitle={challenge.title}
+        orgName={challenge.org_name}
+        mpRoles={mpRoles}
+        assignments={assignments ?? []}
+        team={team}
+      />
+    </div>
+  );
+}
+
 export default function SolutionRequestsPage() {
   const navigate = useNavigate();
+  const [selectedChallenge, setSelectedChallenge] = useState<SolutionRequestRow | null>(null);
   const { data: mpRoles } = useSlmPoolRoles();
   const { data: requests, isLoading } = useSolutionRequests(mpRoles ?? []);
+
+  // If a challenge is selected, show the Assignment Panel (SCR-05)
+  if (selectedChallenge && mpRoles) {
+    return (
+      <div className="space-y-6">
+        <AssignmentPanelView
+          challenge={selectedChallenge}
+          mpRoles={mpRoles}
+          onBack={() => setSelectedChallenge(null)}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -112,7 +164,7 @@ export default function SolutionRequestsPage() {
                       <TableRow
                         key={req.id}
                         className="cursor-pointer"
-                        onClick={() => navigate(`/admin/marketplace/assignment-history?challenge=${req.id}`)}
+                        onClick={() => setSelectedChallenge(req)}
                       >
                         <TableCell>
                           <span className="font-medium text-foreground">{req.org_name}</span>
