@@ -144,7 +144,7 @@ export default function AssignmentHistoryPage() {
                             variant="ghost"
                             size="sm"
                             className="text-xs text-primary hover:text-primary/80"
-                            onClick={() => setReassignTarget(a)}
+                            onClick={() => setReassignTarget({ assignment: a, challengeTitle: challenge.title })}
                           >
                             Reassign
                           </Button>
