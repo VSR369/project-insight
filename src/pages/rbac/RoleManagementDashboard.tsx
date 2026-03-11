@@ -43,7 +43,9 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   const { data: slmPoolRoles, isLoading: poolLoading } = useSlmPoolRoles();
   const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
+  const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
+  const { data: canManageAgg } = useModelAuthority("agg");
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
