@@ -2857,6 +2857,68 @@ export type Database = {
         }
         Relationships: []
       }
+      md_rbac_msme_config: {
+        Row: {
+          enabled_at: string | null
+          enabled_by: string | null
+          is_enabled: boolean | null
+          org_id: string
+        }
+        Insert: {
+          enabled_at?: string | null
+          enabled_by?: string | null
+          is_enabled?: boolean | null
+          org_id: string
+        }
+        Update: {
+          enabled_at?: string | null
+          enabled_by?: string | null
+          is_enabled?: boolean | null
+          org_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "md_rbac_msme_config_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: true
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      md_role_assignment_statuses: {
+        Row: {
+          code: string
+          color_class: string | null
+          created_at: string
+          display_name: string
+          display_order: number | null
+          id: string
+          is_active: boolean
+          updated_at: string | null
+        }
+        Insert: {
+          code: string
+          color_class?: string | null
+          created_at?: string
+          display_name: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+        }
+        Update: {
+          code?: string
+          color_class?: string | null
+          created_at?: string
+          display_name?: string
+          display_order?: number | null
+          id?: string
+          is_active?: boolean
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       md_shadow_pricing: {
         Row: {
           country_id: string | null
@@ -2927,6 +2989,9 @@ export type Database = {
           display_order: number | null
           id: string
           is_active: boolean
+          is_core: boolean
+          min_required: number
+          model_applicability: string
           updated_at: string | null
           updated_by: string | null
         }
@@ -2939,6 +3004,9 @@ export type Database = {
           display_order?: number | null
           id?: string
           is_active?: boolean
+          is_core?: boolean
+          min_required?: number
+          model_applicability?: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -2951,6 +3019,9 @@ export type Database = {
           display_order?: number | null
           id?: string
           is_active?: boolean
+          is_core?: boolean
+          min_required?: number
+          model_applicability?: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -6526,6 +6597,33 @@ export type Database = {
           },
         ]
       }
+      rbac_admin_contact: {
+        Row: {
+          email: string
+          id: string
+          name: string
+          phone_intl: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          email: string
+          id?: string
+          name: string
+          phone_intl?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          email?: string
+          id?: string
+          name?: string
+          phone_intl?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       reassignment_requests: {
         Row: {
           actioned_at: string | null
@@ -6735,6 +6833,71 @@ export type Database = {
           },
         ]
       }
+      role_assignments: {
+        Row: {
+          activated_at: string | null
+          created_at: string
+          created_by: string | null
+          domain_tags: Json | null
+          expires_at: string | null
+          id: string
+          invited_at: string | null
+          model_applicability: string
+          org_id: string
+          role_code: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+          user_email: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          expires_at?: string | null
+          id?: string
+          invited_at?: string | null
+          model_applicability?: string
+          org_id: string
+          role_code: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_email: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          activated_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          domain_tags?: Json | null
+          expires_at?: string | null
+          id?: string
+          invited_at?: string | null
+          model_applicability?: string
+          org_id?: string
+          role_code?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_email?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_assignments_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       role_audit_log: {
         Row: {
           action: string
@@ -6746,6 +6909,7 @@ export type Database = {
           entity_type: string
           id: string
           metadata: Json | null
+          org_id: string | null
         }
         Insert: {
           action: string
@@ -6757,6 +6921,7 @@ export type Database = {
           entity_type: string
           id?: string
           metadata?: Json | null
+          org_id?: string | null
         }
         Update: {
           action?: string
@@ -6768,8 +6933,59 @@ export type Database = {
           entity_type?: string
           id?: string
           metadata?: Json | null
+          org_id?: string | null
         }
         Relationships: []
+      }
+      role_readiness_cache: {
+        Row: {
+          created_at: string
+          engagement_model: string
+          id: string
+          last_computed_at: string | null
+          missing_roles: string[] | null
+          org_id: string
+          overall_status: string
+          responsible_admin_contact: Json | null
+          total_filled: number | null
+          total_required: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          engagement_model: string
+          id?: string
+          last_computed_at?: string | null
+          missing_roles?: string[] | null
+          org_id: string
+          overall_status?: string
+          responsible_admin_contact?: Json | null
+          total_filled?: number | null
+          total_required?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          engagement_model?: string
+          id?: string
+          last_computed_at?: string | null
+          missing_roles?: string[] | null
+          org_id?: string
+          overall_status?: string
+          responsible_admin_contact?: Json | null
+          total_filled?: number | null
+          total_required?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_readiness_cache_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saas_agreements: {
         Row: {
