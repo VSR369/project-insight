@@ -4250,14 +4250,13 @@ export type Database = {
           created_at: string
           created_by: string | null
           current_assignments: number
+          domain_scope: Json
           email: string
           full_name: string
           id: string
-          industry_ids: string[]
           is_active: boolean
           max_concurrent: number
           phone: string | null
-          proficiency_id: string | null
           role_codes: string[]
           updated_at: string | null
           updated_by: string | null
@@ -4267,14 +4266,13 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_assignments?: number
+          domain_scope?: Json
           email: string
           full_name: string
           id?: string
-          industry_ids?: string[]
           is_active?: boolean
           max_concurrent?: number
           phone?: string | null
-          proficiency_id?: string | null
           role_codes?: string[]
           updated_at?: string | null
           updated_by?: string | null
@@ -4284,27 +4282,18 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           current_assignments?: number
+          domain_scope?: Json
           email?: string
           full_name?: string
           id?: string
-          industry_ids?: string[]
           is_active?: boolean
           max_concurrent?: number
           phone?: string | null
-          proficiency_id?: string | null
           role_codes?: string[]
           updated_at?: string | null
           updated_by?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "platform_provider_pool_proficiency_area_fkey"
-            columns: ["proficiency_id"]
-            isOneToOne: false
-            referencedRelation: "proficiency_areas"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       platform_terms: {
         Row: {
