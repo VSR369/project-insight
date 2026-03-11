@@ -57,6 +57,6 @@ export function useMyMetrics(periodDays: number = 30) {
     enabled: !!profile?.id,
     staleTime: 300_000,
     gcTime: 600_000,
-    refetchInterval: 300_000,
+    refetchInterval,
   });
 }

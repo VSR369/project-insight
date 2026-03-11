@@ -166,7 +166,8 @@ export function useAllChallengeAssignments() {
           )
         `)
         .eq("status", "active")
-        .order("assigned_at", { ascending: false });
+        .order("assigned_at", { ascending: false })
+        .limit(200);
 
       if (error) throw new Error(error.message);
 

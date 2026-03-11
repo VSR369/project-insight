@@ -125,9 +125,10 @@ const otherItems = [
 export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { data: pendingCount } = usePendingReviewerCount();
-  const { data: pendingSeekerCount } = usePendingSeekerCount();
-  const { data: pendingReassignmentCount } = usePendingReassignmentCount();
+  const { data: sidebarCounts } = useAdminSidebarCounts();
+  const pendingCount = sidebarCounts?.pendingReviewers;
+  const pendingSeekerCount = sidebarCounts?.pendingSeekers;
+  const pendingReassignmentCount = sidebarCounts?.pendingReassignments;
   const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
   const { depth } = usePlatformTierDepth();
 

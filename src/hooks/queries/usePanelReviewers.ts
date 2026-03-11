@@ -29,7 +29,8 @@ export function usePanelReviewers(options?: {
       let query = supabase
         .from("panel_reviewers")
         .select("id, name, email, phone, user_id, is_active, invitation_status, enrollment_source, expertise_level_ids, industry_segment_ids, years_experience, timezone, languages, max_interviews_per_day, notes, approval_status, created_at, updated_at")
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
 
       if (!includeInactive) {
         query = query.eq("is_active", true);
