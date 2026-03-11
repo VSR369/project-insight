@@ -123,6 +123,16 @@ export default function AssignmentHistoryPage() {
                         Assigned {format(new Date(assignments[0].assigned_at), "dd MMM yyyy, HH:mm")}
                       </span>
                     )}
+                    {!team.isComplete && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAssignTarget({ challengeId: challenge.id, challengeTitle: challenge.title, missingRoles: team.missingRoles })}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1.5" />
+                        <span className="hidden lg:inline">Assign</span>
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
