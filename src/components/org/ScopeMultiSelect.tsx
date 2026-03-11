@@ -294,7 +294,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             <div className="flex items-center gap-2">
               <Switch
                 id="all-sub-domains"
-                checked={allSubDomains}
+                checked={isAllSubDomains}
                 onCheckedChange={toggleAllSubDomains}
               />
               <Label htmlFor="all-sub-domains" className="text-sm font-medium cursor-pointer">
