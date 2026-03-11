@@ -30,7 +30,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
-  const [assignContext, setAssignContext] = useState<"core" | "challenge">("core");
+  const [assignContext, setAssignContext] = useState<"core" | "challenge" | "agg">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   // ══════════════════════════════════════
