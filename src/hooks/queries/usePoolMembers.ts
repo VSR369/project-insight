@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import type { DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 export interface PoolMemberRow {
   id: string;
@@ -15,8 +16,7 @@ export interface PoolMemberRow {
   email: string;
   phone: string | null;
   role_codes: string[];
-  industry_ids: string[];
-  proficiency_id: string | null;
+  domain_scope: DomainScope;
   max_concurrent: number;
   current_assignments: number;
   availability_status: string;
@@ -40,7 +40,7 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
     queryFn: async () => {
       let query = supabase
         .from("platform_provider_pool")
-        .select("id, full_name, email, phone, role_codes, industry_ids, proficiency_id, max_concurrent, current_assignments, availability_status, is_active, created_at, updated_at, created_by, updated_by")
+        .select("id, full_name, email, phone, role_codes, domain_scope, max_concurrent, current_assignments, availability_status, is_active, created_at, updated_at, created_by, updated_by")
         .eq("is_active", true)
         .order("full_name", { ascending: true });
 
@@ -48,21 +48,28 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
         query = query.eq("availability_status", filters.availability);
       }
 
-      if (filters.proficiency) {
-        query = query.eq("proficiency_id", filters.proficiency);
-      }
-
       if (filters.role) {
         query = query.contains("role_codes", [filters.role]);
       }
 
-      if (filters.industry) {
-        query = query.contains("industry_ids", [filters.industry]);
-      }
-
       const { data, error } = await query;
       if (error) throw new Error(error.message);
-      return (data ?? []) as PoolMemberRow[];
+
+      let results = (data ?? []) as unknown as PoolMemberRow[];
+
+      // Client-side JSONB filtering for industry and proficiency
+      if (filters.industry) {
+        results = results.filter((m) =>
+          m.domain_scope?.industry_segment_ids?.includes(filters.industry!)
+        );
+      }
+      if (filters.proficiency) {
+        results = results.filter((m) =>
+          m.domain_scope?.proficiency_area_ids?.includes(filters.proficiency!)
+        );
+      }
+
+      return results;
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,
@@ -74,8 +81,7 @@ export interface PoolMemberInsert {
   email: string;
   phone?: string;
   role_codes: string[];
-  industry_ids: string[];
-  proficiency_id: string;
+  domain_scope: DomainScope;
   max_concurrent: number;
 }
 
@@ -86,7 +92,7 @@ export function useCreatePoolMember() {
       const withAudit = await withCreatedBy(data);
       const { data: result, error } = await supabase
         .from("platform_provider_pool")
-        .insert(withAudit)
+        .insert(withAudit as any)
         .select("id, full_name, availability_status, created_at")
         .single();
       if (error) throw new Error(error.message);
@@ -109,7 +115,7 @@ export function useUpdatePoolMember() {
       const withAudit = await withUpdatedBy(updates);
       const { data, error } = await supabase
         .from("platform_provider_pool")
-        .update(withAudit)
+        .update(withAudit as any)
         .eq("id", id)
         .select("id, full_name")
         .single();
