@@ -628,6 +628,7 @@ const App = () => (
               {/* RBAC MOD-01: Marketplace Resource Pool — senior_admin+ */}
               <Route path="marketplace" element={<TierGuard requiredTier="senior_admin"><MarketplaceDashboard /></TierGuard>} />
               <Route path="marketplace/resource-pool" element={<TierGuard requiredTier="senior_admin"><ResourcePoolPage /></TierGuard>} />
+              <Route path="marketplace/resource-pool/:memberId" element={<TierGuard requiredTier="senior_admin"><PoolMemberDetailPage /></TierGuard>} />
               {/* RBAC MOD-02: Solution Requests & Assignment History — senior_admin+ */}
               <Route path="marketplace/solution-requests" element={<TierGuard requiredTier="senior_admin"><SolutionRequestsPage /></TierGuard>} />
               <Route path="marketplace/assignment-history" element={<TierGuard requiredTier="senior_admin"><AssignmentHistoryPage /></TierGuard>} />
