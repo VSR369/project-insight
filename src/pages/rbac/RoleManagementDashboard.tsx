@@ -15,7 +15,7 @@ import { RoleTable } from "@/components/rbac/roles/RoleTable";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useCoreRoleCodes, useChallengeRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useSlmPoolRoles, useOrgCoreRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 

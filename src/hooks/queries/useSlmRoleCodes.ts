@@ -54,3 +54,34 @@ export function useChallengeRoleCodes(model?: string) {
     ) ?? [],
   };
 }
+
+/** Returns SLM resource pool roles for Marketplace (PA's primary work): R3, R5_MP, R6_MP, R7_MP */
+export function useSlmPoolRoles() {
+  const query = useSlmRoleCodes();
+  return {
+    ...query,
+    data: query.data?.filter((r) =>
+      !r.is_core && (r.model_applicability === "mp")
+    ) ?? [],
+  };
+}
+
+/** Returns org-level core roles (R2, R8, R9) — PA manages on behalf of orgs per BR-CORE-003 */
+export function useOrgCoreRoles() {
+  const query = useSlmRoleCodes();
+  return {
+    ...query,
+    data: query.data?.filter((r) => r.is_core) ?? [],
+  };
+}
+
+/** Returns Aggregator challenge roles (R4, R5_AGG, R6_AGG, R7_AGG) — SOA context only */
+export function useAggChallengeRoles() {
+  const query = useSlmRoleCodes();
+  return {
+    ...query,
+    data: query.data?.filter((r) =>
+      !r.is_core && (r.model_applicability === "agg")
+    ) ?? [],
+  };
+}
