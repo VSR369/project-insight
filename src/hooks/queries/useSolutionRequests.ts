@@ -8,8 +8,27 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { MARKETPLACE_CORE_ROLES } from "@/lib/validations/challengeAssignment";
 
 /* ─── Types ────────────────────────────────────────────── */
+
+/** Required count per role for a complete team */
+const REQUIRED_ROLE_COUNTS: Record<string, number> = {
+  R3: 1,
+  R5_MP: 1,
+  R6_MP: 1,
+  R7_MP: 2,
+};
+
+export interface TeamComposition {
+  R3: number;
+  R5_MP: number;
+  R6_MP: number;
+  R7_MP: number;
+  total: number;
+  isComplete: boolean;
+  missingRoles: { role: string; required: number; assigned: number }[];
+}
 
 export interface SolutionRequestRow {
   id: string;
@@ -20,6 +39,7 @@ export interface SolutionRequestRow {
   engagement_model_id: string | null;
   created_at: string;
   assignment_count: number;
+  team: TeamComposition;
 }
 
 export interface ChallengeAssignmentRow {
@@ -37,13 +57,49 @@ export interface ChallengeAssignmentRow {
   domain_scope: Record<string, unknown> | null;
 }
 
+/* ─── Helper: compute TeamComposition from assignments ── */
+
+function computeTeamComposition(
+  assignments: { role_code: string; pool_member_id: string }[]
+): TeamComposition {
+  // Count unique pool_member_id per role_code
+  const uniquePerRole: Record<string, Set<string>> = {};
+  for (const a of assignments) {
+    if (!uniquePerRole[a.role_code]) uniquePerRole[a.role_code] = new Set();
+    uniquePerRole[a.role_code].add(a.pool_member_id);
+  }
+
+  const counts = {
+    R3: uniquePerRole["R3"]?.size ?? 0,
+    R5_MP: uniquePerRole["R5_MP"]?.size ?? 0,
+    R6_MP: uniquePerRole["R6_MP"]?.size ?? 0,
+    R7_MP: uniquePerRole["R7_MP"]?.size ?? 0,
+  };
+
+  const missingRoles: TeamComposition["missingRoles"] = [];
+  for (const [role, required] of Object.entries(REQUIRED_ROLE_COUNTS)) {
+    const assigned = counts[role as keyof typeof counts] ?? 0;
+    if (assigned < required) {
+      missingRoles.push({ role, required, assigned });
+    }
+  }
+
+  return {
+    ...counts,
+    total: Object.values(counts).reduce((s, n) => s + n, 0),
+    isComplete: missingRoles.length === 0,
+    missingRoles,
+  };
+}
+
+export { computeTeamComposition };
+
 /* ─── useSolutionRequests ──────────────────────────────── */
 
 export function useSolutionRequests() {
   return useQuery({
     queryKey: ["solution-requests"],
     queryFn: async () => {
-      // Parallel: fetch marketplace model ID + all challenges at once
       const [modelsRes, challengesRes] = await Promise.all([
         supabase
           .from("md_engagement_models")
@@ -66,41 +122,46 @@ export function useSolutionRequests() {
       const marketplaceModelId = modelsRes.data?.[0]?.id;
       if (challengesRes.error) throw new Error(challengesRes.error.message);
 
-      // Filter client-side if marketplace model found (avoids sequential call)
       let challenges = challengesRes.data ?? [];
       if (marketplaceModelId) {
         challenges = challenges.filter((c: any) => c.engagement_model_id === marketplaceModelId);
       }
 
-      // Parallel: fetch assignment counts alongside (already done above)
       const challengeIds = challenges.map((c: any) => c.id);
-      let assignmentCounts: Record<string, number> = {};
+
+      // Fetch role_code + pool_member_id for role-aware counting
+      let assignmentsByChallenge: Record<string, { role_code: string; pool_member_id: string }[]> = {};
 
       if (challengeIds.length > 0) {
         const { data: assignments } = await supabase
           .from("challenge_role_assignments")
-          .select("challenge_id")
+          .select("challenge_id, role_code, pool_member_id")
           .in("challenge_id", challengeIds)
           .eq("status", "active")
-          .limit(200);
+          .limit(500);
 
         if (assignments) {
           for (const a of assignments) {
-            assignmentCounts[a.challenge_id] = (assignmentCounts[a.challenge_id] || 0) + 1;
+            if (!assignmentsByChallenge[a.challenge_id]) assignmentsByChallenge[a.challenge_id] = [];
+            assignmentsByChallenge[a.challenge_id].push({ role_code: a.role_code, pool_member_id: a.pool_member_id });
           }
         }
       }
 
-      return challenges.map((c: any) => ({
-        id: c.id,
-        title: c.title,
-        status: c.status,
-        organization_id: c.organization_id,
-        org_name: c.seeker_organizations?.organization_name ?? "Unknown Organization",
-        engagement_model_id: c.engagement_model_id,
-        created_at: c.created_at,
-        assignment_count: assignmentCounts[c.id] ?? 0,
-      })) as SolutionRequestRow[];
+      return challenges.map((c: any) => {
+        const team = computeTeamComposition(assignmentsByChallenge[c.id] ?? []);
+        return {
+          id: c.id,
+          title: c.title,
+          status: c.status,
+          organization_id: c.organization_id,
+          org_name: c.seeker_organizations?.organization_name ?? "Unknown Organization",
+          engagement_model_id: c.engagement_model_id,
+          created_at: c.created_at,
+          assignment_count: team.total,
+          team,
+        };
+      }) as SolutionRequestRow[];
     },
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
