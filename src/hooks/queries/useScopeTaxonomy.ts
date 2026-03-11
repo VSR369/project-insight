@@ -95,20 +95,3 @@ export function useAllProficiencyAreas(enabled: boolean) {
     ...CACHE,
   });
 }
-  return useQuery({
-    queryKey: ['specialities_by_sub_domains', subDomainIds],
-    queryFn: async () => {
-      if (subDomainIds.length === 0) return [];
-      const { data, error } = await supabase
-        .from('specialities')
-        .select('id, name, sub_domain_id')
-        .in('sub_domain_id', subDomainIds)
-        .eq('is_active', true)
-        .order('display_order', { ascending: true });
-      if (error) throw new Error(error.message);
-      return data;
-    },
-    enabled: subDomainIds.length > 0,
-    ...CACHE,
-  });
-}
