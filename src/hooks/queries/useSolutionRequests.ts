@@ -58,7 +58,7 @@ export function useSolutionRequests() {
         .from("challenges")
         .select(`
           id, title, status, organization_id, engagement_model_id, created_at,
-          seeker_organizations!challenges_organization_id_fkey ( legal_name )
+          seeker_organizations!challenges_organization_id_fkey ( organization_name )
         `)
         .eq("is_active", true)
         .eq("is_deleted", false)
