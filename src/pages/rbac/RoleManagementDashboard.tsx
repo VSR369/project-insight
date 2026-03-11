@@ -1,14 +1,12 @@
 /**
- * RoleManagementDashboard — SCR-08: Role Management for Seeking Org
+ * RoleManagementDashboard — SCR-08: Role Management for Seeking Org Admin
  * Layout: Readiness Widget → Contact Details → MSME Toggle → Quick Links → Role Tabs
+ * Portal-aware: Only accessible from /org portal. Shows Core + Aggregator tabs.
  */
 
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { User, Mail } from "lucide-react";
 import { RoleReadinessWidget } from "@/components/rbac/RoleReadinessWidget";
 import { SoaContactDetailsPanel } from "@/components/rbac/SoaContactDetailsPanel";
 import { RoleTable } from "@/components/rbac/roles/RoleTable";
@@ -16,14 +14,10 @@ import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useSlmPoolRoles, useOrgCoreRoles, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { useOrgCoreRoles, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
-import { useModelAuthority } from "@/hooks/queries/useModelAuthority";
-import { AggBlockedScreen } from "@/components/rbac/AggBlockedScreen";
+import { useOrgContext } from "@/contexts/OrgContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-
-// Demo org ID — in production, this would come from auth context
-const DEMO_ORG_ID = "00000000-0000-0000-0000-000000000001";
 
 export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
@@ -31,41 +25,39 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
-  const [assignContext, setAssignContext] = useState<"core" | "challenge" | "agg">("core");
+  const [assignContext, setAssignContext] = useState<"core" | "agg">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   // ══════════════════════════════════════
-  // SECTION 2: Navigation hooks
+  // SECTION 2: Context hooks
   // ══════════════════════════════════════
-  const navigate = useNavigate();
+  const { organizationId } = useOrgContext();
 
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
-  const { data: slmPoolRoles, isLoading: poolLoading } = useSlmPoolRoles();
   const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
   const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
-  const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
-  const { data: canManageAgg } = useModelAuthority("agg");
+  const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(organizationId);
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4: Derived state
   // ══════════════════════════════════════
-  const isLoading = poolLoading || orgCoreLoading || aggLoading || assignmentsLoading;
-  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : assignContext === "challenge" ? slmPoolRoles : aggChallengeRoles;
+  const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : aggChallengeRoles;
 
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
   // ══════════════════════════════════════
-  const handleInvite = (roleCode: string, context: "core" | "challenge" | "agg") => {
+  const handleInvite = (roleCode: string, context: "core" | "agg") => {
     setAssignRoleCode(roleCode);
     setAssignContext(context);
     setAssignSheetOpen(true);
   };
 
   const handleDeactivate = (assignmentId: string) => {
-    deactivate.mutate({ id: assignmentId, orgId: DEMO_ORG_ID });
+    deactivate.mutate({ id: assignmentId, orgId: organizationId });
   };
 
   // ══════════════════════════════════════
@@ -77,48 +69,26 @@ export default function RoleManagementDashboard() {
         {/* Header */}
         <div>
           <nav className="text-xs text-muted-foreground mb-1">
-            CogibleND Platform
+            Organization Portal
           </nav>
           <h1 className="text-2xl font-bold text-foreground">
             Role Management Dashboard
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage core and challenge roles for your organization.
+            Manage core and aggregator roles for your organization.
           </p>
         </div>
 
         {/* Role Readiness Widget */}
-        <RoleReadinessWidget orgId={DEMO_ORG_ID} model="mp" />
+        <RoleReadinessWidget orgId={organizationId} model="mp" />
 
         {/* Contact Details Accordion */}
         <SoaContactDetailsPanel />
 
         {/* MSME Toggle */}
-        <MsmeToggle orgId={DEMO_ORG_ID} onQuickAssign={() => setQuickAssignOpen(true)} />
+        <MsmeToggle orgId={organizationId} onQuickAssign={() => setQuickAssignOpen(true)} />
 
-        {/* Quick Links */}
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => navigate("/admin/marketplace/admin-contact")}
-          >
-            <User className="h-3.5 w-3.5" />
-            Platform Admin Profile
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={() => navigate("/admin/marketplace/email-templates")}
-          >
-            <Mail className="h-3.5 w-3.5" />
-            Email Templates
-          </Button>
-        </div>
-
-        {/* Role Tabs (bare — no Card wrapper) */}
+        {/* Role Tabs — Core + Aggregator only */}
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -126,22 +96,11 @@ export default function RoleManagementDashboard() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <Tabs defaultValue="slm-pool">
+          <Tabs defaultValue="org-core">
             <TabsList className="mb-4">
-              <TabsTrigger value="slm-pool">SLM Roles (Marketplace)</TabsTrigger>
-              <TabsTrigger value="org-core">Org Core Roles</TabsTrigger>
+              <TabsTrigger value="org-core">Core Roles</TabsTrigger>
               <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
             </TabsList>
-
-            <TabsContent value="slm-pool">
-              <RoleTable
-                roles={slmPoolRoles}
-                assignments={assignments ?? []}
-                onInvite={(code) => handleInvite(code, "challenge")}
-                onDeactivate={handleDeactivate}
-                isDeactivating={deactivate.isPending}
-              />
-            </TabsContent>
 
             <TabsContent value="org-core">
               <RoleTable
@@ -154,14 +113,7 @@ export default function RoleManagementDashboard() {
             </TabsContent>
 
             <TabsContent value="agg-challenge">
-              {canManageAgg === false ? (
-                <AggBlockedScreen onBack={() => {
-                  const tabsList = document.querySelector('[data-value="slm-pool"]');
-                  if (tabsList instanceof HTMLElement) tabsList.click();
-                }} />
-              ) : (
-                <AggRoleManagement orgId={DEMO_ORG_ID} />
-              )}
+              <AggRoleManagement orgId={organizationId} />
             </TabsContent>
           </Tabs>
         )}
@@ -170,7 +122,7 @@ export default function RoleManagementDashboard() {
         <AssignRoleSheet
           open={assignSheetOpen}
           onOpenChange={setAssignSheetOpen}
-          orgId={DEMO_ORG_ID}
+          orgId={organizationId}
           preSelectedRoleCode={assignRoleCode}
           availableRoles={availableRolesForSheet}
         />
@@ -179,7 +131,7 @@ export default function RoleManagementDashboard() {
         <MsmeQuickAssignModal
           open={quickAssignOpen}
           onOpenChange={setQuickAssignOpen}
-          orgId={DEMO_ORG_ID}
+          orgId={organizationId}
           assignments={assignments ?? []}
         />
       </div>

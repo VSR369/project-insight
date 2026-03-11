@@ -406,16 +406,6 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
                 <SidebarMenuItem>
                   <SidebarMenuButton
-                    onClick={() => navigate('/admin/marketplace/roles')}
-                    onMouseEnter={() => handleMouseEnter('/admin/marketplace/roles')}
-                    isActive={location.pathname === '/admin/marketplace/roles'}
-                  >
-                    <ShieldCheck className="h-4 w-4" />
-                    <span>Role Management</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
                     onMouseEnter={() => handleMouseEnter('/admin/marketplace/admin-contact')}
                     isActive={location.pathname === '/admin/marketplace/admin-contact'}

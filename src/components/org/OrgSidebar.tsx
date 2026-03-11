@@ -135,13 +135,25 @@ export function OrgSidebar() {
           </SidebarGroup>
         )}
 
+        {/* Role Management — SO Admins only */}
+        {isSOAdmin && roleManagementItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Role Management</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(roleManagementItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {/* Organization — scoped items */}
-        <SidebarGroup>
-          <SidebarGroupLabel>Organization</SidebarGroupLabel>
-          <SidebarGroupContent>
-            {renderMenuSection(orgItems)}
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {orgItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Organization</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(orgItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
         {/* Billing — hidden for SO Admins */}
         {!isSOAdmin && (
