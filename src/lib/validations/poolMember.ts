@@ -10,9 +10,7 @@ import { z } from "zod";
 import type { DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 export const domainScopeSchema = z.object({
-  industry_segment_ids: z
-    .array(z.string().uuid())
-    .min(1, "At least one Industry Segment is required"),
+  industry_segment_ids: z.array(z.string().uuid()), // empty = ALL industries
   proficiency_area_ids: z.array(z.string().uuid()),
   sub_domain_ids: z.array(z.string().uuid()),
   speciality_ids: z.array(z.string().uuid()),

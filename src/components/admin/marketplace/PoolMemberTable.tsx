@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Pencil, Trash2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "./RoleBadge";
 import { AvailabilityBadge } from "./AvailabilityBadge";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
@@ -111,22 +112,24 @@ export function PoolMemberTable({
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
                   <div className="flex flex-wrap gap-1 max-w-[200px]">
-                    {industryIds.map((id) => (
-                      <span
-                        key={id}
-                        className="inline-block text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground"
-                      >
-                        {industryMap.get(id) ?? "—"}
-                      </span>
-                    ))}
-                    {industryIds.length === 0 && <span className="text-xs text-muted-foreground">—</span>}
+                    {industryIds.length === 0 ? (
+                      <Badge variant="outline" className="text-xs">All Industries</Badge>
+                    ) : (
+                      industryIds.map((id) => (
+                        <span
+                          key={id}
+                          className="inline-block text-xs px-2 py-0.5 rounded-md bg-muted text-muted-foreground"
+                        >
+                          {industryMap.get(id) ?? "—"}
+                        </span>
+                      ))
+                    )}
                   </div>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell text-xs text-muted-foreground">
-                  {paCount > 0 && <span>{paCount} PA</span>}
+                  {paCount === 0 ? <Badge variant="outline" className="text-xs">All</Badge> : <span>{paCount} PA</span>}
                   {sdCount > 0 && <span className="ml-1">· {sdCount} SD</span>}
                   {spCount > 0 && <span className="ml-1">· {spCount} SP</span>}
-                  {paCount === 0 && sdCount === 0 && spCount === 0 && <span>All</span>}
                 </TableCell>
                 <TableCell className="text-center">{member.current_assignments}</TableCell>
                 <TableCell className="text-center">{member.max_concurrent}</TableCell>

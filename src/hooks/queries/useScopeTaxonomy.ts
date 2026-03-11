@@ -72,3 +72,26 @@ export function useSpecialitiesBySubDomains(subDomainIds: string[]) {
     ...CACHE,
   });
 }
+
+/** Fetch ALL proficiency areas (no industry filter) — used when "All Industries" is toggled */
+export function useAllProficiencyAreas(enabled: boolean) {
+  return useQuery({
+    queryKey: ['proficiency_areas_all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('proficiency_areas')
+        .select('id, name, industry_segment_id')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+      if (error) throw new Error(error.message);
+      // Deduplicate by name
+      const seen = new Map<string, typeof data[0]>();
+      for (const row of data) {
+        if (!seen.has(row.name)) seen.set(row.name, row);
+      }
+      return Array.from(seen.values());
+    },
+    enabled,
+    ...CACHE,
+  });
+}

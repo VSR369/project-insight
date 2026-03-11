@@ -58,13 +58,16 @@ export function usePoolMembers(filters: PoolMemberFilters = {}) {
       let results = (data ?? []) as unknown as PoolMemberRow[];
 
       // Client-side JSONB filtering for industry and proficiency
+      // Empty array = ALL → always matches any filter value
       if (filters.industry) {
         results = results.filter((m) =>
+          m.domain_scope?.industry_segment_ids?.length === 0 ||
           m.domain_scope?.industry_segment_ids?.includes(filters.industry!)
         );
       }
       if (filters.proficiency) {
         results = results.filter((m) =>
+          m.domain_scope?.proficiency_area_ids?.length === 0 ||
           m.domain_scope?.proficiency_area_ids?.includes(filters.proficiency!)
         );
       }
