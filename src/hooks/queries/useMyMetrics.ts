@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useCurrentAdminProfile } from './useCurrentAdminProfile';
+import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
 import type { AdminMetricRow } from './useAllAdminMetrics';
 
 export function useMyMetrics(periodDays: number = 30) {
