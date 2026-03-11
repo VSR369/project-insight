@@ -108,6 +108,18 @@ export function AdminHeader() {
 
       {/* Right side actions */}
       <div className="flex items-center gap-2 sm:gap-4">
+        {/* Role Readiness Alerts (SCR-12) */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative h-9 w-9"
+          title="Role Readiness Alerts"
+          onClick={() => setReadinessOpen(true)}
+        >
+          <ShieldAlert className="h-4 w-4" />
+        </Button>
+        <RoleReadinessNotifications open={readinessOpen} onOpenChange={setReadinessOpen} />
+
         {/* Notification Bell */}
         <NotificationBell onClick={() => setNotifOpen(true)} />
         <NotificationDrawer open={notifOpen} onOpenChange={setNotifOpen} />
