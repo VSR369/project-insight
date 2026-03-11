@@ -251,6 +251,45 @@ export function useAllChallengeAssignments() {
   });
 }
 
+/* ─── useAssignMember (fresh slot fill) ────────────────── */
+
+export function useAssignMember() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      challengeId,
+      poolMemberId,
+      roleCode,
+    }: {
+      challengeId: string;
+      poolMemberId: string;
+      roleCode: string;
+    }) => {
+      const newAssignment = await withCreatedBy({
+        challenge_id: challengeId,
+        pool_member_id: poolMemberId,
+        role_code: roleCode,
+        status: "active",
+        assigned_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from("challenge_role_assignments")
+        .insert(newAssignment as any);
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["challenge-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["all-challenge-assignments"] });
+      queryClient.invalidateQueries({ queryKey: ["solution-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pool-members"] });
+      toast.success("Team member assigned successfully.");
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: "assign_challenge_member" });
+    },
+  });
+}
+
 /* ─── useReassignMember ────────────────────────────────── */
 
 export function useReassignMember() {

@@ -9,13 +9,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ArrowLeft, Clock, Users } from "lucide-react";
+import { ArrowLeft, Clock, UserPlus, Users } from "lucide-react";
 import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow } from "@/hooks/queries/useSolutionRequests";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
 import { TeamCompletionBanner } from "@/components/admin/marketplace/TeamCompletionBanner";
+import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberModal";
 import { format } from "date-fns";
 
 export default function AssignmentHistoryPage() {
@@ -29,6 +30,7 @@ export default function AssignmentHistoryPage() {
   const { data: availStatuses } = useAvailabilityStatuses();
 
   const [reassignTarget, setReassignTarget] = useState<{ assignment: ChallengeAssignmentRow; challengeTitle: string } | null>(null);
+  const [assignTarget, setAssignTarget] = useState<{ challengeId: string; challengeTitle: string; missingRoles: { role: string; required: number; assigned: number }[] } | null>(null);
 
   const isLoading = reqLoading || assignLoading;
 
@@ -121,11 +123,21 @@ export default function AssignmentHistoryPage() {
                         Assigned {format(new Date(assignments[0].assigned_at), "dd MMM yyyy, HH:mm")}
                       </span>
                     )}
+                    {!team.isComplete && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setAssignTarget({ challengeId: challenge.id, challengeTitle: challenge.title, missingRoles: team.missingRoles })}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1.5" />
+                        <span className="hidden lg:inline">Assign</span>
+                      </Button>
+                    )}
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {/* Team Completion Banner */}
-                  <TeamCompletionBanner team={team} />
+                  <TeamCompletionBanner team={team} challengeId={challenge.id} challengeTitle={challenge.title} />
 
                   <div className="space-y-3">
                     {assignments.map((a) => (
@@ -173,6 +185,17 @@ export default function AssignmentHistoryPage() {
           challengeTitle={reassignTarget.challengeTitle}
           open={!!reassignTarget}
           onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
+        />
+      )}
+
+      {/* Assign Member Modal */}
+      {assignTarget && (
+        <AssignMemberModal
+          challengeId={assignTarget.challengeId}
+          challengeTitle={assignTarget.challengeTitle}
+          missingRoles={assignTarget.missingRoles}
+          open={!!assignTarget}
+          onOpenChange={(open) => { if (!open) setAssignTarget(null); }}
         />
       )}
     </div>
