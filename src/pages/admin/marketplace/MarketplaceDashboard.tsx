@@ -35,7 +35,6 @@ const MANAGEMENT_CONSOLES = [
     path: "/admin/marketplace/solution-requests",
     color: "text-purple-600 dark:text-purple-400",
     bgColor: "bg-purple-100 dark:bg-purple-900/30",
-    comingSoon: true,
   },
   {
     title: "Role Management",
