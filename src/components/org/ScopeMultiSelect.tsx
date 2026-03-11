@@ -215,7 +215,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
             </Label>
           </div>
         )}
-        {!allIndustries && (
+        {!isAllIndustries && (
           <MultiSelectField
             label="Industry Segments"
             required={!allowAll}
