@@ -61,7 +61,7 @@ export function AssignRoleModal({
       role_code: data.role_code,
       user_email: data.user_email,
       user_name: data.user_name,
-      domain_tags: data.domain_tags as Record<string, unknown> | undefined,
+      domain_tags: (data.domain_tags as Json) ?? undefined,
       model_applicability: data.model_applicability,
     });
     form.reset();
