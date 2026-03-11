@@ -302,7 +302,7 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
               </Label>
             </div>
           )}
-          {!allSubDomains && (
+          {!isAllSubDomains && (
             <MultiSelectField
               label="Sub-domains"
               items={subDomains.map((sd) => ({ id: sd.id, name: sd.name }))}
