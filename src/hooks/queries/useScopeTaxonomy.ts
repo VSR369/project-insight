@@ -19,6 +19,7 @@ export function useProficiencyAreasBySegments(industrySegmentIds: string[]) {
         .select('id, name, industry_segment_id')
         .in('industry_segment_id', industrySegmentIds)
         .eq('is_active', true)
+        .not('name', 'like', '__SMOKE_TEST_%')
         .order('display_order', { ascending: true });
       if (error) throw new Error(error.message);
       // Deduplicate by name — same area appears once per expertise level
