@@ -169,6 +169,42 @@ export function AssignMemberModal({
                   This member is already assigned as {getRoleLabel(selectedRole)} on this challenge.
                 </div>
               )}
+
+              {/* Actionable empty state when no candidates */}
+              {candidates.length === 0 && selectedRole && (
+                <div className="rounded-md border border-dashed border-muted-foreground/30 bg-muted/20 p-4 space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Users className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+                    <div className="space-y-1 text-sm">
+                      <p className="font-medium text-foreground">No available members for this role</p>
+                      {fullyBookedCount > 0 ? (
+                        <p className="text-muted-foreground">
+                          {fullyBookedCount} member{fullyBookedCount > 1 ? "s" : ""} with this role {fullyBookedCount > 1 ? "are" : "is"} currently fully booked.
+                          You can increase their capacity or add new members in the Resource Pool.
+                        </p>
+                      ) : (
+                        <p className="text-muted-foreground">
+                          No pool members have the {getRoleLabel(selectedRole)} role yet.
+                          Add new members in the Resource Pool first.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    onClick={() => {
+                      onOpenChange(false);
+                      navigate("/admin/marketplace/resource-pool");
+                    }}
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                    Go to Resource Pool
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
