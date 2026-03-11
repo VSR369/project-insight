@@ -630,6 +630,10 @@ const App = () => (
               {/* RBAC MOD-02: Solution Requests & Assignment History — senior_admin+ */}
               <Route path="marketplace/solution-requests" element={<TierGuard requiredTier="senior_admin"><SolutionRequestsPage /></TierGuard>} />
               <Route path="marketplace/assignment-history" element={<TierGuard requiredTier="senior_admin"><AssignmentHistoryPage /></TierGuard>} />
+              {/* RBAC MOD-03: Role Management, Admin Contact, Email Templates — senior_admin+ */}
+              <Route path="marketplace/roles" element={<TierGuard requiredTier="senior_admin"><RoleManagementDashboard /></TierGuard>} />
+              <Route path="marketplace/admin-contact" element={<TierGuard requiredTier="senior_admin"><AdminContactProfilePage /></TierGuard>} />
+              <Route path="marketplace/email-templates" element={<TierGuard requiredTier="senior_admin"><EmailTemplatesPage /></TierGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
