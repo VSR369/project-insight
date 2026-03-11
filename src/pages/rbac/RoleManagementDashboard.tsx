@@ -15,8 +15,10 @@ import { RoleTable } from "@/components/rbac/roles/RoleTable";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useSlmPoolRoles, useOrgCoreRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { useSlmPoolRoles, useOrgCoreRoles, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useModelAuthority } from "@/hooks/queries/useModelAuthority";
+import { AggBlockedScreen } from "@/components/rbac/AggBlockedScreen";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Demo org ID — in production, this would come from auth context
