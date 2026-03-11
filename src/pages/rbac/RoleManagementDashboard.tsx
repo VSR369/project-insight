@@ -51,8 +51,8 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 4: Derived state
   // ══════════════════════════════════════
-  const isLoading = poolLoading || orgCoreLoading || assignmentsLoading;
-  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : slmPoolRoles;
+  const isLoading = poolLoading || orgCoreLoading || aggLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : assignContext === "challenge" ? slmPoolRoles : aggChallengeRoles;
 
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
