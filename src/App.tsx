@@ -188,6 +188,7 @@ const PermissionsManagementPage = lazy(() => import("@/pages/admin/permissions/P
 // RBAC MOD-01: Marketplace Resource Pool Management
 const MarketplaceDashboard = lazy(() => import("@/pages/admin/marketplace/MarketplaceDashboard"));
 const ResourcePoolPage = lazy(() => import("@/pages/admin/marketplace/ResourcePoolPage"));
+const PoolMemberDetailPage = lazy(() => import("@/pages/admin/marketplace/PoolMemberDetailPage"));
 
 // RBAC MOD-02: Solution Requests & Assignment History
 const SolutionRequestsPage = lazy(() => import("@/pages/admin/marketplace/SolutionRequestsPage"));
