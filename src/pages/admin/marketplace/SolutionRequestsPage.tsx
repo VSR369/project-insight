@@ -19,6 +19,7 @@ import {
 import { ArrowRight, Clock, History } from "lucide-react";
 import { useSolutionRequests } from "@/hooks/queries/useSolutionRequests";
 import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
+import { useSlmPoolRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { format } from "date-fns";
 import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
@@ -34,7 +35,8 @@ function getAssignmentStatus(team: TeamComposition) {
 
 export default function SolutionRequestsPage() {
   const navigate = useNavigate();
-  const { data: requests, isLoading } = useSolutionRequests();
+  const { data: mpRoles } = useSlmPoolRoles();
+  const { data: requests, isLoading } = useSolutionRequests(mpRoles ?? []);
 
   return (
     <div className="space-y-6">

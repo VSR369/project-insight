@@ -48,7 +48,7 @@ export function TeamCompletionReminder({ requests }: TeamCompletionReminderProps
                   <div className="min-w-0">
                     <span className="text-sm font-medium text-foreground">{r.title}</span>
                     <span className="text-xs text-muted-foreground ml-2">
-                      ({r.team.missingRoles.map((m) => `${m.required - m.assigned}× ${m.role}`).join(", ")} missing)
+                      ({r.team.missingRoles.map((m) => `${m.required - m.assigned}× ${m.displayName || m.role}`).join(", ")} missing)
                     </span>
                   </div>
                   <Button

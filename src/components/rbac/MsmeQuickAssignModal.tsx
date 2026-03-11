@@ -1,6 +1,8 @@
 /**
  * MsmeQuickAssignModal — 3-tab bulk assign: Myself / New User / Existing Member
  * Purple info banner, user card, role checkboxes with badges, summary bar, warnings
+ * 
+ * "Myself" tab uses real admin profile from useCurrentAdminProfile — no hardcoded user data.
  */
 
 import { useState } from "react";
@@ -20,9 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { User, UserPlus, Users, Info, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSlmRoleCodes, type SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useBulkCreateRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useCurrentAdminProfile } from "@/hooks/queries/useCurrentAdminProfile";
+import { useAuth } from "@/hooks/useAuth";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 const quickAssignSchema = z.object({
@@ -44,10 +49,22 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
+  const { data: adminProfile, isLoading: profileLoading } = useCurrentAdminProfile();
+  const { user } = useAuth();
 
   const applicableRoles = allRoles?.filter((r) =>
     r.model_applicability === "mp" || r.model_applicability === "both"
   ) ?? [];
+
+  // Derive admin display values from real profile — never hardcoded
+  const adminName = adminProfile?.full_name ?? "Current Admin";
+  const adminEmail = user?.email ?? "";
+  const adminInitials = adminName
+    .split(" ")
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase() || "?";
 
   const form = useForm<QuickAssignValues>({
     resolver: zodResolver(quickAssignSchema),
@@ -89,6 +106,9 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   const selectedRoleNames = applicableRoles
     .filter((r) => selectedRoles.includes(r.code))
     .map((r) => r.display_name);
+
+  // For "Myself" tab, derive the effective email to show in summary
+  const effectiveEmail = activeTab === "myself" ? adminEmail : userEmail;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -136,19 +156,29 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
           {activeTab === "myself" ? (
             <div className="space-y-4">
-              {/* User card */}
-              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-                <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
-                  PA
+              {/* User card — dynamic from admin profile */}
+              {profileLoading ? (
+                <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <div className="space-y-1.5">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-foreground">Platform Admin</p>
-                  <p className="text-xs text-muted-foreground truncate">admin@cogiblend.com</p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5">
-                    Platform Admin — self-assigning all selected roles
-                  </p>
+              ) : (
+                <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+                  <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
+                    {adminInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{adminName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{adminEmail}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      {adminProfile?.admin_tier ?? "Platform Admin"} — self-assigning all selected roles
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Roles section */}
               <RoleSelectionSection
@@ -227,11 +257,11 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
 
         {/* Summary Bar + Footer */}
         <div className="shrink-0 border-t px-6 py-4 space-y-3">
-          {selectedRoles.length > 0 && userEmail && (
+          {selectedRoles.length > 0 && effectiveEmail && (
             <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span>
-                Ready to assign {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {userEmail || "user"}
+                Ready to assign {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {effectiveEmail || "user"}
               </span>
               <div className="flex flex-wrap gap-1 ml-1">
                 {selectedRoleNames.slice(0, 3).map((name) => (
