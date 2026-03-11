@@ -160,13 +160,7 @@ export default function RoleManagementDashboard() {
                   if (tabsList instanceof HTMLElement) tabsList.click();
                 }} />
               ) : (
-                <RoleTable
-                  roles={aggChallengeRoles}
-                  assignments={assignments ?? []}
-                  onInvite={(code) => handleInvite(code, "agg")}
-                  onDeactivate={handleDeactivate}
-                  isDeactivating={deactivate.isPending}
-                />
+                <AggRoleManagement orgId={DEMO_ORG_ID} />
               )}
             </TabsContent>
           </Tabs>
