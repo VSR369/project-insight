@@ -27,7 +27,7 @@ export default function AssignmentHistoryPage() {
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: availStatuses } = useAvailabilityStatuses();
 
-  const [reassignTarget, setReassignTarget] = useState<ChallengeAssignmentRow | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ assignment: ChallengeAssignmentRow; challengeTitle: string } | null>(null);
 
   const isLoading = reqLoading || assignLoading;
 
@@ -144,7 +144,7 @@ export default function AssignmentHistoryPage() {
                             variant="ghost"
                             size="sm"
                             className="text-xs text-primary hover:text-primary/80"
-                            onClick={() => setReassignTarget(a)}
+                            onClick={() => setReassignTarget({ assignment: a, challengeTitle: challenge.title })}
                           >
                             Reassign
                           </Button>
@@ -162,7 +162,8 @@ export default function AssignmentHistoryPage() {
       {/* Reassignment Modal */}
       {reassignTarget && (
         <ReassignmentModal
-          assignment={reassignTarget}
+          assignment={reassignTarget.assignment}
+          challengeTitle={reassignTarget.challengeTitle}
           open={!!reassignTarget}
           onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
         />
