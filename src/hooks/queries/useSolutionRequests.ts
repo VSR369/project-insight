@@ -94,7 +94,7 @@ export function useSolutionRequests() {
         title: c.title,
         status: c.status,
         organization_id: c.organization_id,
-        org_name: c.seeker_organizations?.legal_name ?? "Unknown Organization",
+        org_name: c.seeker_organizations?.organization_name ?? "Unknown Organization",
         engagement_model_id: c.engagement_model_id,
         created_at: c.created_at,
         assignment_count: assignmentCounts[c.id] ?? 0,
