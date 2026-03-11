@@ -162,7 +162,8 @@ export default function AssignmentHistoryPage() {
       {/* Reassignment Modal */}
       {reassignTarget && (
         <ReassignmentModal
-          assignment={reassignTarget}
+          assignment={reassignTarget.assignment}
+          challengeTitle={reassignTarget.challengeTitle}
           open={!!reassignTarget}
           onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
         />
