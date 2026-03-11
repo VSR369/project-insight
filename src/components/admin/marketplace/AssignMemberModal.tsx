@@ -20,7 +20,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2, AlertTriangle } from "lucide-react";
+import { Loader2, AlertTriangle, ExternalLink, Users } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useAssignMember, useChallengeAssignments } from "@/hooks/queries/useSolutionRequests";
 import { usePoolMembers } from "@/hooks/queries/usePoolMembers";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
