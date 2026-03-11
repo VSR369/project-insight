@@ -121,27 +121,27 @@ export default function RoleManagementDashboard() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <Tabs defaultValue="core">
+          <Tabs defaultValue="slm-pool">
             <TabsList className="mb-4">
-              <TabsTrigger value="core">Core Roles</TabsTrigger>
-              <TabsTrigger value="challenge">Challenge Roles</TabsTrigger>
+              <TabsTrigger value="slm-pool">SLM Roles (Marketplace)</TabsTrigger>
+              <TabsTrigger value="org-core">Org Core Roles</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="core">
+            <TabsContent value="slm-pool">
               <RoleTable
-                roles={coreRoles}
+                roles={slmPoolRoles}
                 assignments={assignments ?? []}
-                onInvite={(code) => handleInvite(code, "core")}
+                onInvite={(code) => handleInvite(code, "challenge")}
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
             </TabsContent>
 
-            <TabsContent value="challenge">
+            <TabsContent value="org-core">
               <RoleTable
-                roles={challengeRoles}
+                roles={orgCoreRoles}
                 assignments={assignments ?? []}
-                onInvite={(code) => handleInvite(code, "challenge")}
+                onInvite={(code) => handleInvite(code, "core")}
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
