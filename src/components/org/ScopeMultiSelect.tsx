@@ -143,8 +143,8 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
 
   // Toggle handlers for "All" switches
   const toggleAllIndustries = (checked: boolean) => {
+    setIsAllIndustries(checked);
     if (checked) {
-      // Set ALL — clear industry selections and cascade clear children
       onChange({
         ...value,
         industry_segment_ids: [],
@@ -152,13 +152,14 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
         sub_domain_ids: [],
         speciality_ids: [],
       });
-    } else {
-      // Turning off ALL — keep empty (user must now pick at least one)
-      // Arrays are already empty, no change needed
+      setIsAllProficiency(true);
+      setIsAllSubDomains(true);
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllProficiency = (checked: boolean) => {
+    setIsAllProficiency(checked);
     if (checked) {
       onChange({
         ...value,
@@ -166,20 +167,25 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
         sub_domain_ids: [],
         speciality_ids: [],
       });
+      setIsAllSubDomains(true);
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllSubDomains = (checked: boolean) => {
+    setIsAllSubDomains(checked);
     if (checked) {
       onChange({
         ...value,
         sub_domain_ids: [],
         speciality_ids: [],
       });
+      setIsAllSpecialities(true);
     }
   };
 
   const toggleAllSpecialities = (checked: boolean) => {
+    setIsAllSpecialities(checked);
     if (checked) {
       onChange({
         ...value,
@@ -189,9 +195,9 @@ export function ScopeMultiSelect({ value, onChange, hideDepartments = false, all
   };
 
   // Determine visibility of cascading sections
-  const showProficiency = allIndustries || value.industry_segment_ids.length > 0;
-  const showSubDomains = !allProficiency && value.proficiency_area_ids.length > 0;
-  const showSpecialities = !allSubDomains && value.sub_domain_ids.length > 0;
+  const showProficiency = isAllIndustries || value.industry_segment_ids.length > 0;
+  const showSubDomains = !isAllProficiency && value.proficiency_area_ids.length > 0;
+  const showSpecialities = !isAllSubDomains && value.sub_domain_ids.length > 0;
 
   return (
     <div className="space-y-4">
