@@ -39,16 +39,16 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
-  const { data: coreRoles, isLoading: coreLoading } = useCoreRoleCodes();
-  const { data: challengeRoles, isLoading: challengeLoading } = useChallengeRoleCodes("mp");
+  const { data: slmPoolRoles, isLoading: poolLoading } = useSlmPoolRoles();
+  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4: Derived state
   // ══════════════════════════════════════
-  const isLoading = coreLoading || challengeLoading || assignmentsLoading;
-  const availableRolesForSheet = assignContext === "core" ? coreRoles : challengeRoles;
+  const isLoading = poolLoading || orgCoreLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : slmPoolRoles;
 
   // ══════════════════════════════════════
   // SECTION 5: Event handlers
