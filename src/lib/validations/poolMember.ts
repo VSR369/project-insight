@@ -12,11 +12,11 @@ export const domainScopeSchema = z.object({
   industry_segment_ids: z
     .array(z.string().uuid())
     .min(1, "At least one Industry Segment is required"),
-  proficiency_area_ids: z.array(z.string().uuid()).default([]),
-  sub_domain_ids: z.array(z.string().uuid()).default([]),
-  speciality_ids: z.array(z.string().uuid()).default([]),
-  department_ids: z.array(z.string().uuid()).default([]),
-  functional_area_ids: z.array(z.string().uuid()).default([]),
+  proficiency_area_ids: z.array(z.string().uuid()),
+  sub_domain_ids: z.array(z.string().uuid()),
+  speciality_ids: z.array(z.string().uuid()),
+  department_ids: z.array(z.string().uuid()),
+  functional_area_ids: z.array(z.string().uuid()),
 });
 
 export const poolMemberSchema = z.object({
