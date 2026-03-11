@@ -12,6 +12,7 @@ import { User, Mail } from "lucide-react";
 import { RoleReadinessWidget } from "@/components/rbac/RoleReadinessWidget";
 import { SoaContactDetailsPanel } from "@/components/rbac/SoaContactDetailsPanel";
 import { RoleTable } from "@/components/rbac/roles/RoleTable";
+import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
