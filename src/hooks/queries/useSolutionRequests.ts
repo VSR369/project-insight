@@ -43,36 +43,37 @@ export function useSolutionRequests() {
   return useQuery({
     queryKey: ["solution-requests"],
     queryFn: async () => {
-      // Fetch challenges that use the Marketplace engagement model
-      // First get the Marketplace model ID
-      const { data: models } = await supabase
-        .from("md_engagement_models")
-        .select("id")
-        .eq("code", "marketplace")
-        .eq("is_active", true)
-        .limit(1);
+      // Parallel: fetch marketplace model ID + all challenges at once
+      const [modelsRes, challengesRes] = await Promise.all([
+        supabase
+          .from("md_engagement_models")
+          .select("id")
+          .eq("code", "marketplace")
+          .eq("is_active", true)
+          .limit(1),
+        supabase
+          .from("challenges")
+          .select(`
+            id, title, status, organization_id, engagement_model_id, created_at,
+            seeker_organizations!challenges_organization_id_fkey ( organization_name )
+          `)
+          .eq("is_active", true)
+          .eq("is_deleted", false)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ]);
 
-      const marketplaceModelId = models?.[0]?.id;
+      const marketplaceModelId = modelsRes.data?.[0]?.id;
+      if (challengesRes.error) throw new Error(challengesRes.error.message);
 
-      let query = supabase
-        .from("challenges")
-        .select(`
-          id, title, status, organization_id, engagement_model_id, created_at,
-          seeker_organizations!challenges_organization_id_fkey ( organization_name )
-        `)
-        .eq("is_active", true)
-        .eq("is_deleted", false)
-        .order("created_at", { ascending: false });
-
+      // Filter client-side if marketplace model found (avoids sequential call)
+      let challenges = challengesRes.data ?? [];
       if (marketplaceModelId) {
-        query = query.eq("engagement_model_id", marketplaceModelId);
+        challenges = challenges.filter((c: any) => c.engagement_model_id === marketplaceModelId);
       }
 
-      const { data: challenges, error } = await query;
-      if (error) throw new Error(error.message);
-
-      // Get assignment counts for each challenge
-      const challengeIds = (challenges ?? []).map((c: any) => c.id);
+      // Parallel: fetch assignment counts alongside (already done above)
+      const challengeIds = challenges.map((c: any) => c.id);
       let assignmentCounts: Record<string, number> = {};
 
       if (challengeIds.length > 0) {
@@ -80,7 +81,8 @@ export function useSolutionRequests() {
           .from("challenge_role_assignments")
           .select("challenge_id")
           .in("challenge_id", challengeIds)
-          .eq("status", "active");
+          .eq("status", "active")
+          .limit(200);
 
         if (assignments) {
           for (const a of assignments) {
@@ -89,7 +91,7 @@ export function useSolutionRequests() {
         }
       }
 
-      return (challenges ?? []).map((c: any) => ({
+      return challenges.map((c: any) => ({
         id: c.id,
         title: c.title,
         status: c.status,
