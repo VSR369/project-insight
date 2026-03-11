@@ -433,6 +433,7 @@ export function AdminSidebar() {
                     <Mail className="h-4 w-4" />
                     <span>Email Templates</span>
                   </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
