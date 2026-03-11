@@ -1,6 +1,6 @@
 /**
  * MsmeQuickAssignModal — 3-tab bulk assign: Myself / New User / Existing Member
- * Role checkboxes from md_slm_role_codes — no hardcoded values
+ * Purple info banner, user card, role checkboxes with badges, summary bar, warnings
  */
 
 import { useState } from "react";
@@ -12,16 +12,15 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { User, UserPlus, Users, Zap } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { User, UserPlus, Users, Info, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSlmRoleCodes, type SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useBulkCreateRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
@@ -41,11 +40,11 @@ interface MsmeQuickAssignModalProps {
 }
 
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
-  const [activeTab, setActiveTab] = useState("new_user");
+  const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
+  const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
 
-  // Get all applicable roles (core + challenge)
   const applicableRoles = allRoles?.filter((r) =>
     r.model_applicability === "mp" || r.model_applicability === "both"
   ) ?? [];
@@ -59,8 +58,19 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     },
   });
 
+  const selectedRoles = form.watch("selected_roles");
+  const userEmail = form.watch("user_email");
+
   const isRoleFilled = (code: string) =>
     assignments.some((a) => a.role_code === code && (a.status === "active" || a.status === "invited"));
+
+  const handleSelectAll = () => {
+    form.setValue("selected_roles", applicableRoles.map((r) => r.code));
+  };
+
+  const handleClearAll = () => {
+    form.setValue("selected_roles", []);
+  };
 
   const onSubmit = async (data: QuickAssignValues) => {
     const inputs = data.selected_roles.map((roleCode) => ({
@@ -76,50 +86,104 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     onOpenChange(false);
   };
 
+  const selectedRoleNames = applicableRoles
+    .filter((r) => selectedRoles.includes(r.code))
+    .map((r) => r.display_name);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
-        <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-5 w-5 text-primary" />
-            Quick Assign All Roles
-          </DialogTitle>
+      <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-0">
+        <DialogHeader className="shrink-0 px-6 pt-6 pb-0">
+          <DialogTitle className="text-lg">MSME Quick Assign</DialogTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Assign one person to multiple roles at once
+          </p>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 min-h-0 flex flex-col">
-          <TabsList className="shrink-0 grid w-full grid-cols-3">
-            <TabsTrigger value="myself" className="gap-1 text-xs">
-              <User className="h-3.5 w-3.5" />
-              Myself
-            </TabsTrigger>
-            <TabsTrigger value="new_user" className="gap-1 text-xs">
-              <UserPlus className="h-3.5 w-3.5" />
-              New User
-            </TabsTrigger>
-            <TabsTrigger value="existing" className="gap-1 text-xs">
-              <Users className="h-3.5 w-3.5" />
-              Existing
-            </TabsTrigger>
-          </TabsList>
+        {/* Purple info banner */}
+        <div className="shrink-0 mx-6 mt-3 flex items-start gap-2 text-xs bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md px-3 py-2">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>
+            MSME mode is active. One person can be assigned to all marketplace roles simultaneously.
+          </span>
+        </div>
 
-          <TabsContent value="myself" className="flex-1 min-h-0 overflow-y-auto py-4">
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-              <User className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">
-                "Assign to Myself" will auto-populate your profile details. This requires authentication context.
-              </p>
+        {/* Tab Toggle */}
+        <div className="shrink-0 mx-6 mt-3 grid grid-cols-3 gap-1 bg-muted rounded-lg p-1">
+          {(["myself", "new_user", "existing"] as const).map((tab) => {
+            const icons = { myself: User, new_user: UserPlus, existing: Users };
+            const labels = { myself: "Myself", new_user: "New User (Invite)", existing: "Existing Team Member" };
+            const Icon = icons[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                className={`flex items-center justify-center gap-1 rounded-md px-2 py-2 text-[11px] font-medium transition-colors ${
+                  activeTab === tab
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+                onClick={() => setActiveTab(tab)}
+              >
+                <Icon className="h-3 w-3" />
+                {labels[tab]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">
+          {activeTab === "myself" ? (
+            <div className="space-y-4">
+              {/* User card */}
+              <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
+                <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
+                  PA
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground">Platform Admin</p>
+                  <p className="text-xs text-muted-foreground truncate">admin@cogiblend.com</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
+                    Platform Admin — self-assigning all selected roles
+                  </p>
+                </div>
+              </div>
+
+              {/* Roles section */}
+              <RoleSelectionSection
+                applicableRoles={applicableRoles}
+                selectedRoles={selectedRoles}
+                isRoleFilled={isRoleFilled}
+                form={form}
+                onSelectAll={handleSelectAll}
+                onClearAll={handleClearAll}
+              />
+
+              {/* Domain Taxonomy */}
+              <Collapsible open={taxonomyOpen} onOpenChange={setTaxonomyOpen}>
+                <CollapsibleTrigger asChild>
+                  <button type="button" className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors py-1">
+                    {taxonomyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                    Domain Taxonomy (Optional)
+                  </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <p className="text-xs text-muted-foreground py-2 pl-6">
+                    Domain taxonomy selectors will cascade here when industry data is available.
+                  </p>
+                </CollapsibleContent>
+              </Collapsible>
             </div>
-          </TabsContent>
-
-          <TabsContent value="new_user" className="flex-1 min-h-0 overflow-y-auto py-4">
+          ) : activeTab === "new_user" ? (
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" id="msme-assign-form">
                 <FormField
                   control={form.control}
                   name="user_name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Full Name</FormLabel>
+                      <FormLabel>Full Name *</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter full name" {...field} />
                       </FormControl>
@@ -127,13 +191,12 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                     </FormItem>
                   )}
                 />
-
                 <FormField
                   control={form.control}
                   name="user_email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email Address</FormLabel>
+                      <FormLabel>Email Address *</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="user@organization.com" {...field} />
                       </FormControl>
@@ -142,89 +205,153 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                   )}
                 />
 
-                <div>
-                  <Label className="text-sm font-medium">Select Roles</Label>
-                  <div className="mt-2 space-y-2">
-                    {applicableRoles.map((role) => {
-                      const filled = isRoleFilled(role.code);
-                      return (
-                        <RoleCheckboxItem
-                          key={role.id}
-                          role={role}
-                          isFilled={filled}
-                          form={form}
-                        />
-                      );
-                    })}
-                  </div>
-                  {form.formState.errors.selected_roles && (
-                    <p className="text-sm text-destructive mt-1">
-                      {form.formState.errors.selected_roles.message}
-                    </p>
-                  )}
-                </div>
-
-                <DialogFooter className="shrink-0 pt-4">
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                    Cancel
-                  </Button>
-                  <Button type="submit" disabled={bulkCreate.isPending}>
-                    {bulkCreate.isPending ? "Assigning..." : "Assign Selected Roles"}
-                  </Button>
-                </DialogFooter>
+                <RoleSelectionSection
+                  applicableRoles={applicableRoles}
+                  selectedRoles={selectedRoles}
+                  isRoleFilled={isRoleFilled}
+                  form={form}
+                  onSelectAll={handleSelectAll}
+                  onClearAll={handleClearAll}
+                />
               </form>
             </Form>
-          </TabsContent>
-
-          <TabsContent value="existing" className="flex-1 min-h-0 overflow-y-auto py-4">
-            <div className="flex flex-col items-center justify-center py-8 text-center">
+          ) : (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
                 Existing team member selection will be available once team members are onboarded.
               </p>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+        </div>
+
+        {/* Summary Bar + Footer */}
+        <div className="shrink-0 border-t px-6 py-4 space-y-3">
+          {selectedRoles.length > 0 && userEmail && (
+            <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+              <span>
+                Ready to assign {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {userEmail || "user"}
+              </span>
+              <div className="flex flex-wrap gap-1 ml-1">
+                {selectedRoleNames.slice(0, 3).map((name) => (
+                  <Badge key={name} variant="outline" className="text-[10px] bg-green-100/50 dark:bg-green-900/30 border-green-300 dark:border-green-700">
+                    {name}
+                  </Badge>
+                ))}
+                {selectedRoleNames.length > 3 && (
+                  <Badge variant="outline" className="text-[10px]">+{selectedRoleNames.length - 3}</Badge>
+                )}
+              </div>
+            </div>
+          )}
+
+          {selectedRoles.length >= 4 && (
+            <div className="flex items-start gap-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-md px-3 py-2">
+              <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+              <span>
+                This person will hold all {selectedRoles.length} roles. This is typical for MSMEs but may need review for larger organisations.
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button
+              onClick={form.handleSubmit(onSubmit)}
+              disabled={bulkCreate.isPending || selectedRoles.length === 0}
+              className="bg-purple-600 hover:bg-purple-700 text-white"
+            >
+              {bulkCreate.isPending ? "Assigning..." : `Assign ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
 
-function RoleCheckboxItem({
-  role,
-  isFilled,
+/** Shared role checkbox section */
+function RoleSelectionSection({
+  applicableRoles,
+  selectedRoles,
+  isRoleFilled,
   form,
+  onSelectAll,
+  onClearAll,
 }: {
-  role: SlmRoleCode;
-  isFilled: boolean;
+  applicableRoles: SlmRoleCode[];
+  selectedRoles: string[];
+  isRoleFilled: (code: string) => boolean;
   form: ReturnType<typeof useForm<QuickAssignValues>>;
+  onSelectAll: () => void;
+  onClearAll: () => void;
 }) {
-  const selectedRoles = form.watch("selected_roles");
-
   return (
-    <div className="flex items-center gap-3 p-2 rounded-md border bg-background">
-      <Checkbox
-        checked={selectedRoles.includes(role.code)}
-        disabled={isFilled}
-        onCheckedChange={(checked) => {
-          const current = form.getValues("selected_roles");
-          if (checked) {
-            form.setValue("selected_roles", [...current, role.code]);
-          } else {
-            form.setValue("selected_roles", current.filter((c) => c !== role.code));
-          }
-        }}
-      />
-      <div className="flex-1">
-        <span className="text-sm font-medium text-foreground">{role.display_name}</span>
-        <Badge variant="outline" className="ml-2 text-[10px]">
-          {role.is_core ? "core" : "challenge"}
-        </Badge>
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <Label className="text-sm font-medium">
+          Roles to Assign ({selectedRoles.length} selected)
+        </Label>
+        <div className="flex items-center gap-2 text-xs">
+          <button type="button" className="text-primary hover:underline" onClick={onSelectAll}>
+            Select All
+          </button>
+          <span className="text-muted-foreground">|</span>
+          <button type="button" className="text-muted-foreground hover:underline" onClick={onClearAll}>
+            Clear
+          </button>
+        </div>
       </div>
-      {isFilled && (
-        <Badge variant="secondary" className="text-[10px]">
-          Already filled
-        </Badge>
+      <div className="space-y-1.5">
+        {applicableRoles.map((role) => {
+          const filled = isRoleFilled(role.code);
+          const isChecked = selectedRoles.includes(role.code);
+          return (
+            <div
+              key={role.id}
+              className="flex items-center gap-3 p-2.5 rounded-md border bg-background"
+            >
+              <Checkbox
+                checked={isChecked}
+                onCheckedChange={(checked) => {
+                  const current = form.getValues("selected_roles");
+                  if (checked) {
+                    form.setValue("selected_roles", [...current, role.code]);
+                  } else {
+                    form.setValue("selected_roles", current.filter((c) => c !== role.code));
+                  }
+                }}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-foreground">{role.display_name}</span>
+                  <Badge variant="outline" className="text-[10px] font-mono">
+                    {role.code}
+                  </Badge>
+                  <Badge
+                    variant="secondary"
+                    className="text-[10px]"
+                  >
+                    {role.is_core ? "core" : "challenge"}
+                  </Badge>
+                </div>
+              </div>
+              {filled && (
+                <span className="text-[10px] text-green-600 dark:text-green-400 shrink-0">
+                  Already filled — assigning will add as co-holder
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {form.formState.errors.selected_roles && (
+        <p className="text-sm text-destructive mt-1">
+          {form.formState.errors.selected_roles.message}
+        </p>
       )}
     </div>
   );

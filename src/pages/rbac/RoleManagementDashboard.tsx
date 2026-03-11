@@ -1,23 +1,22 @@
 /**
  * RoleManagementDashboard — SCR-08: Role Management for Seeking Org
- * Readiness widget, Core/Challenge role tabs, MSME toggle
- * All role data from master data tables — zero hardcoded values
+ * Layout: Readiness Widget → Contact Details → MSME Toggle → Quick Links → Role Tabs
  */
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Shield } from "lucide-react";
+import { User, Mail } from "lucide-react";
 import { RoleReadinessWidget } from "@/components/rbac/RoleReadinessWidget";
+import { SoaContactDetailsPanel } from "@/components/rbac/SoaContactDetailsPanel";
 import { RoleTable } from "@/components/rbac/roles/RoleTable";
-import { AssignRoleModal } from "@/components/rbac/roles/AssignRoleModal";
+import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useCoreRoleCodes, useChallengeRoleCodes, useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { useCoreRoleCodes, useChallengeRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
-import { useEngagementModels } from "@/hooks/queries/useEngagementModels";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Demo org ID — in production, this would come from auth context
@@ -27,141 +26,136 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
-  const [selectedModel, setSelectedModel] = useState("mp");
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
+  const [assignSheetOpen, setAssignSheetOpen] = useState(false);
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
   const [assignContext, setAssignContext] = useState<"core" | "challenge">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
 
   // ══════════════════════════════════════
-  // SECTION 2: Query/Mutation hooks
+  // SECTION 2: Navigation hooks
+  // ══════════════════════════════════════
+  const navigate = useNavigate();
+
+  // ══════════════════════════════════════
+  // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
   const { data: coreRoles, isLoading: coreLoading } = useCoreRoleCodes();
-  const { data: challengeRoles, isLoading: challengeLoading } = useChallengeRoleCodes(selectedModel);
-  const { data: allRoles } = useSlmRoleCodes();
+  const { data: challengeRoles, isLoading: challengeLoading } = useChallengeRoleCodes("mp");
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(DEMO_ORG_ID);
-  const { data: engagementModels } = useEngagementModels();
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
-  // SECTION 3: Conditional returns (AFTER ALL HOOKS)
+  // SECTION 4: Derived state
   // ══════════════════════════════════════
   const isLoading = coreLoading || challengeLoading || assignmentsLoading;
+  const availableRolesForSheet = assignContext === "core" ? coreRoles : challengeRoles;
 
   // ══════════════════════════════════════
-  // SECTION 4: Event handlers
+  // SECTION 5: Event handlers
   // ══════════════════════════════════════
   const handleInvite = (roleCode: string, context: "core" | "challenge") => {
     setAssignRoleCode(roleCode);
     setAssignContext(context);
-    setAssignModalOpen(true);
+    setAssignSheetOpen(true);
   };
 
   const handleDeactivate = (assignmentId: string) => {
     deactivate.mutate({ id: assignmentId, orgId: DEMO_ORG_ID });
   };
 
-  // Get roles for the assign modal based on context
-  const availableRolesForModal = assignContext === "core" ? coreRoles : challengeRoles;
-
   // ══════════════════════════════════════
-  // SECTION 5: Render
+  // SECTION 6: Render
   // ══════════════════════════════════════
   return (
     <ErrorBoundary componentName="RoleManagementDashboard">
-      <div className="space-y-6 p-6">
+      <div className="space-y-5 p-6">
         {/* Header */}
         <div>
           <nav className="text-xs text-muted-foreground mb-1">
-            Organization &gt; Role Management
+            CogibleND Platform
           </nav>
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Shield className="h-6 w-6 text-primary" />
-                Role Management
-              </h1>
-              <p className="text-sm text-muted-foreground mt-1">
-                Manage core and challenge roles for your organization.
-              </p>
-            </div>
-            {/* Model Selector */}
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                {engagementModels?.map((m) => (
-                  <SelectItem key={m.id} value={m.code}>
-                    {m.name}
-                  </SelectItem>
-                )) ?? (
-                  <>
-                    <SelectItem value="mp">Marketplace</SelectItem>
-                    <SelectItem value="agg">Aggregator</SelectItem>
-                  </>
-                )}
-              </SelectContent>
-            </Select>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">
+            Role Management Dashboard
+          </h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Manage core and challenge roles for your organization.
+          </p>
         </div>
 
         {/* Role Readiness Widget */}
-        <RoleReadinessWidget orgId={DEMO_ORG_ID} model={selectedModel} />
+        <RoleReadinessWidget orgId={DEMO_ORG_ID} model="mp" />
+
+        {/* Contact Details Accordion */}
+        <SoaContactDetailsPanel />
 
         {/* MSME Toggle */}
         <MsmeToggle orgId={DEMO_ORG_ID} onQuickAssign={() => setQuickAssignOpen(true)} />
 
-        {/* Role Tabs: Core / Challenge */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Role Assignments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-              </div>
-            ) : (
-              <Tabs defaultValue="core">
-                <TabsList className="mb-4">
-                  <TabsTrigger value="core">Core Roles</TabsTrigger>
-                  <TabsTrigger value="challenge">Challenge Roles</TabsTrigger>
-                </TabsList>
+        {/* Quick Links */}
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => navigate("/admin/marketplace/admin-contact")}
+          >
+            <User className="h-3.5 w-3.5" />
+            Platform Admin Profile
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => navigate("/admin/marketplace/email-templates")}
+          >
+            <Mail className="h-3.5 w-3.5" />
+            Email Templates
+          </Button>
+        </div>
 
-                <TabsContent value="core">
-                  <RoleTable
-                    roles={coreRoles}
-                    assignments={assignments ?? []}
-                    onInvite={(code) => handleInvite(code, "core")}
-                    onDeactivate={handleDeactivate}
-                    isDeactivating={deactivate.isPending}
-                  />
-                </TabsContent>
+        {/* Role Tabs (bare — no Card wrapper) */}
+        {isLoading ? (
+          <div className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : (
+          <Tabs defaultValue="core">
+            <TabsList className="mb-4">
+              <TabsTrigger value="core">Core Roles</TabsTrigger>
+              <TabsTrigger value="challenge">Challenge Roles</TabsTrigger>
+            </TabsList>
 
-                <TabsContent value="challenge">
-                  <RoleTable
-                    roles={challengeRoles}
-                    assignments={assignments ?? []}
-                    onInvite={(code) => handleInvite(code, "challenge")}
-                    onDeactivate={handleDeactivate}
-                    isDeactivating={deactivate.isPending}
-                  />
-                </TabsContent>
-              </Tabs>
-            )}
-          </CardContent>
-        </Card>
+            <TabsContent value="core">
+              <RoleTable
+                roles={coreRoles}
+                assignments={assignments ?? []}
+                onInvite={(code) => handleInvite(code, "core")}
+                onDeactivate={handleDeactivate}
+                isDeactivating={deactivate.isPending}
+              />
+            </TabsContent>
 
-        {/* Assign Role Modal */}
-        <AssignRoleModal
-          open={assignModalOpen}
-          onOpenChange={setAssignModalOpen}
+            <TabsContent value="challenge">
+              <RoleTable
+                roles={challengeRoles}
+                assignments={assignments ?? []}
+                onInvite={(code) => handleInvite(code, "challenge")}
+                onDeactivate={handleDeactivate}
+                isDeactivating={deactivate.isPending}
+              />
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* Assign Role Sheet */}
+        <AssignRoleSheet
+          open={assignSheetOpen}
+          onOpenChange={setAssignSheetOpen}
           orgId={DEMO_ORG_ID}
           preSelectedRoleCode={assignRoleCode}
-          availableRoles={availableRolesForModal}
+          availableRoles={availableRolesForSheet}
         />
 
         {/* MSME Quick Assign Modal */}
