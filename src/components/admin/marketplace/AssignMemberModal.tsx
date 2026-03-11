@@ -65,12 +65,20 @@ export function AssignMemberModal({
     .filter((a) => a.role_code === selectedRole)
     .map((a) => a.pool_member_id);
 
-  // Eligible candidates: have the role, not already assigned to it, not fully booked
-  const candidates = (poolMembers ?? []).filter(
-    (m) =>
-      m.availability_status !== "fully_booked" &&
-      !existingMemberIdsForRole.includes(m.id)
+  // All pool members matching the role but not already assigned
+  const allMatchingMembers = (poolMembers ?? []).filter(
+    (m) => !existingMemberIdsForRole.includes(m.id)
   );
+
+  // Eligible candidates: not fully booked
+  const candidates = allMatchingMembers.filter(
+    (m) => m.availability_status !== "fully_booked"
+  );
+
+  // Count of members who have the role but are fully booked
+  const fullyBookedCount = allMatchingMembers.filter(
+    (m) => m.availability_status === "fully_booked"
+  ).length;
 
   const isDuplicateRoleAssignment = existingMemberIdsForRole.includes(selectedMemberId);
 
