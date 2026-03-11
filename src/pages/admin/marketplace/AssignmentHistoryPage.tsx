@@ -187,6 +187,17 @@ export default function AssignmentHistoryPage() {
           onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
         />
       )}
+
+      {/* Assign Member Modal */}
+      {assignTarget && (
+        <AssignMemberModal
+          challengeId={assignTarget.challengeId}
+          challengeTitle={assignTarget.challengeTitle}
+          missingRoles={assignTarget.missingRoles}
+          open={!!assignTarget}
+          onOpenChange={(open) => { if (!open) setAssignTarget(null); }}
+        />
+      )}
     </div>
   );
 }
