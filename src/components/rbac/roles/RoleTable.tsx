@@ -1,12 +1,13 @@
 /**
  * RoleTable — Renders role rows with spec-exact styling
- * Uppercase headers, avatar initials, colored status badges, proper action buttons
+ * Uppercase headers, avatar initials, dynamic status badges from master data, proper action buttons
  */
 
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, UserMinus } from "lucide-react";
+import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
@@ -26,35 +27,6 @@ function getInitials(name: string | null): string {
     .slice(0, 2)
     .join("")
     .toUpperCase();
-}
-
-function StatusBadge({ status }: { status: string }) {
-  switch (status) {
-    case "active":
-      return (
-        <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-0 text-xs">
-          Active
-        </Badge>
-      );
-    case "invited":
-      return (
-        <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400 border-0 text-xs">
-          Invited
-        </Badge>
-      );
-    case "suspended":
-      return (
-        <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-400 border-0 text-xs">
-          Suspended
-        </Badge>
-      );
-    default:
-      return (
-        <Badge className="bg-destructive/10 text-destructive border-0 text-xs">
-          Unassigned
-        </Badge>
-      );
-  }
 }
 
 export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeactivating }: RoleTableProps) {
@@ -115,11 +87,11 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                 </TableCell>
                 <TableCell>
                   {isUnassigned ? (
-                    <StatusBadge status="unassigned" />
+                    <RoleAssignmentStatusBadge statusCode="unassigned" />
                   ) : (
                     <div className="space-y-1">
                       {roleAssignments.map((a) => (
-                        <StatusBadge key={a.id} status={a.status} />
+                        <RoleAssignmentStatusBadge key={a.id} statusCode={a.status} />
                       ))}
                     </div>
                   )}

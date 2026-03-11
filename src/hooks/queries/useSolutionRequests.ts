@@ -1,6 +1,8 @@
 /**
  * CRUD hooks for Solution Requests Queue & Assignment History (MOD-02)
  * BRD Ref: BR-MP-ASSIGN-001–005, SCR-04/06/07
+ * 
+ * All role codes and min_required derive from md_slm_role_codes master data.
  */
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,26 +10,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
-import { MARKETPLACE_CORE_ROLES } from "@/lib/validations/challengeAssignment";
+import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 
 /* ─── Types ────────────────────────────────────────────── */
 
-/** Required count per role for a complete team */
-const REQUIRED_ROLE_COUNTS: Record<string, number> = {
-  R3: 1,
-  R5_MP: 1,
-  R6_MP: 1,
-  R7_MP: 2,
-};
-
 export interface TeamComposition {
-  R3: number;
-  R5_MP: number;
-  R6_MP: number;
-  R7_MP: number;
+  roleCounts: Record<string, number>;
   total: number;
   isComplete: boolean;
-  missingRoles: { role: string; required: number; assigned: number }[];
+  missingRoles: { role: string; displayName: string; required: number; assigned: number }[];
 }
 
 export interface SolutionRequestRow {
@@ -59,8 +50,9 @@ export interface ChallengeAssignmentRow {
 
 /* ─── Helper: compute TeamComposition from assignments ── */
 
-function computeTeamComposition(
-  assignments: { role_code: string; pool_member_id: string }[]
+export function computeTeamComposition(
+  assignments: { role_code: string; pool_member_id: string }[],
+  mpRoles: SlmRoleCode[]
 ): TeamComposition {
   // Count unique pool_member_id per role_code
   const uniquePerRole: Record<string, Set<string>> = {};
@@ -69,36 +61,37 @@ function computeTeamComposition(
     uniquePerRole[a.role_code].add(a.pool_member_id);
   }
 
-  const counts = {
-    R3: uniquePerRole["R3"]?.size ?? 0,
-    R5_MP: uniquePerRole["R5_MP"]?.size ?? 0,
-    R6_MP: uniquePerRole["R6_MP"]?.size ?? 0,
-    R7_MP: uniquePerRole["R7_MP"]?.size ?? 0,
-  };
+  const roleCounts: Record<string, number> = {};
+  for (const role of mpRoles) {
+    roleCounts[role.code] = uniquePerRole[role.code]?.size ?? 0;
+  }
 
   const missingRoles: TeamComposition["missingRoles"] = [];
-  for (const [role, required] of Object.entries(REQUIRED_ROLE_COUNTS)) {
-    const assigned = counts[role as keyof typeof counts] ?? 0;
-    if (assigned < required) {
-      missingRoles.push({ role, required, assigned });
+  for (const role of mpRoles) {
+    const assigned = roleCounts[role.code] ?? 0;
+    if (assigned < role.min_required) {
+      missingRoles.push({
+        role: role.code,
+        displayName: role.display_name,
+        required: role.min_required,
+        assigned,
+      });
     }
   }
 
   return {
-    ...counts,
-    total: Object.values(counts).reduce((s, n) => s + n, 0),
+    roleCounts,
+    total: Object.values(roleCounts).reduce((s, n) => s + n, 0),
     isComplete: missingRoles.length === 0,
     missingRoles,
   };
 }
 
-export { computeTeamComposition };
-
 /* ─── useSolutionRequests ──────────────────────────────── */
 
-export function useSolutionRequests() {
+export function useSolutionRequests(mpRoles: SlmRoleCode[] = []) {
   return useQuery({
-    queryKey: ["solution-requests"],
+    queryKey: ["solution-requests", mpRoles.map((r) => r.code)],
     queryFn: async () => {
       const [modelsRes, challengesRes] = await Promise.all([
         supabase
@@ -129,7 +122,6 @@ export function useSolutionRequests() {
 
       const challengeIds = challenges.map((c: any) => c.id);
 
-      // Fetch role_code + pool_member_id for role-aware counting
       let assignmentsByChallenge: Record<string, { role_code: string; pool_member_id: string }[]> = {};
 
       if (challengeIds.length > 0) {
@@ -149,7 +141,7 @@ export function useSolutionRequests() {
       }
 
       return challenges.map((c: any) => {
-        const team = computeTeamComposition(assignmentsByChallenge[c.id] ?? []);
+        const team = computeTeamComposition(assignmentsByChallenge[c.id] ?? [], mpRoles);
         return {
           id: c.id,
           title: c.title,
@@ -163,6 +155,7 @@ export function useSolutionRequests() {
         };
       }) as SolutionRequestRow[];
     },
+    enabled: mpRoles.length > 0,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });
