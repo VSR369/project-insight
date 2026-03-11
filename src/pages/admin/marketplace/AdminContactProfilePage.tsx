@@ -1,31 +1,28 @@
 /**
  * AdminContactProfilePage — SCR-19: Platform Admin contact details
- * Exposed via Role Readiness API for org admins to reach out
+ * Back link, simple form, API info note, last updated timestamp
  */
 
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Info, Phone, Mail, User, Save } from "lucide-react";
+import { ArrowLeft, Info, Save } from "lucide-react";
 import { useAdminContact, useUpsertAdminContact } from "@/hooks/queries/useAdminContact";
 import { adminContactSchema, type AdminContactFormValues } from "@/lib/validations/roleAssignment";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { useEffect } from "react";
+import { format } from "date-fns";
 
 export default function AdminContactProfilePage() {
-  // ══════════════════════════════════════
-  // SECTION 1: Query hooks
-  // ══════════════════════════════════════
+  const navigate = useNavigate();
   const { data: contact, isLoading } = useAdminContact();
   const upsert = useUpsertAdminContact();
 
-  // ══════════════════════════════════════
-  // SECTION 2: Form hooks
-  // ══════════════════════════════════════
   const form = useForm<AdminContactFormValues>({
     resolver: zodResolver(adminContactSchema),
     defaultValues: {
@@ -35,9 +32,6 @@ export default function AdminContactProfilePage() {
     },
   });
 
-  // ══════════════════════════════════════
-  // SECTION 3: useEffect hooks
-  // ══════════════════════════════════════
   useEffect(() => {
     if (contact) {
       form.reset({
@@ -48,9 +42,6 @@ export default function AdminContactProfilePage() {
     }
   }, [contact, form]);
 
-  // ══════════════════════════════════════
-  // SECTION 4: Conditional returns (AFTER ALL HOOKS)
-  // ══════════════════════════════════════
   if (isLoading) {
     return (
       <div className="space-y-6 p-6">
@@ -60,9 +51,6 @@ export default function AdminContactProfilePage() {
     );
   }
 
-  // ══════════════════════════════════════
-  // SECTION 5: Event handlers
-  // ══════════════════════════════════════
   const onSubmit = async (data: AdminContactFormValues) => {
     await upsert.mutateAsync({
       id: contact?.id,
@@ -72,55 +60,41 @@ export default function AdminContactProfilePage() {
     });
   };
 
-  // ══════════════════════════════════════
-  // SECTION 6: Render
-  // ══════════════════════════════════════
+  const lastUpdated = contact?.updated_at
+    ? format(new Date(contact.updated_at), "dd MMM yyyy, HH:mm")
+    : null;
+
   return (
     <ErrorBoundary componentName="AdminContactProfilePage">
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
+        {/* Back link */}
+        <button
+          onClick={() => navigate("/admin/marketplace/roles")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Role Management
+        </button>
+
         {/* Header */}
         <div>
-          <nav className="text-xs text-muted-foreground mb-1">
-            Platform Admin &gt; Marketplace &gt; Admin Contact
-          </nav>
           <h1 className="text-2xl font-bold text-foreground">Admin Contact Profile</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Contact details exposed to seeking organizations via the Role Readiness API.
+            Platform Admin contact details exposed via the Role Readiness API
           </p>
         </div>
 
-        {/* Info Banner */}
-        <div className="flex items-start gap-3 rounded-lg border bg-primary/5 border-primary/20 p-4">
-          <Info className="h-5 w-5 text-primary mt-0.5 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-foreground">Role Readiness API Contact</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              These details are shown to organization admins when their role configuration is incomplete (NOT READY status).
-              They can use this contact to request assistance with role assignments.
-            </p>
-          </div>
-        </div>
-
-        {/* Form */}
+        {/* Form Card */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Contact Details</CardTitle>
-            <CardDescription>
-              Update the platform administrator contact information.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-md">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
                 <FormField
                   control={form.control}
                   name="name"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <User className="h-3.5 w-3.5" />
-                        Full Name
-                      </FormLabel>
+                      <FormLabel>Full Name *</FormLabel>
                       <FormControl>
                         <Input placeholder="Enter admin name" {...field} />
                       </FormControl>
@@ -134,10 +108,7 @@ export default function AdminContactProfilePage() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <Mail className="h-3.5 w-3.5" />
-                        Email Address
-                      </FormLabel>
+                      <FormLabel>Email *</FormLabel>
                       <FormControl>
                         <Input type="email" placeholder="admin@platform.com" {...field} />
                       </FormControl>
@@ -151,10 +122,7 @@ export default function AdminContactProfilePage() {
                   name="phone_intl"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="flex items-center gap-1.5">
-                        <Phone className="h-3.5 w-3.5" />
-                        Phone (International)
-                      </FormLabel>
+                      <FormLabel>Phone (international format) *</FormLabel>
                       <FormControl>
                         <Input placeholder="+1234567890" {...field} />
                       </FormControl>
@@ -163,10 +131,33 @@ export default function AdminContactProfilePage() {
                   )}
                 />
 
-                <Button type="submit" disabled={upsert.isPending} className="gap-1.5">
-                  <Save className="h-4 w-4" />
-                  {upsert.isPending ? "Saving..." : "Save Contact"}
-                </Button>
+                {/* Info note */}
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2.5">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    This contact information is exposed via the Role Readiness API to the CLM module.
+                    Changes will be reflected immediately in all API consumers.
+                  </span>
+                </div>
+
+                {/* Last updated + Save */}
+                <div className="flex items-center justify-between pt-2">
+                  <div>
+                    {lastUpdated && (
+                      <p className="text-xs text-muted-foreground">
+                        Last updated: {lastUpdated}
+                      </p>
+                    )}
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={upsert.isPending || !form.formState.isDirty}
+                    className="gap-1.5"
+                  >
+                    <Save className="h-4 w-4" />
+                    {upsert.isPending ? "Saving..." : "Save Changes"}
+                  </Button>
+                </div>
               </form>
             </Form>
           </CardContent>

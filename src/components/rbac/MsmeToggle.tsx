@@ -1,13 +1,15 @@
 /**
- * MsmeToggle — MSME/Small Team Mode switch with Quick Assign All button
+ * MsmeToggle — MSME/Small Team Mode switch
+ * Purple themed card, Active/Off badge, dynamic role codes, Quick Assign button
  */
 
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Zap, Info } from "lucide-react";
+import { Zap, Users } from "lucide-react";
 import { useMsmeConfig, useToggleMsmeConfig } from "@/hooks/queries/useMsmeConfig";
+import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 
 interface MsmeToggleProps {
   orgId: string;
@@ -17,53 +19,75 @@ interface MsmeToggleProps {
 export function MsmeToggle({ orgId, onQuickAssign }: MsmeToggleProps) {
   const { data: config } = useMsmeConfig(orgId);
   const toggleMsme = useToggleMsmeConfig();
+  const { data: allRoles } = useSlmRoleCodes();
 
   const isEnabled = config?.is_enabled ?? false;
+
+  // Get applicable role codes for display
+  const applicableRoleCodes = allRoles
+    ?.filter((r) => r.model_applicability === "mp" || r.model_applicability === "both")
+    .map((r) => r.code) ?? [];
+  const roleCodesDisplay = applicableRoleCodes.join(", ");
 
   const handleToggle = (checked: boolean) => {
     toggleMsme.mutate({ orgId, isEnabled: checked });
   };
 
   return (
-    <Card className={isEnabled ? "border-primary/40 bg-primary/5" : ""}>
-      <CardContent className="py-4">
+    <Card className={isEnabled
+      ? "border-purple-400/60 bg-purple-50/50 dark:bg-purple-950/20"
+      : ""
+    }>
+      <CardContent className="py-4 px-5">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
+            <div className={`rounded-lg p-2 ${isEnabled ? "bg-purple-100 dark:bg-purple-900/40" : "bg-muted"}`}>
+              <Users className={`h-4 w-4 ${isEnabled ? "text-purple-600 dark:text-purple-400" : "text-muted-foreground"}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-foreground">
+                  MSME / Small Team Mode
+                </span>
+                {isEnabled ? (
+                  <Badge className="bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400 border-0 text-[10px] px-1.5 py-0">
+                    Active
+                  </Badge>
+                ) : (
+                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                    Off
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Allow one person to hold all marketplace roles
+                {roleCodesDisplay && (
+                  <span className="text-muted-foreground/70"> ({roleCodesDisplay})</span>
+                )}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            {isEnabled && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={onQuickAssign}
+                className="gap-1.5 bg-purple-600 hover:bg-purple-700 text-white"
+              >
+                <Zap className="h-3.5 w-3.5" />
+                <span className="hidden lg:inline">Quick Assign All</span>
+                <span className="lg:hidden">Assign</span>
+              </Button>
+            )}
             <Switch
               checked={isEnabled}
               onCheckedChange={handleToggle}
               disabled={toggleMsme.isPending}
             />
-            <div>
-              <Label className="text-sm font-medium text-foreground cursor-pointer">
-                MSME / Small Team Mode
-              </Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Allow a single person to hold all marketplace roles
-              </p>
-            </div>
           </div>
-          {isEnabled && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={onQuickAssign}
-              className="gap-1.5"
-            >
-              <Zap className="h-3.5 w-3.5" />
-              <span className="hidden lg:inline">Quick Assign All</span>
-              <span className="lg:hidden">Assign</span>
-            </Button>
-          )}
         </div>
-        {isEnabled && (
-          <div className="mt-3 flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            <span>
-              When enabled, one person can be assigned to all 4 marketplace roles. Use "Quick Assign All" to assign in bulk.
-            </span>
-          </div>
-        )}
       </CardContent>
     </Card>
   );

@@ -1,26 +1,33 @@
 /**
  * EmailTemplatesPage — Preview NOT_READY and READY email templates
- * Uses placeholder variables — no hardcoded role names
+ * Realistic rendered email with branded header bars, From/To/Subject, org details
  */
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useNavigate } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, Mail } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { ArrowLeft, Mail } from "lucide-react";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function EmailTemplatesPage() {
   const [activeTab, setActiveTab] = useState("not_ready");
+  const navigate = useNavigate();
 
   return (
     <ErrorBoundary componentName="EmailTemplatesPage">
-      <div className="space-y-6">
+      <div className="space-y-6 p-6">
+        {/* Back link */}
+        <button
+          onClick={() => navigate("/admin/marketplace/roles")}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Role Management
+        </button>
+
         {/* Header */}
         <div>
-          <nav className="text-xs text-muted-foreground mb-1">
-            Platform Admin &gt; Marketplace &gt; Email Templates
-          </nav>
           <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
             <Mail className="h-6 w-6 text-primary" />
             Email Templates
@@ -32,107 +39,151 @@ export default function EmailTemplatesPage() {
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList>
-            <TabsTrigger value="not_ready" className="gap-1.5">
-              <AlertTriangle className="h-3.5 w-3.5" />
-              NOT READY
-            </TabsTrigger>
-            <TabsTrigger value="ready" className="gap-1.5">
-              <CheckCircle2 className="h-3.5 w-3.5" />
-              READY
-            </TabsTrigger>
+            <TabsTrigger value="not_ready">NOT_READY Email</TabsTrigger>
+            <TabsTrigger value="ready">READY Email</TabsTrigger>
           </TabsList>
 
           <TabsContent value="not_ready">
-            <Card>
-              <CardHeader className="bg-amber-50 dark:bg-amber-900/20 border-b">
-                <div className="flex items-center gap-2">
-                  <AlertTriangle className="h-5 w-5 text-amber-600" />
-                  <CardTitle className="text-base text-amber-800 dark:text-amber-300">
-                    Role Configuration Incomplete
-                  </CardTitle>
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                {/* Email Meta */}
+                <div className="px-6 py-3 border-b bg-muted/30 text-xs text-muted-foreground space-y-1">
+                  <p><span className="font-medium text-foreground">From:</span> noreply@cogiblend.com</p>
+                  <p><span className="font-medium text-foreground">To:</span> {"{{admin_email}}"}</p>
+                  <p><span className="font-medium text-foreground">Subject:</span> Action Required: Role Gap Detected — {"{{challenge_title}}"}</p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div className="bg-muted/50 rounded-lg p-5 border">
-                    <p className="text-sm text-foreground mb-3">
-                      <strong>Subject:</strong> Action Required — Role Configuration Incomplete for{" "}
-                      <Badge variant="outline" className="text-xs">{"{{org_name}}"}</Badge>
-                    </p>
-                    <hr className="my-3 border-border" />
-                    <p className="text-sm text-foreground">Dear <Badge variant="outline" className="text-xs">{"{{admin_name}}"}</Badge>,</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Your organization's role configuration for the{" "}
-                      <Badge variant="outline" className="text-xs">{"{{engagement_model}}"}</Badge>{" "}
-                      model is currently <strong className="text-destructive">NOT READY</strong>.
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      The following roles still need to be assigned:
-                    </p>
-                    <ul className="text-sm text-muted-foreground mt-1 list-disc pl-5">
-                      <li><Badge variant="outline" className="text-xs">{"{{missing_role_1}}"}</Badge></li>
-                      <li><Badge variant="outline" className="text-xs">{"{{missing_role_2}}"}</Badge></li>
-                      <li><Badge variant="outline" className="text-xs">{"{{missing_role_n}}"}</Badge></li>
-                    </ul>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      Please assign these roles to proceed with challenge creation. If you need assistance,
-                      contact the platform administrator:
-                    </p>
-                    <div className="mt-2 bg-background rounded p-3 border text-sm">
-                      <p><strong>Name:</strong> <Badge variant="outline" className="text-xs">{"{{admin_contact_name}}"}</Badge></p>
-                      <p><strong>Email:</strong> <Badge variant="outline" className="text-xs">{"{{admin_contact_email}}"}</Badge></p>
-                      <p><strong>Phone:</strong> <Badge variant="outline" className="text-xs">{"{{admin_contact_phone}}"}</Badge></p>
+
+                {/* Orange branded header */}
+                <div className="bg-orange-600 px-6 py-4">
+                  <p className="text-white font-bold text-lg">CogibleND</p>
+                  <p className="text-orange-100 text-xs mt-0.5">Role Configuration Alert</p>
+                </div>
+
+                {/* Email body */}
+                <div className="px-6 py-5 space-y-4 text-sm text-foreground">
+                  <p>Dear {"{{admin_name}}"},</p>
+                  <p className="text-muted-foreground">
+                    Your organization's role configuration for the <strong>Marketplace</strong> engagement model
+                    is currently <strong className="text-destructive">NOT READY</strong>. The following roles
+                    are unassigned:
+                  </p>
+
+                  {/* Org details table */}
+                  <div className="border rounded-md overflow-hidden text-xs">
+                    <div className="grid grid-cols-2 border-b">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Organization</div>
+                      <div className="px-3 py-2">{"{{org_name}}"}</div>
                     </div>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      Best regards,<br />
-                      <Badge variant="outline" className="text-xs">{"{{platform_name}}"}</Badge> Team
-                    </p>
+                    <div className="grid grid-cols-2 border-b">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Engagement Model</div>
+                      <div className="px-3 py-2">Marketplace</div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Status</div>
+                      <div className="px-3 py-2 text-destructive font-medium">NOT READY</div>
+                    </div>
                   </div>
+
+                  {/* Missing roles list */}
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                      Unassigned Roles
+                    </p>
+                    <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                      <li>Challenge Curator (R5_MP)</li>
+                      <li>Innovation Director (R6_MP)</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-muted-foreground">
+                    Please assign these roles to proceed with challenge creation. If you need assistance,
+                    contact the platform administrator.
+                  </p>
+
+                  {/* CTA Button */}
+                  <div className="pt-2">
+                    <div className="inline-block rounded-md bg-orange-600 px-6 py-2.5 text-sm font-medium text-white">
+                      Go to Role Management
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t bg-muted/20 text-xs text-muted-foreground text-center">
+                  © 2026 CogibleND. All rights reserved.
                 </div>
               </CardContent>
             </Card>
           </TabsContent>
 
           <TabsContent value="ready">
-            <Card>
-              <CardHeader className="bg-green-50 dark:bg-green-900/20 border-b">
-                <div className="flex items-center gap-2">
-                  <CheckCircle2 className="h-5 w-5 text-green-600" />
-                  <CardTitle className="text-base text-green-800 dark:text-green-300">
-                    Role Configuration Complete
-                  </CardTitle>
+            <Card className="overflow-hidden">
+              <CardContent className="p-0">
+                {/* Email Meta */}
+                <div className="px-6 py-3 border-b bg-muted/30 text-xs text-muted-foreground space-y-1">
+                  <p><span className="font-medium text-foreground">From:</span> noreply@cogiblend.com</p>
+                  <p><span className="font-medium text-foreground">To:</span> {"{{admin_email}}"}</p>
+                  <p><span className="font-medium text-foreground">Subject:</span> Roles Complete — {"{{challenge_title}}"} May Proceed</p>
                 </div>
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="prose prose-sm dark:prose-invert max-w-none">
-                  <div className="bg-muted/50 rounded-lg p-5 border">
-                    <p className="text-sm text-foreground mb-3">
-                      <strong>Subject:</strong> ✅ Role Configuration Complete for{" "}
-                      <Badge variant="outline" className="text-xs">{"{{org_name}}"}</Badge>
-                    </p>
-                    <hr className="my-3 border-border" />
-                    <p className="text-sm text-foreground">Dear <Badge variant="outline" className="text-xs">{"{{admin_name}}"}</Badge>,</p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Congratulations! Your organization's role configuration for the{" "}
-                      <Badge variant="outline" className="text-xs">{"{{engagement_model}}"}</Badge>{" "}
-                      model is now <strong className="text-green-600 dark:text-green-400">READY</strong>.
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      All required roles have been filled:
-                    </p>
-                    <ul className="text-sm text-muted-foreground mt-1 list-disc pl-5">
-                      <li><Badge variant="outline" className="text-xs">{"{{filled_role_1}}"}</Badge> — assigned to <Badge variant="outline" className="text-xs">{"{{assignee_1}}"}</Badge></li>
-                      <li><Badge variant="outline" className="text-xs">{"{{filled_role_2}}"}</Badge> — assigned to <Badge variant="outline" className="text-xs">{"{{assignee_2}}"}</Badge></li>
-                      <li><Badge variant="outline" className="text-xs">{"{{filled_role_n}}"}</Badge> — assigned to <Badge variant="outline" className="text-xs">{"{{assignee_n}}"}</Badge></li>
-                    </ul>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      You can now proceed with creating and managing challenges.
-                    </p>
-                    <p className="text-sm text-muted-foreground mt-3">
-                      Best regards,<br />
-                      <Badge variant="outline" className="text-xs">{"{{platform_name}}"}</Badge> Team
-                    </p>
+
+                {/* Teal branded header */}
+                <div className="bg-teal-600 px-6 py-4">
+                  <p className="text-white font-bold text-lg">CogibleND</p>
+                  <p className="text-teal-100 text-xs mt-0.5">Role Configuration Complete</p>
+                </div>
+
+                {/* Email body */}
+                <div className="px-6 py-5 space-y-4 text-sm text-foreground">
+                  <p>Dear {"{{admin_name}}"},</p>
+                  <p className="text-muted-foreground">
+                    Congratulations! Your organization's role configuration for the <strong>Marketplace</strong> engagement model
+                    is now <strong className="text-green-600 dark:text-green-400">READY</strong>. All required roles have been filled.
+                  </p>
+
+                  {/* Org details table */}
+                  <div className="border rounded-md overflow-hidden text-xs">
+                    <div className="grid grid-cols-2 border-b">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Organization</div>
+                      <div className="px-3 py-2">{"{{org_name}}"}</div>
+                    </div>
+                    <div className="grid grid-cols-2 border-b">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Engagement Model</div>
+                      <div className="px-3 py-2">Marketplace</div>
+                    </div>
+                    <div className="grid grid-cols-2">
+                      <div className="px-3 py-2 bg-muted/40 font-medium">Status</div>
+                      <div className="px-3 py-2 text-green-600 dark:text-green-400 font-medium">READY</div>
+                    </div>
                   </div>
+
+                  {/* Filled roles list */}
+                  <div>
+                    <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">
+                      All Roles Assigned
+                    </p>
+                    <ul className="list-disc pl-5 text-muted-foreground space-y-1">
+                      <li>Challenge Architect (R3) — {"{{assignee_1}}"}</li>
+                      <li>Challenge Curator (R5_MP) — {"{{assignee_2}}"}</li>
+                      <li>Innovation Director (R6_MP) — {"{{assignee_3}}"}</li>
+                      <li>Expert Reviewer (R7_MP) — {"{{assignee_4}}"}</li>
+                    </ul>
+                  </div>
+
+                  <p className="text-muted-foreground">
+                    You can now proceed with creating and managing challenges.
+                  </p>
+
+                  {/* CTA Button */}
+                  <div className="pt-2">
+                    <div className="inline-block rounded-md bg-teal-600 px-6 py-2.5 text-sm font-medium text-white">
+                      View Challenge
+                    </div>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t bg-muted/20 text-xs text-muted-foreground text-center">
+                  © 2026 CogibleND. All rights reserved.
                 </div>
               </CardContent>
             </Card>
