@@ -5,7 +5,7 @@
  * Fully Booked alternatives (SCR-05b), No Available Members alert (SCR-05c)
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
