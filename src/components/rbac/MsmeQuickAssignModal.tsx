@@ -55,8 +55,23 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   const { user } = useAuth();
 
   const applicableRoles = allRoles?.filter((r) =>
-    r.model_applicability === "mp" || r.model_applicability === "both"
+    r.model_applicability === "agg" || r.model_applicability === "both"
   ) ?? [];
+
+  // Derive existing team members from assignments (deduplicated by email)
+  const existingMembers = useMemo(() => {
+    const map = new Map<string, { email: string; name: string | null; roles: string[] }>();
+    for (const a of assignments) {
+      if (a.status !== "active" && a.status !== "invited") continue;
+      const existing = map.get(a.user_email);
+      if (existing) {
+        if (!existing.roles.includes(a.role_code)) existing.roles.push(a.role_code);
+      } else {
+        map.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
+      }
+    }
+    return Array.from(map.values());
+  }, [assignments]);
 
   // Derive admin display values from real profile — never hardcoded
   const adminName = adminProfile?.full_name ?? "Current Admin";
