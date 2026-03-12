@@ -1,6 +1,7 @@
 /**
  * SCR-11: Role Readiness Panel (Expanded)
  * Shows per-role readiness status with assignment counts and missing role details.
+ * Now also shows pending challenge refs count per BR-CORE-007.
  * BRD Ref: BR-CORE-006, MOD-06
  */
 
@@ -9,10 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { CheckCircle2, XCircle, AlertTriangle, ChevronRight, Shield } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, ChevronRight, Shield, Clock } from "lucide-react";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { usePendingChallengeRefs } from "@/hooks/queries/usePendingChallengeRefs";
 
 interface RoleReadinessPanelProps {
   orgId: string;
