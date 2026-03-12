@@ -2,9 +2,11 @@
  * RoleManagementDashboard — SCR-08: Role Management for Seeking Org Admin
  * Layout: Readiness Widget → Contact Details → MSME Toggle → Quick Links → Role Tabs
  * Portal-aware: Only accessible from /org portal. Shows Core + Aggregator tabs.
+ * BR-CORE-004: SO Admin manages Aggregator + Core roles only.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { RoleReadinessWidget } from "@/components/rbac/RoleReadinessWidget";
@@ -33,6 +35,7 @@ export default function RoleManagementDashboard() {
   // SECTION 2: Context hooks
   // ══════════════════════════════════════
   const { organizationId } = useOrgContext();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
@@ -43,13 +46,30 @@ export default function RoleManagementDashboard() {
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
-  // SECTION 4: Derived state
+  // SECTION 4: useEffect hooks
+  // ══════════════════════════════════════
+  useEffect(() => {
+    const assignParam = searchParams.get("assign");
+    if (assignParam) {
+      setAssignRoleCode(assignParam);
+      // Determine context from role code
+      const isAggRole = aggChallengeRoles?.some((r) => r.code === assignParam);
+      setAssignContext(isAggRole ? "agg" : "core");
+      setAssignSheetOpen(true);
+      // Clear the param to avoid re-triggering
+      searchParams.delete("assign");
+      setSearchParams(searchParams, { replace: true });
+    }
+  }, [searchParams, aggChallengeRoles, setSearchParams]);
+
+  // ══════════════════════════════════════
+  // SECTION 5: Derived state
   // ══════════════════════════════════════
   const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
   const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : aggChallengeRoles;
 
   // ══════════════════════════════════════
-  // SECTION 5: Event handlers
+  // SECTION 6: Event handlers
   // ══════════════════════════════════════
   const handleInvite = (roleCode: string, context: "core" | "agg") => {
     setAssignRoleCode(roleCode);
@@ -62,7 +82,7 @@ export default function RoleManagementDashboard() {
   };
 
   // ══════════════════════════════════════
-  // SECTION 6: Render
+  // SECTION 7: Render
   // ══════════════════════════════════════
   return (
     <ErrorBoundary componentName="RoleManagementDashboard">
@@ -76,12 +96,12 @@ export default function RoleManagementDashboard() {
             Role Management Dashboard
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Manage core and aggregator roles for your organization.
+            Manage core and aggregator roles for your organization's challenge lifecycle.
           </p>
         </div>
 
-        {/* Role Readiness Widget */}
-        <RoleReadinessWidget orgId={organizationId} model="mp" />
+        {/* Role Readiness Widget — Aggregator model per BR-CORE-004 */}
+        <RoleReadinessWidget orgId={organizationId} model="agg" />
 
         {/* Contact Details Accordion */}
         <SoaContactDetailsPanel />
@@ -89,7 +109,7 @@ export default function RoleManagementDashboard() {
         {/* MSME Toggle */}
         <MsmeToggle orgId={organizationId} onQuickAssign={() => setQuickAssignOpen(true)} />
 
-        {/* Role Tabs — Core + Aggregator only */}
+        {/* Role Tabs — Core + Aggregator only (BR-CORE-004: no Marketplace) */}
         {isLoading ? (
           <div className="space-y-3">
             <Skeleton className="h-10 w-full" />
@@ -115,7 +135,10 @@ export default function RoleManagementDashboard() {
             </TabsContent>
 
             <TabsContent value="agg-challenge">
-              <AggRoleManagement orgId={organizationId} />
+              <AggRoleManagement
+                orgId={organizationId}
+                onInvite={(code) => handleInvite(code, "agg")}
+              />
             </TabsContent>
 
             <TabsContent value="delegated-admins">
@@ -124,13 +147,13 @@ export default function RoleManagementDashboard() {
           </Tabs>
         )}
 
-        {/* Assign Role Sheet */}
+        {/* Single AssignRoleSheet instance — prevents duplicate conflicts */}
         <AssignRoleSheet
           open={assignSheetOpen}
           onOpenChange={setAssignSheetOpen}
           orgId={organizationId}
           preSelectedRoleCode={assignRoleCode}
-          availableRoles={availableRolesForSheet}
+          availableRoles={availableRolesForSheet ?? []}
         />
 
         {/* MSME Quick Assign Modal */}

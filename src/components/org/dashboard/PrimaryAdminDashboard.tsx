@@ -48,7 +48,7 @@ export default function PrimaryAdminDashboard() {
 
   // Compute summary stats
   const coreRoles = (allRoleCodes ?? []).filter((r) => r.is_core);
-  const challengeRoles = (allRoleCodes ?? []).filter((r) => !r.is_core);
+  const challengeRoles = (allRoleCodes ?? []).filter((r) => !r.is_core && r.model_applicability === 'agg');
   const activeAssignments = (assignments ?? []).filter((a) => a.status === 'active');
 
   const coreFilledCount = coreRoles.filter((r) =>
@@ -121,7 +121,7 @@ export default function PrimaryAdminDashboard() {
             <SummaryCard
               icon={<ShieldCheck className="h-5 w-5" />}
               iconBg="bg-violet-500/10 text-violet-600"
-              label="Challenge Roles"
+              label="Aggregator Roles"
               value={`${challengeFilledCount}/${challengeRoles.length}`}
               status={challengeFilledCount >= challengeRoles.length ? 'ready' : 'gap'}
             />
@@ -148,7 +148,7 @@ export default function PrimaryAdminDashboard() {
             <ConsoleCard
               icon={<ShieldCheck className="h-5 w-5" />}
               title="Role Management"
-              description="Assign and manage core & challenge roles"
+              description="Assign and manage core & aggregator roles"
               onClick={() => navigate('/org/role-management')}
             />
             <ConsoleCard

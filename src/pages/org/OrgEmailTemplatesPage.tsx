@@ -24,12 +24,12 @@ export default function OrgEmailTemplatesPage() {
 
   const isLoading = rolesLoading || modelsLoading || contactLoading;
 
-  const mpRoles = (allRoles ?? []).filter(
-    (r) => !r.is_core && (r.model_applicability === 'mp' || r.model_applicability === 'both')
+  const aggRoles = (allRoles ?? []).filter(
+    (r) => !r.is_core && (r.model_applicability === 'agg')
   );
   const coreRoles = (allRoles ?? []).filter((r) => r.is_core);
-  const mpModel = engagementModels?.find((m) => m.code === 'marketplace');
-  const modelName = mpModel?.name ?? 'Marketplace';
+  const aggModel = engagementModels?.find((m) => m.code === 'aggregator');
+  const modelName = aggModel?.name ?? 'Aggregator';
   const contactName = adminContact?.name ?? '{{admin_name}}';
   const contactEmail = adminContact?.email ?? '{{admin_email}}';
 
@@ -87,9 +87,9 @@ export default function OrgEmailTemplatesPage() {
                     <div>
                       <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">Unassigned Roles</p>
                       <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                        {mpRoles.length > 0 ? mpRoles.map((role) => (
+                        {aggRoles.length > 0 ? aggRoles.map((role) => (
                           <li key={role.code}>{role.display_name} ({role.code}) — min required: {role.min_required}</li>
-                        )) : <li className="italic">No MP roles found</li>}
+                        )) : <li className="italic">No aggregator roles found</li>}
                       </ul>
                     </div>
                     <div>
@@ -133,7 +133,7 @@ export default function OrgEmailTemplatesPage() {
                     <div>
                       <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">All Roles Assigned</p>
                       <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                        {[...coreRoles, ...mpRoles].map((role) => (
+                        {[...coreRoles, ...aggRoles].map((role) => (
                           <li key={role.code}>{role.display_name} ({role.code}) — {'{{assignee}}'}</li>
                         ))}
                       </ul>

@@ -1,10 +1,10 @@
 /**
  * SCR-10: AGG Role Assignment Form for Seeking Org Admin
  * BRD Ref: BR-AGG-001, MOD-05
- * Allows SOA to create/manage Aggregator challenge roles (R4, R5_AGG, R6_AGG, R7_AGG)
+ * Allows SOA to view Aggregator challenge roles (R4, R5_AGG, R6_AGG, R7_AGG)
+ * Invite action is bubbled to parent via onInvite prop (single AssignRoleSheet in parent).
  */
 
-import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -12,29 +12,21 @@ import { UserPlus, Users, Shield } from "lucide-react";
 import { useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import { RoleTable } from "@/components/rbac/roles/RoleTable";
-import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { RoleReadinessPanel } from "@/components/rbac/RoleReadinessPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface AggRoleManagementProps {
   orgId: string;
+  onInvite: (roleCode: string) => void;
 }
 
-export function AggRoleManagement({ orgId }: AggRoleManagementProps) {
-  const [assignSheetOpen, setAssignSheetOpen] = useState(false);
-  const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
-
+export function AggRoleManagement({ orgId, onInvite }: AggRoleManagementProps) {
   const { data: aggRoles, isLoading: rolesLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignLoading } = useRoleAssignments(orgId);
   const deactivate = useDeactivateRoleAssignment();
 
   const isLoading = rolesLoading || assignLoading;
-
-  const handleInvite = (roleCode: string) => {
-    setAssignRoleCode(roleCode);
-    setAssignSheetOpen(true);
-  };
 
   const handleDeactivate = (assignmentId: string) => {
     deactivate.mutate({ id: assignmentId, orgId });
@@ -60,7 +52,7 @@ export function AggRoleManagement({ orgId }: AggRoleManagementProps) {
         <RoleReadinessPanel
           orgId={orgId}
           model="agg"
-          onNavigateToAssign={handleInvite}
+          onNavigateToAssign={onInvite}
         />
 
         {/* Multi-role users info */}
@@ -90,10 +82,7 @@ export function AggRoleManagement({ orgId }: AggRoleManagementProps) {
               </CardTitle>
               <Button
                 size="sm"
-                onClick={() => {
-                  setAssignRoleCode(undefined);
-                  setAssignSheetOpen(true);
-                }}
+                onClick={() => onInvite("")}
               >
                 <UserPlus className="h-3.5 w-3.5 mr-1.5" />
                 <span className="hidden lg:inline">Assign Role</span>
@@ -105,22 +94,13 @@ export function AggRoleManagement({ orgId }: AggRoleManagementProps) {
               <RoleTable
                 roles={aggRoles}
                 assignments={assignments ?? []}
-                onInvite={handleInvite}
+                onInvite={onInvite}
                 onDeactivate={handleDeactivate}
                 isDeactivating={deactivate.isPending}
               />
             )}
           </CardContent>
         </Card>
-
-        {/* Assign Role Sheet */}
-        <AssignRoleSheet
-          open={assignSheetOpen}
-          onOpenChange={setAssignSheetOpen}
-          orgId={orgId}
-          preSelectedRoleCode={assignRoleCode}
-          availableRoles={aggRoles ?? []}
-        />
       </div>
     </ErrorBoundary>
   );
