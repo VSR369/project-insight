@@ -404,8 +404,9 @@ export function AssignRoleSheet({
               <div className="space-y-2">
                 {existingMembers.map((member) => {
                   const isSelected = selectedMemberEmail === member.email;
-                  const memberAssignableRoles = availableRoles.filter(
-                    (r) => !member.roles.includes(r.code)
+                  const memberCodes = member.roles.map((r) => r.code);
+                  const memberAssignableRoles = fullRoleCatalog.filter(
+                    (r) => !memberCodes.includes(r.code)
                   );
                   const allRolesAssigned = memberAssignableRoles.length === 0;
 
@@ -423,8 +424,8 @@ export function AssignRoleSheet({
                           : "border-border hover:border-primary/40 hover:bg-muted/30"
                       }`}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                      <div className="flex items-start gap-3">
+                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
                           {member.name
                             ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
                             : "?"}
@@ -434,17 +435,34 @@ export function AssignRoleSheet({
                             {member.name ?? member.email}
                           </p>
                           <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                        </div>
-                        <div className="flex flex-wrap gap-1 shrink-0">
-                          {member.roles.map((rc) => (
-                            <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
-                              {rc}
-                            </Badge>
-                          ))}
+                          {/* Current roles with display names and statuses */}
+                          <div className="flex flex-wrap gap-1 mt-1.5">
+                            {member.roles.map((role) => {
+                              const roleMeta = fullRoleCatalog.find((r) => r.code === role.code);
+                              const displayLabel = roleMeta
+                                ? `${roleMeta.display_name} (${role.code})`
+                                : role.code;
+                              const isInvited = role.status === "invited";
+                              return (
+                                <Badge
+                                  key={role.code}
+                                  variant={isInvited ? "outline" : "secondary"}
+                                  className={`text-[10px] px-1.5 py-0 ${
+                                    isInvited ? "border-dashed text-muted-foreground" : ""
+                                  }`}
+                                >
+                                  {displayLabel}
+                                  {isInvited && (
+                                    <span className="ml-1 text-[9px] opacity-70">(Pending)</span>
+                                  )}
+                                </Badge>
+                              );
+                            })}
+                          </div>
                         </div>
                       </div>
                       {allRolesAssigned && (
-                        <p className="text-[10px] text-muted-foreground mt-1 ml-11 flex items-center gap-1">
+                        <p className="text-[10px] text-muted-foreground mt-1.5 ml-12 flex items-center gap-1">
                           <CheckCircle className="h-3 w-3" />
                           All available roles assigned
                         </p>
@@ -454,7 +472,7 @@ export function AssignRoleSheet({
                 })}
               </div>
 
-              {/* Role selector for selected member */}
+              {/* Role selector for selected member — grouped by core/challenge */}
               {selectedMember && assignableRolesForMember.length > 0 && (
                 <div className="border-t border-border pt-4 space-y-3">
                   <div>
@@ -466,16 +484,31 @@ export function AssignRoleSheet({
                         <SelectValue placeholder="Choose a role" />
                       </SelectTrigger>
                       <SelectContent>
-                        {assignableRolesForMember.map((role) => (
-                          <SelectItem key={role.code} value={role.code}>
-                            {role.display_name} ({role.code})
-                          </SelectItem>
-                        ))}
+                        {coreAssignableRoles.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>Core Roles</SelectLabel>
+                            {coreAssignableRoles.map((role) => (
+                              <SelectItem key={role.code} value={role.code}>
+                                {role.display_name} ({role.code})
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {challengeAssignableRoles.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>Challenge Roles</SelectLabel>
+                            {challengeAssignableRoles.map((role) => (
+                              <SelectItem key={role.code} value={role.code}>
+                                {role.display_name} ({role.code})
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
                       </SelectContent>
                     </Select>
                     {existingMemberRoleCode && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {availableRoles.find((r) => r.code === existingMemberRoleCode)?.description}
+                        {fullRoleCatalog.find((r) => r.code === existingMemberRoleCode)?.description}
                       </p>
                     )}
                   </div>
