@@ -104,6 +104,23 @@ export function AssignRoleSheet({
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
 
+  // Build deduplicated existing team members from active/invited assignments
+  const existingMembers = (() => {
+    if (!existingAssignments) return [];
+    const memberMap = new Map<string, { email: string; name: string | null; roles: string[] }>();
+    for (const a of existingAssignments) {
+      if (a.status !== "active" && a.status !== "invited") continue;
+      const existing = memberMap.get(a.user_email);
+      if (existing) {
+        existing.roles.push(a.role_code);
+      } else {
+        memberMap.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
+      }
+    }
+    return Array.from(memberMap.values());
+  })();
+  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
+
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
   // ══════════════════════════════════════
