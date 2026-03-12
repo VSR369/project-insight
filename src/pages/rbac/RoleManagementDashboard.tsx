@@ -101,6 +101,7 @@ export default function RoleManagementDashboard() {
             <TabsList className="mb-4">
               <TabsTrigger value="org-core">Core Roles</TabsTrigger>
               <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
+              <TabsTrigger value="delegated-admins">Delegated Admins</TabsTrigger>
             </TabsList>
 
             <TabsContent value="org-core">
