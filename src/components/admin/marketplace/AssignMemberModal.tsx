@@ -30,6 +30,7 @@ import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { PreviousTeamSuggestion } from "@/components/admin/marketplace/PreviousTeamSuggestion";
 import { FullyBookedAlternativesModal } from "@/components/admin/marketplace/FullyBookedAlternativesModal";
 import { NoAvailableMembersAlert } from "@/components/admin/marketplace/NoAvailableMembersAlert";
+import { useSessionExpiryWatcher } from "@/hooks/useSessionRecovery";
 import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
 interface AssignMemberModalProps {
@@ -66,6 +67,13 @@ export function AssignMemberModal({
   const assignMutation = useAssignMember();
   const { data: poolMembers } = usePoolMembers({ role: selectedRole || undefined });
   const { data: challengeAssignments } = useChallengeAssignments(challengeId);
+
+  // Session recovery watcher (Phase 8A)
+  useSessionExpiryWatcher("assign-member", () => ({
+    challengeId,
+    selectedRole,
+    selectedMemberId,
+  }));
 
   // ══════════════════════════════════════
   // SECTION 3: Derived state

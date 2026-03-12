@@ -4,12 +4,14 @@
  */
 
 import { useState, useCallback } from "react";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { PoolFilterBar } from "@/components/admin/marketplace/PoolFilterBar";
 import { PoolMemberTable } from "@/components/admin/marketplace/PoolMemberTable";
 import { PoolMemberForm } from "@/components/admin/marketplace/PoolMemberForm";
 import { SupervisorDeactivationConfirmModal } from "@/components/admin/marketplace/SupervisorDeactivationConfirmModal";
+import { CreateOnBehalfSheet } from "@/components/admin/marketplace/CreateOnBehalfSheet";
 import { usePoolMembers, type PoolMemberFilters, type PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 import { useDeactivatePoolMember } from "@/hooks/queries/usePoolMembers";
 import { usePoolPermissions } from "@/hooks/usePoolPermissions";
@@ -32,6 +34,7 @@ export default function ResourcePoolPage() {
   const [editMember, setEditMember] = useState<PoolMemberRow | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<PoolMemberRow | null>(null);
   const [supervisorConfirmTarget, setSupervisorConfirmTarget] = useState<PoolMemberRow | null>(null);
+  const [createOnBehalfOpen, setCreateOnBehalfOpen] = useState(false);
 
   // ══════════ Custom hooks ══════════
   const { canWrite, isLoading: permLoading } = usePoolPermissions();
@@ -153,6 +156,19 @@ export default function ResourcePoolPage() {
         memberName={supervisorConfirmTarget?.full_name ?? ""}
         onConfirm={handleSupervisorDeactivateConfirm}
         isPending={deactivateMutation.isPending}
+      />
+
+      {/* Create On Behalf — BR-CORE-003 */}
+      <div className="flex justify-end mt-4">
+        <Button variant="outline" size="sm" onClick={() => setCreateOnBehalfOpen(true)}>
+          <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+          <span className="hidden lg:inline">Create Role On Behalf</span>
+        </Button>
+      </div>
+      <CreateOnBehalfSheet
+        open={createOnBehalfOpen}
+        onOpenChange={setCreateOnBehalfOpen}
+        organizations={[]}
       />
     </div>
   );

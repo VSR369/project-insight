@@ -6,6 +6,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkSessionType } from '@/lib/sessionIsolation';
+import { MfaGuard } from '@/components/auth/MfaGuard';
 
 interface AdminGuardProps {
   children: ReactNode;
@@ -60,10 +61,12 @@ function AdminRoleCheck({ children }: { children: ReactNode }) {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
-  // Wrap with AuthGuard first to ensure auth context is valid
+  // Wrap with AuthGuard first, then MfaGuard for admin-tier MFA enforcement (TS §0.3)
   return (
     <AuthGuard>
-      <AdminRoleCheck>{children}</AdminRoleCheck>
+      <MfaGuard requireMfa={true}>
+        <AdminRoleCheck>{children}</AdminRoleCheck>
+      </MfaGuard>
     </AuthGuard>
   );
 }

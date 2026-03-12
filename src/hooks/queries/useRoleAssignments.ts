@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { checkDuplicateInvitation } from "@/hooks/useDuplicateInvitationCheck";
 
 export interface RoleAssignment {
   id: string;
@@ -62,6 +63,16 @@ export function useCreateRoleAssignment() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: CreateRoleAssignmentInput) => {
+      // EC-11: Duplicate invitation prevention
+      const dupCheck = await checkDuplicateInvitation({
+        email: input.user_email,
+        roleCode: input.role_code,
+        orgId: input.org_id,
+      });
+      if (dupCheck.isDuplicate) {
+        throw new Error(`This user already has an active ${input.role_code} assignment (status: ${dupCheck.existingStatus})`);
+      }
+
       const d = await withCreatedBy(input);
       const { data, error } = await supabase
         .from("role_assignments")

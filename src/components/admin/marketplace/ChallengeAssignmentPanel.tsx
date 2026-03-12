@@ -15,6 +15,7 @@ import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberMo
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
+import { AssignmentConfirmationScreen } from "@/components/admin/marketplace/AssignmentConfirmationScreen";
 
 interface ChallengeAssignmentPanelProps {
   challengeId: string;
@@ -35,10 +36,24 @@ export function ChallengeAssignmentPanel({
 }: ChallengeAssignmentPanelProps) {
   const [assignTarget, setAssignTarget] = useState<{ missingRoles: TeamComposition["missingRoles"] } | null>(null);
   const [reassignTarget, setReassignTarget] = useState<ChallengeAssignmentRow | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const { data: availStatuses } = useAvailabilityStatuses();
 
   const getAvailLabel = (status: string) =>
     availStatuses?.find((s) => s.code === status)?.display_name ?? status;
+
+  // Show confirmation screen if team is complete and user triggered it
+  if (showConfirmation) {
+    return (
+      <AssignmentConfirmationScreen
+        challengeTitle={challengeTitle}
+        orgName={orgName}
+        assignments={assignments}
+        mpRoles={mpRoles}
+        onBack={() => setShowConfirmation(false)}
+      />
+    );
+  }
 
   return (
     <>
@@ -149,6 +164,15 @@ export function ChallengeAssignmentPanel({
               );
             })}
           </div>
+          {/* View Team Summary button when complete */}
+          {team.isComplete && (
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowConfirmation(true)}>
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                View Team Summary
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 

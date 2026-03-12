@@ -15,6 +15,8 @@ import { useDelegatedAdmins, useMaxDelegatedAdmins, useDeactivateDelegatedAdmin 
 import { DomainScopeDisplay } from "@/components/org/DomainScopeDisplay";
 import { DeactivationCheckModal } from "@/components/rbac/DeactivationCheckModal";
 import { DelegatedAdminLimitWarning } from "@/components/rbac/DelegatedAdminLimitWarning";
+import { ReassignmentWizard } from "@/components/rbac/DelegatedAdminReassignmentWizard";
+import { useRoleAssignments, type RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 interface DelegatedAdminListTabProps {
   orgId: string;
@@ -27,14 +29,32 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
   const deactivate = useDeactivateDelegatedAdmin();
 
   const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ id: string; name: string; orphanRoles: RoleAssignment[] } | null>(null);
+  const { data: roleAssignments = [] } = useRoleAssignments(orgId);
 
   const activeAdmins = admins.filter((a) => a.status !== "deactivated");
   const activeCount = activeAdmins.length;
 
   const handleDeactivateConfirm = async () => {
     if (!deactivateTarget) return;
+    // Check for orphan roles before deactivating
+    const orphans = roleAssignments.filter(
+      (r) => r.status === "active" || r.status === "invited"
+    );
+    if (orphans.length > 0) {
+      setReassignTarget({ id: deactivateTarget.id, name: deactivateTarget.name, orphanRoles: orphans });
+      setDeactivateTarget(null);
+      return;
+    }
     await deactivate.mutateAsync({ adminId: deactivateTarget.id, organizationId: orgId });
     setDeactivateTarget(null);
+  };
+
+  const handleReassignConfirm = async (reassignments: { roleAssignmentId: string; targetAdminEmail: string }[]) => {
+    if (!reassignTarget) return;
+    // After reassignment, proceed with deactivation
+    await deactivate.mutateAsync({ adminId: reassignTarget.id, organizationId: orgId });
+    setReassignTarget(null);
   };
 
   if (isLoading) {
@@ -140,6 +160,22 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
           onOpenChange={(open) => { if (!open) setDeactivateTarget(null); }}
           adminName={deactivateTarget.name}
           onConfirm={handleDeactivateConfirm}
+          isSubmitting={deactivate.isPending}
+        />
+      )}
+
+      {/* Orphan role reassignment wizard (SCR-15a) */}
+      {reassignTarget && (
+        <ReassignmentWizard
+          open={!!reassignTarget}
+          onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
+          orphanRoles={reassignTarget.orphanRoles}
+          orgId={orgId}
+          deactivatingAdminName={reassignTarget.name}
+          availableAdmins={activeAdmins
+            .filter((a) => a.id !== reassignTarget.id)
+            .map((a) => ({ id: a.id, name: a.full_name ?? "Admin", email: a.email ?? "" }))}
+          onConfirm={handleReassignConfirm}
           isSubmitting={deactivate.isPending}
         />
       )}
