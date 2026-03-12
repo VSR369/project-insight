@@ -87,9 +87,9 @@ export default function OrgEmailTemplatesPage() {
                     <div>
                       <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">Unassigned Roles</p>
                       <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                        {mpRoles.length > 0 ? mpRoles.map((role) => (
+                        {aggRoles.length > 0 ? aggRoles.map((role) => (
                           <li key={role.code}>{role.display_name} ({role.code}) — min required: {role.min_required}</li>
-                        )) : <li className="italic">No MP roles found</li>}
+                        )) : <li className="italic">No aggregator roles found</li>}
                       </ul>
                     </div>
                     <div>
