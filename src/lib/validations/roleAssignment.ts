@@ -45,6 +45,15 @@ export const adminContactSchema = z.object({
 
 export type AdminContactFormValues = z.infer<typeof adminContactSchema>;
 
+/** Schema for SOA own profile edit */
+export const soaProfileSchema = z.object({
+  full_name: z.string().trim().min(1, "Full name is required").max(120, "Name must be 120 characters or less"),
+  phone: z.string().regex(/^\+\d{7,15}$/, "International format required (+Country Code Number)").optional().or(z.literal("")),
+  title: z.string().trim().max(150, "Title must be 150 characters or less").optional().or(z.literal("")),
+});
+
+export type SoaProfileFormValues = z.infer<typeof soaProfileSchema>;
+
 /** Create a dynamic validator that checks role_code against fetched valid codes */
 export function createRoleCodeValidator(validCodes: string[]) {
   return z.string().refine(
