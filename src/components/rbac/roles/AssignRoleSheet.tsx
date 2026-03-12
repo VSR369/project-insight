@@ -55,7 +55,7 @@ export function AssignRoleSheet({
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
   const [manualRoleCode, setManualRoleCode] = useState<string>("");
-
+  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
