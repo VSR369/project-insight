@@ -66,7 +66,7 @@ export function TimezoneInfoPanel({
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* Reviewer Timezone */}
           <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/50">
             <div className="p-2 rounded-full bg-primary/10">

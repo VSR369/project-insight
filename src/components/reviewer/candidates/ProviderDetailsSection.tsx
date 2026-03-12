@@ -66,7 +66,7 @@ export function ProviderDetailsSection({ candidate }: ProviderDetailsSectionProp
             value={candidate.countryName}
             isLink
           />
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2">
             <DetailField 
               label="Industry Segment" 
               value={candidate.industrySegmentName} 

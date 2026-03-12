@@ -351,7 +351,7 @@ export function LevelSpecialityMapPage() {
                   </AlertDescription>
                 </Alert>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {expertiseLevels
                     .sort((a, b) => a.level_number - b.level_number)
                     .map((level) => {

@@ -186,7 +186,7 @@ export function AssessmentTabContent({ enrollmentId }: AssessmentTabContentProps
           <CardTitle className="text-base font-medium">Submission Details</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
             <div>
               <span className="text-muted-foreground">Submitted:</span>
               <span className="ml-2 font-medium">

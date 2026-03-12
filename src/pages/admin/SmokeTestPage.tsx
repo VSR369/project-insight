@@ -291,7 +291,7 @@ export default function SmokeTestPage() {
         )}
       </Card>
 
-      <div className="grid gap-4 md:grid-cols-4 mb-6">
+      <div className="grid gap-4 lg:grid-cols-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium">Total Tests</CardTitle>
