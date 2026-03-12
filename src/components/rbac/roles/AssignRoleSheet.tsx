@@ -592,7 +592,9 @@ export function AssignRoleSheet({
                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>
-                      An invitation will be sent. The user must accept to activate this role.
+                      {enrollMode === "invite"
+                        ? "An invitation will be sent. The user must accept to activate this role."
+                        : "The role will be activated immediately and a confirmation email sent."}
                     </span>
                   </div>
                 </div>
