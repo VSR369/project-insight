@@ -1,14 +1,15 @@
 /**
  * MfaGuard — TS §0.3: MFA enforcement for admin-tier roles
- * Wraps protected routes to verify MFA is enabled for elevated roles.
- * Redirects to MFA setup if not configured.
+ * Uses graceful degradation: shows a dismissible warning banner
+ * instead of fully blocking access when MFA is not enrolled.
+ * Once the user sets up MFA via /settings/security, the banner disappears.
  */
 
 import { ReactNode, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { Loader2, ShieldAlert } from "lucide-react";
+import { Loader2, ShieldAlert, X } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -22,6 +23,7 @@ export function MfaGuard({ children, requireMfa = true }: MfaGuardProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mfaStatus, setMfaStatus] = useState<"loading" | "verified" | "not_enrolled">("loading");
+  const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!requireMfa || !user) {
@@ -57,32 +59,36 @@ export function MfaGuard({ children, requireMfa = true }: MfaGuardProps) {
     );
   }
 
-  if (mfaStatus === "not_enrolled") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background p-6">
-        <div className="max-w-md space-y-4 text-center">
-          <ShieldAlert className="h-12 w-12 text-amber-500 mx-auto" />
-          <h2 className="text-xl font-bold text-foreground">
-            Multi-Factor Authentication Required
-          </h2>
-          <Alert className="text-left">
-            <AlertDescription className="text-sm">
-              Your role requires Multi-Factor Authentication (MFA) to be enabled.
-              Please set up MFA in your account settings to continue.
-            </AlertDescription>
-          </Alert>
-          <div className="flex gap-3 justify-center">
-            <Button variant="outline" onClick={() => navigate(-1)}>
-              Go Back
-            </Button>
-            <Button onClick={() => navigate("/settings/security")}>
-              Set Up MFA
+  // Graceful degradation: show dismissible banner instead of blocking
+  return (
+    <>
+      {mfaStatus === "not_enrolled" && !bannerDismissed && (
+        <div className="sticky top-0 z-50 w-full bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800">
+          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-3">
+            <ShieldAlert className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-800 dark:text-amber-200 flex-1">
+              <strong>MFA Required:</strong> Your admin role requires Multi-Factor Authentication.{" "}
+              <Button
+                variant="link"
+                className="h-auto p-0 text-sm text-amber-900 dark:text-amber-100 underline font-semibold"
+                onClick={() => navigate("/settings/security")}
+              >
+                Set up MFA now
+              </Button>
+            </p>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-7 w-7 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900"
+              onClick={() => setBannerDismissed(true)}
+              aria-label="Dismiss MFA warning"
+            >
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+      )}
+      {children}
+    </>
+  );
 }
