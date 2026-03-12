@@ -5,7 +5,7 @@
  * "Myself" tab uses real admin profile from useCurrentAdminProfile — no hardcoded user data.
  */
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { Send, Zap } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -33,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
+import { EMPTY_SCOPE, type DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 const quickAssignSchema = z.object({
   user_name: z.string().trim().min(1, "Name is required").max(120),
@@ -52,6 +54,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
   const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
+  const [domainScope, setDomainScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
@@ -123,6 +126,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         user_name: data.user_name,
         status: "active" as const,
         model_applicability: "both",
+        domain_tags: domainScope as any,
       }));
       const results = await bulkCreate.mutateAsync(inputs);
       // Fire confirmation emails (non-blocking)
@@ -140,6 +144,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
           user_email: data.user_email,
           user_name: data.user_name,
           model_applicability: "both",
+          domain_tags: domainScope as any,
         });
         supabase.functions.invoke("send-role-invitation", {
           body: { assignment_id: result.id, org_name: orgName },
@@ -147,6 +152,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
       }
     }
     form.reset();
+    setDomainScope({ ...EMPTY_SCOPE });
     onOpenChange(false);
   };
 
@@ -282,9 +288,14 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <p className="text-xs text-muted-foreground py-2 pl-6">
-                    Domain taxonomy selectors will cascade here when industry data is available.
-                  </p>
+                  <div className="pl-6 pt-2">
+                    <ScopeMultiSelect
+                      value={domainScope}
+                      onChange={setDomainScope}
+                      hideDepartments
+                      allowAll
+                    />
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
             </div>
