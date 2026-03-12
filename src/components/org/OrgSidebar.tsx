@@ -71,6 +71,7 @@ export function OrgSidebar() {
   const roleManagementItems = isSOAdmin
     ? [
         { title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' },
+        { title: 'Enroll', icon: UserPlus, path: '/org/enroll' },
         { title: 'Role Readiness', icon: CheckCircle2, path: '/org/role-readiness' },
       ]
     : [];

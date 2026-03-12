@@ -153,6 +153,42 @@ export function useDeclineRoleInvitation() {
   });
 }
 
+export function useDirectEnrollRole() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateRoleAssignmentInput) => {
+      // EC-11: Duplicate invitation prevention
+      const dupCheck = await checkDuplicateInvitation({
+        email: input.user_email,
+        roleCode: input.role_code,
+        orgId: input.org_id,
+      });
+      if (dupCheck.isDuplicate) {
+        throw new Error(`This user already has an active ${input.role_code} assignment (status: ${dupCheck.existingStatus})`);
+      }
+
+      const d = await withCreatedBy({
+        ...input,
+        status: "active",
+        activated_at: new Date().toISOString(),
+      });
+      const { data, error } = await supabase
+        .from("role_assignments")
+        .insert(d)
+        .select()
+        .single();
+      if (error) throw new Error(error.message);
+      return data;
+    },
+    onSuccess: (_data, variables) => {
+      qc.invalidateQueries({ queryKey: ["role-assignments", variables.org_id] });
+      qc.invalidateQueries({ queryKey: ["role-readiness"] });
+      toast.success("Role enrolled successfully (active)");
+    },
+    onError: (e: Error) => handleMutationError(e, { operation: "direct_enroll_role" }),
+  });
+}
+
 export function useBulkCreateRoleAssignments() {
   const qc = useQueryClient();
   return useMutation({
