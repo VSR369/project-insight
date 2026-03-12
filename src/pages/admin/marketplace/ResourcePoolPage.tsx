@@ -157,6 +157,19 @@ export default function ResourcePoolPage() {
         onConfirm={handleSupervisorDeactivateConfirm}
         isPending={deactivateMutation.isPending}
       />
+
+      {/* Create On Behalf — BR-CORE-003 */}
+      <div className="flex justify-end mt-4">
+        <Button variant="outline" size="sm" onClick={() => setCreateOnBehalfOpen(true)}>
+          <ShieldCheck className="h-3.5 w-3.5 mr-1" />
+          <span className="hidden lg:inline">Create Role On Behalf</span>
+        </Button>
+      </div>
+      <CreateOnBehalfSheet
+        open={createOnBehalfOpen}
+        onOpenChange={setCreateOnBehalfOpen}
+        organizations={[]}
+      />
     </div>
   );
 }

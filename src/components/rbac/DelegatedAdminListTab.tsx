@@ -163,6 +163,22 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
           isSubmitting={deactivate.isPending}
         />
       )}
+
+      {/* Orphan role reassignment wizard (SCR-15a) */}
+      {reassignTarget && (
+        <ReassignmentWizard
+          open={!!reassignTarget}
+          onOpenChange={(open) => { if (!open) setReassignTarget(null); }}
+          orphanRoles={reassignTarget.orphanRoles}
+          orgId={orgId}
+          deactivatingAdminName={reassignTarget.name}
+          availableAdmins={activeAdmins
+            .filter((a) => a.id !== reassignTarget.id)
+            .map((a) => ({ id: a.id, name: a.full_name ?? "Admin", email: a.email ?? "" }))}
+          onConfirm={handleReassignConfirm}
+          isSubmitting={deactivate.isPending}
+        />
+      )}
     </div>
   );
 }
