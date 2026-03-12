@@ -4,6 +4,7 @@
  */
 
 import { useState, useCallback } from "react";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { PoolFilterBar } from "@/components/admin/marketplace/PoolFilterBar";
