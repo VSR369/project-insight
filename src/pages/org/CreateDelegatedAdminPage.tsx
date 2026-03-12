@@ -250,7 +250,7 @@ export default function CreateDelegatedAdminPage() {
                 <Button type="button" variant="outline" onClick={() => navigate('/org/admin-management')}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createAdmin.isPending || industryMissing || !!emailError}>
+                <Button type="submit" disabled={createAdmin.isPending || industryMissing || !!emailError || isAtLimit}>
                   {createAdmin.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                   Create Admin
                 </Button>
