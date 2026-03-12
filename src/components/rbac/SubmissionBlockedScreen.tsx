@@ -16,6 +16,7 @@ import { useEffect } from "react";
 interface SubmissionBlockedScreenProps {
   orgId: string;
   model: string;
+  challengeId?: string;
   challengeTitle?: string;
   onBack: () => void;
 }
