@@ -169,8 +169,39 @@ export function AssignRoleSheet({
     form.setValue("role_code", code);
   };
 
+  const isMutating = createAssignment.isPending || directEnroll.isPending;
+
+  const executeAssignment = async (input: {
+    org_id: string;
+    role_code: string;
+    user_email: string;
+    user_name?: string;
+    domain_tags?: Json;
+    model_applicability: string;
+  }) => {
+    if (enrollMode === "direct") {
+      const result = await directEnroll.mutateAsync(input);
+      try {
+        await supabase.functions.invoke("send-role-enrollment-confirmation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        });
+      } catch {
+        // Email failure is non-blocking
+      }
+    } else {
+      const result = await createAssignment.mutateAsync(input);
+      try {
+        await supabase.functions.invoke("send-role-invitation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        });
+      } catch {
+        // Email failure is non-blocking
+      }
+    }
+  };
+
   const onSubmitInvite = async (data: RoleInviteFormValues) => {
-    await createAssignment.mutateAsync({
+    await executeAssignment({
       org_id: data.org_id,
       role_code: data.role_code,
       user_email: data.user_email,
@@ -187,7 +218,7 @@ export function AssignRoleSheet({
     if (!existingMemberRoleCode || !selectedMemberEmail) return;
     const member = existingMembers.find((m) => m.email === selectedMemberEmail);
     if (!member) return;
-    await createAssignment.mutateAsync({
+    await executeAssignment({
       org_id: orgId,
       role_code: existingMemberRoleCode,
       user_email: member.email,
