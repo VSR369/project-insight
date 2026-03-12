@@ -117,6 +117,10 @@ export default function RoleManagementDashboard() {
             <TabsContent value="agg-challenge">
               <AggRoleManagement orgId={organizationId} />
             </TabsContent>
+
+            <TabsContent value="delegated-admins">
+              <DelegatedAdminListTab orgId={organizationId} />
+            </TabsContent>
           </Tabs>
         )}
 
