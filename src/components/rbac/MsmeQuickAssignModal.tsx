@@ -126,6 +126,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         user_name: data.user_name,
         status: "active" as const,
         model_applicability: "both",
+        domain_tags: domainScope as any,
       }));
       const results = await bulkCreate.mutateAsync(inputs);
       // Fire confirmation emails (non-blocking)
