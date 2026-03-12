@@ -360,11 +360,68 @@ export function AssignRoleSheet({
               </form>
             </Form>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Users className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">
-                Existing team member assignment will be available once team members are onboarded.
-              </p>
+            <div className="space-y-4">
+              {existingMembers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    No team members onboarded yet. Use "New User (Invite)" to add the first member.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Select an existing team member to assign the <span className="font-medium text-foreground">{roleTitle}</span> role.
+                  </p>
+                  <div className="space-y-2">
+                    {existingMembers.map((member) => {
+                      const isSelected = selectedMemberEmail === member.email;
+                      const alreadyHasRole = effectiveRoleCode ? member.roles.includes(effectiveRoleCode) : false;
+                      return (
+                        <button
+                          key={member.email}
+                          type="button"
+                          disabled={alreadyHasRole}
+                          onClick={() => setSelectedMemberEmail(isSelected ? "" : member.email)}
+                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                            alreadyHasRole
+                              ? "opacity-50 cursor-not-allowed border-muted bg-muted/30"
+                              : isSelected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-border hover:border-primary/40 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                              {member.name
+                                ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+                                : "?"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {member.name ?? member.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1 shrink-0">
+                              {member.roles.map((rc) => (
+                                <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {rc}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          {alreadyHasRole && (
+                            <p className="text-[10px] text-muted-foreground mt-1 ml-11">
+                              Already assigned to this role
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
