@@ -37,7 +37,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
-  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
+  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useCoreRoleCodes();
   const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(organizationId);
   const deactivate = useDeactivateRoleAssignment();
