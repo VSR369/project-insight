@@ -234,21 +234,46 @@ export function useCreateDelegatedAdmin() {
   });
 }
 
-// ─── Update delegated admin scope ───
+// ─── Update delegated admin scope (with audit trail per BR-DEL-002) ───
 export function useUpdateDelegatedAdminScope() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ adminId, organizationId, domain_scope }: {
+    mutationFn: async ({ adminId, organizationId, domain_scope, previousScope, orphanCount, confirmationGiven }: {
       adminId: string;
       organizationId: string;
       domain_scope: DomainScope;
+      previousScope?: DomainScope;
+      orphanCount?: number;
+      confirmationGiven?: boolean;
     }) => {
+      // 1. Update the scope
       const updateData = await withUpdatedBy({ domain_scope });
       const { error } = await supabase
         .from('seeking_org_admins')
         .update(updateData as any)
         .eq('id', adminId);
       if (error) throw new Error(error.message);
+
+      // 2. Insert audit record (delegated_soa_scope_audit)
+      const { data: { user } } = await supabase.auth.getUser();
+      const { error: auditError } = await supabase
+        .from('delegated_soa_scope_audit')
+        .insert({
+          soa_id: adminId,
+          organization_id: organizationId,
+          previous_scope: previousScope ?? {},
+          new_scope: domain_scope,
+          orphan_count: orphanCount ?? 0,
+          confirmation_given: confirmationGiven ?? false,
+          modified_by: user?.id ?? null,
+        } as any);
+
+      if (auditError) {
+        logWarning('Failed to write scope audit record', {
+          operation: 'update_delegated_admin_scope',
+          additionalData: { adminId, auditError: auditError.message },
+        });
+      }
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['delegated-admins', variables.organizationId] });

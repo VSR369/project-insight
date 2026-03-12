@@ -224,7 +224,10 @@ export function useApproveOrg() {
             status: 'pending',
           } as any);
         if (linkError) {
-          console.error('Failed to create activation link:', linkError.message);
+          logWarning('Failed to create activation link: ' + linkError.message, {
+            operation: 'approve_seeker_org',
+            additionalData: { orgId, adminId: soaRecord.id },
+          });
         }
       }
     },
