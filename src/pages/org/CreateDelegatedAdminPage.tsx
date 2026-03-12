@@ -148,6 +148,9 @@ export default function CreateDelegatedAdminPage() {
         Back to Admin Management
       </Button>
 
+      {/* SCR-16a: Limit warning */}
+      <DelegatedAdminLimitWarning current={activeCount} max={maxAllowed} />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
