@@ -139,7 +139,9 @@ export function AssignRoleSheet({
   })();
 
   // Use the full role catalog for computing assignable roles
-  const fullRoleCatalog = allRoleCodes ?? availableRoles;
+  const fullRoleCatalog = (allRoleCodes ?? availableRoles).filter(
+    (r) => r.model_applicability !== "mp"
+  );
 
   // For the selected member, compute which roles they can still be assigned
   const selectedMember = existingMembers.find((m) => m.email === selectedMemberEmail);
