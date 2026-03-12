@@ -25,7 +25,7 @@ export function MsmeToggle({ orgId, onQuickAssign }: MsmeToggleProps) {
 
   // Get applicable role codes for display
   const applicableRoleCodes = allRoles
-    ?.filter((r) => r.model_applicability === "mp" || r.model_applicability === "both")
+    ?.filter((r) => r.model_applicability === "agg" || r.model_applicability === "both")
     .map((r) => r.code) ?? [];
   const roleCodesDisplay = applicableRoleCodes.join(", ");
 
