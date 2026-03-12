@@ -440,6 +440,15 @@ export function AssignRoleSheet({
               {createAssignment.isPending ? "Saving..." : "Save & Invite"}
             </Button>
           )}
+          {activeTab === "existing" && existingMembers.length > 0 && (
+            <Button
+              type="button"
+              onClick={onSubmitExisting}
+              disabled={createAssignment.isPending || !effectiveRoleCode || !selectedMemberEmail}
+            >
+              {createAssignment.isPending ? "Assigning..." : "Assign Role"}
+            </Button>
+          )}
         </SheetFooter>
       </SheetContent>
     </Sheet>
