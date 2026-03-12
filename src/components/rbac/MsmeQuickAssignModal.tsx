@@ -124,8 +124,8 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     .filter((r) => selectedRoles.includes(r.code))
     .map((r) => r.display_name);
 
-  // For "Myself" tab, derive the effective email to show in summary
-  const effectiveEmail = activeTab === "myself" ? adminEmail : userEmail;
+  // Derive the effective email for summary display
+  const effectiveEmail = activeTab === "myself" ? adminEmail : activeTab === "existing" ? selectedMemberEmail ?? "" : userEmail;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
