@@ -26,6 +26,7 @@ export function RoleReadinessPanel({ orgId, model, onNavigateToAssign }: RoleRea
   const { data: readinessData, isLoading: readinessLoading } = useRoleReadiness(orgId, model);
   const { data: allRoleCodes } = useSlmRoleCodes();
   const { data: assignments } = useRoleAssignments(orgId);
+  const { data: pendingRefs } = usePendingChallengeRefs(orgId);
 
   const readiness = readinessData?.[0] ?? null;
   const isReady = readiness?.overall_status === "ready";
