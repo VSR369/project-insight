@@ -54,3 +54,14 @@ export function useChallengeRoleCodes(model?: string) {
     ) ?? [],
   };
 }
+
+/** Returns Aggregator challenge roles (R4, R5_AGG, R6_AGG, R7_AGG) — SOA context only */
+export function useAggChallengeRoles() {
+  const query = useSlmRoleCodes();
+  return {
+    ...query,
+    data: query.data?.filter((r) =>
+      !r.is_core && (r.model_applicability === "agg")
+    ) ?? [],
+  };
+}
