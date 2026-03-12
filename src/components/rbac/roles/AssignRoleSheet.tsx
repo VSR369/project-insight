@@ -143,6 +143,22 @@ export function AssignRoleSheet({
     onOpenChange(false);
   };
 
+  const onSubmitExisting = async () => {
+    if (!effectiveRoleCode || !selectedMemberEmail) return;
+    const member = existingMembers.find((m) => m.email === selectedMemberEmail);
+    if (!member) return;
+    await createAssignment.mutateAsync({
+      org_id: orgId,
+      role_code: effectiveRoleCode,
+      user_email: member.email,
+      user_name: member.name ?? undefined,
+      model_applicability: "both",
+    });
+    setSelectedMemberEmail("");
+    setManualRoleCode("");
+    onOpenChange(false);
+  };
+
   // ══════════════════════════════════════
   // SECTION 7: Render
   // ══════════════════════════════════════
