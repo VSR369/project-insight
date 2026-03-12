@@ -152,6 +152,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
       }
     }
     form.reset();
+    setDomainScope({ ...EMPTY_SCOPE });
     onOpenChange(false);
   };
 
