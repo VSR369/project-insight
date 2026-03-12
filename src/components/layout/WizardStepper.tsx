@@ -282,7 +282,7 @@ export function WizardStepper({
         </div>
 
         {/* Mobile view - compact stepper */}
-        <div className="md:hidden flex flex-col items-center gap-2">
+        <div className="lg:hidden flex flex-col items-center gap-2">
           <div className="flex items-center gap-1">
             {steps.map((step) => {
             const isCompleted = completedSteps.includes(step.id);

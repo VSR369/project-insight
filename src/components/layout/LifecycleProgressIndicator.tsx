@@ -140,7 +140,7 @@ export function LifecycleProgressIndicator({
             {nextMilestone && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="hidden md:flex items-center gap-1.5 text-xs text-muted-foreground cursor-help">
+                  <div className="hidden lg:flex items-center gap-1.5 text-xs text-muted-foreground cursor-help">
                     <ChevronRight className="h-3 w-3" />
                     <Flag className="h-3 w-3 text-primary/60" />
                     <span className="font-medium">{nextMilestone.shortLabel}</span>
