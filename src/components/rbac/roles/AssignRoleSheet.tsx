@@ -2,6 +2,7 @@
  * AssignRoleSheet — SCR-09: Side-sheet for role assignment
  * User-centric flow: existing members can be assigned ANY available role.
  * Includes role selector dropdown per member, filtering out already-held roles.
+ * Shows full member details with role display names and assignment statuses.
  */
 
 import { useState, useEffect } from "react";
@@ -18,13 +19,14 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
 import { useCreateRoleAssignment, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useSubDomains } from "@/hooks/queries/useProficiencyTaxonomy";
