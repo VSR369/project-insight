@@ -497,7 +497,7 @@ export function ReviewerInviteForm({ onSuccess, onCancel, editingReviewer }: Rev
                   Preferences (Optional)
                 </CardTitle>
               </CardHeader>
-              <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <CardContent className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="timezone"

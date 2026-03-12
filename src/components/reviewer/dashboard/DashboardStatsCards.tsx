@@ -48,7 +48,7 @@ export function DashboardStatsCards({ stats, isLoading }: DashboardStatsCardsPro
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
         {[1, 2, 3, 4].map((i) => (
           <Card key={i}>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -66,7 +66,7 @@ export function DashboardStatsCards({ stats, isLoading }: DashboardStatsCardsPro
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
       {statItems.map((stat) => (
         <Card key={stat.title}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
