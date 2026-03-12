@@ -850,7 +850,7 @@ const App = () => (
               <Route path="admin-management/create" element={<CreateDelegatedAdminPage />} />
               <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
               <Route path="role-management" element={<RoleManagementDashboard />} />
-              <Route path="enroll" element={<LazyRoute><EnrollRolePage /></LazyRoute>} />
+              
               <Route path="role-readiness" element={<LazyRoute><RoleReadinessPage /></LazyRoute>} />
               <Route path="role-invitation" element={<LazyRoute><RoleInvitationResponsePage /></LazyRoute>} />
               <Route path="contact-profile" element={<LazyRoute><OrgContactProfilePage /></LazyRoute>} />
