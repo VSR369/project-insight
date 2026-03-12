@@ -1,8 +1,7 @@
 /**
  * AssignRoleSheet — SCR-09: Side-sheet for role assignment
- * Dynamic title "Assign {role.display_name}", role badge, toggle tabs,
- * collapsible 4-level domain taxonomy.
- * Includes role selector dropdown when no role is pre-selected.
+ * User-centric flow: existing members can be assigned ANY available role.
+ * Includes role selector dropdown per member, filtering out already-held roles.
  */
 
 import { useState, useEffect } from "react";
@@ -22,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Info, Users, UserPlus } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
 import { useCreateRoleAssignment, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
@@ -56,6 +55,8 @@ export function AssignRoleSheet({
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
   const [manualRoleCode, setManualRoleCode] = useState<string>("");
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
+  const [existingMemberRoleCode, setExistingMemberRoleCode] = useState<string>("");
+
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
@@ -88,6 +89,8 @@ export function AssignRoleSheet({
       const code = preSelectedRoleCode || "";
       form.setValue("role_code", code);
       setManualRoleCode(code);
+      setSelectedMemberEmail("");
+      setExistingMemberRoleCode("");
     }
   }, [preSelectedRoleCode, open, form]);
 
@@ -95,6 +98,11 @@ export function AssignRoleSheet({
   useEffect(() => {
     setSelectedSubDomain("");
   }, [selectedIndustry]);
+
+  // Reset role selection when member changes
+  useEffect(() => {
+    setExistingMemberRoleCode("");
+  }, [selectedMemberEmail]);
 
   // ══════════════════════════════════════
   // SECTION 5: Derived state
@@ -112,13 +120,23 @@ export function AssignRoleSheet({
       if (a.status !== "active" && a.status !== "invited") continue;
       const existing = memberMap.get(a.user_email);
       if (existing) {
-        existing.roles.push(a.role_code);
+        if (!existing.roles.includes(a.role_code)) {
+          existing.roles.push(a.role_code);
+        }
       } else {
         memberMap.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
       }
     }
     return Array.from(memberMap.values());
   })();
+
+  // For the selected member, compute which roles they can still be assigned
+  const selectedMember = existingMembers.find((m) => m.email === selectedMemberEmail);
+  const assignableRolesForMember = selectedMember
+    ? availableRoles.filter((r) => !selectedMember.roles.includes(r.code))
+    : [];
+
+  const hasExistingMembers = existingMembers.length > 0;
 
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
@@ -143,18 +161,18 @@ export function AssignRoleSheet({
   };
 
   const onSubmitExisting = async () => {
-    if (!effectiveRoleCode || !selectedMemberEmail) return;
+    if (!existingMemberRoleCode || !selectedMemberEmail) return;
     const member = existingMembers.find((m) => m.email === selectedMemberEmail);
     if (!member) return;
     await createAssignment.mutateAsync({
       org_id: orgId,
-      role_code: effectiveRoleCode,
+      role_code: existingMemberRoleCode,
       user_email: member.email,
       user_name: member.name ?? undefined,
       model_applicability: "both",
     });
     setSelectedMemberEmail("");
-    setManualRoleCode("");
+    setExistingMemberRoleCode("");
     onOpenChange(false);
   };
 
@@ -166,11 +184,11 @@ export function AssignRoleSheet({
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col overflow-hidden">
         <SheetHeader className="shrink-0 space-y-1">
           <SheetTitle>Assign {roleTitle}</SheetTitle>
-          <SheetDescription>Invite a user to fill an organizational role</SheetDescription>
+          <SheetDescription>Invite a user or assign a new role to an existing team member</SheetDescription>
         </SheetHeader>
 
-        {/* Role Badge (when pre-selected) */}
-        {selectedRole && !showRoleSelector && (
+        {/* Role Badge (when pre-selected — invite tab only) */}
+        {selectedRole && !showRoleSelector && activeTab === "invite" && (
           <div className="shrink-0 mt-2">
             <Badge variant="outline" className="text-xs font-mono bg-muted/50 px-2.5 py-1">
               {selectedRole.code} | {selectedRole.display_name}
@@ -178,8 +196,8 @@ export function AssignRoleSheet({
           </div>
         )}
 
-        {/* Role Selector Dropdown (when no role pre-selected) */}
-        {showRoleSelector && (
+        {/* Role Selector Dropdown (when no role pre-selected — invite tab only) */}
+        {showRoleSelector && activeTab === "invite" && (
           <div className="shrink-0 mt-3">
             <label className="text-sm font-medium text-foreground">Select Role *</label>
             <Select value={manualRoleCode} onValueChange={handleRoleChange}>
@@ -200,33 +218,35 @@ export function AssignRoleSheet({
           </div>
         )}
 
-        {/* Tab Toggle */}
-        <div className="shrink-0 mt-4 grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
-          <button
-            type="button"
-            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === "invite"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("invite")}
-          >
-            <UserPlus className="h-3.5 w-3.5" />
-            New User (Invite)
-          </button>
-          <button
-            type="button"
-            className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-              activeTab === "existing"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-            onClick={() => setActiveTab("existing")}
-          >
-            <Users className="h-3.5 w-3.5" />
-            Existing Team Member
-          </button>
-        </div>
+        {/* Tab Toggle — only show if there are existing members */}
+        {hasExistingMembers && (
+          <div className="shrink-0 mt-4 grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === "invite"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("invite")}
+            >
+              <UserPlus className="h-3.5 w-3.5" />
+              New User (Invite)
+            </button>
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                activeTab === "existing"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setActiveTab("existing")}
+            >
+              <Users className="h-3.5 w-3.5" />
+              Existing Team Member
+            </button>
+          </div>
+        )}
 
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto mt-4">
@@ -360,66 +380,97 @@ export function AssignRoleSheet({
             </Form>
           ) : (
             <div className="space-y-4">
-              {existingMembers.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
-                  <p className="text-sm text-muted-foreground">
-                    No team members onboarded yet. Use "New User (Invite)" to add the first member.
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Select an existing team member to assign the <span className="font-medium text-foreground">{roleTitle}</span> role.
-                  </p>
-                  <div className="space-y-2">
-                    {existingMembers.map((member) => {
-                      const isSelected = selectedMemberEmail === member.email;
-                      const alreadyHasRole = effectiveRoleCode ? member.roles.includes(effectiveRoleCode) : false;
-                      return (
-                        <button
-                          key={member.email}
-                          type="button"
-                          disabled={alreadyHasRole}
-                          onClick={() => setSelectedMemberEmail(isSelected ? "" : member.email)}
-                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
-                            alreadyHasRole
-                              ? "opacity-50 cursor-not-allowed border-muted bg-muted/30"
-                              : isSelected
-                              ? "border-primary bg-primary/5 ring-1 ring-primary"
-                              : "border-border hover:border-primary/40 hover:bg-muted/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-                              {member.name
-                                ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-                                : "?"}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-foreground truncate">
-                                {member.name ?? member.email}
-                              </p>
-                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
-                            </div>
-                            <div className="flex flex-wrap gap-1 shrink-0">
-                              {member.roles.map((rc) => (
-                                <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
-                                  {rc}
-                                </Badge>
-                              ))}
-                            </div>
-                          </div>
-                          {alreadyHasRole && (
-                            <p className="text-[10px] text-muted-foreground mt-1 ml-11">
-                              Already assigned to this role
-                            </p>
-                          )}
-                        </button>
-                      );
-                    })}
+              <p className="text-sm text-muted-foreground">
+                Select a team member and choose a new role to assign. Each role requires separate acceptance.
+              </p>
+
+              {/* Member list */}
+              <div className="space-y-2">
+                {existingMembers.map((member) => {
+                  const isSelected = selectedMemberEmail === member.email;
+                  const memberAssignableRoles = availableRoles.filter(
+                    (r) => !member.roles.includes(r.code)
+                  );
+                  const allRolesAssigned = memberAssignableRoles.length === 0;
+
+                  return (
+                    <button
+                      key={member.email}
+                      type="button"
+                      disabled={allRolesAssigned}
+                      onClick={() => setSelectedMemberEmail(isSelected ? "" : member.email)}
+                      className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                        allRolesAssigned
+                          ? "opacity-50 cursor-not-allowed border-muted bg-muted/30"
+                          : isSelected
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "border-border hover:border-primary/40 hover:bg-muted/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                          {member.name
+                            ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+                            : "?"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {member.name ?? member.email}
+                          </p>
+                          <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                        </div>
+                        <div className="flex flex-wrap gap-1 shrink-0">
+                          {member.roles.map((rc) => (
+                            <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {rc}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      {allRolesAssigned && (
+                        <p className="text-[10px] text-muted-foreground mt-1 ml-11 flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          All available roles assigned
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Role selector for selected member */}
+              {selectedMember && assignableRolesForMember.length > 0 && (
+                <div className="border-t border-border pt-4 space-y-3">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">
+                      Assign new role to {selectedMember.name ?? selectedMember.email} *
+                    </label>
+                    <Select value={existingMemberRoleCode} onValueChange={setExistingMemberRoleCode}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Choose a role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {assignableRolesForMember.map((role) => (
+                          <SelectItem key={role.code} value={role.code}>
+                            {role.display_name} ({role.code})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {existingMemberRoleCode && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {availableRoles.find((r) => r.code === existingMemberRoleCode)?.description}
+                      </p>
+                    )}
                   </div>
-                </>
+
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
+                    <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>
+                      An invitation will be sent. The user must accept to activate this role.
+                    </span>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -439,13 +490,13 @@ export function AssignRoleSheet({
               {createAssignment.isPending ? "Saving..." : "Save & Invite"}
             </Button>
           )}
-          {activeTab === "existing" && existingMembers.length > 0 && (
+          {activeTab === "existing" && hasExistingMembers && (
             <Button
               type="button"
               onClick={onSubmitExisting}
-              disabled={createAssignment.isPending || !effectiveRoleCode || !selectedMemberEmail}
+              disabled={createAssignment.isPending || !existingMemberRoleCode || !selectedMemberEmail}
             >
-              {createAssignment.isPending ? "Assigning..." : "Assign Role"}
+              {createAssignment.isPending ? "Assigning..." : "Assign & Invite"}
             </Button>
           )}
         </SheetFooter>

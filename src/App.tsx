@@ -204,6 +204,7 @@ const EmailTemplatesPage = lazy(() => import("@/pages/admin/marketplace/EmailTem
 
 // Org Portal — lazy loaded pages
 const RoleReadinessPage = lazy(() => import("@/pages/org/RoleReadinessPage"));
+const RoleInvitationResponsePage = lazy(() => import("@/pages/org/RoleInvitationResponsePage"));
 const OrgContactProfilePage = lazy(() => import("@/pages/org/OrgContactProfilePage"));
 const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPage"));
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
@@ -849,6 +850,7 @@ const App = () => (
               <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
               <Route path="role-management" element={<RoleManagementDashboard />} />
               <Route path="role-readiness" element={<LazyRoute><RoleReadinessPage /></LazyRoute>} />
+              <Route path="role-invitation" element={<LazyRoute><RoleInvitationResponsePage /></LazyRoute>} />
               <Route path="contact-profile" element={<LazyRoute><OrgContactProfilePage /></LazyRoute>} />
               <Route path="email-templates" element={<LazyRoute><OrgEmailTemplatesPage /></LazyRoute>} />
               <Route path="knowledge-centre" element={<LazyRoute><OrgKnowledgeCentrePage /></LazyRoute>} />

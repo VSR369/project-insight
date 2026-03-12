@@ -130,3 +130,9 @@ verify_jwt = false
 
 [functions.role-readiness-api]
 verify_jwt = false
+
+[functions.accept-role-invitation]
+verify_jwt = false
+
+[functions.decline-role-invitation]
+verify_jwt = false
