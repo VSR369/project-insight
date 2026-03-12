@@ -119,7 +119,6 @@ export function AssignRoleSheet({
     }
     return Array.from(memberMap.values());
   })();
-  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
 
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
