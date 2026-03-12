@@ -1,19 +1,17 @@
 /**
  * SCR-10: AGG Role Assignment Form for Seeking Org Admin
  * BRD Ref: BR-AGG-001, MOD-05
- * Allows SOA to view Aggregator challenge roles (R4, R5_AGG, R6_AGG, R7_AGG)
- * Invite action is bubbled to parent via onInvite prop (single AssignRoleSheet in parent).
+ * Simplified to match Core Roles tab layout — just RoleTable + multi-role info.
+ * RoleReadinessPanel lives at dashboard top widget + dedicated Role Readiness page.
  */
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { UserPlus, Users, Shield } from "lucide-react";
+import { Users } from "lucide-react";
 import { useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import { RoleTable } from "@/components/rbac/roles/RoleTable";
 import { useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
-import { RoleReadinessPanel } from "@/components/rbac/RoleReadinessPanel";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 interface AggRoleManagementProps {
@@ -47,14 +45,7 @@ export function AggRoleManagement({ orgId, onInvite }: AggRoleManagementProps) {
 
   return (
     <ErrorBoundary componentName="AggRoleManagement">
-      <div className="space-y-5">
-        {/* Readiness Panel for AGG model */}
-        <RoleReadinessPanel
-          orgId={orgId}
-          model="agg"
-          onNavigateToAssign={onInvite}
-        />
-
+      <div className="space-y-4">
         {/* Multi-role users info */}
         {multiRoleUsers.length > 0 && (
           <Card>
@@ -72,35 +63,16 @@ export function AggRoleManagement({ orgId, onInvite }: AggRoleManagementProps) {
           </Card>
         )}
 
-        {/* AGG Challenge Roles Table */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
-                Aggregator Challenge Roles
-              </CardTitle>
-              <Button
-                size="sm"
-                onClick={() => onInvite("")}
-              >
-                <UserPlus className="h-3.5 w-3.5 mr-1.5" />
-                <span className="hidden lg:inline">Assign Role</span>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {!isLoading && aggRoles && (
-              <RoleTable
-                roles={aggRoles}
-                assignments={assignments ?? []}
-                onInvite={onInvite}
-                onDeactivate={handleDeactivate}
-                isDeactivating={deactivate.isPending}
-              />
-            )}
-          </CardContent>
-        </Card>
+        {/* AGG Challenge Roles — same layout as Core Roles tab */}
+        {!isLoading && aggRoles && (
+          <RoleTable
+            roles={aggRoles}
+            assignments={assignments ?? []}
+            onInvite={onInvite}
+            onDeactivate={handleDeactivate}
+            isDeactivating={deactivate.isPending}
+          />
+        )}
       </div>
     </ErrorBoundary>
   );
