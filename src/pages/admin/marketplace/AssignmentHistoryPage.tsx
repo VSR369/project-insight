@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Clock, UserPlus, Users } from "lucide-react";
 import { useSolutionRequests, useAllChallengeAssignments, computeTeamComposition, type ChallengeAssignmentRow, type TeamComposition } from "@/hooks/queries/useSolutionRequests";
-import { useSlmRoleCodes, useSlmPoolRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { useSlmRoleCodes, useChallengeRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
