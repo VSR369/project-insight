@@ -175,10 +175,19 @@ export default function EditDelegatedAdminPage() {
             </div>
           </div>
 
-          {/* Current scope display (Gap 11) */}
-          <div className="border rounded-lg p-3 bg-muted/20">
-            <p className="text-xs font-medium text-muted-foreground mb-2">Current Scope</p>
-            <DomainScopeDisplay scope={originalScope} />
+          {/* SCR-14: Side-by-side scope comparison */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {/* Current scope (read-only) */}
+            <div className="border rounded-lg p-3 bg-muted/20">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Current Scope</p>
+              <DomainScopeDisplay scope={originalScope} />
+            </div>
+
+            {/* Proposed new scope (editable) */}
+            <div className="border rounded-lg p-3 border-primary/30 bg-primary/5">
+              <p className="text-xs font-medium text-primary mb-2">Proposed New Scope</p>
+              <ScopeMultiSelect value={scope} onChange={handleScopeChange} />
+            </div>
           </div>
 
           {/* Scope narrowing warning (Gap 10) */}
@@ -191,12 +200,6 @@ export default function EditDelegatedAdminPage() {
               </AlertDescription>
             </Alert>
           )}
-
-          {/* Scope editor */}
-          <div className="space-y-4 border-t pt-4">
-            <h3 className="text-sm font-semibold text-foreground">Domain Scope</h3>
-            <ScopeMultiSelect value={scope} onChange={handleScopeChange} />
-          </div>
 
           {/* Inline scope overlap warning (Gap 7) */}
           {inlineScopeOverlap.length > 0 && (
