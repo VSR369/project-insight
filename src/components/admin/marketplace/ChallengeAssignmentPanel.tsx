@@ -15,6 +15,7 @@ import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberMo
 import { ReassignmentModal } from "@/components/admin/marketplace/ReassignmentModal";
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
+import { AssignmentConfirmationScreen } from "@/components/admin/marketplace/AssignmentConfirmationScreen";
 
 interface ChallengeAssignmentPanelProps {
   challengeId: string;
