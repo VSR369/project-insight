@@ -42,7 +42,7 @@ export function ProviderDetailsSection({ candidate }: ProviderDetailsSectionProp
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+        <dl className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4">
           <DetailField 
             label="First Name" 
             value={candidate.firstName} 
