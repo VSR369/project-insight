@@ -43,18 +43,18 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
     (r) => r.model_applicability === model || r.model_applicability === "both"
   );
 
-  // Build per-role details with assigned user info
+  // Build per-role details with ALL assigned users
   const roleRows = modelRoles.map((role) => {
-    const activeAssignment = (assignments ?? []).find(
-      (a) => a.role_code === role.code && a.status === "active"
+    const roleAssignments = (assignments ?? []).filter(
+      (a) => a.role_code === role.code
     );
-    const isFilled = !missingCodes.includes(role.code);
+    const isMissingPerCache = missingCodes.includes(role.code);
 
     return {
       code: role.code,
       displayName: role.display_name,
-      isFilled,
-      assignedUserName: activeAssignment?.user_name ?? null,
+      isMissingPerCache,
+      assignments: roleAssignments,
     };
   });
 
