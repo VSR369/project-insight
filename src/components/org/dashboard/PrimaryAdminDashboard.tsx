@@ -48,7 +48,7 @@ export default function PrimaryAdminDashboard() {
 
   // Compute summary stats
   const coreRoles = (allRoleCodes ?? []).filter((r) => r.is_core);
-  const challengeRoles = (allRoleCodes ?? []).filter((r) => !r.is_core);
+  const challengeRoles = (allRoleCodes ?? []).filter((r) => !r.is_core && r.model_applicability === 'agg');
   const activeAssignments = (assignments ?? []).filter((a) => a.status === 'active');
 
   const coreFilledCount = coreRoles.filter((r) =>
