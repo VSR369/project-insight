@@ -48,6 +48,7 @@ interface MsmeQuickAssignModalProps {
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
+  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
   const { data: adminProfile, isLoading: profileLoading } = useCurrentAdminProfile();
