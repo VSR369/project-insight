@@ -33,6 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
+import { EMPTY_SCOPE, type DomainScope } from "@/hooks/queries/useDelegatedAdmins";
 
 const quickAssignSchema = z.object({
   user_name: z.string().trim().min(1, "Name is required").max(120),
