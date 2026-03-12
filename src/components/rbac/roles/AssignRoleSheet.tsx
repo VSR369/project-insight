@@ -60,6 +60,7 @@ export function AssignRoleSheet({
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
   const createAssignment = useCreateRoleAssignment();
+  const { data: existingAssignments } = useRoleAssignments(orgId);
   const { data: industries } = useIndustrySegments();
   const { data: subDomains } = useSubDomains(selectedIndustry || undefined);
   const { data: specialties } = useSpecialities(selectedSubDomain || undefined);
