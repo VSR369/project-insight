@@ -124,3 +124,6 @@ verify_jwt = false
 
 [functions.role-readiness-notify]
 verify_jwt = false
+
+[functions.expire-stale-invitations]
+verify_jwt = false
