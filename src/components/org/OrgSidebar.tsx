@@ -28,6 +28,7 @@ import {
   Crown,
   ArrowLeft,
   Network,
+  UserPlus,
   ShieldCheck,
   LogOut,
   CheckCircle2,
