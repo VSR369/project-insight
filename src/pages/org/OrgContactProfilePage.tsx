@@ -1,0 +1,155 @@
+/**
+ * OrgContactProfilePage — Thin wrapper reusing AdminContactProfilePage form
+ * Route: /org/contact-profile
+ */
+
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ArrowLeft, Info, Save } from 'lucide-react';
+import { useAdminContact, useUpsertAdminContact } from '@/hooks/queries/useAdminContact';
+import { adminContactSchema, type AdminContactFormValues } from '@/lib/validations/roleAssignment';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { format } from 'date-fns';
+
+export default function OrgContactProfilePage() {
+  const navigate = useNavigate();
+  const { data: contact, isLoading } = useAdminContact();
+  const upsert = useUpsertAdminContact();
+
+  const form = useForm<AdminContactFormValues>({
+    resolver: zodResolver(adminContactSchema),
+    defaultValues: { name: '', email: '', phone_intl: '' },
+  });
+
+  useEffect(() => {
+    if (contact) {
+      form.reset({
+        name: contact.name,
+        email: contact.email,
+        phone_intl: contact.phone_intl ?? '',
+      });
+    }
+  }, [contact, form]);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6 p-6">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: AdminContactFormValues) => {
+    await upsert.mutateAsync({
+      id: contact?.id,
+      name: data.name,
+      email: data.email,
+      phone_intl: data.phone_intl || undefined,
+    });
+  };
+
+  const lastUpdated = contact?.updated_at
+    ? format(new Date(contact.updated_at), 'dd MMM yyyy, HH:mm')
+    : null;
+
+  return (
+    <FeatureErrorBoundary featureName="OrgContactProfilePage">
+      <div className="space-y-6 p-6">
+        <button
+          onClick={() => navigate('/org/dashboard')}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </button>
+
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Admin Contact Profile</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Platform Admin contact details exposed via the Role Readiness API
+          </p>
+        </div>
+
+        <Card>
+          <CardContent className="pt-6">
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Full Name *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter admin name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Email *</FormLabel>
+                      <FormControl>
+                        <Input type="email" placeholder="admin@platform.com" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="phone_intl"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Phone (international format) *</FormLabel>
+                      <FormControl>
+                        <Input placeholder="+1234567890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2.5">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>
+                    This contact information is exposed via the Role Readiness API to the CLM module.
+                    Changes will be reflected immediately in all API consumers.
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-2">
+                  <div>
+                    {lastUpdated && (
+                      <p className="text-xs text-muted-foreground">Last updated: {lastUpdated}</p>
+                    )}
+                  </div>
+                  <Button
+                    type="submit"
+                    disabled={upsert.isPending || !form.formState.isDirty}
+                    className="gap-1.5"
+                  >
+                    <Save className="h-4 w-4" />
+                    {upsert.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            </Form>
+          </CardContent>
+        </Card>
+      </div>
+    </FeatureErrorBoundary>
+  );
+}
