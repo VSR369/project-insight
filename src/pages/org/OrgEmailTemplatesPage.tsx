@@ -24,12 +24,12 @@ export default function OrgEmailTemplatesPage() {
 
   const isLoading = rolesLoading || modelsLoading || contactLoading;
 
-  const mpRoles = (allRoles ?? []).filter(
-    (r) => !r.is_core && (r.model_applicability === 'mp' || r.model_applicability === 'both')
+  const aggRoles = (allRoles ?? []).filter(
+    (r) => !r.is_core && (r.model_applicability === 'agg')
   );
   const coreRoles = (allRoles ?? []).filter((r) => r.is_core);
-  const mpModel = engagementModels?.find((m) => m.code === 'marketplace');
-  const modelName = mpModel?.name ?? 'Marketplace';
+  const aggModel = engagementModels?.find((m) => m.code === 'aggregator');
+  const modelName = aggModel?.name ?? 'Aggregator';
   const contactName = adminContact?.name ?? '{{admin_name}}';
   const contactEmail = adminContact?.email ?? '{{admin_email}}';
 
