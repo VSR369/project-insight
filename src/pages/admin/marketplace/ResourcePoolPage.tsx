@@ -1,17 +1,19 @@
 /**
  * ResourcePoolPage — SCR-01b Resource Pool List with filters
- * BRD Ref: BR-POOL-001–003, BR-PP-003
+ * BRD Ref: BR-POOL-001–003, BR-PP-002, BR-PP-003
  */
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { PoolFilterBar } from "@/components/admin/marketplace/PoolFilterBar";
 import { PoolMemberTable } from "@/components/admin/marketplace/PoolMemberTable";
 import { PoolMemberForm } from "@/components/admin/marketplace/PoolMemberForm";
+import { SupervisorDeactivationConfirmModal } from "@/components/admin/marketplace/SupervisorDeactivationConfirmModal";
 import { usePoolMembers, type PoolMemberFilters, type PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 import { useDeactivatePoolMember } from "@/hooks/queries/usePoolMembers";
 import { usePoolPermissions } from "@/hooks/usePoolPermissions";
+import { useAdminTier } from "@/hooks/useAdminTier";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,9 +31,11 @@ export default function ResourcePoolPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [editMember, setEditMember] = useState<PoolMemberRow | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<PoolMemberRow | null>(null);
+  const [supervisorConfirmTarget, setSupervisorConfirmTarget] = useState<PoolMemberRow | null>(null);
 
   // ══════════ Custom hooks ══════════
   const { canWrite, isLoading: permLoading } = usePoolPermissions();
+  const { tier, isSupervisor } = useAdminTier();
 
   // ══════════ Query/Mutation hooks ══════════
   const { data: members, isLoading } = usePoolMembers(filters);
@@ -48,10 +52,34 @@ export default function ResourcePoolPage() {
     setFormOpen(true);
   };
 
+  /**
+   * BR-PP-002: Check if pool member was created by Supervisor tier.
+   * If actor is Senior Admin and member was created by Supervisor, show confirmation modal.
+   */
+  const handleDeactivateRequest = useCallback((member: PoolMemberRow) => {
+    // Check if member has created_by that maps to a supervisor
+    // For Senior Admins deactivating supervisor-created members, require confirmation
+    const memberAny = member as any;
+    const createdByTier = memberAny?.created_by_tier;
+
+    if (!isSupervisor && createdByTier === 'supervisor') {
+      setSupervisorConfirmTarget(member);
+    } else {
+      setDeactivateTarget(member);
+    }
+  }, [isSupervisor]);
+
   const handleDeactivateConfirm = async () => {
     if (deactivateTarget) {
       await deactivateMutation.mutateAsync(deactivateTarget.id);
       setDeactivateTarget(null);
+    }
+  };
+
+  const handleSupervisorDeactivateConfirm = async () => {
+    if (supervisorConfirmTarget) {
+      await deactivateMutation.mutateAsync(supervisorConfirmTarget.id);
+      setSupervisorConfirmTarget(null);
     }
   };
 
@@ -86,7 +114,7 @@ export default function ResourcePoolPage() {
         isLoading={isLoading || permLoading}
         canWrite={canWrite}
         onEdit={handleEdit}
-        onDeactivate={setDeactivateTarget}
+        onDeactivate={handleDeactivateRequest}
       />
 
       {/* Add/Edit Form Sheet */}
@@ -96,7 +124,7 @@ export default function ResourcePoolPage() {
         editMember={editMember}
       />
 
-      {/* Deactivation Confirmation Dialog */}
+      {/* Standard Deactivation Confirmation Dialog */}
       <AlertDialog open={!!deactivateTarget} onOpenChange={() => setDeactivateTarget(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -117,6 +145,15 @@ export default function ResourcePoolPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Supervisor-created member confirmation (BR-PP-002) */}
+      <SupervisorDeactivationConfirmModal
+        open={!!supervisorConfirmTarget}
+        onOpenChange={() => setSupervisorConfirmTarget(null)}
+        memberName={supervisorConfirmTarget?.full_name ?? ""}
+        onConfirm={handleSupervisorDeactivateConfirm}
+        isPending={deactivateMutation.isPending}
+      />
     </div>
   );
 }

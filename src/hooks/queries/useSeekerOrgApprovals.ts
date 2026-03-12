@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { handleMutationError } from '@/lib/errorHandler';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { withUpdatedBy } from '@/lib/auditFields';
 import type { SeekerOrgDetailData } from '@/pages/admin/seeker-org-approvals/types';
 
@@ -205,7 +205,10 @@ export function useApproveOrg() {
         .single();
 
       if (soaError) {
-        console.error('Failed to create seeking_org_admins record:', soaError.message);
+        logWarning('Failed to create seeking_org_admins record: ' + soaError.message, {
+          operation: 'approve_seeker_org',
+          additionalData: { orgId },
+        });
         // Non-fatal — org is already verified
       }
 
@@ -221,7 +224,10 @@ export function useApproveOrg() {
             status: 'pending',
           } as any);
         if (linkError) {
-          console.error('Failed to create activation link:', linkError.message);
+          logWarning('Failed to create activation link: ' + linkError.message, {
+            operation: 'approve_seeker_org',
+            additionalData: { orgId, adminId: soaRecord.id },
+          });
         }
       }
     },

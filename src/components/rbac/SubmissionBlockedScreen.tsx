@@ -4,16 +4,19 @@
  * BRD Ref: BR-CORE-006, BR-AGG-004
  */
 
-import { ShieldAlert, ArrowLeft, Mail } from "lucide-react";
+import { ShieldAlert, ArrowLeft, Mail, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAdminContact } from "@/hooks/queries/useAdminContact";
+import { usePendingChallengeRefsByChallenge, useCreatePendingChallengeRef } from "@/hooks/queries/usePendingChallengeRefs";
+import { useEffect } from "react";
 
 interface SubmissionBlockedScreenProps {
   orgId: string;
   model: string;
+  challengeId?: string;
   challengeTitle?: string;
   onBack: () => void;
 }
@@ -21,15 +24,31 @@ interface SubmissionBlockedScreenProps {
 export function SubmissionBlockedScreen({
   orgId,
   model,
+  challengeId,
   challengeTitle,
   onBack,
 }: SubmissionBlockedScreenProps) {
   const { data: readinessData } = useRoleReadiness(orgId, model);
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: adminContact } = useAdminContact();
+  const createPendingRef = useCreatePendingChallengeRef();
 
   const readiness = readinessData?.[0] ?? null;
   const missingCodes = readiness?.missing_roles ?? [];
+
+  // Auto-create pending_challenge_ref when NOT_READY detected (BR-CORE-007)
+  useEffect(() => {
+    if (challengeId && missingCodes.length > 0 && readiness?.overall_status === "not_ready") {
+      createPendingRef.mutate({
+        challenge_id: challengeId,
+        org_id: orgId,
+        engagement_model: model,
+        missing_role_codes: missingCodes,
+        blocking_reason: "Required roles not filled",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challengeId, missingCodes.length, readiness?.overall_status]);
   const modelLabel = model === "mp" ? "Marketplace" : "Aggregator";
 
   const missingRoleDetails = missingCodes.map((code) => {
