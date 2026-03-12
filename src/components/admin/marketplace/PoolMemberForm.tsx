@@ -48,7 +48,8 @@ interface PoolMemberFormProps {
 
 export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFormProps) {
   const isEdit = !!editMember;
-  const { data: roleCodes } = useSlmRoleCodes();
+  const { data: allRoleCodes } = useSlmRoleCodes();
+  const roleCodes = allRoleCodes?.filter((r) => r.model_applicability !== "agg");
   const createMutation = useCreatePoolMember();
   const updateMutation = useUpdatePoolMember();
 
