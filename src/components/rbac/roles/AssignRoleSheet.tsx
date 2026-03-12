@@ -65,7 +65,9 @@ export function AssignRoleSheet({
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
+  const { orgName } = useOrgContext();
   const createAssignment = useCreateRoleAssignment();
+  const directEnroll = useDirectEnrollRole();
   const { data: existingAssignments } = useRoleAssignments(orgId);
   const { data: allRoleCodes } = useSlmRoleCodes();
   const { data: industries } = useIndustrySegments();
