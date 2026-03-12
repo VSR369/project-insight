@@ -80,7 +80,7 @@ export function OrgSidebar() {
         ...(isPrimary && delegationEnabled
           ? [{ title: 'Delegated Admins', icon: UserCog, path: '/org/admin-management' }]
           : []),
-        { title: 'Contact Profile', icon: Users, path: '/org/contact-profile' },
+        { title: 'My Profile', icon: Users, path: '/org/contact-profile' },
         { title: 'Email Templates', icon: Mail, path: '/org/email-templates' },
       ]
     : [];

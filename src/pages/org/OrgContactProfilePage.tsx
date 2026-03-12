@@ -1,5 +1,5 @@
 /**
- * OrgContactProfilePage — Thin wrapper reusing AdminContactProfilePage form
+ * OrgContactProfilePage — SOA's own profile page
  * Route: /org/contact-profile
  */
 
@@ -12,31 +12,34 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Info, Save } from 'lucide-react';
-import { useAdminContact, useUpsertAdminContact } from '@/hooks/queries/useAdminContact';
-import { adminContactSchema, type AdminContactFormValues } from '@/lib/validations/roleAssignment';
+import { useSoaProfile, useUpdateSoaProfile } from '@/hooks/queries/useSoaProfile';
+import { soaProfileSchema, type SoaProfileFormValues } from '@/lib/validations/roleAssignment';
+import { useOrgContext } from '@/contexts/OrgContext';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { format } from 'date-fns';
 
 export default function OrgContactProfilePage() {
   const navigate = useNavigate();
-  const { data: contact, isLoading } = useAdminContact();
-  const upsert = useUpsertAdminContact();
+  const { organizationId } = useOrgContext();
+  const { data: profile, isLoading } = useSoaProfile(organizationId);
+  const update = useUpdateSoaProfile();
 
-  const form = useForm<AdminContactFormValues>({
-    resolver: zodResolver(adminContactSchema),
-    defaultValues: { name: '', email: '', phone_intl: '' },
+  const form = useForm<SoaProfileFormValues>({
+    resolver: zodResolver(soaProfileSchema),
+    defaultValues: { full_name: '', phone: '', title: '' },
   });
 
   useEffect(() => {
-    if (contact) {
+    if (profile) {
       form.reset({
-        name: contact.name,
-        email: contact.email,
-        phone_intl: contact.phone_intl ?? '',
+        full_name: profile.full_name ?? '',
+        phone: profile.phone ?? '',
+        title: profile.title ?? '',
       });
     }
-  }, [contact, form]);
+  }, [profile, form]);
 
   if (isLoading) {
     return (
@@ -47,17 +50,36 @@ export default function OrgContactProfilePage() {
     );
   }
 
-  const onSubmit = async (data: AdminContactFormValues) => {
-    await upsert.mutateAsync({
-      id: contact?.id,
-      name: data.name,
-      email: data.email,
-      phone_intl: data.phone_intl || undefined,
+  if (!profile) {
+    return (
+      <div className="space-y-6 p-6">
+        <button
+          onClick={() => navigate('/org/dashboard')}
+          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Dashboard
+        </button>
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No admin profile found for your account.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const onSubmit = async (data: SoaProfileFormValues) => {
+    await update.mutateAsync({
+      id: profile.id,
+      full_name: data.full_name,
+      phone: data.phone || undefined,
+      title: data.title || undefined,
     });
   };
 
-  const lastUpdated = contact?.updated_at
-    ? format(new Date(contact.updated_at), 'dd MMM yyyy, HH:mm')
+  const lastUpdated = profile.updated_at
+    ? format(new Date(profile.updated_at), 'dd MMM yyyy, HH:mm')
     : null;
 
   return (
@@ -71,11 +93,16 @@ export default function OrgContactProfilePage() {
           Back to Dashboard
         </button>
 
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Admin Contact Profile</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Platform Admin contact details exposed via the Role Readiness API
-          </p>
+        <div className="flex items-center gap-3">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Your contact details visible to team members and in role assignments
+            </p>
+          </div>
+          <Badge variant="outline" className="capitalize h-fit">
+            {profile.admin_tier.toLowerCase()}
+          </Badge>
         </div>
 
         <Card>
@@ -84,38 +111,53 @@ export default function OrgContactProfilePage() {
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-lg">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="full_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name *</FormLabel>
                       <FormControl>
-                        <Input placeholder="Enter admin name" {...field} />
+                        <Input placeholder="Enter your full name" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
+
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <Input
+                    type="email"
+                    value={profile.email ?? ''}
+                    disabled
+                    className="bg-muted"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Email is linked to your authentication account and cannot be changed here.
+                  </p>
+                </FormItem>
+
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email *</FormLabel>
-                      <FormControl>
-                        <Input type="email" placeholder="admin@platform.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="phone_intl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone (international format) *</FormLabel>
+                      <FormLabel>Phone (international format)</FormLabel>
                       <FormControl>
                         <Input placeholder="+1234567890" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Designation / Job Title</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Head of Engineering" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -125,8 +167,7 @@ export default function OrgContactProfilePage() {
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2.5">
                   <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <span>
-                    This contact information is exposed via the Role Readiness API to the CLM module.
-                    Changes will be reflected immediately in all API consumers.
+                    Your contact information is visible to team members and used when role assignments reference you as the administering contact.
                   </span>
                 </div>
 
@@ -138,11 +179,11 @@ export default function OrgContactProfilePage() {
                   </div>
                   <Button
                     type="submit"
-                    disabled={upsert.isPending || !form.formState.isDirty}
+                    disabled={update.isPending || !form.formState.isDirty}
                     className="gap-1.5"
                   >
                     <Save className="h-4 w-4" />
-                    {upsert.isPending ? 'Saving...' : 'Save Changes'}
+                    {update.isPending ? 'Saving...' : 'Save Changes'}
                   </Button>
                 </div>
               </form>
