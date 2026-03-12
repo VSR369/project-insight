@@ -5,7 +5,7 @@
  * "Myself" tab uses real admin profile from useCurrentAdminProfile — no hardcoded user data.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import { User, UserPlus, Users, Info, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSlmRoleCodes, type SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useBulkCreateRoleAssignments } from "@/hooks/queries/useRoleAssignments";
@@ -47,14 +48,30 @@ interface MsmeQuickAssignModalProps {
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
+  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
   const { data: adminProfile, isLoading: profileLoading } = useCurrentAdminProfile();
   const { user } = useAuth();
 
   const applicableRoles = allRoles?.filter((r) =>
-    r.model_applicability === "mp" || r.model_applicability === "both"
+    r.model_applicability === "agg" || r.model_applicability === "both"
   ) ?? [];
+
+  // Derive existing team members from assignments (deduplicated by email)
+  const existingMembers = useMemo(() => {
+    const map = new Map<string, { email: string; name: string | null; roles: string[] }>();
+    for (const a of assignments) {
+      if (a.status !== "active" && a.status !== "invited") continue;
+      const existing = map.get(a.user_email);
+      if (existing) {
+        if (!existing.roles.includes(a.role_code)) existing.roles.push(a.role_code);
+      } else {
+        map.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
+      }
+    }
+    return Array.from(map.values());
+  }, [assignments]);
 
   // Derive admin display values from real profile — never hardcoded
   const adminName = adminProfile?.full_name ?? "Current Admin";
@@ -107,8 +124,8 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     .filter((r) => selectedRoles.includes(r.code))
     .map((r) => r.display_name);
 
-  // For "Myself" tab, derive the effective email to show in summary
-  const effectiveEmail = activeTab === "myself" ? adminEmail : userEmail;
+  // Derive the effective email for summary display
+  const effectiveEmail = activeTab === "myself" ? adminEmail : activeTab === "existing" ? selectedMemberEmail ?? "" : userEmail;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -245,12 +262,65 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                 />
               </form>
             </Form>
-          ) : (
+          ) : existingMembers.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Users className="h-10 w-10 text-muted-foreground mb-3" />
               <p className="text-sm text-muted-foreground">
-                Existing team member selection will be available once team members are onboarded.
+                No existing team members yet. Use the "New User (Invite)" tab to add someone.
               </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Member list */}
+              <div className="space-y-1.5">
+                <Label className="text-sm font-medium">Select a Team Member</Label>
+                {existingMembers.map((member) => {
+                  const isSelected = selectedMemberEmail === member.email;
+                  return (
+                    <button
+                      key={member.email}
+                      type="button"
+                      className={`w-full flex items-center gap-3 rounded-lg border p-3 text-left transition-colors ${
+                        isSelected
+                          ? "border-primary bg-primary/5 ring-1 ring-primary"
+                          : "bg-background hover:bg-muted/50"
+                      }`}
+                      onClick={() => {
+                        setSelectedMemberEmail(member.email);
+                        form.setValue("user_name", member.name ?? "");
+                        form.setValue("user_email", member.email);
+                      }}
+                    >
+                      <InitialsAvatar name={member.name ?? member.email} size="sm" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {member.name ?? "Unnamed"}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-1 shrink-0">
+                        {member.roles.map((rc) => (
+                          <Badge key={rc} variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
+                            {rc}
+                          </Badge>
+                        ))}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Role selection — shown after member selected */}
+              {selectedMemberEmail && (
+                <RoleSelectionSection
+                  applicableRoles={applicableRoles}
+                  selectedRoles={selectedRoles}
+                  isRoleFilled={isRoleFilled}
+                  form={form}
+                  onSelectAll={handleSelectAll}
+                  onClearAll={handleClearAll}
+                />
+              )}
             </div>
           )}
         </div>
