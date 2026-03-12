@@ -133,7 +133,7 @@ export default function OrgEmailTemplatesPage() {
                     <div>
                       <p className="font-medium text-xs text-muted-foreground uppercase tracking-wide mb-2">All Roles Assigned</p>
                       <ul className="list-disc pl-5 text-muted-foreground space-y-1">
-                        {[...coreRoles, ...mpRoles].map((role) => (
+                        {[...coreRoles, ...aggRoles].map((role) => (
                           <li key={role.code}>{role.display_name} ({role.code}) — {'{{assignee}}'}</li>
                         ))}
                       </ul>

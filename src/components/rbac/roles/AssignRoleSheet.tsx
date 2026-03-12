@@ -1,7 +1,8 @@
 /**
- * AssignRoleSheet — SCR-09: Side-sheet for core role assignment
+ * AssignRoleSheet — SCR-09: Side-sheet for role assignment
  * Dynamic title "Assign {role.display_name}", role badge, toggle tabs,
- * collapsible 4-level domain taxonomy
+ * collapsible 4-level domain taxonomy.
+ * Includes role selector dropdown when no role is pre-selected.
  */
 
 import { useState, useEffect } from "react";
@@ -53,6 +54,7 @@ export function AssignRoleSheet({
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
+  const [manualRoleCode, setManualRoleCode] = useState<string>("");
 
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
@@ -81,8 +83,10 @@ export function AssignRoleSheet({
   // SECTION 4: useEffect hooks
   // ══════════════════════════════════════
   useEffect(() => {
-    if (preSelectedRoleCode && open) {
-      form.setValue("role_code", preSelectedRoleCode);
+    if (open) {
+      const code = preSelectedRoleCode || "";
+      form.setValue("role_code", code);
+      setManualRoleCode(code);
     }
   }, [preSelectedRoleCode, open, form]);
 
@@ -94,12 +98,19 @@ export function AssignRoleSheet({
   // ══════════════════════════════════════
   // SECTION 5: Derived state
   // ══════════════════════════════════════
-  const selectedRole = availableRoles.find((r) => r.code === preSelectedRoleCode);
+  const effectiveRoleCode = preSelectedRoleCode || manualRoleCode;
+  const selectedRole = availableRoles.find((r) => r.code === effectiveRoleCode);
   const roleTitle = selectedRole?.display_name ?? "Role";
+  const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
 
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
   // ══════════════════════════════════════
+  const handleRoleChange = (code: string) => {
+    setManualRoleCode(code);
+    form.setValue("role_code", code);
+  };
+
   const onSubmitInvite = async (data: RoleInviteFormValues) => {
     await createAssignment.mutateAsync({
       org_id: data.org_id,
@@ -110,6 +121,7 @@ export function AssignRoleSheet({
       model_applicability: data.model_applicability,
     });
     form.reset();
+    setManualRoleCode("");
     onOpenChange(false);
   };
 
@@ -121,15 +133,37 @@ export function AssignRoleSheet({
       <SheetContent side="right" className="w-full sm:max-w-md flex flex-col overflow-hidden">
         <SheetHeader className="shrink-0 space-y-1">
           <SheetTitle>Assign {roleTitle}</SheetTitle>
-          <SheetDescription>SCR-09 — Core Role Assignment</SheetDescription>
+          <SheetDescription>Invite a user to fill an organizational role</SheetDescription>
         </SheetHeader>
 
-        {/* Role Badge (read-only) */}
-        {selectedRole && (
+        {/* Role Badge (when pre-selected) */}
+        {selectedRole && !showRoleSelector && (
           <div className="shrink-0 mt-2">
             <Badge variant="outline" className="text-xs font-mono bg-muted/50 px-2.5 py-1">
               {selectedRole.code} | {selectedRole.display_name}
             </Badge>
+          </div>
+        )}
+
+        {/* Role Selector Dropdown (when no role pre-selected) */}
+        {showRoleSelector && (
+          <div className="shrink-0 mt-3">
+            <label className="text-sm font-medium text-foreground">Select Role *</label>
+            <Select value={manualRoleCode} onValueChange={handleRoleChange}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Choose a role to assign" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableRoles.map((role) => (
+                  <SelectItem key={role.code} value={role.code}>
+                    {role.display_name} ({role.code})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedRole && (
+              <p className="text-xs text-muted-foreground mt-1">{selectedRole.description}</p>
+            )}
           </div>
         )}
 
@@ -310,7 +344,7 @@ export function AssignRoleSheet({
             <Button
               type="submit"
               form="assign-role-form"
-              disabled={createAssignment.isPending}
+              disabled={createAssignment.isPending || !effectiveRoleCode}
             >
               {createAssignment.isPending ? "Saving..." : "Save & Invite"}
             </Button>

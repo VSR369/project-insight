@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { XCircle, CheckCircle2, Mail, Phone, User } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { useRoleReadiness, type RoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAdminContact } from "@/hooks/queries/useAdminContact";
@@ -17,6 +18,7 @@ interface RoleReadinessWidgetProps {
 }
 
 export function RoleReadinessWidget({ orgId, model }: RoleReadinessWidgetProps) {
+  const navigate = useNavigate();
   const { data: readinessData, isLoading: readinessLoading } = useRoleReadiness(orgId, model);
   const { data: roleCodes } = useSlmRoleCodes();
   const { data: adminContact } = useAdminContact();
@@ -115,7 +117,10 @@ export function RoleReadinessWidget({ orgId, model }: RoleReadinessWidgetProps) 
               </div>
             )}
 
-            <button className="text-xs text-primary hover:underline mt-3 font-medium">
+            <button
+              onClick={() => navigate("/org/role-readiness")}
+              className="text-xs text-primary hover:underline mt-3 font-medium"
+            >
               View full readiness details &gt;
             </button>
           </div>

@@ -1,6 +1,7 @@
 /**
  * RoleReadinessPage — Standalone page wrapping RoleReadinessPanel
  * Route: /org/role-readiness
+ * BR-CORE-004: SO Admin sees Aggregator + Core readiness only (no Marketplace).
  */
 
 import { useNavigate } from 'react-router-dom';
@@ -25,24 +26,17 @@ export default function RoleReadinessPage() {
         </button>
 
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Role Readiness Status</h1>
+          <h1 className="text-2xl font-bold text-foreground">Aggregator Role Readiness Status</h1>
           <p className="text-sm text-muted-foreground mt-1">
-            View the readiness status for all required roles across engagement models.
+            View the readiness status for all required core and aggregator roles.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <RoleReadinessPanel
-            orgId={organizationId}
-            model="mp"
-            onNavigateToAssign={(roleCode) => navigate(`/org/role-management?assign=${roleCode}`)}
-          />
-          <RoleReadinessPanel
-            orgId={organizationId}
-            model="agg"
-            onNavigateToAssign={(roleCode) => navigate(`/org/role-management?assign=${roleCode}`)}
-          />
-        </div>
+        <RoleReadinessPanel
+          orgId={organizationId}
+          model="agg"
+          onNavigateToAssign={(roleCode) => navigate(`/org/role-management?assign=${roleCode}`)}
+        />
       </div>
     </FeatureErrorBoundary>
   );

@@ -148,7 +148,7 @@ export default function PrimaryAdminDashboard() {
             <ConsoleCard
               icon={<ShieldCheck className="h-5 w-5" />}
               title="Role Management"
-              description="Assign and manage core & challenge roles"
+              description="Assign and manage core & aggregator roles"
               onClick={() => navigate('/org/role-management')}
             />
             <ConsoleCard
