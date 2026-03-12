@@ -24,6 +24,7 @@ interface SubmissionBlockedScreenProps {
 export function SubmissionBlockedScreen({
   orgId,
   model,
+  challengeId,
   challengeTitle,
   onBack,
 }: SubmissionBlockedScreenProps) {
