@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import type { Json } from "@/integrations/supabase/types";
 import { withCreatedBy, withUpdatedBy } from "@/lib/auditFields";
 import { handleMutationError } from "@/lib/errorHandler";
+import { checkDuplicateInvitation } from "@/hooks/useDuplicateInvitationCheck";
 
 export interface RoleAssignment {
   id: string;
