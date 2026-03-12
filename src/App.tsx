@@ -848,6 +848,10 @@ const App = () => (
               <Route path="admin-management/create" element={<CreateDelegatedAdminPage />} />
               <Route path="admin-management/:adminId/edit" element={<EditDelegatedAdminPage />} />
               <Route path="role-management" element={<RoleManagementDashboard />} />
+              <Route path="role-readiness" element={<LazyRoute><RoleReadinessPage /></LazyRoute>} />
+              <Route path="contact-profile" element={<LazyRoute><OrgContactProfilePage /></LazyRoute>} />
+              <Route path="email-templates" element={<LazyRoute><OrgEmailTemplatesPage /></LazyRoute>} />
+              <Route path="knowledge-centre" element={<LazyRoute><OrgKnowledgeCentrePage /></LazyRoute>} />
             </Route>
             <Route
               path="/registration/complete"
