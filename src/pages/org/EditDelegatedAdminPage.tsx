@@ -101,6 +101,9 @@ export default function EditDelegatedAdminPage() {
       adminId,
       organizationId,
       domain_scope: scope,
+      previousScope: originalScope,
+      orphanCount: narrowingInfo.removedCount,
+      confirmationGiven: narrowingInfo.isNarrowed,
     });
     navigate('/org/admin-management');
   };

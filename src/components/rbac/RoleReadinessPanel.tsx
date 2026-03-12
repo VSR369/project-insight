@@ -149,6 +149,16 @@ export function RoleReadinessPanel({ orgId, model, onNavigateToAssign }: RoleRea
             </p>
           </div>
         )}
+
+        {/* Pending challenge refs indicator (BR-CORE-007) */}
+        {(pendingRefs ?? []).length > 0 && (
+          <div className="flex items-start gap-2 bg-muted/50 border border-border rounded-md px-3 py-2.5">
+            <Clock className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              <strong>{pendingRefs!.length}</strong> challenge(s) are waiting for role assignments to be completed before they can proceed.
+            </p>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
