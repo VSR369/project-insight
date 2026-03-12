@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
-import { useCreateRoleAssignment, useDirectEnrollRole } from "@/hooks/queries/useRoleAssignments";
+import { useCreateRoleAssignment, useDirectEnrollRole, type CreateRoleAssignmentInput } from "@/hooks/queries/useRoleAssignments";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
