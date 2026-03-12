@@ -89,7 +89,7 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                   {isUnassigned ? (
                     <RoleAssignmentStatusBadge statusCode="unassigned" />
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       {roleAssignments.map((a) => (
                         <RoleAssignmentStatusBadge key={a.id} statusCode={a.status} />
                       ))}
@@ -97,44 +97,33 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                   )}
                 </TableCell>
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    {isUnassigned ? (
+                  <div className="flex flex-col items-end gap-2">
+                    <Button
+                      variant={isUnassigned ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => onInvite(role.code)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5 mr-1" />
+                      <span className="hidden lg:inline">Assign User</span>
+                      <span className="lg:hidden">Assign</span>
+                    </Button>
+                    {!isUnassigned && roleAssignments.map((a) => (
                       <Button
-                        variant="default"
+                        key={a.id}
+                        variant="ghost"
                         size="sm"
-                        onClick={() => onInvite(role.code)}
+                        className="text-destructive hover:text-destructive"
+                        onClick={() => onDeactivate(a.id)}
+                        disabled={isDeactivating}
                       >
-                        <UserPlus className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden lg:inline">Invite User</span>
-                        <span className="lg:hidden">Invite</span>
+                        <UserMinus className="h-3.5 w-3.5 mr-1" />
+                        <span className="hidden lg:inline">Deactivate</span>
                       </Button>
-                    ) : (
-                      <>
-                        {roleAssignments.length < (role.min_required ?? 1) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => onInvite(role.code)}
-                          >
-                            <UserPlus className="h-3.5 w-3.5 mr-1" />
-                            <span className="hidden lg:inline">Add User</span>
-                            <span className="lg:hidden">Add</span>
-                          </Button>
-                        )}
-                        {roleAssignments.map((a) => (
-                          <Button
-                            key={a.id}
-                            variant="ghost"
-                            size="sm"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => onDeactivate(a.id)}
-                            disabled={isDeactivating}
-                          >
-                            <UserMinus className="h-3.5 w-3.5 mr-1" />
-                            <span className="hidden lg:inline">Deactivate</span>
-                          </Button>
-                        ))}
-                      </>
+                    ))}
+                    {!isUnassigned && (role.min_required ?? 0) > 1 && roleAssignments.length < (role.min_required ?? 0) && (
+                      <span className="text-xs text-amber-600 dark:text-amber-400">
+                        Minimum {role.min_required} required — {roleAssignments.length} assigned
+                      </span>
                     )}
                   </div>
                 </TableCell>
