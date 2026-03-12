@@ -99,7 +99,7 @@ export function ExpertiseReviewActions({
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-6">
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2">
           {/* Flag for Clarification */}
           <div className="space-y-3">
             <Label className="flex items-center gap-2 text-base font-medium">

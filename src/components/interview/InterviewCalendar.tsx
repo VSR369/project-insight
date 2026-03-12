@@ -166,7 +166,7 @@ export function InterviewCalendar({
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
               {slotsForSelectedDate
                 .sort((a, b) => new Date(a.start_at).getTime() - new Date(b.start_at).getTime())
                 .map((slot) => {

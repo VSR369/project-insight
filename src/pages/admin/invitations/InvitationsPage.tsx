@@ -240,7 +240,7 @@ export function InvitationsPage() {
         <p className="text-muted-foreground mt-1">Manage invitations sent to potential solution providers</p>
       </div>
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardDescription>Total</CardDescription>

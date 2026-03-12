@@ -122,7 +122,7 @@ export function ImportStatisticsDashboard({ statistics }: ImportStatisticsDashbo
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
           <CardContent className="p-3">
             <div className="flex items-center gap-2">
@@ -207,7 +207,7 @@ export function ImportStatisticsDashboard({ statistics }: ImportStatisticsDashbo
       )}
 
       {/* Charts Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Difficulty Distribution - Pie Chart */}
         {byDifficulty.length > 0 && (
           <Card>

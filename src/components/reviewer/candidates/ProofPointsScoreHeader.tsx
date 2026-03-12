@@ -43,7 +43,7 @@ export function ProofPointsScoreHeader({
   return (
     <Card className="mb-6">
       <CardContent className="pt-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Final Score */}
           <div className="text-center">
             <div className="flex items-center justify-center gap-2 mb-2">

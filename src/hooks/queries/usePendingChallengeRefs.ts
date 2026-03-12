@@ -33,7 +33,8 @@ export function usePendingChallengeRefs(orgId?: string) {
         .select("id, challenge_id, org_id, engagement_model, missing_role_codes, blocking_reason, is_resolved, resolved_at, resolved_by, created_at")
         .eq("org_id", orgId)
         .eq("is_resolved", false)
-        .order("created_at", { ascending: false });
+        .order("created_at", { ascending: false })
+        .limit(200);
       if (error) throw new Error(error.message);
       return (data ?? []) as PendingChallengeRef[];
     },

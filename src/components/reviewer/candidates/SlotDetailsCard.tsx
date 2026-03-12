@@ -103,7 +103,7 @@ export function SlotDetailsCard({
           Times shown in {reviewerTzShort} (your timezone)
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 p-4 rounded-lg border bg-muted/30">
           {/* Date */}
           <div className="space-y-1">
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

@@ -5,7 +5,7 @@
  * Fully Booked alternatives (SCR-05b), No Available Members alert (SCR-05c)
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -30,7 +30,7 @@ import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { PreviousTeamSuggestion } from "@/components/admin/marketplace/PreviousTeamSuggestion";
 import { FullyBookedAlternativesModal } from "@/components/admin/marketplace/FullyBookedAlternativesModal";
 import { NoAvailableMembersAlert } from "@/components/admin/marketplace/NoAvailableMembersAlert";
-import { useSessionExpiryWatcher } from "@/hooks/useSessionRecovery";
+import { useSessionExpiryWatcher, useRestoreFormFromRecovery, useSaveFormForRecovery } from "@/hooks/useSessionRecovery";
 import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
 interface AssignMemberModalProps {
@@ -74,6 +74,23 @@ export function AssignMemberModal({
     selectedRole,
     selectedMemberId,
   }));
+
+  // Restore form data after re-login (Phase 8A)
+  const recoveredData = useRestoreFormFromRecovery("assign-member");
+  const { clearRecovery } = useSaveFormForRecovery("assign-member");
+
+  useEffect(() => {
+    if (recoveredData?.formData && open) {
+      const { selectedRole: rRole, selectedMemberId: rMember } = recoveredData.formData as {
+        selectedRole?: string;
+        selectedMemberId?: string;
+      };
+      if (rRole) setSelectedRole(rRole);
+      if (rMember) setSelectedMemberId(rMember);
+      clearRecovery();
+      toast.info("Form data restored from previous session");
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ══════════════════════════════════════
   // SECTION 3: Derived state
