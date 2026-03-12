@@ -53,7 +53,7 @@ export function RoleReadinessPanel({ orgId, model, onNavigateToAssign }: RoleRea
   const filled = readiness?.total_filled ?? 0;
   const total = readiness?.total_required ?? 0;
   const progressPct = total > 0 ? (filled / total) * 100 : 0;
-  const modelLabel = model === "mp" ? "Marketplace" : "Aggregator";
+  const modelLabel = model === "mp" ? "Aggregator" : "Aggregator";
 
   if (readinessLoading) {
     return (

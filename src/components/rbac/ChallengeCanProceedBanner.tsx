@@ -80,7 +80,7 @@ export function ChallengeCanProceedBanner({
 
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <Badge variant="secondary" className="text-[10px]">
-                {model === "mp" ? "Marketplace" : model === "agg" ? "Aggregator" : model}
+                {model === "mp" ? "Aggregator" : model === "agg" ? "Aggregator" : model}
               </Badge>
               {deepLink && (
                 <Button

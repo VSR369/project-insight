@@ -171,7 +171,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         <div className="shrink-0 mx-6 mt-3 flex items-start gap-2 text-xs bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800 rounded-md px-3 py-2">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span>
-            MSME mode is active. One person can be assigned to all marketplace roles simultaneously.
+            MSME mode is active. One person can be assigned to all aggregator roles simultaneously.
           </span>
         </div>
 
