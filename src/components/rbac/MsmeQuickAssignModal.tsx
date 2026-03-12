@@ -50,12 +50,16 @@ interface MsmeQuickAssignModalProps {
 
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
+  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
+  const directEnroll = useDirectEnrollRole();
+  const createAssignment = useCreateRoleAssignment();
   const { data: adminProfile, isLoading: profileLoading } = useCurrentAdminProfile();
   const { user } = useAuth();
+  const { orgName } = useOrgContext();
 
   const applicableRoles = allRoles?.filter((r) =>
     r.model_applicability === "agg" || r.model_applicability === "both"
