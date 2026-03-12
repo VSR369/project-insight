@@ -74,7 +74,7 @@ function AssignmentPanelView({
 export default function SolutionRequestsPage() {
   const navigate = useNavigate();
   const [selectedChallenge, setSelectedChallenge] = useState<SolutionRequestRow | null>(null);
-  const { data: mpRoles } = useSlmPoolRoles();
+  const { data: mpRoles } = useChallengeRoleCodes("mp");
   const { data: requests, isLoading } = useSolutionRequests(mpRoles ?? []);
 
   // If a challenge is selected, show the Assignment Panel (SCR-05)

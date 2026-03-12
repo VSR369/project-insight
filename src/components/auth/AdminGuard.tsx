@@ -6,6 +6,7 @@ import { AuthGuard } from '@/components/auth/AuthGuard';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { checkSessionType } from '@/lib/sessionIsolation';
+import { MfaGuard } from '@/components/auth/MfaGuard';
 
 interface AdminGuardProps {
   children: ReactNode;

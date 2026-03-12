@@ -24,7 +24,7 @@ export default function AssignmentHistoryPage() {
   const [searchParams] = useSearchParams();
   const highlightChallengeId = searchParams.get("challenge");
 
-  const { data: mpRoles } = useSlmPoolRoles();
+  const { data: mpRoles } = useChallengeRoleCodes("mp");
   const { data: requests, isLoading: reqLoading } = useSolutionRequests(mpRoles ?? []);
   const { data: allAssignments, isLoading: assignLoading } = useAllChallengeAssignments();
   const { data: roleCodes } = useSlmRoleCodes();
