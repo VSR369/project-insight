@@ -6941,9 +6941,12 @@ export type Database = {
       }
       role_assignments: {
         Row: {
+          acceptance_token: string | null
           activated_at: string | null
           created_at: string
           created_by: string | null
+          decline_reason: string | null
+          declined_at: string | null
           domain_tags: Json | null
           expires_at: string | null
           id: string
@@ -6959,9 +6962,12 @@ export type Database = {
           user_name: string | null
         }
         Insert: {
+          acceptance_token?: string | null
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           domain_tags?: Json | null
           expires_at?: string | null
           id?: string
@@ -6977,9 +6983,12 @@ export type Database = {
           user_name?: string | null
         }
         Update: {
+          acceptance_token?: string | null
           activated_at?: string | null
           created_at?: string
           created_by?: string | null
+          decline_reason?: string | null
+          declined_at?: string | null
           domain_tags?: Json | null
           expires_at?: string | null
           id?: string
