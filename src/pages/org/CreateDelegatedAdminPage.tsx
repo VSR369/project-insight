@@ -12,6 +12,7 @@ import { useOrgContext } from '@/contexts/OrgContext';
 import {
   useCreateDelegatedAdmin,
   useDelegatedAdmins,
+  useMaxDelegatedAdmins,
   useActivationExpiryHours,
   checkScopeOverlap,
   checkEmailUniqueness,
