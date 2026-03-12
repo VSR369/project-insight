@@ -69,7 +69,7 @@ export function InterviewKitSummaryDashboard({
   return (
     <div className="space-y-4">
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {/* Progress Card */}
         <Card className="bg-blue-50 border-blue-100">
           <CardContent className="p-4">

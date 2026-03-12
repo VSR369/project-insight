@@ -50,7 +50,7 @@ export function ResultsSummaryHeader({
         </div>
 
         {/* KPI Summary */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Total Questions */}
           <div className="text-center p-3 bg-muted/50 rounded-lg">
             <p className="text-2xl font-bold text-foreground">{totalQuestions}</p>

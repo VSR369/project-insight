@@ -92,7 +92,7 @@ export function WhyProofPointsMatter({ className = '' }: WhyProofPointsMatterPro
             </div>
             <div>
               <h3 className="font-semibold text-foreground mb-3">What Makes Strong Proof Points</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 {STRONG_PROOF_POINTS.map((item) => (
                   <div key={item.text} className="flex items-center gap-2 text-sm">
                     <item.icon className="h-4 w-4 text-amber-600 dark:text-amber-400" />

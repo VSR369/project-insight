@@ -155,7 +155,7 @@ export default function LifecycleRulesPage() {
                   <CardTitle>Field Categories</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
+                  <div className="grid gap-4 lg:grid-cols-3">
                     <div className="space-y-2">
                       <h4 className="font-medium flex items-center gap-2">
                         <Badge variant="secondary">Registration</Badge>

@@ -206,7 +206,7 @@ function PostEnrollmentWelcomeContent() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20">
-      <div className="container mx-auto px-4 py-8 md:py-12 max-w-5xl">
+      <div className="container mx-auto px-4 py-8 lg:py-12 max-w-5xl">
         <div className="space-y-12">
           {/* Header Section */}
           <div className="text-center space-y-4 animate-fade-in">

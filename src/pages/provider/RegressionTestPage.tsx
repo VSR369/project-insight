@@ -83,7 +83,7 @@ export default function RegressionTestPage() {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid gap-4 md:grid-cols-5">
+        <div className="grid gap-4 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardDescription>Total Tests</CardDescription>
