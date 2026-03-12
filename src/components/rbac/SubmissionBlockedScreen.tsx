@@ -4,12 +4,14 @@
  * BRD Ref: BR-CORE-006, BR-AGG-004
  */
 
-import { ShieldAlert, ArrowLeft, Mail } from "lucide-react";
+import { ShieldAlert, ArrowLeft, Mail, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAdminContact } from "@/hooks/queries/useAdminContact";
+import { usePendingChallengeRefsByChallenge, useCreatePendingChallengeRef } from "@/hooks/queries/usePendingChallengeRefs";
+import { useEffect } from "react";
 
 interface SubmissionBlockedScreenProps {
   orgId: string;
