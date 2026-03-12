@@ -535,6 +535,14 @@ const App = () => (
                 </AuthGuard>
               }
             />
+            <Route
+              path="/settings/security"
+              element={
+                <AuthGuard>
+                  <LazyRoute><SecuritySettingsPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
 
             {/* Tools Routes (lazy loaded) */}
             <Route
