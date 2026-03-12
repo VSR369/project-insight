@@ -53,7 +53,8 @@ export function useDelegatedAdmins(organizationId?: string) {
         .select('id, organization_id, user_id, admin_tier, status, full_name, email, phone, title, domain_scope, designation_method, activated_at, created_at')
         .eq('organization_id', organizationId)
         .eq('admin_tier', 'DELEGATED')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(200);
       if (error) throw new Error(error.message);
       return (data ?? []) as unknown as DelegatedAdmin[];
     },
