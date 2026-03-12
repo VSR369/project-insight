@@ -204,6 +204,7 @@ const EmailTemplatesPage = lazy(() => import("@/pages/admin/marketplace/EmailTem
 
 // Org Portal — lazy loaded pages
 const RoleReadinessPage = lazy(() => import("@/pages/org/RoleReadinessPage"));
+const RoleInvitationResponsePage = lazy(() => import("@/pages/org/RoleInvitationResponsePage"));
 const OrgContactProfilePage = lazy(() => import("@/pages/org/OrgContactProfilePage"));
 const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPage"));
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
