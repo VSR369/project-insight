@@ -285,9 +285,14 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                   </button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
-                  <p className="text-xs text-muted-foreground py-2 pl-6">
-                    Domain taxonomy selectors will cascade here when industry data is available.
-                  </p>
+                  <div className="pl-6 pt-2">
+                    <ScopeMultiSelect
+                      value={domainScope}
+                      onChange={setDomainScope}
+                      hideDepartments
+                      allowAll
+                    />
+                  </div>
                 </CollapsibleContent>
               </Collapsible>
             </div>
