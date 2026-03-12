@@ -37,8 +37,24 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
 
   const handleDeactivateConfirm = async () => {
     if (!deactivateTarget) return;
+    // Check for orphan roles before deactivating
+    const orphans = roleAssignments.filter(
+      (r) => r.status === "active" || r.status === "invited"
+    );
+    if (orphans.length > 0) {
+      setReassignTarget({ id: deactivateTarget.id, name: deactivateTarget.name, orphanRoles: orphans });
+      setDeactivateTarget(null);
+      return;
+    }
     await deactivate.mutateAsync({ adminId: deactivateTarget.id, organizationId: orgId });
     setDeactivateTarget(null);
+  };
+
+  const handleReassignConfirm = async (reassignments: { roleAssignmentId: string; targetAdminEmail: string }[]) => {
+    if (!reassignTarget) return;
+    // After reassignment, proceed with deactivation
+    await deactivate.mutateAsync({ adminId: reassignTarget.id, organizationId: orgId });
+    setReassignTarget(null);
   };
 
   if (isLoading) {
