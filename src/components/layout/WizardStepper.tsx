@@ -116,7 +116,7 @@ export function WizardStepper({
         )}
         
         {/* Desktop view - horizontal stepper */}
-        <div className="hidden md:flex items-center justify-center gap-1">
+        <div className="hidden lg:flex items-center justify-center gap-1">
           {steps.map((step, index) => {
             const isCompleted = completedSteps.includes(step.id);
             const isCurrent = step.id === currentStep;
