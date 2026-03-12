@@ -202,7 +202,12 @@ const RoleManagementDashboard = lazy(() => import("@/pages/rbac/RoleManagementDa
 const AdminContactProfilePage = lazy(() => import("@/pages/admin/marketplace/AdminContactProfilePage"));
 const EmailTemplatesPage = lazy(() => import("@/pages/admin/marketplace/EmailTemplatesPage"));
 
-// Tools Pages (lazy loaded)
+// Org Portal — lazy loaded pages
+const RoleReadinessPage = lazy(() => import("@/pages/org/RoleReadinessPage"));
+const OrgContactProfilePage = lazy(() => import("@/pages/org/OrgContactProfilePage"));
+const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPage"));
+const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
+
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
 
