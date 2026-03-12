@@ -132,7 +132,7 @@ export default function RoleInvitationResponsePage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CheckCircle className="h-12 w-12 text-emerald-500 mx-auto mb-3" />
+            <CheckCircle className="h-12 w-12 text-primary mx-auto mb-3" />
             <CardTitle>Role Accepted!</CardTitle>
             <CardDescription>
               You have successfully accepted the <span className="font-semibold">{invitation?.role_code}</span> role.
