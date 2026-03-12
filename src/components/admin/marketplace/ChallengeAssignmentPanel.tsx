@@ -164,6 +164,15 @@ export function ChallengeAssignmentPanel({
               );
             })}
           </div>
+          {/* View Team Summary button when complete */}
+          {team.isComplete && (
+            <div className="flex justify-end mt-4">
+              <Button variant="outline" size="sm" onClick={() => setShowConfirmation(true)}>
+                <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                View Team Summary
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
