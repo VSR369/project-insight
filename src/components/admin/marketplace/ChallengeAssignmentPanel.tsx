@@ -157,6 +157,7 @@ export function ChallengeAssignmentPanel({
         <AssignMemberModal
           challengeId={challengeId}
           challengeTitle={challengeTitle}
+          orgId={assignments[0]?.domain_scope ? undefined : undefined}
           missingRoles={assignTarget.missingRoles}
           open={!!assignTarget}
           onOpenChange={(open) => { if (!open) setAssignTarget(null); }}

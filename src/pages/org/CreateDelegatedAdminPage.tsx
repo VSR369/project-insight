@@ -46,7 +46,11 @@ export default function CreateDelegatedAdminPage() {
   const createAdmin = useCreateDelegatedAdmin();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
   const { data: expiryHours = 72 } = useActivationExpiryHours();
+  const { data: maxAllowed = 5 } = useMaxDelegatedAdmins();
   const { enabled: delegationEnabled } = useOrgDelegationEnabled();
+
+  const activeCount = existingAdmins.filter((a) => a.status !== 'deactivated').length;
+  const isAtLimit = activeCount >= maxAllowed;
 
   // Redirect if delegation is disabled
   useEffect(() => {
