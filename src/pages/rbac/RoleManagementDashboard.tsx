@@ -14,7 +14,8 @@ import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
-import { useOrgCoreRoles, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
+import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -36,7 +37,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   // SECTION 3: Query/Mutation hooks
   // ══════════════════════════════════════
-  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useOrgCoreRoles();
+  const { data: orgCoreRoles, isLoading: orgCoreLoading } = useCoreRoleCodes();
   const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(organizationId);
   const deactivate = useDeactivateRoleAssignment();
@@ -100,6 +101,7 @@ export default function RoleManagementDashboard() {
             <TabsList className="mb-4">
               <TabsTrigger value="org-core">Core Roles</TabsTrigger>
               <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
+              <TabsTrigger value="delegated-admins">Delegated Admins</TabsTrigger>
             </TabsList>
 
             <TabsContent value="org-core">
@@ -114,6 +116,10 @@ export default function RoleManagementDashboard() {
 
             <TabsContent value="agg-challenge">
               <AggRoleManagement orgId={organizationId} />
+            </TabsContent>
+
+            <TabsContent value="delegated-admins">
+              <DelegatedAdminListTab orgId={organizationId} />
             </TabsContent>
           </Tabs>
         )}

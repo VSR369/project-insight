@@ -12,6 +12,7 @@ import { useOrgContext } from '@/contexts/OrgContext';
 import {
   useCreateDelegatedAdmin,
   useDelegatedAdmins,
+  useMaxDelegatedAdmins,
   useActivationExpiryHours,
   checkScopeOverlap,
   checkEmailUniqueness,
@@ -28,6 +29,7 @@ import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';
+import { DelegatedAdminLimitWarning } from '@/components/rbac/DelegatedAdminLimitWarning';
 
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
@@ -44,7 +46,11 @@ export default function CreateDelegatedAdminPage() {
   const createAdmin = useCreateDelegatedAdmin();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
   const { data: expiryHours = 72 } = useActivationExpiryHours();
+  const { data: maxAllowed = 5 } = useMaxDelegatedAdmins();
   const { enabled: delegationEnabled } = useOrgDelegationEnabled();
+
+  const activeCount = existingAdmins.filter((a) => a.status !== 'deactivated').length;
+  const isAtLimit = activeCount >= maxAllowed;
 
   // Redirect if delegation is disabled
   useEffect(() => {
@@ -141,6 +147,9 @@ export default function CreateDelegatedAdminPage() {
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to Admin Management
       </Button>
+
+      {/* SCR-16a: Limit warning */}
+      <DelegatedAdminLimitWarning current={activeCount} max={maxAllowed} />
 
       <Card>
         <CardHeader>
@@ -241,7 +250,7 @@ export default function CreateDelegatedAdminPage() {
                 <Button type="button" variant="outline" onClick={() => navigate('/org/admin-management')}>
                   Cancel
                 </Button>
-                <Button type="submit" disabled={createAdmin.isPending || industryMissing || !!emailError}>
+                <Button type="submit" disabled={createAdmin.isPending || industryMissing || !!emailError || isAtLimit}>
                   {createAdmin.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
                   Create Admin
                 </Button>
