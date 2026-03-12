@@ -30,7 +30,7 @@ export function AggBlockedScreen({ onBack }: AggBlockedScreenProps) {
         </p>
         <p className="text-xs text-muted-foreground mt-2">
           You can still manage <strong>Core Roles</strong> (R2, R8, R9) which
-          apply to both engagement models, and <strong>Marketplace Roles</strong> (R3, R5_MP, R6_MP, R7_MP).
+          apply to both engagement models, and <strong>Aggregator Roles</strong> (R3, R5_MP, R6_MP, R7_MP).
         </p>
       </div>
 

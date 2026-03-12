@@ -49,7 +49,7 @@ export function SubmissionBlockedScreen({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [challengeId, missingCodes.length, readiness?.overall_status]);
-  const modelLabel = model === "mp" ? "Marketplace" : "Aggregator";
+  const modelLabel = model === "mp" ? "Aggregator" : "Aggregator";
 
   const missingRoleDetails = missingCodes.map((code) => {
     const role = roleCodes?.find((r) => r.code === code);
