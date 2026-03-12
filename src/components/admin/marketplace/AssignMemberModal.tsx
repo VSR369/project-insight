@@ -68,6 +68,13 @@ export function AssignMemberModal({
   const { data: poolMembers } = usePoolMembers({ role: selectedRole || undefined });
   const { data: challengeAssignments } = useChallengeAssignments(challengeId);
 
+  // Session recovery watcher (Phase 8A)
+  useSessionExpiryWatcher("assign-member", () => ({
+    challengeId,
+    selectedRole,
+    selectedMemberId,
+  }));
+
   // ══════════════════════════════════════
   // SECTION 3: Derived state
   // ══════════════════════════════════════
