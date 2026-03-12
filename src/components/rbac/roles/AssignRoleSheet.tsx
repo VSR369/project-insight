@@ -25,7 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight, Info, Users, UserPlus } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
-import { useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useCreateRoleAssignment, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useSubDomains } from "@/hooks/queries/useProficiencyTaxonomy";
