@@ -29,6 +29,8 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
   const deactivate = useDeactivateDelegatedAdmin();
 
   const [deactivateTarget, setDeactivateTarget] = useState<{ id: string; name: string } | null>(null);
+  const [reassignTarget, setReassignTarget] = useState<{ id: string; name: string; orphanRoles: RoleAssignment[] } | null>(null);
+  const { data: roleAssignments = [] } = useRoleAssignments(orgId);
 
   const activeAdmins = admins.filter((a) => a.status !== "deactivated");
   const activeCount = activeAdmins.length;
