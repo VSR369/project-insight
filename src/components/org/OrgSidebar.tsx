@@ -166,12 +166,32 @@ export function OrgSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Organization — scoped items */}
+        {/* Admin & Operations — SO Admins only */}
+        {isSOAdmin && adminOperationsItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(adminOperationsItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Organization — scoped items (non-admin org users) */}
         {orgItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Organization</SidebarGroupLabel>
             <SidebarGroupContent>
               {renderMenuSection(orgItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Knowledge Centre — SO Admins only */}
+        {isSOAdmin && knowledgeCentreItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Resources</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(knowledgeCentreItems)}
             </SidebarGroupContent>
           </SidebarGroup>
         )}
