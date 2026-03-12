@@ -21,7 +21,7 @@ import { ArrowRight, ArrowLeft, Clock, History } from "lucide-react";
 import { useSolutionRequests, useChallengeAssignments, computeTeamComposition } from "@/hooks/queries/useSolutionRequests";
 import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
 import { ChallengeAssignmentPanel } from "@/components/admin/marketplace/ChallengeAssignmentPanel";
-import { useSlmPoolRoles } from "@/hooks/queries/useSlmRoleCodes";
+import { useChallengeRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { format } from "date-fns";
 import type { TeamComposition, SolutionRequestRow } from "@/hooks/queries/useSolutionRequests";
 
