@@ -221,7 +221,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         <div className="shrink-0 mx-6 mt-3 grid grid-cols-3 gap-1 bg-muted rounded-lg p-1">
           {(["myself", "new_user", "existing"] as const).map((tab) => {
             const icons = { myself: User, new_user: UserPlus, existing: Users };
-            const labels = { myself: "Myself", new_user: "New User (Invite)", existing: "Existing Team Member" };
+            const labels = { myself: "Myself", new_user: `New User (${enrollMode === "direct" ? "Direct" : "Invite"})`, existing: "Existing Team Member" };
             const Icon = icons[tab];
             return (
               <button
