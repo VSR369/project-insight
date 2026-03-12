@@ -30,6 +30,10 @@ import {
   Network,
   ShieldCheck,
   LogOut,
+  CheckCircle2,
+  UserCog,
+  Mail,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
