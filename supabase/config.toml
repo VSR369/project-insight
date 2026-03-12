@@ -136,3 +136,9 @@ verify_jwt = false
 
 [functions.decline-role-invitation]
 verify_jwt = false
+
+[functions.send-role-invitation]
+verify_jwt = false
+
+[functions.send-role-enrollment-confirmation]
+verify_jwt = false
