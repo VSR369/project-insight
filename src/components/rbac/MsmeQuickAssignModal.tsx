@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo } from "react";
+import { Send, Zap } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -26,9 +27,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import { User, UserPlus, Users, Info, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSlmRoleCodes, type SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
-import { useBulkCreateRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useBulkCreateRoleAssignments, useDirectEnrollRole, useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { useCurrentAdminProfile } from "@/hooks/queries/useCurrentAdminProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrgContext } from "@/contexts/OrgContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 const quickAssignSchema = z.object({
@@ -47,12 +50,16 @@ interface MsmeQuickAssignModalProps {
 
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
+  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
+  const directEnroll = useDirectEnrollRole();
+  const createAssignment = useCreateRoleAssignment();
   const { data: adminProfile, isLoading: profileLoading } = useCurrentAdminProfile();
   const { user } = useAuth();
+  const { orgName } = useOrgContext();
 
   const applicableRoles = allRoles?.filter((r) =>
     r.model_applicability === "agg" || r.model_applicability === "both"
@@ -107,15 +114,38 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   };
 
   const onSubmit = async (data: QuickAssignValues) => {
-    const inputs = data.selected_roles.map((roleCode) => ({
-      org_id: orgId,
-      role_code: roleCode,
-      user_email: data.user_email,
-      user_name: data.user_name,
-      status: "active" as const,
-      model_applicability: "both",
-    }));
-    await bulkCreate.mutateAsync(inputs);
+    if (enrollMode === "direct") {
+      // Direct mode: bulk insert as active, then send confirmation emails
+      const inputs = data.selected_roles.map((roleCode) => ({
+        org_id: orgId,
+        role_code: roleCode,
+        user_email: data.user_email,
+        user_name: data.user_name,
+        status: "active" as const,
+        model_applicability: "both",
+      }));
+      const results = await bulkCreate.mutateAsync(inputs);
+      // Fire confirmation emails (non-blocking)
+      for (const result of results ?? []) {
+        supabase.functions.invoke("send-role-enrollment-confirmation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        }).catch(() => {});
+      }
+    } else {
+      // Invite mode: create individually with invited status, send invitation emails
+      for (const roleCode of data.selected_roles) {
+        const result = await createAssignment.mutateAsync({
+          org_id: orgId,
+          role_code: roleCode,
+          user_email: data.user_email,
+          user_name: data.user_name,
+          model_applicability: "both",
+        });
+        supabase.functions.invoke("send-role-invitation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        }).catch(() => {});
+      }
+    }
     form.reset();
     onOpenChange(false);
   };
@@ -143,6 +173,42 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
           <span>
             MSME mode is active. One person can be assigned to all marketplace roles simultaneously.
           </span>
+        </div>
+
+        {/* Direct / Invite Toggle */}
+        <div className="shrink-0 mx-6 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <label className="text-xs font-semibold text-foreground mb-2 block">Assignment Mode</label>
+          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                enrollMode === "direct"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("direct")}
+            >
+              <Zap className="h-3.5 w-3.5" />
+              Direct
+            </button>
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
+                enrollMode === "invite"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("invite")}
+            >
+              <Send className="h-3.5 w-3.5" />
+              Invite
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-2">
+            {enrollMode === "direct"
+              ? "Roles activated immediately. Users receive confirmation emails."
+              : "Users receive invitations and must accept before roles become active."}
+          </p>
         </div>
 
         {/* Tab Toggle */}
@@ -335,7 +401,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
             <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span>
-                Ready to assign {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {effectiveEmail || "user"}
+                Ready to {enrollMode === "direct" ? "assign" : "invite"} {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {effectiveEmail || "user"}
               </span>
               <div className="flex flex-wrap gap-1 ml-1">
                 {selectedRoleNames.slice(0, 3).map((name) => (
@@ -365,10 +431,14 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
             </Button>
             <Button
               onClick={form.handleSubmit(onSubmit)}
-              disabled={bulkCreate.isPending || selectedRoles.length === 0}
+              disabled={bulkCreate.isPending || createAssignment.isPending || directEnroll.isPending || selectedRoles.length === 0}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {bulkCreate.isPending ? "Assigning..." : `Assign ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`}
+              {(bulkCreate.isPending || createAssignment.isPending || directEnroll.isPending)
+                ? (enrollMode === "direct" ? "Assigning..." : "Inviting...")
+                : enrollMode === "direct"
+                  ? `Assign ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`
+                  : `Invite ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>
