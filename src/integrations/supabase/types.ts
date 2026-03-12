@@ -667,10 +667,12 @@ export type Database = {
         Row: {
           assigned_at: string
           assigned_by: string | null
+          assignment_phase: string | null
           challenge_id: string
           created_at: string
           created_by: string | null
           id: string
+          idempotency_key: string | null
           pool_member_id: string
           reassigned_at: string | null
           reassignment_reason: string | null
@@ -683,10 +685,12 @@ export type Database = {
         Insert: {
           assigned_at?: string
           assigned_by?: string | null
+          assignment_phase?: string | null
           challenge_id: string
           created_at?: string
           created_by?: string | null
           id?: string
+          idempotency_key?: string | null
           pool_member_id: string
           reassigned_at?: string | null
           reassignment_reason?: string | null
@@ -699,10 +703,12 @@ export type Database = {
         Update: {
           assigned_at?: string
           assigned_by?: string | null
+          assignment_phase?: string | null
           challenge_id?: string
           created_at?: string
           created_by?: string | null
           id?: string
+          idempotency_key?: string | null
           pool_member_id?: string
           reassigned_at?: string | null
           reassignment_reason?: string | null
@@ -961,6 +967,50 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: []
+      }
+      delegated_soa_scope_audit: {
+        Row: {
+          confirmation_given: boolean
+          created_at: string
+          id: string
+          modified_by: string | null
+          new_scope: Json
+          organization_id: string
+          orphan_count: number
+          previous_scope: Json
+          soa_id: string
+        }
+        Insert: {
+          confirmation_given?: boolean
+          created_at?: string
+          id?: string
+          modified_by?: string | null
+          new_scope?: Json
+          organization_id: string
+          orphan_count?: number
+          previous_scope?: Json
+          soa_id: string
+        }
+        Update: {
+          confirmation_given?: boolean
+          created_at?: string
+          id?: string
+          modified_by?: string | null
+          new_scope?: Json
+          organization_id?: string
+          orphan_count?: number
+          previous_scope?: Json
+          soa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "delegated_soa_scope_audit_soa_id_fkey"
+            columns: ["soa_id"]
+            isOneToOne: false
+            referencedRelation: "seeking_org_admins"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       email_otp_verifications: {
         Row: {
