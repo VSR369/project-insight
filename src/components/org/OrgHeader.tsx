@@ -95,10 +95,11 @@ export function OrgHeader() {
       <div className="flex-1" />
 
       {/* Org + Tier Badge */}
-      <div className="hidden lg:flex items-center gap-2 mr-2">
-        <span className="text-sm font-medium text-foreground truncate max-w-[200px]">{orgName}</span>
+      <div className="flex items-center gap-2 mr-2 bg-muted/50 rounded-md px-2 py-1 border border-border/50">
+        <Building2 className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+        <span className="text-sm font-medium text-foreground truncate max-w-[120px] sm:max-w-[250px]">{orgName}</span>
         {tierCode && (
-          <Badge variant="outline" className="text-xs capitalize">{tierCode}</Badge>
+          <Badge variant="outline" className="text-xs capitalize hidden sm:inline-flex">{tierCode}</Badge>
         )}
       </div>
 
