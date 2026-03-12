@@ -306,8 +306,8 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                               {roleMeta?.display_name ?? rc}
                             </Badge>
                           );
-                        }
-                        ))}
+                        })}
+
                       </div>
                     </button>
                   );
