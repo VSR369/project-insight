@@ -142,9 +142,9 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                   </TableCell>
                   <TableCell>
                     {row.assignments.length > 0 ? (
-                      <div className="flex flex-wrap gap-1">
-                        {[...new Set(row.assignments.map((a) => a.status))].map((status) => (
-                          <RoleAssignmentStatusBadge key={status} statusCode={status} />
+                      <div className="flex flex-col gap-1.5">
+                        {row.assignments.map((a) => (
+                          <RoleAssignmentStatusBadge key={a.id} statusCode={a.status} />
                         ))}
                       </div>
                     ) : (
