@@ -299,11 +299,15 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                         <p className="text-xs text-muted-foreground truncate">{member.email}</p>
                       </div>
                       <div className="flex flex-wrap gap-1 shrink-0">
-                        {member.roles.map((rc) => (
-                          <Badge key={rc} variant="secondary" className="text-[10px] font-mono px-1.5 py-0">
-                            {rc}
-                          </Badge>
-                        ))}
+                        {member.roles.map((rc) => {
+                          const roleMeta = allRoles?.find((r) => r.code === rc);
+                          return (
+                            <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
+                              {roleMeta?.display_name ?? rc}
+                            </Badge>
+                          );
+                        })}
+
                       </div>
                     </button>
                   );
