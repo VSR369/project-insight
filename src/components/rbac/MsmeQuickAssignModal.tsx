@@ -401,7 +401,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
             <div className="flex items-center gap-2 text-xs bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-200 dark:border-green-800 rounded-md px-3 py-2">
               <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
               <span>
-                Ready to assign {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {effectiveEmail || "user"}
+                Ready to {enrollMode === "direct" ? "assign" : "invite"} {selectedRoles.length} role{selectedRoles.length !== 1 ? "s" : ""} to {effectiveEmail || "user"}
               </span>
               <div className="flex flex-wrap gap-1 ml-1">
                 {selectedRoleNames.slice(0, 3).map((name) => (
@@ -431,10 +431,14 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
             </Button>
             <Button
               onClick={form.handleSubmit(onSubmit)}
-              disabled={bulkCreate.isPending || selectedRoles.length === 0}
+              disabled={bulkCreate.isPending || createAssignment.isPending || directEnroll.isPending || selectedRoles.length === 0}
               className="bg-purple-600 hover:bg-purple-700 text-white"
             >
-              {bulkCreate.isPending ? "Assigning..." : `Assign ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`}
+              {(bulkCreate.isPending || createAssignment.isPending || directEnroll.isPending)
+                ? (enrollMode === "direct" ? "Assigning..." : "Inviting...")
+                : enrollMode === "direct"
+                  ? `Assign ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`
+                  : `Invite ${selectedRoles.length} Role${selectedRoles.length !== 1 ? "s" : ""}`}
             </Button>
           </div>
         </div>
