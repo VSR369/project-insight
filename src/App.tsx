@@ -101,6 +101,9 @@ const PulsePodcastsPage = lazy(() => import("@/pages/pulse/PulsePodcastsPage"));
 const PulseArticlesPage = lazy(() => import("@/pages/pulse/PulseArticlesPage"));
 const PulseGalleryPage = lazy(() => import("@/pages/pulse/PulseGalleryPage"));
 
+// Settings Pages (lazy loaded)
+const SecuritySettingsPage = lazy(() => import("@/pages/settings/SecuritySettingsPage"));
+
 // ============================================================================
 // LAZY IMPORTS - Admin & Reviewer pages (loaded on demand)
 // These pages are accessed less frequently, reducing initial bundle size
