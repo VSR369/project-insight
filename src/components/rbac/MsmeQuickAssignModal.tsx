@@ -54,6 +54,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
   const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
+  const [domainScope, setDomainScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
   const { data: allRoles } = useSlmRoleCodes();
   const bulkCreate = useBulkCreateRoleAssignments();
