@@ -187,7 +187,7 @@ export function AssignRoleSheet({
       role_code: existingMemberRoleCode,
       user_email: member.email,
       user_name: member.name ?? undefined,
-      model_applicability: "both",
+      model_applicability: fullRoleCatalog.find((r) => r.code === existingMemberRoleCode)?.model_applicability ?? "both",
     });
     setSelectedMemberEmail("");
     setExistingMemberRoleCode("");
