@@ -15,6 +15,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
