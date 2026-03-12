@@ -64,19 +64,19 @@ function EnrollRolePageContent() {
       user_name: values.user_name,
       model_applicability: values.model_applicability,
     };
+
+    try {
+      if (mode === "direct") {
         const result = await directEnroll.mutateAsync(input);
-        // Send confirmation email
         try {
           await supabase.functions.invoke("send-role-enrollment-confirmation", {
             body: { assignment_id: result.id, org_name: orgName },
           });
         } catch {
-          // Email failure is non-blocking
           toast.warning("Role enrolled but confirmation email could not be sent");
         }
       } else {
         const result = await createAssignment.mutateAsync(input);
-        // Send invitation email
         try {
           await supabase.functions.invoke("send-role-invitation", {
             body: { assignment_id: result.id, org_name: orgName },
