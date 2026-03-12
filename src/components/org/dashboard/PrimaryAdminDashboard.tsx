@@ -121,7 +121,7 @@ export default function PrimaryAdminDashboard() {
             <SummaryCard
               icon={<ShieldCheck className="h-5 w-5" />}
               iconBg="bg-violet-500/10 text-violet-600"
-              label="Challenge Roles"
+              label="Aggregator Roles"
               value={`${challengeFilledCount}/${challengeRoles.length}`}
               status={challengeFilledCount >= challengeRoles.length ? 'ready' : 'gap'}
             />
