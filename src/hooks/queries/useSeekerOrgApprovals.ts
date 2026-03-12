@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { handleMutationError } from '@/lib/errorHandler';
+import { handleMutationError, logWarning } from '@/lib/errorHandler';
 import { withUpdatedBy } from '@/lib/auditFields';
 import type { SeekerOrgDetailData } from '@/pages/admin/seeker-org-approvals/types';
 
