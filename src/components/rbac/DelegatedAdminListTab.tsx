@@ -15,6 +15,8 @@ import { useDelegatedAdmins, useMaxDelegatedAdmins, useDeactivateDelegatedAdmin 
 import { DomainScopeDisplay } from "@/components/org/DomainScopeDisplay";
 import { DeactivationCheckModal } from "@/components/rbac/DeactivationCheckModal";
 import { DelegatedAdminLimitWarning } from "@/components/rbac/DelegatedAdminLimitWarning";
+import { ReassignmentWizard } from "@/components/rbac/DelegatedAdminReassignmentWizard";
+import { useRoleAssignments, type RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 interface DelegatedAdminListTabProps {
   orgId: string;
