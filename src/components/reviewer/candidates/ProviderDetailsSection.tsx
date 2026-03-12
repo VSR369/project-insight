@@ -51,7 +51,7 @@ export function ProviderDetailsSection({ candidate }: ProviderDetailsSectionProp
             label="Last Name" 
             value={candidate.lastName} 
           />
-          <div className="md:col-span-2">
+          <div className="lg:col-span-2">
             <DetailField 
               label="Address" 
               value={candidate.address} 
