@@ -60,10 +60,12 @@ function AdminRoleCheck({ children }: { children: ReactNode }) {
 }
 
 export function AdminGuard({ children }: AdminGuardProps) {
-  // Wrap with AuthGuard first to ensure auth context is valid
+  // Wrap with AuthGuard first, then MfaGuard for admin-tier MFA enforcement (TS §0.3)
   return (
     <AuthGuard>
-      <AdminRoleCheck>{children}</AdminRoleCheck>
+      <MfaGuard requireMfa={true}>
+        <AdminRoleCheck>{children}</AdminRoleCheck>
+      </MfaGuard>
     </AuthGuard>
   );
 }
