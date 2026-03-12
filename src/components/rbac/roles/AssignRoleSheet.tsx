@@ -612,18 +612,26 @@ export function AssignRoleSheet({
             <Button
               type="submit"
               form="assign-role-form"
-              disabled={createAssignment.isPending || !effectiveRoleCode}
+              disabled={isMutating || !effectiveRoleCode}
             >
-              {createAssignment.isPending ? "Saving..." : "Save & Invite"}
+              {isMutating
+                ? "Processing..."
+                : enrollMode === "direct"
+                ? "Enroll Now"
+                : "Save & Invite"}
             </Button>
           )}
           {activeTab === "existing" && hasExistingMembers && (
             <Button
               type="button"
               onClick={onSubmitExisting}
-              disabled={createAssignment.isPending || !existingMemberRoleCode || !selectedMemberEmail}
+              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail}
             >
-              {createAssignment.isPending ? "Assigning..." : "Assign & Invite"}
+              {isMutating
+                ? "Processing..."
+                : enrollMode === "direct"
+                ? "Enroll Now"
+                : "Assign & Invite"}
             </Button>
           )}
         </SheetFooter>
