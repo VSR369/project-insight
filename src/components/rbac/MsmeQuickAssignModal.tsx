@@ -114,15 +114,38 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   };
 
   const onSubmit = async (data: QuickAssignValues) => {
-    const inputs = data.selected_roles.map((roleCode) => ({
-      org_id: orgId,
-      role_code: roleCode,
-      user_email: data.user_email,
-      user_name: data.user_name,
-      status: "active" as const,
-      model_applicability: "both",
-    }));
-    await bulkCreate.mutateAsync(inputs);
+    if (enrollMode === "direct") {
+      // Direct mode: bulk insert as active, then send confirmation emails
+      const inputs = data.selected_roles.map((roleCode) => ({
+        org_id: orgId,
+        role_code: roleCode,
+        user_email: data.user_email,
+        user_name: data.user_name,
+        status: "active" as const,
+        model_applicability: "both",
+      }));
+      const results = await bulkCreate.mutateAsync(inputs);
+      // Fire confirmation emails (non-blocking)
+      for (const result of results ?? []) {
+        supabase.functions.invoke("send-role-enrollment-confirmation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        }).catch(() => {});
+      }
+    } else {
+      // Invite mode: create individually with invited status, send invitation emails
+      for (const roleCode of data.selected_roles) {
+        const result = await createAssignment.mutateAsync({
+          org_id: orgId,
+          role_code: roleCode,
+          user_email: data.user_email,
+          user_name: data.user_name,
+          model_applicability: "both",
+        });
+        supabase.functions.invoke("send-role-invitation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        }).catch(() => {});
+      }
+    }
     form.reset();
     onOpenChange(false);
   };
