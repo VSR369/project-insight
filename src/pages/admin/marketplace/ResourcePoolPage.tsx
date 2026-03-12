@@ -11,6 +11,7 @@ import { PoolFilterBar } from "@/components/admin/marketplace/PoolFilterBar";
 import { PoolMemberTable } from "@/components/admin/marketplace/PoolMemberTable";
 import { PoolMemberForm } from "@/components/admin/marketplace/PoolMemberForm";
 import { SupervisorDeactivationConfirmModal } from "@/components/admin/marketplace/SupervisorDeactivationConfirmModal";
+import { CreateOnBehalfSheet } from "@/components/admin/marketplace/CreateOnBehalfSheet";
 import { usePoolMembers, type PoolMemberFilters, type PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 import { useDeactivatePoolMember } from "@/hooks/queries/usePoolMembers";
 import { usePoolPermissions } from "@/hooks/usePoolPermissions";
