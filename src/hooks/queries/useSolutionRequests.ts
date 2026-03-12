@@ -184,20 +184,7 @@ export function useChallengeAssignments(challengeId: string | undefined) {
 
       if (error) throw new Error(error.message);
 
-      return (data ?? []).map((a: any) => ({
-        id: a.id,
-        challenge_id: a.challenge_id,
-        pool_member_id: a.pool_member_id,
-        role_code: a.role_code,
-        status: a.status,
-        assigned_at: a.assigned_at,
-        assigned_by: a.assigned_by,
-        reassignment_reason: a.reassignment_reason,
-        member_name: a.platform_provider_pool?.full_name ?? "Unknown",
-        member_email: a.platform_provider_pool?.email ?? "",
-        availability_status: a.platform_provider_pool?.availability_status ?? "available",
-        domain_scope: a.platform_provider_pool?.domain_scope ?? null,
-      })) as ChallengeAssignmentRow[];
+      return (data ?? []).map(mapChallengeAssignmentRow) as ChallengeAssignmentRow[];
     },
     enabled: !!challengeId,
     staleTime: 1 * 60 * 1000,
