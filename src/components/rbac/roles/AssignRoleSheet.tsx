@@ -64,6 +64,7 @@ export function AssignRoleSheet({
   // ══════════════════════════════════════
   const createAssignment = useCreateRoleAssignment();
   const { data: existingAssignments } = useRoleAssignments(orgId);
+  const { data: allRoleCodes } = useSlmRoleCodes();
   const { data: industries } = useIndustrySegments();
   const { data: subDomains } = useSubDomains(selectedIndustry || undefined);
   const { data: specialties } = useSpecialities(selectedSubDomain || undefined);
