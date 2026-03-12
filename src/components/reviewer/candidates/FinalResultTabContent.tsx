@@ -125,7 +125,7 @@ export function FinalResultTabContent({ enrollmentId }: FinalResultTabContentPro
       </Card>
 
       {/* Score Summary Row */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Proof Points Score */}
         <ScoreSummaryTile
           title="Proof Points"
