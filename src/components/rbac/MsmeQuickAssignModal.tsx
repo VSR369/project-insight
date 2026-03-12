@@ -144,6 +144,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
           user_email: data.user_email,
           user_name: data.user_name,
           model_applicability: "both",
+          domain_tags: domainScope as any,
         });
         supabase.functions.invoke("send-role-invitation", {
           body: { assignment_id: result.id, org_name: orgName },
