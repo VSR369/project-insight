@@ -205,7 +205,10 @@ export function useApproveOrg() {
         .single();
 
       if (soaError) {
-        console.error('Failed to create seeking_org_admins record:', soaError.message);
+        logWarning('Failed to create seeking_org_admins record: ' + soaError.message, {
+          operation: 'approve_seeker_org',
+          additionalData: { orgId },
+        });
         // Non-fatal — org is already verified
       }
 
