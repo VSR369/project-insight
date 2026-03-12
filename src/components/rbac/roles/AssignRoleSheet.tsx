@@ -25,7 +25,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { ChevronDown, ChevronRight, Info, Users, UserPlus } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
-import { useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useCreateRoleAssignment, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useSubDomains } from "@/hooks/queries/useProficiencyTaxonomy";
@@ -55,11 +55,12 @@ export function AssignRoleSheet({
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
   const [manualRoleCode, setManualRoleCode] = useState<string>("");
-
+  const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
   const createAssignment = useCreateRoleAssignment();
+  const { data: existingAssignments } = useRoleAssignments(orgId);
   const { data: industries } = useIndustrySegments();
   const { data: subDomains } = useSubDomains(selectedIndustry || undefined);
   const { data: specialties } = useSpecialities(selectedSubDomain || undefined);
@@ -103,6 +104,22 @@ export function AssignRoleSheet({
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
 
+  // Build deduplicated existing team members from active/invited assignments
+  const existingMembers = (() => {
+    if (!existingAssignments) return [];
+    const memberMap = new Map<string, { email: string; name: string | null; roles: string[] }>();
+    for (const a of existingAssignments) {
+      if (a.status !== "active" && a.status !== "invited") continue;
+      const existing = memberMap.get(a.user_email);
+      if (existing) {
+        existing.roles.push(a.role_code);
+      } else {
+        memberMap.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
+      }
+    }
+    return Array.from(memberMap.values());
+  })();
+
   // ══════════════════════════════════════
   // SECTION 6: Event handlers
   // ══════════════════════════════════════
@@ -121,6 +138,22 @@ export function AssignRoleSheet({
       model_applicability: data.model_applicability,
     });
     form.reset();
+    setManualRoleCode("");
+    onOpenChange(false);
+  };
+
+  const onSubmitExisting = async () => {
+    if (!effectiveRoleCode || !selectedMemberEmail) return;
+    const member = existingMembers.find((m) => m.email === selectedMemberEmail);
+    if (!member) return;
+    await createAssignment.mutateAsync({
+      org_id: orgId,
+      role_code: effectiveRoleCode,
+      user_email: member.email,
+      user_name: member.name ?? undefined,
+      model_applicability: "both",
+    });
+    setSelectedMemberEmail("");
     setManualRoleCode("");
     onOpenChange(false);
   };
@@ -326,11 +359,68 @@ export function AssignRoleSheet({
               </form>
             </Form>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <Users className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-sm text-muted-foreground">
-                Existing team member assignment will be available once team members are onboarded.
-              </p>
+            <div className="space-y-4">
+              {existingMembers.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <Users className="h-10 w-10 text-muted-foreground mb-3" />
+                  <p className="text-sm text-muted-foreground">
+                    No team members onboarded yet. Use "New User (Invite)" to add the first member.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Select an existing team member to assign the <span className="font-medium text-foreground">{roleTitle}</span> role.
+                  </p>
+                  <div className="space-y-2">
+                    {existingMembers.map((member) => {
+                      const isSelected = selectedMemberEmail === member.email;
+                      const alreadyHasRole = effectiveRoleCode ? member.roles.includes(effectiveRoleCode) : false;
+                      return (
+                        <button
+                          key={member.email}
+                          type="button"
+                          disabled={alreadyHasRole}
+                          onClick={() => setSelectedMemberEmail(isSelected ? "" : member.email)}
+                          className={`w-full text-left rounded-lg border p-3 transition-colors ${
+                            alreadyHasRole
+                              ? "opacity-50 cursor-not-allowed border-muted bg-muted/30"
+                              : isSelected
+                              ? "border-primary bg-primary/5 ring-1 ring-primary"
+                              : "border-border hover:border-primary/40 hover:bg-muted/30"
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="h-8 w-8 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
+                              {member.name
+                                ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
+                                : "?"}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">
+                                {member.name ?? member.email}
+                              </p>
+                              <p className="text-xs text-muted-foreground truncate">{member.email}</p>
+                            </div>
+                            <div className="flex flex-wrap gap-1 shrink-0">
+                              {member.roles.map((rc) => (
+                                <Badge key={rc} variant="secondary" className="text-[10px] px-1.5 py-0">
+                                  {rc}
+                                </Badge>
+                              ))}
+                            </div>
+                          </div>
+                          {alreadyHasRole && (
+                            <p className="text-[10px] text-muted-foreground mt-1 ml-11">
+                              Already assigned to this role
+                            </p>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>
@@ -347,6 +437,15 @@ export function AssignRoleSheet({
               disabled={createAssignment.isPending || !effectiveRoleCode}
             >
               {createAssignment.isPending ? "Saving..." : "Save & Invite"}
+            </Button>
+          )}
+          {activeTab === "existing" && existingMembers.length > 0 && (
+            <Button
+              type="button"
+              onClick={onSubmitExisting}
+              disabled={createAssignment.isPending || !effectiveRoleCode || !selectedMemberEmail}
+            >
+              {createAssignment.isPending ? "Assigning..." : "Assign Role"}
             </Button>
           )}
         </SheetFooter>

@@ -25,7 +25,7 @@ export function MsmeToggle({ orgId, onQuickAssign }: MsmeToggleProps) {
 
   // Get applicable role codes for display
   const applicableRoleCodes = allRoles
-    ?.filter((r) => r.model_applicability === "mp" || r.model_applicability === "both")
+    ?.filter((r) => r.model_applicability === "agg" || r.model_applicability === "both")
     .map((r) => r.code) ?? [];
   const roleCodesDisplay = applicableRoleCodes.join(", ");
 
@@ -60,7 +60,7 @@ export function MsmeToggle({ orgId, onQuickAssign }: MsmeToggleProps) {
                 )}
               </div>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Allow one person to hold all marketplace roles
+                Allow one person to hold all aggregator roles
                 {roleCodesDisplay && (
                   <span className="text-muted-foreground/70"> ({roleCodesDisplay})</span>
                 )}

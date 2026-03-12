@@ -116,7 +116,8 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                           onClick={() => onInvite(role.code)}
                         >
                           <UserPlus className="h-3.5 w-3.5 mr-1" />
-                          <span className="hidden lg:inline">Invite</span>
+                          <span className="hidden lg:inline">Add User</span>
+                          <span className="lg:hidden">Add</span>
                         </Button>
                         {roleAssignments.map((a) => (
                           <Button
