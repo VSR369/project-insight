@@ -27,9 +27,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import { User, UserPlus, Users, Info, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { useSlmRoleCodes, type SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
-import { useBulkCreateRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useBulkCreateRoleAssignments, useDirectEnrollRole, useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { useCurrentAdminProfile } from "@/hooks/queries/useCurrentAdminProfile";
 import { useAuth } from "@/hooks/useAuth";
+import { useOrgContext } from "@/contexts/OrgContext";
+import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 const quickAssignSchema = z.object({
