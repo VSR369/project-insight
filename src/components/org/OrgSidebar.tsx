@@ -30,6 +30,10 @@ import {
   Network,
   ShieldCheck,
   LogOut,
+  CheckCircle2,
+  UserCog,
+  Mail,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -64,20 +68,37 @@ export function OrgSidebar() {
 
   // Role Management — visible to SO Admins (both PRIMARY and DELEGATED)
   const roleManagementItems = isSOAdmin
-    ? [{ title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' }]
+    ? [
+        { title: 'Role Management', icon: ShieldCheck, path: '/org/role-management' },
+        { title: 'Role Readiness', icon: CheckCircle2, path: '/org/role-readiness' },
+      ]
     : [];
 
-  // Organization section — scoped by admin tier
+  // Admin & Operations — PRIMARY SO Admins only
+  const adminOperationsItems = isSOAdmin
+    ? [
+        ...(isPrimary && delegationEnabled
+          ? [{ title: 'Delegated Admins', icon: UserCog, path: '/org/admin-management' }]
+          : []),
+        { title: 'Contact Profile', icon: Users, path: '/org/contact-profile' },
+        { title: 'Email Templates', icon: Mail, path: '/org/email-templates' },
+      ]
+    : [];
+
+  // Organization section — non-admin org users
   const orgItems = isSOAdmin
-    ? (isPrimary && delegationEnabled
-        ? [{ title: 'Admin Management', icon: ShieldCheck, path: '/org/admin-management' }]
-        : [])
+    ? []
     : [
         { title: 'Settings', icon: Building2, path: '/org/settings' },
         { title: 'Team', icon: Users, path: '/org/team' },
         { title: 'Membership', icon: Crown, path: '/org/membership' },
         { title: 'Parent Dashboard', icon: Network, path: '/org/parent-dashboard' },
       ];
+
+  // Knowledge Centre — SO Admins only
+  const knowledgeCentreItems = isSOAdmin
+    ? [{ title: 'Knowledge Centre', icon: BookOpen, path: '/org/knowledge-centre' }]
+    : [];
 
   const billingItems = [
     { title: 'Billing & Usage', icon: CreditCard, path: '/org/billing' },
@@ -145,12 +166,32 @@ export function OrgSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Organization — scoped items */}
+        {/* Admin & Operations — SO Admins only */}
+        {isSOAdmin && adminOperationsItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administration</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(adminOperationsItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Organization — scoped items (non-admin org users) */}
         {orgItems.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel>Organization</SidebarGroupLabel>
             <SidebarGroupContent>
               {renderMenuSection(orgItems)}
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {/* Knowledge Centre — SO Admins only */}
+        {isSOAdmin && knowledgeCentreItems.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Resources</SidebarGroupLabel>
+            <SidebarGroupContent>
+              {renderMenuSection(knowledgeCentreItems)}
             </SidebarGroupContent>
           </SidebarGroup>
         )}
