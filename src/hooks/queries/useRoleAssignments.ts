@@ -113,6 +113,46 @@ export function useDeactivateRoleAssignment() {
   });
 }
 
+export function useAcceptRoleInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (token: string) => {
+      const { data, error } = await supabase.functions.invoke("accept-role-invitation", {
+        body: { token },
+      });
+      if (error) throw new Error(error.message || "Failed to accept invitation");
+      if (!data?.success) throw new Error(data?.error?.message || "Failed to accept invitation");
+      return data.data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["role-assignments", data?.org_id] });
+      qc.invalidateQueries({ queryKey: ["role-readiness"] });
+      toast.success("Role invitation accepted successfully");
+    },
+    onError: (e: Error) => handleMutationError(e, { operation: "accept_role_invitation" }),
+  });
+}
+
+export function useDeclineRoleInvitation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ token, reason }: { token: string; reason?: string }) => {
+      const { data, error } = await supabase.functions.invoke("decline-role-invitation", {
+        body: { token, reason },
+      });
+      if (error) throw new Error(error.message || "Failed to decline invitation");
+      if (!data?.success) throw new Error(data?.error?.message || "Failed to decline invitation");
+      return data.data;
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["role-assignments", data?.org_id] });
+      qc.invalidateQueries({ queryKey: ["role-readiness"] });
+      toast.success("Role invitation declined");
+    },
+    onError: (e: Error) => handleMutationError(e, { operation: "decline_role_invitation" }),
+  });
+}
+
 export function useBulkCreateRoleAssignments() {
   const qc = useQueryClient();
   return useMutation({

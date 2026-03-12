@@ -88,6 +88,7 @@ serve(async (req) => {
         success: true,
         data: {
           expired_admin_invitations: expiredCount,
+          expired_role_assignments: expiredRoleCount,
           timestamp: now,
         },
       }),
