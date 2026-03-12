@@ -76,6 +76,23 @@ export function AssignMemberModal({
     selectedMemberId,
   }));
 
+  // Restore form data after re-login (Phase 8A)
+  const recoveredData = useRestoreFormFromRecovery("assign-member");
+  const { clearRecovery } = useSaveFormForRecovery("assign-member");
+
+  useEffect(() => {
+    if (recoveredData?.formData && open) {
+      const { selectedRole: rRole, selectedMemberId: rMember } = recoveredData.formData as {
+        selectedRole?: string;
+        selectedMemberId?: string;
+      };
+      if (rRole) setSelectedRole(rRole);
+      if (rMember) setSelectedMemberId(rMember);
+      clearRecovery();
+      toast.info("Form data restored from previous session");
+    }
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // ══════════════════════════════════════
   // SECTION 3: Derived state
   // ══════════════════════════════════════
