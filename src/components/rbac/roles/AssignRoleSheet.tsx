@@ -22,10 +22,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle, Send, Zap } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
-import { useCreateRoleAssignment, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useCreateRoleAssignment, useDirectEnrollRole, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
+import { useOrgContext } from "@/contexts/OrgContext";
+import { supabase } from "@/integrations/supabase/client";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
@@ -52,6 +54,7 @@ export function AssignRoleSheet({
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<"invite" | "existing">("invite");
+  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("invite");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
@@ -62,7 +65,9 @@ export function AssignRoleSheet({
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
   // ══════════════════════════════════════
+  const { orgName } = useOrgContext();
   const createAssignment = useCreateRoleAssignment();
+  const directEnroll = useDirectEnrollRole();
   const { data: existingAssignments } = useRoleAssignments(orgId);
   const { data: allRoleCodes } = useSlmRoleCodes();
   const { data: industries } = useIndustrySegments();
@@ -164,8 +169,39 @@ export function AssignRoleSheet({
     form.setValue("role_code", code);
   };
 
+  const isMutating = createAssignment.isPending || directEnroll.isPending;
+
+  const executeAssignment = async (input: {
+    org_id: string;
+    role_code: string;
+    user_email: string;
+    user_name?: string;
+    domain_tags?: Json;
+    model_applicability: string;
+  }) => {
+    if (enrollMode === "direct") {
+      const result = await directEnroll.mutateAsync(input);
+      try {
+        await supabase.functions.invoke("send-role-enrollment-confirmation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        });
+      } catch {
+        // Email failure is non-blocking
+      }
+    } else {
+      const result = await createAssignment.mutateAsync(input);
+      try {
+        await supabase.functions.invoke("send-role-invitation", {
+          body: { assignment_id: result.id, org_name: orgName },
+        });
+      } catch {
+        // Email failure is non-blocking
+      }
+    }
+  };
+
   const onSubmitInvite = async (data: RoleInviteFormValues) => {
-    await createAssignment.mutateAsync({
+    await executeAssignment({
       org_id: data.org_id,
       role_code: data.role_code,
       user_email: data.user_email,
@@ -182,7 +218,7 @@ export function AssignRoleSheet({
     if (!existingMemberRoleCode || !selectedMemberEmail) return;
     const member = existingMembers.find((m) => m.email === selectedMemberEmail);
     if (!member) return;
-    await createAssignment.mutateAsync({
+    await executeAssignment({
       org_id: orgId,
       role_code: existingMemberRoleCode,
       user_email: member.email,
@@ -265,6 +301,42 @@ export function AssignRoleSheet({
             </button>
           </div>
         )}
+
+        {/* Enroll Mode Toggle — Direct / Invite */}
+        <div className="shrink-0 mt-3">
+          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Assignment Mode</label>
+          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                enrollMode === "invite"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("invite")}
+            >
+              <Send className="h-3 w-3" />
+              Invite
+            </button>
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                enrollMode === "direct"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("direct")}
+            >
+              <Zap className="h-3 w-3" />
+              Direct
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            {enrollMode === "invite"
+              ? "User receives an invitation and must accept before the role becomes active."
+              : "Role is activated immediately. User receives a confirmation email."}
+          </p>
+        </div>
 
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto mt-4">
@@ -391,7 +463,9 @@ export function AssignRoleSheet({
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                   <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                   <span>
-                    Domain tags are optional — role will apply to all domains if left empty.
+                    {enrollMode === "invite"
+                      ? "An invitation email will be sent. The user must accept to activate this role."
+                      : "The role will be activated immediately and a confirmation email sent."}
                   </span>
                 </div>
               </form>
@@ -518,7 +592,9 @@ export function AssignRoleSheet({
                   <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
                     <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>
-                      An invitation will be sent. The user must accept to activate this role.
+                      {enrollMode === "invite"
+                        ? "An invitation will be sent. The user must accept to activate this role."
+                        : "The role will be activated immediately and a confirmation email sent."}
                     </span>
                   </div>
                 </div>
@@ -536,18 +612,26 @@ export function AssignRoleSheet({
             <Button
               type="submit"
               form="assign-role-form"
-              disabled={createAssignment.isPending || !effectiveRoleCode}
+              disabled={isMutating || !effectiveRoleCode}
             >
-              {createAssignment.isPending ? "Saving..." : "Save & Invite"}
+              {isMutating
+                ? "Processing..."
+                : enrollMode === "direct"
+                ? "Enroll Now"
+                : "Save & Invite"}
             </Button>
           )}
           {activeTab === "existing" && hasExistingMembers && (
             <Button
               type="button"
               onClick={onSubmitExisting}
-              disabled={createAssignment.isPending || !existingMemberRoleCode || !selectedMemberEmail}
+              disabled={isMutating || !existingMemberRoleCode || !selectedMemberEmail}
             >
-              {createAssignment.isPending ? "Assigning..." : "Assign & Invite"}
+              {isMutating
+                ? "Processing..."
+                : enrollMode === "direct"
+                ? "Enroll Now"
+                : "Assign & Invite"}
             </Button>
           )}
         </SheetFooter>
