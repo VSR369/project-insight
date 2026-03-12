@@ -302,6 +302,42 @@ export function AssignRoleSheet({
           </div>
         )}
 
+        {/* Enroll Mode Toggle — Direct / Invite */}
+        <div className="shrink-0 mt-3">
+          <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Assignment Mode</label>
+          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                enrollMode === "invite"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("invite")}
+            >
+              <Send className="h-3 w-3" />
+              Invite
+            </button>
+            <button
+              type="button"
+              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                enrollMode === "direct"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              onClick={() => setEnrollMode("direct")}
+            >
+              <Zap className="h-3 w-3" />
+              Direct
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            {enrollMode === "invite"
+              ? "User receives an invitation and must accept before the role becomes active."
+              : "Role is activated immediately. User receives a confirmation email."}
+          </p>
+        </div>
+
         {/* Content */}
         <div className="flex-1 min-h-0 overflow-y-auto mt-4">
           {activeTab === "invite" ? (
