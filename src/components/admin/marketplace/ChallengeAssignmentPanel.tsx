@@ -42,6 +42,19 @@ export function ChallengeAssignmentPanel({
   const getAvailLabel = (status: string) =>
     availStatuses?.find((s) => s.code === status)?.display_name ?? status;
 
+  // Show confirmation screen if team is complete and user triggered it
+  if (showConfirmation) {
+    return (
+      <AssignmentConfirmationScreen
+        challengeTitle={challengeTitle}
+        orgName={orgName}
+        assignments={assignments}
+        mpRoles={mpRoles}
+        onBack={() => setShowConfirmation(false)}
+      />
+    );
+  }
+
   return (
     <>
       <Card>
