@@ -221,7 +221,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         <div className="shrink-0 mx-6 mt-3 grid grid-cols-3 gap-1 bg-muted rounded-lg p-1">
           {(["myself", "new_user", "existing"] as const).map((tab) => {
             const icons = { myself: User, new_user: UserPlus, existing: Users };
-            const labels = { myself: "Myself", new_user: "New User (Invite)", existing: "Existing Team Member" };
+            const labels = { myself: "Myself", new_user: `New User (${enrollMode === "direct" ? "Direct" : "Invite"})`, existing: "Existing Team Member" };
             const Icon = icons[tab];
             return (
               <button
@@ -279,25 +279,6 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                 onClearAll={handleClearAll}
               />
 
-              {/* Domain Taxonomy */}
-              <Collapsible open={taxonomyOpen} onOpenChange={setTaxonomyOpen}>
-                <CollapsibleTrigger asChild>
-                  <button type="button" className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors py-1">
-                    {taxonomyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                    Domain Taxonomy (Optional)
-                  </button>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="pl-6 pt-2">
-                    <ScopeMultiSelect
-                      value={domainScope}
-                      onChange={setDomainScope}
-                      hideDepartments
-                      allowAll
-                    />
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
             </div>
           ) : activeTab === "new_user" ? (
             <Form {...form}>
@@ -404,6 +385,26 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
               )}
             </div>
           )}
+
+          {/* Domain Taxonomy — shared across all tabs */}
+          <Collapsible open={taxonomyOpen} onOpenChange={setTaxonomyOpen}>
+            <CollapsibleTrigger asChild>
+              <button type="button" className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors py-1">
+                {taxonomyOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                Domain Taxonomy (Optional)
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div className="pl-6 pt-2">
+                <ScopeMultiSelect
+                  value={domainScope}
+                  onChange={setDomainScope}
+                  hideDepartments
+                  allowAll
+                />
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
         </div>
 
         {/* Summary Bar + Footer */}
