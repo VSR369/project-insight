@@ -129,9 +129,9 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                 <TableRow
                   key={row.code}
                   className={
-                    row.isFilled
-                      ? ""
-                      : "bg-destructive/[0.04] dark:bg-destructive/[0.08]"
+                    row.isMissingPerCache
+                      ? "bg-destructive/[0.04] dark:bg-destructive/[0.08]"
+                      : ""
                   }
                 >
                   <TableCell className="text-sm font-medium text-foreground">
@@ -141,11 +141,12 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                     {row.code}
                   </TableCell>
                   <TableCell>
-                    {row.isFilled ? (
-                      <span className="inline-flex items-center gap-1.5 text-sm text-green-700 dark:text-green-400">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Active
-                      </span>
+                    {row.assignments.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {[...new Set(row.assignments.map((a) => a.status))].map((status) => (
+                          <RoleAssignmentStatusBadge key={status} statusCode={status} />
+                        ))}
+                      </div>
                     ) : (
                       <span className="inline-flex items-center gap-1.5 text-sm text-destructive">
                         <XCircle className="h-4 w-4" />
@@ -154,10 +155,14 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                     )}
                   </TableCell>
                   <TableCell>
-                    {row.assignedUserName ? (
-                      <div className="flex items-center gap-2">
-                        <InitialsAvatar name={row.assignedUserName} size="sm" />
-                        <span className="text-sm text-foreground">{row.assignedUserName}</span>
+                    {row.assignments.length > 0 ? (
+                      <div className="flex flex-col gap-1.5">
+                        {row.assignments.map((a) => (
+                          <div key={a.id} className="flex items-center gap-2">
+                            <InitialsAvatar name={a.user_name ?? a.user_email} size="sm" />
+                            <span className="text-sm text-foreground">{a.user_name ?? a.user_email}</span>
+                          </div>
+                        ))}
                       </div>
                     ) : (
                       <span className="text-sm text-muted-foreground">—</span>
