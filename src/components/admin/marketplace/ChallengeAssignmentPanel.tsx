@@ -36,6 +36,7 @@ export function ChallengeAssignmentPanel({
 }: ChallengeAssignmentPanelProps) {
   const [assignTarget, setAssignTarget] = useState<{ missingRoles: TeamComposition["missingRoles"] } | null>(null);
   const [reassignTarget, setReassignTarget] = useState<ChallengeAssignmentRow | null>(null);
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const { data: availStatuses } = useAvailabilityStatuses();
 
   const getAvailLabel = (status: string) =>
