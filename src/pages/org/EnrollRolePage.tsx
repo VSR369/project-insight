@@ -57,10 +57,13 @@ function EnrollRolePageContent() {
       return;
     }
 
-    const input = { ...values, org_id: organizationId };
-
-    try {
-      if (mode === "direct") {
+    const input: CreateRoleAssignmentInput = {
+      org_id: organizationId,
+      role_code: values.role_code,
+      user_email: values.user_email,
+      user_name: values.user_name,
+      model_applicability: values.model_applicability,
+    };
         const result = await directEnroll.mutateAsync(input);
         // Send confirmation email
         try {
