@@ -477,7 +477,7 @@ function AssessmentContent() {
 
         {/* Assessment Info Cards - Hide when in view mode (results already shown) */}
         {!isInViewMode && (
-          <div className="grid gap-4 md:grid-cols-3">
+          <div className="grid gap-4 lg:grid-cols-3">
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm font-medium flex items-center gap-2">
