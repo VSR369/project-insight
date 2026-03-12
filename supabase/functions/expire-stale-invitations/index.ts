@@ -51,9 +51,24 @@ serve(async (req) => {
       console.error("Failed to expire activation links:", linkError.message);
     }
 
-    // 3. Log results
+    // 3. Expire stale role_assignments (status = 'invited', invited_at > 7 days)
+    const { data: expiredRoles, error: roleError } = await supabaseAdmin
+      .from("role_assignments")
+      .update({ status: "expired", updated_at: now })
+      .eq("status", "invited")
+      .lt("invited_at", sevenDaysAgo)
+      .select("id, org_id, role_code, user_email");
+
+    if (roleError) {
+      console.error("Failed to expire stale role assignments:", roleError.message);
+    }
+
+    const expiredRoleCount = expiredRoles?.length ?? 0;
+
+    // 4. Log results
     const expiredCount = expiredAdmins?.length ?? 0;
     console.log(`Expired ${expiredCount} stale delegated admin invitation(s)`);
+    console.log(`Expired ${expiredRoleCount} stale role assignment invitation(s)`);
 
     // 4. Write audit records for expired admins
     if (expiredAdmins && expiredAdmins.length > 0) {
