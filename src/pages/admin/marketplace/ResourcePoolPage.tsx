@@ -34,6 +34,7 @@ export default function ResourcePoolPage() {
   const [editMember, setEditMember] = useState<PoolMemberRow | null>(null);
   const [deactivateTarget, setDeactivateTarget] = useState<PoolMemberRow | null>(null);
   const [supervisorConfirmTarget, setSupervisorConfirmTarget] = useState<PoolMemberRow | null>(null);
+  const [createOnBehalfOpen, setCreateOnBehalfOpen] = useState(false);
 
   // ══════════ Custom hooks ══════════
   const { canWrite, isLoading: permLoading } = usePoolPermissions();
