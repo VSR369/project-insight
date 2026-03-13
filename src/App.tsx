@@ -169,6 +169,7 @@ const AssignmentAuditLogPage = lazy(() => import("@/pages/admin/AssignmentAuditL
 // MOD-03: Verification Dashboard & Detail
 const VerificationDashboardPage = lazy(() => import("@/pages/admin/verifications/VerificationDashboardPage"));
 const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/VerificationDetailPage"));
+const VerificationKnowledgeCentrePage = lazy(() => import("@/pages/admin/verifications/VerificationKnowledgeCentrePage"));
 
 // MOD-04: Notification Audit Log
 const NotificationAuditLogPage = lazy(() => import("@/pages/admin/notifications/NotificationAuditLogPage"));
