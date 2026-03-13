@@ -36,7 +36,8 @@ import { DelegatedAdminLimitWarning } from '@/components/rbac/DelegatedAdminLimi
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
   email: z.string().email('Valid email required').max(255),
-  phone: z.string().min(5, 'Phone number is required').max(30),
+  phone_country_code: z.string().min(1, 'Country code is required'),
+  phone_number: z.string().min(4, 'Phone number is required').max(15),
   title: z.string().max(100).optional(),
 });
 
