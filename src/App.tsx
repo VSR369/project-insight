@@ -209,6 +209,7 @@ const RoleInvitationResponsePage = lazy(() => import("@/pages/org/RoleInvitation
 const OrgContactProfilePage = lazy(() => import("@/pages/org/OrgContactProfilePage"));
 const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPage"));
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
+const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
