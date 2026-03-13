@@ -118,6 +118,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'seeker_config.view', label: 'View Seeker Config' },
       { key: 'seeker_config.edit', label: 'Edit General Config' },
       { key: 'seeker_config.edit_pricing', label: 'Edit Pricing & Fees' },
+      { key: 'seeker_config.view_shadow_pricing', label: 'View Shadow Pricing' },
       { key: 'seeker_config.manage_compliance', label: 'Manage Compliance Settings' },
     ],
   },

@@ -81,7 +81,6 @@ const seekerConfigItems = [
   { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
   { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
   { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
-  { title: 'Shadow Pricing', icon: Activity, path: '/admin/seeker-config/shadow-pricing' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
   { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
   { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
@@ -513,6 +512,18 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                {hasPermission('seeker_config.view_shadow_pricing') && (
+                  <SidebarMenuItem key="/admin/seeker-config/shadow-pricing">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/seeker-config/shadow-pricing')}
+                      onMouseEnter={() => handleMouseEnter('/admin/seeker-config/shadow-pricing')}
+                      isActive={isActive('/admin/seeker-config/shadow-pricing')}
+                    >
+                      <Activity className="h-4 w-4" />
+                      <span>Shadow Pricing</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
