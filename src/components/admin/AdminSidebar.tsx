@@ -291,7 +291,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.view_audit_logs') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/notifications/audit')}
