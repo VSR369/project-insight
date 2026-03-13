@@ -134,16 +134,11 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
-  // Tier-based visibility — depth controls creation only, not runtime access
-  const effectiveSupervisor = isSupervisor;
-  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
-  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
-
-  // Build team management items based on tier
+  // Build team management items based on permissions
   const teamManagementItems = [
-    ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    ...(effectiveSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
-    ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
+    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
+    ...(hasPermission('supervisor.view_audit_logs') ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
+    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
   // Prefetch on hover handler
