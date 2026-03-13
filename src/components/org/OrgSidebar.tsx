@@ -83,6 +83,7 @@ export function OrgSidebar() {
           : []),
         { title: 'My Profile', icon: Users, path: '/org/contact-profile' },
         { title: 'Email Templates', icon: Mail, path: '/org/email-templates' },
+        { title: 'Shadow Pricing', icon: DollarSign, path: '/org/shadow-pricing' },
       ]
     : [];
 
