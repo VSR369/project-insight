@@ -228,7 +228,7 @@ export function AdminSidebar() {
         </SidebarGroup>
         )}
 
-        {canSeeTeamManagement && (
+        {hasPermission('interview.view') && (
         <SidebarGroup>
           <SidebarGroupLabel>Interview Setup</SidebarGroupLabel>
           <SidebarGroupContent>
