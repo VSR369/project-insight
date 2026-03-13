@@ -219,6 +219,7 @@ export function AdminSidebar() {
         </SidebarGroup>
         )}
 
+        {canSeeTeamManagement && (
         <SidebarGroup>
           <SidebarGroupLabel>Taxonomy Management</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -238,6 +239,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {canSeeTeamManagement && (
         <SidebarGroup>
