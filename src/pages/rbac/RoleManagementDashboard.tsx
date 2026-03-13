@@ -86,7 +86,7 @@ export default function RoleManagementDashboard() {
   // SECTION 7: Render
   // ══════════════════════════════════════
   return (
-    <ErrorBoundary componentName="RoleManagementDashboard">
+    <FeatureErrorBoundary featureName="RoleManagementDashboard">
       <div className="space-y-5 p-6">
         {/* Header */}
         <div>
