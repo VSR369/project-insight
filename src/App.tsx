@@ -866,6 +866,7 @@ const App = () => (
               <Route path="contact-profile" element={<LazyRoute><OrgContactProfilePage /></LazyRoute>} />
               <Route path="email-templates" element={<LazyRoute><OrgEmailTemplatesPage /></LazyRoute>} />
               <Route path="knowledge-centre" element={<LazyRoute><OrgKnowledgeCentrePage /></LazyRoute>} />
+              <Route path="shadow-pricing" element={<LazyRoute><OrgShadowPricingPage /></LazyRoute>} />
             </Route>
             <Route
               path="/registration/complete"
