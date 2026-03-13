@@ -53,7 +53,7 @@ interface MsmeQuickAssignModalProps {
 
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
-  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
+  const [enrollMode, setEnrollMode] = useState<EnrollMode>("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [domainScope, setDomainScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
