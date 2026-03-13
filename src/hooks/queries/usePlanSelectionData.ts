@@ -129,7 +129,11 @@ export function useTierEngagementAccess() {
 
 // ============================================================
 // Shadow Pricing (for internal departments)
+// Re-exported from useResolvedShadowPricing for backward compatibility.
+// When orgId is available, org overrides take priority over platform defaults.
 // ============================================================
+export { useResolvedShadowPricing } from './useResolvedShadowPricing';
+
 export function useShadowPricing() {
   return useQuery({
     queryKey: ['shadow_pricing'],
