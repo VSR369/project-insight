@@ -107,7 +107,7 @@ export function SubmissionBlockedScreen({
       {adminContact && (
         <div className="rounded-lg border bg-muted/30 p-4 max-w-sm w-full text-left space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Contact for Assistance
+            {model === "agg" ? "Organization Admin Contact" : "Platform Admin Contact"}
           </p>
           <p className="text-sm font-medium text-foreground">{adminContact.name}</p>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
