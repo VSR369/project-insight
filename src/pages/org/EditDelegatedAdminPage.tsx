@@ -190,6 +190,7 @@ export default function EditDelegatedAdminPage() {
   }
 
   return (
+    <FeatureErrorBoundary featureName="EditDelegatedAdminPage">
     <div className="space-y-6 max-w-2xl">
       <SessionContextBanner />
 
