@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAdminContact } from "@/hooks/queries/useAdminContact";
+import { useOrgAdminContact } from "@/hooks/queries/useOrgAdminContact";
 import { usePendingChallengeRefsByChallenge, useCreatePendingChallengeRef } from "@/hooks/queries/usePendingChallengeRefs";
 import { useEffect } from "react";
 
