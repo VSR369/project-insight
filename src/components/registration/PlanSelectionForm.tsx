@@ -34,7 +34,7 @@ import {
   useBillingCycles,
   useEngagementModels,
   useTierEngagementAccess,
-  useShadowPricing,
+  useResolvedShadowPricing,
   useSubmitEnterpriseContact,
   useBaseFeesByCountry,
   usePlatformFeesByCountry,
