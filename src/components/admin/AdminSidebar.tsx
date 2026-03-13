@@ -239,6 +239,7 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        {canSeeTeamManagement && (
         <SidebarGroup>
           <SidebarGroupLabel>Interview Setup</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -263,6 +264,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         <SidebarGroup>
           <SidebarGroupLabel>Verification</SidebarGroupLabel>
