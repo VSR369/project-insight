@@ -18,6 +18,7 @@ import { ArrowLeft, Mail, Phone, Shield, Users, History, ClipboardList } from "l
 import { AvailabilityBadge } from "@/components/admin/marketplace/AvailabilityBadge";
 import { RoleBadge } from "@/components/admin/marketplace/RoleBadge";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel as resolveRoleLabel } from "@/lib/roleUtils";
 import { useAvailabilityStatuses } from "@/hooks/queries/useAvailabilityStatuses";
 import { useIndustrySegments } from "@/hooks/queries/useMasterData";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
