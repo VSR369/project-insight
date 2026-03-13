@@ -81,7 +81,6 @@ const seekerConfigItems = [
   { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
   { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
   { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
-  { title: 'Shadow Pricing', icon: Activity, path: '/admin/seeker-config/shadow-pricing' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
   { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
   { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
