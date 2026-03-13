@@ -535,8 +535,8 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Invitations — senior_admin+ */}
-        {canSeeTeamManagement && (
+        {/* Invitations — dynamic permission */}
+        {hasPermission('invitations.view') && (
           <SidebarGroup>
             <SidebarGroupLabel>Invitations</SidebarGroupLabel>
             <SidebarGroupContent>
