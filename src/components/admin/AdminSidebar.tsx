@@ -463,6 +463,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {canSeeTeamManagement && (
           <SidebarGroup>
