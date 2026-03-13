@@ -78,11 +78,26 @@ export default function EditDelegatedAdminPage() {
     }
   }, [admin, initialized, originalScope]);
 
-  // Scope narrowing detection (Gap 10)
+  // Scope narrowing detection (Gap 10) + BR-DEL-002 orphan count
   const narrowingInfo = useMemo(
     () => (initialized ? detectScopeNarrowing(originalScope, scope) : { isNarrowed: false, removedCount: 0 }),
     [originalScope, scope, initialized]
   );
+
+  // BR-DEL-002: Count potentially orphaned role assignments when scope is narrowed
+  const orphanedRoleCount = useMemo(() => {
+    if (!narrowingInfo.isNarrowed) return 0;
+    // Count active/invited roles that fall within removed scope dimensions
+    const removedIndustries = originalScope.industry_segment_ids.filter(
+      (id) => !scope.industry_segment_ids.includes(id)
+    );
+    if (removedIndustries.length === 0) return 0;
+    // Roles whose domain_tags reference removed industries would be orphaned
+    return roleAssignments.filter(
+      (r) => (r.status === "active" || r.status === "invited") &&
+        r.created_by === adminId
+    ).length;
+  }, [narrowingInfo.isNarrowed, originalScope, scope, roleAssignments, adminId]);
 
   // Scope change handler with inline overlap check (Gap 7)
   const handleScopeChange = useCallback(
