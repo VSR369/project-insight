@@ -20,15 +20,6 @@ interface RoleTableProps {
   isDeactivating?: boolean;
 }
 
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeactivating }: RoleTableProps) {
   if (roles.length === 0) {
