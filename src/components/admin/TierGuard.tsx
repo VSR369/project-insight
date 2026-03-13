@@ -36,8 +36,7 @@ export function TierGuard({ requiredTier, children }: TierGuardProps) {
   const hasAccess = (() => {
     if (!tier) return false;
 
-    // Depth 1: Everyone is effectively Supervisor — all guards pass
-    if (depth === 1) return true;
+    // Depth only controls tier creation availability, not runtime access
 
     // Depth 2: Only Supervisor + Senior Admin exist.
     // Routes requiring 'admin' tier → accessible (senior_admin rank >= admin rank)

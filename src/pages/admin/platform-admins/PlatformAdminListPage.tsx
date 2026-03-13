@@ -60,7 +60,7 @@ function PlatformAdminListContent() {
   const { data: admins, isLoading } = usePlatformAdmins(statusFilter);
   const { isSupervisor, isSeniorAdmin } = useAdminTier();
   const { depth } = usePlatformTierDepth();
-  const effectiveSupervisor = isSupervisor || depth === 1;
+  const effectiveSupervisor = isSupervisor;
   const canCreate = depth > 1 && (effectiveSupervisor || isSeniorAdmin);
   const canEdit = effectiveSupervisor || isSeniorAdmin;
 
