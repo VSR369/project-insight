@@ -451,12 +451,8 @@ export function AssignRoleSheet({
                           : "border-border hover:border-primary/40 hover:bg-muted/30"
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
-                          {member.name
-                            ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-                            : "?"}
-                        </div>
+                        <div className="flex items-start gap-3">
+                        <InitialsAvatar name={member.name ?? member.email} size="sm" className="mt-0.5 h-9 w-9 text-xs" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">
                             {member.name ?? member.email}

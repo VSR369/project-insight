@@ -66,9 +66,7 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                     <div className="space-y-1.5">
                       {roleAssignments.map((a) => (
                         <div key={a.id} className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold shrink-0">
-                            {getInitials(a.user_name)}
-                          </div>
+                          <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
                           <span className="text-sm text-foreground">
                             {a.user_name ?? a.user_email}
                           </span>

@@ -99,8 +99,7 @@ export default function PoolMemberDetailPage() {
   const { data: availStatuses } = useAvailabilityStatuses();
   const { data: industries } = useIndustrySegments();
 
-  const getRoleLabel = (code: string) =>
-    roleCodes?.find((r) => r.code === code)?.display_name ?? code;
+  const getRoleLabel = (code: string) => resolveRoleLabel(roleCodes, code);
 
   const getAvailLabel = (status: string) =>
     availStatuses?.find((s) => s.code === status)?.display_name ?? status;

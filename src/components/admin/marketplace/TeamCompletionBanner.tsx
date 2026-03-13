@@ -39,7 +39,7 @@ export function TeamCompletionBanner({ team, challengeId, challengeTitle }: Team
               {team.missingRoles.map((m, i) => (
                 <span key={m.role}>
                   {i > 0 && ", "}
-                  {m.required - m.assigned} more {getRoleLabel(m.role)} ({m.role}) needed
+                  {m.required - m.assigned} more {getLabel(m.role)} ({m.role}) needed
                 </span>
               ))}
               <span className="block text-xs mt-1 text-amber-700 dark:text-amber-400">

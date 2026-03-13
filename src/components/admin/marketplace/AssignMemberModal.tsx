@@ -295,7 +295,7 @@ export function AssignMemberModal({
       <NoAvailableMembersAlert
         open={noAvailableOpen}
         onOpenChange={setNoAvailableOpen}
-        roleLabel={getRoleLabel(selectedRole)}
+        roleLabel={getLabel(selectedRole)}
         fullyBookedCount={fullyBookedCount}
         onBroadenDomain={handleBroadenDomain}
         onWaitForAvailability={handleWaitForAvailability}

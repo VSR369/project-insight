@@ -208,9 +208,7 @@ export default function AdminManagementPage() {
                           {/* Name with avatar */}
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold shrink-0 ${colorClass}`}>
-                                {getInitials(admin.full_name)}
-                              </div>
+                              <InitialsAvatar name={admin.full_name ?? '??'} size="sm" className={colorClass} />
                               <span className="font-medium">{admin.full_name ?? '—'}</span>
                             </div>
                           </TableCell>

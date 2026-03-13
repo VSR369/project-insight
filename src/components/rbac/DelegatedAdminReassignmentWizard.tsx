@@ -55,10 +55,7 @@ export function ReassignmentWizard({
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const { data: roleCodes } = useSlmRoleCodes();
 
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found ? found.display_name : code;
-  };
+  const getRoleLabel = (code: string) => resolveRoleLabel(roleCodes, code);
 
   const allAssigned = orphanRoles.every((r) => assignments[r.id]);
 

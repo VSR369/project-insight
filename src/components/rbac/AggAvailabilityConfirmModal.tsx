@@ -43,8 +43,7 @@ export function AggAvailabilityConfirmModal({
   const [acknowledged, setAcknowledged] = useState(false);
   const { data: allRoles } = useSlmRoleCodes();
 
-  const getRoleLabel = (code: string) =>
-    allRoles?.find((r) => r.code === code)?.display_name ?? code;
+  const getRoleLabel = (code: string) => resolveRoleLabel(allRoles, code);
 
   const handleConfirm = async () => {
     await onConfirm();

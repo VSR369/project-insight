@@ -83,12 +83,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
   // Derive admin display values from real profile — never hardcoded
   const adminName = adminProfile?.full_name ?? "Current Admin";
   const adminEmail = user?.email ?? "";
-  const adminInitials = adminName
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "?";
+  // adminInitials no longer needed — InitialsAvatar handles it
 
   const form = useForm<QuickAssignValues>({
     resolver: zodResolver(quickAssignSchema),
