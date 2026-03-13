@@ -118,7 +118,7 @@ export function AdminSidebar() {
   const pendingCount = sidebarCounts?.pendingReviewers;
   const pendingSeekerCount = sidebarCounts?.pendingSeekers;
   const pendingReassignmentCount = sidebarCounts?.pendingReassignments;
-  const { tier, isSupervisor, isSeniorAdmin, isLoading: tierLoading } = useAdminTier();
+  const { tier, isSupervisor, isSeniorAdmin, hasPermission, isLoading: tierLoading } = useAdminTier();
   const { depth } = usePlatformTierDepth();
 
   // Prefetch top admin routes on mount
