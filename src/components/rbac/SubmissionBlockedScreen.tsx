@@ -31,7 +31,11 @@ export function SubmissionBlockedScreen({
 }: SubmissionBlockedScreenProps) {
   const { data: readinessData } = useRoleReadiness(orgId, model);
   const { data: roleCodes } = useSlmRoleCodes();
-  const { data: adminContact } = useAdminContact();
+  // BR-CORE-005: Route contact based on engagement model
+  // Marketplace gaps → Platform Admin contact; Aggregator gaps → SOA contact
+  const { data: platformAdminContact } = useAdminContact();
+  const { data: orgAdminContact } = useOrgAdminContact(orgId);
+  const adminContact = model === "agg" ? orgAdminContact : platformAdminContact;
   const createPendingRef = useCreatePendingChallengeRef();
 
   const readiness = readinessData?.[0] ?? null;
