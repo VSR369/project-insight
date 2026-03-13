@@ -118,7 +118,7 @@ export default function RoleManagementDashboard() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <Tabs defaultValue="org-core">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="org-core">Core Roles</TabsTrigger>
               <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
