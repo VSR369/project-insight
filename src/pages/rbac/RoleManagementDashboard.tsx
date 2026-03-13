@@ -30,6 +30,7 @@ export default function RoleManagementDashboard() {
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
   const [assignContext, setAssignContext] = useState<"core" | "agg">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("org-core");
 
   // ══════════════════════════════════════
   // SECTION 2: Context hooks
