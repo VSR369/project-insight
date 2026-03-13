@@ -71,7 +71,7 @@ export default function CreateDelegatedAdminPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
-    defaultValues: { full_name: '', email: '', phone: '', title: '' },
+    defaultValues: { full_name: '', email: '', phone_country_code: '', phone_number: '', title: '' },
   });
 
   const tempPassword = useMemo(() => {
