@@ -50,6 +50,7 @@ const pathNames: Record<string, string> = {
   'assignment-audit-log': 'Assignment Audit Log',
   'system-config': 'System Config',
   'domain-weights': 'Domain Match Weights',
+  'verification-knowledge-centre': 'Knowledge Centre',
 };
 
 export function AdminHeader() {

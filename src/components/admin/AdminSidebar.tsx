@@ -276,6 +276,16 @@ export function AdminSidebar() {
                   <span>Verifications</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/verification-knowledge-centre')}
+                  onMouseEnter={() => handleMouseEnter('/admin/verification-knowledge-centre')}
+                  isActive={location.pathname === '/admin/verification-knowledge-centre'}
+                >
+                  <GraduationCap className="h-4 w-4" />
+                  <span>Knowledge Centre</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {effectiveSupervisor && (
                 <SidebarMenuItem>
                   <SidebarMenuButton

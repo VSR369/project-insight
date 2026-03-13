@@ -169,6 +169,7 @@ const AssignmentAuditLogPage = lazy(() => import("@/pages/admin/AssignmentAuditL
 // MOD-03: Verification Dashboard & Detail
 const VerificationDashboardPage = lazy(() => import("@/pages/admin/verifications/VerificationDashboardPage"));
 const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/VerificationDetailPage"));
+const VerificationKnowledgeCentrePage = lazy(() => import("@/pages/admin/verifications/VerificationKnowledgeCentrePage"));
 
 // MOD-04: Notification Audit Log
 const NotificationAuditLogPage = lazy(() => import("@/pages/admin/notifications/NotificationAuditLogPage"));
@@ -630,6 +631,7 @@ const App = () => (
               {/* MOD-03: Verification Dashboard & Detail — all admin tiers */}
               <Route path="verifications" element={<VerificationDashboardPage />} />
               <Route path="verifications/:id" element={<VerificationDetailPage />} />
+              <Route path="verification-knowledge-centre" element={<VerificationKnowledgeCentrePage />} />
               {/* MOD-04: Notification Audit Log — supervisor only */}
               <Route path="notifications/audit" element={<TierGuard requiredTier="supervisor"><NotificationAuditLogPage /></TierGuard>} />
               {/* MOD-05: Performance Metrics Dashboard */}
