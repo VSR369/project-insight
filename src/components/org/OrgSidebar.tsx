@@ -35,6 +35,7 @@ import {
   UserCog,
   Mail,
   BookOpen,
+  DollarSign,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -83,6 +84,7 @@ export function OrgSidebar() {
           : []),
         { title: 'My Profile', icon: Users, path: '/org/contact-profile' },
         { title: 'Email Templates', icon: Mail, path: '/org/email-templates' },
+        { title: 'Shadow Pricing', icon: DollarSign, path: '/org/shadow-pricing' },
       ]
     : [];
 

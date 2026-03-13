@@ -3789,6 +3789,79 @@ export type Database = {
           },
         ]
       }
+      org_shadow_pricing: {
+        Row: {
+          country_id: string | null
+          created_at: string
+          created_by: string | null
+          currency_code: string
+          currency_symbol: string
+          description: string | null
+          id: string
+          is_active: boolean
+          organization_id: string
+          shadow_charge_per_challenge: number
+          tenant_id: string
+          tier_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          currency_symbol?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id: string
+          shadow_charge_per_challenge?: number
+          tenant_id: string
+          tier_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          country_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          currency_code?: string
+          currency_symbol?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          organization_id?: string
+          shadow_charge_per_challenge?: number
+          tenant_id?: string
+          tier_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "org_shadow_pricing_country_id_fkey"
+            columns: ["country_id"]
+            isOneToOne: false
+            referencedRelation: "countries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_shadow_pricing_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "org_shadow_pricing_tier_id_fkey"
+            columns: ["tier_id"]
+            isOneToOne: false
+            referencedRelation: "md_subscription_tiers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       org_state_audit_log: {
         Row: {
           change_reason: string | null

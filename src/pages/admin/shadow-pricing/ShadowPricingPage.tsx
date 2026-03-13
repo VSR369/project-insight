@@ -108,7 +108,7 @@ export default function ShadowPricingPage() {
   ] : [];
 
   return (
-    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Shadow Pricing</h1><p className="text-muted-foreground mt-1">Manage shadow billing charges per country and subscription tier for internal departments</p></div>
+    <><div className="mb-6"><h1 className="text-2xl font-bold tracking-tight">Shadow Pricing — Platform Defaults</h1><p className="text-muted-foreground mt-1">Global default shadow billing rates per country and subscription tier. Organizations can override these with custom rates in their portal.</p></div>
       <DataTable data={items} columns={columns} actions={actions} searchKey="currency_code" searchPlaceholder="Search by currency..." isLoading={isLoading} onAdd={() => { setSelected(null); setIsFormOpen(true); }} addButtonLabel="Add Shadow Pricing" emptyMessage="No shadow pricing configurations found." />
       <MasterDataForm open={isFormOpen} onOpenChange={setIsFormOpen} title="Shadow Pricing" fields={formFields} schema={schema} defaultValues={defaults} onSubmit={handleSubmit} isLoading={createM.isPending || updateM.isPending} mode={selected ? "edit" : "create"} onFieldChange={handleFieldChange} />
       <MasterDataViewDialog open={isViewOpen} onOpenChange={setIsViewOpen} title="Shadow Pricing Details" fields={viewFields} onEdit={() => { setIsViewOpen(false); setIsFormOpen(true); }} />

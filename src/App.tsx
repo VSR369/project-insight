@@ -209,6 +209,7 @@ const RoleInvitationResponsePage = lazy(() => import("@/pages/org/RoleInvitation
 const OrgContactProfilePage = lazy(() => import("@/pages/org/OrgContactProfilePage"));
 const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPage"));
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
+const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
@@ -865,6 +866,7 @@ const App = () => (
               <Route path="contact-profile" element={<LazyRoute><OrgContactProfilePage /></LazyRoute>} />
               <Route path="email-templates" element={<LazyRoute><OrgEmailTemplatesPage /></LazyRoute>} />
               <Route path="knowledge-centre" element={<LazyRoute><OrgKnowledgeCentrePage /></LazyRoute>} />
+              <Route path="shadow-pricing" element={<LazyRoute><OrgShadowPricingPage /></LazyRoute>} />
             </Route>
             <Route
               path="/registration/complete"
