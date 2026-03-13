@@ -95,6 +95,30 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     },
   });
 
+  // Session recovery
+  const getFormSnapshot = useCallback(
+    () => ({
+      activeTab,
+      enrollMode,
+      user_email: form.getValues("user_email"),
+      user_name: form.getValues("user_name"),
+      selected_roles: form.getValues("selected_roles"),
+    }),
+    [activeTab, enrollMode, form]
+  );
+  useSessionExpiryWatcher("msme-quick-assign", getFormSnapshot);
+
+  const recovery = useRestoreFormFromRecovery("msme-quick-assign");
+  useEffect(() => {
+    if (recovery && open) {
+      if (recovery.formData.user_email) form.setValue("user_email", recovery.formData.user_email as string);
+      if (recovery.formData.user_name) form.setValue("user_name", recovery.formData.user_name as string);
+      if (recovery.formData.selected_roles) form.setValue("selected_roles", recovery.formData.selected_roles as string[]);
+      if (recovery.formData.activeTab) setActiveTab(recovery.formData.activeTab as "myself" | "new_user" | "existing");
+      if (recovery.formData.enrollMode) setEnrollMode(recovery.formData.enrollMode as EnrollMode);
+    }
+  }, [recovery, open, form]);
+
   const selectedRoles = form.watch("selected_roles");
   const userEmail = form.watch("user_email");
 
