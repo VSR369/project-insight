@@ -123,28 +123,7 @@ export function AssignRoleSheet({
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
 
-  // Build deduplicated existing team members from active/invited assignments
-  // Include per-role status for badge rendering
-  const existingMembers = (() => {
-    if (!existingAssignments) return [];
-    const memberMap = new Map<string, { email: string; name: string | null; roles: { code: string; status: string }[] }>();
-    for (const a of existingAssignments) {
-      if (a.status !== "active" && a.status !== "invited") continue;
-      const existing = memberMap.get(a.user_email);
-      if (existing) {
-        if (!existing.roles.some((r) => r.code === a.role_code)) {
-          existing.roles.push({ code: a.role_code, status: a.status });
-        }
-      } else {
-        memberMap.set(a.user_email, {
-          email: a.user_email,
-          name: a.user_name,
-          roles: [{ code: a.role_code, status: a.status }],
-        });
-      }
-    }
-    return Array.from(memberMap.values());
-  })();
+  const existingMembers = deduplicateMembers(existingAssignments);
 
   // Use the full role catalog for computing assignable roles
   const fullRoleCatalog = (allRoleCodes ?? availableRoles).filter(
