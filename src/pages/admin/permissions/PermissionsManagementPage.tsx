@@ -71,6 +71,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
     permissions: [
       { key: 'org_approvals.view', label: 'View Org Approvals' },
       { key: 'org_approvals.approve_reject', label: 'Approve / Reject Orgs' },
+      { key: 'org_approvals.manage_agreements', label: 'Manage Enterprise Agreements' },
     ],
   },
   {
