@@ -337,7 +337,7 @@ export function AdminSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {/* System Config — supervisor only */}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.configure_system') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/system-config')}
