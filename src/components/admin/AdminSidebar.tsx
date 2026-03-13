@@ -274,7 +274,7 @@ export function AdminSidebar() {
                   <span>Knowledge Centre</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.approve_reassignments') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/reassignments')}
