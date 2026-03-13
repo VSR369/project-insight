@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { UserPlus, UserMinus } from "lucide-react";
 import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
+import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
@@ -19,15 +20,6 @@ interface RoleTableProps {
   isDeactivating?: boolean;
 }
 
-function getInitials(name: string | null): string {
-  if (!name) return "?";
-  return name
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
-}
 
 export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeactivating }: RoleTableProps) {
   if (roles.length === 0) {
@@ -74,9 +66,7 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                     <div className="space-y-1.5">
                       {roleAssignments.map((a) => (
                         <div key={a.id} className="flex items-center gap-2">
-                          <div className="h-6 w-6 rounded-full bg-primary/10 text-primary flex items-center justify-center text-[10px] font-semibold shrink-0">
-                            {getInitials(a.user_name)}
-                          </div>
+                          <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
                           <span className="text-sm text-foreground">
                             {a.user_name ?? a.user_email}
                           </span>

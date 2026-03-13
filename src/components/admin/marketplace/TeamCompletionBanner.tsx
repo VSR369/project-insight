@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel } from "@/lib/roleUtils";
 import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberModal";
 import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
@@ -24,10 +25,7 @@ export function TeamCompletionBanner({ team, challengeId, challengeTitle }: Team
 
   if (team.isComplete) return null;
 
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found?.display_name ?? code;
-  };
+  const getLabel = (code: string) => getRoleLabel(roleCodes, code);
 
   return (
     <>
@@ -41,7 +39,7 @@ export function TeamCompletionBanner({ team, challengeId, challengeTitle }: Team
               {team.missingRoles.map((m, i) => (
                 <span key={m.role}>
                   {i > 0 && ", "}
-                  {m.required - m.assigned} more {getRoleLabel(m.role)} ({m.role}) needed
+                  {m.required - m.assigned} more {getLabel(m.role)} ({m.role}) needed
                 </span>
               ))}
               <span className="block text-xs mt-1 text-amber-700 dark:text-amber-400">

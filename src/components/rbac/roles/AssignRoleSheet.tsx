@@ -22,7 +22,10 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle, Send, Zap } from "lucide-react";
+import { ChevronDown, ChevronRight, Info, Users, UserPlus, CheckCircle, Zap } from "lucide-react";
+import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
+import { deduplicateMembers } from "@/lib/roleUtils";
+import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
 import type { Json } from "@/integrations/supabase/types";
 import { roleInviteSchema, type RoleInviteFormValues } from "@/lib/validations/roleAssignment";
 import { useCreateRoleAssignment, useDirectEnrollRole, useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
@@ -54,7 +57,7 @@ export function AssignRoleSheet({
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<"invite" | "existing">("invite");
-  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("invite");
+  const [enrollMode, setEnrollMode] = useState<EnrollMode>("invite");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
@@ -120,28 +123,7 @@ export function AssignRoleSheet({
   const roleTitle = selectedRole?.display_name ?? "Role";
   const showRoleSelector = !preSelectedRoleCode && availableRoles.length > 0;
 
-  // Build deduplicated existing team members from active/invited assignments
-  // Include per-role status for badge rendering
-  const existingMembers = (() => {
-    if (!existingAssignments) return [];
-    const memberMap = new Map<string, { email: string; name: string | null; roles: { code: string; status: string }[] }>();
-    for (const a of existingAssignments) {
-      if (a.status !== "active" && a.status !== "invited") continue;
-      const existing = memberMap.get(a.user_email);
-      if (existing) {
-        if (!existing.roles.some((r) => r.code === a.role_code)) {
-          existing.roles.push({ code: a.role_code, status: a.status });
-        }
-      } else {
-        memberMap.set(a.user_email, {
-          email: a.user_email,
-          name: a.user_name,
-          roles: [{ code: a.role_code, status: a.status }],
-        });
-      }
-    }
-    return Array.from(memberMap.values());
-  })();
+  const existingMembers = deduplicateMembers(existingAssignments);
 
   // Use the full role catalog for computing assignable roles
   const fullRoleCatalog = (allRoleCodes ?? availableRoles).filter(
@@ -241,40 +223,9 @@ export function AssignRoleSheet({
           <SheetDescription>Invite a user or assign a new role to an existing team member</SheetDescription>
         </SheetHeader>
 
-        {/* Enroll Mode Toggle — Direct / Invite (placed first for visibility) */}
-        <div className="shrink-0 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <label className="text-xs font-semibold text-foreground mb-2 block">Assignment Mode</label>
-          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "invite"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("invite")}
-            >
-              <Send className="h-3.5 w-3.5" />
-              Invite
-            </button>
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "direct"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("direct")}
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Direct
-            </button>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            {enrollMode === "invite"
-              ? "User receives an invitation and must accept before the role becomes active."
-              : "Role is activated immediately. User receives a confirmation email."}
-          </p>
+        {/* Enroll Mode Toggle — Direct / Invite */}
+        <div className="shrink-0 mt-3">
+          <EnrollModeToggle mode={enrollMode} onModeChange={setEnrollMode} />
         </div>
 
         {/* Role Badge (when pre-selected — invite tab only) */}
@@ -500,12 +451,8 @@ export function AssignRoleSheet({
                           : "border-border hover:border-primary/40 hover:bg-muted/30"
                       }`}
                     >
-                      <div className="flex items-start gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0 mt-0.5">
-                          {member.name
-                            ? member.name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()
-                            : "?"}
-                        </div>
+                        <div className="flex items-start gap-3">
+                        <InitialsAvatar name={member.name ?? member.email} size="sm" className="mt-0.5 h-9 w-9 text-xs" />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-foreground truncate">
                             {member.name ?? member.email}

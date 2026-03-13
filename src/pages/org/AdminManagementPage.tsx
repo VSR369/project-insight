@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Search, Edit, UserMinus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
+import { InitialsAvatar } from '@/components/admin/platform-admins/InitialsAvatar';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
@@ -33,15 +34,6 @@ const AVATAR_COLORS = [
   'bg-rose-100 text-rose-700',
 ];
 
-function getInitials(name: string | null): string {
-  if (!name) return '??';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-}
 
 /* ── Status badge config ── */
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -216,9 +208,7 @@ export default function AdminManagementPage() {
                           {/* Name with avatar */}
                           <TableCell>
                             <div className="flex items-center gap-2">
-                              <div className={`flex items-center justify-center h-8 w-8 rounded-full text-xs font-semibold shrink-0 ${colorClass}`}>
-                                {getInitials(admin.full_name)}
-                              </div>
+                              <InitialsAvatar name={admin.full_name ?? '??'} size="sm" className={colorClass} />
                               <span className="font-medium">{admin.full_name ?? '—'}</span>
                             </div>
                           </TableCell>

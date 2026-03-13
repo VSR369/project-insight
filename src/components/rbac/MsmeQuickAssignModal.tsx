@@ -6,7 +6,8 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import { Send, Zap } from "lucide-react";
+import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
+import { deduplicateMembers } from "@/lib/roleUtils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -52,7 +53,7 @@ interface MsmeQuickAssignModalProps {
 
 export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }: MsmeQuickAssignModalProps) {
   const [activeTab, setActiveTab] = useState<"myself" | "new_user" | "existing">("myself");
-  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("direct");
+  const [enrollMode, setEnrollMode] = useState<EnrollMode>("direct");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [domainScope, setDomainScope] = useState<DomainScope>({ ...EMPTY_SCOPE });
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string | null>(null);
@@ -70,28 +71,19 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
 
   // Derive existing team members from assignments (deduplicated by email)
   const existingMembers = useMemo(() => {
-    const map = new Map<string, { email: string; name: string | null; roles: string[] }>();
-    for (const a of assignments) {
-      if (a.status !== "active" && a.status !== "invited") continue;
-      const existing = map.get(a.user_email);
-      if (existing) {
-        if (!existing.roles.includes(a.role_code)) existing.roles.push(a.role_code);
-      } else {
-        map.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
-      }
-    }
-    return Array.from(map.values());
+    const members = deduplicateMembers(assignments);
+    // Flatten roles to simple string[] for this component's simpler data model
+    return members.map((m) => ({
+      email: m.email,
+      name: m.name,
+      roles: m.roles.map((r) => r.code),
+    }));
   }, [assignments]);
 
   // Derive admin display values from real profile — never hardcoded
   const adminName = adminProfile?.full_name ?? "Current Admin";
   const adminEmail = user?.email ?? "";
-  const adminInitials = adminName
-    .split(" ")
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase() || "?";
+  // adminInitials no longer needed — InitialsAvatar handles it
 
   const form = useForm<QuickAssignValues>({
     resolver: zodResolver(quickAssignSchema),
@@ -182,39 +174,8 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         </div>
 
         {/* Direct / Invite Toggle */}
-        <div className="shrink-0 mx-6 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <label className="text-xs font-semibold text-foreground mb-2 block">Assignment Mode</label>
-          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "direct"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("direct")}
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Direct
-            </button>
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "invite"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("invite")}
-            >
-              <Send className="h-3.5 w-3.5" />
-              Invite
-            </button>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            {enrollMode === "direct"
-              ? "Roles activated immediately. Users receive confirmation emails."
-              : "Users receive invitations and must accept before roles become active."}
-          </p>
+        <div className="shrink-0 mx-6 mt-3">
+          <EnrollModeToggle mode={enrollMode} onModeChange={setEnrollMode} primaryOption="direct" />
         </div>
 
         {/* Tab Toggle */}
@@ -256,9 +217,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                 </div>
               ) : (
                 <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
-                    {adminInitials}
-                  </div>
+                  <InitialsAvatar name={adminName} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{adminName}</p>
                     <p className="text-xs text-muted-foreground truncate">{adminEmail}</p>

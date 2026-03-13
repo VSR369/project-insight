@@ -10,7 +10,7 @@ interface InitialsAvatarProps {
   className?: string;
 }
 
-function getInitials(name: string): string {
+export function getInitials(name: string): string {
   return name
     .split(/\s+/)
     .filter(Boolean)

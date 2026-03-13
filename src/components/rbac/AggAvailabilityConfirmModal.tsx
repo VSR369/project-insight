@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Shield, Loader2 } from "lucide-react";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel as resolveRoleLabel } from "@/lib/roleUtils";
 
 interface AggAvailabilityConfirmModalProps {
   open: boolean;
@@ -42,8 +43,7 @@ export function AggAvailabilityConfirmModal({
   const [acknowledged, setAcknowledged] = useState(false);
   const { data: allRoles } = useSlmRoleCodes();
 
-  const getRoleLabel = (code: string) =>
-    allRoles?.find((r) => r.code === code)?.display_name ?? code;
+  const getRoleLabel = (code: string) => resolveRoleLabel(allRoles, code);
 
   const handleConfirm = async () => {
     await onConfirm();

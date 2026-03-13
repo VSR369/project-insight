@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertTriangle, CheckCircle2, Users, ArrowRight } from "lucide-react";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel as resolveRoleLabel } from "@/lib/roleUtils";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 interface ReassignmentWizardProps {
@@ -54,10 +55,7 @@ export function ReassignmentWizard({
   const [assignments, setAssignments] = useState<Record<string, string>>({});
   const { data: roleCodes } = useSlmRoleCodes();
 
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found ? found.display_name : code;
-  };
+  const getRoleLabel = (code: string) => resolveRoleLabel(roleCodes, code);
 
   const allAssigned = orphanRoles.every((r) => assignments[r.id]);
 

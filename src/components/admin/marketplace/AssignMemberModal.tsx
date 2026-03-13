@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useAssignMember, useChallengeAssignments } from "@/hooks/queries/useSolutionRequests";
 import { usePoolMembers } from "@/hooks/queries/usePoolMembers";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel, getRoleDisplayLabel } from "@/lib/roleUtils";
 import { PreviousTeamSuggestion } from "@/components/admin/marketplace/PreviousTeamSuggestion";
 import { FullyBookedAlternativesModal } from "@/components/admin/marketplace/FullyBookedAlternativesModal";
 import { NoAvailableMembersAlert } from "@/components/admin/marketplace/NoAvailableMembersAlert";
@@ -95,10 +96,7 @@ export function AssignMemberModal({
   // ══════════════════════════════════════
   // SECTION 3: Derived state
   // ══════════════════════════════════════
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found ? `${found.display_name} (${code})` : code;
-  };
+  const getLabel = (code: string) => getRoleDisplayLabel(roleCodes, code);
 
   const existingMemberIdsForRole = (challengeAssignments ?? [])
     .filter((a) => a.role_code === selectedRole)
@@ -177,7 +175,7 @@ export function AssignMemberModal({
               </Label>
               {missingRoles.length === 1 ? (
                 <div className="text-sm font-medium text-foreground p-2 rounded-md border bg-muted/20">
-                  {getRoleLabel(missingRoles[0].role)}
+                  {getLabel(missingRoles[0].role)}
                   <span className="text-xs text-muted-foreground ml-2">
                     ({missingRoles[0].required - missingRoles[0].assigned} needed)
                   </span>
@@ -190,7 +188,7 @@ export function AssignMemberModal({
                   <SelectContent>
                     {missingRoles.map((m) => (
                       <SelectItem key={m.role} value={m.role}>
-                        {getRoleLabel(m.role)} — {m.required - m.assigned} needed
+                        {getLabel(m.role)} — {m.required - m.assigned} needed
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -236,7 +234,7 @@ export function AssignMemberModal({
                 {isDuplicateRoleAssignment && (
                   <div className="flex items-center gap-1.5 text-xs text-destructive">
                     <AlertTriangle className="h-3 w-3" />
-                    This member is already assigned as {getRoleLabel(selectedRole)} on this challenge.
+                    This member is already assigned as {getLabel(selectedRole)} on this challenge.
                   </div>
                 )}
 
@@ -288,7 +286,7 @@ export function AssignMemberModal({
       <FullyBookedAlternativesModal
         open={alternativesOpen}
         onOpenChange={setAlternativesOpen}
-        roleLabel={getRoleLabel(selectedRole)}
+        roleLabel={getLabel(selectedRole)}
         alternatives={candidates}
         onSelect={(memberId) => setSelectedMemberId(memberId)}
       />
@@ -297,7 +295,7 @@ export function AssignMemberModal({
       <NoAvailableMembersAlert
         open={noAvailableOpen}
         onOpenChange={setNoAvailableOpen}
-        roleLabel={getRoleLabel(selectedRole)}
+        roleLabel={getLabel(selectedRole)}
         fullyBookedCount={fullyBookedCount}
         onBroadenDomain={handleBroadenDomain}
         onWaitForAvailability={handleWaitForAvailability}
