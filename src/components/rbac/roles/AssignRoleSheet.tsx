@@ -117,6 +117,32 @@ export function AssignRoleSheet({
   }, [selectedMemberEmail]);
 
   // ══════════════════════════════════════
+  // SECTION 4b: Session recovery
+  // ══════════════════════════════════════
+  const getFormSnapshot = useCallback(
+    () => ({
+      activeTab,
+      enrollMode,
+      role_code: form.getValues("role_code"),
+      user_email: form.getValues("user_email"),
+      user_name: form.getValues("user_name"),
+    }),
+    [activeTab, enrollMode, form]
+  );
+  useSessionExpiryWatcher("assign-role-sheet", getFormSnapshot);
+
+  const recovery = useRestoreFormFromRecovery("assign-role-sheet");
+  useEffect(() => {
+    if (recovery && open) {
+      if (recovery.formData.user_email) form.setValue("user_email", recovery.formData.user_email as string);
+      if (recovery.formData.user_name) form.setValue("user_name", recovery.formData.user_name as string);
+      if (recovery.formData.role_code) form.setValue("role_code", recovery.formData.role_code as string);
+      if (recovery.formData.activeTab) setActiveTab(recovery.formData.activeTab as "invite" | "existing");
+      if (recovery.formData.enrollMode) setEnrollMode(recovery.formData.enrollMode as EnrollMode);
+    }
+  }, [recovery, open, form]);
+
+  // ══════════════════════════════════════
   // SECTION 5: Derived state
   // ══════════════════════════════════════
   const effectiveRoleCode = preSelectedRoleCode || manualRoleCode;
