@@ -222,9 +222,7 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
                 </div>
               ) : (
                 <div className="flex items-center gap-3 rounded-lg border p-3 bg-muted/30">
-                  <div className="h-10 w-10 rounded-full bg-primary/10 text-primary flex items-center justify-center text-sm font-semibold shrink-0">
-                    {adminInitials}
-                  </div>
+                  <InitialsAvatar name={adminName} size="md" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-foreground">{adminName}</p>
                     <p className="text-xs text-muted-foreground truncate">{adminEmail}</p>
