@@ -56,6 +56,7 @@ export default function EditDelegatedAdminPage() {
   const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
   const [overlappingAdmins, setOverlappingAdmins] = useState<{ name: string; email: string }[]>([]);
   const [inlineScopeOverlap, setInlineScopeOverlap] = useState<{ name: string; email: string }[]>([]);
+  const [scopeNarrowConfirmOpen, setScopeNarrowConfirmOpen] = useState(false);
 
   const originalScope = useMemo<DomainScope>(() => {
     if (!admin) return { ...EMPTY_SCOPE };
