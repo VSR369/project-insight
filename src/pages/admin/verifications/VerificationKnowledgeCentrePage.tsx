@@ -476,8 +476,33 @@ The maximum number of delegated (secondary) admins an organisation can have, **i
   },
 ];
 
+/** Groups visible to each tier */
+const SUPERVISOR_ONLY_GROUPS = ['System Configuration Reference'];
+const SENIOR_PLUS_GROUPS = ['Queue & Assignment Management', 'System Configuration Reference'];
+
 function VerificationKnowledgeCentreContent() {
   const navigate = useNavigate();
+  const { tier, isSupervisor } = useAdminTier();
+
+  const filteredGroups = useMemo(() => {
+    return GROUPS.filter((group) => {
+      // Supervisor sees everything
+      if (isSupervisor) return true;
+      // Senior Admin sees everything except System Config Reference
+      if (tier === 'senior_admin') return !SUPERVISOR_ONLY_GROUPS.includes(group.title);
+      // Basic Admin sees only Getting Started, Working a Verification, Administration
+      return !SENIOR_PLUS_GROUPS.includes(group.title);
+    }).map((group) => {
+      // For Senior Admins, filter out "Supervisor Force Reassign" from Queue group
+      if (tier === 'senior_admin' && group.title === 'Queue & Assignment Management') {
+        return {
+          ...group,
+          items: group.items.filter((item) => item.id !== 'force-reassign'),
+        };
+      }
+      return group;
+    });
+  }, [tier, isSupervisor]);
 
   return (
     <div className="space-y-8">
@@ -500,7 +525,7 @@ function VerificationKnowledgeCentreContent() {
         </div>
       </div>
 
-      {GROUPS.map((group) => (
+      {filteredGroups.map((group) => (
         <section key={group.title} className="space-y-3">
           <h2 className="text-lg font-semibold text-foreground">
             {group.title}

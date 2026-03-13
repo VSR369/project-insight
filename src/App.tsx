@@ -622,9 +622,9 @@ const App = () => (
               <Route path="seeker-config/postal-formats" element={<TierGuard requiredTier="senior_admin"><PostalFormatsPage /></TierGuard>} />
               <Route path="seeker-config/billing-cycles" element={<TierGuard requiredTier="senior_admin"><BillingCyclesPage /></TierGuard>} />
               <Route path="seeker-config/payment-methods" element={<TierGuard requiredTier="senior_admin"><PaymentMethodsPage /></TierGuard>} />
-              <Route path="saas-agreements" element={<SaasAgreementPage />} />
-              <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
-              <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
+              <Route path="saas-agreements" element={<TierGuard requiredTier="senior_admin"><SaasAgreementPage /></TierGuard>} />
+              <Route path="seeker-org-approvals" element={<TierGuard requiredTier="senior_admin"><SeekerOrgApprovalsPage /></TierGuard>} />
+              <Route path="seeker-org-approvals/:orgId" element={<TierGuard requiredTier="senior_admin"><SeekerOrgReviewPage /></TierGuard>} />
               {/* MOD-01: Platform Admin Management — senior_admin+ */}
               <Route path="platform-admins" element={<TierGuard requiredTier="senior_admin"><PlatformAdminListPage /></TierGuard>} />
               <Route path="platform-admins/new" element={<TierGuard requiredTier="senior_admin"><CreatePlatformAdminPage /></TierGuard>} />
