@@ -22,6 +22,16 @@ import {
   Activity,
   TrendingUp,
   Settings,
+  Layers,
+  Target,
+  Sliders,
+  Users,
+  Clock,
+  Timer,
+  Mail,
+  RefreshCcw,
+  GraduationCap,
+  Link2,
 } from 'lucide-react';
 
 const GROUPS = [
