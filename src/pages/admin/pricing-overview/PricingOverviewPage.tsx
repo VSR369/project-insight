@@ -13,7 +13,7 @@ import { LayoutGrid, Check, X, Crown, ChevronDown, AlertCircle, ExternalLink } f
 import { Link } from "react-router-dom";
 import {
   useSubscriptionTiers, useTierFeatures, useBillingCycles,
-  useEngagementModels, useTierEngagementAccess, useShadowPricing,
+  useEngagementModels, useTierEngagementAccess, useResolvedShadowPricing,
 } from "@/hooks/queries/usePlanSelectionData";
 import { useMembershipTiers } from "@/hooks/queries/useMembershipTiers";
 import { useChallengeComplexityList } from "@/hooks/queries/useChallengeComplexity";
@@ -759,7 +759,7 @@ export default function PricingOverviewPage() {
   const { data: billingCycles = [], isLoading: cyclesLoading } = useBillingCycles();
   const { data: engagementModels = [], isLoading: modelsLoading } = useEngagementModels();
   const { data: tierAccess = [], isLoading: accessLoading } = useTierEngagementAccess();
-  const { data: shadowPricing = [], isLoading: shadowLoading } = useShadowPricing();
+  const { data: shadowPricing = [], isLoading: shadowLoading } = useResolvedShadowPricing();
   const { data: membershipTiers = [], isLoading: membershipLoading } = useMembershipTiers();
   const { data: complexity = [], isLoading: complexityLoading } = useChallengeComplexityList();
   const { data: countryPricing = [], isLoading: pricingLoading } = useAllTierCountryPricing();
