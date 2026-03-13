@@ -74,7 +74,13 @@ export default function ResourcePoolPage() {
 
   const handleDeactivateConfirm = async () => {
     if (deactivateTarget) {
-      await deactivateMutation.mutateAsync(deactivateTarget.id);
+      const memberAny = deactivateTarget as any;
+      await deactivateMutation.mutateAsync({
+        id: deactivateTarget.id,
+        notifySupervisor: false,
+        memberName: deactivateTarget.full_name,
+        createdByTier: memberAny?.created_by_tier,
+      });
       setDeactivateTarget(null);
     }
   };
