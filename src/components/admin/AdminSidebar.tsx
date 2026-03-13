@@ -206,7 +206,7 @@ export function AdminSidebar() {
         </SidebarGroup>
         )}
 
-        {canSeeTeamManagement && (
+        {hasPermission('taxonomy.view') && (
         <SidebarGroup>
           <SidebarGroupLabel>Taxonomy Management</SidebarGroupLabel>
           <SidebarGroupContent>
