@@ -179,39 +179,8 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
         </div>
 
         {/* Direct / Invite Toggle */}
-        <div className="shrink-0 mx-6 mt-3 rounded-lg border border-primary/20 bg-primary/5 p-3">
-          <label className="text-xs font-semibold text-foreground mb-2 block">Assignment Mode</label>
-          <div className="grid grid-cols-2 gap-1 bg-muted rounded-lg p-1">
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "direct"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("direct")}
-            >
-              <Zap className="h-3.5 w-3.5" />
-              Direct
-            </button>
-            <button
-              type="button"
-              className={`flex items-center justify-center gap-1.5 rounded-md px-3 py-2 text-xs font-medium transition-colors ${
-                enrollMode === "invite"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-              onClick={() => setEnrollMode("invite")}
-            >
-              <Send className="h-3.5 w-3.5" />
-              Invite
-            </button>
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-2">
-            {enrollMode === "direct"
-              ? "Roles activated immediately. Users receive confirmation emails."
-              : "Users receive invitations and must accept before roles become active."}
-          </p>
+        <div className="shrink-0 mx-6 mt-3">
+          <EnrollModeToggle mode={enrollMode} onModeChange={setEnrollMode} primaryOption="direct" />
         </div>
 
         {/* Tab Toggle */}
