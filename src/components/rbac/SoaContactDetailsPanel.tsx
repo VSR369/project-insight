@@ -13,6 +13,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { ChevronDown, ChevronRight, Info, Save } from "lucide-react";
 import { useAdminContact, useUpsertAdminContact } from "@/hooks/queries/useAdminContact";
 import { adminContactSchema, type AdminContactFormValues } from "@/lib/validations/roleAssignment";
+import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from "@/components/ui/PhoneInputSplit";
 import { format } from "date-fns";
 
 export function SoaContactDetailsPanel() {
@@ -25,26 +26,30 @@ export function SoaContactDetailsPanel() {
     defaultValues: {
       name: "",
       email: "",
-      phone_intl: "",
+      phone_country_code: "",
+      phone_number: "",
     },
   });
 
   useEffect(() => {
     if (contact) {
+      const parsed = parsePhoneIntl(contact.phone_intl);
       form.reset({
         name: contact.name,
         email: contact.email,
-        phone_intl: contact.phone_intl ?? "",
+        phone_country_code: parsed.countryCode,
+        phone_number: parsed.phoneNumber,
       });
     }
   }, [contact, form]);
 
   const onSubmit = async (data: AdminContactFormValues) => {
+    const combined = formatPhoneIntl(data.phone_country_code || "", data.phone_number || "");
     await upsert.mutateAsync({
       id: contact?.id,
       name: data.name,
       email: data.email,
-      phone_intl: data.phone_intl || undefined,
+      phone_intl: combined || undefined,
     });
   };
 
@@ -71,7 +76,7 @@ export function SoaContactDetailsPanel() {
         <div className="border border-t-0 rounded-b-lg px-4 py-4 bg-card">
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
                   name="name"
@@ -98,19 +103,19 @@ export function SoaContactDetailsPanel() {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="phone_intl"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+              </div>
+
+              {/* Split phone: Country Code + Number */}
+              <div>
+                <FormLabel>Phone</FormLabel>
+                <div className="mt-1.5">
+                  <PhoneInputSplit
+                    countryCode={form.watch("phone_country_code") || ""}
+                    phoneNumber={form.watch("phone_number") || ""}
+                    onCountryCodeChange={(v) => form.setValue("phone_country_code", v, { shouldDirty: true })}
+                    onPhoneNumberChange={(v) => form.setValue("phone_number", v, { shouldDirty: true })}
+                  />
+                </div>
               </div>
 
               <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">

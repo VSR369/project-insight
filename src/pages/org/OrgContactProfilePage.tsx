@@ -18,6 +18,7 @@ import { useSoaProfile, useUpdateSoaProfile } from '@/hooks/queries/useSoaProfil
 import { soaProfileSchema, type SoaProfileFormValues } from '@/lib/validations/roleAssignment';
 import { useOrgContext } from '@/contexts/OrgContext';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from '@/components/ui/PhoneInputSplit';
 import { format } from 'date-fns';
 
 export default function OrgContactProfilePage() {
@@ -28,14 +29,16 @@ export default function OrgContactProfilePage() {
 
   const form = useForm<SoaProfileFormValues>({
     resolver: zodResolver(soaProfileSchema),
-    defaultValues: { full_name: '', phone: '', title: '' },
+    defaultValues: { full_name: '', phone_country_code: '', phone_number: '', title: '' },
   });
 
   useEffect(() => {
     if (profile) {
+      const parsed = parsePhoneIntl(profile.phone);
       form.reset({
         full_name: profile.full_name ?? '',
-        phone: profile.phone ?? '',
+        phone_country_code: parsed.countryCode,
+        phone_number: parsed.phoneNumber,
         title: profile.title ?? '',
       });
     }
@@ -70,10 +73,11 @@ export default function OrgContactProfilePage() {
   }
 
   const onSubmit = async (data: SoaProfileFormValues) => {
+    const combined = formatPhoneIntl(data.phone_country_code || '', data.phone_number || '');
     await update.mutateAsync({
       id: profile.id,
       full_name: data.full_name,
-      phone: data.phone || undefined,
+      phone: combined || undefined,
       title: data.title || undefined,
     });
   };
@@ -136,19 +140,18 @@ export default function OrgContactProfilePage() {
                   </p>
                 </FormItem>
 
-                <FormField
-                  control={form.control}
-                  name="phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Phone (international format)</FormLabel>
-                      <FormControl>
-                        <Input placeholder="+1234567890" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Split phone: Country Code + Number */}
+                <div>
+                  <FormLabel>Phone (international format)</FormLabel>
+                  <div className="mt-1.5">
+                    <PhoneInputSplit
+                      countryCode={form.watch('phone_country_code') || ''}
+                      phoneNumber={form.watch('phone_number') || ''}
+                      onCountryCodeChange={(v) => form.setValue('phone_country_code', v, { shouldDirty: true })}
+                      onPhoneNumberChange={(v) => form.setValue('phone_number', v, { shouldDirty: true })}
+                    />
+                  </div>
+                </div>
 
                 <FormField
                   control={form.control}

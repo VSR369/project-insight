@@ -217,17 +217,23 @@ export default function CreateDelegatedAdminPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number *</FormLabel>
-                        <FormControl><Input {...field} placeholder="+1 555-0100" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <div>
+                    <FormLabel>Phone Number *</FormLabel>
+                    <div className="mt-1.5">
+                      <PhoneInputSplit
+                        countryCode={form.watch('phone_country_code') || ''}
+                        phoneNumber={form.watch('phone_number') || ''}
+                        onCountryCodeChange={(v) => form.setValue('phone_country_code', v, { shouldDirty: true, shouldValidate: true })}
+                        onPhoneNumberChange={(v) => form.setValue('phone_number', v, { shouldDirty: true, shouldValidate: true })}
+                      />
+                    </div>
+                    {form.formState.errors.phone_country_code && (
+                      <p className="text-xs text-destructive mt-1">{form.formState.errors.phone_country_code.message}</p>
                     )}
-                  />
+                    {form.formState.errors.phone_number && (
+                      <p className="text-xs text-destructive mt-1">{form.formState.errors.phone_number.message}</p>
+                    )}
+                  </div>
                   <FormField
                     control={form.control}
                     name="title"

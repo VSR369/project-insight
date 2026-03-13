@@ -307,19 +307,17 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="new_admin_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>New Admin Phone</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="tel" placeholder="Phone number" className="text-base" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <FormLabel>New Admin Phone</FormLabel>
+                  <div className="mt-1.5">
+                    <PhoneInputSplit
+                      countryCode={form.watch('new_admin_phone_country_code') || ''}
+                      phoneNumber={form.watch('new_admin_phone_number') || ''}
+                      onCountryCodeChange={(v) => form.setValue('new_admin_phone_country_code', v, { shouldDirty: true })}
+                      onPhoneNumberChange={(v) => form.setValue('new_admin_phone_number', v, { shouldDirty: true })}
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 pt-2">
                   <Button type="submit" disabled={requestChange.isPending}>
                     {requestChange.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
