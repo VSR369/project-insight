@@ -103,11 +103,12 @@ export default function CreateDelegatedAdminPage() {
   );
 
   const doCreate = async (data: FormValues) => {
+    const combined = formatPhoneIntl(data.phone_country_code || '', data.phone_number || '');
     await createAdmin.mutateAsync({
       organization_id: organizationId,
       full_name: data.full_name,
       email: data.email,
-      phone: data.phone,
+      phone: combined,
       title: data.title,
       domain_scope: scope,
       temp_password: tempPassword,
