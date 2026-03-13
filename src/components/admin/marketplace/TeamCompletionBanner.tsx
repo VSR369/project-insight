@@ -25,10 +25,7 @@ export function TeamCompletionBanner({ team, challengeId, challengeTitle }: Team
 
   if (team.isComplete) return null;
 
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found?.display_name ?? code;
-  };
+  const getLabel = (code: string) => getRoleLabel(roleCodes, code);
 
   return (
     <>
