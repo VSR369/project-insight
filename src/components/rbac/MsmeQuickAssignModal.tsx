@@ -5,7 +5,7 @@
  * "Myself" tab uses real admin profile from useCurrentAdminProfile — no hardcoded user data.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
 import { deduplicateMembers } from "@/lib/roleUtils";
 import { useForm } from "react-hook-form";
