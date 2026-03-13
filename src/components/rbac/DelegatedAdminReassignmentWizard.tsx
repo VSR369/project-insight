@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/select";
 import { Loader2, AlertTriangle, CheckCircle2, Users, ArrowRight } from "lucide-react";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel as resolveRoleLabel } from "@/lib/roleUtils";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
 interface ReassignmentWizardProps {
