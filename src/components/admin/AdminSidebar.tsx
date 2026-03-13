@@ -501,7 +501,7 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {canSeeSeekerConfig && (
+        {hasPermission('seeker_config.view') && (
           <SidebarGroup>
             <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -518,7 +518,7 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-                {effectiveSupervisor && complianceConfigItems.map((item) => (
+                {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       onClick={() => navigate(item.path)}
