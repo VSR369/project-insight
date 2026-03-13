@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Edit, User, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function EditDelegatedAdminPage() {
   const navigate = useNavigate();

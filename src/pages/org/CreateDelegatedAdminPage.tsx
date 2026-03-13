@@ -292,5 +292,6 @@ export default function CreateDelegatedAdminPage() {
         }}
       />
     </div>
+    </FeatureErrorBoundary>
   );
 }
