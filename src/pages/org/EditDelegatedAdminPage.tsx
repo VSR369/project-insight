@@ -97,16 +97,19 @@ export default function EditDelegatedAdminPage() {
   // BR-DEL-002: Count potentially orphaned role assignments when scope is narrowed
   const orphanedRoleCount = useMemo(() => {
     if (!narrowingInfo.isNarrowed) return 0;
-    // Count active/invited roles that fall within removed scope dimensions
+    // Compute which industry IDs were removed from the scope
     const removedIndustries = originalScope.industry_segment_ids.filter(
       (id) => !scope.industry_segment_ids.includes(id)
     );
     if (removedIndustries.length === 0) return 0;
-    // Roles whose domain_tags reference removed industries would be orphaned
-    return roleAssignments.filter(
-      (r) => (r.status === "active" || r.status === "invited") &&
-        r.created_by === adminId
-    ).length;
+    // Only count roles created by this admin whose domain_tags.industry_id
+    // falls within the removed industries — those are the truly orphaned ones
+    return roleAssignments.filter((r) => {
+      if (r.status !== "active" && r.status !== "invited") return false;
+      if (r.created_by !== adminId) return false;
+      const industryId = (r as any).domain_tags?.industry_id;
+      return industryId && removedIndustries.includes(industryId);
+    }).length;
   }, [narrowingInfo.isNarrowed, originalScope, scope, roleAssignments, adminId]);
 
   // Scope change handler with inline overlap check (Gap 7)

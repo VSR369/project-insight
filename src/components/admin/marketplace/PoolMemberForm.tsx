@@ -38,6 +38,7 @@ import {
 } from "@/lib/validations/poolMember";
 import { EMPTY_SCOPE } from "@/hooks/queries/useDelegatedAdmins";
 import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
+import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from "@/components/ui/PhoneInputSplit";
 import { useEffect } from "react";
 
 interface PoolMemberFormProps {
@@ -58,7 +59,8 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
     defaultValues: {
       full_name: "",
       email: "",
-      phone: "",
+      phone_country_code: "",
+      phone_number: "",
       role_codes: [],
       domain_scope: { ...EMPTY_SCOPE },
       max_concurrent: 1,
@@ -68,10 +70,12 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
   // Populate form for edit mode
   useEffect(() => {
     if (editMember) {
+      const parsed = parsePhoneIntl(editMember.phone);
       form.reset({
         full_name: editMember.full_name,
         email: editMember.email,
-        phone: editMember.phone ?? "",
+        phone_country_code: parsed.countryCode,
+        phone_number: parsed.phoneNumber,
         role_codes: editMember.role_codes,
         domain_scope: editMember.domain_scope ?? { ...EMPTY_SCOPE },
         max_concurrent: editMember.max_concurrent,
@@ -80,7 +84,8 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
       form.reset({
         full_name: "",
         email: "",
-        phone: "",
+        phone_country_code: "",
+        phone_number: "",
         role_codes: [],
         domain_scope: { ...EMPTY_SCOPE },
         max_concurrent: 1,
@@ -89,11 +94,12 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
   }, [editMember, form]);
 
   const onSubmit = async (data: PoolMemberFormValues) => {
+    const combined = formatPhoneIntl(data.phone_country_code || "", data.phone_number || "");
     if (isEdit && editMember) {
       await updateMutation.mutateAsync({
         id: editMember.id,
         full_name: data.full_name,
-        phone: data.phone || undefined,
+        phone: combined || undefined,
         role_codes: data.role_codes,
         domain_scope: data.domain_scope,
         max_concurrent: data.max_concurrent,
@@ -102,7 +108,7 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
       await createMutation.mutateAsync({
         full_name: data.full_name,
         email: data.email,
-        phone: data.phone || undefined,
+        phone: combined || undefined,
         role_codes: data.role_codes,
         domain_scope: data.domain_scope,
         max_concurrent: data.max_concurrent,
@@ -165,20 +171,18 @@ export function PoolMemberForm({ open, onOpenChange, editMember }: PoolMemberFor
               )}
             />
 
-            {/* Phone */}
-            <FormField
-              control={form.control}
-              name="phone"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone</FormLabel>
-                  <FormControl>
-                    <Input placeholder="+91 98765 43210" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Phone — split into Country Code + Number */}
+            <div>
+              <FormLabel>Phone</FormLabel>
+              <div className="mt-1.5">
+                <PhoneInputSplit
+                  countryCode={form.watch("phone_country_code") || ""}
+                  phoneNumber={form.watch("phone_number") || ""}
+                  onCountryCodeChange={(v) => form.setValue("phone_country_code", v, { shouldDirty: true })}
+                  onPhoneNumberChange={(v) => form.setValue("phone_number", v, { shouldDirty: true })}
+                />
+              </div>
+            </div>
 
             {/* Roles — checkbox group from master data */}
             <FormField

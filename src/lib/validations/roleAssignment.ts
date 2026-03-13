@@ -36,19 +36,21 @@ export const existingMemberAssignSchema = z.object({
 
 export type ExistingMemberAssignFormValues = z.infer<typeof existingMemberAssignSchema>;
 
-/** Schema for admin contact profile */
+/** Schema for admin contact profile — split phone */
 export const adminContactSchema = z.object({
   name: z.string().trim().min(1, "Name is required").max(120),
   email: z.string().email("Invalid email address"),
-  phone_intl: z.string().regex(/^\+\d{7,15}$/, "International format required (+Country Code Number)").optional().or(z.literal("")),
+  phone_country_code: z.string().optional().or(z.literal("")),
+  phone_number: z.string().max(15, "Phone number too long").optional().or(z.literal("")),
 });
 
 export type AdminContactFormValues = z.infer<typeof adminContactSchema>;
 
-/** Schema for SOA own profile edit */
+/** Schema for SOA own profile edit — split phone */
 export const soaProfileSchema = z.object({
   full_name: z.string().trim().min(1, "Full name is required").max(120, "Name must be 120 characters or less"),
-  phone: z.string().regex(/^\+\d{7,15}$/, "International format required (+Country Code Number)").optional().or(z.literal("")),
+  phone_country_code: z.string().optional().or(z.literal("")),
+  phone_number: z.string().max(15, "Phone number too long").optional().or(z.literal("")),
   title: z.string().trim().max(150, "Title must be 150 characters or less").optional().or(z.literal("")),
 });
 

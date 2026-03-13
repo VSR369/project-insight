@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInputSplit, formatPhoneIntl } from '@/components/ui/PhoneInputSplit';
 import { Separator } from '@/components/ui/separator';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
@@ -38,7 +39,8 @@ import { AdminTransferSection } from './AdminTransferSection';
 const adminChangeSchema = z.object({
   new_admin_name: z.string().max(200).optional(),
   new_admin_email: z.string().email('Valid email required').min(1, 'Email is required'),
-  new_admin_phone: z.string().max(30).optional(),
+  new_admin_phone_country_code: z.string().optional().or(z.literal('')),
+  new_admin_phone_number: z.string().max(15).optional().or(z.literal('')),
 });
 
 type AdminChangeFormValues = z.infer<typeof adminChangeSchema>;
@@ -79,7 +81,7 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
   // ══════════════════════════════════════
   const form = useForm<AdminChangeFormValues>({
     resolver: zodResolver(adminChangeSchema),
-    defaultValues: { new_admin_name: '', new_admin_email: '', new_admin_phone: '' },
+    defaultValues: { new_admin_name: '', new_admin_email: '', new_admin_phone_country_code: '', new_admin_phone_number: '' },
   });
 
   // ══════════════════════════════════════
@@ -113,13 +115,14 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
   // ══════════════════════════════════════
   const handleSubmitChange = async (data: AdminChangeFormValues) => {
     try {
+      const combined = formatPhoneIntl(data.new_admin_phone_country_code || '', data.new_admin_phone_number || '');
       await requestChange.mutateAsync({
         organization_id: organizationId,
         tenant_id: adminDetails?.tenant_id ?? organizationId,
         current_admin_user_id: adminDetails?.user_id ?? null,
         new_admin_name: data.new_admin_name || undefined,
         new_admin_email: data.new_admin_email,
-        new_admin_phone: data.new_admin_phone || undefined,
+        new_admin_phone: combined || undefined,
       });
       form.reset();
       setShowChangeForm(false);
@@ -304,19 +307,17 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
                     </FormItem>
                   )}
                 />
-                <FormField
-                  control={form.control}
-                  name="new_admin_phone"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>New Admin Phone</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="tel" placeholder="Phone number" className="text-base" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div>
+                  <FormLabel>New Admin Phone</FormLabel>
+                  <div className="mt-1.5">
+                    <PhoneInputSplit
+                      countryCode={form.watch('new_admin_phone_country_code') || ''}
+                      phoneNumber={form.watch('new_admin_phone_number') || ''}
+                      onCountryCodeChange={(v) => form.setValue('new_admin_phone_country_code', v, { shouldDirty: true })}
+                      onPhoneNumberChange={(v) => form.setValue('new_admin_phone_number', v, { shouldDirty: true })}
+                    />
+                  </div>
+                </div>
                 <div className="flex items-center gap-3 pt-2">
                   <Button type="submit" disabled={requestChange.isPending}>
                     {requestChange.isPending && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}

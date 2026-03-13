@@ -23,6 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from '@/components/ui/PhoneInputSplit';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
 import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
@@ -35,7 +36,8 @@ import { DelegatedAdminLimitWarning } from '@/components/rbac/DelegatedAdminLimi
 const createAdminSchema = z.object({
   full_name: z.string().min(2, 'Name is required').max(100),
   email: z.string().email('Valid email required').max(255),
-  phone: z.string().min(5, 'Phone number is required').max(30),
+  phone_country_code: z.string().min(1, 'Country code is required'),
+  phone_number: z.string().min(4, 'Phone number is required').max(15),
   title: z.string().max(100).optional(),
 });
 
@@ -69,7 +71,7 @@ export default function CreateDelegatedAdminPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(createAdminSchema),
-    defaultValues: { full_name: '', email: '', phone: '', title: '' },
+    defaultValues: { full_name: '', email: '', phone_country_code: '', phone_number: '', title: '' },
   });
 
   const tempPassword = useMemo(() => {
@@ -101,11 +103,12 @@ export default function CreateDelegatedAdminPage() {
   );
 
   const doCreate = async (data: FormValues) => {
+    const combined = formatPhoneIntl(data.phone_country_code || '', data.phone_number || '');
     await createAdmin.mutateAsync({
       organization_id: organizationId,
       full_name: data.full_name,
       email: data.email,
-      phone: data.phone,
+      phone: combined,
       title: data.title,
       domain_scope: scope,
       temp_password: tempPassword,
@@ -214,17 +217,23 @@ export default function CreateDelegatedAdminPage() {
                       </FormItem>
                     )}
                   />
-                  <FormField
-                    control={form.control}
-                    name="phone"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Phone Number *</FormLabel>
-                        <FormControl><Input {...field} placeholder="+1 555-0100" /></FormControl>
-                        <FormMessage />
-                      </FormItem>
+                  <div>
+                    <FormLabel>Phone Number *</FormLabel>
+                    <div className="mt-1.5">
+                      <PhoneInputSplit
+                        countryCode={form.watch('phone_country_code') || ''}
+                        phoneNumber={form.watch('phone_number') || ''}
+                        onCountryCodeChange={(v) => form.setValue('phone_country_code', v, { shouldDirty: true, shouldValidate: true })}
+                        onPhoneNumberChange={(v) => form.setValue('phone_number', v, { shouldDirty: true, shouldValidate: true })}
+                      />
+                    </div>
+                    {form.formState.errors.phone_country_code && (
+                      <p className="text-xs text-destructive mt-1">{form.formState.errors.phone_country_code.message}</p>
                     )}
-                  />
+                    {form.formState.errors.phone_number && (
+                      <p className="text-xs text-destructive mt-1">{form.formState.errors.phone_number.message}</p>
+                    )}
+                  </div>
                   <FormField
                     control={form.control}
                     name="title"

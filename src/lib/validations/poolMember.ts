@@ -27,7 +27,8 @@ export const poolMemberSchema = z.object({
     .min(1, "Full name is required")
     .max(120, "Full name must be 120 characters or less"),
   email: z.string().trim().email("Valid email required").max(255),
-  phone: z.string().trim().max(20).optional().or(z.literal("")),
+  phone_country_code: z.string().optional().or(z.literal("")),
+  phone_number: z.string().max(15, "Phone number too long").optional().or(z.literal("")),
   role_codes: z
     .array(z.string().min(1))
     .min(1, "At least one SLM role is required"),
@@ -42,7 +43,8 @@ export const poolMemberSchema = z.object({
 export interface PoolMemberFormValues {
   full_name: string;
   email: string;
-  phone?: string;
+  phone_country_code?: string;
+  phone_number?: string;
   role_codes: string[];
   domain_scope: DomainScope;
   max_concurrent: number;
