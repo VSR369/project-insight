@@ -73,6 +73,16 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
     ],
   },
   {
+    category: 'Master Data',
+    permissions: [
+      { key: 'master_data.view', label: 'View Master Data' },
+      { key: 'master_data.create', label: 'Create Records' },
+      { key: 'master_data.edit', label: 'Edit Records' },
+      { key: 'master_data.deactivate', label: 'Deactivate Records' },
+      { key: 'master_data.delete', label: 'Delete Records' },
+    ],
+  },
+  {
     category: 'Marketplace',
     permissions: [
       { key: 'marketplace.view', label: 'View Marketplace' },
