@@ -115,13 +115,14 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
   // ══════════════════════════════════════
   const handleSubmitChange = async (data: AdminChangeFormValues) => {
     try {
+      const combined = formatPhoneIntl(data.new_admin_phone_country_code || '', data.new_admin_phone_number || '');
       await requestChange.mutateAsync({
         organization_id: organizationId,
         tenant_id: adminDetails?.tenant_id ?? organizationId,
         current_admin_user_id: adminDetails?.user_id ?? null,
         new_admin_name: data.new_admin_name || undefined,
         new_admin_email: data.new_admin_email,
-        new_admin_phone: data.new_admin_phone || undefined,
+        new_admin_phone: combined || undefined,
       });
       form.reset();
       setShowChangeForm(false);
