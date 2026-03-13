@@ -109,11 +109,7 @@ const interviewItems = [
   { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
 ];
 
-const seekerItems = [
-  { title: 'Org Approvals', icon: UserCheck, path: '/admin/seeker-org-approvals', hasBadge: true },
-  { title: 'Enterprise Agreements', icon: ClipboardList, path: '/admin/saas-agreements' },
-];
-
+// seekerItems inlined into sidebar JSX — Org Approvals visible to all, Enterprise Agreements senior+
 
 export function AdminSidebar() {
   const navigate = useNavigate();
