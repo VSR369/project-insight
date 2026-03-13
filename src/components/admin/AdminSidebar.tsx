@@ -458,7 +458,7 @@ export function AdminSidebar() {
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {canSeeTeamManagement && (
+              {hasPermission('org_approvals.manage_agreements') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/saas-agreements')}
