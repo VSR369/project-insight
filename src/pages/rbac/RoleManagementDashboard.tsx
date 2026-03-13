@@ -169,6 +169,6 @@ export default function RoleManagementDashboard() {
           assignments={assignments ?? []}
         />
       </div>
-    </ErrorBoundary>
+    </FeatureErrorBoundary>
   );
 }

@@ -27,12 +27,13 @@ export function useRoleReadiness(orgId?: string, model?: string) {
         .select("id, org_id, engagement_model, overall_status, missing_roles, total_required, total_filled, responsible_admin_contact, last_computed_at")
         .eq("org_id", orgId);
       if (model) query = query.eq("engagement_model", model);
+      query = query.limit(50);
       const { data, error } = await query;
       if (error) throw new Error(error.message);
       return (data ?? []) as RoleReadiness[];
     },
     enabled: !!orgId,
-    staleTime: 0,
+    staleTime: 30 * 1000,
     gcTime: 5 * 60 * 1000,
   });
 }

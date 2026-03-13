@@ -28,6 +28,7 @@ import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
 import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import { ArrowLeft, Loader2, UserPlus, AlertTriangle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useOrgDelegationEnabled } from '@/hooks/queries/useTierDepthConfig';

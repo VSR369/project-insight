@@ -25,7 +25,8 @@ export function useSlmRoleCodes() {
         .from("md_slm_role_codes")
         .select("id, code, display_name, description, display_order, model_applicability, is_core, min_required")
         .eq("is_active", true)
-        .order("display_order", { ascending: true });
+        .order("display_order", { ascending: true })
+        .limit(100);
       if (error) throw new Error(error.message);
       return (data ?? []) as SlmRoleCode[];
     },
