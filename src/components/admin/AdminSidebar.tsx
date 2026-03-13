@@ -303,7 +303,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.view_team_performance') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/performance')}
