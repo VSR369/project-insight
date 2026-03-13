@@ -759,7 +759,7 @@ export default function PricingOverviewPage() {
   const { data: billingCycles = [], isLoading: cyclesLoading } = useBillingCycles();
   const { data: engagementModels = [], isLoading: modelsLoading } = useEngagementModels();
   const { data: tierAccess = [], isLoading: accessLoading } = useTierEngagementAccess();
-  const { data: shadowPricing = [], isLoading: shadowLoading } = useShadowPricing();
+  const { data: shadowPricing = [], isLoading: shadowLoading } = useResolvedShadowPricing();
   const { data: membershipTiers = [], isLoading: membershipLoading } = useMembershipTiers();
   const { data: complexity = [], isLoading: complexityLoading } = useChallengeComplexityList();
   const { data: countryPricing = [], isLoading: pricingLoading } = useAllTierCountryPricing();

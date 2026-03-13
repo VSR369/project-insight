@@ -158,7 +158,7 @@ export function PlanSelectionForm() {
   const { data: billingCycles } = useBillingCycles();
   const { data: engagementModels } = useEngagementModels();
   const { data: tierEngagement } = useTierEngagementAccess();
-  const { data: shadowPricing } = useShadowPricing();
+  const { data: shadowPricing } = useResolvedShadowPricing(state.organizationId);
   const { data: membershipTiers } = useMembershipTiers();
   const { data: baseFeesByCountry } = useBaseFeesByCountry(state.step1?.hq_country_id);
   const { data: platformFeesByCountry } = usePlatformFeesByCountry(state.step1?.hq_country_id);
