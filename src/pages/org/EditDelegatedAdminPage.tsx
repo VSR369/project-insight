@@ -127,6 +127,23 @@ export default function EditDelegatedAdminPage() {
   };
 
   const handleSave = async () => {
+    // BR-DEL-002: If scope is narrowed and orphans may exist, require confirmation
+    if (narrowingInfo.isNarrowed && orphanedRoleCount > 0) {
+      setScopeNarrowConfirmOpen(true);
+      return;
+    }
+    const overlaps = checkScopeOverlap(scope, existingAdmins, adminId);
+    if (overlaps.length > 0) {
+      setOverlappingAdmins(overlaps);
+      setOverlapWarningOpen(true);
+      return;
+    }
+    await doSave();
+  };
+
+  const handleScopeNarrowConfirm = async () => {
+    setScopeNarrowConfirmOpen(false);
+    // Proceed with overlap check after confirming narrowing
     const overlaps = checkScopeOverlap(scope, existingAdmins, adminId);
     if (overlaps.length > 0) {
       setOverlappingAdmins(overlaps);
