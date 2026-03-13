@@ -478,7 +478,8 @@ The maximum number of delegated (secondary) admins an organisation can have, **i
 
 /** Groups visible to each tier */
 const SUPERVISOR_ONLY_GROUPS = ['System Configuration Reference'];
-const SENIOR_PLUS_GROUPS = ['Queue & Assignment Management', 'System Configuration Reference'];
+// Basic Admins now see Queue & Assignment Management (they work with solution requests)
+const SENIOR_PLUS_GROUPS = ['System Configuration Reference'];
 
 function VerificationKnowledgeCentreContent() {
   const navigate = useNavigate();
