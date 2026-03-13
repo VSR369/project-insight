@@ -33,6 +33,7 @@ export default function EditDelegatedAdminPage() {
   const { organizationId } = useOrgContext();
   const updateScope = useUpdateDelegatedAdminScope();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
+  const { data: roleAssignments = [] } = useRoleAssignments(organizationId);
 
   const { data: admin, isLoading } = useQuery({
     queryKey: ['delegated-admin-detail', adminId],
