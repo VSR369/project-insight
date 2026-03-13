@@ -375,42 +375,52 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* MARKETPLACE — senior_admin+ */}
-        {canSeeTeamManagement && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Marketplace</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/marketplace')}
-                    onMouseEnter={() => handleMouseEnter('/admin/marketplace')}
-                    isActive={location.pathname === '/admin/marketplace'}
-                  >
-                    <Store className="h-4 w-4" />
-                    <span>Dashboard</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/marketplace/resource-pool')}
-                    onMouseEnter={() => handleMouseEnter('/admin/marketplace/resource-pool')}
-                    isActive={location.pathname === '/admin/marketplace/resource-pool'}
-                  >
-                    <Users className="h-4 w-4" />
-                    <span>Resource Pool</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/marketplace/solution-requests')}
-                    onMouseEnter={() => handleMouseEnter('/admin/marketplace/solution-requests')}
-                    isActive={location.pathname === '/admin/marketplace/solution-requests'}
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    <span>Solution Requests</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
+        {/* MARKETPLACE — core items visible to ALL tiers, config items senior+ */}
+        <SidebarGroup>
+          <SidebarGroupLabel>Marketplace</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/marketplace')}
+                  onMouseEnter={() => handleMouseEnter('/admin/marketplace')}
+                  isActive={location.pathname === '/admin/marketplace'}
+                >
+                  <Store className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/marketplace/resource-pool')}
+                  onMouseEnter={() => handleMouseEnter('/admin/marketplace/resource-pool')}
+                  isActive={location.pathname === '/admin/marketplace/resource-pool'}
+                >
+                  <Users className="h-4 w-4" />
+                  <span>Resource Pool</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/marketplace/solution-requests')}
+                  onMouseEnter={() => handleMouseEnter('/admin/marketplace/solution-requests')}
+                  isActive={location.pathname === '/admin/marketplace/solution-requests'}
+                >
+                  <ClipboardList className="h-4 w-4" />
+                  <span>Solution Requests</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/marketplace/assignment-history')}
+                  onMouseEnter={() => handleMouseEnter('/admin/marketplace/assignment-history')}
+                  isActive={location.pathname === '/admin/marketplace/assignment-history'}
+                >
+                  <ScrollText className="h-4 w-4" />
+                  <span>Assignment History</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {canSeeTeamManagement && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
@@ -421,6 +431,8 @@ export function AdminSidebar() {
                     <span>Admin Contact</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+              )}
+              {canSeeTeamManagement && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/email-templates')}
@@ -431,36 +443,45 @@ export function AdminSidebar() {
                     <span>Email Templates</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
-        {canSeeTeamManagement && (
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {seekerItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{item.title}</span>
-                    {item.hasBadge && pendingSeekerCount && pendingSeekerCount > 0 && (
-                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
-                        {pendingSeekerCount}
-                      </Badge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        )}
+
+        {/* Org Approvals — ALL tiers; Enterprise Agreements — senior+ */}
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/seeker-org-approvals')}
+                  onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
+                  isActive={isActive('/admin/seeker-org-approvals')}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  <span className="flex-1">Org Approvals</span>
+                  {pendingSeekerCount && pendingSeekerCount > 0 && (
+                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                      {pendingSeekerCount}
+                    </Badge>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {canSeeTeamManagement && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/saas-agreements')}
+                    onMouseEnter={() => handleMouseEnter('/admin/saas-agreements')}
+                    isActive={isActive('/admin/saas-agreements')}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    <span>Enterprise Agreements</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         {canSeeTeamManagement && (
           <SidebarGroup>

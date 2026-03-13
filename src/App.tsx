@@ -652,13 +652,13 @@ const App = () => (
               <Route path="system-config/domain-weights" element={<TierGuard requiredTier="supervisor"><DomainWeightsPage /></TierGuard>} />
               {/* Permissions Management — supervisor only, read-only reference */}
               <Route path="permissions" element={<TierGuard requiredTier="supervisor"><PermissionsManagementPage /></TierGuard>} />
-              {/* RBAC MOD-01: Marketplace Resource Pool — senior_admin+ */}
-              <Route path="marketplace" element={<TierGuard requiredTier="senior_admin"><MarketplaceDashboard /></TierGuard>} />
-              <Route path="marketplace/resource-pool" element={<TierGuard requiredTier="senior_admin"><ResourcePoolPage /></TierGuard>} />
-              <Route path="marketplace/resource-pool/:memberId" element={<TierGuard requiredTier="senior_admin"><PoolMemberDetailPage /></TierGuard>} />
-              {/* RBAC MOD-02: Solution Requests & Assignment History — senior_admin+ */}
-              <Route path="marketplace/solution-requests" element={<TierGuard requiredTier="senior_admin"><SolutionRequestsPage /></TierGuard>} />
-              <Route path="marketplace/assignment-history" element={<TierGuard requiredTier="senior_admin"><AssignmentHistoryPage /></TierGuard>} />
+              {/* RBAC MOD-01: Marketplace — core routes open to ALL admin tiers */}
+              <Route path="marketplace" element={<MarketplaceDashboard />} />
+              <Route path="marketplace/resource-pool" element={<ResourcePoolPage />} />
+              <Route path="marketplace/resource-pool/:memberId" element={<PoolMemberDetailPage />} />
+              {/* RBAC MOD-02: Solution Requests & Assignment History — ALL admin tiers */}
+              <Route path="marketplace/solution-requests" element={<SolutionRequestsPage />} />
+              <Route path="marketplace/assignment-history" element={<AssignmentHistoryPage />} />
               {/* Admin Contact, Email Templates — senior_admin+ */}
               <Route path="marketplace/admin-contact" element={<TierGuard requiredTier="senior_admin"><AdminContactProfilePage /></TierGuard>} />
               <Route path="marketplace/email-templates" element={<TierGuard requiredTier="senior_admin"><EmailTemplatesPage /></TierGuard>} />

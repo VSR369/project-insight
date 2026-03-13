@@ -65,6 +65,22 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'supervisor.pin_queue_entries', label: 'Pin Queue Entries' },
     ],
   },
+  {
+    category: 'Org Approvals',
+    permissions: [
+      { key: 'org_approvals.view', label: 'View Org Approvals' },
+      { key: 'org_approvals.approve_reject', label: 'Approve / Reject Orgs' },
+    ],
+  },
+  {
+    category: 'Marketplace',
+    permissions: [
+      { key: 'marketplace.view', label: 'View Marketplace' },
+      { key: 'marketplace.assign_members', label: 'Assign Pool Members' },
+      { key: 'marketplace.manage_pool', label: 'Manage Resource Pool' },
+      { key: 'marketplace.manage_config', label: 'Manage Config (Contact, Templates)' },
+    ],
+  },
 ];
 
 const TIERS = [
