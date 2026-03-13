@@ -52,6 +52,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'admin_management.edit_admin_profile', label: 'Edit Admin Profile' },
       { key: 'admin_management.deactivate_admin', label: 'Deactivate Admin' },
       { key: 'admin_management.view_my_profile', label: 'View My Profile' },
+      { key: 'admin_management.view_settings', label: 'View Settings Page' },
     ],
   },
   {
