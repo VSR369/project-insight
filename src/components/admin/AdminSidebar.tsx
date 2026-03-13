@@ -680,7 +680,6 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
-        </SidebarGroup>
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4">
