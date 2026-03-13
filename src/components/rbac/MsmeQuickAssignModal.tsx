@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
 import { EMPTY_SCOPE, type DomainScope } from "@/hooks/queries/useDelegatedAdmins";
+import { useSessionExpiryWatcher, useRestoreFormFromRecovery } from "@/hooks/useSessionRecovery";
 
 const quickAssignSchema = z.object({
   user_name: z.string().trim().min(1, "Name is required").max(120),
