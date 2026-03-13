@@ -87,7 +87,12 @@ export default function ResourcePoolPage() {
 
   const handleSupervisorDeactivateConfirm = async () => {
     if (supervisorConfirmTarget) {
-      await deactivateMutation.mutateAsync(supervisorConfirmTarget.id);
+      await deactivateMutation.mutateAsync({
+        id: supervisorConfirmTarget.id,
+        notifySupervisor: true,
+        memberName: supervisorConfirmTarget.full_name,
+        createdByTier: "supervisor",
+      });
       setSupervisorConfirmTarget(null);
     }
   };
