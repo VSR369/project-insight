@@ -623,8 +623,9 @@ const App = () => (
               <Route path="seeker-config/billing-cycles" element={<TierGuard requiredTier="senior_admin"><BillingCyclesPage /></TierGuard>} />
               <Route path="seeker-config/payment-methods" element={<TierGuard requiredTier="senior_admin"><PaymentMethodsPage /></TierGuard>} />
               <Route path="saas-agreements" element={<TierGuard requiredTier="senior_admin"><SaasAgreementPage /></TierGuard>} />
-              <Route path="seeker-org-approvals" element={<TierGuard requiredTier="senior_admin"><SeekerOrgApprovalsPage /></TierGuard>} />
-              <Route path="seeker-org-approvals/:orgId" element={<TierGuard requiredTier="senior_admin"><SeekerOrgReviewPage /></TierGuard>} />
+              {/* Org Approvals — ALL admin tiers (operational pipeline) */}
+              <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
+              <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
               {/* MOD-01: Platform Admin Management — senior_admin+ */}
               <Route path="platform-admins" element={<TierGuard requiredTier="senior_admin"><PlatformAdminListPage /></TierGuard>} />
               <Route path="platform-admins/new" element={<TierGuard requiredTier="senior_admin"><CreatePlatformAdminPage /></TierGuard>} />
