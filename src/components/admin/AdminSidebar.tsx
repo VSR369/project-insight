@@ -587,8 +587,8 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Question Bank & Capability Tags — senior_admin+ */}
-        {canSeeTeamManagement && (
+        {/* Question Bank & Capability Tags — dynamic permission */}
+        {hasPermission('content.view_questions') && (
           <SidebarGroup>
             <SidebarGroupLabel>Content</SidebarGroupLabel>
             <SidebarGroupContent>

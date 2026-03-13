@@ -205,6 +205,11 @@ function PermissionsContent() {
               {cat.category === 'Master Data' && 'Access to reference/lookup data management'}
               {cat.category === 'Org Approvals' && 'Organization approval workflow'}
               {cat.category === 'Marketplace' && 'Marketplace and resource pool management'}
+              {cat.category === 'Taxonomy Management' && 'Academic and proficiency taxonomy access'}
+              {cat.category === 'Interview Setup' && 'Interview kit, quorum, and reviewer management'}
+              {cat.category === 'Seeker Config' && 'Pricing, subscription, and compliance configuration'}
+              {cat.category === 'Invitations' && 'Solution provider and reviewer invitation management'}
+              {cat.category === 'Content' && 'Question bank and capability tag management'}
             </CardDescription>
           </CardHeader>
           <CardContent>
