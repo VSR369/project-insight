@@ -259,19 +259,25 @@ These metrics are computed periodically and help supervisors evaluate team perfo
         content: `This group controls how your admin team is structured and whether customer organisations can delegate their own admins.
 
 **platform_admin_tier_depth** (Values: 1, 2, or 3 · Default: 3)
-Controls how many levels of admin hierarchy exist on the platform:
-• **1 — Supervisor Only:** A single person handles all verifications. Suitable for a brand-new platform with low volume.
-• **2 — Supervisor + Senior Admin:** The supervisor oversees, while Senior Admins handle day-to-day verifications.
-• **3 — Full Hierarchy:** Supervisor → Senior Admin → Admin. The full team structure with delegation and escalation paths.
+Controls how many levels of platform admin hierarchy can exist. **Important:** At depth 1, no other admin accounts can be created — you are the only operator.
 
-🏢 **Real-life example:** You launch the platform with just yourself as Supervisor (depth = 1). After onboarding 5 admins, you change this to 3 so you can promote two of them to Senior Admin. The change takes effect immediately — new tier options appear in the admin management screens.
+• **Depth 1 — Solo Supervisor:** You handle every verification yourself. No Senior Admins or Admins can exist. Use this when the platform is brand new with very low volume (e.g., fewer than 10 organisations per month).
+
+• **Depth 2 — Supervisor + Senior Admins:** You can now create Senior Admin accounts. Seniors handle day-to-day verifications while you focus on oversight, configuration, and escalations. Use this when volume grows enough that one person cannot keep up.
+
+• **Depth 3 — Full Hierarchy (Supervisor → Senior Admin → Admin):** You can now also create basic Admin accounts who report to Senior Admins. Seniors supervise Admins within their assigned domains; the Supervisor oversees the entire team. Use this when you have enough volume to justify a multi-layered team.
+
+🏢 **Real-life example — Growing the team step by step:**
+1. **Month 1 (depth = 1):** You are the only Supervisor. You process 8 verifications per month yourself. No other admin accounts exist on the platform.
+2. **Month 4 (depth → 2):** Volume has grown to 30/month. You change tier depth to 2, which unlocks the "Create Senior Admin" option. You onboard 2 Senior Admins to take over daily verifications.
+3. **Month 9 (depth → 3):** Volume reaches 100/month. You change tier depth to 3, which unlocks the basic Admin tier. Your 2 Senior Admins each onboard 3 Admins under them, creating a team of 8. The change takes effect immediately — new tier options appear in the admin management screens.
 
 **org_admin_delegation_enabled** (Values: true / false · Default: true)
-Controls whether Seeking Organisations can have delegated (secondary) admins in addition to their Primary Admin.
-• **true:** Organisations can invite additional admins to share the workload of managing their account.
-• **false:** Only the Primary Admin exists — the delegation UI is hidden across the platform.
+Controls whether Seeking Organisations can have delegated (secondary) admins in addition to their one Primary Admin.
+• **true:** The Primary Admin can invite additional (delegated) admins to share the workload of managing their organisation's account — up to the limit set by max_delegated_admins_per_org.
+• **false:** Only the Primary Admin exists per organisation — the delegation UI is hidden across the entire platform.
 
-🏢 **Real-life example:** A large university with 12 departments enables delegation so each department head can manage their own section. A small business with one owner disables delegation to keep things simple.`,
+🏢 **Real-life example:** A large university with 12 departments enables delegation so each department head can be added as a delegated admin, managing their own section. A small business with one owner disables delegation to keep things simple — only one person ever logs in.`,
       },
       {
         id: 'config-assignment',
@@ -441,15 +447,22 @@ Maximum number of organisation types a Basic Admin can select.
         title: 'SOA Provisioning & Activation',
         content: `These parameters control how Seeking Organisation Admin (SOA) accounts are provisioned after an organisation is verified.
 
+⚠️ **The One Primary Admin Rule**
+Every organisation has **exactly one active Primary Admin at all times.** This is enforced by a database constraint — it is not possible for an organisation to have zero or two Primary Admins simultaneously.
+
+• The Primary Admin is the person designated during the organisation registration process (either the registrant themselves or a separately nominated person).
+• The Primary Admin is the only person who can create delegated admins, manage organisation settings, and submit challenges.
+• **To change who the Primary Admin is,** a formal transfer request must be submitted. This request goes through Platform Admin approval before it takes effect. The previous Primary Admin is automatically moved to a "transferred" status once approved. (See the "Transfer Primary Admin" section in Organisation Settings → Admin Details.)
+
 **activation_link_expiry_hours** (Range: 24–720 · Default: 72)
 When an organisation is approved, the designated Primary Admin receives an activation email with a secure link. This parameter sets how many hours that link remains valid before it expires.
 
 🏢 **Real-life example:** Set to 72 hours (3 days). The organisation is approved on Friday evening. The Primary Admin has until Monday evening to click the activation link and set up their account. If they miss it, the supervisor can resend the link from the admin dashboard.
 
 **max_delegated_admins_per_org** (Range: 1–50 · Default: 5)
-The maximum number of delegated (secondary) admins an organisation can have, in addition to their Primary Admin. Only relevant when org_admin_delegation_enabled is true.
+The maximum number of delegated (secondary) admins an organisation can have, **in addition to** their one Primary Admin. Only relevant when org_admin_delegation_enabled is true.
 
-🏢 **Real-life example:** A small business needs only 1 admin — set the default low. A large enterprise with multiple divisions might need 10 delegated admins. You can set this to 5 as a reasonable default; organisations needing more can request an increase through their Primary Admin.
+🏢 **Real-life example:** A small startup needs only its founder as admin — the Primary Admin handles everything alone. A large enterprise with multiple divisions might need 10 delegated admins (one per division). Set this to 5 as a reasonable default; organisations needing more can request an increase through their Primary Admin.
 
 **Permissions (Supervisor-only):**
 • View and manage which admins have access to specific features.
