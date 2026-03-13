@@ -423,7 +423,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {canSeeTeamManagement && (
+              {hasPermission('marketplace.manage_config') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/email-templates')}
