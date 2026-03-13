@@ -512,6 +512,18 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
+                {hasPermission('seeker_config.view_shadow_pricing') && (
+                  <SidebarMenuItem key="/admin/seeker-config/shadow-pricing">
+                    <SidebarMenuButton
+                      onClick={() => navigate('/admin/seeker-config/shadow-pricing')}
+                      onMouseEnter={() => handleMouseEnter('/admin/seeker-config/shadow-pricing')}
+                      isActive={isActive('/admin/seeker-config/shadow-pricing')}
+                    >
+                      <Activity className="h-4 w-4" />
+                      <span>Shadow Pricing</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                )}
                 {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
