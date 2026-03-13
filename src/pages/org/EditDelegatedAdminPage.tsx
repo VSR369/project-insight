@@ -269,6 +269,32 @@ export default function EditDelegatedAdminPage() {
         onConfirm={handleOverlapConfirm}
         onCancel={() => setOverlapWarningOpen(false)}
       />
+
+      {/* BR-DEL-002: Scope narrowing confirmation dialog */}
+      <AlertDialog open={scopeNarrowConfirmOpen} onOpenChange={setScopeNarrowConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Scope Narrowing — Orphan Risk
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Narrowing this admin's scope will remove <strong>{narrowingInfo.removedCount}</strong> scope 
+              assignment(s) and may orphan <strong>{orphanedRoleCount}</strong> active role assignment(s). 
+              These orphaned roles will need to be reassigned to the Primary Admin or another Delegated Admin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleScopeNarrowConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirm & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
