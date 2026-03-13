@@ -439,16 +439,11 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
+        {canSeeTeamManagement && (
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
-              {seekerItems
-                .filter((item) => {
-                  // Enterprise Agreements requires senior_admin+
-                  if (item.path === '/admin/saas-agreements') return effectiveSupervisor || isSeniorAdmin;
-                  return true;
-                })
-                .map((item) => (
+              {seekerItems.map((item) => (
                 <SidebarMenuItem key={item.path}>
                   <SidebarMenuButton
                     onClick={() => navigate(item.path)}
