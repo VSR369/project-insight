@@ -188,7 +188,7 @@ export function AssignMemberModal({
                   <SelectContent>
                     {missingRoles.map((m) => (
                       <SelectItem key={m.role} value={m.role}>
-                        {getRoleLabel(m.role)} — {m.required - m.assigned} needed
+                        {getLabel(m.role)} — {m.required - m.assigned} needed
                       </SelectItem>
                     ))}
                   </SelectContent>
