@@ -411,7 +411,7 @@ export function AdminSidebar() {
                   <span>Assignment History</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {canSeeTeamManagement && (
+              {hasPermission('marketplace.manage_config') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
