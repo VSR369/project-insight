@@ -234,7 +234,7 @@ export function AssignMemberModal({
                 {isDuplicateRoleAssignment && (
                   <div className="flex items-center gap-1.5 text-xs text-destructive">
                     <AlertTriangle className="h-3 w-3" />
-                    This member is already assigned as {getRoleLabel(selectedRole)} on this challenge.
+                    This member is already assigned as {getLabel(selectedRole)} on this challenge.
                   </div>
                 )}
 
