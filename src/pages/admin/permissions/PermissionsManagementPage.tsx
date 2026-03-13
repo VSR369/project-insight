@@ -91,6 +91,49 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'marketplace.manage_config', label: 'Manage Config (Contact, Templates)' },
     ],
   },
+  {
+    category: 'Taxonomy Management',
+    permissions: [
+      { key: 'taxonomy.view', label: 'View Taxonomies' },
+      { key: 'taxonomy.create', label: 'Create Taxonomy Records' },
+      { key: 'taxonomy.edit', label: 'Edit Taxonomy Records' },
+    ],
+  },
+  {
+    category: 'Interview Setup',
+    permissions: [
+      { key: 'interview.view', label: 'View Interview Setup' },
+      { key: 'interview.manage_kit', label: 'Manage Interview Kit' },
+      { key: 'interview.manage_quorum', label: 'Manage Quorum Requirements' },
+      { key: 'interview.manage_availability', label: 'Manage Reviewer Availability' },
+      { key: 'interview.approve_reviewers', label: 'Approve Reviewers' },
+    ],
+  },
+  {
+    category: 'Seeker Config',
+    permissions: [
+      { key: 'seeker_config.view', label: 'View Seeker Config' },
+      { key: 'seeker_config.edit', label: 'Edit Seeker Config' },
+      { key: 'seeker_config.manage_compliance', label: 'Manage Compliance Settings' },
+    ],
+  },
+  {
+    category: 'Invitations',
+    permissions: [
+      { key: 'invitations.view', label: 'View Invitations' },
+      { key: 'invitations.send', label: 'Send Invitations' },
+      { key: 'invitations.manage_reviewers', label: 'Manage Reviewer Invitations' },
+    ],
+  },
+  {
+    category: 'Content',
+    permissions: [
+      { key: 'content.view_questions', label: 'View Question Bank' },
+      { key: 'content.manage_questions', label: 'Manage Questions' },
+      { key: 'content.view_tags', label: 'View Capability Tags' },
+      { key: 'content.manage_tags', label: 'Manage Tags' },
+    ],
+  },
 ];
 
 const TIERS = [
