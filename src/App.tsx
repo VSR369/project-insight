@@ -573,29 +573,35 @@ const App = () => (
             {/* Admin Routes — nested under AdminShell for persistent sidebar */}
             <Route path="/admin" element={<AdminGuard><AdminShell /></AdminGuard>}>
               <Route index element={<AdminDashboard />} />
-              <Route path="master-data/countries" element={<CountriesPage />} />
-              <Route path="master-data/industry-segments" element={<IndustrySegmentsPage />} />
-              <Route path="master-data/organization-types" element={<OrganizationTypesPage />} />
-              <Route path="master-data/participation-modes" element={<ParticipationModesPage />} />
-              <Route path="master-data/expertise-levels" element={<ExpertiseLevelsPage />} />
-              <Route path="master-data/academic-taxonomy" element={<AcademicTaxonomyPage />} />
-              <Route path="master-data/proficiency-taxonomy" element={<ProficiencyTaxonomyPage />} />
-              <Route path="master-data/departments" element={<DepartmentsPage />} />
-              <Route path="master-data/functional-areas" element={<FunctionalAreasPage />} />
-              <Route path="questions" element={<QuestionBankPage />} />
-              <Route path="capability-tags" element={<CapabilityTagsPage />} />
-              <Route path="level-speciality-map" element={<LevelSpecialityMapPage />} />
-              <Route path="invitations" element={<InvitationsPage />} />
-              <Route path="invitations/panel-reviewers" element={<PanelReviewerInvitationsPage />} />
-              <Route path="smoke-test" element={<SmokeTestPage />} />
+              {/* Master Data — senior_admin+ */}
+              <Route path="master-data/countries" element={<TierGuard requiredTier="senior_admin"><CountriesPage /></TierGuard>} />
+              <Route path="master-data/industry-segments" element={<TierGuard requiredTier="senior_admin"><IndustrySegmentsPage /></TierGuard>} />
+              <Route path="master-data/organization-types" element={<TierGuard requiredTier="senior_admin"><OrganizationTypesPage /></TierGuard>} />
+              <Route path="master-data/participation-modes" element={<TierGuard requiredTier="senior_admin"><ParticipationModesPage /></TierGuard>} />
+              <Route path="master-data/expertise-levels" element={<TierGuard requiredTier="senior_admin"><ExpertiseLevelsPage /></TierGuard>} />
+              {/* Taxonomy — senior_admin+ */}
+              <Route path="master-data/academic-taxonomy" element={<TierGuard requiredTier="senior_admin"><AcademicTaxonomyPage /></TierGuard>} />
+              <Route path="master-data/proficiency-taxonomy" element={<TierGuard requiredTier="senior_admin"><ProficiencyTaxonomyPage /></TierGuard>} />
+              <Route path="master-data/departments" element={<TierGuard requiredTier="senior_admin"><DepartmentsPage /></TierGuard>} />
+              <Route path="master-data/functional-areas" element={<TierGuard requiredTier="senior_admin"><FunctionalAreasPage /></TierGuard>} />
+              {/* Content — senior_admin+ */}
+              <Route path="questions" element={<TierGuard requiredTier="senior_admin"><QuestionBankPage /></TierGuard>} />
+              <Route path="capability-tags" element={<TierGuard requiredTier="senior_admin"><CapabilityTagsPage /></TierGuard>} />
+              <Route path="level-speciality-map" element={<TierGuard requiredTier="senior_admin"><LevelSpecialityMapPage /></TierGuard>} />
+              {/* Invitations — senior_admin+ */}
+              <Route path="invitations" element={<TierGuard requiredTier="senior_admin"><InvitationsPage /></TierGuard>} />
+              <Route path="invitations/panel-reviewers" element={<TierGuard requiredTier="senior_admin"><PanelReviewerInvitationsPage /></TierGuard>} />
+              {/* Test items — supervisor only */}
+              <Route path="smoke-test" element={<TierGuard requiredTier="supervisor"><SmokeTestPage /></TierGuard>} />
               <Route path="settings" element={<TierGuard requiredTier="senior_admin"><AdminSettingsPage /></TierGuard>} />
-              <Route path="interview/kit" element={<InterviewKitPage />} />
-              <Route path="interview/kit/questions" element={<InterviewKitQuestionsPage />} />
-              <Route path="interview/quorum-requirements" element={<InterviewRequirementsPage />} />
-              <Route path="reviewer-approvals" element={<ReviewerApprovalsPage />} />
-              <Route path="interview/reviewer-availability" element={<ReviewerAvailabilityPage />} />
-              <Route path="pulse-social-test" element={<PulseSocialTestPage />} />
-              <Route path="regression-test-kit" element={<RegressionTestKitPage />} />
+              {/* Interview Setup — senior_admin+ */}
+              <Route path="interview/kit" element={<TierGuard requiredTier="senior_admin"><InterviewKitPage /></TierGuard>} />
+              <Route path="interview/kit/questions" element={<TierGuard requiredTier="senior_admin"><InterviewKitQuestionsPage /></TierGuard>} />
+              <Route path="interview/quorum-requirements" element={<TierGuard requiredTier="senior_admin"><InterviewRequirementsPage /></TierGuard>} />
+              <Route path="reviewer-approvals" element={<TierGuard requiredTier="senior_admin"><ReviewerApprovalsPage /></TierGuard>} />
+              <Route path="interview/reviewer-availability" element={<TierGuard requiredTier="senior_admin"><ReviewerAvailabilityPage /></TierGuard>} />
+              <Route path="pulse-social-test" element={<TierGuard requiredTier="supervisor"><PulseSocialTestPage /></TierGuard>} />
+              <Route path="regression-test-kit" element={<TierGuard requiredTier="supervisor"><RegressionTestKitPage /></TierGuard>} />
               {/* Seeker Config — senior_admin+ */}
               <Route path="seeker-config/pricing-overview" element={<TierGuard requiredTier="senior_admin"><PricingOverviewPage /></TierGuard>} />
               <Route path="seeker-config/subscription-tiers" element={<TierGuard requiredTier="senior_admin"><SubscriptionTiersPage /></TierGuard>} />
@@ -616,9 +622,9 @@ const App = () => (
               <Route path="seeker-config/postal-formats" element={<TierGuard requiredTier="senior_admin"><PostalFormatsPage /></TierGuard>} />
               <Route path="seeker-config/billing-cycles" element={<TierGuard requiredTier="senior_admin"><BillingCyclesPage /></TierGuard>} />
               <Route path="seeker-config/payment-methods" element={<TierGuard requiredTier="senior_admin"><PaymentMethodsPage /></TierGuard>} />
-              <Route path="saas-agreements" element={<SaasAgreementPage />} />
-              <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
-              <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
+              <Route path="saas-agreements" element={<TierGuard requiredTier="senior_admin"><SaasAgreementPage /></TierGuard>} />
+              <Route path="seeker-org-approvals" element={<TierGuard requiredTier="senior_admin"><SeekerOrgApprovalsPage /></TierGuard>} />
+              <Route path="seeker-org-approvals/:orgId" element={<TierGuard requiredTier="senior_admin"><SeekerOrgReviewPage /></TierGuard>} />
               {/* MOD-01: Platform Admin Management — senior_admin+ */}
               <Route path="platform-admins" element={<TierGuard requiredTier="senior_admin"><PlatformAdminListPage /></TierGuard>} />
               <Route path="platform-admins/new" element={<TierGuard requiredTier="senior_admin"><CreatePlatformAdminPage /></TierGuard>} />
