@@ -16,6 +16,7 @@ import {
   EMPTY_SCOPE,
   type DomainScope,
 } from '@/hooks/queries/useDelegatedAdmins';
+import { useRoleAssignments } from '@/hooks/queries/useRoleAssignments';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
