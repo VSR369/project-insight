@@ -206,7 +206,7 @@ export function AdminSidebar() {
         </SidebarGroup>
         )}
 
-        {canSeeTeamManagement && (
+        {hasPermission('taxonomy.view') && (
         <SidebarGroup>
           <SidebarGroupLabel>Taxonomy Management</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -228,7 +228,7 @@ export function AdminSidebar() {
         </SidebarGroup>
         )}
 
-        {canSeeTeamManagement && (
+        {hasPermission('interview.view') && (
         <SidebarGroup>
           <SidebarGroupLabel>Interview Setup</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -501,7 +501,7 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {canSeeSeekerConfig && (
+        {hasPermission('seeker_config.view') && (
           <SidebarGroup>
             <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -518,7 +518,7 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
-                {effectiveSupervisor && complianceConfigItems.map((item) => (
+                {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => (
                   <SidebarMenuItem key={item.path}>
                     <SidebarMenuButton
                       onClick={() => navigate(item.path)}
@@ -535,8 +535,8 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Invitations — senior_admin+ */}
-        {canSeeTeamManagement && (
+        {/* Invitations — dynamic permission */}
+        {hasPermission('invitations.view') && (
           <SidebarGroup>
             <SidebarGroupLabel>Invitations</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -587,8 +587,8 @@ export function AdminSidebar() {
           </SidebarGroup>
         )}
 
-        {/* Question Bank & Capability Tags — senior_admin+ */}
-        {canSeeTeamManagement && (
+        {/* Question Bank & Capability Tags — dynamic permission */}
+        {hasPermission('content.view_questions') && (
           <SidebarGroup>
             <SidebarGroupLabel>Content</SidebarGroupLabel>
             <SidebarGroupContent>
