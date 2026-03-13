@@ -19,6 +19,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, Shield, Loader2 } from "lucide-react";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel as resolveRoleLabel } from "@/lib/roleUtils";
 
 interface AggAvailabilityConfirmModalProps {
   open: boolean;
