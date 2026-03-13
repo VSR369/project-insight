@@ -118,7 +118,7 @@ export function AdminSidebar() {
   const pendingCount = sidebarCounts?.pendingReviewers;
   const pendingSeekerCount = sidebarCounts?.pendingSeekers;
   const pendingReassignmentCount = sidebarCounts?.pendingReassignments;
-  const { tier, isSupervisor, isSeniorAdmin, hasPermission, isLoading: tierLoading } = useAdminTier();
+  const { tier, hasPermission, isLoading: tierLoading } = useAdminTier();
   const { depth } = usePlatformTierDepth();
 
   // Prefetch top admin routes on mount
@@ -134,16 +134,11 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
-  // Tier-based visibility — depth controls creation only, not runtime access
-  const effectiveSupervisor = isSupervisor;
-  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
-  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
-
-  // Build team management items based on tier
+  // Build team management items based on permissions
   const teamManagementItems = [
-    ...(canSeeTeamManagement ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    ...(effectiveSupervisor ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
-    ...(canSeeTeamManagement ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
+    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
+    ...(hasPermission('supervisor.view_audit_logs') ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
+    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
   ];
 
   // Prefetch on hover handler
@@ -279,7 +274,7 @@ export function AdminSidebar() {
                   <span>Knowledge Centre</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.approve_reassignments') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/reassignments')}
@@ -296,7 +291,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.view_audit_logs') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/notifications/audit')}
@@ -308,7 +303,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.view_team_performance') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/performance')}
@@ -342,7 +337,7 @@ export function AdminSidebar() {
                 </SidebarMenuButton>
               </SidebarMenuItem>
               {/* System Config — supervisor only */}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.configure_system') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/system-config')}
@@ -355,7 +350,7 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
               {/* GAP-2: Permissions Management — supervisor only */}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.manage_permissions') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/permissions')}
@@ -416,7 +411,7 @@ export function AdminSidebar() {
                   <span>Assignment History</span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {canSeeTeamManagement && (
+              {hasPermission('marketplace.manage_config') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/admin-contact')}
@@ -428,7 +423,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {canSeeTeamManagement && (
+              {hasPermission('marketplace.manage_config') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/marketplace/email-templates')}
@@ -463,7 +458,7 @@ export function AdminSidebar() {
                   )}
                 </SidebarMenuButton>
               </SidebarMenuItem>
-              {canSeeTeamManagement && (
+              {hasPermission('org_approvals.manage_agreements') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/saas-agreements')}
@@ -479,7 +474,7 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canSeeTeamManagement && (
+        {hasPermission('admin_management.view_all_admins') && (
           <SidebarGroup>
             <SidebarGroupLabel>Team Management</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -623,7 +618,7 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {/* My Profile — shown here for basic admin since Team Management is hidden */}
-              {!canSeeTeamManagement && (
+              {!hasPermission('admin_management.view_all_admins') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/my-profile')}
@@ -636,8 +631,8 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Settings — senior_admin+ */}
-              {canSeeTeamManagement && (
+              {/* Settings */}
+              {hasPermission('admin_management.view_settings') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/settings')}
@@ -651,7 +646,7 @@ export function AdminSidebar() {
               )}
 
               {/* Test items — supervisor only */}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.configure_system') && (
                 <>
                   <SidebarMenuItem>
                     <SidebarMenuButton

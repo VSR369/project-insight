@@ -52,6 +52,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'admin_management.edit_admin_profile', label: 'Edit Admin Profile' },
       { key: 'admin_management.deactivate_admin', label: 'Deactivate Admin' },
       { key: 'admin_management.view_my_profile', label: 'View My Profile' },
+      { key: 'admin_management.view_settings', label: 'View Settings Page' },
     ],
   },
   {
@@ -63,6 +64,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'supervisor.view_audit_logs', label: 'View Audit Logs' },
       { key: 'supervisor.bulk_reassignment', label: 'Bulk Reassignment' },
       { key: 'supervisor.pin_queue_entries', label: 'Pin Queue Entries' },
+      { key: 'supervisor.manage_permissions', label: 'Manage Permissions Page' },
     ],
   },
   {
@@ -70,6 +72,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
     permissions: [
       { key: 'org_approvals.view', label: 'View Org Approvals' },
       { key: 'org_approvals.approve_reject', label: 'Approve / Reject Orgs' },
+      { key: 'org_approvals.manage_agreements', label: 'Manage Enterprise Agreements' },
     ],
   },
   {
@@ -113,7 +116,8 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
     category: 'Seeker Config',
     permissions: [
       { key: 'seeker_config.view', label: 'View Seeker Config' },
-      { key: 'seeker_config.edit', label: 'Edit Seeker Config' },
+      { key: 'seeker_config.edit', label: 'Edit General Config' },
+      { key: 'seeker_config.edit_pricing', label: 'Edit Pricing & Fees' },
       { key: 'seeker_config.manage_compliance', label: 'Manage Compliance Settings' },
     ],
   },
