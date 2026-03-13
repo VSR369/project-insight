@@ -63,6 +63,7 @@ const PERMISSION_CATEGORIES: PermissionCategoryDef[] = [
       { key: 'supervisor.view_audit_logs', label: 'View Audit Logs' },
       { key: 'supervisor.bulk_reassignment', label: 'Bulk Reassignment' },
       { key: 'supervisor.pin_queue_entries', label: 'Pin Queue Entries' },
+      { key: 'supervisor.manage_permissions', label: 'Manage Permissions Page' },
     ],
   },
   {
