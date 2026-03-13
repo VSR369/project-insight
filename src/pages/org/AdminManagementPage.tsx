@@ -310,5 +310,6 @@ export default function AdminManagementPage() {
         onClose={() => setDeactivateTarget(null)}
       />
     </div>
+    </FeatureErrorBoundary>
   );
 }

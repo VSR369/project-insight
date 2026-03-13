@@ -311,5 +311,6 @@ export default function EditDelegatedAdminPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </FeatureErrorBoundary>
   );
 }
