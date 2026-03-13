@@ -225,13 +225,18 @@ export default function EditDelegatedAdminPage() {
             </div>
           </div>
 
-          {/* Scope narrowing warning (Gap 10) */}
+          {/* Scope narrowing warning with orphan count (BR-DEL-002) */}
           {narrowingInfo.isNarrowed && (
-            <Alert>
+            <Alert variant={orphanedRoleCount > 0 ? "destructive" : undefined}>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 You are removing <strong>{narrowingInfo.removedCount}</strong> scope assignment(s).
-                Existing responsibilities in removed areas may need to be reassigned to the Primary admin.
+                {orphanedRoleCount > 0 && (
+                  <> This may orphan <strong>{orphanedRoleCount}</strong> active role assignment(s) managed by this admin. Confirmation will be required.</>
+                )}
+                {orphanedRoleCount === 0 && (
+                  <> Existing responsibilities in removed areas may need to be reassigned to the Primary admin.</>
+                )}
               </AlertDescription>
             </Alert>
           )}
