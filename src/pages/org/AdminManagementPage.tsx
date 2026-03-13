@@ -123,6 +123,7 @@ export default function AdminManagementPage() {
   }
 
   return (
+    <FeatureErrorBoundary featureName="AdminManagementPage">
     <div className="space-y-6">
       {/* Context Banner */}
       <SessionContextBanner />
