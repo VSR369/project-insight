@@ -34,15 +34,6 @@ const AVATAR_COLORS = [
   'bg-rose-100 text-rose-700',
 ];
 
-function getInitials(name: string | null): string {
-  if (!name) return '??';
-  return name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0].toUpperCase())
-    .join('');
-}
 
 /* ── Status badge config ── */
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
