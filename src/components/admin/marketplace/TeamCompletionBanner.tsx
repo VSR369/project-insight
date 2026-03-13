@@ -9,6 +9,7 @@ import { Link } from "react-router-dom";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
+import { getRoleLabel } from "@/lib/roleUtils";
 import { AssignMemberModal } from "@/components/admin/marketplace/AssignMemberModal";
 import type { TeamComposition } from "@/hooks/queries/useSolutionRequests";
 
