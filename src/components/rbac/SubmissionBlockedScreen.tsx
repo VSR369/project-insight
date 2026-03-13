@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { useRoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useAdminContact } from "@/hooks/queries/useAdminContact";
+import { useOrgAdminContact } from "@/hooks/queries/useOrgAdminContact";
 import { usePendingChallengeRefsByChallenge, useCreatePendingChallengeRef } from "@/hooks/queries/usePendingChallengeRefs";
 import { useEffect } from "react";
 
@@ -30,7 +31,11 @@ export function SubmissionBlockedScreen({
 }: SubmissionBlockedScreenProps) {
   const { data: readinessData } = useRoleReadiness(orgId, model);
   const { data: roleCodes } = useSlmRoleCodes();
-  const { data: adminContact } = useAdminContact();
+  // BR-CORE-005: Route contact based on engagement model
+  // Marketplace gaps → Platform Admin contact; Aggregator gaps → SOA contact
+  const { data: platformAdminContact } = useAdminContact();
+  const { data: orgAdminContact } = useOrgAdminContact(orgId);
+  const adminContact = model === "agg" ? orgAdminContact : platformAdminContact;
   const createPendingRef = useCreatePendingChallengeRef();
 
   const readiness = readinessData?.[0] ?? null;
@@ -102,7 +107,7 @@ export function SubmissionBlockedScreen({
       {adminContact && (
         <div className="rounded-lg border bg-muted/30 p-4 max-w-sm w-full text-left space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
-            Contact for Assistance
+            {model === "agg" ? "Organization Admin Contact" : "Platform Admin Contact"}
           </p>
           <p className="text-sm font-medium text-foreground">{adminContact.name}</p>
           <div className="flex items-center gap-1.5 text-sm text-muted-foreground">

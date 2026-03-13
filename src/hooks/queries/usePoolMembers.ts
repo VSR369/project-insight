@@ -139,12 +139,31 @@ export function useUpdatePoolMember() {
 export function useDeactivatePoolMember() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: string) => {
+    mutationFn: async ({ id, notifySupervisor, memberName, createdByTier }: {
+      id: string;
+      notifySupervisor?: boolean;
+      memberName?: string;
+      createdByTier?: string;
+    }) => {
+      const withAudit = await withUpdatedBy({ is_active: false });
       const { error } = await supabase
         .from("platform_provider_pool")
-        .update({ is_active: false })
+        .update(withAudit as any)
         .eq("id", id);
       if (error) throw new Error(error.message);
+
+      // BR-PP-002: Notify Supervisor when Senior Admin deactivates supervisor-created member
+      if (notifySupervisor && createdByTier === "supervisor") {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from("admin_notifications").insert({
+          admin_id: user?.id ?? "",
+          type: "pool_member_deactivated_by_senior",
+          title: "Pool Member Deactivated",
+          body: `Senior Admin deactivated pool member "${memberName ?? "Unknown"}" who was created by a Supervisor-tier admin.`,
+          deep_link: "/admin/marketplace/resource-pool",
+          metadata: { pool_member_id: id, deactivated_by: user?.id },
+        } as any);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["pool-members"] });

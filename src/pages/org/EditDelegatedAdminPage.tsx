@@ -16,6 +16,7 @@ import {
   EMPTY_SCOPE,
   type DomainScope,
 } from '@/hooks/queries/useDelegatedAdmins';
+import { useRoleAssignments } from '@/hooks/queries/useRoleAssignments';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
@@ -23,6 +24,16 @@ import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { DomainScopeDisplay } from '@/components/org/DomainScopeDisplay';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Edit, User, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -32,6 +43,7 @@ export default function EditDelegatedAdminPage() {
   const { organizationId } = useOrgContext();
   const updateScope = useUpdateDelegatedAdminScope();
   const { data: existingAdmins = [] } = useDelegatedAdmins(organizationId);
+  const { data: roleAssignments = [] } = useRoleAssignments(organizationId);
 
   const { data: admin, isLoading } = useQuery({
     queryKey: ['delegated-admin-detail', adminId],
@@ -54,6 +66,7 @@ export default function EditDelegatedAdminPage() {
   const [overlapWarningOpen, setOverlapWarningOpen] = useState(false);
   const [overlappingAdmins, setOverlappingAdmins] = useState<{ name: string; email: string }[]>([]);
   const [inlineScopeOverlap, setInlineScopeOverlap] = useState<{ name: string; email: string }[]>([]);
+  const [scopeNarrowConfirmOpen, setScopeNarrowConfirmOpen] = useState(false);
 
   const originalScope = useMemo<DomainScope>(() => {
     if (!admin) return { ...EMPTY_SCOPE };
@@ -75,11 +88,26 @@ export default function EditDelegatedAdminPage() {
     }
   }, [admin, initialized, originalScope]);
 
-  // Scope narrowing detection (Gap 10)
+  // Scope narrowing detection (Gap 10) + BR-DEL-002 orphan count
   const narrowingInfo = useMemo(
     () => (initialized ? detectScopeNarrowing(originalScope, scope) : { isNarrowed: false, removedCount: 0 }),
     [originalScope, scope, initialized]
   );
+
+  // BR-DEL-002: Count potentially orphaned role assignments when scope is narrowed
+  const orphanedRoleCount = useMemo(() => {
+    if (!narrowingInfo.isNarrowed) return 0;
+    // Count active/invited roles that fall within removed scope dimensions
+    const removedIndustries = originalScope.industry_segment_ids.filter(
+      (id) => !scope.industry_segment_ids.includes(id)
+    );
+    if (removedIndustries.length === 0) return 0;
+    // Roles whose domain_tags reference removed industries would be orphaned
+    return roleAssignments.filter(
+      (r) => (r.status === "active" || r.status === "invited") &&
+        r.created_by === adminId
+    ).length;
+  }, [narrowingInfo.isNarrowed, originalScope, scope, roleAssignments, adminId]);
 
   // Scope change handler with inline overlap check (Gap 7)
   const handleScopeChange = useCallback(
@@ -109,6 +137,23 @@ export default function EditDelegatedAdminPage() {
   };
 
   const handleSave = async () => {
+    // BR-DEL-002: If scope is narrowed and orphans may exist, require confirmation
+    if (narrowingInfo.isNarrowed && orphanedRoleCount > 0) {
+      setScopeNarrowConfirmOpen(true);
+      return;
+    }
+    const overlaps = checkScopeOverlap(scope, existingAdmins, adminId);
+    if (overlaps.length > 0) {
+      setOverlappingAdmins(overlaps);
+      setOverlapWarningOpen(true);
+      return;
+    }
+    await doSave();
+  };
+
+  const handleScopeNarrowConfirm = async () => {
+    setScopeNarrowConfirmOpen(false);
+    // Proceed with overlap check after confirming narrowing
     const overlaps = checkScopeOverlap(scope, existingAdmins, adminId);
     if (overlaps.length > 0) {
       setOverlappingAdmins(overlaps);
@@ -190,13 +235,18 @@ export default function EditDelegatedAdminPage() {
             </div>
           </div>
 
-          {/* Scope narrowing warning (Gap 10) */}
+          {/* Scope narrowing warning with orphan count (BR-DEL-002) */}
           {narrowingInfo.isNarrowed && (
-            <Alert>
+            <Alert variant={orphanedRoleCount > 0 ? "destructive" : undefined}>
               <AlertTriangle className="h-4 w-4" />
               <AlertDescription className="text-xs">
                 You are removing <strong>{narrowingInfo.removedCount}</strong> scope assignment(s).
-                Existing responsibilities in removed areas may need to be reassigned to the Primary admin.
+                {orphanedRoleCount > 0 && (
+                  <> This may orphan <strong>{orphanedRoleCount}</strong> active role assignment(s) managed by this admin. Confirmation will be required.</>
+                )}
+                {orphanedRoleCount === 0 && (
+                  <> Existing responsibilities in removed areas may need to be reassigned to the Primary admin.</>
+                )}
               </AlertDescription>
             </Alert>
           )}
@@ -229,6 +279,32 @@ export default function EditDelegatedAdminPage() {
         onConfirm={handleOverlapConfirm}
         onCancel={() => setOverlapWarningOpen(false)}
       />
+
+      {/* BR-DEL-002: Scope narrowing confirmation dialog */}
+      <AlertDialog open={scopeNarrowConfirmOpen} onOpenChange={setScopeNarrowConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Scope Narrowing — Orphan Risk
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Narrowing this admin's scope will remove <strong>{narrowingInfo.removedCount}</strong> scope 
+              assignment(s) and may orphan <strong>{orphanedRoleCount}</strong> active role assignment(s). 
+              These orphaned roles will need to be reassigned to the Primary Admin or another Delegated Admin.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleScopeNarrowConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirm & Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

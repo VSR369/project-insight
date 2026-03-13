@@ -37,9 +37,9 @@ export function DelegatedAdminListTab({ orgId }: DelegatedAdminListTabProps) {
 
   const handleDeactivateConfirm = async () => {
     if (!deactivateTarget) return;
-    // Check for orphan roles before deactivating
+    // BR-RL-010: Check for orphan roles managed by this admin before deactivating
     const orphans = roleAssignments.filter(
-      (r) => r.status === "active" || r.status === "invited"
+      (r) => (r.status === "active" || r.status === "invited") && r.created_by === deactivateTarget.id
     );
     if (orphans.length > 0) {
       setReassignTarget({ id: deactivateTarget.id, name: deactivateTarget.name, orphanRoles: orphans });

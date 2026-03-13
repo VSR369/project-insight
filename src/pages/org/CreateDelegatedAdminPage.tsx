@@ -4,6 +4,7 @@
  */
 
 import { useMemo, useState, useCallback, useEffect } from 'react';
+import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -110,6 +111,16 @@ export default function CreateDelegatedAdminPage() {
       temp_password: tempPassword,
       expiry_hours: expiryHours,
     });
+
+    // BR-SOA-005: Threshold notifications after successful creation
+    const newActiveCount = activeCount + 1;
+    const newPct = Math.round((newActiveCount / maxAllowed) * 100);
+    if (newActiveCount >= maxAllowed) {
+      toast.warning(`Delegated admin limit reached (${newActiveCount}/${maxAllowed}). No more admins can be added.`);
+    } else if (newPct >= 80) {
+      toast.warning(`You are at ${newPct}% of your delegated admin limit (${newActiveCount}/${maxAllowed}).`);
+    }
+
     navigate('/org/admin-management');
   };
 
