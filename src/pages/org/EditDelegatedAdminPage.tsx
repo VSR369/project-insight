@@ -24,6 +24,16 @@ import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
 import { DomainScopeDisplay } from '@/components/org/DomainScopeDisplay';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Edit, User, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
