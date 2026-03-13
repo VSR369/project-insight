@@ -71,17 +71,13 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
 
   // Derive existing team members from assignments (deduplicated by email)
   const existingMembers = useMemo(() => {
-    const map = new Map<string, { email: string; name: string | null; roles: string[] }>();
-    for (const a of assignments) {
-      if (a.status !== "active" && a.status !== "invited") continue;
-      const existing = map.get(a.user_email);
-      if (existing) {
-        if (!existing.roles.includes(a.role_code)) existing.roles.push(a.role_code);
-      } else {
-        map.set(a.user_email, { email: a.user_email, name: a.user_name, roles: [a.role_code] });
-      }
-    }
-    return Array.from(map.values());
+    const members = deduplicateMembers(assignments);
+    // Flatten roles to simple string[] for this component's simpler data model
+    return members.map((m) => ({
+      email: m.email,
+      name: m.name,
+      roles: m.roles.map((r) => r.code),
+    }));
   }, [assignments]);
 
   // Derive admin display values from real profile — never hardcoded
