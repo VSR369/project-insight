@@ -20,7 +20,7 @@ import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
 import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { useOrgContext } from "@/contexts/OrgContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FeatureErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
