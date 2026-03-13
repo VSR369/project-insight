@@ -136,14 +136,18 @@ export default function RoleManagementDashboard() {
             </TabsContent>
 
             <TabsContent value="agg-challenge">
-              <AggRoleManagement
-                orgId={organizationId}
-                onInvite={(code) => handleInvite(code, "agg")}
-              />
+              {activeTab === "agg-challenge" && (
+                <AggRoleManagement
+                  orgId={organizationId}
+                  onInvite={(code) => handleInvite(code, "agg")}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="delegated-admins">
-              <DelegatedAdminListTab orgId={organizationId} />
+              {activeTab === "delegated-admins" && (
+                <DelegatedAdminListTab orgId={organizationId} />
+              )}
             </TabsContent>
           </Tabs>
         )}
