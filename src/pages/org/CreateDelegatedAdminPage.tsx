@@ -155,6 +155,7 @@ export default function CreateDelegatedAdminPage() {
   const industryMissing = scope.industry_segment_ids.length === 0;
 
   return (
+    <FeatureErrorBoundary featureName="CreateDelegatedAdminPage">
     <div className="space-y-6 max-w-2xl">
       <SessionContextBanner />
 
