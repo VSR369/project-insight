@@ -6,7 +6,8 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import { Send, Zap } from "lucide-react";
+import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
+import { deduplicateMembers } from "@/lib/roleUtils";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
