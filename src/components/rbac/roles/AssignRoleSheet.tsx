@@ -57,7 +57,7 @@ export function AssignRoleSheet({
   // SECTION 1: useState hooks
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<"invite" | "existing">("invite");
-  const [enrollMode, setEnrollMode] = useState<"invite" | "direct">("invite");
+  const [enrollMode, setEnrollMode] = useState<EnrollMode>("invite");
   const [taxonomyOpen, setTaxonomyOpen] = useState(false);
   const [selectedIndustry, setSelectedIndustry] = useState<string>("");
   const [selectedSubDomain, setSelectedSubDomain] = useState<string>("");
