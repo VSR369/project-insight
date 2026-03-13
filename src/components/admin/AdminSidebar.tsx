@@ -134,10 +134,10 @@ export function AdminSidebar() {
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
 
-  // Tier-based visibility — depth=1 means everyone is effectively supervisor
-  const effectiveSupervisor = isSupervisor || depth === 1;
-  const canSeeTeamManagement = effectiveSupervisor || isSeniorAdmin;
-  const canSeeSeekerConfig = effectiveSupervisor || isSeniorAdmin;
+  // Tier-based visibility — depth controls creation only, not runtime access
+  const effectiveSupervisor = isSupervisor;
+  const canSeeTeamManagement = isSupervisor || isSeniorAdmin;
+  const canSeeSeekerConfig = isSupervisor || isSeniorAdmin;
 
   // Build team management items based on tier
   const teamManagementItems = [
