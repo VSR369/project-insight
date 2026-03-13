@@ -5,7 +5,7 @@
  * "Myself" tab uses real admin profile from useCurrentAdminProfile — no hardcoded user data.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { EnrollModeToggle, type EnrollMode } from "@/components/rbac/shared/EnrollModeToggle";
 import { deduplicateMembers } from "@/lib/roleUtils";
 import { useForm } from "react-hook-form";
@@ -36,6 +36,7 @@ import { supabase } from "@/integrations/supabase/client";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { ScopeMultiSelect } from "@/components/org/ScopeMultiSelect";
 import { EMPTY_SCOPE, type DomainScope } from "@/hooks/queries/useDelegatedAdmins";
+import { useSessionExpiryWatcher, useRestoreFormFromRecovery } from "@/hooks/useSessionRecovery";
 
 const quickAssignSchema = z.object({
   user_name: z.string().trim().min(1, "Name is required").max(120),
@@ -93,6 +94,30 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
       selected_roles: [],
     },
   });
+
+  // Session recovery
+  const getFormSnapshot = useCallback(
+    () => ({
+      activeTab,
+      enrollMode,
+      user_email: form.getValues("user_email"),
+      user_name: form.getValues("user_name"),
+      selected_roles: form.getValues("selected_roles"),
+    }),
+    [activeTab, enrollMode, form]
+  );
+  useSessionExpiryWatcher("msme-quick-assign", getFormSnapshot);
+
+  const recovery = useRestoreFormFromRecovery("msme-quick-assign");
+  useEffect(() => {
+    if (recovery && open) {
+      if (recovery.formData.user_email) form.setValue("user_email", recovery.formData.user_email as string);
+      if (recovery.formData.user_name) form.setValue("user_name", recovery.formData.user_name as string);
+      if (recovery.formData.selected_roles) form.setValue("selected_roles", recovery.formData.selected_roles as string[]);
+      if (recovery.formData.activeTab) setActiveTab(recovery.formData.activeTab as "myself" | "new_user" | "existing");
+      if (recovery.formData.enrollMode) setEnrollMode(recovery.formData.enrollMode as EnrollMode);
+    }
+  }, [recovery, open, form]);
 
   const selectedRoles = form.watch("selected_roles");
   const userEmail = form.watch("user_email");

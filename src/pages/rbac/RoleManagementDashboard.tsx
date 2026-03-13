@@ -20,7 +20,7 @@ import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
 import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
 import { useOrgContext } from "@/contexts/OrgContext";
-import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { FeatureErrorBoundary } from "@/components/ErrorBoundary";
 
 export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
@@ -30,6 +30,7 @@ export default function RoleManagementDashboard() {
   const [assignRoleCode, setAssignRoleCode] = useState<string | undefined>();
   const [assignContext, setAssignContext] = useState<"core" | "agg">("core");
   const [quickAssignOpen, setQuickAssignOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState("org-core");
 
   // ══════════════════════════════════════
   // SECTION 2: Context hooks
@@ -85,7 +86,7 @@ export default function RoleManagementDashboard() {
   // SECTION 7: Render
   // ══════════════════════════════════════
   return (
-    <ErrorBoundary componentName="RoleManagementDashboard">
+    <FeatureErrorBoundary featureName="RoleManagementDashboard">
       <div className="space-y-5 p-6">
         {/* Header */}
         <div>
@@ -117,7 +118,7 @@ export default function RoleManagementDashboard() {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : (
-          <Tabs defaultValue="org-core">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="org-core">Core Roles</TabsTrigger>
               <TabsTrigger value="agg-challenge">Aggregator Roles</TabsTrigger>
@@ -135,14 +136,18 @@ export default function RoleManagementDashboard() {
             </TabsContent>
 
             <TabsContent value="agg-challenge">
-              <AggRoleManagement
-                orgId={organizationId}
-                onInvite={(code) => handleInvite(code, "agg")}
-              />
+              {activeTab === "agg-challenge" && (
+                <AggRoleManagement
+                  orgId={organizationId}
+                  onInvite={(code) => handleInvite(code, "agg")}
+                />
+              )}
             </TabsContent>
 
             <TabsContent value="delegated-admins">
-              <DelegatedAdminListTab orgId={organizationId} />
+              {activeTab === "delegated-admins" && (
+                <DelegatedAdminListTab orgId={organizationId} />
+              )}
             </TabsContent>
           </Tabs>
         )}
@@ -164,6 +169,6 @@ export default function RoleManagementDashboard() {
           assignments={assignments ?? []}
         />
       </div>
-    </ErrorBoundary>
+    </FeatureErrorBoundary>
   );
 }

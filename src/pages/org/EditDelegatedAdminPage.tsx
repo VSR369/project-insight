@@ -36,6 +36,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { ArrowLeft, Loader2, Edit, User, AlertTriangle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 
 export default function EditDelegatedAdminPage() {
   const navigate = useNavigate();
@@ -189,6 +190,7 @@ export default function EditDelegatedAdminPage() {
   }
 
   return (
+    <FeatureErrorBoundary featureName="EditDelegatedAdminPage">
     <div className="space-y-6 max-w-2xl">
       <SessionContextBanner />
 
@@ -309,5 +311,6 @@ export default function EditDelegatedAdminPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </FeatureErrorBoundary>
   );
 }

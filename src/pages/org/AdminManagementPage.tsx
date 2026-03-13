@@ -21,6 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
 import { InitialsAvatar } from '@/components/admin/platform-admins/InitialsAvatar';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
+import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
 
@@ -122,6 +123,7 @@ export default function AdminManagementPage() {
   }
 
   return (
+    <FeatureErrorBoundary featureName="AdminManagementPage">
     <div className="space-y-6">
       {/* Context Banner */}
       <SessionContextBanner />
@@ -308,5 +310,6 @@ export default function AdminManagementPage() {
         onClose={() => setDeactivateTarget(null)}
       />
     </div>
+    </FeatureErrorBoundary>
   );
 }
