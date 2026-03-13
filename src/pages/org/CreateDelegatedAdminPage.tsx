@@ -23,6 +23,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from '@/components/ui/PhoneInputSplit';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { ScopeMultiSelect } from '@/components/org/ScopeMultiSelect';
 import { ScopeOverlapWarning } from '@/components/org/ScopeOverlapWarning';
