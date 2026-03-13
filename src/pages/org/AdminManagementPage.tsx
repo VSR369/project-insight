@@ -19,6 +19,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { PlusCircle, Search, Edit, UserMinus, Users, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DeactivateAdminDialog } from '@/components/org/DeactivateAdminDialog';
+import { InitialsAvatar } from '@/components/admin/platform-admins/InitialsAvatar';
 import { SessionContextBanner } from '@/components/org/SessionContextBanner';
 import type { DelegatedAdmin, DomainScope } from '@/hooks/queries/useDelegatedAdmins';
 import { EMPTY_SCOPE } from '@/hooks/queries/useDelegatedAdmins';
