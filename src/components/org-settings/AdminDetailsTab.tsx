@@ -39,7 +39,8 @@ import { AdminTransferSection } from './AdminTransferSection';
 const adminChangeSchema = z.object({
   new_admin_name: z.string().max(200).optional(),
   new_admin_email: z.string().email('Valid email required').min(1, 'Email is required'),
-  new_admin_phone: z.string().max(30).optional(),
+  new_admin_phone_country_code: z.string().optional().or(z.literal('')),
+  new_admin_phone_number: z.string().max(15).optional().or(z.literal('')),
 });
 
 type AdminChangeFormValues = z.infer<typeof adminChangeSchema>;
