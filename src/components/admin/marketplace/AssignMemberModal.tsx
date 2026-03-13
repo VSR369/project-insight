@@ -286,7 +286,7 @@ export function AssignMemberModal({
       <FullyBookedAlternativesModal
         open={alternativesOpen}
         onOpenChange={setAlternativesOpen}
-        roleLabel={getRoleLabel(selectedRole)}
+        roleLabel={getLabel(selectedRole)}
         alternatives={candidates}
         onSelect={(memberId) => setSelectedMemberId(memberId)}
       />
