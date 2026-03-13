@@ -618,7 +618,7 @@ export function AdminSidebar() {
           <SidebarGroupContent>
             <SidebarMenu>
               {/* My Profile — shown here for basic admin since Team Management is hidden */}
-              {!canSeeTeamManagement && (
+              {!hasPermission('admin_management.view_all_admins') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/my-profile')}
@@ -631,8 +631,8 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Settings — senior_admin+ */}
-              {canSeeTeamManagement && (
+              {/* Settings */}
+              {hasPermission('admin_management.view_settings') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     onClick={() => navigate('/admin/settings')}
@@ -646,7 +646,7 @@ export function AdminSidebar() {
               )}
 
               {/* Test items — supervisor only */}
-              {effectiveSupervisor && (
+              {hasPermission('supervisor.configure_system') && (
                 <>
                   <SidebarMenuItem>
                     <SidebarMenuButton
