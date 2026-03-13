@@ -22,6 +22,16 @@ import {
   Activity,
   TrendingUp,
   Settings,
+  Layers,
+  Target,
+  Sliders,
+  Users,
+  Clock,
+  Timer,
+  Mail,
+  RefreshCcw,
+  GraduationCap,
+  Link2,
 } from 'lucide-react';
 
 const GROUPS = [
@@ -237,23 +247,215 @@ Your workload bar updates in real time as you complete or receive verifications.
 
 These metrics are computed periodically and help supervisors evaluate team performance and identify training needs.`,
       },
+    ],
+  },
+  {
+    title: 'System Configuration Reference',
+    items: [
       {
-        id: 'system-config',
-        icon: Settings,
-        title: 'System Config & Permissions (Supervisors)',
-        content: `Supervisors have access to additional configuration and governance tools:
+        id: 'config-governance',
+        icon: Layers,
+        title: 'Governance & Scaling',
+        content: `This group controls how your admin team is structured and whether customer organisations can delegate their own admins.
 
-**System Config:**
-• **SLA Thresholds** — Set the time limits (in hours) for TIER1 warning, TIER2 breach, and TIER3 critical escalation. Changes take effect immediately for all active verifications.
-• **Executive Escalation Contact** — Configure the contact person notified when a TIER3 critical breach occurs. If this is not set, a warning banner appears in the header.
-• **Auto-Assignment Rules** — Configure how new verifications are distributed: round-robin, workload-balanced, or affinity-based (matching admin expertise to organization industry).
+**platform_admin_tier_depth** (Values: 1, 2, or 3 · Default: 3)
+Controls how many levels of admin hierarchy exist on the platform:
+• **1 — Supervisor Only:** A single person handles all verifications. Suitable for a brand-new platform with low volume.
+• **2 — Supervisor + Senior Admin:** The supervisor oversees, while Senior Admins handle day-to-day verifications.
+• **3 — Full Hierarchy:** Supervisor → Senior Admin → Admin. The full team structure with delegation and escalation paths.
 
-**Permissions:**
+🏢 **Real-life example:** You launch the platform with just yourself as Supervisor (depth = 1). After onboarding 5 admins, you change this to 3 so you can promote two of them to Senior Admin. The change takes effect immediately — new tier options appear in the admin management screens.
+
+**org_admin_delegation_enabled** (Values: true / false · Default: true)
+Controls whether Seeking Organisations can have delegated (secondary) admins in addition to their Primary Admin.
+• **true:** Organisations can invite additional admins to share the workload of managing their account.
+• **false:** Only the Primary Admin exists — the delegation UI is hidden across the platform.
+
+🏢 **Real-life example:** A large university with 12 departments enables delegation so each department head can manage their own section. A small business with one owner disables delegation to keep things simple.`,
+      },
+      {
+        id: 'config-assignment',
+        icon: Target,
+        title: 'Assignment Mode',
+        content: `This parameter controls how newly submitted organisation verifications are distributed to admins.
+
+**org_verification_assignment_mode** (Values: auto_assign / open_claim · Default: auto_assign)
+
+• **auto_assign:** When an organisation completes payment, the system automatically selects the best-fit admin using the domain-scoring engine (see Domain Match Weights below). The verification appears directly in the assigned admin's "My Assignments" tab.
+
+• **open_claim:** Verifications land in the shared Open Queue. Any available admin can claim them on a first-come-first-served basis. An atomic database lock ensures only one admin can claim each organisation.
+
+🏢 **Real-life example:** During normal operations (10 organisations/day), you use **auto_assign** so work is distributed evenly based on expertise. During an onboarding campaign (50 organisations/day from the same industry), you switch to **open_claim** so your industry-specialist admins can self-select the most relevant ones. The mode can be changed at any time from the System Config dashboard — it applies to all new submissions immediately.`,
+      },
+      {
+        id: 'config-domain-weights',
+        icon: Sliders,
+        title: 'Domain Match Weights',
+        content: `These three weights control how the auto-assignment scoring engine prioritises admin-to-organisation matching. They must always add up to 100%.
+
+**industry_match_weight** (Range: 0–100% · Default: 50%)
+How much weight is given to matching the organisation's industry to the admin's declared industry expertise. A higher value means industry-specialist admins are strongly preferred.
+
+**country_match_weight** (Range: 0–100% · Default: 30%)
+How much weight is given to matching the organisation's registered country to the admin's country expertise. Important when country-specific regulations differ significantly.
+
+**org_type_match_weight** (Range: 0–100% · Default: 20%)
+How much weight is given to matching the organisation type (e.g., University, Corporation, NGO) to the admin's experience with that type.
+
+The scoring engine runs a 2-pass algorithm:
+• **Pass 1:** Scores all "Available" admins. If a match is found above the threshold, that admin is assigned.
+• **Pass 2:** If no Available admin scores high enough, the engine looks at "Partially Available" admins.
+
+🏢 **Real-life example:** Your platform primarily serves one country but many industries. Set industry weight to 60%, country to 15%, org type to 25%. Now, when a fintech startup registers, the admin who listed "Financial Services" as their expertise gets priority — even if they are not in the same country.
+
+⚙️ **How to change:** Navigate to System Config → Domain Match Weights → "Configure on tuning panel." Adjust the sliders. The three values must total 100% before you can save.`,
+      },
+      {
+        id: 'config-capacity',
+        icon: Users,
+        title: 'Admin Capacity & Workload',
+        content: `These parameters control how many verifications each admin can handle and when the system considers them "at capacity."
+
+**default_max_concurrent_verifications** (Range: 1–50 · Default: 10)
+The maximum number of active verifications an admin can hold at the same time. Once an admin reaches this limit, the auto-assignment engine skips them and assigns to the next best match.
+
+🏢 **Real-life example:** During a training period, set this to 3 so new admins are not overwhelmed. Once they are experienced (after 2 months), increase to 12. Senior admins handling complex verifications might have a lower cap (e.g., 5) because each case takes longer.
+
+**partially_available_threshold** (Range: 50–100% · Default: 80%)
+When an admin's workload reaches this percentage of their max capacity, their status shifts to "Partially Available." The auto-assignment engine only considers partially available admins in Pass 2 (after all fully available admins have been scored).
+
+🏢 **Real-life example:** Admin A has max concurrent = 10 and threshold = 80%. When they hold 8 verifications (80%), they become "Partially Available." New assignments go to other admins first. This prevents any single admin from being constantly maxed out.
+
+**minimum_admins_available** (Range: 1–10 · Default: 2)
+The system warns the supervisor when the number of fully available admins drops below this threshold. This is an early warning signal that you may need to adjust workloads or bring admins back from leave.
+
+🏢 **Real-life example:** You have 6 admins. Set this to 2. If 5 are at capacity and only 1 is available, the supervisor gets a warning notification saying "Only 1 admin available — below minimum threshold of 2."`,
+      },
+      {
+        id: 'config-queue',
+        icon: Clock,
+        title: 'Open Queue & SLA Duration',
+        content: `These parameters control timing for unclaimed verifications and the overall processing deadline.
+
+**sla_duration_hours** (Range: 1–720 · Default: 48)
+The total number of hours from assignment to expected completion. This is the baseline that SLA tier percentages are calculated against.
+
+🏢 **Real-life example:** With sla_duration = 48 hours, an admin assigned a verification on Monday 9 AM is expected to complete it by Wednesday 9 AM.
+
+**queue_unclaimed_sla_hours** (Range: 1–48 · Default: 4)
+How long an organisation can sit in the Open Queue without being claimed before the first escalation is triggered. Only relevant in open_claim mode.
+
+🏢 **Real-life example:** Set to 4 hours. An organisation enters the queue at 10 AM. If nobody claims it by 2 PM, the supervisor receives an "Unclaimed verification" notification.
+
+**queue_escalation_interval_hours** (Range: 1–24 · Default: 2)
+After the initial unclaimed SLA fires, how often the system re-escalates. Each subsequent ping becomes more urgent.
+
+🏢 **Real-life example:** Unclaimed SLA = 4h, escalation interval = 2h. The supervisor gets notified at 4h, 6h, 8h, and so on until someone claims it.
+
+**admin_release_window_hours** (Range: 1–24 · Default: 2)
+After an admin is assigned or claims a verification, they have this many hours to release it back to the Open Queue with no penalty. After this window closes, they must use "Request Reassignment" instead.
+
+🏢 **Real-life example:** An admin claims a verification but realises it is for an industry they have no experience in. Within 2 hours, they can click "Release to Queue" and it goes back for another admin. After 2 hours, the button disappears.`,
+      },
+      {
+        id: 'config-sla-thresholds',
+        icon: Timer,
+        title: 'SLA Escalation Thresholds',
+        content: `These three parameters define the percentage of SLA duration at which each escalation tier is triggered. They work together with sla_duration_hours (see Open Queue section).
+
+**sla_tier1_threshold_pct** (Range: 50–100% · Default: 80%)
+Triggers the TIER 1 — Warning state. An amber banner appears on the admin's dashboard and the verification card shows a ⚠ badge.
+
+**sla_tier2_threshold_pct** (Range: 80–150% · Default: 100%)
+Triggers the TIER 2 — Breach state. A red banner appears. The supervisor is automatically notified that a breach has occurred.
+
+**sla_tier3_threshold_pct** (Range: 100–200% · Default: 150%)
+Triggers the TIER 3 — Critical state. The executive escalation contact is notified. The system may auto-reassign the verification depending on configuration.
+
+📊 **How the maths works (example):**
+With sla_duration = 48 hours:
+• **Tier 1 at 80%** = 48 × 0.80 = **38.4 hours** → amber warning appears
+• **Tier 2 at 100%** = 48 × 1.00 = **48 hours** → SLA breach, supervisor notified
+• **Tier 3 at 150%** = 48 × 1.50 = **72 hours** → critical escalation, executive contacted
+
+🏢 **Real-life example:** You want tighter deadlines. Change Tier 1 to 60% (warning at 28.8h), Tier 2 to 90% (breach at 43.2h), Tier 3 to 120% (critical at 57.6h). Admins will see warnings sooner and have less buffer before a breach is logged.
+
+⚠️ **Important:** These thresholds must be in ascending order (Tier 1 < Tier 2 < Tier 3). The System Config page shows a visual bar chart so you can see the relative positions at a glance.`,
+      },
+      {
+        id: 'config-escalation',
+        icon: Mail,
+        title: 'Escalation Routing',
+        content: `This critical parameter determines who receives the final escalation when a Tier 3 breach occurs and all normal channels have failed.
+
+**executive_escalation_contact_id** (Value: Admin profile ID · Default: Not set)
+The platform admin profile designated as the executive fallback contact. This person is notified when:
+• A TIER 3 critical SLA breach occurs.
+• All admins are unavailable (e.g., during a public holiday).
+• A verification has been reassigned the maximum number of times with no resolution.
+
+⚠️ **If this is not set**, a red warning banner appears at the top of the System Config page and the Platform Admins page, reminding the supervisor to configure it.
+
+🏢 **Real-life example:** Set this to your VP of Operations or Head of Compliance. During a holiday weekend, all 6 admins are set to "Unavailable." A new organisation submits payment. With no admin available and the verification sitting unclaimed for 72 hours, the system emails the VP saying "Critical: Verification for Acme Corp has breached Tier 3 with no available admin."
+
+⚙️ **How to set it:** Go to System Config → Escalation Routing → select the admin from the dropdown. Only active Supervisor-tier admins appear in the list.`,
+      },
+      {
+        id: 'config-reassignment',
+        icon: RefreshCcw,
+        title: 'Reassignment & Leave',
+        content: `These parameters govern reassignment limits and leave notification timing.
+
+**max_reassignments_per_verification** (Range: 1–10 · Default: 3)
+The maximum number of times a single verification can be reassigned between admins. After hitting this limit, the verification is locked and only the supervisor can action it directly.
+
+🏢 **Real-life example:** A complex university verification gets assigned to Admin A (unfamiliar with education sector), reassigned to Admin B (goes on leave), then to Admin C (finds a compliance issue and escalates). That is 3 reassignments. With max = 3, no further reassignments are possible — the supervisor must step in. This prevents verifications from endlessly bouncing between admins.
+
+**leave_reminder_notification_days** (Range: 1–14 · Default: 3)
+When an admin sets their status to "Unavailable" (planned leave), the system sends a reminder notification this many days before the leave starts, prompting the admin to reassign or complete their active verifications.
+
+🏢 **Real-life example:** Admin B has 4 active verifications and schedules leave starting Friday. With this set to 3 days, on Tuesday morning, Admin B receives a notification: "You have 4 active verifications. Your leave begins in 3 days. Please complete or request reassignment."`,
+      },
+      {
+        id: 'config-expertise-caps',
+        icon: GraduationCap,
+        title: 'Expertise Caps',
+        content: `These parameters limit how many expertise domains a Basic Admin can declare in their profile. Senior Admins and Supervisors are not subject to these caps.
+
+**basic_admin_max_industries** (Range: 1–20 · Default: 5)
+Maximum number of industry segments a Basic Admin can select in their expertise profile.
+
+**basic_admin_max_countries** (Range: 1–50 · Default: 5)
+Maximum number of countries a Basic Admin can select.
+
+**basic_admin_max_org_types** (Range: 1–20 · Default: 5)
+Maximum number of organisation types a Basic Admin can select.
+
+🏢 **Real-life example:** During onboarding, set all three to 3. This forces new admins to focus on a narrow domain where they have genuine expertise, improving verification quality. As admins gain experience and get promoted to Senior Admin, the caps are automatically lifted and they can declare broader expertise.
+
+⚙️ **Why caps exist:** Without caps, a new admin might select all 15 industries thinking "I can handle anything." The auto-assignment engine would then send them verifications from industries they do not actually understand, leading to slower processing and more reassignments.`,
+      },
+      {
+        id: 'config-soa-provisioning',
+        icon: Link2,
+        title: 'SOA Provisioning & Activation',
+        content: `These parameters control how Seeking Organisation Admin (SOA) accounts are provisioned after an organisation is verified.
+
+**activation_link_expiry_hours** (Range: 24–720 · Default: 72)
+When an organisation is approved, the designated Primary Admin receives an activation email with a secure link. This parameter sets how many hours that link remains valid before it expires.
+
+🏢 **Real-life example:** Set to 72 hours (3 days). The organisation is approved on Friday evening. The Primary Admin has until Monday evening to click the activation link and set up their account. If they miss it, the supervisor can resend the link from the admin dashboard.
+
+**max_delegated_admins_per_org** (Range: 1–50 · Default: 5)
+The maximum number of delegated (secondary) admins an organisation can have, in addition to their Primary Admin. Only relevant when org_admin_delegation_enabled is true.
+
+🏢 **Real-life example:** A small business needs only 1 admin — set the default low. A large enterprise with multiple divisions might need 10 delegated admins. You can set this to 5 as a reasonable default; organisations needing more can request an increase through their Primary Admin.
+
+**Permissions (Supervisor-only):**
 • View and manage which admins have access to specific features.
 • Promote admins between tiers (Admin → Senior Admin → Supervisor).
-• Access codes for new admin onboarding.
-
-All configuration changes are logged in the audit trail with the supervisor's identity and timestamp.`,
+• Generate and manage access codes for new admin onboarding.
+• All configuration and permission changes are logged in the audit trail with the supervisor's identity, timestamp, and IP address.`,
       },
     ],
   },
