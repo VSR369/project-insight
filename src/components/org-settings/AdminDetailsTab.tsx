@@ -81,7 +81,7 @@ export function AdminDetailsTab({ organizationId }: AdminDetailsTabProps) {
   // ══════════════════════════════════════
   const form = useForm<AdminChangeFormValues>({
     resolver: zodResolver(adminChangeSchema),
-    defaultValues: { new_admin_name: '', new_admin_email: '', new_admin_phone: '' },
+    defaultValues: { new_admin_name: '', new_admin_email: '', new_admin_phone_country_code: '', new_admin_phone_number: '' },
   });
 
   // ══════════════════════════════════════
