@@ -175,7 +175,7 @@ export function AssignMemberModal({
               </Label>
               {missingRoles.length === 1 ? (
                 <div className="text-sm font-medium text-foreground p-2 rounded-md border bg-muted/20">
-                  {getRoleLabel(missingRoles[0].role)}
+                  {getLabel(missingRoles[0].role)}
                   <span className="text-xs text-muted-foreground ml-2">
                     ({missingRoles[0].required - missingRoles[0].assigned} needed)
                   </span>
