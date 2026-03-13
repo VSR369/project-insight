@@ -96,10 +96,7 @@ export function AssignMemberModal({
   // ══════════════════════════════════════
   // SECTION 3: Derived state
   // ══════════════════════════════════════
-  const getRoleLabel = (code: string) => {
-    const found = roleCodes?.find((r) => r.code === code);
-    return found ? `${found.display_name} (${code})` : code;
-  };
+  const getLabel = (code: string) => getRoleDisplayLabel(roleCodes, code);
 
   const existingMemberIdsForRole = (challengeAssignments ?? [])
     .filter((a) => a.role_code === selectedRole)
