@@ -474,7 +474,7 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canSeeTeamManagement && (
+        {hasPermission('admin_management.view_all_admins') && (
           <SidebarGroup>
             <SidebarGroupLabel>Team Management</SidebarGroupLabel>
             <SidebarGroupContent>
