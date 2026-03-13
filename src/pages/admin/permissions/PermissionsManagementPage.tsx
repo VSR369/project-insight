@@ -159,6 +159,9 @@ function PermissionsContent() {
               {cat.category === 'Verification' && 'Core verification processing capabilities'}
               {cat.category === 'Admin Management' && 'Admin profile and team management'}
               {cat.category === 'Supervisor Functions' && 'System oversight and configuration'}
+              {cat.category === 'Master Data' && 'Access to reference/lookup data management'}
+              {cat.category === 'Org Approvals' && 'Organization approval workflow'}
+              {cat.category === 'Marketplace' && 'Marketplace and resource pool management'}
             </CardDescription>
           </CardHeader>
           <CardContent>

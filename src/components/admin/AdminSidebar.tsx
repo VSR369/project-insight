@@ -184,7 +184,7 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {canSeeTeamManagement && (
+        {hasPermission('master_data.view') && (
         <SidebarGroup>
           <SidebarGroupLabel>Master Data</SidebarGroupLabel>
           <SidebarGroupContent>
