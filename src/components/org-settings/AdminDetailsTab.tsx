@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PhoneInputSplit, formatPhoneIntl } from '@/components/ui/PhoneInputSplit';
 import { Separator } from '@/components/ui/separator';
 import {
   Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription,
