@@ -44,6 +44,7 @@ export default function ResourcePoolPage() {
   // ══════════ Query/Mutation hooks ══════════
   const { data: members, isLoading } = usePoolMembers(filters);
   const deactivateMutation = useDeactivatePoolMember();
+  const { data: orgOptions = [] } = useOrgPickerOptions();
 
   // ══════════ Handlers ══════════
   const handleEdit = (member: PoolMemberRow) => {
