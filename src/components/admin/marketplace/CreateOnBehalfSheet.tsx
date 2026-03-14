@@ -156,8 +156,8 @@ export function CreateOnBehalfSheet({
           </div>
 
           {/* Domain scope notice */}
-          <div className="rounded-md border border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-950/30 p-3 flex gap-2">
-            <Info className="h-4 w-4 text-blue-500 mt-0.5 shrink-0" />
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 flex gap-2">
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground">
               This role will be created with full domain access (all industries, specialities, etc.). The organization's admin can narrow the scope later.
             </p>
