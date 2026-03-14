@@ -30,7 +30,7 @@ interface DeleteConfirmDialogProps {
   hardDeleteLoading?: boolean;
 }
 
-export function DeleteConfirmDialog({
+export const DeleteConfirmDialog = React.memo(function DeleteConfirmDialog({
   open,
   onOpenChange,
   title = "Delete Item",
