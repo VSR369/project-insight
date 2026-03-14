@@ -14,6 +14,7 @@ import { SupervisorDeactivationConfirmModal } from "@/components/admin/marketpla
 import { CreateOnBehalfSheet } from "@/components/admin/marketplace/CreateOnBehalfSheet";
 import { usePoolMembers, type PoolMemberFilters, type PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 import { useDeactivatePoolMember } from "@/hooks/queries/usePoolMembers";
+import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
 import { usePoolPermissions } from "@/hooks/usePoolPermissions";
 import { useAdminTier } from "@/hooks/useAdminTier";
 import {
@@ -43,6 +44,7 @@ export default function ResourcePoolPage() {
   // ══════════ Query/Mutation hooks ══════════
   const { data: members, isLoading } = usePoolMembers(filters);
   const deactivateMutation = useDeactivatePoolMember();
+  const { data: orgOptions = [] } = useOrgPickerOptions();
 
   // ══════════ Handlers ══════════
   const handleEdit = (member: PoolMemberRow) => {
@@ -179,7 +181,7 @@ export default function ResourcePoolPage() {
       <CreateOnBehalfSheet
         open={createOnBehalfOpen}
         onOpenChange={setCreateOnBehalfOpen}
-        organizations={[]}
+        organizations={orgOptions.map(o => ({ id: o.value, name: o.label }))}
       />
     </div>
   );
