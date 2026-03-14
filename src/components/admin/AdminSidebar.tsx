@@ -63,7 +63,8 @@ import { useAdminTier } from '@/hooks/useAdminTier';
 import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
-const masterDataItems = [
+// Group 2: Reference Data (Master Data + Taxonomy merged)
+const referenceDataItems = [
   { title: 'Countries', icon: Globe, path: '/admin/master-data/countries' },
   { title: 'Industry Segments', icon: Briefcase, path: '/admin/master-data/industry-segments' },
   { title: 'Organization Types', icon: Building2, path: '/admin/master-data/organization-types' },
@@ -71,32 +72,6 @@ const masterDataItems = [
   { title: 'Expertise Levels', icon: Award, path: '/admin/master-data/expertise-levels' },
   { title: 'Departments', icon: Building2, path: '/admin/master-data/departments' },
   { title: 'Functional Areas', icon: Briefcase, path: '/admin/master-data/functional-areas' },
-];
-
-const seekerConfigItems = [
-  { title: 'Pricing Overview', icon: Activity, path: '/admin/seeker-config/pricing-overview' },
-  { title: 'Subscription Tiers', icon: CreditCard, path: '/admin/seeker-config/subscription-tiers' },
-  { title: 'Membership Tiers', icon: Award, path: '/admin/seeker-config/membership-tiers' },
-  { title: 'Engagement Models', icon: Network, path: '/admin/seeker-config/engagement-models' },
-  { title: 'Challenge Complexity', icon: Activity, path: '/admin/seeker-config/challenge-complexity' },
-  { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
-  { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
-  { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
-  { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
-  { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
-  { title: 'Subsidized Pricing', icon: Activity, path: '/admin/seeker-config/subsidized-pricing' },
-  { title: 'Postal Formats', icon: Globe, path: '/admin/seeker-config/postal-formats' },
-  { title: 'Billing Cycles', icon: CreditCard, path: '/admin/seeker-config/billing-cycles' },
-  { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
-];
-
-const complianceConfigItems = [
-  { title: 'Export Control', icon: Shield, path: '/admin/seeker-config/export-control' },
-  { title: 'Data Residency', icon: Globe, path: '/admin/seeker-config/data-residency' },
-  { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
-];
-
-const taxonomyItems = [
   { title: 'Proficiency Taxonomy', icon: Network, path: '/admin/master-data/proficiency-taxonomy' },
 ];
 
