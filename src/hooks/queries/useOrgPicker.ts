@@ -23,6 +23,7 @@ export function useOrgPickerOptions(tenantId?: string) {
         .from("seeker_organizations")
         .select("id, organization_name, legal_entity_name")
         .eq("is_active", true)
+        .eq("verification_status", "verified")
         .order("organization_name");
 
       if (tenantId) {
