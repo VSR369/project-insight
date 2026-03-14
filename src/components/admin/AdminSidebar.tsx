@@ -484,7 +484,14 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {(hasPermission('content.view_questions') || hasPermission('invitations.view')) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Content & Invitations</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Content & Invitations</span>
+              <BookOpen
+                className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+                onClick={() => navigate('/admin/kc/content-invitations')}
+                title="Content & Invitations Help"
+              />
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {hasPermission('content.view_questions') && (
