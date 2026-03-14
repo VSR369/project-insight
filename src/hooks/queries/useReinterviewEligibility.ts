@@ -7,6 +7,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { checkReinterviewEligibility } from '@/services/interviewRetakeService';
 import { useVisibilityPollingInterval } from '@/lib/useVisibilityPolling';
+import { CACHE_STANDARD } from '@/config/queryCache';
 
 /**
  * Hook to check re-interview eligibility for an enrollment
