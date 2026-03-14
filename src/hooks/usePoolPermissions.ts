@@ -1,5 +1,6 @@
 /**
- * usePoolPermissions — Returns write access flag based on admin tier (BR-PP-003)
+ * usePoolPermissions — Returns write access flag based on permission matrix (BR-PP-003)
+ * Uses hasPermission('marketplace.manage_pool') instead of tier-based checks.
  * Basic Admin: read-only (canWrite = false)
  * Supervisor + Senior Admin: full CRUD (canWrite = true)
  */
@@ -12,9 +13,9 @@ interface PoolPermissions {
 }
 
 export function usePoolPermissions(): PoolPermissions {
-  const { tier, isSupervisor, isSeniorAdmin, isLoading } = useAdminTier();
+  const { hasPermission, isLoading } = useAdminTier();
   return {
-    canWrite: isSupervisor || isSeniorAdmin,
+    canWrite: hasPermission('marketplace.manage_pool'),
     isLoading,
   };
 }

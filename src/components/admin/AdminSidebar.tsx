@@ -304,22 +304,24 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {/* Org Approvals — ALL tiers */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/seeker-org-approvals')}
-                  onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
-                  isActive={isActive('/admin/seeker-org-approvals')}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  <span className="flex-1">Org Approvals</span>
-                  {pendingSeekerCount && pendingSeekerCount > 0 && (
-                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
-                      {pendingSeekerCount}
-                    </Badge>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {/* Org Approvals — gated by org_approvals.view */}
+              {hasPermission('org_approvals.view') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/seeker-org-approvals')}
+                    onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
+                    isActive={isActive('/admin/seeker-org-approvals')}
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    <span className="flex-1">Org Approvals</span>
+                    {pendingSeekerCount && pendingSeekerCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingSeekerCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {/* Enterprise Agreements — senior+ */}
               {hasPermission('org_approvals.manage_agreements') && (
                 <SidebarMenuItem>
