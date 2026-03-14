@@ -86,10 +86,8 @@ export default function Register() {
 
   // Fetch master data
   const { data: countries } = useCountries();
-  const { data: disciplines } = useAcademicDisciplines();
   const { data: industrySegments } = useIndustrySegments();
   const { data: expertiseLevels } = useExpertiseLevels();
-  const { data: streams } = useAcademicStreams(selectedDiscipline);
 
   // ═══════════════════════════════════════════
   // SECTION 3: Form hooks (React Hook Form)
