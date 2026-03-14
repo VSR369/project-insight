@@ -54,7 +54,8 @@ const SAMPLE_DATA = [
 /**
  * Download an empty template for importing questions
  */
-export function downloadInterviewKitTemplate(): void {
+export async function downloadInterviewKitTemplate(): Promise<void> {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   // Data sheet with headers and sample rows
