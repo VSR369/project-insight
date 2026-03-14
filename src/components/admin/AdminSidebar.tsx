@@ -257,7 +257,14 @@ export function AdminSidebar() {
         {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
         {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <span className="flex-1">Operations</span>
+            <BookOpen
+              className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+              onClick={() => navigate('/admin/verification-knowledge-centre')}
+              title="Operations Help"
+            />
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
