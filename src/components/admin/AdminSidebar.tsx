@@ -442,6 +442,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* GROUP 6: Seeker Config (top-level, high-frequency) */}
