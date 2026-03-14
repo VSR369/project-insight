@@ -647,6 +647,14 @@ const App = () => (
               <Route path="verifications" element={<VerificationDashboardPage />} />
               <Route path="verifications/:id" element={<VerificationDetailPage />} />
               <Route path="verification-knowledge-centre" element={<VerificationKnowledgeCentrePage />} />
+              {/* Group-specific Knowledge Centre pages */}
+              <Route path="kc/dashboard" element={<DashboardKCPage />} />
+              <Route path="kc/reference-data" element={<ReferenceDataKCPage />} />
+              <Route path="kc/interview-review" element={<InterviewReviewKCPage />} />
+              <Route path="kc/marketplace" element={<MarketplaceKCPage />} />
+              <Route path="kc/seeker-config" element={<SeekerConfigKCPage />} />
+              <Route path="kc/content-invitations" element={<ContentInvitationsKCPage />} />
+              <Route path="kc/my-workspace" element={<MyWorkspaceKCPage />} />
               {/* MOD-04: Notification Audit Log — supervisor only */}
               <Route path="notifications/audit" element={<TierGuard requiredTier="supervisor"><NotificationAuditLogPage /></TierGuard>} />
               {/* MOD-05: Performance Metrics Dashboard */}
