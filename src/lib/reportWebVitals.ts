@@ -25,10 +25,9 @@ function logMetric(metric: Metric): void {
 }
 
 export async function reportWebVitals(): Promise<void> {
-  const { onCLS, onFID, onLCP, onINP, onTTFB } = await import('web-vitals');
+  const { onCLS, onLCP, onINP, onTTFB } = await import('web-vitals');
 
   onCLS(logMetric);
-  onFID(logMetric);
   onLCP(logMetric);
   onINP(logMetric);
   onTTFB(logMetric);

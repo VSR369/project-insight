@@ -340,7 +340,7 @@ export default function TakeAssessment() {
   }, [attempt?.id, activeEnrollmentId, isSubmitting, submitAssessment, navigate]);
 
   // TODO: Remove before production - temporary debugging feature
-  const handleDownloadQuestionsPDF = useCallback(() => {
+  const handleDownloadQuestionsPDF = useCallback(async () => {
     if (!questions || questions.length === 0) {
       toast.error('No questions to download');
       return;
