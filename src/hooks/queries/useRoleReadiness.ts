@@ -4,6 +4,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CACHE_FREQUENT } from "@/config/queryCache";
 
 export interface RoleReadiness {
   id: string;
@@ -33,7 +34,6 @@ export function useRoleReadiness(orgId?: string, model?: string) {
       return (data ?? []) as RoleReadiness[];
     },
     enabled: !!orgId,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
+    ...CACHE_FREQUENT,
   });
 }

@@ -1,5 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { CACHE_STABLE } from "@/config/queryCache";
 
 export interface InterviewKitCompetency {
   id: string;
@@ -36,7 +37,6 @@ export function useInterviewKitCompetencies() {
         color: c.color,
       }));
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - reference data
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    ...CACHE_STABLE,
   });
 }

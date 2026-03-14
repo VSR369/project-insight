@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, Send, Download, PlayCircle } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+// html2pdf dynamically imported at point-of-use to reduce initial bundle
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -340,7 +340,7 @@ export default function TakeAssessment() {
   }, [attempt?.id, activeEnrollmentId, isSubmitting, submitAssessment, navigate]);
 
   // TODO: Remove before production - temporary debugging feature
-  const handleDownloadQuestionsPDF = useCallback(() => {
+  const handleDownloadQuestionsPDF = useCallback(async () => {
     if (!questions || questions.length === 0) {
       toast.error('No questions to download');
       return;
@@ -407,6 +407,7 @@ export default function TakeAssessment() {
     const container = document.createElement('div');
     container.innerHTML = htmlContent;
     
+    const html2pdf = (await import('html2pdf.js')).default;
     html2pdf()
       .from(container)
       .set({

@@ -6,6 +6,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { CACHE_STABLE } from "@/config/queryCache";
 
 export function useModelAuthority(engagementModel: string) {
   const { user } = useAuth();
@@ -22,7 +23,6 @@ export function useModelAuthority(engagementModel: string) {
       return data as boolean;
     },
     enabled: !!user?.id && !!engagementModel,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    ...CACHE_STABLE,
   });
 }

@@ -4,6 +4,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CACHE_FREQUENT } from '@/config/queryCache';
 
 const AUDIT_LOG_COLUMNS = 'id, admin_id, event_type, actor_id, actor_type, field_changed, old_value, new_value, ip_address, created_at';
 
@@ -26,6 +27,6 @@ export function usePlatformAdminAuditLog(adminId: string | undefined, page = 1, 
       return { data: data ?? [], total: count ?? 0, page, pageSize };
     },
     enabled: !!adminId,
-    staleTime: 30 * 1000,
+    staleTime: CACHE_FREQUENT.staleTime,
   });
 }

@@ -4,6 +4,7 @@
  */
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CACHE_STATIC } from '@/config/queryCache';
 
 interface TcVersion {
   id: string;
@@ -27,7 +28,7 @@ export function useTcVersionCheck(orgId: string | undefined, currentTcVersion: s
       return data as TcVersion | null;
     },
     enabled: !!orgId,
-    staleTime: 15 * 60 * 1000,
+    staleTime: CACHE_STATIC.staleTime,
   });
 
   const needsReAcceptance = !!latestVersion && latestVersion.version !== currentTcVersion;

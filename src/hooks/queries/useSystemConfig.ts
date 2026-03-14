@@ -1,10 +1,10 @@
 /**
  * useSystemConfig — fetches configurable system parameters from md_system_config.
- * Per Project Knowledge: React Query for all server data, staleTime for reference data.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CACHE_STATIC } from '@/config/queryCache';
 
 interface SystemConfigEntry {
   config_key: string;
@@ -23,8 +23,7 @@ export function useSystemConfig() {
       if (error) throw new Error(error.message);
       return data as SystemConfigEntry[];
     },
-    staleTime: 15 * 60 * 1000, // Static config — 15 min
-    gcTime: 60 * 60 * 1000,
+    ...CACHE_STATIC,
   });
 }
 

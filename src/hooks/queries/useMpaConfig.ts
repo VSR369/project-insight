@@ -5,6 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { CACHE_STABLE } from '@/config/queryCache';
 
 export interface MpaConfigEntry {
   id: string;
@@ -35,8 +36,7 @@ export function useMpaConfig() {
       if (error) throw new Error(error.message);
       return data as MpaConfigEntry[];
     },
-    staleTime: 5 * 60 * 1000,   // 5 minutes — config rarely changes
-    gcTime: 30 * 60 * 1000,
+    ...CACHE_STABLE,
   });
 }
 
