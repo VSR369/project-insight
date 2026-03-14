@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TaxonomyExportRow {

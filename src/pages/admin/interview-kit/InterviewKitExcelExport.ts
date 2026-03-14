@@ -3,7 +3,7 @@
  * Per Project Knowledge patterns for Excel import/export
  */
 
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import type { 
   InterviewKitQuestionWithRelations, 
   InterviewKitCompetency 

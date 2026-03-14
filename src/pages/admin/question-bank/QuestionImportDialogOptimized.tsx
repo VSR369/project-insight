@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle, SkipForward, Clock, Tags } from "lucide-react";
 
