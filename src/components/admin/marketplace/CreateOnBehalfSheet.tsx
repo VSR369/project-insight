@@ -22,10 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useCoreRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreateOnBehalfSheetProps {
   open: boolean;
