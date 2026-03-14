@@ -1,0 +1,6 @@
+INSERT INTO reassignment_requests (verification_id, requesting_admin_id, suggested_admin_id, reason, status, created_at, actioned_by_id, actioned_at, decline_reason)
+VALUES
+  ('65a1789a-5e40-4368-b1d6-1212b2b7c894', '7efa9bb0-5f1f-4263-b372-fc7f01a509e8', NULL, 'Conflict of interest — previously worked with this organization', 'PENDING', NOW() - INTERVAL '2 hours', NULL, NULL, NULL),
+  ('b29989e5-5bbf-4d17-8e0e-0b0db9804197', '51d718c6-bcb9-445b-ae00-b81931d71098', 'ff121ac9-b82e-434a-a0c5-e3bfaff3f5d4', 'Workload too high, SLA at risk — need immediate reassignment', 'PENDING', NOW() - INTERVAL '1 hour', NULL, NULL, NULL),
+  ('5c6a1247-7d31-46b7-a964-8152c7c02ac6', 'ff121ac9-b82e-434a-a0c5-e3bfaff3f5d4', NULL, 'Going on leave, need someone to take over', 'APPROVED', NOW() - INTERVAL '3 days', 'fff77a0e-2a01-4012-b233-dcbe2f58228c', NOW() - INTERVAL '2 days', NULL),
+  ('5c6a1247-7d31-46b7-a964-8152c7c02ac6', '7efa9bb0-5f1f-4263-b372-fc7f01a509e8', NULL, 'Not comfortable with this domain', 'DECLINED', NOW() - INTERVAL '5 days', 'fff77a0e-2a01-4012-b233-dcbe2f58228c', NOW() - INTERVAL '4 days', 'Insufficient justification — please continue with assigned verification')
