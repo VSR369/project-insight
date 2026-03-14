@@ -22,7 +22,7 @@ export function useReinterviewEligibility(enrollmentId: string | undefined) {
     queryKey: ['reinterview-eligibility', enrollmentId],
     queryFn: () => checkReinterviewEligibility(enrollmentId!),
     enabled: !!enrollmentId,
-    staleTime: 60 * 1000,
+    staleTime: CACHE_STANDARD.staleTime,
     refetchInterval,
   });
 }

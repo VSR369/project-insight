@@ -28,7 +28,7 @@ export function useTcVersionCheck(orgId: string | undefined, currentTcVersion: s
       return data as TcVersion | null;
     },
     enabled: !!orgId,
-    staleTime: 15 * 60 * 1000,
+    staleTime: CACHE_STATIC.staleTime,
   });
 
   const needsReAcceptance = !!latestVersion && latestVersion.version !== currentTcVersion;

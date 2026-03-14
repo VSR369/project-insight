@@ -37,7 +37,6 @@ export function useInterviewKitCompetencies() {
         color: c.color,
       }));
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes - reference data
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    ...CACHE_STABLE,
   });
 }

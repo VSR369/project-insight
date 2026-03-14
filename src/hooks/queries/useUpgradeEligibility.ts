@@ -13,6 +13,6 @@ export function useUpgradeEligibility(enrollmentId: string | undefined) {
     queryKey: ['upgrade-eligibility', enrollmentId],
     queryFn: () => checkUpgradeEligibility(enrollmentId!),
     enabled: !!enrollmentId,
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: CACHE_STANDARD.staleTime,
   });
 }

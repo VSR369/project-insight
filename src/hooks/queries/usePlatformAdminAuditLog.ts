@@ -27,6 +27,6 @@ export function usePlatformAdminAuditLog(adminId: string | undefined, page = 1, 
       return { data: data ?? [], total: count ?? 0, page, pageSize };
     },
     enabled: !!adminId,
-    staleTime: 30 * 1000,
+    staleTime: CACHE_FREQUENT.staleTime,
   });
 }

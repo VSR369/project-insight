@@ -36,8 +36,7 @@ export function useMpaConfig() {
       if (error) throw new Error(error.message);
       return data as MpaConfigEntry[];
     },
-    staleTime: 5 * 60 * 1000,   // 5 minutes — config rarely changes
-    gcTime: 30 * 60 * 1000,
+    ...CACHE_STABLE,
   });
 }
 

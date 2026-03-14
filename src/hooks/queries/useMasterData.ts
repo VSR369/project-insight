@@ -14,7 +14,7 @@ export function useCountries() {
       if (error) throw error;
       return data;
     },
-    ...MASTER_DATA_CACHE,
+    ...CACHE_STABLE,
   });
 }
 
@@ -30,7 +30,7 @@ export function useIndustrySegments() {
       if (error) throw error;
       return data;
     },
-    ...MASTER_DATA_CACHE,
+    ...CACHE_STABLE,
   });
 }
 
@@ -46,7 +46,7 @@ export function useExpertiseLevels() {
       if (error) throw error;
       return data;
     },
-    ...MASTER_DATA_CACHE,
+    ...CACHE_STABLE,
   });
 }
 
@@ -62,7 +62,7 @@ export function useParticipationModes() {
       if (error) throw error;
       return data;
     },
-    ...MASTER_DATA_CACHE,
+    ...CACHE_STABLE,
   });
 }
 
@@ -78,6 +78,6 @@ export function useOrganizationTypes() {
       if (error) throw error;
       return data;
     },
-    ...MASTER_DATA_CACHE,
+    ...CACHE_STABLE,
   });
 }

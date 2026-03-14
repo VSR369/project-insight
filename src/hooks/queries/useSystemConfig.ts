@@ -23,8 +23,7 @@ export function useSystemConfig() {
       if (error) throw new Error(error.message);
       return data as SystemConfigEntry[];
     },
-    staleTime: 15 * 60 * 1000, // Static config — 15 min
-    gcTime: 60 * 60 * 1000,
+    ...CACHE_STATIC,
   });
 }
 

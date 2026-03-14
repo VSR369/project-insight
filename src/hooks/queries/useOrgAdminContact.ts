@@ -36,7 +36,6 @@ export function useOrgAdminContact(orgId?: string) {
       } as OrgAdminContact;
     },
     enabled: !!orgId,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    ...CACHE_STABLE,
   });
 }

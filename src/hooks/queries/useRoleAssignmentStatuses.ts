@@ -27,7 +27,6 @@ export function useRoleAssignmentStatuses() {
       if (error) throw new Error(error.message);
       return (data ?? []) as RoleAssignmentStatus[];
     },
-    staleTime: 30 * 60 * 1000,
-    gcTime: 60 * 60 * 1000,
+    ...CACHE_STATIC,
   });
 }
