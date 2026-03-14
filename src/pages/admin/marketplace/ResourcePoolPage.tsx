@@ -181,7 +181,7 @@ export default function ResourcePoolPage() {
       <CreateOnBehalfSheet
         open={createOnBehalfOpen}
         onOpenChange={setCreateOnBehalfOpen}
-        organizations={[]}
+        organizations={orgOptions.map(o => ({ id: o.value, name: o.label }))}
       />
     </div>
   );
