@@ -235,7 +235,14 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('interview.view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Interview & Review</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Interview & Review</span>
+              <BookOpen
+                className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+                onClick={() => navigate('/admin/kc/interview-review')}
+                title="Interview & Review Help"
+              />
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {interviewItems.map((item) => renderMenuItem(item, pendingCount))}
