@@ -573,7 +573,8 @@ export function QuestionBankPage() {
   };
 
   // ===================== DOWNLOAD TEMPLATE =====================
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import("xlsx");
     const templateData = [
       [
         "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",

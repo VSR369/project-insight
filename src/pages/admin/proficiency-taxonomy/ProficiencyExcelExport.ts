@@ -211,6 +211,7 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
 
     reader.onload = async (e) => {
       try {
+        const XLSX = await import("xlsx");
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];

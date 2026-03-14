@@ -232,7 +232,8 @@ export async function parseInterviewKitExcel(file: File): Promise<ParsedQuestion
 /**
  * Export validation errors to Excel
  */
-export function exportValidationErrors(questions: ParsedQuestion[]): void {
+export async function exportValidationErrors(questions: ParsedQuestion[]): Promise<void> {
+  const XLSX = await import("xlsx");
   const errorRows = questions
     .filter((q) => q.errors.length > 0)
     .map((q) => ({

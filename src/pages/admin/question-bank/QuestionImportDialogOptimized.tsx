@@ -968,7 +968,8 @@ export function QuestionImportDialog({
     return new Set(validQuestions.map(q => q.speciality_id)).size;
   }, [parsedQuestions]);
 
-  const downloadExcelTemplate = () => {
+  const downloadExcelTemplate = async () => {
+    const XLSX = await import("xlsx");
     const questionsSheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
     const instructionsSheet = XLSX.utils.aoa_to_sheet(INSTRUCTIONS_SHEET_DATA);
 
