@@ -60,6 +60,9 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
     };
   });
 
+  const missingRoleNames = roleRows
+    .filter((r) => r.isMissingPerCache)
+    .map((r) => `${r.displayName} (${r.code})`);
   const missingCount = missingCodes.length;
 
   if (isLoading) {
