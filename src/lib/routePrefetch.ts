@@ -17,7 +17,6 @@ const ADMIN_ROUTE_IMPORTS: Record<string, () => Promise<any>> = {
   '/admin/master-data/functional-areas': () => import('@/pages/admin/functional-areas'),
 
   // Taxonomy
-  '/admin/master-data/academic-taxonomy': () => import('@/pages/admin/academic-taxonomy'),
   '/admin/master-data/proficiency-taxonomy': () => import('@/pages/admin/proficiency-taxonomy'),
 
   // Interview Setup

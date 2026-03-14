@@ -329,8 +329,8 @@ const dataQualityTests: TestCase[] = [
       runTest(async () => {
         // Test FK relationships by attempting joins
         const joins = [
-          { table: "academic_streams", join: "academic_disciplines(id)" },
-          { table: "academic_subjects", join: "academic_streams(id)" },
+          { table: "sub_domains", join: "proficiency_areas(id)" },
+          { table: "specialities", join: "sub_domains(id)" },
         ];
         for (const { table, join } of joins) {
           const { error } = await supabase.from(table as any).select(`id, ${join}`).limit(1);

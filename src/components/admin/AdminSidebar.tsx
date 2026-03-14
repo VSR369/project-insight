@@ -97,7 +97,6 @@ const complianceConfigItems = [
 ];
 
 const taxonomyItems = [
-  { title: 'Academic Taxonomy', icon: GraduationCap, path: '/admin/master-data/academic-taxonomy' },
   { title: 'Proficiency Taxonomy', icon: Network, path: '/admin/master-data/proficiency-taxonomy' },
 ];
 

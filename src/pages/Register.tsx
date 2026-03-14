@@ -535,66 +535,7 @@ export default function Register() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="disciplineId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Discipline</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  setSelectedDiscipline(value);
-                  form.setValue('streamId', '');
-                }}
-                value={field.value}
-                disabled={isLoading}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select discipline" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {disciplines?.map((discipline) => (
-                    <SelectItem key={discipline.id} value={discipline.id}>
-                      {discipline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
-
-      {selectedDiscipline && streams && streams.length > 0 && (
-        <FormField
-          control={form.control}
-          name="streamId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stream (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stream" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {streams.map((stream) => (
-                    <SelectItem key={stream.id} value={stream.id}>
-                      {stream.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
     </>
   );
 

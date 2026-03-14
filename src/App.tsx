@@ -580,7 +580,6 @@ const App = () => (
               <Route path="master-data/participation-modes" element={<TierGuard requiredTier="senior_admin"><ParticipationModesPage /></TierGuard>} />
               <Route path="master-data/expertise-levels" element={<TierGuard requiredTier="senior_admin"><ExpertiseLevelsPage /></TierGuard>} />
               {/* Taxonomy — senior_admin+ */}
-              <Route path="master-data/academic-taxonomy" element={<TierGuard requiredTier="senior_admin"><AcademicTaxonomyPage /></TierGuard>} />
               <Route path="master-data/proficiency-taxonomy" element={<TierGuard requiredTier="senior_admin"><ProficiencyTaxonomyPage /></TierGuard>} />
               <Route path="master-data/departments" element={<TierGuard requiredTier="senior_admin"><DepartmentsPage /></TierGuard>} />
               <Route path="master-data/functional-areas" element={<TierGuard requiredTier="senior_admin"><FunctionalAreasPage /></TierGuard>} />

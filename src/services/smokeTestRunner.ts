@@ -999,20 +999,6 @@ export const moduleTestConfigs: ModuleTestConfig[] = [
     cleanup: expertiseCleanup,
   },
   {
-    id: "academic-taxonomy",
-    name: "Academic Taxonomy",
-    path: "/admin/master-data/academic-taxonomy",
-    tests: [
-      { id: "academic-disciplines-read", operation: "read", label: "View Disciplines", run: academicDisciplinesRead },
-      { id: "academic-disciplines-create", operation: "create", label: "Create Discipline", run: academicDisciplinesCreate },
-      { id: "academic-streams-read", operation: "read", label: "View Streams", run: academicStreamsRead },
-      { id: "academic-streams-create", operation: "create", label: "Create Stream", run: academicStreamsCreate },
-      { id: "academic-subjects-read", operation: "read", label: "View Subjects", run: academicSubjectsRead },
-      { id: "academic-subjects-create", operation: "create", label: "Create Subject", run: academicSubjectsCreate },
-    ],
-    cleanup: academicCleanup,
-  },
-  {
     id: "proficiency-taxonomy",
     name: "Proficiency Taxonomy",
     path: "/admin/master-data/proficiency-taxonomy",

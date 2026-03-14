@@ -100,14 +100,6 @@ const sections: DashboardSection[] = [
     requiredTier: 'all',
   },
   {
-    title: 'Academic Taxonomy',
-    description: 'Disciplines, streams, and subjects',
-    icon: GraduationCap,
-    path: '/admin/master-data/academic-taxonomy',
-    color: 'text-pink-500',
-    requiredTier: 'all',
-  },
-  {
     title: 'Proficiency Taxonomy',
     description: 'Areas, sub-domains, and specialities',
     icon: Network,

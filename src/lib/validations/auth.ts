@@ -35,9 +35,6 @@ export const registerSchema = baseRegisterSchema.refine(
 const baseStudentSchema = baseRegisterSchema.extend({
   institution: z.string().min(2, 'Institution name is required'),
   graduationYear: z.number().min(2020, 'Invalid graduation year').max(2035, 'Invalid graduation year'),
-  disciplineId: z.string().min(1, 'Please select a discipline'),
-  streamId: z.string().optional(),
-  subjectId: z.string().optional(),
 });
 
 export const studentRegisterSchema = baseStudentSchema.refine(
