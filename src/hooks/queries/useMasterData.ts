@@ -1,16 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-
-/**
- * Master Data Cache Settings
- * 
- * Reference/lookup data is semi-static and rarely changes.
- * Use aggressive caching to minimize API calls.
- */
-const MASTER_DATA_CACHE = {
-  staleTime: 5 * 60 * 1000,   // 5 minutes - consider fresh
-  gcTime: 30 * 60 * 1000,     // 30 minutes - keep in cache
-};
+import { CACHE_STABLE } from '@/config/queryCache';
 
 export function useCountries() {
   return useQuery({
