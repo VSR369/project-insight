@@ -164,6 +164,7 @@ export interface ParsedQuestion {
 }
 
 export async function parseInterviewKitExcel(file: File): Promise<ParsedQuestion[]> {
+  const XLSX = await import("xlsx");
   const data = await file.arrayBuffer();
   const wb = XLSX.read(data, { type: "array" });
 
