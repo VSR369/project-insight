@@ -214,7 +214,14 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {(hasPermission('master_data.view') || hasPermission('taxonomy.view')) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Reference Data</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Reference Data</span>
+              <BookOpen
+                className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+                onClick={() => navigate('/admin/kc/reference-data')}
+                title="Reference Data Help"
+              />
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {referenceDataItems.map((item) => renderMenuItem(item))}
