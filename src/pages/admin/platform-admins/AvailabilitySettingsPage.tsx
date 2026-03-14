@@ -127,6 +127,7 @@ function AvailabilityContent() {
   const [leaveModalOpen, setLeaveModalOpen] = useState(false);
   const [restoreModalOpen, setRestoreModalOpen] = useState(false);
   const [bulkReassignOpen, setBulkReassignOpen] = useState(false);
+  const [showLeaveForm, setShowLeaveForm] = useState(false);
 
   useEffect(() => {
     if (profile) {
