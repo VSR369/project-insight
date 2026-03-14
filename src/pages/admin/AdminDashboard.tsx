@@ -6,7 +6,7 @@ import {
   Users, 
   Briefcase, 
   Award, 
-  GraduationCap, 
+   
   Network,
   FileQuestion,
   Link2,
