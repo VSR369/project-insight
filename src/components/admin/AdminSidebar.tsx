@@ -571,7 +571,14 @@ export function AdminSidebar() {
         {/* Personal items + supervisor admin section           */}
         {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>My Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <span className="flex-1">My Workspace</span>
+            <BookOpen
+              className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+              onClick={() => navigate('/admin/kc/my-workspace')}
+              title="My Workspace Help"
+            />
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* My Profile — always visible */}
