@@ -93,10 +93,11 @@ export async function downloadInterviewKitTemplate(): Promise<void> {
 /**
  * Export current questions data to Excel
  */
-export function exportInterviewKitQuestions(
+export async function exportInterviewKitQuestions(
   questions: InterviewKitQuestionWithRelations[],
   competencies: InterviewKitCompetency[]
-): void {
+): Promise<void> {
+  const XLSX = await import("xlsx");
   const competencyMap = new Map(competencies.map((c) => [c.id, c]));
 
   const exportData = questions.map((q) => ({
