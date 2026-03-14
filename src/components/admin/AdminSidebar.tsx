@@ -220,7 +220,12 @@ export function AdminSidebar() {
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {referenceDataItems.map((item) => renderMenuItem(item))}
+                {hasPermission('master_data.view') && referenceDataItems
+                  .filter((item) => item.path !== '/admin/master-data/proficiency-taxonomy')
+                  .map((item) => renderMenuItem(item))}
+                {hasPermission('taxonomy.view') && renderMenuItem(
+                  referenceDataItems.find((item) => item.path === '/admin/master-data/proficiency-taxonomy')!
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
@@ -250,6 +255,7 @@ export function AdminSidebar() {
         {/* Verifications, Knowledge Centre, Reassignments,    */}
         {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
         {/* ═══════════════════════════════════════════════════ */}
+        {hasPermission('verification.view') && (
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Operations</span>
@@ -354,10 +360,12 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* GROUP 5: Marketplace                               */}
         {/* ═══════════════════════════════════════════════════ */}
+        {hasPermission('marketplace.view') && (
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Marketplace</span>
@@ -434,6 +442,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* GROUP 6: Seeker Config (top-level, high-frequency) */}
