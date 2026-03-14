@@ -50,6 +50,14 @@ const pathNames: Record<string, string> = {
   'system-config': 'System Config',
   'domain-weights': 'Domain Match Weights',
   'verification-knowledge-centre': 'Knowledge Centre',
+  'kc': 'Knowledge Centre',
+  'dashboard': 'Dashboard',
+  'reference-data': 'Reference Data',
+  'interview-review': 'Interview & Review',
+  'marketplace': 'Marketplace',
+  'seeker-config': 'Seeker Config',
+  'content-invitations': 'Content & Invitations',
+  'my-workspace': 'My Workspace',
 };
 
 export function AdminHeader() {

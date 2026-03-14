@@ -55,6 +55,7 @@ import {
   KeyRound,
   ShieldCheck,
   UserCog,
+  BookOpen,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -196,7 +197,10 @@ export function AdminSidebar() {
                   isActive={location.pathname === '/admin'}
                 >
                   <LayoutDashboard className="h-4 w-4" />
-                  <span>Dashboard</span>
+                  <span className="flex-1">Dashboard</span>
+                  <span title="Dashboard Help" onClick={(e) => { e.stopPropagation(); navigate('/admin/kc/dashboard'); }} className="shrink-0 cursor-pointer">
+                    <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                  </span>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             </SidebarMenu>
@@ -208,7 +212,12 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {(hasPermission('master_data.view') || hasPermission('taxonomy.view')) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Reference Data</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Reference Data</span>
+              <span title="Reference Data Help" onClick={() => navigate('/admin/kc/reference-data')} className="shrink-0 cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+              </span>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {referenceDataItems.map((item) => renderMenuItem(item))}
@@ -222,7 +231,12 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('interview.view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Interview & Review</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Interview & Review</span>
+              <span title="Interview & Review Help" onClick={() => navigate('/admin/kc/interview-review')} className="shrink-0 cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+              </span>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {interviewItems.map((item) => renderMenuItem(item, pendingCount))}
@@ -237,7 +251,12 @@ export function AdminSidebar() {
         {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
         {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>Operations</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <span className="flex-1">Operations</span>
+            <span title="Operations Help" onClick={() => navigate('/admin/verification-knowledge-centre')} className="shrink-0 cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </span>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -340,7 +359,12 @@ export function AdminSidebar() {
         {/* GROUP 5: Marketplace                               */}
         {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>Marketplace</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <span className="flex-1">Marketplace</span>
+            <span title="Marketplace Help" onClick={() => navigate('/admin/kc/marketplace')} className="shrink-0 cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </span>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -416,7 +440,12 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('seeker_config.view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Seeker Config</span>
+              <span title="Seeker Config Help" onClick={() => navigate('/admin/kc/seeker-config')} className="shrink-0 cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+              </span>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {seekerConfigItems.map((item) => renderMenuItem(item))}
@@ -443,7 +472,12 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {(hasPermission('content.view_questions') || hasPermission('invitations.view')) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Content & Invitations</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Content & Invitations</span>
+              <span title="Content & Invitations Help" onClick={() => navigate('/admin/kc/content-invitations')} className="shrink-0 cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+              </span>
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {hasPermission('content.view_questions') && (
@@ -523,7 +557,12 @@ export function AdminSidebar() {
         {/* Personal items + supervisor admin section           */}
         {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>My Workspace</SidebarGroupLabel>
+          <SidebarGroupLabel className="flex items-center gap-1">
+            <span className="flex-1">My Workspace</span>
+            <span title="My Workspace Help" onClick={() => navigate('/admin/kc/my-workspace')} className="shrink-0 cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </span>
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {/* My Profile — always visible */}
