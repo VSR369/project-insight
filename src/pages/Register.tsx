@@ -120,8 +120,6 @@ export default function Register() {
       countryId: '',
       institution: '',
       graduationYear: new Date().getFullYear() + 1,
-      disciplineId: '',
-      streamId: '',
     },
   });
 
