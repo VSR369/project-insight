@@ -116,7 +116,6 @@ const IndustrySegmentsPage = lazy(() => import("@/pages/admin/industry-segments"
 const OrganizationTypesPage = lazy(() => import("@/pages/admin/organization-types").then(m => ({ default: m.OrganizationTypesPage })));
 const ParticipationModesPage = lazy(() => import("@/pages/admin/participation-modes").then(m => ({ default: m.ParticipationModesPage })));
 const ExpertiseLevelsPage = lazy(() => import("@/pages/admin/expertise-levels").then(m => ({ default: m.ExpertiseLevelsPage })));
-const AcademicTaxonomyPage = lazy(() => import("@/pages/admin/academic-taxonomy").then(m => ({ default: m.AcademicTaxonomyPage })));
 const ProficiencyTaxonomyPage = lazy(() => import("@/pages/admin/proficiency-taxonomy").then(m => ({ default: m.ProficiencyTaxonomyPage })));
 const QuestionBankPage = lazy(() => import("@/pages/admin/question-bank").then(m => ({ default: m.QuestionBankPage })));
 const CapabilityTagsPage = lazy(() => import("@/pages/admin/capability-tags").then(m => ({ default: m.CapabilityTagsPage })));
