@@ -97,14 +97,14 @@ const supabaseQueryTests: TestCase[] = [
     run: () =>
       runTest(async () => {
         const { data, error } = await supabase
-          .from("academic_streams")
-          .select("id, name, academic_disciplines(id, name)")
+          .from("sub_domains")
+          .select("id, name, proficiency_areas(id, name)")
           .limit(1);
         if (error) throw new Error(`FK join query failed: ${error.message}`);
         if (data && data.length > 0) {
           const row = data[0] as any;
-          if (!row.academic_disciplines) {
-            throw new Error("FK join did not return nested discipline data");
+          if (!row.proficiency_areas) {
+            throw new Error("FK join did not return nested proficiency_area data");
           }
         }
       }),
