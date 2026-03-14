@@ -63,7 +63,10 @@ import { useAdminTier } from '@/hooks/useAdminTier';
 import { usePlatformTierDepth } from '@/hooks/queries/useTierDepthConfig';
 import { prefetchRoute, prefetchAdminRoutes } from '@/lib/routePrefetch';
 
-const masterDataItems = [
+// ═══════════════════════════════════════════════════════════
+// Group 2: Reference Data (Master Data + Taxonomy merged)
+// ═══════════════════════════════════════════════════════════
+const referenceDataItems = [
   { title: 'Countries', icon: Globe, path: '/admin/master-data/countries' },
   { title: 'Industry Segments', icon: Briefcase, path: '/admin/master-data/industry-segments' },
   { title: 'Organization Types', icon: Building2, path: '/admin/master-data/organization-types' },
@@ -71,8 +74,22 @@ const masterDataItems = [
   { title: 'Expertise Levels', icon: Award, path: '/admin/master-data/expertise-levels' },
   { title: 'Departments', icon: Building2, path: '/admin/master-data/departments' },
   { title: 'Functional Areas', icon: Briefcase, path: '/admin/master-data/functional-areas' },
+  { title: 'Proficiency Taxonomy', icon: Network, path: '/admin/master-data/proficiency-taxonomy' },
 ];
 
+// ═══════════════════════════════════════════════════════════
+// Group 3: Interview & Review
+// ═══════════════════════════════════════════════════════════
+const interviewItems = [
+  { title: 'Interview KIT', icon: ClipboardList, path: '/admin/interview/kit' },
+  { title: 'Quorum Requirements', icon: Calendar, path: '/admin/interview/quorum-requirements' },
+  { title: 'Reviewer Availability', icon: CalendarClock, path: '/admin/interview/reviewer-availability' },
+  { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
+];
+
+// ═══════════════════════════════════════════════════════════
+// Group 6: Seeker Config (top-level, high-frequency access)
+// ═══════════════════════════════════════════════════════════
 const seekerConfigItems = [
   { title: 'Pricing Overview', icon: Activity, path: '/admin/seeker-config/pricing-overview' },
   { title: 'Subscription Tiers', icon: CreditCard, path: '/admin/seeker-config/subscription-tiers' },
@@ -96,19 +113,6 @@ const complianceConfigItems = [
   { title: 'Blocked Domains', icon: Shield, path: '/admin/seeker-config/blocked-domains' },
 ];
 
-const taxonomyItems = [
-  { title: 'Proficiency Taxonomy', icon: Network, path: '/admin/master-data/proficiency-taxonomy' },
-];
-
-const interviewItems = [
-  { title: 'Interview KIT', icon: ClipboardList, path: '/admin/interview/kit' },
-  { title: 'Quorum Requirements', icon: Calendar, path: '/admin/interview/quorum-requirements' },
-  { title: 'Reviewer Availability', icon: CalendarClock, path: '/admin/interview/reviewer-availability' },
-  { title: 'Reviewer Approvals', icon: UserCheck, path: '/admin/reviewer-approvals', hasBadge: true },
-];
-
-// seekerItems inlined into sidebar JSX — Org Approvals visible to all, Enterprise Agreements senior+
-
 export function AdminSidebar() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,20 +133,39 @@ export function AdminSidebar() {
     location.pathname.startsWith('/admin/invitations')
   );
 
+  // Auto-expand dev tools if on a dev tool route
+  const [devToolsOpen, setDevToolsOpen] = useState(
+    location.pathname === '/admin/regression-test-kit' ||
+    location.pathname === '/admin/pulse-social-test' ||
+    location.pathname === '/admin/smoke-test'
+  );
+
   const isActive = (path: string) => location.pathname === path;
   const isInvitationsActive = location.pathname.startsWith('/admin/invitations');
-
-  // Build team management items based on permissions
-  const teamManagementItems = [
-    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'Platform Admins', icon: Users2, path: '/admin/platform-admins' }] : []),
-    ...(hasPermission('supervisor.view_audit_logs') ? [{ title: 'Assignment Audit Log', icon: ScrollText, path: '/admin/assignment-audit-log' }] : []),
-    ...(hasPermission('admin_management.view_all_admins') ? [{ title: 'My Profile', icon: User, path: '/admin/my-profile' }] : []),
-  ];
 
   // Prefetch on hover handler
   const handleMouseEnter = useCallback((path: string) => {
     prefetchRoute(path);
   }, []);
+
+  // Helper to render a simple menu item
+  const renderMenuItem = (item: { title: string; icon: React.ElementType; path: string; hasBadge?: boolean }, badgeCount?: number) => (
+    <SidebarMenuItem key={item.path}>
+      <SidebarMenuButton
+        onClick={() => navigate(item.path)}
+        onMouseEnter={() => handleMouseEnter(item.path)}
+        isActive={isActive(item.path)}
+      >
+        <item.icon className="h-4 w-4" />
+        <span className="flex-1">{item.title}</span>
+        {item.hasBadge && badgeCount && badgeCount > 0 && (
+          <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+            {badgeCount}
+          </Badge>
+        )}
+      </SidebarMenuButton>
+    </SidebarMenuItem>
+  );
 
   return (
     <Sidebar className="border-r">
@@ -161,6 +184,9 @@ export function AdminSidebar() {
       </SidebarHeader>
       
       <SidebarContent>
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 1: Dashboard                                 */}
+        {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -177,79 +203,41 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {hasPermission('master_data.view') && (
-        <SidebarGroup>
-          <SidebarGroupLabel>Master Data</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {masterDataItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 2: Reference Data (Master Data + Taxonomy)   */}
+        {/* ═══════════════════════════════════════════════════ */}
+        {(hasPermission('master_data.view') || hasPermission('taxonomy.view')) && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Reference Data</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {referenceDataItems.map((item) => renderMenuItem(item))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
 
-        {hasPermission('taxonomy.view') && (
-        <SidebarGroup>
-          <SidebarGroupLabel>Taxonomy Management</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {taxonomyItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span>{item.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-        )}
-
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 3: Interview & Review                        */}
+        {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('interview.view') && (
-        <SidebarGroup>
-          <SidebarGroupLabel>Interview Setup</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {interviewItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
-                  <SidebarMenuButton
-                    onClick={() => navigate(item.path)}
-                    onMouseEnter={() => handleMouseEnter(item.path)}
-                    isActive={isActive(item.path)}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{item.title}</span>
-                    {item.hasBadge && pendingCount && pendingCount > 0 && (
-                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
-                        {pendingCount}
-                      </Badge>
-                    )}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+          <SidebarGroup>
+            <SidebarGroupLabel>Interview & Review</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {interviewItems.map((item) => renderMenuItem(item, pendingCount))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
 
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 4: Operations                                */}
+        {/* Verifications, Knowledge Centre, Reassignments,    */}
+        {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
+        {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>Verification</SidebarGroupLabel>
+          <SidebarGroupLabel>Operations</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               <SidebarMenuItem>
@@ -289,6 +277,36 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              {/* Org Approvals — ALL tiers */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/seeker-org-approvals')}
+                  onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
+                  isActive={isActive('/admin/seeker-org-approvals')}
+                >
+                  <UserCheck className="h-4 w-4" />
+                  <span className="flex-1">Org Approvals</span>
+                  {pendingSeekerCount && pendingSeekerCount > 0 && (
+                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                      {pendingSeekerCount}
+                    </Badge>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* Enterprise Agreements — senior+ */}
+              {hasPermission('org_approvals.manage_agreements') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/saas-agreements')}
+                    onMouseEnter={() => handleMouseEnter('/admin/saas-agreements')}
+                    isActive={isActive('/admin/saas-agreements')}
+                  >
+                    <ClipboardList className="h-4 w-4" />
+                    <span>Enterprise Agreements</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {/* Notification Audit — supervisor */}
               {hasPermission('supervisor.view_audit_logs') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -301,6 +319,7 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
+              {/* Team Performance — supervisor */}
               {hasPermission('supervisor.view_team_performance') && (
                 <SidebarMenuItem>
                   <SidebarMenuButton
@@ -313,58 +332,13 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/my-performance')}
-                  onMouseEnter={() => handleMouseEnter('/admin/my-performance')}
-                  isActive={location.pathname === '/admin/my-performance'}
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span>My Performance</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {/* GAP-3: My Availability as distinct sidebar item */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/availability')}
-                  onMouseEnter={() => handleMouseEnter('/admin/availability')}
-                  isActive={isActive('/admin/availability')}
-                >
-                  <CalendarHeart className="h-4 w-4" />
-                  <span>My Availability</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {/* System Config — supervisor only */}
-              {hasPermission('supervisor.configure_system') && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/system-config')}
-                    onMouseEnter={() => handleMouseEnter('/admin/system-config')}
-                    isActive={location.pathname.startsWith('/admin/system-config')}
-                  >
-                    <Settings className="h-4 w-4" />
-                    <span>System Config</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-              {/* GAP-2: Permissions Management — supervisor only */}
-              {hasPermission('supervisor.manage_permissions') && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/permissions')}
-                    onMouseEnter={() => handleMouseEnter('/admin/permissions')}
-                    isActive={isActive('/admin/permissions')}
-                  >
-                    <KeyRound className="h-4 w-4" />
-                    <span>Permissions</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* MARKETPLACE — core items visible to ALL tiers, config items senior+ */}
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 5: Marketplace                               */}
+        {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
           <SidebarGroupLabel>Marketplace</SidebarGroupLabel>
           <SidebarGroupContent>
@@ -437,80 +411,15 @@ export function AdminSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {/* Org Approvals — ALL tiers; Enterprise Agreements — senior+ */}
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/seeker-org-approvals')}
-                  onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
-                  isActive={isActive('/admin/seeker-org-approvals')}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  <span className="flex-1">Org Approvals</span>
-                  {pendingSeekerCount && pendingSeekerCount > 0 && (
-                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
-                      {pendingSeekerCount}
-                    </Badge>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              {hasPermission('org_approvals.manage_agreements') && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/saas-agreements')}
-                    onMouseEnter={() => handleMouseEnter('/admin/saas-agreements')}
-                    isActive={isActive('/admin/saas-agreements')}
-                  >
-                    <ClipboardList className="h-4 w-4" />
-                    <span>Enterprise Agreements</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        {hasPermission('admin_management.view_all_admins') && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Team Management</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                {teamManagementItems.map((item) => (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(item.path)}
-                      onMouseEnter={() => handleMouseEnter(item.path)}
-                      isActive={isActive(item.path)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 6: Seeker Config (top-level, high-frequency) */}
+        {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('seeker_config.view') && (
           <SidebarGroup>
             <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-              {seekerConfigItems.map((item) => (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(item.path)}
-                      onMouseEnter={() => handleMouseEnter(item.path)}
-                      isActive={isActive(item.path)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {seekerConfigItems.map((item) => renderMenuItem(item))}
                 {hasPermission('seeker_config.view_shadow_pricing') && (
                   <SidebarMenuItem key="/admin/seeker-config/shadow-pricing">
                     <SidebarMenuButton
@@ -523,124 +432,133 @@ export function AdminSidebar() {
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 )}
-                {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => (
-                  <SidebarMenuItem key={item.path}>
-                    <SidebarMenuButton
-                      onClick={() => navigate(item.path)}
-                      onMouseEnter={() => handleMouseEnter(item.path)}
-                      isActive={isActive(item.path)}
-                    >
-                      <item.icon className="h-4 w-4" />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {hasPermission('seeker_config.manage_compliance') && complianceConfigItems.map((item) => renderMenuItem(item))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {/* Invitations — dynamic permission */}
-        {hasPermission('invitations.view') && (
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 7: Content & Invitations                     */}
+        {/* ═══════════════════════════════════════════════════ */}
+        {(hasPermission('content.view_questions') || hasPermission('invitations.view')) && (
           <SidebarGroup>
-            <SidebarGroupLabel>Invitations</SidebarGroupLabel>
+            <SidebarGroupLabel>Content & Invitations</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                <Collapsible
-                  open={invitationsOpen}
-                  onOpenChange={setInvitationsOpen}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    <CollapsibleTrigger asChild>
-                      <SidebarMenuButton isActive={isInvitationsActive}>
-                        <Mail className="h-4 w-4" />
-                        <span className="flex-1">Invitations</span>
-                        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                {hasPermission('content.view_questions') && (
+                  <>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => navigate('/admin/questions')}
+                        onMouseEnter={() => handleMouseEnter('/admin/questions')}
+                        isActive={isActive('/admin/questions')}
+                      >
+                        <FileQuestion className="h-4 w-4" />
+                        <span>Question Bank</span>
                       </SidebarMenuButton>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent>
-                      <SidebarMenuSub>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => navigate('/admin/invitations')}
-                            onMouseEnter={() => handleMouseEnter('/admin/invitations')}
-                            isActive={isActive('/admin/invitations')}
-                            className="cursor-pointer"
-                          >
-                            <ChevronRight className="h-3 w-3 mr-1" />
-                            Solution Provider
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                        <SidebarMenuSubItem>
-                          <SidebarMenuSubButton
-                            onClick={() => navigate('/admin/invitations/panel-reviewers')}
-                            onMouseEnter={() => handleMouseEnter('/admin/invitations/panel-reviewers')}
-                            isActive={isActive('/admin/invitations/panel-reviewers')}
-                            className="cursor-pointer"
-                          >
-                            <ChevronRight className="h-3 w-3 mr-1" />
-                            Panel Reviewer
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      </SidebarMenuSub>
-                    </CollapsibleContent>
-                  </SidebarMenuItem>
-                </Collapsible>
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                      <SidebarMenuButton
+                        onClick={() => navigate('/admin/capability-tags')}
+                        onMouseEnter={() => handleMouseEnter('/admin/capability-tags')}
+                        isActive={isActive('/admin/capability-tags')}
+                      >
+                        <Tags className="h-4 w-4" />
+                        <span>Capability Tags</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  </>
+                )}
+                {hasPermission('invitations.view') && (
+                  <Collapsible
+                    open={invitationsOpen}
+                    onOpenChange={setInvitationsOpen}
+                    className="group/collapsible"
+                  >
+                    <SidebarMenuItem>
+                      <CollapsibleTrigger asChild>
+                        <SidebarMenuButton isActive={isInvitationsActive}>
+                          <Mail className="h-4 w-4" />
+                          <span className="flex-1">Invitations</span>
+                          <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/collapsible:rotate-90" />
+                        </SidebarMenuButton>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent>
+                        <SidebarMenuSub>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              onClick={() => navigate('/admin/invitations')}
+                              onMouseEnter={() => handleMouseEnter('/admin/invitations')}
+                              isActive={isActive('/admin/invitations')}
+                              className="cursor-pointer"
+                            >
+                              <ChevronRight className="h-3 w-3 mr-1" />
+                              Solution Provider
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                          <SidebarMenuSubItem>
+                            <SidebarMenuSubButton
+                              onClick={() => navigate('/admin/invitations/panel-reviewers')}
+                              onMouseEnter={() => handleMouseEnter('/admin/invitations/panel-reviewers')}
+                              isActive={isActive('/admin/invitations/panel-reviewers')}
+                              className="cursor-pointer"
+                            >
+                              <ChevronRight className="h-3 w-3 mr-1" />
+                              Panel Reviewer
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        </SidebarMenuSub>
+                      </CollapsibleContent>
+                    </SidebarMenuItem>
+                  </Collapsible>
+                )}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
         )}
 
-        {/* Question Bank & Capability Tags — dynamic permission */}
-        {hasPermission('content.view_questions') && (
-          <SidebarGroup>
-            <SidebarGroupLabel>Content</SidebarGroupLabel>
-            <SidebarGroupContent>
-              <SidebarMenu>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/questions')}
-                    onMouseEnter={() => handleMouseEnter('/admin/questions')}
-                    isActive={isActive('/admin/questions')}
-                  >
-                    <FileQuestion className="h-4 w-4" />
-                    <span>Question Bank</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/capability-tags')}
-                    onMouseEnter={() => handleMouseEnter('/admin/capability-tags')}
-                    isActive={isActive('/admin/capability-tags')}
-                  >
-                    <Tags className="h-4 w-4" />
-                    <span>Capability Tags</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        )}
-
+        {/* ═══════════════════════════════════════════════════ */}
+        {/* GROUP 8: My Workspace                              */}
+        {/* Personal items + supervisor admin section           */}
+        {/* ═══════════════════════════════════════════════════ */}
         <SidebarGroup>
-          <SidebarGroupLabel>Other</SidebarGroupLabel>
+          <SidebarGroupLabel>My Workspace</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {/* My Profile — shown here for basic admin since Team Management is hidden */}
-              {!hasPermission('admin_management.view_all_admins') && (
-                <SidebarMenuItem>
-                  <SidebarMenuButton
-                    onClick={() => navigate('/admin/my-profile')}
-                    onMouseEnter={() => handleMouseEnter('/admin/my-profile')}
-                    isActive={isActive('/admin/my-profile')}
-                  >
-                    <User className="h-4 w-4" />
-                    <span>My Profile</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              )}
-
+              {/* My Profile — always visible */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/my-profile')}
+                  onMouseEnter={() => handleMouseEnter('/admin/my-profile')}
+                  isActive={isActive('/admin/my-profile')}
+                >
+                  <User className="h-4 w-4" />
+                  <span>My Profile</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* My Performance — always visible */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/my-performance')}
+                  onMouseEnter={() => handleMouseEnter('/admin/my-performance')}
+                  isActive={location.pathname === '/admin/my-performance'}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span>My Performance</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              {/* My Availability — always visible */}
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  onClick={() => navigate('/admin/availability')}
+                  onMouseEnter={() => handleMouseEnter('/admin/availability')}
+                  isActive={isActive('/admin/availability')}
+                >
+                  <CalendarHeart className="h-4 w-4" />
+                  <span>My Availability</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
               {/* Settings */}
               {hasPermission('admin_management.view_settings') && (
                 <SidebarMenuItem>
@@ -655,40 +573,116 @@ export function AdminSidebar() {
                 </SidebarMenuItem>
               )}
 
-              {/* Test items — supervisor only */}
+              {/* ── Supervisor section ── */}
+              {hasPermission('admin_management.view_all_admins') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/platform-admins')}
+                    onMouseEnter={() => handleMouseEnter('/admin/platform-admins')}
+                    isActive={isActive('/admin/platform-admins')}
+                  >
+                    <Users2 className="h-4 w-4" />
+                    <span>Platform Admins</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {hasPermission('supervisor.view_audit_logs') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/assignment-audit-log')}
+                    onMouseEnter={() => handleMouseEnter('/admin/assignment-audit-log')}
+                    isActive={isActive('/admin/assignment-audit-log')}
+                  >
+                    <ScrollText className="h-4 w-4" />
+                    <span>Assignment Audit Log</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {hasPermission('supervisor.configure_system') && (
-                <>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/system-config')}
+                    onMouseEnter={() => handleMouseEnter('/admin/system-config')}
+                    isActive={location.pathname.startsWith('/admin/system-config')}
+                  >
+                    <Settings className="h-4 w-4" />
+                    <span>System Config</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+              {hasPermission('supervisor.manage_permissions') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/permissions')}
+                    onMouseEnter={() => handleMouseEnter('/admin/permissions')}
+                    isActive={isActive('/admin/permissions')}
+                  >
+                    <KeyRound className="h-4 w-4" />
+                    <span>Permissions</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
+
+              {/* ── Dev Tools (collapsible, supervisor only) ── */}
+              {hasPermission('supervisor.configure_system') && (
+                <Collapsible
+                  open={devToolsOpen}
+                  onOpenChange={setDevToolsOpen}
+                  className="group/devtools"
+                >
                   <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => navigate('/admin/regression-test-kit')}
-                      onMouseEnter={() => handleMouseEnter('/admin/regression-test-kit')}
-                      isActive={isActive('/admin/regression-test-kit')}
-                    >
-                      <TestTube2 className="h-4 w-4" />
-                      <span>Regression Test Kit</span>
-                    </SidebarMenuButton>
+                    <CollapsibleTrigger asChild>
+                      <SidebarMenuButton
+                        isActive={
+                          isActive('/admin/regression-test-kit') ||
+                          isActive('/admin/pulse-social-test') ||
+                          isActive('/admin/smoke-test')
+                        }
+                      >
+                        <TestTube2 className="h-4 w-4" />
+                        <span className="flex-1">Dev Tools</span>
+                        <ChevronRight className="h-4 w-4 transition-transform group-data-[state=open]/devtools:rotate-90" />
+                      </SidebarMenuButton>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent>
+                      <SidebarMenuSub>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => navigate('/admin/regression-test-kit')}
+                            onMouseEnter={() => handleMouseEnter('/admin/regression-test-kit')}
+                            isActive={isActive('/admin/regression-test-kit')}
+                            className="cursor-pointer"
+                          >
+                            <ChevronRight className="h-3 w-3 mr-1" />
+                            Regression Test Kit
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => navigate('/admin/pulse-social-test')}
+                            onMouseEnter={() => handleMouseEnter('/admin/pulse-social-test')}
+                            isActive={isActive('/admin/pulse-social-test')}
+                            className="cursor-pointer"
+                          >
+                            <ChevronRight className="h-3 w-3 mr-1" />
+                            Social Channel Test
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => navigate('/admin/smoke-test')}
+                            onMouseEnter={() => handleMouseEnter('/admin/smoke-test')}
+                            isActive={isActive('/admin/smoke-test')}
+                            className="cursor-pointer"
+                          >
+                            <ChevronRight className="h-3 w-3 mr-1" />
+                            Smoke Test
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      </SidebarMenuSub>
+                    </CollapsibleContent>
                   </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => navigate('/admin/pulse-social-test')}
-                      onMouseEnter={() => handleMouseEnter('/admin/pulse-social-test')}
-                      isActive={isActive('/admin/pulse-social-test')}
-                    >
-                      <Activity className="h-4 w-4" />
-                      <span>Social Channel Test</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => navigate('/admin/smoke-test')}
-                      onMouseEnter={() => handleMouseEnter('/admin/smoke-test')}
-                      isActive={isActive('/admin/smoke-test')}
-                    >
-                      <Shield className="h-4 w-4" />
-                      <span>Smoke Test</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
+                </Collapsible>
               )}
             </SidebarMenu>
           </SidebarGroupContent>
