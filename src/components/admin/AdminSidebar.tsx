@@ -149,6 +149,11 @@ export function AdminSidebar() {
     prefetchRoute(path);
   }, []);
 
+  // Memoized navigation handler to avoid inline arrow functions
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
+
   // Helper to render a simple menu item
   const renderMenuItem = (item: { title: string; icon: React.ElementType; path: string; hasBadge?: boolean }, badgeCount?: number) => (
     <SidebarMenuItem key={item.path}>
