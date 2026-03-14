@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, AlertTriangle, Send, Download, PlayCircle } from 'lucide-react';
-import html2pdf from 'html2pdf.js';
+// html2pdf dynamically imported at point-of-use to reduce initial bundle
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
