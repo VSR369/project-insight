@@ -116,7 +116,6 @@ const IndustrySegmentsPage = lazy(() => import("@/pages/admin/industry-segments"
 const OrganizationTypesPage = lazy(() => import("@/pages/admin/organization-types").then(m => ({ default: m.OrganizationTypesPage })));
 const ParticipationModesPage = lazy(() => import("@/pages/admin/participation-modes").then(m => ({ default: m.ParticipationModesPage })));
 const ExpertiseLevelsPage = lazy(() => import("@/pages/admin/expertise-levels").then(m => ({ default: m.ExpertiseLevelsPage })));
-const AcademicTaxonomyPage = lazy(() => import("@/pages/admin/academic-taxonomy").then(m => ({ default: m.AcademicTaxonomyPage })));
 const ProficiencyTaxonomyPage = lazy(() => import("@/pages/admin/proficiency-taxonomy").then(m => ({ default: m.ProficiencyTaxonomyPage })));
 const QuestionBankPage = lazy(() => import("@/pages/admin/question-bank").then(m => ({ default: m.QuestionBankPage })));
 const CapabilityTagsPage = lazy(() => import("@/pages/admin/capability-tags").then(m => ({ default: m.CapabilityTagsPage })));
@@ -581,7 +580,6 @@ const App = () => (
               <Route path="master-data/participation-modes" element={<TierGuard requiredTier="senior_admin"><ParticipationModesPage /></TierGuard>} />
               <Route path="master-data/expertise-levels" element={<TierGuard requiredTier="senior_admin"><ExpertiseLevelsPage /></TierGuard>} />
               {/* Taxonomy — senior_admin+ */}
-              <Route path="master-data/academic-taxonomy" element={<TierGuard requiredTier="senior_admin"><AcademicTaxonomyPage /></TierGuard>} />
               <Route path="master-data/proficiency-taxonomy" element={<TierGuard requiredTier="senior_admin"><ProficiencyTaxonomyPage /></TierGuard>} />
               <Route path="master-data/departments" element={<TierGuard requiredTier="senior_admin"><DepartmentsPage /></TierGuard>} />
               <Route path="master-data/functional-areas" element={<TierGuard requiredTier="senior_admin"><FunctionalAreasPage /></TierGuard>} />

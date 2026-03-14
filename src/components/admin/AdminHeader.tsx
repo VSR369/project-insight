@@ -41,7 +41,6 @@ const pathNames: Record<string, string> = {
   'organization-types': 'Organization Types',
   'participation-modes': 'Participation Modes',
   'expertise-levels': 'Expertise Levels',
-  'academic-taxonomy': 'Academic Taxonomy',
   'proficiency-taxonomy': 'Proficiency Taxonomy',
   'level-speciality-map': 'Level-Speciality Map',
   'questions': 'Question Bank',

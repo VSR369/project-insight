@@ -2182,21 +2182,6 @@ const systemSettingsTests: TestCase[] = [
     }),
   },
   {
-    id: "SS-005",
-    category: "system-settings",
-    name: "Academic taxonomy exists",
-    description: "Schema validation for academic_disciplines",
-    run: () => runTest(async () => {
-      const { error } = await supabase
-        .from("academic_disciplines")
-        .select("id, name")
-        .eq("is_active", true)
-        .limit(1);
-      
-      if (error) throw new Error(`academic_disciplines table missing: ${error.message}`);
-    }),
-  },
-  {
     id: "SS-006",
     category: "system-settings",
     name: "Student profiles table exists",

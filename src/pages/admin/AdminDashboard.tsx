@@ -6,7 +6,7 @@ import {
   Users, 
   Briefcase, 
   Award, 
-  GraduationCap, 
+   
   Network,
   FileQuestion,
   Link2,
@@ -97,14 +97,6 @@ const sections: DashboardSection[] = [
     icon: Award,
     path: '/admin/master-data/expertise-levels',
     color: 'text-yellow-500',
-    requiredTier: 'all',
-  },
-  {
-    title: 'Academic Taxonomy',
-    description: 'Disciplines, streams, and subjects',
-    icon: GraduationCap,
-    path: '/admin/master-data/academic-taxonomy',
-    color: 'text-pink-500',
     requiredTier: 'all',
   },
   {

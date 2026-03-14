@@ -44,62 +44,6 @@ export function useIndustrySegments() {
   });
 }
 
-export function useAcademicDisciplines() {
-  return useQuery({
-    queryKey: ['academic_disciplines'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('academic_disciplines')
-        .select('id, name')
-        .order('display_order', { ascending: true });
-      
-      if (error) throw error;
-      return data;
-    },
-    ...MASTER_DATA_CACHE,
-  });
-}
-
-export function useAcademicStreams(disciplineId?: string) {
-  return useQuery({
-    queryKey: ['academic_streams', disciplineId],
-    queryFn: async () => {
-      if (!disciplineId) return [];
-      
-      const { data, error } = await supabase
-        .from('academic_streams')
-        .select('id, name')
-        .eq('discipline_id', disciplineId)
-        .order('display_order', { ascending: true });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!disciplineId,
-    ...MASTER_DATA_CACHE,
-  });
-}
-
-export function useAcademicSubjects(streamId?: string) {
-  return useQuery({
-    queryKey: ['academic_subjects', streamId],
-    queryFn: async () => {
-      if (!streamId) return [];
-      
-      const { data, error } = await supabase
-        .from('academic_subjects')
-        .select('id, name')
-        .eq('stream_id', streamId)
-        .order('display_order', { ascending: true });
-      
-      if (error) throw error;
-      return data;
-    },
-    enabled: !!streamId,
-    ...MASTER_DATA_CACHE,
-  });
-}
-
 export function useExpertiseLevels() {
   return useQuery({
     queryKey: ['expertise_levels'],

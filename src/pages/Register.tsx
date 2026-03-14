@@ -14,7 +14,7 @@ import {
   ReviewerRegisterFormData,
   AdminRegisterFormData 
 } from '@/lib/validations/auth';
-import { useCountries, useAcademicDisciplines, useAcademicStreams } from '@/hooks/queries/useMasterData';
+import { useCountries } from '@/hooks/queries/useMasterData';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { getStoredInvitationData, clearStoredInvitationData, type InvitationData } from '@/hooks/queries/useValidateInvitation';
@@ -75,7 +75,6 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeRole, setActiveRole] = useState<RoleTab>('provider');
   const [providerSubTab, setProviderSubTab] = useState<ProviderSubTab>('experienced');
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('');
   const [invitationData, setInvitationData] = useState<InvitationData | null>(null);
 
   // ═══════════════════════════════════════════
@@ -87,10 +86,8 @@ export default function Register() {
 
   // Fetch master data
   const { data: countries } = useCountries();
-  const { data: disciplines } = useAcademicDisciplines();
   const { data: industrySegments } = useIndustrySegments();
   const { data: expertiseLevels } = useExpertiseLevels();
-  const { data: streams } = useAcademicStreams(selectedDiscipline);
 
   // ═══════════════════════════════════════════
   // SECTION 3: Form hooks (React Hook Form)
@@ -123,8 +120,6 @@ export default function Register() {
       countryId: '',
       institution: '',
       graduationYear: new Date().getFullYear() + 1,
-      disciplineId: '',
-      streamId: '',
     },
   });
 
@@ -540,66 +535,7 @@ export default function Register() {
           )}
         />
 
-        <FormField
-          control={form.control}
-          name="disciplineId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Discipline</FormLabel>
-              <Select
-                onValueChange={(value) => {
-                  field.onChange(value);
-                  setSelectedDiscipline(value);
-                  form.setValue('streamId', '');
-                }}
-                value={field.value}
-                disabled={isLoading}
-              >
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select discipline" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {disciplines?.map((discipline) => (
-                    <SelectItem key={discipline.id} value={discipline.id}>
-                      {discipline.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
       </div>
-
-      {selectedDiscipline && streams && streams.length > 0 && (
-        <FormField
-          control={form.control}
-          name="streamId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Stream (Optional)</FormLabel>
-              <Select onValueChange={field.onChange} value={field.value} disabled={isLoading}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select stream" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {streams.map((stream) => (
-                    <SelectItem key={stream.id} value={stream.id}>
-                      {stream.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-      )}
     </>
   );
 
