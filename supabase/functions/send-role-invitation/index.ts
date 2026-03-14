@@ -42,6 +42,16 @@ serve(async (req) => {
     const siteUrl = Deno.env.get("SITE_URL") || "https://schema-whisperer-72.lovable.app";
     const inviteLink = `${siteUrl}/org/role-invitation?token=${assignment.acceptance_token}`;
 
+    // Determine from address and recipient based on domain verification
+    // RESEND_FROM_ADDRESS should be set to an email on your verified domain (e.g. noreply@yourdomain.com)
+    // If not set, falls back to sandbox mode (onboarding@resend.dev → own email only)
+    const verifiedFromAddress = Deno.env.get("RESEND_FROM_ADDRESS");
+    const sandboxRecipient = Deno.env.get("RESEND_VERIFIED_EMAIL") || "vsr0001@gmail.com";
+
+    const isSandboxMode = !verifiedFromAddress;
+    const fromAddress = isSandboxMode ? "onboarding@resend.dev" : verifiedFromAddress;
+    const toAddress = isSandboxMode ? sandboxRecipient : assignment.user_email;
+
     // Send email via Resend
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -50,14 +60,15 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "noreply@resend.dev",
-        to: [assignment.user_email],
+        from: fromAddress,
+        to: [toAddress],
         subject: `You've been invited to the ${roleName} role${org_name ? ` at ${org_name}` : ""}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
             <h2 style="color:#1a1a1a;">Role Invitation</h2>
             <p>Hello ${assignment.user_name || "there"},</p>
             <p>You have been invited to join as <strong>${roleName}</strong>${org_name ? ` at <strong>${org_name}</strong>` : ""}.</p>
+            ${isSandboxMode ? `<p style="color:#b45309;font-size:12px;background:#fef3c7;padding:8px 12px;border-radius:6px;">⚠️ Sandbox mode: This email was redirected to ${sandboxRecipient}. Original recipient: ${assignment.user_email}. To send to actual recipients, verify a domain at resend.com/domains.</p>` : ""}
             <p>Please click the link below to accept or decline this invitation:</p>
             <p style="margin:24px 0;">
               <a href="${inviteLink}" style="background-color:hsl(222.2,47.4%,11.2%);color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">
@@ -76,7 +87,15 @@ serve(async (req) => {
     }
 
     return new Response(
-      JSON.stringify({ success: true, data: { assignment_id } }),
+      JSON.stringify({
+        success: true,
+        data: {
+          assignment_id,
+          sandbox_mode: isSandboxMode,
+          delivered_to: toAddress,
+          original_recipient: assignment.user_email,
+        },
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
