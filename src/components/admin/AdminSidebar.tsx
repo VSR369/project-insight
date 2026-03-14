@@ -255,6 +255,7 @@ export function AdminSidebar() {
         {/* Verifications, Knowledge Centre, Reassignments,    */}
         {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
         {/* ═══════════════════════════════════════════════════ */}
+        {hasPermission('verification.view') && (
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Operations</span>
