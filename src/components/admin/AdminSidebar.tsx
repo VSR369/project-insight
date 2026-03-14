@@ -361,11 +361,9 @@ export function AdminSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Marketplace</span>
-            <BookOpen
-              className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
-              onClick={() => navigate('/admin/kc/marketplace')}
-              title="Marketplace Help"
-            />
+            <span title="Marketplace Help" onClick={() => navigate('/admin/kc/marketplace')} className="shrink-0 cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </span>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
