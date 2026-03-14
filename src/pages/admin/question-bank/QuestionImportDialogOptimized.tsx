@@ -404,6 +404,7 @@ export function QuestionImportDialog({
 
   // Chunked Excel parsing with progress updates
   const parseExcelChunked = async (file: File): Promise<ParsedQuestion[]> => {
+    const XLSX = await import("xlsx");
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
