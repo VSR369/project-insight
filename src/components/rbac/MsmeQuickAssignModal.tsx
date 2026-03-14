@@ -119,6 +119,20 @@ export function MsmeQuickAssignModal({ open, onOpenChange, orgId, assignments }:
     }
   }, [recovery, open, form]);
 
+  // Sync form fields when switching tabs — prevents silent Zod validation failures
+  useEffect(() => {
+    if (activeTab === "myself" && adminEmail) {
+      form.setValue("user_name", adminName);
+      form.setValue("user_email", adminEmail);
+    } else if (activeTab === "new_user") {
+      form.setValue("user_name", "");
+      form.setValue("user_email", "");
+    } else if (activeTab === "existing") {
+      setSelectedMemberEmail(null);
+    }
+    form.setValue("selected_roles", []);
+  }, [activeTab, adminEmail, adminName, form]);
+
   const selectedRoles = form.watch("selected_roles");
   const userEmail = form.watch("user_email");
 
