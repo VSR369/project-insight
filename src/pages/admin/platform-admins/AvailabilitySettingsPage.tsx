@@ -246,8 +246,8 @@ function AvailabilityContent() {
         </AlertDescription>
       </Alert>
 
-      {/* Don't show the status change card for auto-calculated statuses */}
-      {!isAutoStatus && (
+      {/* Status change / leave scheduling card — shown for all statuses except On_Leave */}
+      {!isCurrentlyOnLeave && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -255,97 +255,135 @@ function AvailabilityContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {!isCurrentlyOnLeave && (
-              <>
-                <div className="space-y-2">
-                  <Label>New Status</Label>
-                  <Select value={effectiveStatus} onValueChange={setStatus}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Available">Available</SelectItem>
-                      <SelectItem value="On_Leave">On Leave</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {/* BR-MPA-001 block */}
-                {blockLeave && (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      You are the last Available admin. At least one admin must remain Available.
-                      Going on leave is blocked until another admin becomes available.
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {isGoingOnLeave && !blockLeave && (
-                  <>
-                    {leaveStart && (
-                      isImmediate ? (
-                        <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>
-                            <strong>Immediate leave:</strong> Your leave starts today. Pending verifications will need to be reassigned.
-                          </AlertDescription>
-                        </Alert>
-                      ) : leaveStart > today ? (
-                        <Alert className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
-                          <Info className="h-4 w-4" />
-                          <AlertDescription>
-                            <strong>Scheduled leave:</strong> You will continue receiving assignments until {leaveStart}.
-                          </AlertDescription>
-                        </Alert>
-                      ) : null
-                    )}
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Leave Start Date</Label>
-                        <Input
-                          type="date"
-                          value={leaveStart}
-                          onChange={(e) => setLeaveStart(e.target.value)}
-                          min={today}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Leave End Date</Label>
-                        <Input
-                          type="date"
-                          value={leaveEnd}
-                          onChange={(e) => setLeaveEnd(e.target.value)}
-                          min={leaveStart || today}
-                        />
-                      </div>
-                    </div>
-                  </>
-                )}
-              </>
+            {/* Non-auto statuses: show status dropdown */}
+            {!isAutoStatus && (
+              <div className="space-y-2">
+                <Label>New Status</Label>
+                <Select value={effectiveStatus} onValueChange={setStatus}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Available">Available</SelectItem>
+                    <SelectItem value="On_Leave">On Leave</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
-            {isCurrentlyOnLeave && (
-              <p className="text-sm text-muted-foreground">
-                You are currently on leave. Use the <strong>"Restore to Available"</strong> button above to return.
-              </p>
-            )}
-
-            {!isCurrentlyOnLeave && (
-              <div className="flex justify-end gap-3 pt-2">
-                <Button variant="outline" onClick={() => navigate('/admin/my-profile')}>
-                  Cancel
-                </Button>
+            {/* Auto-status: show "Schedule Leave" button to reveal date fields */}
+            {isAutoStatus && !showLeaveForm && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Your status is auto-managed, but you can still schedule leave.
+                </p>
                 <Button
-                  onClick={handleSave}
-                  disabled={updateAvailability.isPending || blockLeave || (isGoingOnLeave && (!leaveStart || !leaveEnd))}
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowLeaveForm(true)}
                 >
-                  {updateAvailability.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                  Save
+                  <Calendar className="mr-1.5 h-4 w-4" />
+                  Schedule Leave
                 </Button>
               </div>
             )}
+
+            {/* Cancel leave scheduling for auto-status */}
+            {isAutoStatus && showLeaveForm && (
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-medium">Schedule Leave</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowLeaveForm(false);
+                    setLeaveStart('');
+                    setLeaveEnd('');
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
+
+            {/* BR-MPA-001 block */}
+            {blockLeave && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  You are the last Available admin. At least one admin must remain Available.
+                  Going on leave is blocked until another admin becomes available.
+                </AlertDescription>
+              </Alert>
+            )}
+
+            {/* Leave date fields — shown for both manual On_Leave selection and auto-status Schedule Leave */}
+            {isGoingOnLeave && !blockLeave && (
+              <>
+                {leaveStart && (
+                  isImmediate ? (
+                    <Alert className="border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-200">
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Immediate leave:</strong> Your leave starts today. Pending verifications will need to be reassigned.
+                      </AlertDescription>
+                    </Alert>
+                  ) : leaveStart > today ? (
+                    <Alert className="border-blue-300 bg-blue-50 text-blue-900 dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200">
+                      <Info className="h-4 w-4" />
+                      <AlertDescription>
+                        <strong>Scheduled leave:</strong> You will continue receiving assignments until {leaveStart}.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null
+                )}
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Leave Start Date</Label>
+                    <Input
+                      type="date"
+                      value={leaveStart}
+                      onChange={(e) => setLeaveStart(e.target.value)}
+                      min={today}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Leave End Date</Label>
+                    <Input
+                      type="date"
+                      value={leaveEnd}
+                      onChange={(e) => setLeaveEnd(e.target.value)}
+                      min={leaveStart || today}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            <div className="flex justify-end gap-3 pt-2">
+              <Button variant="outline" onClick={() => navigate('/admin/my-profile')}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={updateAvailability.isPending || blockLeave || (isGoingOnLeave && (!leaveStart || !leaveEnd)) || (!isAutoStatus && effectiveStatus === profileStatus && !isGoingOnLeave)}
+              >
+                {updateAvailability.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* On Leave: show message pointing to restore button */}
+      {isCurrentlyOnLeave && !profile.leave_start_date && (
+        <Card>
+          <CardContent className="py-6">
+            <p className="text-sm text-muted-foreground">
+              You are currently on leave. Use the <strong>"Restore to Available"</strong> button above to return.
+            </p>
           </CardContent>
         </Card>
       )}
