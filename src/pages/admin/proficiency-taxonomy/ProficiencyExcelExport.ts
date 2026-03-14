@@ -18,6 +18,7 @@ export interface TaxonomyExportRow {
  * Downloads an empty template Excel file with headers and sample rows
  */
 export async function downloadProficiencyTemplate(): Promise<void> {
+  const XLSX = await import("xlsx");
   const templateData: TaxonomyExportRow[] = [
     {
       "Industry Segment": "Manufacturing",
