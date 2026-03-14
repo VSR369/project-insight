@@ -365,6 +365,7 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {/* GROUP 5: Marketplace                               */}
         {/* ═══════════════════════════════════════════════════ */}
+        {hasPermission('marketplace.view') && (
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Marketplace</span>
