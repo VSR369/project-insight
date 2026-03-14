@@ -1,7 +1,7 @@
 import * as React from "react";
 import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
-import html2pdf from "html2pdf.js";
+// html2pdf dynamically imported at point-of-use to reduce initial bundle
 // XLSX dynamically imported at point-of-use to reduce initial bundle
 
 
