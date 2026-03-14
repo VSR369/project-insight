@@ -175,7 +175,7 @@ export function AdminSidebar() {
   );
 
   return (
-    <Sidebar className="border-r">
+    <Sidebar className="border-r" aria-label="Admin Navigation">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6 text-primary" />
