@@ -6,7 +6,6 @@ import {
   Users, 
   Briefcase, 
   Award, 
-   
   Network,
   FileQuestion,
   Link2,
@@ -19,7 +18,6 @@ import {
   Settings,
   User,
   Landmark,
-  DollarSign,
   Lock,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -27,7 +25,11 @@ import { Button } from '@/components/ui/button';
 import { usePendingReviewerCount } from '@/hooks/queries/usePanelReviewers';
 import { useAdminTier, type AdminTier } from '@/hooks/useAdminTier';
 
-type RequiredTier = 'all' | AdminTier;
+const TIER_LABELS: Record<AdminTier, string> = {
+  supervisor: 'Supervisor',
+  senior_admin: 'Senior Admin',
+  admin: 'Admin',
+};
 
 interface DashboardSection {
   title: string;
@@ -36,36 +38,19 @@ interface DashboardSection {
   path: string;
   color: string;
   hasBadge?: boolean;
-  requiredTier: RequiredTier;
+  /** Permission key(s) required — OR logic: any match grants visibility */
+  permissionKey: string | string[];
 }
-
-const TIER_RANK: Record<AdminTier, number> = {
-  admin: 1,
-  senior_admin: 2,
-  supervisor: 3,
-};
-
-function meetsMinTier(userTier: AdminTier | null, required: RequiredTier): boolean {
-  if (required === 'all') return true;
-  if (!userTier) return false;
-  return TIER_RANK[userTier] >= TIER_RANK[required];
-}
-
-const TIER_LABELS: Record<AdminTier, string> = {
-  supervisor: 'Supervisor',
-  senior_admin: 'Senior Admin',
-  admin: 'Admin',
-};
 
 const sections: DashboardSection[] = [
-  // === Available to ALL tiers ===
+  // === Reference Data (master_data.view / taxonomy.view) ===
   {
     title: 'Countries',
     description: 'Manage country codes and phone codes',
     icon: Globe,
     path: '/admin/master-data/countries',
     color: 'text-blue-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
   {
     title: 'Industry Segments',
@@ -73,7 +58,7 @@ const sections: DashboardSection[] = [
     icon: Briefcase,
     path: '/admin/master-data/industry-segments',
     color: 'text-green-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
   {
     title: 'Organization Types',
@@ -81,7 +66,7 @@ const sections: DashboardSection[] = [
     icon: Building2,
     path: '/admin/master-data/organization-types',
     color: 'text-purple-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
   {
     title: 'Participation Modes',
@@ -89,7 +74,7 @@ const sections: DashboardSection[] = [
     icon: Users,
     path: '/admin/master-data/participation-modes',
     color: 'text-orange-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
   {
     title: 'Expertise Levels',
@@ -97,7 +82,7 @@ const sections: DashboardSection[] = [
     icon: Award,
     path: '/admin/master-data/expertise-levels',
     color: 'text-yellow-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
   {
     title: 'Proficiency Taxonomy',
@@ -105,7 +90,7 @@ const sections: DashboardSection[] = [
     icon: Network,
     path: '/admin/master-data/proficiency-taxonomy',
     color: 'text-cyan-500',
-    requiredTier: 'all',
+    permissionKey: 'taxonomy.view',
   },
   {
     title: 'Level-Speciality Mapping',
@@ -113,15 +98,17 @@ const sections: DashboardSection[] = [
     icon: Link2,
     path: '/admin/level-speciality-map',
     color: 'text-indigo-500',
-    requiredTier: 'all',
+    permissionKey: 'master_data.view',
   },
+
+  // === Content & Invitations ===
   {
     title: 'Question Bank',
     description: 'Manage assessment questions',
     icon: FileQuestion,
     path: '/admin/questions',
     color: 'text-red-500',
-    requiredTier: 'all',
+    permissionKey: 'content.view_questions',
   },
   {
     title: 'Invitations',
@@ -129,8 +116,10 @@ const sections: DashboardSection[] = [
     icon: Mail,
     path: '/admin/invitations',
     color: 'text-teal-500',
-    requiredTier: 'all',
+    permissionKey: 'invitations.view',
   },
+
+  // === Operations ===
   {
     title: 'Reviewer Approvals',
     description: 'Approve or reject reviewer applications',
@@ -138,23 +127,27 @@ const sections: DashboardSection[] = [
     path: '/admin/reviewer-approvals',
     color: 'text-amber-500',
     hasBadge: true,
-    requiredTier: 'all',
+    permissionKey: 'interview.view',
   },
+
+  // === My Workspace (always visible) ===
   {
     title: 'My Profile',
     description: 'View and manage your admin profile',
     icon: User,
     path: '/admin/my-profile',
     color: 'text-slate-500',
-    requiredTier: 'all',
+    permissionKey: 'admin_management.view_my_profile',
   },
+
+  // === Dev Tools ===
   {
     title: 'Regression Test Kit',
     description: 'Comprehensive system regression tests',
     icon: TestTube2,
     path: '/admin/regression-test-kit',
     color: 'text-emerald-500',
-    requiredTier: 'all',
+    permissionKey: 'supervisor.configure_system',
   },
 
   // === Senior Admin + Supervisor ===
@@ -164,7 +157,7 @@ const sections: DashboardSection[] = [
     icon: ShieldCheck,
     path: '/admin/platform-admins',
     color: 'text-rose-500',
-    requiredTier: 'senior_admin',
+    permissionKey: 'admin_management.view_all_admins',
   },
   {
     title: 'Seeker Config',
@@ -172,7 +165,7 @@ const sections: DashboardSection[] = [
     icon: Landmark,
     path: '/admin/seeker-config/pricing-overview',
     color: 'text-violet-500',
-    requiredTier: 'senior_admin',
+    permissionKey: 'seeker_config.view',
   },
   {
     title: 'Enterprise Agreements',
@@ -180,7 +173,7 @@ const sections: DashboardSection[] = [
     icon: Handshake,
     path: '/admin/saas-agreements',
     color: 'text-violet-500',
-    requiredTier: 'senior_admin',
+    permissionKey: 'org_approvals.manage_agreements',
   },
   {
     title: 'Settings',
@@ -188,7 +181,7 @@ const sections: DashboardSection[] = [
     icon: Settings,
     path: '/admin/settings',
     color: 'text-gray-500',
-    requiredTier: 'senior_admin',
+    permissionKey: 'admin_management.view_settings',
   },
 
   // === Supervisor only ===
@@ -198,16 +191,19 @@ const sections: DashboardSection[] = [
     icon: Lock,
     path: '/admin/seeker-config/export-control',
     color: 'text-red-600',
-    requiredTier: 'supervisor',
+    permissionKey: 'seeker_config.manage_compliance',
   },
 ];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { data: pendingCount } = usePendingReviewerCount();
-  const { tier, isLoading: tierLoading } = useAdminTier();
+  const { tier, hasPermission, isLoading: tierLoading } = useAdminTier();
 
-  const visibleSections = sections.filter((s) => meetsMinTier(tier, s.requiredTier));
+  const visibleSections = sections.filter((s) => {
+    const keys = Array.isArray(s.permissionKey) ? s.permissionKey : [s.permissionKey];
+    return keys.some((key) => hasPermission(key));
+  });
 
   return (
     <div className="space-y-6">

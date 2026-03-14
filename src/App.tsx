@@ -583,72 +583,73 @@ const App = () => (
             {/* Admin Routes — nested under AdminShell for persistent sidebar */}
             <Route path="/admin" element={<AdminGuard><AdminShell /></AdminGuard>}>
               <Route index element={<AdminDashboard />} />
-              {/* Master Data — senior_admin+ */}
-              <Route path="master-data/countries" element={<TierGuard requiredTier="senior_admin"><CountriesPage /></TierGuard>} />
-              <Route path="master-data/industry-segments" element={<TierGuard requiredTier="senior_admin"><IndustrySegmentsPage /></TierGuard>} />
-              <Route path="master-data/organization-types" element={<TierGuard requiredTier="senior_admin"><OrganizationTypesPage /></TierGuard>} />
-              <Route path="master-data/participation-modes" element={<TierGuard requiredTier="senior_admin"><ParticipationModesPage /></TierGuard>} />
-              <Route path="master-data/expertise-levels" element={<TierGuard requiredTier="senior_admin"><ExpertiseLevelsPage /></TierGuard>} />
-              {/* Taxonomy — senior_admin+ */}
-              <Route path="master-data/proficiency-taxonomy" element={<TierGuard requiredTier="senior_admin"><ProficiencyTaxonomyPage /></TierGuard>} />
-              <Route path="master-data/departments" element={<TierGuard requiredTier="senior_admin"><DepartmentsPage /></TierGuard>} />
-              <Route path="master-data/functional-areas" element={<TierGuard requiredTier="senior_admin"><FunctionalAreasPage /></TierGuard>} />
-              {/* Content — senior_admin+ */}
-              <Route path="questions" element={<TierGuard requiredTier="senior_admin"><QuestionBankPage /></TierGuard>} />
-              <Route path="capability-tags" element={<TierGuard requiredTier="senior_admin"><CapabilityTagsPage /></TierGuard>} />
-              <Route path="level-speciality-map" element={<TierGuard requiredTier="senior_admin"><LevelSpecialityMapPage /></TierGuard>} />
-              {/* Invitations — senior_admin+ */}
-              <Route path="invitations" element={<TierGuard requiredTier="senior_admin"><InvitationsPage /></TierGuard>} />
-              <Route path="invitations/panel-reviewers" element={<TierGuard requiredTier="senior_admin"><PanelReviewerInvitationsPage /></TierGuard>} />
-              {/* Test items — supervisor only */}
-              <Route path="smoke-test" element={<TierGuard requiredTier="supervisor"><SmokeTestPage /></TierGuard>} />
-              <Route path="settings" element={<TierGuard requiredTier="senior_admin"><AdminSettingsPage /></TierGuard>} />
-              {/* Interview Setup — senior_admin+ */}
-              <Route path="interview/kit" element={<TierGuard requiredTier="senior_admin"><InterviewKitPage /></TierGuard>} />
-              <Route path="interview/kit/questions" element={<TierGuard requiredTier="senior_admin"><InterviewKitQuestionsPage /></TierGuard>} />
-              <Route path="interview/quorum-requirements" element={<TierGuard requiredTier="senior_admin"><InterviewRequirementsPage /></TierGuard>} />
-              <Route path="reviewer-approvals" element={<TierGuard requiredTier="senior_admin"><ReviewerApprovalsPage /></TierGuard>} />
-              <Route path="interview/reviewer-availability" element={<TierGuard requiredTier="senior_admin"><ReviewerAvailabilityPage /></TierGuard>} />
-              <Route path="pulse-social-test" element={<TierGuard requiredTier="supervisor"><PulseSocialTestPage /></TierGuard>} />
-              <Route path="regression-test-kit" element={<TierGuard requiredTier="supervisor"><RegressionTestKitPage /></TierGuard>} />
-              {/* Seeker Config — senior_admin+ */}
-              <Route path="seeker-config/pricing-overview" element={<TierGuard requiredTier="senior_admin"><PricingOverviewPage /></TierGuard>} />
-              <Route path="seeker-config/subscription-tiers" element={<TierGuard requiredTier="senior_admin"><SubscriptionTiersPage /></TierGuard>} />
-              <Route path="seeker-config/engagement-models" element={<TierGuard requiredTier="senior_admin"><EngagementModelsPage /></TierGuard>} />
-              <Route path="seeker-config/challenge-complexity" element={<TierGuard requiredTier="senior_admin"><ChallengeComplexityPage /></TierGuard>} />
-              <Route path="seeker-config/challenge-statuses" element={<TierGuard requiredTier="senior_admin"><ChallengeStatusesPage /></TierGuard>} />
-              {/* Compliance Config — supervisor only */}
-              <Route path="seeker-config/export-control" element={<TierGuard requiredTier="supervisor"><ExportControlPage /></TierGuard>} />
-              <Route path="seeker-config/data-residency" element={<TierGuard requiredTier="supervisor"><DataResidencyPage /></TierGuard>} />
-              <Route path="seeker-config/blocked-domains" element={<TierGuard requiredTier="supervisor"><BlockedDomainsPage /></TierGuard>} />
-              <Route path="seeker-config/platform-terms" element={<TierGuard requiredTier="senior_admin"><PlatformTermsPage /></TierGuard>} />
-              <Route path="seeker-config/membership-tiers" element={<TierGuard requiredTier="senior_admin"><MembershipTiersPage /></TierGuard>} />
-              <Route path="seeker-config/base-fees" element={<TierGuard requiredTier="senior_admin"><BaseFeesPage /></TierGuard>} />
-              <Route path="seeker-config/shadow-pricing" element={<TierGuard requiredTier="senior_admin"><ShadowPricingPage /></TierGuard>} />
-              <Route path="seeker-config/platform-fees" element={<TierGuard requiredTier="senior_admin"><PlatformFeesPage /></TierGuard>} />
-              <Route path="seeker-config/tax-formats" element={<TierGuard requiredTier="senior_admin"><TaxFormatsPage /></TierGuard>} />
-              <Route path="seeker-config/subsidized-pricing" element={<TierGuard requiredTier="senior_admin"><SubsidizedPricingPage /></TierGuard>} />
-              <Route path="seeker-config/postal-formats" element={<TierGuard requiredTier="senior_admin"><PostalFormatsPage /></TierGuard>} />
-              <Route path="seeker-config/billing-cycles" element={<TierGuard requiredTier="senior_admin"><BillingCyclesPage /></TierGuard>} />
-              <Route path="seeker-config/payment-methods" element={<TierGuard requiredTier="senior_admin"><PaymentMethodsPage /></TierGuard>} />
-              <Route path="saas-agreements" element={<TierGuard requiredTier="senior_admin"><SaasAgreementPage /></TierGuard>} />
-              {/* Org Approvals — ALL admin tiers (operational pipeline) */}
-              <Route path="seeker-org-approvals" element={<SeekerOrgApprovalsPage />} />
-              <Route path="seeker-org-approvals/:orgId" element={<SeekerOrgReviewPage />} />
-              {/* MOD-01: Platform Admin Management — senior_admin+ */}
-              <Route path="platform-admins" element={<TierGuard requiredTier="senior_admin"><PlatformAdminListPage /></TierGuard>} />
-              <Route path="platform-admins/new" element={<TierGuard requiredTier="senior_admin"><CreatePlatformAdminPage /></TierGuard>} />
-              <Route path="platform-admins/:adminId" element={<TierGuard requiredTier="senior_admin"><ViewPlatformAdminPage /></TierGuard>} />
-              <Route path="platform-admins/:adminId/edit" element={<TierGuard requiredTier="supervisor"><EditPlatformAdminPage /></TierGuard>} />
+              {/* Master Data — permission: master_data.view (read-only for basic admin) */}
+              <Route path="master-data/countries" element={<PermissionGuard permissionKey="master_data.view"><CountriesPage /></PermissionGuard>} />
+              <Route path="master-data/industry-segments" element={<PermissionGuard permissionKey="master_data.view"><IndustrySegmentsPage /></PermissionGuard>} />
+              <Route path="master-data/organization-types" element={<PermissionGuard permissionKey="master_data.view"><OrganizationTypesPage /></PermissionGuard>} />
+              <Route path="master-data/participation-modes" element={<PermissionGuard permissionKey="master_data.view"><ParticipationModesPage /></PermissionGuard>} />
+              <Route path="master-data/expertise-levels" element={<PermissionGuard permissionKey="master_data.view"><ExpertiseLevelsPage /></PermissionGuard>} />
+              {/* Taxonomy — permission: taxonomy.view */}
+              <Route path="master-data/proficiency-taxonomy" element={<PermissionGuard permissionKey="taxonomy.view"><ProficiencyTaxonomyPage /></PermissionGuard>} />
+              <Route path="master-data/departments" element={<PermissionGuard permissionKey="master_data.view"><DepartmentsPage /></PermissionGuard>} />
+              <Route path="master-data/functional-areas" element={<PermissionGuard permissionKey="master_data.view"><FunctionalAreasPage /></PermissionGuard>} />
+              {/* Content — permission: content.view_questions */}
+              <Route path="questions" element={<PermissionGuard permissionKey="content.view_questions"><QuestionBankPage /></PermissionGuard>} />
+              <Route path="capability-tags" element={<PermissionGuard permissionKey="content.view_questions"><CapabilityTagsPage /></PermissionGuard>} />
+              <Route path="level-speciality-map" element={<PermissionGuard permissionKey="master_data.view"><LevelSpecialityMapPage /></PermissionGuard>} />
+              {/* Invitations — permission: invitations.view */}
+              <Route path="invitations" element={<PermissionGuard permissionKey="invitations.view"><InvitationsPage /></PermissionGuard>} />
+              <Route path="invitations/panel-reviewers" element={<PermissionGuard permissionKey="invitations.view"><PanelReviewerInvitationsPage /></PermissionGuard>} />
+              {/* Dev Tools — permission: supervisor.configure_system */}
+              <Route path="smoke-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><SmokeTestPage /></PermissionGuard>} />
+              {/* Settings — permission: admin_management.view_settings */}
+              <Route path="settings" element={<PermissionGuard permissionKey="admin_management.view_settings"><AdminSettingsPage /></PermissionGuard>} />
+              {/* Interview Setup — permission: interview.view */}
+              <Route path="interview/kit" element={<PermissionGuard permissionKey="interview.view"><InterviewKitPage /></PermissionGuard>} />
+              <Route path="interview/kit/questions" element={<PermissionGuard permissionKey="interview.view"><InterviewKitQuestionsPage /></PermissionGuard>} />
+              <Route path="interview/quorum-requirements" element={<PermissionGuard permissionKey="interview.view"><InterviewRequirementsPage /></PermissionGuard>} />
+              <Route path="reviewer-approvals" element={<PermissionGuard permissionKey="interview.view"><ReviewerApprovalsPage /></PermissionGuard>} />
+              <Route path="interview/reviewer-availability" element={<PermissionGuard permissionKey="interview.view"><ReviewerAvailabilityPage /></PermissionGuard>} />
+              <Route path="pulse-social-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><PulseSocialTestPage /></PermissionGuard>} />
+              <Route path="regression-test-kit" element={<PermissionGuard permissionKey="supervisor.configure_system"><RegressionTestKitPage /></PermissionGuard>} />
+              {/* Seeker Config — permission: seeker_config.view */}
+              <Route path="seeker-config/pricing-overview" element={<PermissionGuard permissionKey="seeker_config.view"><PricingOverviewPage /></PermissionGuard>} />
+              <Route path="seeker-config/subscription-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><SubscriptionTiersPage /></PermissionGuard>} />
+              <Route path="seeker-config/engagement-models" element={<PermissionGuard permissionKey="seeker_config.view"><EngagementModelsPage /></PermissionGuard>} />
+              <Route path="seeker-config/challenge-complexity" element={<PermissionGuard permissionKey="seeker_config.view"><ChallengeComplexityPage /></PermissionGuard>} />
+              <Route path="seeker-config/challenge-statuses" element={<PermissionGuard permissionKey="seeker_config.view"><ChallengeStatusesPage /></PermissionGuard>} />
+              {/* Compliance Config — permission: seeker_config.manage_compliance */}
+              <Route path="seeker-config/export-control" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><ExportControlPage /></PermissionGuard>} />
+              <Route path="seeker-config/data-residency" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><DataResidencyPage /></PermissionGuard>} />
+              <Route path="seeker-config/blocked-domains" element={<PermissionGuard permissionKey="seeker_config.manage_compliance"><BlockedDomainsPage /></PermissionGuard>} />
+              <Route path="seeker-config/platform-terms" element={<PermissionGuard permissionKey="seeker_config.view"><PlatformTermsPage /></PermissionGuard>} />
+              <Route path="seeker-config/membership-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><MembershipTiersPage /></PermissionGuard>} />
+              <Route path="seeker-config/base-fees" element={<PermissionGuard permissionKey="seeker_config.view"><BaseFeesPage /></PermissionGuard>} />
+              <Route path="seeker-config/shadow-pricing" element={<PermissionGuard permissionKey="seeker_config.view_shadow_pricing"><ShadowPricingPage /></PermissionGuard>} />
+              <Route path="seeker-config/platform-fees" element={<PermissionGuard permissionKey="seeker_config.view"><PlatformFeesPage /></PermissionGuard>} />
+              <Route path="seeker-config/tax-formats" element={<PermissionGuard permissionKey="seeker_config.view"><TaxFormatsPage /></PermissionGuard>} />
+              <Route path="seeker-config/subsidized-pricing" element={<PermissionGuard permissionKey="seeker_config.view"><SubsidizedPricingPage /></PermissionGuard>} />
+              <Route path="seeker-config/postal-formats" element={<PermissionGuard permissionKey="seeker_config.view"><PostalFormatsPage /></PermissionGuard>} />
+              <Route path="seeker-config/billing-cycles" element={<PermissionGuard permissionKey="seeker_config.view"><BillingCyclesPage /></PermissionGuard>} />
+              <Route path="seeker-config/payment-methods" element={<PermissionGuard permissionKey="seeker_config.view"><PaymentMethodsPage /></PermissionGuard>} />
+              <Route path="saas-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><SaasAgreementPage /></PermissionGuard>} />
+              {/* Org Approvals — permission: org_approvals.view */}
+              <Route path="seeker-org-approvals" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgApprovalsPage /></PermissionGuard>} />
+              <Route path="seeker-org-approvals/:orgId" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgReviewPage /></PermissionGuard>} />
+              {/* Platform Admin Management — permission: admin_management.view_all_admins */}
+              <Route path="platform-admins" element={<PermissionGuard permissionKey="admin_management.view_all_admins"><PlatformAdminListPage /></PermissionGuard>} />
+              <Route path="platform-admins/new" element={<PermissionGuard permissionKey="admin_management.view_all_admins"><CreatePlatformAdminPage /></PermissionGuard>} />
+              <Route path="platform-admins/:adminId" element={<PermissionGuard permissionKey="admin_management.view_all_admins"><ViewPlatformAdminPage /></PermissionGuard>} />
+              <Route path="platform-admins/:adminId/edit" element={<PermissionGuard permissionKey="supervisor.manage_permissions"><EditPlatformAdminPage /></PermissionGuard>} />
               <Route path="my-profile" element={<MyProfilePage />} />
               <Route path="availability" element={<AvailabilitySettingsPage />} />
-              {/* MOD-02: Assignment Engine Audit Log — supervisor only */}
-              <Route path="assignment-audit-log" element={<TierGuard requiredTier="supervisor"><AssignmentAuditLogPage /></TierGuard>} />
-              {/* MOD-03: Verification Dashboard & Detail — all admin tiers */}
-              <Route path="verifications" element={<VerificationDashboardPage />} />
-              <Route path="verifications/:id" element={<VerificationDetailPage />} />
+              {/* Assignment Engine Audit Log — permission: supervisor.view_audit_logs */}
+              <Route path="assignment-audit-log" element={<PermissionGuard permissionKey="supervisor.view_audit_logs"><AssignmentAuditLogPage /></PermissionGuard>} />
+              {/* Verification Dashboard & Detail — permission: verification.view_dashboard */}
+              <Route path="verifications" element={<PermissionGuard permissionKey="verification.view_dashboard"><VerificationDashboardPage /></PermissionGuard>} />
+              <Route path="verifications/:id" element={<PermissionGuard permissionKey="verification.view_dashboard"><VerificationDetailPage /></PermissionGuard>} />
               <Route path="verification-knowledge-centre" element={<VerificationKnowledgeCentrePage />} />
-              {/* Group-specific Knowledge Centre pages */}
+              {/* Group-specific Knowledge Centre pages — always accessible */}
               <Route path="kc/dashboard" element={<DashboardKCPage />} />
               <Route path="kc/reference-data" element={<ReferenceDataKCPage />} />
               <Route path="kc/interview-review" element={<InterviewReviewKCPage />} />
@@ -656,29 +657,29 @@ const App = () => (
               <Route path="kc/seeker-config" element={<SeekerConfigKCPage />} />
               <Route path="kc/content-invitations" element={<ContentInvitationsKCPage />} />
               <Route path="kc/my-workspace" element={<MyWorkspaceKCPage />} />
-              {/* MOD-04: Notification Audit Log — supervisor only */}
-              <Route path="notifications/audit" element={<TierGuard requiredTier="supervisor"><NotificationAuditLogPage /></TierGuard>} />
-              {/* MOD-05: Performance Metrics Dashboard */}
-              <Route path="performance" element={<TierGuard requiredTier="supervisor"><AllAdminsPerformancePage /></TierGuard>} />
+              {/* Notification Audit Log — permission: supervisor.view_audit_logs */}
+              <Route path="notifications/audit" element={<PermissionGuard permissionKey="supervisor.view_audit_logs"><NotificationAuditLogPage /></PermissionGuard>} />
+              {/* Performance Metrics — supervisor.view_team_performance */}
+              <Route path="performance" element={<PermissionGuard permissionKey="supervisor.view_team_performance"><AllAdminsPerformancePage /></PermissionGuard>} />
               <Route path="my-performance" element={<MyPerformancePage />} />
-              <Route path="performance/:adminId" element={<TierGuard requiredTier="supervisor"><AdminPerformanceDetailPage /></TierGuard>} />
-              {/* MOD-06: Reassignment Workflow — supervisor only */}
-              <Route path="reassignments" element={<TierGuard requiredTier="supervisor"><ReassignmentInboxPage /></TierGuard>} />
-              {/* MOD-07: System Configuration — supervisor only */}
-              <Route path="system-config" element={<TierGuard requiredTier="supervisor"><SystemConfigPage /></TierGuard>} />
-              <Route path="system-config/domain-weights" element={<TierGuard requiredTier="supervisor"><DomainWeightsPage /></TierGuard>} />
-              {/* Permissions Management — supervisor only, read-only reference */}
-              <Route path="permissions" element={<TierGuard requiredTier="supervisor"><PermissionsManagementPage /></TierGuard>} />
-              {/* RBAC MOD-01: Marketplace — core routes open to ALL admin tiers */}
-              <Route path="marketplace" element={<MarketplaceDashboard />} />
-              <Route path="marketplace/resource-pool" element={<ResourcePoolPage />} />
-              <Route path="marketplace/resource-pool/:memberId" element={<PoolMemberDetailPage />} />
-              {/* RBAC MOD-02: Solution Requests & Assignment History — ALL admin tiers */}
-              <Route path="marketplace/solution-requests" element={<SolutionRequestsPage />} />
-              <Route path="marketplace/assignment-history" element={<AssignmentHistoryPage />} />
-              {/* Admin Contact, Email Templates — senior_admin+ */}
-              <Route path="marketplace/admin-contact" element={<TierGuard requiredTier="senior_admin"><AdminContactProfilePage /></TierGuard>} />
-              <Route path="marketplace/email-templates" element={<TierGuard requiredTier="senior_admin"><EmailTemplatesPage /></TierGuard>} />
+              <Route path="performance/:adminId" element={<PermissionGuard permissionKey="supervisor.view_team_performance"><AdminPerformanceDetailPage /></PermissionGuard>} />
+              {/* Reassignment Workflow — permission: supervisor.approve_reassignments */}
+              <Route path="reassignments" element={<PermissionGuard permissionKey="supervisor.approve_reassignments"><ReassignmentInboxPage /></PermissionGuard>} />
+              {/* System Configuration — permission: supervisor.configure_system */}
+              <Route path="system-config" element={<PermissionGuard permissionKey="supervisor.configure_system"><SystemConfigPage /></PermissionGuard>} />
+              <Route path="system-config/domain-weights" element={<PermissionGuard permissionKey="supervisor.configure_system"><DomainWeightsPage /></PermissionGuard>} />
+              {/* Permissions Management — permission: supervisor.manage_permissions */}
+              <Route path="permissions" element={<PermissionGuard permissionKey="supervisor.manage_permissions"><PermissionsManagementPage /></PermissionGuard>} />
+              {/* Marketplace — permission: marketplace.view */}
+              <Route path="marketplace" element={<PermissionGuard permissionKey="marketplace.view"><MarketplaceDashboard /></PermissionGuard>} />
+              <Route path="marketplace/resource-pool" element={<PermissionGuard permissionKey="marketplace.view"><ResourcePoolPage /></PermissionGuard>} />
+              <Route path="marketplace/resource-pool/:memberId" element={<PermissionGuard permissionKey="marketplace.view"><PoolMemberDetailPage /></PermissionGuard>} />
+              {/* Solution Requests & Assignment History — permission: marketplace.view */}
+              <Route path="marketplace/solution-requests" element={<PermissionGuard permissionKey="marketplace.view"><SolutionRequestsPage /></PermissionGuard>} />
+              <Route path="marketplace/assignment-history" element={<PermissionGuard permissionKey="marketplace.view"><AssignmentHistoryPage /></PermissionGuard>} />
+              {/* Admin Contact, Email Templates — permission: marketplace.manage_config */}
+              <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_config"><AdminContactProfilePage /></PermissionGuard>} />
+              <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_config"><EmailTemplatesPage /></PermissionGuard>} />
             </Route>
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
