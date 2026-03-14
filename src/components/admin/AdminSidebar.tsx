@@ -158,9 +158,10 @@ export function AdminSidebar() {
   const renderMenuItem = (item: { title: string; icon: React.ElementType; path: string; hasBadge?: boolean }, badgeCount?: number) => (
     <SidebarMenuItem key={item.path}>
       <SidebarMenuButton
-        onClick={() => navigate(item.path)}
+        onClick={() => handleNavigate(item.path)}
         onMouseEnter={() => handleMouseEnter(item.path)}
         isActive={isActive(item.path)}
+        aria-current={isActive(item.path) ? "page" : undefined}
       >
         <item.icon className="h-4 w-4" />
         <span className="flex-1">{item.title}</span>
