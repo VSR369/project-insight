@@ -360,6 +360,7 @@ export function AdminSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+        )}
 
         {/* ═══════════════════════════════════════════════════ */}
         {/* GROUP 5: Marketplace                               */}
