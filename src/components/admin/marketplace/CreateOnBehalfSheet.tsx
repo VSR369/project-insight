@@ -51,7 +51,7 @@ export function CreateOnBehalfSheet({
   const handleSubmit = async () => {
     if (!selectedOrgId || !selectedRoleCode || !userEmail) return;
 
-    await createAssignment.mutateAsync({
+    const result = await createAssignment.mutateAsync({
       org_id: selectedOrgId,
       role_code: selectedRoleCode,
       user_email: userEmail,
@@ -59,6 +59,17 @@ export function CreateOnBehalfSheet({
       status: "invited",
       model_applicability: "core",
     });
+
+    // Send invitation email via edge function
+    const selectedOrg = organizations.find((o) => o.id === selectedOrgId);
+    try {
+      await supabase.functions.invoke("send-role-invitation", {
+        body: { assignment_id: result.id, org_name: selectedOrg?.name },
+      });
+    } catch (emailErr) {
+      console.error("Failed to send invitation email:", emailErr);
+      toast.warning("Role assigned but invitation email could not be sent.");
+    }
 
     toast.success(`Core role assigned on behalf of organization`);
     setSelectedOrgId("");
