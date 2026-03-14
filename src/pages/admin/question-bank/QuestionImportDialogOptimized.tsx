@@ -917,7 +917,8 @@ export function QuestionImportDialog({
   };
 
   // Export failed rows
-  const downloadFailedRows = () => {
+  const downloadFailedRows = async () => {
+    const XLSX = await import("xlsx");
     if (!importResults?.failures.length) return;
     
     const failureData = [
