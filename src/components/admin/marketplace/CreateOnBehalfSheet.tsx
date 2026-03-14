@@ -22,10 +22,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2, ShieldCheck, Info } from "lucide-react";
 import { toast } from "sonner";
 import { useCoreRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useCreateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { supabase } from "@/integrations/supabase/client";
 
 interface CreateOnBehalfSheetProps {
   open: boolean;
@@ -50,7 +51,7 @@ export function CreateOnBehalfSheet({
   const handleSubmit = async () => {
     if (!selectedOrgId || !selectedRoleCode || !userEmail) return;
 
-    await createAssignment.mutateAsync({
+    const result = await createAssignment.mutateAsync({
       org_id: selectedOrgId,
       role_code: selectedRoleCode,
       user_email: userEmail,
@@ -58,6 +59,17 @@ export function CreateOnBehalfSheet({
       status: "invited",
       model_applicability: "core",
     });
+
+    // Send invitation email via edge function
+    const selectedOrg = organizations.find((o) => o.id === selectedOrgId);
+    try {
+      await supabase.functions.invoke("send-role-invitation", {
+        body: { assignment_id: result.id, org_name: selectedOrg?.name },
+      });
+    } catch (emailErr) {
+      console.error("Failed to send invitation email:", emailErr);
+      toast.warning("Role assigned but invitation email could not be sent.");
+    }
 
     toast.success(`Core role assigned on behalf of organization`);
     setSelectedOrgId("");
@@ -141,6 +153,14 @@ export function CreateOnBehalfSheet({
               onChange={(e) => setUserName(e.target.value)}
               placeholder="Jane Smith"
             />
+          </div>
+
+          {/* Domain scope notice */}
+          <div className="rounded-md border border-primary/20 bg-primary/5 p-3 flex gap-2">
+            <Info className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              This role will be created with full domain access (all industries, specialities, etc.). The organization's admin can narrow the scope later.
+            </p>
           </div>
 
           {/* Audit notice */}
