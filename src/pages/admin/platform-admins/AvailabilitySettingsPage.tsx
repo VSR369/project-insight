@@ -156,7 +156,8 @@ function AvailabilityContent() {
   const isCurrentlyOnLeave = profileStatus === 'On_Leave';
   const isAutoStatus = profileStatus === 'Partially_Available' || profileStatus === 'Fully_Loaded';
 
-  const effectiveStatus = status || profileStatus;
+  // When auto-status admin clicks "Schedule Leave", treat effective status as On_Leave
+  const effectiveStatus = (isAutoStatus && showLeaveForm) ? 'On_Leave' : (status || profileStatus);
   const isGoingOnLeave = effectiveStatus === 'On_Leave' && !isCurrentlyOnLeave;
   const isRestoring = isCurrentlyOnLeave && effectiveStatus === 'Available';
 
