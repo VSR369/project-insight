@@ -1,6 +1,7 @@
 /**
  * SoaContactDetailsPanel — SCR-20: Collapsible accordion with inline SOA contact edit
- * "Contact Details — {name}" header, 3-column form, save button
+ * "Contact Details — {name}" header, form fields, save button
+ * Data source: seeking_org_admins (SOA's own profile)
  */
 
 import { useEffect, useState } from "react";
@@ -11,51 +12,57 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { ChevronDown, ChevronRight, Info, Save } from "lucide-react";
-import { useAdminContact, useUpsertAdminContact } from "@/hooks/queries/useAdminContact";
-import { adminContactSchema, type AdminContactFormValues } from "@/lib/validations/roleAssignment";
-import { PhoneInputSplit, parsePhoneIntl, formatPhoneIntl } from "@/components/ui/PhoneInputSplit";
+import { useSoaProfile, useUpdateSoaProfile } from "@/hooks/queries/useSoaProfile";
+import { useOrgContext } from "@/contexts/OrgContext";
+import { z } from "zod";
 import { format } from "date-fns";
+
+const soaContactSchema = z.object({
+  full_name: z.string().min(1, "Full name is required").max(100),
+  phone: z.string().max(30).optional().or(z.literal("")),
+  title: z.string().max(100).optional().or(z.literal("")),
+});
+
+type SoaContactFormValues = z.infer<typeof soaContactSchema>;
 
 export function SoaContactDetailsPanel() {
   const [isOpen, setIsOpen] = useState(false);
-  const { data: contact } = useAdminContact();
-  const upsert = useUpsertAdminContact();
+  const { organizationId } = useOrgContext();
+  const { data: profile } = useSoaProfile(organizationId);
+  const updateProfile = useUpdateSoaProfile();
 
-  const form = useForm<AdminContactFormValues>({
-    resolver: zodResolver(adminContactSchema),
+  const form = useForm<SoaContactFormValues>({
+    resolver: zodResolver(soaContactSchema),
     defaultValues: {
-      name: "",
-      email: "",
-      phone_country_code: "",
-      phone_number: "",
+      full_name: "",
+      phone: "",
+      title: "",
     },
   });
 
   useEffect(() => {
-    if (contact) {
-      const parsed = parsePhoneIntl(contact.phone_intl);
+    if (profile) {
       form.reset({
-        name: contact.name,
-        email: contact.email,
-        phone_country_code: parsed.countryCode,
-        phone_number: parsed.phoneNumber,
+        full_name: profile.full_name || "",
+        phone: profile.phone || "",
+        title: profile.title || "",
       });
     }
-  }, [contact, form]);
+  }, [profile, form]);
 
-  const onSubmit = async (data: AdminContactFormValues) => {
-    const combined = formatPhoneIntl(data.phone_country_code || "", data.phone_number || "");
-    await upsert.mutateAsync({
-      id: contact?.id,
-      name: data.name,
-      email: data.email,
-      phone_intl: combined || undefined,
+  const onSubmit = async (data: SoaContactFormValues) => {
+    if (!profile?.id) return;
+    await updateProfile.mutateAsync({
+      id: profile.id,
+      full_name: data.full_name,
+      phone: data.phone || undefined,
+      title: data.title || undefined,
     });
   };
 
-  const contactName = contact?.name || "Not configured";
-  const lastUpdated = contact?.updated_at
-    ? format(new Date(contact.updated_at), "dd MMM yyyy, HH:mm")
+  const contactName = profile?.full_name || "Not configured";
+  const lastUpdated = profile?.updated_at
+    ? format(new Date(profile.updated_at), "dd MMM yyyy, HH:mm")
     : null;
 
   return (
@@ -79,7 +86,7 @@ export function SoaContactDetailsPanel() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="name"
+                  name="full_name"
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
@@ -90,32 +97,47 @@ export function SoaContactDetailsPanel() {
                     </FormItem>
                   )}
                 />
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="email"
+                      value={profile?.email || ""}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </FormControl>
+                  <p className="text-xs text-muted-foreground">Email is linked to your auth account</p>
+                </FormItem>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="email"
+                  name="phone"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Email</FormLabel>
+                      <FormLabel>Phone</FormLabel>
                       <FormControl>
-                        <Input type="email" placeholder="admin@org.com" {...field} />
+                        <Input placeholder="+1 555-000-0000" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-              </div>
-
-              {/* Split phone: Country Code + Number */}
-              <div>
-                <FormLabel>Phone</FormLabel>
-                <div className="mt-1.5">
-                  <PhoneInputSplit
-                    countryCode={form.watch("phone_country_code") || ""}
-                    phoneNumber={form.watch("phone_number") || ""}
-                    onCountryCodeChange={(v) => form.setValue("phone_country_code", v, { shouldDirty: true })}
-                    onPhoneNumberChange={(v) => form.setValue("phone_number", v, { shouldDirty: true })}
-                  />
-                </div>
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Title / Designation</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g. Program Manager" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
               </div>
 
               <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted/50 rounded-md px-3 py-2">
@@ -136,11 +158,11 @@ export function SoaContactDetailsPanel() {
                 <Button
                   type="submit"
                   size="sm"
-                  disabled={upsert.isPending || !form.formState.isDirty}
+                  disabled={updateProfile.isPending || !form.formState.isDirty}
                   className="gap-1.5"
                 >
                   <Save className="h-3.5 w-3.5" />
-                  {upsert.isPending ? "Saving..." : "Save Changes"}
+                  {updateProfile.isPending ? "Saving..." : "Save Changes"}
                 </Button>
               </div>
             </form>
