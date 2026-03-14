@@ -170,6 +170,15 @@ const VerificationDashboardPage = lazy(() => import("@/pages/admin/verifications
 const VerificationDetailPage = lazy(() => import("@/pages/admin/verifications/VerificationDetailPage"));
 const VerificationKnowledgeCentrePage = lazy(() => import("@/pages/admin/verifications/VerificationKnowledgeCentrePage"));
 
+// Knowledge Centre Pages (one per sidebar group)
+const DashboardKCPage = lazy(() => import("@/pages/admin/knowledge-centre/DashboardKCPage"));
+const ReferenceDataKCPage = lazy(() => import("@/pages/admin/knowledge-centre/ReferenceDataKCPage"));
+const InterviewReviewKCPage = lazy(() => import("@/pages/admin/knowledge-centre/InterviewReviewKCPage"));
+const MarketplaceKCPage = lazy(() => import("@/pages/admin/knowledge-centre/MarketplaceKCPage"));
+const SeekerConfigKCPage = lazy(() => import("@/pages/admin/knowledge-centre/SeekerConfigKCPage"));
+const ContentInvitationsKCPage = lazy(() => import("@/pages/admin/knowledge-centre/ContentInvitationsKCPage"));
+const MyWorkspaceKCPage = lazy(() => import("@/pages/admin/knowledge-centre/MyWorkspaceKCPage"));
+
 // MOD-04: Notification Audit Log
 const NotificationAuditLogPage = lazy(() => import("@/pages/admin/notifications/NotificationAuditLogPage"));
 
