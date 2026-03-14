@@ -14,6 +14,7 @@ import { SupervisorDeactivationConfirmModal } from "@/components/admin/marketpla
 import { CreateOnBehalfSheet } from "@/components/admin/marketplace/CreateOnBehalfSheet";
 import { usePoolMembers, type PoolMemberFilters, type PoolMemberRow } from "@/hooks/queries/usePoolMembers";
 import { useDeactivatePoolMember } from "@/hooks/queries/usePoolMembers";
+import { useOrgPickerOptions } from "@/hooks/queries/useOrgPicker";
 import { usePoolPermissions } from "@/hooks/usePoolPermissions";
 import { useAdminTier } from "@/hooks/useAdminTier";
 import {
