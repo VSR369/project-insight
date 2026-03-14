@@ -503,7 +503,8 @@ export function QuestionBankPage() {
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
 
   // ===================== EXPORT EXCEL =====================
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     if (questions.length === 0) return;
 
     const headers = [
