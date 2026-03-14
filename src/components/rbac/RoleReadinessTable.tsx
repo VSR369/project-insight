@@ -4,7 +4,9 @@
  * Used on /org/role-readiness page only. Dashboard widget uses RoleReadinessPanel.
  */
 
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -14,7 +16,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, ArrowRight, UserPlus } from "lucide-react";
 import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
@@ -58,6 +60,9 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
     };
   });
 
+  const missingRoleNames = roleRows
+    .filter((r) => r.isMissingPerCache)
+    .map((r) => `${r.displayName} (${r.code})`);
   const missingCount = missingCodes.length;
 
   if (isLoading) {
@@ -165,7 +170,12 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/org/role-management?assign=${row.code}`}>
+                          <UserPlus className="h-3.5 w-3.5 mr-1" />
+                          Assign
+                        </Link>
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
@@ -177,11 +187,19 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
 
       {/* Bottom Warning Bar */}
       {!isReady && missingCount > 0 && (
-        <div className="flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/30 dark:bg-amber-950/20">
-          <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-          <p className="text-xs text-amber-800 dark:text-amber-300">
-            {missingCount} of {total} roles are missing. Challenge submission is blocked.
-          </p>
+        <div className="flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-800/30 dark:bg-amber-950/20">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+            <p className="text-xs text-amber-800 dark:text-amber-300">
+              {missingCount} of {total} roles are missing: <span className="font-semibold">{missingRoleNames.join(", ")}</span>. Challenge submission is blocked.
+            </p>
+          </div>
+          <Button variant="outline" size="sm" className="shrink-0" asChild>
+            <Link to="/org/role-management">
+              Assign Roles
+              <ArrowRight className="h-3.5 w-3.5 ml-1" />
+            </Link>
+          </Button>
         </div>
       )}
     </div>
