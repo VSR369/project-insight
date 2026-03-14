@@ -265,16 +265,18 @@ export function AdminSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/verifications')}
-                  onMouseEnter={() => handleMouseEnter('/admin/verifications')}
-                  isActive={location.pathname.startsWith('/admin/verifications')}
-                >
-                  <ClipboardCheck className="h-4 w-4" />
-                  <span>Verifications</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission('verification.view_dashboard') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/verifications')}
+                    onMouseEnter={() => handleMouseEnter('/admin/verifications')}
+                    isActive={location.pathname.startsWith('/admin/verifications')}
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Verifications</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => navigate('/admin/verification-knowledge-centre')}
