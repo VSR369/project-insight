@@ -255,7 +255,7 @@ export function AdminSidebar() {
         {/* Verifications, Knowledge Centre, Reassignments,    */}
         {/* Org Approvals, Enterprise Agreements, Notif Audit  */}
         {/* ═══════════════════════════════════════════════════ */}
-        {hasPermission('verification.view') && (
+        {(hasPermission('verification.view_dashboard') || hasPermission('org_approvals.view')) && (
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Operations</span>
@@ -265,16 +265,18 @@ export function AdminSidebar() {
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/verifications')}
-                  onMouseEnter={() => handleMouseEnter('/admin/verifications')}
-                  isActive={location.pathname.startsWith('/admin/verifications')}
-                >
-                  <ClipboardCheck className="h-4 w-4" />
-                  <span>Verifications</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {hasPermission('verification.view_dashboard') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/verifications')}
+                    onMouseEnter={() => handleMouseEnter('/admin/verifications')}
+                    isActive={location.pathname.startsWith('/admin/verifications')}
+                  >
+                    <ClipboardCheck className="h-4 w-4" />
+                    <span>Verifications</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               <SidebarMenuItem>
                 <SidebarMenuButton
                   onClick={() => navigate('/admin/verification-knowledge-centre')}
@@ -302,22 +304,24 @@ export function AdminSidebar() {
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               )}
-              {/* Org Approvals — ALL tiers */}
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  onClick={() => navigate('/admin/seeker-org-approvals')}
-                  onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
-                  isActive={isActive('/admin/seeker-org-approvals')}
-                >
-                  <UserCheck className="h-4 w-4" />
-                  <span className="flex-1">Org Approvals</span>
-                  {pendingSeekerCount && pendingSeekerCount > 0 && (
-                    <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
-                      {pendingSeekerCount}
-                    </Badge>
-                  )}
-                </SidebarMenuButton>
-              </SidebarMenuItem>
+              {/* Org Approvals — gated by org_approvals.view */}
+              {hasPermission('org_approvals.view') && (
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    onClick={() => navigate('/admin/seeker-org-approvals')}
+                    onMouseEnter={() => handleMouseEnter('/admin/seeker-org-approvals')}
+                    isActive={isActive('/admin/seeker-org-approvals')}
+                  >
+                    <UserCheck className="h-4 w-4" />
+                    <span className="flex-1">Org Approvals</span>
+                    {pendingSeekerCount && pendingSeekerCount > 0 && (
+                      <Badge variant="destructive" className="ml-auto h-5 min-w-5 px-1 text-xs">
+                        {pendingSeekerCount}
+                      </Badge>
+                    )}
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              )}
               {/* Enterprise Agreements — senior+ */}
               {hasPermission('org_approvals.manage_agreements') && (
                 <SidebarMenuItem>
