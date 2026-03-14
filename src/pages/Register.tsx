@@ -14,7 +14,7 @@ import {
   ReviewerRegisterFormData,
   AdminRegisterFormData 
 } from '@/lib/validations/auth';
-import { useCountries, useAcademicDisciplines, useAcademicStreams } from '@/hooks/queries/useMasterData';
+import { useCountries } from '@/hooks/queries/useMasterData';
 import { useIndustrySegments } from '@/hooks/queries/useIndustrySegments';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { getStoredInvitationData, clearStoredInvitationData, type InvitationData } from '@/hooks/queries/useValidateInvitation';
