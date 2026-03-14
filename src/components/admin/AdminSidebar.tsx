@@ -214,11 +214,9 @@ export function AdminSidebar() {
           <SidebarGroup>
             <SidebarGroupLabel className="flex items-center gap-1">
               <span className="flex-1">Reference Data</span>
-              <BookOpen
-                className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
-                onClick={() => navigate('/admin/kc/reference-data')}
-                title="Reference Data Help"
-              />
+              <span title="Reference Data Help" onClick={() => navigate('/admin/kc/reference-data')} className="shrink-0 cursor-pointer">
+                <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+              </span>
             </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
