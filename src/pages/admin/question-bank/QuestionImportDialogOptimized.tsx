@@ -941,7 +941,8 @@ export function QuestionImportDialog({
   };
 
   // Export invalid preview rows
-  const downloadInvalidPreviewRows = () => {
+  const downloadInvalidPreviewRows = async () => {
+    const XLSX = await import("xlsx");
     const invalidRows = parsedQuestions.filter(q => !q.isValid || q.isSkipped);
     if (invalidRows.length === 0) return;
 
