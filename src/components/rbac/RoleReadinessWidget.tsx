@@ -126,7 +126,7 @@ export function RoleReadinessWidget({ orgId, model }: RoleReadinessWidgetProps) 
           </div>
 
           {/* Right: Admin Contact Card */}
-          {adminContact && !isReady && (
+          {soaProfile && !isReady && (
             <div className="border rounded-lg p-4 bg-muted/30 min-w-[220px] shrink-0">
               <p className="text-xs font-medium text-muted-foreground mb-3 uppercase tracking-wide">
                 Contact for role gap queries ({modelLabel} model)
@@ -134,16 +134,16 @@ export function RoleReadinessWidget({ orgId, model }: RoleReadinessWidgetProps) 
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-foreground font-medium">{adminContact.name}</span>
+                  <span className="text-foreground font-medium">{soaProfile.full_name}</span>
                 </div>
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span className="text-foreground">{adminContact.email}</span>
+                  <span className="text-foreground">{soaProfile.email}</span>
                 </div>
-                {adminContact.phone_intl && (
+                {soaProfile.phone && (
                   <div className="flex items-center gap-2 text-sm">
                     <Phone className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                    <span className="text-foreground">{adminContact.phone_intl}</span>
+                    <span className="text-foreground">{soaProfile.phone}</span>
                   </div>
                 )}
               </div>

@@ -47,26 +47,28 @@ export default function RoleManagementDashboard() {
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
-  // SECTION 4: useEffect hooks
+  // SECTION 4a: Derived state (needed before useEffect)
+  // ══════════════════════════════════════
+  const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
+
+  // ══════════════════════════════════════
+  // SECTION 5: useEffect hooks
   // ══════════════════════════════════════
   useEffect(() => {
     const assignParam = searchParams.get("assign");
     if (assignParam && !isLoading) {
       setAssignRoleCode(assignParam);
-      // Determine context from role code
       const isAggRole = aggChallengeRoles?.some((r) => r.code === assignParam);
       setAssignContext(isAggRole ? "agg" : "core");
       setAssignSheetOpen(true);
-      // Clear the param to avoid re-triggering
       searchParams.delete("assign");
       setSearchParams(searchParams, { replace: true });
     }
   }, [searchParams, aggChallengeRoles, isLoading, setSearchParams]);
 
   // ══════════════════════════════════════
-  // SECTION 5: Derived state
+  // SECTION 5a: Remaining derived state
   // ══════════════════════════════════════
-  const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
   const availableRolesForSheet = assignContext === "core" ? orgCoreRoles : aggChallengeRoles;
 
   // ══════════════════════════════════════
