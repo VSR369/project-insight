@@ -10,7 +10,7 @@ import { XCircle, CheckCircle2, Mail, Phone, User } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useRoleReadiness, type RoleReadiness } from "@/hooks/queries/useRoleReadiness";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
-import { useAdminContact } from "@/hooks/queries/useAdminContact";
+import { useSoaProfile } from "@/hooks/queries/useSoaProfile";
 
 interface RoleReadinessWidgetProps {
   orgId: string;

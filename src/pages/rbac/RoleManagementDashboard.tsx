@@ -51,7 +51,7 @@ export default function RoleManagementDashboard() {
   // ══════════════════════════════════════
   useEffect(() => {
     const assignParam = searchParams.get("assign");
-    if (assignParam) {
+    if (assignParam && !isLoading) {
       setAssignRoleCode(assignParam);
       // Determine context from role code
       const isAggRole = aggChallengeRoles?.some((r) => r.code === assignParam);
@@ -61,7 +61,7 @@ export default function RoleManagementDashboard() {
       searchParams.delete("assign");
       setSearchParams(searchParams, { replace: true });
     }
-  }, [searchParams, aggChallengeRoles, setSearchParams]);
+  }, [searchParams, aggChallengeRoles, isLoading, setSearchParams]);
 
   // ══════════════════════════════════════
   // SECTION 5: Derived state
