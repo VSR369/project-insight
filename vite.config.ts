@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => ({
           'vendor-charts': ['recharts'],
           'vendor-excel': ['xlsx'],
           'vendor-date': ['date-fns', 'date-fns-tz'],
+          'vendor-supabase': ['@supabase/supabase-js'],
         },
       },
     },

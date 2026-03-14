@@ -1,3 +1,4 @@
+import React from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -10,7 +11,7 @@ interface DisplayOrderCellProps {
   disabled?: boolean;
 }
 
-export function DisplayOrderCell({
+export const DisplayOrderCell = React.memo(function DisplayOrderCell({
   order,
   onMoveUp,
   onMoveDown,
@@ -47,4 +48,4 @@ export function DisplayOrderCell({
       )}
     </div>
   );
-}
+});

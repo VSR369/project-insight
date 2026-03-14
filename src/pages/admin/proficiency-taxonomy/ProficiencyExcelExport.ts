@@ -1,4 +1,4 @@
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import { supabase } from "@/integrations/supabase/client";
 
 export interface TaxonomyExportRow {
@@ -18,6 +18,7 @@ export interface TaxonomyExportRow {
  * Downloads an empty template Excel file with headers and sample rows
  */
 export async function downloadProficiencyTemplate(): Promise<void> {
+  const XLSX = await import("xlsx");
   const templateData: TaxonomyExportRow[] = [
     {
       "Industry Segment": "Manufacturing",
@@ -83,6 +84,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
  * Exports all current proficiency taxonomy data to Excel
  */
 export async function exportProficiencyData(): Promise<void> {
+  const XLSX = await import("xlsx");
   // Fetch all data with relationships
   const { data: industrySegments, error: segmentsError } = await supabase
     .from("industry_segments")
@@ -209,6 +211,7 @@ export async function parseProficiencyImportFile(file: File): Promise<ImportVali
 
     reader.onload = async (e) => {
       try {
+        const XLSX = await import("xlsx");
         const data = e.target?.result;
         const workbook = XLSX.read(data, { type: "binary" });
         const sheetName = workbook.SheetNames[0];

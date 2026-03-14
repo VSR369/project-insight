@@ -1,5 +1,4 @@
 import { Suspense, lazy } from "react";
-import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -37,7 +36,7 @@ const RouteLoadingFallback = () => (
 
 // ============================================================================
 // EAGER IMPORTS - Core pages loaded immediately for best UX
-// (Auth, Dashboard, Enrollment, Pulse - frequently accessed)
+// (Auth, Dashboard - frequently accessed)
 // ============================================================================
 
 // Auth Pages (instant load required)
@@ -52,25 +51,23 @@ import Dashboard from "@/pages/Dashboard";
 import Welcome from "@/pages/Welcome";
 import NotFound from "@/pages/NotFound";
 
-// Enrollment Wizard Pages (critical path - instant load)
-import {
-  EnrollRegistration,
-  EnrollParticipationMode,
-  EnrollOrganization,
-  EnrollExpertiseSelection,
-  EnrollProofPoints,
-  EnrollAssessment,
-  TakeAssessment,
-  AssessmentResults,
-  PostEnrollmentWelcome,
-  AddProofPoint,
-  EditProofPoint,
-  OrganizationPending,
-  OrganizationDeclined,
-  InterviewScheduling,
-  PanelDiscussion,
-  Certification,
-} from "@/pages/enroll";
+// Enrollment Wizard Pages (lazy loaded — reduces initial bundle by ~100KB)
+const EnrollRegistration = lazy(() => import("@/pages/enroll/Registration"));
+const EnrollParticipationMode = lazy(() => import("@/pages/enroll/ParticipationMode"));
+const EnrollOrganization = lazy(() => import("@/pages/enroll/Organization"));
+const EnrollExpertiseSelection = lazy(() => import("@/pages/enroll/ExpertiseSelection"));
+const EnrollProofPoints = lazy(() => import("@/pages/enroll/ProofPoints"));
+const EnrollAssessment = lazy(() => import("@/pages/enroll/Assessment"));
+const TakeAssessment = lazy(() => import("@/pages/enroll/TakeAssessment"));
+const AssessmentResults = lazy(() => import("@/pages/enroll/AssessmentResults"));
+const PostEnrollmentWelcome = lazy(() => import("@/pages/enroll/PostEnrollmentWelcome"));
+const AddProofPoint = lazy(() => import("@/pages/enroll/AddProofPoint"));
+const EditProofPoint = lazy(() => import("@/pages/enroll/EditProofPoint"));
+const OrganizationPending = lazy(() => import("@/pages/enroll/OrganizationPending"));
+const OrganizationDeclined = lazy(() => import("@/pages/enroll/OrganizationDeclined"));
+const InterviewScheduling = lazy(() => import("@/pages/enroll/InterviewScheduling"));
+const PanelDiscussion = lazy(() => import("@/pages/enroll/PanelDiscussion"));
+const Certification = lazy(() => import("@/pages/enroll/Certification"));
 
 // Manager Portal (public pages - instant load)
 import ManagerPortal from "@/pages/public/ManagerPortal";
@@ -278,13 +275,11 @@ const LazyRoute = ({ children }: { children: React.ReactNode }) => (
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <Toaster />
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <EnrollmentProvider>
-            <ErrorBoundary componentName="App">
-            <Routes>
+          <ErrorBoundary componentName="App">
+          <Routes>
             {/* Public Routes */}
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
@@ -333,7 +328,9 @@ const App = () => (
               path="/dashboard"
               element={
                 <AuthGuard>
-                  <Dashboard />
+                  <EnrollmentProvider>
+                    <Dashboard />
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -346,12 +343,14 @@ const App = () => (
               }
             />
 
-            {/* Enrollment Wizard (9-step flow - no sidebar) */}
+            {/* Enrollment Wizard (9-step flow - no sidebar) — scoped EnrollmentProvider */}
             <Route
               path="/enroll/registration"
               element={
                 <AuthGuard>
-                  <EnrollRegistration />
+                  <EnrollmentProvider>
+                    <LazyRoute><EnrollRegistration /></LazyRoute>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -359,7 +358,9 @@ const App = () => (
               path="/enroll/welcome"
               element={
                 <AuthGuard>
-                  <PostEnrollmentWelcome />
+                  <EnrollmentProvider>
+                    <LazyRoute><PostEnrollmentWelcome /></LazyRoute>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -367,9 +368,11 @@ const App = () => (
               path="/enroll/participation-mode"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EnrollParticipationMode />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EnrollParticipationMode /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -377,9 +380,11 @@ const App = () => (
               path="/enroll/organization"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EnrollOrganization />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EnrollOrganization /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -387,9 +392,11 @@ const App = () => (
               path="/enroll/expertise"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EnrollExpertiseSelection />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EnrollExpertiseSelection /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -397,9 +404,11 @@ const App = () => (
               path="/enroll/proof-points"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EnrollProofPoints />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EnrollProofPoints /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -407,9 +416,11 @@ const App = () => (
               path="/enroll/proof-points/add"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <AddProofPoint />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><AddProofPoint /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -417,9 +428,11 @@ const App = () => (
               path="/enroll/proof-points/edit/:id"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EditProofPoint />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EditProofPoint /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -427,9 +440,11 @@ const App = () => (
               path="/enroll/organization-pending"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <OrganizationPending />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><OrganizationPending /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -437,9 +452,11 @@ const App = () => (
               path="/enroll/organization-declined"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <OrganizationDeclined />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><OrganizationDeclined /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -447,9 +464,11 @@ const App = () => (
               path="/enroll/assessment"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <EnrollAssessment />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><EnrollAssessment /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -457,9 +476,11 @@ const App = () => (
               path="/enroll/assessment/take"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <TakeAssessment />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><TakeAssessment /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -467,9 +488,11 @@ const App = () => (
               path="/enroll/assessment/results"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <AssessmentResults />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><AssessmentResults /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -477,9 +500,11 @@ const App = () => (
               path="/enroll/interview-slot"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <InterviewScheduling />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><InterviewScheduling /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -487,9 +512,11 @@ const App = () => (
               path="/enroll/panel-discussion"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <PanelDiscussion />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><PanelDiscussion /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -497,9 +524,11 @@ const App = () => (
               path="/enroll/certification"
               element={
                 <AuthGuard>
-                  <EnrollmentRequiredGuard>
-                    <Certification />
-                  </EnrollmentRequiredGuard>
+                  <EnrollmentProvider>
+                    <EnrollmentRequiredGuard>
+                      <LazyRoute><Certification /></LazyRoute>
+                    </EnrollmentRequiredGuard>
+                  </EnrollmentProvider>
                 </AuthGuard>
               }
             />
@@ -581,7 +610,11 @@ const App = () => (
             />
 
             {/* Admin Routes — nested under AdminShell for persistent sidebar */}
-            <Route path="/admin" element={<AdminGuard><AdminShell /></AdminGuard>}>
+            <Route path="/admin" element={
+              <ErrorBoundary componentName="Admin Portal">
+                <AdminGuard><AdminShell /></AdminGuard>
+              </ErrorBoundary>
+            }>
               <Route index element={<AdminDashboard />} />
               {/* Master Data — permission: master_data.view (read-only for basic admin) */}
               <Route path="master-data/countries" element={<PermissionGuard permissionKey="master_data.view"><CountriesPage /></PermissionGuard>} />
@@ -681,6 +714,7 @@ const App = () => (
               <Route path="marketplace/admin-contact" element={<PermissionGuard permissionKey="marketplace.manage_config"><AdminContactProfilePage /></PermissionGuard>} />
               <Route path="marketplace/email-templates" element={<PermissionGuard permissionKey="marketplace.manage_config"><EmailTemplatesPage /></PermissionGuard>} />
             </Route>
+
             {/* Reviewer Routes (all lazy loaded) */}
             <Route
               path="/reviewer/invitation-response"
@@ -693,9 +727,11 @@ const App = () => (
             <Route
               path="/reviewer/dashboard"
               element={
-                <ReviewerGuard>
-                  <LazyRoute><ReviewerDashboard /></LazyRoute>
-                </ReviewerGuard>
+                <ErrorBoundary componentName="Reviewer Portal">
+                  <ReviewerGuard>
+                    <LazyRoute><ReviewerDashboard /></LazyRoute>
+                  </ReviewerGuard>
+                </ErrorBoundary>
               }
             />
             <Route
@@ -745,9 +781,11 @@ const App = () => (
             <Route
               path="/pulse/feed"
               element={
-                <AuthGuard>
-                  <LazyRoute><PulseFeedPage /></LazyRoute>
-                </AuthGuard>
+                <ErrorBoundary componentName="Pulse">
+                  <AuthGuard>
+                    <LazyRoute><PulseFeedPage /></LazyRoute>
+                  </AuthGuard>
+                </ErrorBoundary>
               }
             />
             <Route
@@ -864,7 +902,11 @@ const App = () => (
             />
 
             {/* Seeker Organization Routes — nested under OrgShell for persistent sidebar */}
-            <Route path="/org" element={<SeekerGuard><OrgShell /></SeekerGuard>}>
+            <Route path="/org" element={
+              <ErrorBoundary componentName="Organization Portal">
+                <SeekerGuard><OrgShell /></SeekerGuard>
+              </ErrorBoundary>
+            }>
               <Route path="dashboard" element={<OrgDashboardPage />} />
               <Route path="challenges" element={<ChallengeListPage />} />
               <Route path="challenges/create" element={<ChallengeCreatePage />} />
@@ -900,7 +942,6 @@ const App = () => (
             <Route path="*" element={<NotFound />} />
           </Routes>
           </ErrorBoundary>
-          </EnrollmentProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

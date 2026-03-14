@@ -149,13 +149,19 @@ export function AdminSidebar() {
     prefetchRoute(path);
   }, []);
 
+  // Memoized navigation handler to avoid inline arrow functions
+  const handleNavigate = useCallback((path: string) => {
+    navigate(path);
+  }, [navigate]);
+
   // Helper to render a simple menu item
   const renderMenuItem = (item: { title: string; icon: React.ElementType; path: string; hasBadge?: boolean }, badgeCount?: number) => (
     <SidebarMenuItem key={item.path}>
       <SidebarMenuButton
-        onClick={() => navigate(item.path)}
+        onClick={() => handleNavigate(item.path)}
         onMouseEnter={() => handleMouseEnter(item.path)}
         isActive={isActive(item.path)}
+        aria-current={isActive(item.path) ? "page" : undefined}
       >
         <item.icon className="h-4 w-4" />
         <span className="flex-1">{item.title}</span>
@@ -169,7 +175,7 @@ export function AdminSidebar() {
   );
 
   return (
-    <Sidebar className="border-r">
+    <Sidebar className="border-r" aria-label="Admin Navigation">
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2">
           <Shield className="h-6 w-6 text-primary" />

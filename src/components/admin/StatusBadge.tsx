@@ -13,7 +13,7 @@ interface StatusBadgeProps {
  * StatusBadge component with forwardRef to prevent React ref warnings
  * when used inside DataTable's flexRender.
  */
-const StatusBadge = React.forwardRef<HTMLDivElement, StatusBadgeProps>(
+const StatusBadge = React.memo(React.forwardRef<HTMLDivElement, StatusBadgeProps>(
   ({ isActive, activeLabel = "Active", inactiveLabel = "Inactive", className }, ref) => {
     return (
       <Badge
@@ -30,7 +30,7 @@ const StatusBadge = React.forwardRef<HTMLDivElement, StatusBadgeProps>(
       </Badge>
     );
   }
-);
+));
 StatusBadge.displayName = "StatusBadge";
 
 export { StatusBadge };

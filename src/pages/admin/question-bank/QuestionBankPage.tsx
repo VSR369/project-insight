@@ -2,7 +2,7 @@ import * as React from "react";
 import { HelpCircle, ChevronRight, Building2, Target, Boxes, Sparkles, Filter, Upload, Download, Copy, Trash2, SlidersHorizontal, X, RotateCcw, BarChart3, CheckCircle, XCircle, ChevronDown, ChevronUp, Printer, FileDown, Eye, Loader2, AlertCircle, ExternalLink, FileSpreadsheet } from "lucide-react";
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from "recharts";
 import html2pdf from "html2pdf.js";
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 
 
 import { DataTable, DataTableColumn, DataTableAction } from "@/components/admin/DataTable";
@@ -503,7 +503,8 @@ export function QuestionBankPage() {
   const selectedSpeciality = specialities.find((sp) => sp.id === selectedSpecialityId);
 
   // ===================== EXPORT EXCEL =====================
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
+    const XLSX = await import("xlsx");
     if (questions.length === 0) return;
 
     const headers = [
@@ -572,7 +573,8 @@ export function QuestionBankPage() {
   };
 
   // ===================== DOWNLOAD TEMPLATE =====================
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = async () => {
+    const XLSX = await import("xlsx");
     const templateData = [
       [
         "industry_segment", "expertise_level", "proficiency_area", "sub_domain", "speciality",

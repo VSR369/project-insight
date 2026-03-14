@@ -1,5 +1,5 @@
 import * as React from "react";
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import { supabase } from "@/integrations/supabase/client";
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle2, X, Download, Loader2, RefreshCw, Plus, StopCircle, SkipForward, Clock, Tags } from "lucide-react";
 
@@ -404,6 +404,7 @@ export function QuestionImportDialog({
 
   // Chunked Excel parsing with progress updates
   const parseExcelChunked = async (file: File): Promise<ParsedQuestion[]> => {
+    const XLSX = await import("xlsx");
     const arrayBuffer = await file.arrayBuffer();
     const workbook = XLSX.read(arrayBuffer, { type: "array" });
 
@@ -916,7 +917,8 @@ export function QuestionImportDialog({
   };
 
   // Export failed rows
-  const downloadFailedRows = () => {
+  const downloadFailedRows = async () => {
+    const XLSX = await import("xlsx");
     if (!importResults?.failures.length) return;
     
     const failureData = [
@@ -940,7 +942,8 @@ export function QuestionImportDialog({
   };
 
   // Export invalid preview rows
-  const downloadInvalidPreviewRows = () => {
+  const downloadInvalidPreviewRows = async () => {
+    const XLSX = await import("xlsx");
     const invalidRows = parsedQuestions.filter(q => !q.isValid || q.isSkipped);
     if (invalidRows.length === 0) return;
 
@@ -966,7 +969,8 @@ export function QuestionImportDialog({
     return new Set(validQuestions.map(q => q.speciality_id)).size;
   }, [parsedQuestions]);
 
-  const downloadExcelTemplate = () => {
+  const downloadExcelTemplate = async () => {
+    const XLSX = await import("xlsx");
     const questionsSheet = XLSX.utils.aoa_to_sheet(EXCEL_TEMPLATE_DATA);
     const instructionsSheet = XLSX.utils.aoa_to_sheet(INSTRUCTIONS_SHEET_DATA);
 

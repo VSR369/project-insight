@@ -3,7 +3,7 @@
  * Per Project Knowledge patterns for Excel import/export
  */
 
-import * as XLSX from "xlsx";
+// XLSX dynamically imported at point-of-use to reduce initial bundle
 import type { 
   InterviewKitQuestionWithRelations, 
   InterviewKitCompetency 
@@ -54,7 +54,8 @@ const SAMPLE_DATA = [
 /**
  * Download an empty template for importing questions
  */
-export function downloadInterviewKitTemplate(): void {
+export async function downloadInterviewKitTemplate(): Promise<void> {
+  const XLSX = await import("xlsx");
   const wb = XLSX.utils.book_new();
 
   // Data sheet with headers and sample rows
@@ -92,10 +93,11 @@ export function downloadInterviewKitTemplate(): void {
 /**
  * Export current questions data to Excel
  */
-export function exportInterviewKitQuestions(
+export async function exportInterviewKitQuestions(
   questions: InterviewKitQuestionWithRelations[],
   competencies: InterviewKitCompetency[]
-): void {
+): Promise<void> {
+  const XLSX = await import("xlsx");
   const competencyMap = new Map(competencies.map((c) => [c.id, c]));
 
   const exportData = questions.map((q) => ({
@@ -162,6 +164,7 @@ export interface ParsedQuestion {
 }
 
 export async function parseInterviewKitExcel(file: File): Promise<ParsedQuestion[]> {
+  const XLSX = await import("xlsx");
   const data = await file.arrayBuffer();
   const wb = XLSX.read(data, { type: "array" });
 
@@ -229,7 +232,8 @@ export async function parseInterviewKitExcel(file: File): Promise<ParsedQuestion
 /**
  * Export validation errors to Excel
  */
-export function exportValidationErrors(questions: ParsedQuestion[]): void {
+export async function exportValidationErrors(questions: ParsedQuestion[]): Promise<void> {
+  const XLSX = await import("xlsx");
   const errorRows = questions
     .filter((q) => q.errors.length > 0)
     .map((q) => ({
