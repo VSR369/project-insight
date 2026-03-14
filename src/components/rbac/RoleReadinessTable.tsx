@@ -4,7 +4,9 @@
  * Used on /org/role-readiness page only. Dashboard widget uses RoleReadinessPanel.
  */
 
+import { Link } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -14,7 +16,7 @@ import {
   TableRow,
   TableCell,
 } from "@/components/ui/table";
-import { CheckCircle2, XCircle, AlertTriangle } from "lucide-react";
+import { CheckCircle2, XCircle, AlertTriangle, ArrowRight, UserPlus } from "lucide-react";
 import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import { useSlmRoleCodes } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments } from "@/hooks/queries/useRoleAssignments";
