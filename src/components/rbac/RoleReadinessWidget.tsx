@@ -21,7 +21,7 @@ export function RoleReadinessWidget({ orgId, model }: RoleReadinessWidgetProps) 
   const navigate = useNavigate();
   const { data: readinessData, isLoading: readinessLoading } = useRoleReadiness(orgId, model);
   const { data: roleCodes } = useSlmRoleCodes();
-  const { data: adminContact } = useAdminContact();
+  const { data: soaProfile } = useSoaProfile(orgId);
 
   const readiness: RoleReadiness | null = readinessData?.[0] ?? null;
   const isReady = readiness?.overall_status === "ready";
