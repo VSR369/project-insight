@@ -102,9 +102,24 @@ export function useCreatePoolMember() {
       if (error) throw new Error(error.message);
       return result;
     },
-    onSuccess: (result) => {
+    onSuccess: async (result, variables) => {
       queryClient.invalidateQueries({ queryKey: ["pool-members"] });
       toast.success(`Pool member ${result.full_name} added successfully.`);
+
+      // Send informational welcome email (fire-and-forget)
+      try {
+        await supabase.functions.invoke("send-pool-member-welcome", {
+          body: {
+            member_name: variables.full_name,
+            member_email: variables.email,
+            role_names: variables.role_codes,
+          },
+        });
+      } catch (emailErr) {
+        // Non-blocking: log but don't fail the mutation
+        console.warn("Welcome email could not be sent:", emailErr);
+        toast.warning("Pool member added, but welcome email could not be sent.");
+      }
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: "create_pool_member" });

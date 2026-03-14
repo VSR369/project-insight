@@ -142,3 +142,6 @@ verify_jwt = false
 
 [functions.send-role-enrollment-confirmation]
 verify_jwt = false
+
+[functions.send-pool-member-welcome]
+verify_jwt = false
