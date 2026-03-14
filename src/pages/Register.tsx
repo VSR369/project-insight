@@ -75,7 +75,6 @@ export default function Register() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeRole, setActiveRole] = useState<RoleTab>('provider');
   const [providerSubTab, setProviderSubTab] = useState<ProviderSubTab>('experienced');
-  const [selectedDiscipline, setSelectedDiscipline] = useState<string>('');
   const [invitationData, setInvitationData] = useState<InvitationData | null>(null);
 
   // ═══════════════════════════════════════════
