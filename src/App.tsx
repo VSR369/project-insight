@@ -12,6 +12,7 @@ import { AuthGuard } from "@/components/auth/AuthGuard";
 import { AdminGuard } from "@/components/auth/AdminGuard";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { TierGuard } from "@/components/admin/TierGuard";
+import { PermissionGuard } from "@/components/admin/PermissionGuard";
 import { ReviewerGuard } from "@/components/auth/ReviewerGuard";
 import { SeekerGuard } from "@/components/auth/SeekerGuard";
 import { OrgShell } from "@/components/org/OrgShell";
