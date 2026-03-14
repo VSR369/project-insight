@@ -253,11 +253,9 @@ export function AdminSidebar() {
         <SidebarGroup>
           <SidebarGroupLabel className="flex items-center gap-1">
             <span className="flex-1">Operations</span>
-            <BookOpen
-              className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
-              onClick={() => navigate('/admin/verification-knowledge-centre')}
-              title="Operations Help"
-            />
+            <span title="Operations Help" onClick={() => navigate('/admin/verification-knowledge-centre')} className="shrink-0 cursor-pointer">
+              <BookOpen className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+            </span>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
