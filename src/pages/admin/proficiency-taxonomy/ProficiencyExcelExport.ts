@@ -84,6 +84,7 @@ export async function downloadProficiencyTemplate(): Promise<void> {
  * Exports all current proficiency taxonomy data to Excel
  */
 export async function exportProficiencyData(): Promise<void> {
+  const XLSX = await import("xlsx");
   // Fetch all data with relationships
   const { data: industrySegments, error: segmentsError } = await supabase
     .from("industry_segments")
