@@ -170,7 +170,12 @@ export function RoleReadinessTable({ orgId, model }: RoleReadinessTableProps) {
                         ))}
                       </div>
                     ) : (
-                      <span className="text-sm text-muted-foreground">—</span>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link to={`/org/role-management?assign=${row.code}`}>
+                          <UserPlus className="h-3.5 w-3.5 mr-1" />
+                          Assign
+                        </Link>
+                      </Button>
                     )}
                   </TableCell>
                 </TableRow>
