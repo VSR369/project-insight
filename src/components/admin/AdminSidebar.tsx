@@ -450,7 +450,14 @@ export function AdminSidebar() {
         {/* ═══════════════════════════════════════════════════ */}
         {hasPermission('seeker_config.view') && (
           <SidebarGroup>
-            <SidebarGroupLabel>Seeker Config</SidebarGroupLabel>
+            <SidebarGroupLabel className="flex items-center gap-1">
+              <span className="flex-1">Seeker Config</span>
+              <BookOpen
+                className="h-3.5 w-3.5 text-muted-foreground hover:text-primary cursor-pointer shrink-0"
+                onClick={() => navigate('/admin/kc/seeker-config')}
+                title="Seeker Config Help"
+              />
+            </SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {seekerConfigItems.map((item) => renderMenuItem(item))}
