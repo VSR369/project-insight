@@ -769,6 +769,7 @@ export function QuestionBankPage() {
         pagebreak: { mode: ["avoid-all", "css", "legacy"] },
       };
       
+      const html2pdf = (await import("html2pdf.js")).default;
       await html2pdf().set(opt).from(container).save();
     } finally {
       document.body.removeChild(container);

@@ -407,6 +407,7 @@ export default function TakeAssessment() {
     const container = document.createElement('div');
     container.innerHTML = htmlContent;
     
+    const html2pdf = (await import('html2pdf.js')).default;
     html2pdf()
       .from(container)
       .set({
