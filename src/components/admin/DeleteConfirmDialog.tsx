@@ -149,4 +149,4 @@ export const DeleteConfirmDialog = React.memo(function DeleteConfirmDialog({
       </AlertDialogContent>
     </AlertDialog>
   );
-}
+});
