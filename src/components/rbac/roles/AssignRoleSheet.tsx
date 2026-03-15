@@ -223,9 +223,11 @@ export function AssignRoleSheet({
       user_name: data.user_name,
       domain_tags: (data.domain_tags as Json) ?? undefined,
       model_applicability: data.model_applicability,
+      department_id: isR10CR && selectedDepartmentId ? selectedDepartmentId : undefined,
     });
     form.reset();
     setManualRoleCode("");
+    setSelectedDepartmentId("");
     onOpenChange(false);
   };
 
