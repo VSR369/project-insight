@@ -6,9 +6,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Building2 } from "lucide-react";
 import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
+import { useDepartments } from "@/hooks/queries/usePrimaryContactData";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
