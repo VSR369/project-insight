@@ -20,6 +20,7 @@ export interface RoleAssignment {
   status: string;
   domain_tags: Record<string, unknown>;
   model_applicability: string;
+  department_id: string | null;
   invited_at: string | null;
   activated_at: string | null;
   expires_at: string | null;
