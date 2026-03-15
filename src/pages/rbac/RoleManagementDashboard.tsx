@@ -46,12 +46,19 @@ export default function RoleManagementDashboard() {
   const { data: orgCoreRoles, isLoading: orgCoreLoading } = useCoreRoleCodes();
   const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(organizationId);
+  const { data: msmeConfig } = useMsmeConfig(organizationId);
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4a: Derived state (needed before useEffect)
   // ══════════════════════════════════════
   const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
+  const challengeRequestorEnabled = msmeConfig?.challenge_requestor_enabled ?? false;
+
+  // Filter R10_CR out of core roles when Challenge Requestor toggle is off
+  const filteredCoreRoles = orgCoreRoles?.filter(
+    (r) => r.code !== "R10_CR" || challengeRequestorEnabled
+  ) ?? [];
 
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
