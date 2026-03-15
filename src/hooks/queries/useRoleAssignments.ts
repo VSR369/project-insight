@@ -20,6 +20,7 @@ export interface RoleAssignment {
   status: string;
   domain_tags: Record<string, unknown>;
   model_applicability: string;
+  department_id: string | null;
   invited_at: string | null;
   activated_at: string | null;
   expires_at: string | null;
@@ -38,6 +39,7 @@ export interface CreateRoleAssignmentInput {
   status?: string;
   domain_tags?: Json;
   model_applicability?: string;
+  department_id?: string;
 }
 
 export function useRoleAssignments(orgId?: string) {
@@ -47,7 +49,7 @@ export function useRoleAssignments(orgId?: string) {
       if (!orgId) return [];
       const { data, error } = await supabase
         .from("role_assignments")
-        .select("id, org_id, role_code, user_email, user_name, user_id, status, domain_tags, model_applicability, invited_at, activated_at, expires_at, created_by, created_at, updated_by, updated_at")
+        .select("id, org_id, role_code, user_email, user_name, user_id, status, domain_tags, model_applicability, department_id, invited_at, activated_at, expires_at, created_by, created_at, updated_by, updated_at")
         .eq("org_id", orgId)
         .order("created_at", { ascending: true })
         .limit(200);

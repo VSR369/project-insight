@@ -16,9 +16,11 @@ import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
+import { ChallengeRequestorToggle } from "@/components/rbac/ChallengeRequestorToggle";
 import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
 import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useMsmeConfig } from "@/hooks/queries/useMsmeConfig";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { FeatureErrorBoundary } from "@/components/ErrorBoundary";
 
@@ -44,12 +46,19 @@ export default function RoleManagementDashboard() {
   const { data: orgCoreRoles, isLoading: orgCoreLoading } = useCoreRoleCodes();
   const { data: aggChallengeRoles, isLoading: aggLoading } = useAggChallengeRoles();
   const { data: assignments, isLoading: assignmentsLoading } = useRoleAssignments(organizationId);
+  const { data: msmeConfig } = useMsmeConfig(organizationId);
   const deactivate = useDeactivateRoleAssignment();
 
   // ══════════════════════════════════════
   // SECTION 4a: Derived state (needed before useEffect)
   // ══════════════════════════════════════
   const isLoading = orgCoreLoading || aggLoading || assignmentsLoading;
+  const challengeRequestorEnabled = msmeConfig?.challenge_requestor_enabled ?? false;
+
+  // Filter R10_CR out of core roles when Challenge Requestor toggle is off
+  const filteredCoreRoles = orgCoreRoles?.filter(
+    (r) => r.code !== "R10_CR" || challengeRequestorEnabled
+  ) ?? [];
 
   // ══════════════════════════════════════
   // SECTION 5: useEffect hooks
@@ -112,6 +121,9 @@ export default function RoleManagementDashboard() {
         {/* MSME Toggle */}
         <MsmeToggle orgId={organizationId} onQuickAssign={() => setQuickAssignOpen(true)} />
 
+        {/* Challenge Requestor Toggle */}
+        <ChallengeRequestorToggle orgId={organizationId} />
+
         {/* Role Tabs — Core + Aggregator only (BR-CORE-004: no Marketplace) */}
         {isLoading ? (
           <div className="space-y-3">
@@ -129,7 +141,7 @@ export default function RoleManagementDashboard() {
 
             <TabsContent value="org-core">
               <RoleTable
-                roles={orgCoreRoles}
+                roles={filteredCoreRoles}
                 assignments={assignments ?? []}
                 onInvite={(code) => handleInvite(code, "core")}
                 onDeactivate={handleDeactivate}

@@ -6,9 +6,10 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { UserPlus, UserMinus } from "lucide-react";
+import { UserPlus, UserMinus, Building2 } from "lucide-react";
 import { RoleAssignmentStatusBadge } from "@/components/rbac/roles/RoleAssignmentStatusBadge";
 import { InitialsAvatar } from "@/components/admin/platform-admins/InitialsAvatar";
+import { useDepartments } from "@/hooks/queries/usePrimaryContactData";
 import type { SlmRoleCode } from "@/hooks/queries/useSlmRoleCodes";
 import type { RoleAssignment } from "@/hooks/queries/useRoleAssignments";
 
@@ -22,6 +23,8 @@ interface RoleTableProps {
 
 
 export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeactivating }: RoleTableProps) {
+  const { data: departments } = useDepartments();
+
   if (roles.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
@@ -29,6 +32,12 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
       </div>
     );
   }
+
+  const getDeptName = (deptId: string | null) => {
+    if (!deptId || !departments) return null;
+    const dept = departments.find((d: { id: string; name: string }) => d.id === deptId);
+    return dept?.name ?? null;
+  };
 
   return (
     <div className="relative w-full overflow-auto">
@@ -64,14 +73,23 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                     <span className="text-sm text-muted-foreground italic">No user assigned</span>
                   ) : (
                     <div className="space-y-1.5">
-                      {roleAssignments.map((a) => (
-                        <div key={a.id} className="flex items-center gap-2">
-                          <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
-                          <span className="text-sm text-foreground">
-                            {a.user_name ?? a.user_email}
-                          </span>
-                        </div>
-                      ))}
+                      {roleAssignments.map((a) => {
+                        const deptName = getDeptName(a.department_id);
+                        return (
+                          <div key={a.id} className="flex items-center gap-2">
+                            <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
+                            <span className="text-sm text-foreground">
+                              {a.user_name ?? a.user_email}
+                            </span>
+                            {deptName && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                                <Building2 className="h-2.5 w-2.5" />
+                                {deptName}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </TableCell>
