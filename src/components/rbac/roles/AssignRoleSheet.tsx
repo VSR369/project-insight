@@ -640,7 +640,7 @@ export function AssignRoleSheet({
             <Button
               type="submit"
               form="assign-role-form"
-              disabled={isMutating || !effectiveRoleCode}
+              disabled={isMutating || !effectiveRoleCode || (isR10CR && !selectedDepartmentId)}
             >
               {isMutating
                 ? "Processing..."
