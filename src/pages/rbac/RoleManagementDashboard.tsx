@@ -141,7 +141,7 @@ export default function RoleManagementDashboard() {
 
             <TabsContent value="org-core">
               <RoleTable
-                roles={orgCoreRoles}
+                roles={filteredCoreRoles}
                 assignments={assignments ?? []}
                 onInvite={(code) => handleInvite(code, "core")}
                 onDeactivate={handleDeactivate}
