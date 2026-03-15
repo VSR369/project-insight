@@ -73,14 +73,23 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
                     <span className="text-sm text-muted-foreground italic">No user assigned</span>
                   ) : (
                     <div className="space-y-1.5">
-                      {roleAssignments.map((a) => (
-                        <div key={a.id} className="flex items-center gap-2">
-                          <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
-                          <span className="text-sm text-foreground">
-                            {a.user_name ?? a.user_email}
-                          </span>
-                        </div>
-                      ))}
+                      {roleAssignments.map((a) => {
+                        const deptName = getDeptName(a.department_id);
+                        return (
+                          <div key={a.id} className="flex items-center gap-2">
+                            <InitialsAvatar name={a.user_name ?? "?"} size="sm" className="h-6 w-6 text-[10px]" />
+                            <span className="text-sm text-foreground">
+                              {a.user_name ?? a.user_email}
+                            </span>
+                            {deptName && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                                <Building2 className="h-2.5 w-2.5" />
+                                {deptName}
+                              </Badge>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </TableCell>
