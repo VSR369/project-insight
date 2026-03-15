@@ -2909,18 +2909,21 @@ export type Database = {
       }
       md_rbac_msme_config: {
         Row: {
+          challenge_requestor_enabled: boolean
           enabled_at: string | null
           enabled_by: string | null
           is_enabled: boolean | null
           org_id: string
         }
         Insert: {
+          challenge_requestor_enabled?: boolean
           enabled_at?: string | null
           enabled_by?: string | null
           is_enabled?: boolean | null
           org_id: string
         }
         Update: {
+          challenge_requestor_enabled?: boolean
           enabled_at?: string | null
           enabled_by?: string | null
           is_enabled?: boolean | null
@@ -7020,6 +7023,7 @@ export type Database = {
           created_by: string | null
           decline_reason: string | null
           declined_at: string | null
+          department_id: string | null
           domain_tags: Json | null
           expires_at: string | null
           id: string
@@ -7041,6 +7045,7 @@ export type Database = {
           created_by?: string | null
           decline_reason?: string | null
           declined_at?: string | null
+          department_id?: string | null
           domain_tags?: Json | null
           expires_at?: string | null
           id?: string
@@ -7062,6 +7067,7 @@ export type Database = {
           created_by?: string | null
           decline_reason?: string | null
           declined_at?: string | null
+          department_id?: string | null
           domain_tags?: Json | null
           expires_at?: string | null
           id?: string
@@ -7077,6 +7083,13 @@ export type Database = {
           user_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "role_assignments_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "md_departments"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "role_assignments_org_id_fkey"
             columns: ["org_id"]
