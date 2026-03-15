@@ -80,6 +80,7 @@ export function AssignRoleSheet({
   const { data: subDomains } = useSubDomains(selectedIndustry || undefined);
   const { data: specialties } = useSpecialities(selectedSubDomain || undefined);
   const { data: proficiencyLevels } = useProficiencyLevels();
+  const { data: departmentsList } = useDepartments();
 
   // ══════════════════════════════════════
   // SECTION 3: Form hooks
