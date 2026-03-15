@@ -37,6 +37,7 @@ import { useIndustrySegments } from "@/hooks/queries/useIndustrySegments";
 import { useSubDomains } from "@/hooks/queries/useProficiencyTaxonomy";
 import { useSpecialities } from "@/hooks/queries/useProficiencyTaxonomy";
 import { useProficiencyLevels } from "@/hooks/queries/useProficiencyLevels";
+import { useDepartments } from "@/hooks/queries/usePrimaryContactData";
 import { useSessionExpiryWatcher, useRestoreFormFromRecovery, useSaveFormForRecovery } from "@/hooks/useSessionRecovery";
 
 interface AssignRoleSheetProps {
