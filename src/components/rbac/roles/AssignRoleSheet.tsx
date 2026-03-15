@@ -192,6 +192,7 @@ export function AssignRoleSheet({
     user_name?: string;
     domain_tags?: Json;
     model_applicability: string;
+    department_id?: string;
   }) => {
     if (enrollMode === "direct") {
       const result = await directEnroll.mutateAsync(input);
