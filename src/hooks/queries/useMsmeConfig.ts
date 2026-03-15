@@ -13,6 +13,7 @@ export interface MsmeConfig {
   is_enabled: boolean;
   enabled_by: string | null;
   enabled_at: string | null;
+  challenge_requestor_enabled: boolean;
 }
 
 export function useMsmeConfig(orgId?: string) {
