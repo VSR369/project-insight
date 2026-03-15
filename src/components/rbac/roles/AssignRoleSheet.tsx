@@ -66,6 +66,7 @@ export function AssignRoleSheet({
   const [manualRoleCode, setManualRoleCode] = useState<string>("");
   const [selectedMemberEmail, setSelectedMemberEmail] = useState<string>("");
   const [existingMemberRoleCode, setExistingMemberRoleCode] = useState<string>("");
+  const [selectedDepartmentId, setSelectedDepartmentId] = useState<string>("");
 
   // ══════════════════════════════════════
   // SECTION 2: Query/Mutation hooks
