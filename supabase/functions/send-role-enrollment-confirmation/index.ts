@@ -41,6 +41,14 @@ serve(async (req) => {
     const siteUrl = Deno.env.get("SITE_URL") || "https://schema-whisperer-72.lovable.app";
     const dashboardLink = `${siteUrl}/org/dashboard`;
 
+    // Determine from address and recipient based on domain verification
+    const verifiedFromAddress = Deno.env.get("RESEND_FROM_ADDRESS");
+    const sandboxRecipient = Deno.env.get("RESEND_VERIFIED_EMAIL") || "vsr0001@gmail.com";
+
+    const isSandboxMode = !verifiedFromAddress;
+    const fromAddress = isSandboxMode ? "onboarding@resend.dev" : verifiedFromAddress;
+    const toAddress = isSandboxMode ? sandboxRecipient : assignment.user_email;
+
     // Send confirmation email via Resend
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -49,14 +57,15 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "noreply@resend.dev",
-        to: [assignment.user_email],
+        from: fromAddress,
+        to: [toAddress],
         subject: `You've been enrolled as ${roleName}${org_name ? ` at ${org_name}` : ""}`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
             <h2 style="color:#1a1a1a;">Role Enrollment Confirmation</h2>
             <p>Hello ${assignment.user_name || "there"},</p>
             <p>You have been directly enrolled as <strong>${roleName}</strong>${org_name ? ` at <strong>${org_name}</strong>` : ""}.</p>
+            ${isSandboxMode ? `<p style="color:#b45309;font-size:12px;background:#fef3c7;padding:8px 12px;border-radius:6px;">⚠️ Sandbox mode: This email was redirected to ${sandboxRecipient}. Original recipient: ${assignment.user_email}. To send to actual recipients, verify a domain at resend.com/domains.</p>` : ""}
             <p>Your role is now <strong>active</strong> and no further action is needed from your side.</p>
             <p style="margin:24px 0;">
               <a href="${dashboardLink}" style="background-color:hsl(222.2,47.4%,11.2%);color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">

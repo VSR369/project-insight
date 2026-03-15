@@ -25,6 +25,14 @@ serve(async (req) => {
 
     const siteUrl = Deno.env.get("SITE_URL") || "https://schema-whisperer-72.lovable.app";
 
+    // Determine from address and recipient based on domain verification
+    const verifiedFromAddress = Deno.env.get("RESEND_FROM_ADDRESS");
+    const sandboxRecipient = Deno.env.get("RESEND_VERIFIED_EMAIL") || "vsr0001@gmail.com";
+
+    const isSandboxMode = !verifiedFromAddress;
+    const fromAddress = isSandboxMode ? "onboarding@resend.dev" : verifiedFromAddress;
+    const toAddress = isSandboxMode ? sandboxRecipient : member_email;
+
     const emailRes = await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: {
@@ -32,14 +40,15 @@ serve(async (req) => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "noreply@resend.dev",
-        to: [member_email],
+        from: fromAddress,
+        to: [toAddress],
         subject: `You've been added to the SLM Resource Pool`,
         html: `
           <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px;">
             <h2 style="color:#1a1a1a;">Welcome to the Resource Pool</h2>
             <p>Hello ${member_name},</p>
             <p>You have been added to the <strong>SLM Marketplace Resource Pool</strong> as <strong>${rolesText}</strong>${added_by_name ? ` by ${added_by_name}` : ""}.</p>
+            ${isSandboxMode ? `<p style="color:#b45309;font-size:12px;background:#fef3c7;padding:8px 12px;border-radius:6px;">⚠️ Sandbox mode: This email was redirected to ${sandboxRecipient}. Original recipient: ${member_email}. To send to actual recipients, verify a domain at resend.com/domains.</p>` : ""}
             <p>As a pool member, you may be assigned to Marketplace challenges based on your domain expertise and availability.</p>
             <p style="margin:24px 0;">
               <a href="${siteUrl}" style="background-color:hsl(222.2,47.4%,11.2%);color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block;">
