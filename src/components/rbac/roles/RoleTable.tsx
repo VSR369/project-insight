@@ -23,6 +23,8 @@ interface RoleTableProps {
 
 
 export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeactivating }: RoleTableProps) {
+  const { data: departments } = useDepartments();
+
   if (roles.length === 0) {
     return (
       <div className="text-center py-8 text-sm text-muted-foreground">
@@ -30,6 +32,12 @@ export function RoleTable({ roles, assignments, onInvite, onDeactivate, isDeacti
       </div>
     );
   }
+
+  const getDeptName = (deptId: string | null) => {
+    if (!deptId || !departments) return null;
+    const dept = departments.find((d: { id: string; name: string }) => d.id === deptId);
+    return dept?.name ?? null;
+  };
 
   return (
     <div className="relative w-full overflow-auto">
