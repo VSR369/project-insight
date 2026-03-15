@@ -121,6 +121,9 @@ export default function RoleManagementDashboard() {
         {/* MSME Toggle */}
         <MsmeToggle orgId={organizationId} onQuickAssign={() => setQuickAssignOpen(true)} />
 
+        {/* Challenge Requestor Toggle */}
+        <ChallengeRequestorToggle orgId={organizationId} />
+
         {/* Role Tabs — Core + Aggregator only (BR-CORE-004: no Marketplace) */}
         {isLoading ? (
           <div className="space-y-3">
