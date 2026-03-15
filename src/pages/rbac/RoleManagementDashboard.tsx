@@ -16,9 +16,11 @@ import { AggRoleManagement } from "@/components/rbac/AggRoleManagement";
 import { AssignRoleSheet } from "@/components/rbac/roles/AssignRoleSheet";
 import { MsmeToggle } from "@/components/rbac/MsmeToggle";
 import { MsmeQuickAssignModal } from "@/components/rbac/MsmeQuickAssignModal";
+import { ChallengeRequestorToggle } from "@/components/rbac/ChallengeRequestorToggle";
 import { DelegatedAdminListTab } from "@/components/rbac/DelegatedAdminListTab";
 import { useCoreRoleCodes, useAggChallengeRoles } from "@/hooks/queries/useSlmRoleCodes";
 import { useRoleAssignments, useDeactivateRoleAssignment } from "@/hooks/queries/useRoleAssignments";
+import { useMsmeConfig } from "@/hooks/queries/useMsmeConfig";
 import { useOrgContext } from "@/contexts/OrgContext";
 import { FeatureErrorBoundary } from "@/components/ErrorBoundary";
 
