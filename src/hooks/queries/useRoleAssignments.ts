@@ -38,6 +38,7 @@ export interface CreateRoleAssignmentInput {
   status?: string;
   domain_tags?: Json;
   model_applicability?: string;
+  department_id?: string;
 }
 
 export function useRoleAssignments(orgId?: string) {
