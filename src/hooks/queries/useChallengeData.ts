@@ -135,6 +135,7 @@ export function useCreateChallenge() {
       maxSolutions: number;
       shadowFeeAmount?: number;
       visibility?: string;
+      solverEligibilityId?: string;
     }) => {
       const { data, error } = await supabase
         .from('challenges')
@@ -152,6 +153,7 @@ export function useCreateChallenge() {
           max_solutions: params.maxSolutions,
           shadow_fee_amount: params.shadowFeeAmount ?? null,
           visibility: params.visibility ?? 'private',
+          solver_eligibility_id: params.solverEligibilityId ?? null,
           status: 'draft',
           payment_status: 'pending',
         })
