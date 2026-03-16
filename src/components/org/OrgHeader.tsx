@@ -58,7 +58,7 @@ export function OrgHeader() {
     sessionStorage.removeItem('activePortal');
     await signOut();
     toast.success('Signed out successfully');
-    navigate('/login');
+    navigate('/login', { replace: true });
   };
 
   const roleBadgeColor = orgRole === 'owner' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground';

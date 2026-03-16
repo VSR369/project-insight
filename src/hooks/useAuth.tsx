@@ -116,6 +116,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     sessionStorage.removeItem('activeEnrollmentId');
     sessionStorage.removeItem('activePortal');
     sessionStorage.removeItem('proofPoint.lastCategory');
+    // Immediately clear user/session state to prevent race conditions
+    // where Login page sees a stale user and redirects back to portal
+    setUser(null);
+    setSession(null);
     // Sign out from Supabase
     await supabase.auth.signOut();
   };
