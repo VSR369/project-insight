@@ -73,6 +73,26 @@ export function useEngagementModels() {
 }
 
 /**
+ * Fetch solver eligibility categories
+ */
+export function useSolverEligibility() {
+  return useQuery({
+    queryKey: ['solver-eligibility'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('md_solver_eligibility')
+        .select('id, code, label, description, requires_auth, requires_provider_record, requires_certification, min_star_rating, display_order')
+        .eq('is_active', true)
+        .order('display_order');
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    staleTime: 15 * 60 * 1000,
+    gcTime: 60 * 60 * 1000,
+  });
+}
+
+/**
  * Fetch base fees for a country and tier
  */
 export function useBaseFees(countryId: string | undefined, tierId: string | undefined) {
