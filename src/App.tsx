@@ -151,6 +151,7 @@ const SubsidizedPricingPage = lazy(() => import("@/pages/admin/subsidized-pricin
 const PostalFormatsPage = lazy(() => import("@/pages/admin/postal-formats").then(m => ({ default: m.PostalFormatsPage })));
 const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then(m => ({ default: m.BillingCyclesPage })));
 const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
+const SolverEligibilityPage = lazy(() => import("@/pages/admin/solver-eligibility").then(m => ({ default: m.SolverEligibilityPage })));
 
 // Platform Admin Management Pages (MOD-01, lazy loaded)
 const PlatformAdminListPage = lazy(() => import("@/pages/admin/platform-admins/PlatformAdminListPage"));
@@ -665,6 +666,7 @@ const App = () => (
               <Route path="seeker-config/postal-formats" element={<PermissionGuard permissionKey="seeker_config.view"><PostalFormatsPage /></PermissionGuard>} />
               <Route path="seeker-config/billing-cycles" element={<PermissionGuard permissionKey="seeker_config.view"><BillingCyclesPage /></PermissionGuard>} />
               <Route path="seeker-config/payment-methods" element={<PermissionGuard permissionKey="seeker_config.view"><PaymentMethodsPage /></PermissionGuard>} />
+              <Route path="seeker-config/solver-eligibility" element={<PermissionGuard permissionKey="seeker_config.view"><SolverEligibilityPage /></PermissionGuard>} />
               <Route path="saas-agreements" element={<PermissionGuard permissionKey="org_approvals.manage_agreements"><SaasAgreementPage /></PermissionGuard>} />
               {/* Org Approvals — permission: org_approvals.view */}
               <Route path="seeker-org-approvals" element={<PermissionGuard permissionKey="org_approvals.view"><SeekerOrgApprovalsPage /></PermissionGuard>} />
