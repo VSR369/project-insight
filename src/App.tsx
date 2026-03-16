@@ -151,6 +151,7 @@ const SubsidizedPricingPage = lazy(() => import("@/pages/admin/subsidized-pricin
 const PostalFormatsPage = lazy(() => import("@/pages/admin/postal-formats").then(m => ({ default: m.PostalFormatsPage })));
 const BillingCyclesPage = lazy(() => import("@/pages/admin/billing-cycles").then(m => ({ default: m.BillingCyclesPage })));
 const PaymentMethodsPage = lazy(() => import("@/pages/admin/payment-methods").then(m => ({ default: m.PaymentMethodsPage })));
+const SolverEligibilityPage = lazy(() => import("@/pages/admin/solver-eligibility").then(m => ({ default: m.SolverEligibilityPage })));
 
 // Platform Admin Management Pages (MOD-01, lazy loaded)
 const PlatformAdminListPage = lazy(() => import("@/pages/admin/platform-admins/PlatformAdminListPage"));
