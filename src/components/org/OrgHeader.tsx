@@ -58,7 +58,9 @@ export function OrgHeader() {
     sessionStorage.removeItem('activePortal');
     await signOut();
     toast.success('Signed out successfully');
-    navigate('/login');
+    // Use replace to prevent back-button returning to protected route
+    // Small delay ensures auth state is fully cleared before navigation
+    setTimeout(() => navigate('/login', { replace: true }), 100);
   };
 
   const roleBadgeColor = orgRole === 'owner' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground';
