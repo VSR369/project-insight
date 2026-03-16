@@ -735,6 +735,99 @@ export type Database = {
           },
         ]
       }
+      challenge_submissions: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          email_verified: boolean
+          email_verified_at: string | null
+          id: string
+          is_deleted: boolean
+          payment_details: Json | null
+          prize_status: string | null
+          provider_id: string | null
+          solver_eligibility_code: string
+          status: string
+          submission_files: Json | null
+          submission_text: string | null
+          submitter_email: string
+          submitter_name: string
+          submitter_phone: string | null
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email_verified?: boolean
+          email_verified_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          payment_details?: Json | null
+          prize_status?: string | null
+          provider_id?: string | null
+          solver_eligibility_code: string
+          status?: string
+          submission_files?: Json | null
+          submission_text?: string | null
+          submitter_email: string
+          submitter_name: string
+          submitter_phone?: string | null
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          email_verified?: boolean
+          email_verified_at?: string | null
+          id?: string
+          is_deleted?: boolean
+          payment_details?: Json | null
+          prize_status?: string | null
+          provider_id?: string | null
+          solver_eligibility_code?: string
+          status?: string
+          submission_files?: Json | null
+          submission_text?: string | null
+          submitter_email?: string
+          submitter_name?: string
+          submitter_phone?: string | null
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_submissions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenge_submissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenges: {
         Row: {
           complexity_id: string | null
@@ -755,6 +848,7 @@ export type Database = {
           payment_status: string | null
           shadow_fee_amount: number | null
           solutions_awarded: number
+          solver_eligibility_id: string | null
           status: string
           tenant_id: string
           title: string
@@ -782,6 +876,7 @@ export type Database = {
           payment_status?: string | null
           shadow_fee_amount?: number | null
           solutions_awarded?: number
+          solver_eligibility_id?: string | null
           status?: string
           tenant_id: string
           title: string
@@ -809,6 +904,7 @@ export type Database = {
           payment_status?: string | null
           shadow_fee_amount?: number | null
           solutions_awarded?: number
+          solver_eligibility_id?: string | null
           status?: string
           tenant_id?: string
           title?: string
@@ -837,6 +933,13 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "challenges_solver_eligibility_id_fkey"
+            columns: ["solver_eligibility_id"]
+            isOneToOne: false
+            referencedRelation: "md_solver_eligibility"
             referencedColumns: ["id"]
           },
           {
@@ -3075,6 +3178,57 @@ export type Database = {
           is_core?: boolean
           min_required?: number
           model_applicability?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      md_solver_eligibility: {
+        Row: {
+          code: string
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          label: string
+          min_star_rating: number | null
+          requires_auth: boolean
+          requires_certification: boolean
+          requires_provider_record: boolean
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label: string
+          min_star_rating?: number | null
+          requires_auth?: boolean
+          requires_certification?: boolean
+          requires_provider_record?: boolean
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          label?: string
+          min_star_rating?: number | null
+          requires_auth?: boolean
+          requires_certification?: boolean
+          requires_provider_record?: boolean
           updated_at?: string | null
           updated_by?: string | null
         }
