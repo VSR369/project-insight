@@ -29,8 +29,7 @@ export const challengeSchema = z.object({
     errorMap: () => ({ message: 'Please select a visibility option' }),
   }).default('private'),
 
-  solver_eligibility_id: z.string()
-    .min(1, 'Please select a solver eligibility category'),
+  solver_eligibility_id: z.string().optional(),
 });
 
 export type ChallengeFormValues = z.infer<typeof challengeSchema>;
