@@ -100,6 +100,7 @@ const seekerConfigItems = [
   { title: 'Base Fee Config', icon: CreditCard, path: '/admin/seeker-config/base-fees' },
   { title: 'Platform Fees', icon: CreditCard, path: '/admin/seeker-config/platform-fees' },
   { title: 'Challenge Statuses', icon: ClipboardList, path: '/admin/seeker-config/challenge-statuses' },
+  { title: 'Solver Eligibility', icon: Users, path: '/admin/seeker-config/solver-eligibility' },
   { title: 'Platform Terms', icon: ClipboardList, path: '/admin/seeker-config/platform-terms' },
   { title: 'Tax Formats', icon: ClipboardList, path: '/admin/seeker-config/tax-formats' },
   { title: 'Subsidized Pricing', icon: Activity, path: '/admin/seeker-config/subsidized-pricing' },
