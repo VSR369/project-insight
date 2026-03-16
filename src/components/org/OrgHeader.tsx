@@ -56,9 +56,9 @@ export function OrgHeader() {
 
   const handleSignOut = async () => {
     sessionStorage.removeItem('activePortal');
-    toast.success('Signed out successfully');
     await signOut();
-    // AuthGuard will redirect to /login when user becomes null
+    toast.success('Signed out successfully');
+    navigate('/login', { replace: true });
   };
 
   const roleBadgeColor = orgRole === 'owner' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground';
