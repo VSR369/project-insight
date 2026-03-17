@@ -412,7 +412,7 @@ export default function Login() {
           onValueChange={(v) => setSelectedRole(v as PortalType)}
           className="mb-4"
         >
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
             {LOGIN_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
