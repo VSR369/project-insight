@@ -60,18 +60,22 @@ export function useReturnForModification() {
       if (assignments?.length) {
         const { data: poolData } = await supabase
           .from('platform_provider_pool')
-          .select('user_id')
+          .select('id, created_by')
           .in(
             'id',
             assignments.map((a) => a.pool_member_id),
           );
 
         if (poolData?.length) {
-          await supabase.from('cogni_notifications').insert(
-            poolData.map((p) => ({
-              user_id: p.user_id,
-              challenge_id: params.challengeId,
-              notification_type: 'RETURNED_FOR_MODIFICATION',
+          const userIds = poolData
+            .map((p) => p.created_by)
+            .filter((uid): uid is string => !!uid);
+          if (userIds.length) {
+            await supabase.from('cogni_notifications').insert(
+              userIds.map((uid) => ({
+                user_id: uid,
+                challenge_id: params.challengeId,
+                notification_type: 'RETURNED_FOR_MODIFICATION',
               title: 'Challenge Returned for Modification',
               message: params.reason,
             })),
