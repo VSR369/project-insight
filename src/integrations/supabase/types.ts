@@ -11577,6 +11577,15 @@ export type Database = {
         Args: { p_l1: number; p_l2: number; p_l3: number }
         Returns: Json
       }
+      validate_phase_transition: {
+        Args: {
+          p_challenge_id: string
+          p_from_status: string
+          p_to_status: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       validate_role_assignment: {
         Args: {
           p_challenge_id: string
