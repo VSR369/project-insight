@@ -187,7 +187,7 @@ export default function CurationChecklistPanel({
         initiated_by: "curator",
         status: "INITIATED",
         created_by: user?.id ?? null,
-      });
+      } as any);
       if (amendError) throw new Error(amendError.message);
 
       // 2. Log to audit trail
