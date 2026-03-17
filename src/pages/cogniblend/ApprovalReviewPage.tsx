@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import ApprovalPublicationConfigTab from "@/components/cogniblend/approval/ApprovalPublicationConfigTab";
+import ApprovalActionBar from "@/components/cogniblend/approval/ApprovalActionBar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -636,6 +637,7 @@ export default function ApprovalReviewPage() {
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [isApproved, setIsApproved] = useState(false);
+  const [pubConfig, setPubConfig] = useState<{ visibility: string; eligibility: string; isReady: boolean }>({ visibility: '', eligibility: '', isReady: false });
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -722,7 +724,7 @@ export default function ApprovalReviewPage() {
   // SECTION 6: Render
   // ══════════════════════════════════════
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5 pb-24">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
@@ -775,9 +777,22 @@ export default function ApprovalReviewPage() {
             challengeId={challengeId!}
             challenge={challenge}
             isApproved={isApproved}
+            onConfigChange={setPubConfig}
           />
         )}
       </div>
+
+      {/* Fixed Bottom Action Bar */}
+      <ApprovalActionBar
+        challengeId={challengeId!}
+        challenge={challenge}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isApproved={isApproved}
+        setIsApproved={setIsApproved}
+        pubConfigReady={pubConfig.isReady}
+        pubConfigValues={pubConfig}
+      />
     </div>
   );
 }

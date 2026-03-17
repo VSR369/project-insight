@@ -10,7 +10,7 @@
  * Validation: Eligibility cannot be broader than Visibility.
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -49,6 +49,7 @@ interface PublicationConfigTabProps {
     ip_model: string | null;
   };
   isApproved: boolean;
+  onConfigChange?: (config: { visibility: string; eligibility: string; isReady: boolean }) => void;
 }
 
 interface VisibilityOption {
@@ -142,6 +143,7 @@ export default function ApprovalPublicationConfigTab({
   challengeId,
   challenge,
   isApproved,
+  onConfigChange,
 }: PublicationConfigTabProps) {
   // ══════════════════════════════════════
   // SECTION 1: State
@@ -194,6 +196,12 @@ export default function ApprovalPublicationConfigTab({
   );
 
   const complexityInfo = useMemo(() => getComplexityLevel(complexityScore), [complexityScore]);
+
+  // Notify parent of configuration readiness
+  const isConfigReady = !!visibility && !!eligibility && !validationError && complexityFinalized;
+  useEffect(() => {
+    onConfigChange?.({ visibility, eligibility, isReady: isConfigReady });
+  }, [visibility, eligibility, isConfigReady, onConfigChange]);
 
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
