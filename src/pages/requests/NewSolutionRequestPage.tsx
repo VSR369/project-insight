@@ -7,6 +7,7 @@
  * - AGG: Challenge Requestor submits. If phase1_bypass enabled, can skip to /challenges/new
  * - AGG + no bypass: Standard form submission
  * 
+ * GATE-01: check_tier_limit blocks form if org is at capacity.
  * BR-SR-005: Duplicate detection — informational, not blocking.
  */
 
@@ -15,8 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { toast } from 'sonner';
-import { Send, X, Search, Info, ArrowRight } from 'lucide-react';
+import { Send, Save, X, Search, Info, ArrowRight, Loader2 } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,9 +34,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/useAuth';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
 import { useDuplicateDetection } from '@/hooks/queries/useDuplicateDetection';
 import { DuplicateMatchesPanel, DuplicateWarningBanner } from '@/components/requests/DuplicateMatchesPanel';
+import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
+import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 
 // ============================================================================
 // CONSTANTS
@@ -225,14 +230,20 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
 
 export default function NewSolutionRequestPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { data: currentOrg } = useCurrentOrg();
   const matchesPanelRef = useRef<HTMLDivElement>(null);
 
   // ── State ──
   const [warningDismissed, setWarningDismissed] = useState(false);
+  const [showTierModal, setShowTierModal] = useState(false);
 
   // ── Hooks (always called, unconditionally) ──
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
+  const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
   const { data: architects = [], isLoading: architectsLoading } = useChallengeArchitects();
+  const submitMutation = useSubmitSolutionRequest();
+  const draftMutation = useSaveDraft();
 
   const isMP = orgContext?.operatingModel === 'MP';
   const isAGG = orgContext?.operatingModel === 'AGG';
@@ -256,7 +267,7 @@ export default function NewSolutionRequestPage() {
     mode: 'onBlur',
   });
 
-  const { register, control, handleSubmit, watch, formState: { errors, isSubmitting } } = form;
+  const { register, control, handleSubmit, watch, formState: { errors, isValid }, getValues } = form;
 
   const businessProblem = watch('business_problem');
   const charCount = businessProblem?.length || 0;
@@ -270,24 +281,66 @@ export default function NewSolutionRequestPage() {
     matchesPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  // ── Shared payload builder ──
+  const buildPayload = (data: SolutionRequestFormValues) => ({
+    orgId: currentOrg?.organizationId ?? '',
+    creatorId: user?.id ?? '',
+    operatingModel: orgContext?.operatingModel ?? 'AGG',
+    businessProblem: data.business_problem,
+    expectedOutcomes: data.expected_outcomes,
+    currency: data.currency,
+    budgetMin: data.budget_min,
+    budgetMax: data.budget_max,
+    expectedTimeline: data.expected_timeline,
+    domainTags: data.domain_tags,
+    urgency: data.urgency,
+    architectId: data.architect_id || undefined,
+  });
+
   const onSubmit = async (data: SolutionRequestFormValues) => {
-    try {
-      // TODO: Save to Supabase solution_requests table
-      console.log('Solution request data:', data);
-      toast.success('Solution request created successfully');
-      navigate(-1);
-    } catch (error) {
-      toast.error('Failed to create solution request');
-    }
+    await submitMutation.mutateAsync(buildPayload(data));
+    navigate('/dashboard');
   };
 
+  const onSaveDraft = async () => {
+    const data = getValues();
+    await draftMutation.mutateAsync(buildPayload(data as SolutionRequestFormValues));
+    navigate('/requests');
+  };
+
+  const isSubmitting = submitMutation.isPending;
+  const isSaving = draftMutation.isPending;
+  const isBusy = isSubmitting || isSaving;
+
   // ── Loading state ──
-  if (orgLoading) {
+  if (orgLoading || tierLoading) {
     return (
       <div className="min-h-screen bg-muted/30 py-8 px-4">
         <div className="max-w-[720px] mx-auto space-y-6">
           <Skeleton className="h-8 w-64" />
           <Skeleton className="h-[600px] w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  // ── GATE-01: Tier limit reached — show modal instead of form ──
+  const tierBlocked = tierLimit && !tierLimit.allowed;
+
+  if (tierBlocked) {
+    return (
+      <div className="min-h-screen bg-muted/30 py-8 px-4">
+        <div className="max-w-[720px] mx-auto space-y-6">
+          <h1 className="text-[22px] font-bold text-primary">
+            New Solution Request
+          </h1>
+          <TierLimitModal
+            isOpen={true}
+            onClose={() => navigate('/requests')}
+            tierName={tierLimit.tier_name}
+            maxAllowed={tierLimit.max_allowed}
+            currentActive={tierLimit.current_active}
+          />
         </div>
       </div>
     );
@@ -353,6 +406,7 @@ export default function NewSolutionRequestPage() {
                     {...register('business_problem')}
                     className="min-h-[120px] resize-y"
                     placeholder="Describe the core business challenge, its impact, and what you've tried so far..."
+                    disabled={isBusy}
                   />
                   <p className={cn(
                     'text-xs transition-colors',
@@ -375,6 +429,7 @@ export default function NewSolutionRequestPage() {
                     {...register('expected_outcomes')}
                     className="min-h-[80px] resize-y"
                     placeholder="Describe measurable outcomes, KPIs, or success criteria..."
+                    disabled={isBusy}
                   />
                   {errors.expected_outcomes && (
                     <p className="text-sm text-destructive">{errors.expected_outcomes.message}</p>
@@ -389,7 +444,7 @@ export default function NewSolutionRequestPage() {
                       name="currency"
                       control={control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select value={field.value} onValueChange={field.onChange} disabled={isBusy}>
                           <SelectTrigger className="w-full lg:w-[140px]">
                             <SelectValue placeholder="Currency" />
                           </SelectTrigger>
@@ -407,6 +462,7 @@ export default function NewSolutionRequestPage() {
                         placeholder="Minimum Budget"
                         {...register('budget_min')}
                         min={0}
+                        disabled={isBusy}
                       />
                     </div>
                     <div className="flex-1">
@@ -415,6 +471,7 @@ export default function NewSolutionRequestPage() {
                         placeholder="Maximum Budget"
                         {...register('budget_max')}
                         min={0}
+                        disabled={isBusy}
                       />
                     </div>
                   </div>
@@ -435,7 +492,7 @@ export default function NewSolutionRequestPage() {
                     name="expected_timeline"
                     control={control}
                     render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
+                      <Select value={field.value} onValueChange={field.onChange} disabled={isBusy}>
                         <SelectTrigger className="w-full">
                           <SelectValue placeholder="Select expected timeline" />
                         </SelectTrigger>
@@ -476,6 +533,7 @@ export default function NewSolutionRequestPage() {
                         value={field.value}
                         onValueChange={field.onChange}
                         className="flex flex-col sm:flex-row gap-3"
+                        disabled={isBusy}
                       >
                         {URGENCY_OPTIONS.map(opt => (
                           <label
@@ -506,7 +564,7 @@ export default function NewSolutionRequestPage() {
                       name="architect_id"
                       control={control}
                       render={({ field }) => (
-                        <Select value={field.value} onValueChange={field.onChange}>
+                        <Select value={field.value} onValueChange={field.onChange} disabled={isBusy}>
                           <SelectTrigger className="w-full">
                             <SelectValue placeholder={
                               architectsLoading
@@ -561,19 +619,51 @@ export default function NewSolutionRequestPage() {
                   )}
                 </div>
 
-                {/* Submit */}
-                <div className="flex justify-end gap-3 pt-4 border-t">
+                {/* Action Buttons */}
+                <div className="flex flex-col-reverse sm:flex-row justify-end gap-3 pt-4 border-t">
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => navigate(-1)}
-                    disabled={isSubmitting}
+                    disabled={isBusy}
                   >
                     Cancel
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    <Send className="h-4 w-4 mr-2" />
-                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={onSaveDraft}
+                    disabled={isBusy}
+                    className="gap-2"
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Saving…
+                      </>
+                    ) : (
+                      <>
+                        <Save className="h-4 w-4" />
+                        Save Draft
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    type="submit"
+                    disabled={isBusy || !isValid}
+                    className="w-full sm:w-auto h-11 gap-2"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Submitting…
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-4 w-4" />
+                        Submit Request
+                      </>
+                    )}
                   </Button>
                 </div>
               </form>
