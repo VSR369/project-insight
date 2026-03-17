@@ -958,6 +958,14 @@ const App = () => (
 
             {/* Solution Request Routes */}
             <Route
+              path="/requests"
+              element={
+                <AuthGuard>
+                  <LazyRoute><SolutionRequestsListPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+            <Route
               path="/requests/new"
               element={
                 <AuthGuard>
