@@ -2,6 +2,7 @@
  * CogniSidebarNav — Role-aware navigation for the CogniBlend sidebar.
  * Three sections: CHALLENGES, SOLUTIONS, SOLVER.
  * Items hidden entirely when user lacks the required role code.
+ * Supports collapsed (icon-only) mode for tablet breakpoint.
  */
 
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -33,9 +34,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: LucideIcon;
-  /** Role codes – item visible if user has ANY of these. Empty = always visible. */
   requiredRoles: string[];
-  /** Badge key for dynamic counts */
   badgeKey?: 'activeChallenges' | 'curationQueue' | 'approvalQueue';
 }
 
@@ -85,8 +84,17 @@ const SECTIONS: NavSection[] = [
 /*  Badge component                                                    */
 /* ------------------------------------------------------------------ */
 
-function NavBadge({ count }: { count: number }) {
+function NavBadge({ count, collapsed }: { count: number; collapsed?: boolean }) {
   if (count <= 0) return null;
+  if (collapsed) {
+    // Tiny dot indicator in collapsed mode
+    return (
+      <span
+        className="absolute top-1 right-1 h-2 w-2 rounded-full"
+        style={{ backgroundColor: '#378ADD' }}
+      />
+    );
+  }
   return (
     <span
       className="ml-auto inline-flex items-center justify-center rounded-full font-semibold"
@@ -110,9 +118,11 @@ function NavBadge({ count }: { count: number }) {
 
 interface CogniSidebarNavProps {
   onNavigate?: () => void;
+  /** When true, show icons only (tablet collapsed mode). Hidden at lg via CSS. */
+  collapsed?: boolean;
 }
 
-export function CogniSidebarNav({ onNavigate }: CogniSidebarNavProps) {
+export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { allRoleCodes, activeChallengeCount, curationQueueCount, approvalQueueCount } = useCogniUserRoles();
@@ -141,9 +151,13 @@ export function CogniSidebarNav({ onNavigate }: CogniSidebarNavProps) {
 
         return (
           <div key={section.title}>
-            {/* Section header */}
+            {/* Section header — hidden in collapsed tablet, visible on mobile & desktop */}
             <div
-              className="px-3 pb-2 font-semibold select-none"
+              className={`
+                px-3 pb-2 font-semibold select-none whitespace-nowrap transition-opacity duration-200
+                ${collapsed ? 'md:opacity-0 md:h-0 md:pb-0 md:overflow-hidden' : ''}
+                lg:opacity-100 lg:h-auto lg:pb-2 lg:overflow-visible
+              `}
               style={{
                 fontSize: 10,
                 color: '#9CA3AF',
@@ -165,7 +179,14 @@ export function CogniSidebarNav({ onNavigate }: CogniSidebarNavProps) {
                   <button
                     key={item.path}
                     onClick={() => handleNav(item.path)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm font-medium"
+                    title={collapsed ? item.label : undefined}
+                    className={`
+                      relative w-full flex items-center gap-3 rounded-lg text-left
+                      transition-colors text-sm font-medium overflow-hidden
+                      px-3 py-2
+                      ${collapsed ? 'md:justify-center md:px-0' : ''}
+                      lg:justify-start lg:px-3
+                    `}
                     style={{
                       borderLeft: active ? '3px solid #378ADD' : '3px solid transparent',
                       backgroundColor: active ? '#F0F7FF' : 'transparent',
@@ -183,8 +204,19 @@ export function CogniSidebarNav({ onNavigate }: CogniSidebarNavProps) {
                     }}
                   >
                     <item.icon className="shrink-0" style={{ width: 18, height: 18 }} />
-                    <span className="truncate">{item.label}</span>
-                    {item.badgeKey && <NavBadge count={badgeCounts[item.badgeKey] ?? 0} />}
+                    <span className={`
+                      truncate whitespace-nowrap transition-opacity duration-200
+                      ${collapsed ? 'md:hidden' : ''}
+                      lg:inline
+                    `}>
+                      {item.label}
+                    </span>
+                    {item.badgeKey && (
+                      <NavBadge
+                        count={badgeCounts[item.badgeKey] ?? 0}
+                        collapsed={collapsed}
+                      />
+                    )}
                   </button>
                 );
               })}
