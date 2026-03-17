@@ -310,6 +310,8 @@ const App = () => (
               </AuthGuard>
             }>
               <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/new" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/:id/edit" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
             </Route>
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
