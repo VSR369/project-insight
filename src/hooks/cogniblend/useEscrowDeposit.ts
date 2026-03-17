@@ -140,7 +140,7 @@ export function useVerifyEscrow() {
         .eq('role_code', 'ID')
         .eq('is_active', true);
 
-      const idUsers = (idRoles ?? []) as Array<{ user_id: string }>;
+      const idUsers = ((idRoles ?? []) as unknown as Array<{ user_id: string }>);
       if (idUsers.length > 0) {
         const notifications = idUsers.map((r) => ({
           user_id: r.user_id,
