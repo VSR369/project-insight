@@ -622,59 +622,8 @@ function LegalTab({ challengeId, legalDocs }: { challengeId: string; legalDocs: 
   );
 }
 
-/** Publication Config Tab */
-function PublicationConfigTab({ challenge }: { challenge: ChallengeData }) {
-  return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold">Publication Configuration</CardTitle>
-          <p className="text-xs text-muted-foreground">
-            Review the settings that will be applied when this challenge is published.
-          </p>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">Visibility</p>
-              <p className="text-sm font-medium text-foreground capitalize">{challenge.visibility || "Not set"}</p>
-            </div>
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">Eligibility</p>
-              <p className="text-sm font-medium text-foreground">{challenge.eligibility || "Not set"}</p>
-            </div>
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">Max Solutions</p>
-              <p className="text-sm font-medium text-foreground">{challenge.max_solutions ?? "Unlimited"}</p>
-            </div>
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">Submission Deadline</p>
-              <p className="text-sm font-medium text-foreground">
-                {challenge.submission_deadline ? formatDate(challenge.submission_deadline) : "Not set"}
-              </p>
-            </div>
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">IP Model</p>
-              <p className="text-sm font-medium text-foreground">{challenge.ip_model || "Not set"}</p>
-            </div>
-            <div className="border border-border rounded-lg p-4 space-y-1">
-              <p className="text-xs text-muted-foreground">Governance Profile</p>
-              <p className="text-sm font-medium text-foreground capitalize">{challenge.governance_profile || "Not set"}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-900/10">
-        <CardContent className="pt-6">
-          <p className="text-sm text-muted-foreground text-center">
-            Publication approval actions (Approve, Reject, Return) will be implemented in Phase 2.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
+/** Publication Config Tab — delegates to ApprovalPublicationConfigTab */
+// Imported inline below to avoid modifying header imports
 
 // ---------------------------------------------------------------------------
 // Main Component
