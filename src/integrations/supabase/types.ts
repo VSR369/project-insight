@@ -10973,6 +10973,15 @@ export type Database = {
       }
     }
     Functions: {
+      assign_role_to_challenge: {
+        Args: {
+          p_assigned_by: string
+          p_challenge_id: string
+          p_role_code: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       book_interview_slot: {
         Args: {
           p_composite_slot_id: string
