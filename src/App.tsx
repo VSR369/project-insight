@@ -223,6 +223,9 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
 const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
 
+// Solution Request Pages (lazy loaded)
+const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
+
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -951,6 +954,16 @@ const App = () => (
               }
             />
             {/* SaasAgreementPage moved to nested /admin route above */}
+
+            {/* Solution Request Routes */}
+            <Route
+              path="/requests/new"
+              element={
+                <AuthGuard>
+                  <LazyRoute><NewSolutionRequestPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
 
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
