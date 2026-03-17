@@ -11316,6 +11316,7 @@ export type Database = {
         Returns: number
       }
       get_tier_usage: { Args: { p_org_id: string }; Returns: Json }
+      get_unread_count: { Args: { p_user_id: string }; Returns: number }
       get_user_all_challenge_roles: {
         Args: { p_user_id: string }
         Returns: {
@@ -11405,6 +11406,11 @@ export type Database = {
           p_user_id: string
         }
         Returns: string
+      }
+      mark_all_read: { Args: { p_user_id: string }; Returns: undefined }
+      mark_notification_read: {
+        Args: { p_notification_id: string }
+        Returns: undefined
       }
       place_in_open_queue: {
         Args: {
@@ -11556,6 +11562,16 @@ export type Database = {
           p_start_at: string
         }
         Returns: string[]
+      }
+      send_notification: {
+        Args: {
+          p_challenge_id: string
+          p_message: string
+          p_title: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
