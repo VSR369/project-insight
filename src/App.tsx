@@ -225,6 +225,7 @@ const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardP
 
 // Solution Request Pages (lazy loaded)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
+const SolutionRequestsListPage = lazy(() => import("@/pages/requests/SolutionRequestsListPage"));
 
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
