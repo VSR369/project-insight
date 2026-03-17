@@ -218,6 +218,10 @@ const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPa
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
 const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage"));
 
+// CogniBlend Pages (lazy loaded)
+const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
+const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
+
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
@@ -291,6 +295,14 @@ const App = () => (
             <Route path="/manager-portal/review" element={<ManagerApprovalDashboard />} />
             <Route path="/activate" element={<LazyRoute><ActivationPage /></LazyRoute>} />
             <Route path="/org/login" element={<LazyRoute><OrgAdminLoginPage /></LazyRoute>} />
+
+            {/* CogniBlend Routes */}
+            <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
+            <Route path="/cogni/dashboard" element={
+              <AuthGuard>
+                <LazyRoute><CogniDashboardPage /></LazyRoute>
+              </AuthGuard>
+            } />
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>
