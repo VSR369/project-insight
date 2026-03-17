@@ -635,6 +635,7 @@ export default function ApprovalReviewPage() {
   // SECTION 1: State & hooks
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [isApproved, setIsApproved] = useState(false);
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
