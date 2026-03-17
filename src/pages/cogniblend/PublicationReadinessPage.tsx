@@ -19,6 +19,8 @@ import { EscrowDepositSection } from '@/components/cogniblend/publication/Escrow
 import { PublishConfirmModal } from '@/components/cogniblend/publication/PublishConfirmModal';
 import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifySolvers } from '@/hooks/cogniblend/useNotifySolvers';
+import { differenceInDays } from 'date-fns';
 
 /* ─── Component ──────────────────────────────────────────── */
 
