@@ -53,7 +53,7 @@ const SECTIONS: NavSection[] = [
     items: [
       { label: 'Submit Request', path: '/cogni/submit-request', icon: PlusCircle, requiredRoles: ['AM', 'RQ'] },
       { label: 'My Requests', path: '/cogni/my-requests', icon: FileInput, requiredRoles: ['AM', 'RQ'] },
-      { label: 'Create Challenge', path: '/cogni/create-challenge', icon: FilePlus, requiredRoles: ['CR'] },
+      { label: 'Create Challenge', path: '/cogni/challenges/new', icon: FilePlus, requiredRoles: ['CR'] },
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR'], badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },
       { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, requiredRoles: ['ID'], badgeKey: 'approvalQueue' },
