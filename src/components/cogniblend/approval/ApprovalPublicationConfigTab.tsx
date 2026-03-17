@@ -49,6 +49,7 @@ interface PublicationConfigTabProps {
     ip_model: string | null;
   };
   isApproved: boolean;
+  onConfigChange?: (config: { visibility: string; eligibility: string; isReady: boolean }) => void;
 }
 
 interface VisibilityOption {
