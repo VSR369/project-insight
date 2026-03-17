@@ -343,6 +343,16 @@ export default function ChallengeManagePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ──────────────── Extend Deadline Modal ──────────────── */}
+      <ExtendDeadlineModal
+        open={extendModalOpen}
+        onOpenChange={setExtendModalOpen}
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        currentDeadline={data.submissionDeadline}
+        userId={user?.id ?? ''}
+      />
     </div>
   );
 }
