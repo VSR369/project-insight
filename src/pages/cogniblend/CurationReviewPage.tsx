@@ -37,6 +37,7 @@ import {
   FileText,
   Shield,
 } from "lucide-react";
+import CurationChecklistPanel from "./CurationChecklistPanel";
 import type { Json } from "@/integrations/supabase/types";
 
 // ---------------------------------------------------------------------------
