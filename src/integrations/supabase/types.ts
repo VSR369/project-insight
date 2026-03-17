@@ -11245,6 +11245,10 @@ export type Database = {
           workload_ratio: number
         }[]
       }
+      get_governance_behavior: {
+        Args: { p_governance_profile: string; p_phase: number }
+        Returns: Json
+      }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
       get_phase_required_role: { Args: { p_phase: number }; Returns: string }
