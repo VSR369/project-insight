@@ -1,0 +1,512 @@
+/**
+ * ApprovalPublicationConfigTab — Publication Config tab for the Approval Review page.
+ *
+ * Only fully interactive after ID clicks "Approve".
+ * Features:
+ *   1. Visibility dropdown (governance-aware: LIGHTWEIGHT shows 2, ENTERPRISE shows 4)
+ *   2. Eligibility dropdown (governance-aware, validated against visibility)
+ *   3. Complexity finalization sliders (same params as M-12 Step 4)
+ *
+ * Validation: Eligibility cannot be broader than Visibility.
+ */
+
+import { useState, useMemo, useCallback } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Lock, CheckCircle2, AlertTriangle, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import type { Json } from "@/integrations/supabase/types";
+
+// --------------------------------------------------------------------------
+// Types & Constants
+// --------------------------------------------------------------------------
+
+interface PublicationConfigTabProps {
+  challengeId: string;
+  challenge: {
+    id: string;
+    visibility: string | null;
+    eligibility: string | null;
+    governance_profile: string | null;
+    complexity_score: number | null;
+    complexity_level: string | null;
+    complexity_parameters: Json | null;
+    max_solutions: number | null;
+    submission_deadline: string | null;
+    ip_model: string | null;
+  };
+  isApproved: boolean;
+}
+
+interface VisibilityOption {
+  value: string;
+  label: string;
+  description: string;
+  rank: number; // higher = broader
+}
+
+interface EligibilityOption {
+  value: string;
+  label: string;
+  description: string;
+  rank: number; // higher = broader
+}
+
+interface ComplexityParam {
+  key: string;
+  label: string;
+  weight: number;
+}
+
+const VISIBILITY_OPTIONS_ENTERPRISE: VisibilityOption[] = [
+  { value: "invite_only", label: "Invite Only", description: "Specific invitees can view this challenge", rank: 1 },
+  { value: "curated_experts", label: "Curated Experts", description: "Verified experts on the platform only", rank: 2 },
+  { value: "registered_users", label: "Registered Users", description: "Platform members only", rank: 3 },
+  { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
+];
+
+const VISIBILITY_OPTIONS_LIGHTWEIGHT: VisibilityOption[] = [
+  { value: "invite_only", label: "Invite Only", description: "Specific invitees can view this challenge", rank: 1 },
+  { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
+];
+
+const ELIGIBILITY_OPTIONS_ENTERPRISE: EligibilityOption[] = [
+  { value: "invited_experts", label: "Invited Experts Only", description: "Only specifically invited experts can submit", rank: 1 },
+  { value: "curated_experts", label: "Curated Experts Only", description: "Verified experts on the platform can submit", rank: 2 },
+  { value: "registered_users", label: "Registered Users", description: "Any registered platform member can submit", rank: 3 },
+  { value: "anyone", label: "Anyone (Open)", description: "Open to all — no restrictions on who can submit", rank: 4 },
+];
+
+const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: EligibilityOption[] = [
+  { value: "invited_experts", label: "Invited Only", description: "Only specifically invited experts can submit", rank: 1 },
+  { value: "anyone", label: "Anyone", description: "Open to all — no restrictions on who can submit", rank: 4 },
+];
+
+const COMPLEXITY_PARAMS: ComplexityParam[] = [
+  { key: "technical_novelty", label: "Technical Novelty", weight: 0.20 },
+  { key: "solution_maturity", label: "Solution Maturity", weight: 0.15 },
+  { key: "domain_breadth", label: "Domain Breadth", weight: 0.15 },
+  { key: "evaluation_complexity", label: "Evaluation Complexity", weight: 0.15 },
+  { key: "ip_sensitivity", label: "IP Sensitivity", weight: 0.15 },
+  { key: "timeline_urgency", label: "Timeline Urgency", weight: 0.10 },
+  { key: "budget_scale", label: "Budget Scale", weight: 0.10 },
+];
+
+function getComplexityLevel(score: number): { label: string; level: string; colorClass: string } {
+  if (score < 2.0) return { label: "L1", level: "Low", colorClass: "bg-emerald-100 text-emerald-800 border-emerald-300" };
+  if (score < 4.0) return { label: "L2", level: "Low-Medium", colorClass: "bg-blue-100 text-blue-800 border-blue-300" };
+  if (score < 6.0) return { label: "L3", level: "Medium", colorClass: "bg-amber-100 text-amber-800 border-amber-300" };
+  if (score < 8.0) return { label: "L4", level: "High", colorClass: "bg-orange-100 text-orange-800 border-orange-300" };
+  return { label: "L5", level: "Very High", colorClass: "bg-red-100 text-red-800 border-red-300" };
+}
+
+function parseJson<T>(val: Json | null): T | null {
+  if (!val) return null;
+  if (typeof val === "string") {
+    try { return JSON.parse(val) as T; } catch { return null; }
+  }
+  return val as T;
+}
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+/**
+ * Get maximum allowed eligibility rank based on visibility rank.
+ * Eligibility cannot be broader (higher rank) than visibility.
+ */
+function getMaxEligibilityRank(visibilityValue: string, visOptions: VisibilityOption[]): number {
+  const vis = visOptions.find((v) => v.value === visibilityValue);
+  return vis?.rank ?? 0;
+}
+
+// --------------------------------------------------------------------------
+// Component
+// --------------------------------------------------------------------------
+
+export default function ApprovalPublicationConfigTab({
+  challengeId,
+  challenge,
+  isApproved,
+}: PublicationConfigTabProps) {
+  // ══════════════════════════════════════
+  // SECTION 1: State
+  // ══════════════════════════════════════
+  const [visibility, setVisibility] = useState(challenge.visibility || "");
+  const [eligibility, setEligibility] = useState(challenge.eligibility || "");
+  const [complexityFinalized, setComplexityFinalized] = useState(false);
+
+  // Complexity slider values
+  const existingParams = parseJson<Record<string, number>>(challenge.complexity_parameters) ?? {};
+  const [paramValues, setParamValues] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    COMPLEXITY_PARAMS.forEach((p) => {
+      initial[p.key] = existingParams[p.key] ?? 5;
+    });
+    return initial;
+  });
+
+  // ══════════════════════════════════════
+  // SECTION 2: Auth & hooks
+  // ══════════════════════════════════════
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  // ══════════════════════════════════════
+  // SECTION 3: Computed values
+  // ══════════════════════════════════════
+  const isEnterprise = challenge.governance_profile?.toUpperCase() === "ENTERPRISE";
+
+  const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_LIGHTWEIGHT;
+  const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_LIGHTWEIGHT;
+
+  const maxEligRank = useMemo(
+    () => getMaxEligibilityRank(visibility, visibilityOptions),
+    [visibility, visibilityOptions]
+  );
+
+  const validationError = useMemo(() => {
+    if (!visibility || !eligibility) return null;
+    const eligOpt = eligibilityOptions.find((e) => e.value === eligibility);
+    if (eligOpt && eligOpt.rank > maxEligRank) {
+      return "Eligibility cannot be broader than visibility. Solvers must be able to see the challenge to submit.";
+    }
+    return null;
+  }, [visibility, eligibility, maxEligRank, eligibilityOptions]);
+
+  const complexityScore = useMemo(
+    () => COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0),
+    [paramValues]
+  );
+
+  const complexityInfo = useMemo(() => getComplexityLevel(complexityScore), [complexityScore]);
+
+  // ══════════════════════════════════════
+  // SECTION 4: Mutation — finalize complexity
+  // ══════════════════════════════════════
+  const finalizeMutation = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase
+        .from("challenges")
+        .update({
+          complexity_parameters: paramValues as unknown as Json,
+          complexity_score: parseFloat(complexityScore.toFixed(1)),
+          complexity_level: complexityInfo.level,
+          updated_by: user?.id ?? null,
+        })
+        .eq("id", challengeId);
+      if (error) throw new Error(error.message);
+
+      // Audit trail
+      await supabase.rpc("log_audit", {
+        p_user_id: user?.id ?? "",
+        p_challenge_id: challengeId,
+        p_solution_id: "",
+        p_action: "COMPLEXITY_FINALIZED",
+        p_method: "UI",
+        p_details: {
+          complexity_score: parseFloat(complexityScore.toFixed(1)),
+          complexity_level: complexityInfo.level,
+          parameters: paramValues,
+        } as unknown as Json,
+      });
+    },
+    onSuccess: () => {
+      setComplexityFinalized(true);
+      queryClient.invalidateQueries({ queryKey: ["approval-review", challengeId] });
+      toast.success("Complexity assessment finalized");
+    },
+    onError: (error: Error) => {
+      toast.error(`Failed to finalize complexity: ${error.message}`);
+    },
+  });
+
+  // ══════════════════════════════════════
+  // SECTION 5: Handlers
+  // ══════════════════════════════════════
+  const handleSliderChange = useCallback((key: string, value: number[]) => {
+    if (complexityFinalized) return;
+    setParamValues((prev) => ({ ...prev, [key]: value[0] }));
+  }, [complexityFinalized]);
+
+  const handleVisibilityChange = useCallback((val: string) => {
+    setVisibility(val);
+    // Auto-correct eligibility if it becomes invalid
+    const newMaxRank = getMaxEligibilityRank(val, visibilityOptions);
+    const currentEligOpt = eligibilityOptions.find((e) => e.value === eligibility);
+    if (currentEligOpt && currentEligOpt.rank > newMaxRank) {
+      // Reset to the most restrictive valid option
+      const validOptions = eligibilityOptions.filter((e) => e.rank <= newMaxRank);
+      if (validOptions.length > 0) {
+        setEligibility(validOptions[0].value);
+      }
+    }
+  }, [eligibility, eligibilityOptions, visibilityOptions]);
+
+  // ══════════════════════════════════════
+  // SECTION 6: Render — not approved yet
+  // ══════════════════════════════════════
+  if (!isApproved) {
+    return (
+      <div className="space-y-6">
+        {/* Read-only summary of current settings */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold">Publication Configuration</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Review the current settings. Configuration will be editable after you approve this challenge.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Visibility</p>
+                <p className="text-sm font-medium text-foreground capitalize">{challenge.visibility || "Not set"}</p>
+              </div>
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Eligibility</p>
+                <p className="text-sm font-medium text-foreground capitalize">{challenge.eligibility || "Not set"}</p>
+              </div>
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Max Solutions</p>
+                <p className="text-sm font-medium text-foreground">{challenge.max_solutions ?? "Unlimited"}</p>
+              </div>
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Submission Deadline</p>
+                <p className="text-sm font-medium text-foreground">
+                  {challenge.submission_deadline ? formatDate(challenge.submission_deadline) : "Not set"}
+                </p>
+              </div>
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">IP Model</p>
+                <p className="text-sm font-medium text-foreground">{challenge.ip_model || "Not set"}</p>
+              </div>
+              <div className="border border-border rounded-lg p-4 space-y-1">
+                <p className="text-xs text-muted-foreground">Governance Profile</p>
+                <p className="text-sm font-medium text-foreground capitalize">{challenge.governance_profile || "Not set"}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="border-dashed border-amber-300 bg-amber-50/50 dark:bg-amber-900/10">
+          <CardContent className="pt-6 flex items-center justify-center gap-2">
+            <Lock className="h-4 w-4 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">
+              Publication settings will become editable after you approve this challenge.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ══════════════════════════════════════
+  // SECTION 7: Render — approved (interactive)
+  // ══════════════════════════════════════
+  return (
+    <div className="space-y-6">
+      {/* Visibility Dropdown */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Audience & Access</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Configure who can see and submit solutions to this challenge.
+            {!isEnterprise && (
+              <span className="ml-1 text-primary font-medium">Lightweight mode — limited options per BR-GOV-006.</span>
+            )}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Visibility */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Who can see this challenge?</Label>
+            <Select value={visibility} onValueChange={handleVisibilityChange}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select visibility" />
+              </SelectTrigger>
+              <SelectContent>
+                {visibilityOptions.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="py-1">
+                      <p className="text-sm font-medium">{opt.label}</p>
+                      <p className="text-xs text-muted-foreground">{opt.description}</p>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Eligibility */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Who can submit solutions?</Label>
+            <Select value={eligibility} onValueChange={setEligibility}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select eligibility" />
+              </SelectTrigger>
+              <SelectContent>
+                {eligibilityOptions.map((opt) => {
+                  const isDisabled = opt.rank > maxEligRank;
+                  return (
+                    <SelectItem
+                      key={opt.value}
+                      value={opt.value}
+                      disabled={isDisabled}
+                    >
+                      <div className="py-1">
+                        <div className="flex items-center gap-2">
+                          <p className={`text-sm font-medium ${isDisabled ? "text-muted-foreground/50" : ""}`}>
+                            {opt.label}
+                          </p>
+                          {isDisabled && (
+                            <span className="text-[10px] text-destructive font-medium">Restricted</span>
+                          )}
+                        </div>
+                        <p className={`text-xs ${isDisabled ? "text-muted-foreground/40" : "text-muted-foreground"}`}>
+                          {opt.description}
+                        </p>
+                      </div>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+
+            {/* Validation error */}
+            {validationError && (
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+                <p className="text-xs text-destructive font-medium">{validationError}</p>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Complexity Finalization */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Complexity Finalization</CardTitle>
+            {complexityFinalized && (
+              <Badge variant="secondary" className="text-[10px] bg-green-100 text-green-800 border-green-200 gap-1">
+                <CheckCircle2 className="h-3 w-3" />
+                Finalized by ID
+              </Badge>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {complexityFinalized
+              ? "Complexity has been finalized. Values are now read-only."
+              : "Adjust the complexity parameters and finalize before publication."
+            }
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Score display */}
+          <div className="flex items-center gap-4 p-3 rounded-lg border border-border bg-muted/30">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-foreground">{complexityScore.toFixed(1)}</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Score</p>
+            </div>
+            <div>
+              <Badge className={`${complexityInfo.colorClass} border text-xs font-semibold`}>
+                {complexityInfo.label} — {complexityInfo.level}
+              </Badge>
+            </div>
+          </div>
+
+          {/* Sliders */}
+          <div className="space-y-4">
+            {COMPLEXITY_PARAMS.map((param) => (
+              <div key={param.key} className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs font-medium text-foreground">{param.label}</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Weight: {(param.weight * 100).toFixed(0)}%</span>
+                    <span className="text-sm font-semibold text-foreground w-6 text-right">
+                      {paramValues[param.key] ?? 5}
+                    </span>
+                  </div>
+                </div>
+                <Slider
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={[paramValues[param.key] ?? 5]}
+                  onValueChange={(val) => handleSliderChange(param.key, val)}
+                  disabled={complexityFinalized}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-[10px] text-muted-foreground">
+                  <span>Low</span>
+                  <span>High</span>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Finalize button */}
+          {!complexityFinalized && (
+            <Button
+              className="w-full"
+              onClick={() => finalizeMutation.mutate()}
+              disabled={finalizeMutation.isPending}
+            >
+              {finalizeMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
+              ) : (
+                <CheckCircle2 className="h-4 w-4 mr-1.5" />
+              )}
+              Finalize Complexity
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Other publication settings (read-only context) */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold">Other Settings</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="border border-border rounded-lg p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Max Solutions</p>
+              <p className="text-sm font-medium text-foreground">{challenge.max_solutions ?? "Unlimited"}</p>
+            </div>
+            <div className="border border-border rounded-lg p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Submission Deadline</p>
+              <p className="text-sm font-medium text-foreground">
+                {challenge.submission_deadline ? formatDate(challenge.submission_deadline) : "Not set"}
+              </p>
+            </div>
+            <div className="border border-border rounded-lg p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">IP Model</p>
+              <p className="text-sm font-medium text-foreground">{challenge.ip_model || "Not set"}</p>
+            </div>
+            <div className="border border-border rounded-lg p-4 space-y-1">
+              <p className="text-xs text-muted-foreground">Governance Profile</p>
+              <p className="text-sm font-medium text-foreground capitalize">{challenge.governance_profile || "Not set"}</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
