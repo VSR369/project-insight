@@ -58,7 +58,11 @@ export default function PublicChallengeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const { data, isLoading, error } = usePublicChallenge(id);
+  const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
+
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
 
   /* ── Loading ── */
   if (isLoading) {
