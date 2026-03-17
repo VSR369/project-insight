@@ -23,6 +23,7 @@ import {
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
+import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
@@ -316,6 +317,14 @@ export default function ChallengeManagePage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ──────────────── CARD 3 — Amendments ──────────────── */}
+      <AmendmentCard
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        userId={user?.id ?? ''}
+        canInitiate={data.canExtendDeadline}
+      />
 
       {/* ──────────────── Snapshot Modal ──────────────── */}
       <Dialog open={snapshotModalOpen} onOpenChange={setSnapshotModalOpen}>
