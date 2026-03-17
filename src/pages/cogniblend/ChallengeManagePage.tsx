@@ -23,6 +23,7 @@ import {
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
+import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
