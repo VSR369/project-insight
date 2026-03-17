@@ -145,3 +145,6 @@ verify_jwt = false
 
 [functions.send-pool-member-welcome]
 verify_jwt = false
+
+[functions.check-sla-breaches]
+verify_jwt = false
