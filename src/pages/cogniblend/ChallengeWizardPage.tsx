@@ -89,13 +89,21 @@ export default function ChallengeWizardPage() {
         visibility: challengeData.visibility ?? 'public',
         eligibility: challengeData.eligibility ?? '',
         complexity_notes: '',
-        criteria_list: Array.isArray(challengeData.evaluation_criteria)
-          ? (challengeData.evaluation_criteria as any).criteria ?? ['']
-          : [''],
+        weighted_criteria: Array.isArray((challengeData.evaluation_criteria as any)?.criteria)
+          ? (challengeData.evaluation_criteria as any).criteria.map((c: any) => ({
+              name: c.name ?? c ?? '',
+              weight: c.weight ?? 0,
+            }))
+          : [
+              { name: 'Technical Feasibility', weight: 30 },
+              { name: 'Innovation & Novelty', weight: 30 },
+              { name: 'Implementation Plan', weight: 40 },
+            ],
         currency_code: challengeData.currency_code ?? 'USD',
-        budget_min: (challengeData.reward_structure as any)?.budget_min ?? 0,
-        budget_max: (challengeData.reward_structure as any)?.budget_max ?? 0,
-        max_solutions: challengeData.max_solutions ?? 1,
+        platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
+        gold_award: (challengeData.reward_structure as any)?.gold ?? 0,
+        silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
+        rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: '',
         taxonomy_tags: '',
         submission_deadline: challengeData.submission_deadline
