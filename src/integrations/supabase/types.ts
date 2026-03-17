@@ -10982,6 +10982,15 @@ export type Database = {
         }
         Returns: Json
       }
+      auto_assign_roles_on_creation: {
+        Args: {
+          p_challenge_id: string
+          p_creator_id: string
+          p_governance_profile: string
+          p_operating_model: string
+        }
+        Returns: Json
+      }
       book_interview_slot: {
         Args: {
           p_composite_slot_id: string
