@@ -442,6 +442,17 @@ export default function PublicChallengeDetailPage() {
         </TabsContent>
       </Tabs>
 
+      {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
+      {amendStatus?.requiresLegalReAcceptance && (
+        <LegalReAcceptModal
+          open={legalModalOpen}
+          onOpenChange={setLegalModalOpen}
+          challengeId={id!}
+          userId={user?.id ?? ''}
+          amendmentNumber={amendStatus.amendmentNumber ?? 1}
+        />
+      )}
+
       {/* Bottom spacer */}
       <div className="pb-8" />
     </div>
