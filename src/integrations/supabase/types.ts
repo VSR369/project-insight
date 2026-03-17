@@ -4702,6 +4702,42 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_roles: {
+        Row: {
+          applicable_model: string
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          role_code: string
+          role_description: string | null
+          role_name: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          applicable_model: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          role_code: string
+          role_description?: string | null
+          role_name: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          applicable_model?: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          role_code?: string
+          role_description?: string | null
+          role_name?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       platform_terms: {
         Row: {
           content: string
@@ -7292,6 +7328,63 @@ export type Database = {
         }
         Relationships: []
       }
+      role_conflict_rules: {
+        Row: {
+          applies_scope: string
+          conflict_type: string
+          created_at: string
+          created_by: string | null
+          governance_profile: string
+          is_active: boolean
+          role_a: string
+          role_b: string
+          rule_id: number
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          applies_scope: string
+          conflict_type: string
+          created_at?: string
+          created_by?: string | null
+          governance_profile: string
+          is_active?: boolean
+          role_a: string
+          role_b: string
+          rule_id?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          applies_scope?: string
+          conflict_type?: string
+          created_at?: string
+          created_by?: string | null
+          governance_profile?: string
+          is_active?: boolean
+          role_a?: string
+          role_b?: string
+          rule_id?: number
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_conflict_rules_role_a_fkey"
+            columns: ["role_a"]
+            isOneToOne: false
+            referencedRelation: "platform_roles"
+            referencedColumns: ["role_code"]
+          },
+          {
+            foreignKeyName: "role_conflict_rules_role_b_fkey"
+            columns: ["role_b"]
+            isOneToOne: false
+            referencedRelation: "platform_roles"
+            referencedColumns: ["role_code"]
+          },
+        ]
+      }
       role_readiness_cache: {
         Row: {
           created_at: string
@@ -8528,6 +8621,7 @@ export type Database = {
           deleted_by: string | null
           employee_count_range: string | null
           founding_year: number | null
+          governance_profile: string
           hq_address_line1: string | null
           hq_address_line2: string | null
           hq_city: string | null
@@ -8540,6 +8634,8 @@ export type Database = {
           is_enterprise: boolean
           legal_entity_name: string | null
           logo_url: string | null
+          max_concurrent_active: number
+          max_cumulative_quota: number
           nda_preference:
             | Database["public"]["Enums"]["nda_preference_enum"]
             | null
@@ -8547,6 +8643,7 @@ export type Database = {
             | Database["public"]["Enums"]["nda_review_status_enum"]
             | null
           number_format: string | null
+          operating_model: string
           organization_description: string | null
           organization_name: string
           organization_type_id: string | null
@@ -8588,6 +8685,7 @@ export type Database = {
           deleted_by?: string | null
           employee_count_range?: string | null
           founding_year?: number | null
+          governance_profile?: string
           hq_address_line1?: string | null
           hq_address_line2?: string | null
           hq_city?: string | null
@@ -8600,6 +8698,8 @@ export type Database = {
           is_enterprise?: boolean
           legal_entity_name?: string | null
           logo_url?: string | null
+          max_concurrent_active?: number
+          max_cumulative_quota?: number
           nda_preference?:
             | Database["public"]["Enums"]["nda_preference_enum"]
             | null
@@ -8607,6 +8707,7 @@ export type Database = {
             | Database["public"]["Enums"]["nda_review_status_enum"]
             | null
           number_format?: string | null
+          operating_model?: string
           organization_description?: string | null
           organization_name: string
           organization_type_id?: string | null
@@ -8648,6 +8749,7 @@ export type Database = {
           deleted_by?: string | null
           employee_count_range?: string | null
           founding_year?: number | null
+          governance_profile?: string
           hq_address_line1?: string | null
           hq_address_line2?: string | null
           hq_city?: string | null
@@ -8660,6 +8762,8 @@ export type Database = {
           is_enterprise?: boolean
           legal_entity_name?: string | null
           logo_url?: string | null
+          max_concurrent_active?: number
+          max_cumulative_quota?: number
           nda_preference?:
             | Database["public"]["Enums"]["nda_preference_enum"]
             | null
@@ -8667,6 +8771,7 @@ export type Database = {
             | Database["public"]["Enums"]["nda_review_status_enum"]
             | null
           number_format?: string | null
+          operating_model?: string
           organization_description?: string | null
           organization_name?: string
           organization_type_id?: string | null
@@ -9580,6 +9685,66 @@ export type Database = {
           tier?: string
         }
         Relationships: []
+      }
+      user_challenge_roles: {
+        Row: {
+          assigned_at: string
+          assigned_by: string | null
+          auto_assigned: boolean
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          is_active: boolean
+          revoked_at: string | null
+          role_code: string
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by?: string | null
+          auto_assigned?: boolean
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          revoked_at?: string | null
+          role_code: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string | null
+          auto_assigned?: boolean
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          is_active?: boolean
+          revoked_at?: string | null
+          role_code?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_challenge_roles_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_challenge_roles_role_code_fkey"
+            columns: ["role_code"]
+            isOneToOne: false
+            referencedRelation: "platform_roles"
+            referencedColumns: ["role_code"]
+          },
+        ]
       }
       user_invitations: {
         Row: {
