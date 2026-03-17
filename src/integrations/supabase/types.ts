@@ -11200,6 +11200,10 @@ export type Database = {
         Args: { p_expertise_level_id: string; p_industry_segment_id: string }
         Returns: number
       }
+      get_active_rules: {
+        Args: { p_governance_profile: string }
+        Returns: Json
+      }
       get_auth_user_id: { Args: never; Returns: string }
       get_cascade_impact_counts: {
         Args: { p_provider_id: string }
@@ -11245,8 +11249,16 @@ export type Database = {
           workload_ratio: number
         }[]
       }
+      get_gate_requirements: {
+        Args: { p_gate_id: string; p_governance_profile: string }
+        Returns: Json
+      }
       get_governance_behavior: {
         Args: { p_governance_profile: string; p_phase: number }
+        Returns: Json
+      }
+      get_mandatory_fields: {
+        Args: { p_governance_profile: string }
         Returns: Json
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
