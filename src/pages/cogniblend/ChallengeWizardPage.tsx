@@ -135,7 +135,7 @@ export default function ChallengeWizardPage() {
   // ═══════ Handlers ═══════
   const buildFieldsFromForm = (values: ChallengeFormValues) => {
     const deliverables = values.deliverables_list.filter(Boolean);
-    const criteria = values.criteria_list.filter(Boolean);
+    const criteria = values.weighted_criteria.filter((c) => c.name);
 
     return {
       title: values.title,
@@ -146,14 +146,15 @@ export default function ChallengeWizardPage() {
       evaluation_criteria: criteria.length ? { criteria } : null,
       reward_structure: {
         currency: values.currency_code,
-        budget_min: values.budget_min,
-        budget_max: values.budget_max,
+        platinum: values.platinum_award,
+        gold: values.gold_award,
+        silver: values.silver_award ?? null,
       },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
-      max_solutions: values.max_solutions,
+      rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
       phase_schedule: {
         expected_timeline: values.expected_timeline || null,
