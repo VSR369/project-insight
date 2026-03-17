@@ -160,7 +160,12 @@ export default function ChallengeManagePage() {
 
           {/* Extend Deadline (ID only) */}
           {data.canExtendDeadline && (
-            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-primary text-primary hover:bg-primary/10"
+              onClick={() => setExtendModalOpen(true)}
+            >
               Extend Deadline
             </Button>
           )}
