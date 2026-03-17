@@ -72,7 +72,8 @@ export function RoleBasedRedirect() {
           (cachedPortal === 'admin' && isPlatformAdmin) ||
           (cachedPortal === 'provider' && hasProviderRecord) ||
           (cachedPortal === 'reviewer' && isPanelReviewer) ||
-          (cachedPortal === 'organization' && hasOrgUserRecord);
+          (cachedPortal === 'organization' && hasOrgUserRecord) ||
+          (cachedPortal === 'cogniblend' && hasCogniRoles);
 
         if (canAccessCached) {
           // Handle pending reviewer special case
