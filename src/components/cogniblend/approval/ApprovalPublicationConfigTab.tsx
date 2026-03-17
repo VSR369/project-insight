@@ -197,6 +197,12 @@ export default function ApprovalPublicationConfigTab({
 
   const complexityInfo = useMemo(() => getComplexityLevel(complexityScore), [complexityScore]);
 
+  // Notify parent of configuration readiness
+  const isConfigReady = !!visibility && !!eligibility && !validationError && complexityFinalized;
+  useEffect(() => {
+    onConfigChange?.({ visibility, eligibility, isReady: isConfigReady });
+  }, [visibility, eligibility, isConfigReady, onConfigChange]);
+
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
   // ══════════════════════════════════════

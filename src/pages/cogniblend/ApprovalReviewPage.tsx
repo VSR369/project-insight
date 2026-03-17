@@ -781,6 +781,18 @@ export default function ApprovalReviewPage() {
           />
         )}
       </div>
+
+      {/* Fixed Bottom Action Bar */}
+      <ApprovalActionBar
+        challengeId={challengeId!}
+        challenge={challenge}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isApproved={isApproved}
+        setIsApproved={setIsApproved}
+        pubConfigReady={pubConfig.isReady}
+        pubConfigValues={pubConfig}
+      />
     </div>
   );
 }
