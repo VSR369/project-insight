@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
+import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
