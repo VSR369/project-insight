@@ -11573,6 +11573,10 @@ export type Database = {
         }
         Returns: Json
       }
+      update_master_status: {
+        Args: { p_challenge_id: string }
+        Returns: undefined
+      }
       validate_domain_weights: {
         Args: { p_l1: number; p_l2: number; p_l3: number }
         Returns: Json
