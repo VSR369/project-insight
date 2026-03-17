@@ -9741,11 +9741,11 @@ export type Database = {
           created_at: string
           created_by: string | null
           deadline_at: string
-          id: string
           phase: number
           role_code: string
           started_at: string
           status: string
+          timer_id: string
           updated_at: string | null
           updated_by: string | null
         }
@@ -9756,11 +9756,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline_at: string
-          id?: string
           phase: number
           role_code: string
           started_at?: string
           status?: string
+          timer_id?: string
           updated_at?: string | null
           updated_by?: string | null
         }
@@ -9771,11 +9771,11 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline_at?: string
-          id?: string
           phase?: number
           role_code?: string
           started_at?: string
           status?: string
+          timer_id?: string
           updated_at?: string | null
           updated_by?: string | null
         }

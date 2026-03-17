@@ -1,0 +1,1 @@
+ALTER TABLE public.sla_timers RENAME COLUMN id TO timer_id;
