@@ -740,6 +740,17 @@ export function AdminSidebar() {
                             Smoke Test
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => navigate('/admin/test-setup')}
+                            onMouseEnter={() => handleMouseEnter('/admin/test-setup')}
+                            isActive={isActive('/admin/test-setup')}
+                            className="cursor-pointer"
+                          >
+                            <ChevronRight className="h-3 w-3 mr-1" />
+                            Test Scenario Setup
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
                       </SidebarMenuSub>
                     </CollapsibleContent>
                   </SidebarMenuItem>
