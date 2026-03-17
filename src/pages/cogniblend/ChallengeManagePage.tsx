@@ -22,6 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
+import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
@@ -81,6 +82,7 @@ export default function ChallengeManagePage() {
 
   const [snapshotModalOpen, setSnapshotModalOpen] = useState(false);
   const [activeSnapshot, setActiveSnapshot] = useState<PackageVersion | null>(null);
+  const [extendModalOpen, setExtendModalOpen] = useState(false);
 
   const countdown = useCountdown(data?.submissionDeadline ?? null);
 
@@ -158,7 +160,12 @@ export default function ChallengeManagePage() {
 
           {/* Extend Deadline (ID only) */}
           {data.canExtendDeadline && (
-            <Button variant="outline" size="sm" className="border-primary text-primary hover:bg-primary/10">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-primary text-primary hover:bg-primary/10"
+              onClick={() => setExtendModalOpen(true)}
+            >
               Extend Deadline
             </Button>
           )}
@@ -336,6 +343,16 @@ export default function ChallengeManagePage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* ──────────────── Extend Deadline Modal ──────────────── */}
+      <ExtendDeadlineModal
+        open={extendModalOpen}
+        onOpenChange={setExtendModalOpen}
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        currentDeadline={data.submissionDeadline}
+        userId={user?.id ?? ''}
+      />
     </div>
   );
 }
