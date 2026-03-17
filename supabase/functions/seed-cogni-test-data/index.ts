@@ -179,7 +179,7 @@ serve(async (req) => {
       amendment_number: 1,
       reason: "Initial curation review — minor scope clarification requested",
       scope_of_change: "Scope and deliverables sections updated for clarity",
-      status: "APPLIED",
+      status: "UNDER_REVIEW",
       initiated_by: robertUser.id,
       version_before: 1,
       version_after: 2,
