@@ -226,6 +226,7 @@ const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizar
 const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalDocumentAttachmentPage"));
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
 const CurationReviewPage = lazy(() => import("@/pages/cogniblend/CurationReviewPage"));
+const CogniPlaceholderPage = lazy(() => import("@/pages/cogniblend/CogniPlaceholderPage"));
 
 // Solution Request Pages (lazy loaded)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
@@ -318,6 +319,21 @@ const App = () => (
               <Route path="/cogni/challenges/:id/legal" element={<LazyRoute><LegalDocumentAttachmentPage /></LazyRoute>} />
               <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
+
+              {/* Placeholder routes for unimplemented CogniBlend features */}
+              <Route path="/cogni/submit-request" element={<LazyRoute><CogniPlaceholderPage title="Submit Request" description="Submit a new innovation challenge request to your organization." /></LazyRoute>} />
+              <Route path="/cogni/my-requests" element={<LazyRoute><CogniPlaceholderPage title="My Requests" description="View and track your submitted challenge requests." /></LazyRoute>} />
+              <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
+              <Route path="/cogni/approval" element={<LazyRoute><CogniPlaceholderPage title="Approval Queue" description="Review and approve challenges pending your authorization." /></LazyRoute>} />
+              <Route path="/cogni/legal" element={<LazyRoute><CogniPlaceholderPage title="Legal Documents" description="Manage legal templates and document attachments for challenges." /></LazyRoute>} />
+              <Route path="/cogni/review" element={<LazyRoute><CogniPlaceholderPage title="Review Queue" description="Review submitted solutions awaiting expert evaluation." /></LazyRoute>} />
+              <Route path="/cogni/evaluation" element={<LazyRoute><CogniPlaceholderPage title="Evaluation Panel" description="Score and rank solutions using evaluation rubrics." /></LazyRoute>} />
+              <Route path="/cogni/selection" element={<LazyRoute><CogniPlaceholderPage title="Selection & IP" description="Select winning solutions and manage IP transfer processes." /></LazyRoute>} />
+              <Route path="/cogni/escrow" element={<LazyRoute><CogniPlaceholderPage title="Escrow Management" description="Manage escrow deposits, releases, and financial holds." /></LazyRoute>} />
+              <Route path="/cogni/payments" element={<LazyRoute><CogniPlaceholderPage title="Payment Processing" description="Process prize payments and manage financial transactions." /></LazyRoute>} />
+              <Route path="/cogni/browse" element={<LazyRoute><CogniPlaceholderPage title="Browse Challenges" description="Discover and explore open innovation challenges." /></LazyRoute>} />
+              <Route path="/cogni/my-solutions" element={<LazyRoute><CogniPlaceholderPage title="My Solutions" description="Track your submitted solutions and their evaluation status." /></LazyRoute>} />
+              <Route path="/cogni/portfolio" element={<LazyRoute><CogniPlaceholderPage title="My Portfolio" description="Manage your solver profile and showcase your expertise." /></LazyRoute>} />
             </Route>
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
