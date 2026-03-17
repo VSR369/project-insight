@@ -65,7 +65,7 @@ export function useSolverAmendmentStatus(challengeId: string | undefined, userId
       // 2. Find approved material amendments with active withdrawal window
       const { data: amendments } = await supabase
         .from('amendment_records')
-        .select('id, amendment_number, scope_of_change, reason, withdrawal_deadline, status')
+        .select('id, amendment_number, scope_of_change, reason, withdrawal_deadline, status, created_at')
         .eq('challenge_id', challengeId)
         .eq('status', 'APPROVED')
         .order('amendment_number', { ascending: false })
