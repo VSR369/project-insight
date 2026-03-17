@@ -2520,6 +2520,45 @@ export type Database = {
           },
         ]
       }
+      legal_document_templates: {
+        Row: {
+          created_at: string
+          default_template_url: string | null
+          description: string | null
+          document_name: string
+          document_type: string
+          is_active: boolean
+          required_for_maturity: Json
+          template_id: string
+          tier: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          default_template_url?: string | null
+          description?: string | null
+          document_name: string
+          document_type: string
+          is_active?: boolean
+          required_for_maturity?: Json
+          template_id?: string
+          tier: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          default_template_url?: string | null
+          description?: string | null
+          document_name?: string
+          document_type?: string
+          is_active?: boolean
+          required_for_maturity?: Json
+          template_id?: string
+          tier?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       level_speciality_map: {
         Row: {
           created_at: string
@@ -11310,6 +11349,10 @@ export type Database = {
               sla_compliant_total: number
             }[]
           }
+      get_required_legal_docs: {
+        Args: { p_governance_profile?: string; p_maturity_level: string }
+        Returns: Json
+      }
       get_reviewer_days_idle: {
         Args: { p_reviewer_id: string }
         Returns: number
