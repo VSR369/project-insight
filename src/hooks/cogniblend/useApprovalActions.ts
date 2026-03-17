@@ -143,23 +143,31 @@ export function useRejectChallenge() {
       if (assignments?.length) {
         const { data: poolData } = await supabase
           .from('platform_provider_pool')
-          .select('user_id')
+          .select('id, created_by')
           .in(
             'id',
             assignments.map((a) => a.pool_member_id),
           );
 
         if (poolData?.length) {
-          const uniqueUsers = [...new Set(poolData.map((p) => p.user_id))];
-          await supabase.from('cogni_notifications').insert(
-            uniqueUsers.map((uid) => ({
-              user_id: uid,
-              challenge_id: params.challengeId,
-              notification_type: 'CHALLENGE_REJECTED',
-              title: 'Challenge Rejected',
-              message: params.reason,
-            })),
-          );
+          const uniqueUsers = [
+            ...new Set(
+              poolData
+                .map((p) => p.created_by)
+                .filter((uid): uid is string => !!uid),
+            ),
+          ];
+          if (uniqueUsers.length) {
+            await supabase.from('cogni_notifications').insert(
+              uniqueUsers.map((uid) => ({
+                user_id: uid,
+                challenge_id: params.challengeId,
+                notification_type: 'CHALLENGE_REJECTED',
+                title: 'Challenge Rejected',
+                message: params.reason,
+              })),
+            );
+          }
         }
       }
 
