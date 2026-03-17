@@ -59,11 +59,11 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   budget_min: 0,
   budget_max: 0,
   max_solutions: 1,
+  permitted_artifact_types: [],
   submission_guidelines: '',
   taxonomy_tags: '',
   submission_deadline: '',
   expected_timeline: '',
   review_duration: undefined,
   phase_notes: '',
-  permitted_artifact_types: '',
 };
