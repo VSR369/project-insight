@@ -32,6 +32,7 @@ function GovernanceBadge({ profile }: { profile: string }) {
 }
 
 export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
+  const location = useLocation();
   const navigate = useNavigate();
 
   // TODO: Replace with real org context data
