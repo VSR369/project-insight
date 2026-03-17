@@ -3,26 +3,9 @@
  * Fixed 256px, full height, white background, org branding + nav links.
  */
 
-import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ListChecks,
-  Lightbulb,
-  BarChart3,
-  Users,
-  BookOpen,
-  Settings,
-} from 'lucide-react';
-
-const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/cogni/dashboard', icon: LayoutDashboard },
-  { label: 'Curation Queue', path: '/cogni/curation', icon: ListChecks },
-  { label: 'Challenges', path: '/cogni/challenges', icon: Lightbulb },
-  { label: 'Analytics', path: '/cogni/analytics', icon: BarChart3 },
-  { label: 'Team', path: '/cogni/team', icon: Users },
-  { label: 'Knowledge Centre', path: '/cogni/knowledge', icon: BookOpen },
-  { label: 'Settings', path: '/cogni/settings', icon: Settings },
-];
+import { useNavigate } from 'react-router-dom';
+import { LayoutDashboard } from 'lucide-react';
+import { CogniSidebarNav } from './CogniSidebarNav';
 
 interface CogniSidebarProps {
   isOpen: boolean;
