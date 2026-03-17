@@ -2,18 +2,23 @@
  * CurationChecklistPanel — Right panel for Curation Review page
  *
  * 14-point completeness checklist with progress bar, modification cycle card,
- * and action buttons (Submit to ID, Return to Creator, Make Direct Correction).
+ * and action buttons:
+ *  - Submit to Innovation Director: calls complete_phase (Phase 3 → 4),
+ *    logs audit, shows sequential auto-completion toasts, navigates to queue.
+ *  - Return to Creator: inserts amendment_record, sends cogni_notification
+ *    to CR role holder, keeps phase_status ACTIVE with returned flag.
+ *  - Make Direct Correction: toggles left panel to edit mode.
  */
 
 import { useState, useMemo, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import {
@@ -125,7 +130,9 @@ export default function CurationChecklistPanel({
   // SECTION 2: Auth & hooks
   // ══════════════════════════════════════
   const { user } = useAuth();
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const completePhase = useCompletePhase();
 
   // ══════════════════════════════════════
   // SECTION 3: Query — amendment records count
@@ -145,52 +152,78 @@ export default function CurationChecklistPanel({
   });
 
   // ══════════════════════════════════════
-  // SECTION 4: Mutation — return to creator
+  // SECTION 4: Query — Creator user_id for notifications
+  // ══════════════════════════════════════
+  const { data: creatorUserId } = useQuery({
+    queryKey: ["curation-creator", challengeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("user_challenge_roles")
+        .select("user_id")
+        .eq("challenge_id", challengeId)
+        .eq("role_code", "CR")
+        .eq("status", "ACTIVE")
+        .limit(1)
+        .maybeSingle();
+      if (error || !data) return null;
+      return data.user_id as string;
+    },
+    enabled: !!challengeId,
+    staleTime: 5 * 60_000,
+  });
+
+  // ══════════════════════════════════════
+  // SECTION 5: Mutation — return to creator
   // ══════════════════════════════════════
   const returnMutation = useMutation({
     mutationFn: async (reason: string) => {
-      const { error } = await supabase.from("amendment_records").insert({
+      const newAmendmentNumber = amendmentCount + 1;
+
+      // 1. Insert amendment_record with status INITIATED
+      const { error: amendError } = await supabase.from("amendment_records").insert({
         challenge_id: challengeId,
-        amendment_number: amendmentCount + 1,
+        amendment_number: newAmendmentNumber,
         reason,
         initiated_by: "curator",
-        status: "pending",
+        status: "INITIATED",
         created_by: user?.id ?? null,
       });
-      if (error) throw new Error(error.message);
+      if (amendError) throw new Error(amendError.message);
+
+      // 2. Log to audit trail
+      await supabase.rpc("log_audit", {
+        p_user_id: user?.id ?? "",
+        p_challenge_id: challengeId,
+        p_solution_id: "",
+        p_action: "CURATION_RETURNED",
+        p_method: "UI",
+        p_details: {
+          reason,
+          amendment_number: newAmendmentNumber,
+          cycle: `${newAmendmentNumber} of 3`,
+        } as unknown as Json,
+      });
+
+      // 3. Send notification to Creator
+      if (creatorUserId) {
+        await supabase.from("cogni_notifications").insert({
+          user_id: creatorUserId,
+          challenge_id: challengeId,
+          notification_type: "curation_returned",
+          title: "Challenge returned for modification",
+          message: `Challenge returned for modification. Reason: ${reason}. Cycle ${newAmendmentNumber} of 3.`,
+        });
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["curation-amendments", challengeId] });
+      queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
       toast.success("Challenge returned to creator for revision");
       setShowReturnModal(false);
       setReturnReason("");
     },
     onError: (error: Error) => {
       toast.error(`Failed to return challenge: ${error.message}`);
-    },
-  });
-
-  // ══════════════════════════════════════
-  // SECTION 5: Mutation — submit to Innovation Director
-  // ══════════════════════════════════════
-  const submitMutation = useMutation({
-    mutationFn: async () => {
-      const { error } = await supabase
-        .from("challenges")
-        .update({
-          phase_status: "SUBMITTED_TO_ID",
-          updated_by: user?.id ?? null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", challengeId);
-      if (error) throw new Error(error.message);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["curation-review", challengeId] });
-      toast.success("Challenge submitted to Innovation Director");
-    },
-    onError: (error: Error) => {
-      toast.error(`Failed to submit: ${error.message}`);
     },
   });
 
@@ -203,31 +236,34 @@ export default function CurationChecklistPanel({
   const evalCriteria = parseJson<EvalCriterion[]>(challenge.evaluation_criteria);
   const evalWeightSum = evalCriteria?.reduce((sum, c) => sum + (c.weight_percentage ?? 0), 0) ?? 0;
 
-  const autoChecks: boolean[] = useMemo(() => [
-    /* 1 */ !!challenge.problem_statement?.trim(),
-    /* 2 */ !!challenge.scope?.trim(),
-    /* 3 */ (() => {
-      const d = parseJson<unknown[]>(challenge.deliverables);
-      return !!d && d.length > 0;
-    })(),
-    /* 4 */ evalWeightSum === 100,
-    /* 5 */ (() => {
-      const rs = parseJson<unknown[]>(challenge.reward_structure);
-      return !!rs && rs.length > 0;
-    })(),
-    /* 6 */ (() => {
-      const ps = parseJson<unknown[]>(challenge.phase_schedule);
-      return !!ps && ps.length > 0;
-    })(),
-    /* 7 */ !!challenge.description?.trim(),
-    /* 8 */ !!challenge.eligibility?.trim(),
-    /* 9 */ false, // Taxonomy tags — checked from junction table; placeholder
-    /* 10 */ !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
-    /* 11 */ !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
-    /* 12 */ challenge.complexity_score != null || !!challenge.complexity_parameters,
-    /* 13 */ !!challenge.maturity_level,
-    /* 14 */ false, // Artifact types — derived from maturity config; placeholder
-  ], [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs]);
+  const autoChecks: boolean[] = useMemo(
+    () => [
+      /* 1  */ !!challenge.problem_statement?.trim(),
+      /* 2  */ !!challenge.scope?.trim(),
+      /* 3  */ (() => {
+        const d = parseJson<unknown[]>(challenge.deliverables);
+        return !!d && d.length > 0;
+      })(),
+      /* 4  */ evalWeightSum === 100,
+      /* 5  */ (() => {
+        const rs = parseJson<unknown[]>(challenge.reward_structure);
+        return !!rs && rs.length > 0;
+      })(),
+      /* 6  */ (() => {
+        const ps = parseJson<unknown[]>(challenge.phase_schedule);
+        return !!ps && ps.length > 0;
+      })(),
+      /* 7  */ !!challenge.description?.trim(),
+      /* 8  */ !!challenge.eligibility?.trim(),
+      /* 9  */ false, // Taxonomy tags — checked from junction table; placeholder
+      /* 10 */ !!tier1Docs && tier1Docs.attached > 0 && tier1Docs.attached === tier1Docs.total,
+      /* 11 */ !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
+      /* 12 */ challenge.complexity_score != null || !!challenge.complexity_parameters,
+      /* 13 */ !!challenge.maturity_level,
+      /* 14 */ false, // Artifact types — derived from maturity config; placeholder
+    ],
+    [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs]
+  );
 
   const CHECKLIST_LABELS: string[] = [
     "Problem Statement present",
@@ -284,7 +320,52 @@ export default function CurationChecklistPanel({
       setShowIncompleteModal(true);
       return;
     }
-    submitMutation.mutate();
+    if (!user?.id) {
+      toast.error("Authentication required");
+      return;
+    }
+
+    // Build checklist summary for audit
+    const checklistSummary = checklistItems.map((item) => ({
+      id: item.id,
+      label: item.label,
+      passed: isChecked(item),
+      method: item.autoChecked ? "auto" : "manual",
+    }));
+
+    // Log audit first, then complete_phase
+    supabase
+      .rpc("log_audit", {
+        p_user_id: user.id,
+        p_challenge_id: challengeId,
+        p_solution_id: "",
+        p_action: "CURATION_SUBMITTED",
+        p_method: "UI",
+        p_phase_from: 3,
+        p_phase_to: 4,
+        p_details: {
+          checklist: checklistSummary,
+          completed_count: completedCount,
+          total_count: totalItems,
+          amendment_cycle: amendmentCount,
+        } as unknown as Json,
+      })
+      .then(() => {
+        // Call complete_phase via the existing hook (handles sequential toasts)
+        completePhase.mutate(
+          { challengeId, userId: user.id },
+          {
+            onSuccess: () => {
+              toast.success("Challenge submitted to Innovation Director for review.");
+              // Navigate to queue after a brief delay for toasts to show
+              setTimeout(() => {
+                queryClient.invalidateQueries({ queryKey: ["curation-queue"] });
+                navigate("/cogni/curation");
+              }, 1500);
+            },
+          }
+        );
+      });
   };
 
   const handleReturnSubmit = () => {
@@ -378,9 +459,9 @@ export default function CurationChecklistPanel({
             <Button
               className="w-full"
               onClick={handleSubmitClick}
-              disabled={submitMutation.isPending}
+              disabled={completePhase.isPending}
             >
-              {submitMutation.isPending ? (
+              {completePhase.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
               ) : (
                 <Send className="h-4 w-4 mr-1.5" />
