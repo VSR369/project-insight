@@ -159,6 +159,11 @@ export default function PublicationReadinessPage() {
         </CardContent>
       </Card>
 
+      {/* ═══ Escrow Section (Enterprise only) ═══ */}
+      {!isLightweight && id && (
+        <EscrowDepositSection challengeId={id} userId={user?.id} />
+      )}
+
       {/* ═══ Summary Footer ═══ */}
       <div className="text-center pb-8">
         <p className="text-xs text-muted-foreground">
