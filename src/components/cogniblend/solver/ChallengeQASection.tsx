@@ -74,12 +74,28 @@ function QAPair({ qa, isMine }: { qa: ChallengeQARow; isMine?: boolean }) {
 
 /* ─── Main component ──────────────────────────────── */
 
-export function ChallengeQASection({ challengeId, isQaClosed }: ChallengeQASectionProps) {
+export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
   const { user } = useAuth();
   const { data: publishedQA = [] } = useChallengeQuestions(challengeId);
   const { data: myQuestions = [] } = useMyQuestions(challengeId);
   const submitQuestion = useSubmitQuestion();
 
+  // Self-fetch is_qa_closed from the challenges table
+  const { data: qaClosedFlag } = useQuery({
+    queryKey: ['challenge-qa-closed', challengeId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('challenges')
+        .select('is_qa_closed')
+        .eq('id', challengeId)
+        .single();
+      if (error) return false;
+      return (data as any)?.is_qa_closed ?? false;
+    },
+    enabled: !!challengeId,
+    staleTime: 60_000,
+  });
+  const isQaClosed = qaClosedFlag ?? false;
   const [questionText, setQuestionText] = useState('');
 
   // Merge: show published + user's own unpublished (deduped)
