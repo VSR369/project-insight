@@ -955,6 +955,16 @@ const App = () => (
             />
             {/* SaasAgreementPage moved to nested /admin route above */}
 
+            {/* Solution Request Routes */}
+            <Route
+              path="/requests/new"
+              element={
+                <AuthGuard>
+                  <LazyRoute><NewSolutionRequestPage /></LazyRoute>
+                </AuthGuard>
+              }
+            />
+
             {/* Role-based redirect for root route */}
             <Route path="/" element={<RoleBasedRedirect />} />
 
