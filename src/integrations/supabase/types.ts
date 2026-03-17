@@ -11097,6 +11097,10 @@ export type Database = {
         Returns: Json
       }
       cleanup_expired_otps: { Args: never; Returns: number }
+      complete_phase: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       complete_verification_action: {
         Args: { p_action: string; p_notes?: string; p_verification_id: string }
         Returns: Json
