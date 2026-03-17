@@ -226,6 +226,7 @@ const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizar
 const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalDocumentAttachmentPage"));
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
 const CurationReviewPage = lazy(() => import("@/pages/cogniblend/CurationReviewPage"));
+const CogniPlaceholderPage = lazy(() => import("@/pages/cogniblend/CogniPlaceholderPage"));
 
 // Solution Request Pages (lazy loaded)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
