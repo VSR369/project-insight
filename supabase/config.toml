@@ -148,3 +148,6 @@ verify_jwt = false
 
 [functions.check-sla-breaches]
 verify_jwt = false
+
+[functions.seed-cogni-test-data]
+verify_jwt = false
