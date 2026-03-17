@@ -450,9 +450,9 @@ export default function LegalDocumentAttachmentPage() {
 
       {/* Lightweight auto-attach banner */}
       {isLightweight && (
-        <div className="flex items-start gap-3 rounded-lg border border-green-300 bg-green-50 dark:bg-green-900/20 dark:border-green-800 p-4">
-          <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-          <p className="text-sm text-green-800 dark:text-green-300">
+        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
+          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground">
             All legal documents have been auto-attached using default templates.
             You can replace any with custom documents if needed.
           </p>
