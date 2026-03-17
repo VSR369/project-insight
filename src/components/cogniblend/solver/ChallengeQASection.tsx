@@ -7,11 +7,13 @@
 import { useState } from 'react';
 import { MessageSquare, Lock } from 'lucide-react';
 import { format } from 'date-fns';
+import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import {
   useChallengeQuestions,
   useMyQuestions,
@@ -21,7 +23,6 @@ import {
 
 interface ChallengeQASectionProps {
   challengeId: string;
-  isQaClosed: boolean;
 }
 
 /* ─── Single Q&A pair ─────────────────────────────── */
