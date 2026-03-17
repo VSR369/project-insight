@@ -11065,6 +11065,10 @@ export type Database = {
         }
         Returns: Json
       }
+      auto_curate_lightweight: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       book_interview_slot: {
         Args: {
           p_composite_slot_id: string
@@ -11656,6 +11660,10 @@ export type Database = {
       update_master_status: {
         Args: { p_challenge_id: string }
         Returns: undefined
+      }
+      validate_curation_checklist: {
+        Args: { p_challenge_id: string }
+        Returns: Json
       }
       validate_domain_weights: {
         Args: { p_l1: number; p_l2: number; p_l3: number }
