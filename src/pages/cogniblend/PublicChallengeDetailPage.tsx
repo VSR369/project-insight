@@ -3,6 +3,7 @@
  * Route: /cogni/challenges/:id/view
  */
 
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
@@ -15,6 +16,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
+import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
@@ -54,7 +59,11 @@ export default function PublicChallengeDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
+  const { user } = useAuth();
   const { data, isLoading, error } = usePublicChallenge(id);
+  const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
+
+  const [legalModalOpen, setLegalModalOpen] = useState(false);
 
   /* ── Loading ── */
   if (isLoading) {
@@ -197,6 +206,36 @@ export default function PublicChallengeDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* ═══ WITHDRAWAL BANNER (material amendment) ═══ */}
+      {amendStatus?.hasActiveWithdrawal && amendStatus.solutionId && (
+        <WithdrawalBanner
+          challengeId={id!}
+          challengeTitle={data.title}
+          userId={user?.id ?? ''}
+          solutionId={amendStatus.solutionId}
+          amendmentId={amendStatus.amendmentId!}
+          withdrawalDeadline={amendStatus.withdrawalDeadline!}
+          daysRemaining={amendStatus.daysRemaining!}
+          scopeAreas={amendStatus.scopeAreas}
+          reason={amendStatus.reason}
+        />
+      )}
+
+      {/* ═══ LEGAL RE-ACCEPTANCE BANNER ═══ */}
+      {amendStatus?.requiresLegalReAcceptance && (
+        <div className="rounded-xl border-2 border-primary/40 bg-primary/5 p-4 flex flex-col lg:flex-row lg:items-center gap-3">
+          <div className="flex-1 space-y-1">
+            <p className="text-sm font-bold text-foreground">Legal Terms Updated</p>
+            <p className="text-xs text-muted-foreground">
+              You must accept the updated legal terms before submitting new work.
+            </p>
+          </div>
+          <Button size="sm" onClick={() => setLegalModalOpen(true)}>
+            Review & Accept
+          </Button>
+        </div>
+      )}
 
       {/* ═══ TABBED CONTENT ═══ */}
       <Tabs defaultValue="overview" className="space-y-4">
@@ -402,6 +441,17 @@ export default function PublicChallengeDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
+      {amendStatus?.requiresLegalReAcceptance && (
+        <LegalReAcceptModal
+          open={legalModalOpen}
+          onOpenChange={setLegalModalOpen}
+          challengeId={id!}
+          userId={user?.id ?? ''}
+          amendmentNumber={amendStatus.amendmentNumber ?? 1}
+        />
+      )}
 
       {/* Bottom spacer */}
       <div className="pb-8" />

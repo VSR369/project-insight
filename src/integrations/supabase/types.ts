@@ -424,6 +424,7 @@ export type Database = {
           updated_by: string | null
           version_after: number | null
           version_before: number | null
+          withdrawal_deadline: string | null
         }
         Insert: {
           amendment_number: number
@@ -439,6 +440,7 @@ export type Database = {
           updated_by?: string | null
           version_after?: number | null
           version_before?: number | null
+          withdrawal_deadline?: string | null
         }
         Update: {
           amendment_number?: number
@@ -454,6 +456,7 @@ export type Database = {
           updated_by?: string | null
           version_after?: number | null
           version_before?: number | null
+          withdrawal_deadline?: string | null
         }
         Relationships: [
           {
