@@ -205,12 +205,49 @@ export default function PublicationReadinessPage() {
         <EscrowDepositSection challengeId={id} userId={user?.id} />
       )}
 
-      {/* ═══ Summary Footer ═══ */}
-      <div className="text-center pb-8">
-        <p className="text-xs text-muted-foreground">
-          {data.checks.filter((c) => c.passed).length} of {data.checks.length} checks passed
-        </p>
+      {/* ═══ Summary + Publish ═══ */}
+      <div className="space-y-4 pb-8">
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground">
+            {data.checks.filter((c) => c.passed).length} of {data.checks.length} checks passed
+          </p>
+        </div>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full">
+                <Button
+                  size="lg"
+                  className="w-full text-base"
+                  disabled={!canPublish || publishMutation.isPending}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  {publishMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  ) : (
+                    <Rocket className="h-5 w-5 mr-2" />
+                  )}
+                  Publish Challenge
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {!canPublish && (
+              <TooltipContent>
+                <p>Resolve all items above to enable publishing.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
+
+      {/* ═══ Confirm Modal ═══ */}
+      <PublishConfirmModal
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handlePublish}
+        isPending={publishMutation.isPending}
+      />
     </div>
   );
 }
