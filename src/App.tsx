@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom";
 import { RegistrationLayout } from "@/components/layouts/RegistrationLayout";
 import { AuthProvider } from "@/hooks/useAuth";
+import { CogniShell } from "@/components/cogniblend/shell/CogniShell";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 
 import { AuthGuard } from "@/components/auth/AuthGuard";
