@@ -332,7 +332,7 @@ export default function ChallengeWizardPage() {
 function getStepFields(step: number): string[] {
   switch (step) {
     case 1:
-      return ['title', 'description', 'problem_statement', 'scope'];
+      return ['title', 'problem_statement', 'domain_tags', 'maturity_level'];
     case 2:
       return ['deliverables_list', 'maturity_level', 'ip_model', 'visibility', 'eligibility'];
     case 3:
