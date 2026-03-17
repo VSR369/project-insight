@@ -615,6 +615,63 @@ export type Database = {
           },
         ]
       }
+      audit_trail: {
+        Row: {
+          action: string
+          challenge_id: string | null
+          created_at: string
+          created_by: string | null
+          details: Json | null
+          id: string
+          method: string
+          phase_from: number | null
+          phase_to: number | null
+          solution_id: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          challenge_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          id?: string
+          method: string
+          phase_from?: number | null
+          phase_to?: number | null
+          solution_id?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          challenge_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          details?: Json | null
+          id?: string
+          method?: string
+          phase_from?: number | null
+          phase_to?: number | null
+          solution_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       booking_reviewers: {
         Row: {
           acceptance_status: string | null
@@ -1160,6 +1217,47 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cogni_notifications: {
+        Row: {
+          challenge_id: string | null
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string | null
+          notification_type: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          challenge_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          challenge_id?: string | null
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          notification_type?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cogni_notifications_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
         ]
@@ -2362,6 +2460,59 @@ export type Database = {
             columns: ["solution_id"]
             isOneToOne: false
             referencedRelation: "solutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_acceptance_ledger: {
+        Row: {
+          accepted_at: string
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          document_name: string | null
+          document_type: string
+          document_version: string | null
+          id: string
+          ip_address: string | null
+          phase_triggered: number | null
+          tier: string | null
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_type: string
+          document_version?: string | null
+          id?: string
+          ip_address?: string | null
+          phase_triggered?: number | null
+          tier?: string | null
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_type?: string
+          document_version?: string | null
+          id?: string
+          ip_address?: string | null
+          phase_triggered?: number | null
+          tier?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_acceptance_ledger_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
         ]
@@ -9572,6 +9723,62 @@ export type Database = {
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sla_timers: {
+        Row: {
+          breached_at: string | null
+          challenge_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          deadline_at: string
+          id: string
+          phase: number
+          role_code: string
+          started_at: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          breached_at?: string | null
+          challenge_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_at: string
+          id?: string
+          phase: number
+          role_code: string
+          started_at?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          breached_at?: string | null
+          challenge_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          deadline_at?: string
+          id?: string
+          phase?: number
+          role_code?: string
+          started_at?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sla_timers_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
             referencedColumns: ["id"]
           },
         ]
