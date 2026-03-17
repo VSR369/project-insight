@@ -326,7 +326,8 @@ const App = () => (
               <Route path="/cogni/submit-request" element={<LazyRoute><CogniPlaceholderPage title="Submit Request" description="Submit a new innovation challenge request to your organization." /></LazyRoute>} />
               <Route path="/cogni/my-requests" element={<LazyRoute><CogniPlaceholderPage title="My Requests" description="View and track your submitted challenge requests." /></LazyRoute>} />
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
-              <Route path="/cogni/approval" element={<LazyRoute><CogniPlaceholderPage title="Approval Queue" description="Review and approve challenges pending your authorization." /></LazyRoute>} />
+              <Route path="/cogni/approval" element={<LazyRoute><ApprovalQueuePage /></LazyRoute>} />
+              <Route path="/cogni/approval/:id" element={<LazyRoute><ApprovalReviewPage /></LazyRoute>} />
               <Route path="/cogni/legal" element={<LazyRoute><CogniPlaceholderPage title="Legal Documents" description="Manage legal templates and document attachments for challenges." /></LazyRoute>} />
               <Route path="/cogni/review" element={<LazyRoute><CogniPlaceholderPage title="Review Queue" description="Review submitted solutions awaiting expert evaluation." /></LazyRoute>} />
               <Route path="/cogni/evaluation" element={<LazyRoute><CogniPlaceholderPage title="Evaluation Panel" description="Score and rank solutions using evaluation rubrics." /></LazyRoute>} />
