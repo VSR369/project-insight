@@ -1,0 +1,65 @@
+/**
+ * Zod schema for the Challenge Creation wizard form.
+ * Covers all 4 steps. Validation severity depends on governance_profile.
+ */
+
+import { z } from 'zod';
+
+export const challengeFormSchema = z.object({
+  // Step 1 — Problem
+  title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters').trim(),
+  description: z.string().max(2000).optional().or(z.literal('')),
+  problem_statement: z.string().max(5000).optional().or(z.literal('')),
+  scope: z.string().max(3000).optional().or(z.literal('')),
+
+  // Step 2 — Requirements
+  deliverables_list: z.array(z.string()).default(['']),
+  maturity_level: z.string().optional().or(z.literal('')),
+  ip_model: z.string().optional().or(z.literal('')),
+  visibility: z.string().default('public'),
+  eligibility: z.string().max(2000).optional().or(z.literal('')),
+  complexity_notes: z.string().max(2000).optional().or(z.literal('')),
+
+  // Step 3 — Evaluation
+  criteria_list: z.array(z.string()).default(['']),
+  currency_code: z.string().default('USD'),
+  budget_min: z.number().min(0).default(0),
+  budget_max: z.number().min(0).default(0),
+  max_solutions: z.number().int().min(1).default(1),
+  submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
+  taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
+
+  // Step 4 — Timeline
+  submission_deadline: z.string().optional().or(z.literal('')),
+  expected_timeline: z.string().max(200).optional().or(z.literal('')),
+  review_duration: z.number().int().min(1).max(90).optional(),
+  phase_notes: z.string().max(2000).optional().or(z.literal('')),
+  permitted_artifact_types: z.string().max(500).optional().or(z.literal('')),
+});
+
+export type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
+
+export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
+  title: '',
+  description: '',
+  problem_statement: '',
+  scope: '',
+  deliverables_list: [''],
+  maturity_level: '',
+  ip_model: '',
+  visibility: 'public',
+  eligibility: '',
+  complexity_notes: '',
+  criteria_list: [''],
+  currency_code: 'USD',
+  budget_min: 0,
+  budget_max: 0,
+  max_solutions: 1,
+  submission_guidelines: '',
+  taxonomy_tags: '',
+  submission_deadline: '',
+  expected_timeline: '',
+  review_duration: undefined,
+  phase_notes: '',
+  permitted_artifact_types: '',
+};

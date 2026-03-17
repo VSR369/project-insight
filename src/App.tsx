@@ -222,6 +222,7 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 // CogniBlend Pages (lazy loaded)
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
 const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
+const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizardPage"));
 
 // Solution Request Pages (lazy loaded)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
@@ -309,6 +310,8 @@ const App = () => (
               </AuthGuard>
             }>
               <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/new" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/:id/edit" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
             </Route>
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
