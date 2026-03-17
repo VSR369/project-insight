@@ -9,10 +9,12 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Database } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -27,6 +29,8 @@ export default function CogniLoginPage() {
   // ═══════════════════════════════════════════
   const [serverError, setServerError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSeeding, setIsSeeding] = useState(false);
+  const [seedLog, setSeedLog] = useState<string[] | null>(null);
 
   // ═══════════════════════════════════════════
   // SECTION 2: Context and custom hooks
@@ -74,26 +78,45 @@ export default function CogniLoginPage() {
     }
   };
 
+  const handleSeedData = async () => {
+    setIsSeeding(true);
+    setSeedLog(null);
+    try {
+      const { data, error } = await supabase.functions.invoke('seed-cogni-test-data');
+      if (error) {
+        toast.error(`Seed failed: ${error.message}`);
+        return;
+      }
+      if (data?.success) {
+        setSeedLog(data.data.results);
+        toast.success('CogniBlend test data seeded successfully!');
+      } else {
+        toast.error(data?.error?.message ?? 'Seeding failed');
+      }
+    } catch (err: unknown) {
+      toast.error(`Seed error: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    } finally {
+      setIsSeeding(false);
+    }
+  };
+
   const hasError = !!serverError;
 
   // ═══════════════════════════════════════════
   // SECTION 8: Render
   // ═══════════════════════════════════════════
   return (
-    <div className="flex min-h-screen items-center justify-center bg-white px-4">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-[400px]">
         {/* Branding */}
         <div className="text-center mb-8">
           <h1
-            className="font-bold"
-            style={{ fontSize: 28, color: '#1F3864' }}
+            className="font-bold text-[28px]"
+            style={{ color: '#1F3864' }}
           >
             CogniBlend
           </h1>
-          <p
-            className="italic text-muted-foreground mt-1"
-            style={{ fontSize: 14 }}
-          >
+          <p className="italic text-muted-foreground mt-1 text-sm">
             Open Innovation Platform
           </p>
         </div>
@@ -169,8 +192,7 @@ export default function CogniLoginPage() {
             <button
               type="button"
               onClick={() => navigate('/forgot-password')}
-              className="text-primary hover:underline"
-              style={{ fontSize: 13 }}
+              className="text-primary hover:underline text-[13px]"
             >
               Forgot password?
             </button>
@@ -181,13 +203,44 @@ export default function CogniLoginPage() {
             <button
               type="button"
               onClick={() => navigate('/login')}
-              className="text-muted-foreground hover:text-foreground hover:underline"
-              style={{ fontSize: 13 }}
+              className="text-muted-foreground hover:text-foreground hover:underline text-[13px]"
             >
               ← Back to main login
             </button>
           </div>
         </form>
+
+        {/* Dev-only: Seed CogniBlend Data */}
+        <div className="mt-8 border-t border-border pt-6">
+          <p className="text-xs text-muted-foreground text-center mb-3">Developer Tools</p>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={isSeeding}
+            onClick={handleSeedData}
+            className="w-full text-sm"
+          >
+            {isSeeding ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Seeding test data...
+              </>
+            ) : (
+              <>
+                <Database className="mr-2 h-4 w-4" />
+                Seed CogniBlend Test Data
+              </>
+            )}
+          </Button>
+
+          {seedLog && (
+            <div className="mt-3 rounded-md bg-muted p-3 text-xs font-mono max-h-60 overflow-y-auto">
+              {seedLog.map((line, i) => (
+                <div key={i} className="whitespace-pre-wrap">{line}</div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
