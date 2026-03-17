@@ -63,6 +63,7 @@ export function RoleBasedRedirect() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasOrgUserRecord = !!orgUserResult.data;
+      const hasCogniRoles = (cogniRolesResult.data as unknown[] | null)?.length ? (cogniRolesResult.data as unknown[]).length > 0 : false;
       const hasEnrollments = (enrollmentsResult.data?.length || 0) > 0;
 
       // Validate cached portal - user must still have access
