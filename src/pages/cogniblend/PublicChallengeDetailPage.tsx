@@ -443,6 +443,9 @@ export default function PublicChallengeDetailPage() {
         </TabsContent>
       </Tabs>
 
+      {/* ═══ Q&A SECTION ═══ */}
+      <ChallengeQASection challengeId={id!} />
+
       {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
       {amendStatus?.requiresLegalReAcceptance && (
         <LegalReAcceptModal
