@@ -222,6 +222,14 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
 const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
 
+            {/* CogniBlend Routes */}
+            <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
+            <Route path="/cogni/dashboard" element={
+              <AuthGuard>
+                <LazyRoute><CogniDashboardPage /></LazyRoute>
+              </AuthGuard>
+            } />
+
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
