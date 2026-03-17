@@ -3,7 +3,7 @@
  * Fixed 256px, full height, white background, org branding + nav links.
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard } from 'lucide-react';
 import { CogniSidebarNav } from './CogniSidebarNav';
 
