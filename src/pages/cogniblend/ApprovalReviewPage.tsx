@@ -724,7 +724,7 @@ export default function ApprovalReviewPage() {
   // SECTION 6: Render
   // ══════════════════════════════════════
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5 pb-24">
       {/* Header */}
       <div className="flex items-center gap-3">
         <Button
