@@ -3,15 +3,21 @@
  * Displays GATE-11 (Enterprise) or GATE-11-L (Lightweight) pre-publication checklist.
  */
 
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2, Rocket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
+import { useEscrowDeposit } from '@/hooks/cogniblend/useEscrowDeposit';
+import { usePublishChallenge } from '@/hooks/cogniblend/usePublishChallenge';
 import { EscrowDepositSection } from '@/components/cogniblend/publication/EscrowDepositSection';
+import { PublishConfirmModal } from '@/components/cogniblend/publication/PublishConfirmModal';
+import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -21,7 +27,15 @@ export default function PublicationReadinessPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [publishedResult, setPublishedResult] = useState<{ id: string; title: string } | null>(null);
+
   const { data, isLoading, error } = usePublicationReadiness(id);
+  const escrowQuery = useEscrowDeposit(
+    data?.governanceProfile !== 'LIGHTWEIGHT' ? id : undefined,
+    user?.id,
+  );
+  const publishMutation = usePublishChallenge();
 
   /* ── Loading ── */
   if (isLoading) {
@@ -48,6 +62,33 @@ export default function PublicationReadinessPage() {
   }
 
   const isLightweight = data.governanceProfile === 'LIGHTWEIGHT';
+
+  // Publish disabled logic
+  const escrowBlocking = !isLightweight && escrowQuery.data?.escrow?.escrow_status !== 'FUNDED';
+  const canPublish = data.allPassed && !escrowBlocking;
+
+  const handlePublish = () => {
+    if (!id || !user?.id) return;
+    publishMutation.mutate(
+      { challengeId: id, userId: user.id },
+      {
+        onSuccess: (result) => {
+          setPublishedResult({ id: result.challengeId, title: result.challengeTitle });
+        },
+      },
+    );
+    setConfirmOpen(false);
+  };
+
+  // Success screen
+  if (publishedResult) {
+    return (
+      <PublishSuccessScreen
+        challengeId={publishedResult.id}
+        challengeTitle={publishedResult.title}
+      />
+    );
+  }
 
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
@@ -164,12 +205,49 @@ export default function PublicationReadinessPage() {
         <EscrowDepositSection challengeId={id} userId={user?.id} />
       )}
 
-      {/* ═══ Summary Footer ═══ */}
-      <div className="text-center pb-8">
-        <p className="text-xs text-muted-foreground">
-          {data.checks.filter((c) => c.passed).length} of {data.checks.length} checks passed
-        </p>
+      {/* ═══ Summary + Publish ═══ */}
+      <div className="space-y-4 pb-8">
+        <div className="text-center">
+          <p className="text-xs text-muted-foreground">
+            {data.checks.filter((c) => c.passed).length} of {data.checks.length} checks passed
+          </p>
+        </div>
+
+        <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="w-full">
+                <Button
+                  size="lg"
+                  className="w-full text-base"
+                  disabled={!canPublish || publishMutation.isPending}
+                  onClick={() => setConfirmOpen(true)}
+                >
+                  {publishMutation.isPending ? (
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  ) : (
+                    <Rocket className="h-5 w-5 mr-2" />
+                  )}
+                  Publish Challenge
+                </Button>
+              </div>
+            </TooltipTrigger>
+            {!canPublish && (
+              <TooltipContent>
+                <p>Resolve all items above to enable publishing.</p>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        </TooltipProvider>
       </div>
+
+      {/* ═══ Confirm Modal ═══ */}
+      <PublishConfirmModal
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        onConfirm={handlePublish}
+        isPending={publishMutation.isPending}
+      />
     </div>
   );
 }
