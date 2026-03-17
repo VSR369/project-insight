@@ -89,13 +89,21 @@ export default function ChallengeWizardPage() {
         visibility: challengeData.visibility ?? 'public',
         eligibility: challengeData.eligibility ?? '',
         complexity_notes: '',
-        criteria_list: Array.isArray(challengeData.evaluation_criteria)
-          ? (challengeData.evaluation_criteria as any).criteria ?? ['']
-          : [''],
+        weighted_criteria: Array.isArray((challengeData.evaluation_criteria as any)?.criteria)
+          ? (challengeData.evaluation_criteria as any).criteria.map((c: any) => ({
+              name: c.name ?? c ?? '',
+              weight: c.weight ?? 0,
+            }))
+          : [
+              { name: 'Technical Feasibility', weight: 30 },
+              { name: 'Innovation & Novelty', weight: 30 },
+              { name: 'Implementation Plan', weight: 40 },
+            ],
         currency_code: challengeData.currency_code ?? 'USD',
-        budget_min: (challengeData.reward_structure as any)?.budget_min ?? 0,
-        budget_max: (challengeData.reward_structure as any)?.budget_max ?? 0,
-        max_solutions: challengeData.max_solutions ?? 1,
+        platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
+        gold_award: (challengeData.reward_structure as any)?.gold ?? 0,
+        silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
+        rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: '',
         taxonomy_tags: '',
         submission_deadline: challengeData.submission_deadline
@@ -127,7 +135,7 @@ export default function ChallengeWizardPage() {
   // ═══════ Handlers ═══════
   const buildFieldsFromForm = (values: ChallengeFormValues) => {
     const deliverables = values.deliverables_list.filter(Boolean);
-    const criteria = values.criteria_list.filter(Boolean);
+    const criteria = values.weighted_criteria.filter((c) => c.name);
 
     return {
       title: values.title,
@@ -138,14 +146,15 @@ export default function ChallengeWizardPage() {
       evaluation_criteria: criteria.length ? { criteria } : null,
       reward_structure: {
         currency: values.currency_code,
-        budget_min: values.budget_min,
-        budget_max: values.budget_max,
+        platinum: values.platinum_award,
+        gold: values.gold_award,
+        silver: values.silver_award ?? null,
       },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
-      max_solutions: values.max_solutions,
+      rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
       phase_schedule: {
         expected_timeline: values.expected_timeline || null,
@@ -204,8 +213,8 @@ export default function ChallengeWizardPage() {
         businessProblem: values.problem_statement || values.title,
         expectedOutcomes: values.scope || '',
         currency: values.currency_code,
-        budgetMin: values.budget_min,
-        budgetMax: values.budget_max,
+        budgetMin: values.platinum_award,
+        budgetMax: values.platinum_award,
         expectedTimeline: values.expected_timeline || '',
         domainTags: [],
         urgency: 'normal',
@@ -244,8 +253,8 @@ export default function ChallengeWizardPage() {
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: values.scope || '',
           currency: values.currency_code,
-          budgetMin: values.budget_min,
-          budgetMax: values.budget_max,
+          budgetMin: values.platinum_award,
+          budgetMax: values.platinum_award,
           expectedTimeline: values.expected_timeline || '',
           domainTags: [],
           urgency: 'normal',
@@ -336,7 +345,7 @@ function getStepFields(step: number): string[] {
     case 2:
       return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model'];
     case 3:
-      return ['criteria_list', 'currency_code', 'budget_min', 'budget_max', 'max_solutions'];
+      return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
     case 4:
       return ['submission_deadline', 'expected_timeline', 'review_duration', 'phase_notes'];
     default:

@@ -26,11 +26,15 @@ export const challengeFormSchema = z.object({
   submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
 
   // Step 3 — Evaluation
-  criteria_list: z.array(z.string()).default(['']),
+  weighted_criteria: z.array(z.object({
+    name: z.string().min(1, 'Criterion name is required').max(200),
+    weight: z.number().min(0).max(100),
+  })).min(1, 'At least one criterion is required'),
   currency_code: z.string().default('USD'),
-  budget_min: z.number().min(0).default(0),
-  budget_max: z.number().min(0).default(0),
-  max_solutions: z.number().int().min(1).default(1),
+  platinum_award: z.number().min(0).default(0),
+  gold_award: z.number().min(0).default(0),
+  silver_award: z.number().min(0).optional(),
+  rejection_fee_pct: z.number().min(5).max(20).default(10),
   taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
 
   // Step 4 — Timeline
@@ -54,11 +58,16 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   visibility: 'public',
   eligibility: '',
   complexity_notes: '',
-  criteria_list: [''],
+  weighted_criteria: [
+    { name: 'Technical Feasibility', weight: 30 },
+    { name: 'Innovation & Novelty', weight: 30 },
+    { name: 'Implementation Plan', weight: 40 },
+  ],
   currency_code: 'USD',
-  budget_min: 0,
-  budget_max: 0,
-  max_solutions: 1,
+  platinum_award: 0,
+  gold_award: 0,
+  silver_award: undefined,
+  rejection_fee_pct: 10,
   permitted_artifact_types: [],
   submission_guidelines: '',
   taxonomy_tags: '',

@@ -1,16 +1,24 @@
 /**
- * Step 3 — Evaluation Criteria
- * Mandatory fields: evaluation_criteria, reward_structure
- * Enterprise-only (advanced): submission_guidelines, taxonomy_tags
+ * Step 3 — Evaluation
+ *
+ * Fields:
+ *   1. Evaluation Criteria — weighted table, must sum to 100%
+ *   2. Reward Structure — tiered awards (Platinum > Gold > Silver)
+ *   3. Rejection Fee % — Enterprise only, slider 5–20%
  */
 
-import { useState } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
-import { ChevronDown, ChevronRight, Plus, Trash2 } from 'lucide-react';
+import {
+  Plus,
+  Trash2,
+  Check,
+  AlertTriangle,
+  Info,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { Slider } from '@/components/ui/slider';
 import {
   Select,
   SelectContent,
@@ -18,14 +26,25 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
+/* ─── Constants ──────────────────────────────────────── */
+
 const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD ($)' },
-  { value: 'EUR', label: 'EUR (€)' },
-  { value: 'GBP', label: 'GBP (£)' },
-  { value: 'INR', label: 'INR (₹)' },
+  { value: 'USD', label: 'USD ($)', symbol: '$' },
+  { value: 'EUR', label: 'EUR (€)', symbol: '€' },
+  { value: 'GBP', label: 'GBP (£)', symbol: '£' },
+  { value: 'INR', label: 'INR (₹)', symbol: '₹' },
 ] as const;
+
+/* ─── Props ──────────────────────────────────────────── */
 
 interface StepEvaluationProps {
   form: UseFormReturn<ChallengeFormValues>;
@@ -33,201 +52,310 @@ interface StepEvaluationProps {
   isLightweight: boolean;
 }
 
+/* ─── Component ──────────────────────────────────────── */
+
 export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEvaluationProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const { register, formState: { errors }, control, watch, setValue } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
-  const criteriaList = watch('criteria_list') ?? [''];
+  // ── Weighted criteria ──
+  const weightedCriteria = watch('weighted_criteria') ?? [];
+  const totalWeight = weightedCriteria.reduce((sum, c) => sum + (c.weight || 0), 0);
 
-  const addCriterion = () => setValue('criteria_list', [...criteriaList, '']);
+  const addCriterion = () => {
+    setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0 }]);
+  };
+
   const removeCriterion = (index: number) => {
-    if (criteriaList.length <= 1) return;
-    setValue('criteria_list', criteriaList.filter((_: string, i: number) => i !== index));
-  };
-  const updateCriterion = (index: number, value: string) => {
-    const updated = [...criteriaList];
-    updated[index] = value;
-    setValue('criteria_list', updated);
+    if (weightedCriteria.length <= 1) return;
+    setValue('weighted_criteria', weightedCriteria.filter((_, i) => i !== index));
   };
 
-  const hasAdvanced = isLightweight;
+  const updateCriterionName = (index: number, name: string) => {
+    const updated = [...weightedCriteria];
+    updated[index] = { ...updated[index], name };
+    setValue('weighted_criteria', updated);
+  };
+
+  const updateCriterionWeight = (index: number, weight: number) => {
+    const updated = [...weightedCriteria];
+    updated[index] = { ...updated[index], weight };
+    setValue('weighted_criteria', updated);
+  };
+
+  // ── Rewards ──
+  const platinumAward = watch('platinum_award') ?? 0;
+  const goldAward = watch('gold_award') ?? 0;
+  const silverAward = watch('silver_award');
+  const currencyCode = watch('currency_code') ?? 'USD';
+  const currencySymbol = CURRENCY_OPTIONS.find((c) => c.value === currencyCode)?.symbol ?? '$';
+
+  const rewardOrderValid =
+    platinumAward > goldAward &&
+    (silverAward === undefined || silverAward === 0 || goldAward > silverAward);
+  const hasRewardValues = platinumAward > 0 && goldAward > 0;
+
+  // ── Rejection fee ──
+  const rejectionFeePct = watch('rejection_fee_pct') ?? 10;
 
   return (
-    <div className="space-y-5">
-      {/* Evaluation Criteria */}
-      <div className="space-y-1.5">
+    <div className="space-y-6">
+      {/* ── 1. Evaluation Criteria ── */}
+      <div className="space-y-3">
         <Label className="text-sm font-medium">
-          Evaluation Criteria {isRequired('evaluation_criteria') && <span className="text-destructive">*</span>}
+          Evaluation Criteria <span className="text-destructive">*</span>
         </Label>
-        <p className="text-xs text-muted-foreground">Define how submissions will be scored</p>
+        <p className="text-xs text-muted-foreground">
+          Define criteria and assign weights that sum to 100%
+        </p>
+
+        {/* Table header */}
+        <div className="grid grid-cols-[1fr_100px_40px] gap-2 px-1">
+          <span className="text-xs font-medium text-muted-foreground">Criterion Name</span>
+          <span className="text-xs font-medium text-muted-foreground text-center">Weight %</span>
+          <span />
+        </div>
+
+        {/* Table rows */}
         <div className="space-y-2">
-          {criteriaList.map((item: string, index: number) => (
-            <div key={index} className="flex gap-2 items-center">
+          {weightedCriteria.map((criterion, index) => (
+            <div key={index} className="grid grid-cols-[1fr_100px_40px] gap-2 items-center">
               <Input
-                placeholder={`Criterion ${index + 1} (e.g., Innovation, Feasibility)`}
-                value={item}
-                onChange={(e) => updateCriterion(index, e.target.value)}
+                placeholder="e.g., Technical Feasibility"
+                value={criterion.name}
+                onChange={(e) => updateCriterionName(index, e.target.value)}
                 className="text-base"
               />
-              {criteriaList.length > 1 && (
+              <Input
+                type="number"
+                min={0}
+                max={100}
+                value={criterion.weight}
+                onChange={(e) => updateCriterionWeight(index, Number(e.target.value) || 0)}
+                className="text-base text-center"
+              />
+              {weightedCriteria.length > 1 ? (
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   onClick={() => removeCriterion(index)}
-                  className="shrink-0 text-muted-foreground hover:text-destructive"
+                  className="h-9 w-9 text-muted-foreground hover:text-destructive"
                 >
                   <Trash2 className="h-4 w-4" />
                 </Button>
+              ) : (
+                <div className="h-9 w-9" />
               )}
             </div>
           ))}
         </div>
+
         <Button
           type="button"
           variant="ghost"
           size="sm"
           onClick={addCriterion}
-          className="text-muted-foreground"
+          className="text-primary hover:text-primary/80"
         >
           <Plus className="h-3.5 w-3.5 mr-1" /> Add Criterion
         </Button>
+
+        {/* Weight total indicator */}
+        <div
+          className={cn(
+            'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
+            totalWeight === 100
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : totalWeight > 100
+                ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                : 'border-amber-200 bg-amber-50 text-amber-700',
+          )}
+        >
+          {totalWeight === 100 ? (
+            <>
+              <Check className="h-4 w-4" />
+              Weights sum to 100%
+            </>
+          ) : totalWeight > 100 ? (
+            <>
+              <AlertTriangle className="h-4 w-4" />
+              Weights exceed 100% (currently {totalWeight}%)
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-4 w-4" />
+              Weights must sum to 100% (currently {totalWeight}%)
+            </>
+          )}
+        </div>
+
+        {errors.weighted_criteria && (
+          <p className="text-xs text-destructive">{errors.weighted_criteria.message}</p>
+        )}
       </div>
 
-      {/* Reward Structure */}
+      {/* ── 2. Reward Structure ── */}
       <div className="space-y-3">
         <Label className="text-sm font-medium">
-          Reward Structure {isRequired('reward_structure') && <span className="text-destructive">*</span>}
+          Reward Structure <span className="text-destructive">*</span>
         </Label>
+        <p className="text-xs text-muted-foreground">
+          Define tiered awards. Amounts must be in descending order.
+        </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          {/* Currency */}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Currency</Label>
-            <Controller
-              name="currency_code"
-              control={control}
-              render={({ field }) => (
-                <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
-                  <SelectTrigger className="text-base">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {CURRENCY_OPTIONS.map((c) => (
-                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              )}
-            />
-          </div>
-
-          {/* Budget Min */}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Min Budget</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              className="text-base"
-              {...register('budget_min', { valueAsNumber: true })}
-            />
-          </div>
-
-          {/* Budget Max */}
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Max Budget</Label>
-            <Input
-              type="number"
-              placeholder="0"
-              className="text-base"
-              {...register('budget_max', { valueAsNumber: true })}
-            />
-          </div>
-        </div>
-
-        {/* Max Solutions */}
-        <div className="space-y-1 max-w-xs">
-          <Label className="text-xs text-muted-foreground">Max Winners</Label>
-          <Input
-            type="number"
-            placeholder="1"
-            min={1}
-            className="text-base"
-            {...register('max_solutions', { valueAsNumber: true })}
+        {/* Currency selector */}
+        <div className="max-w-[180px]">
+          <Label className="text-xs text-muted-foreground">Currency</Label>
+          <Controller
+            name="currency_code"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
+                <SelectTrigger className="text-base">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCY_OPTIONS.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           />
         </div>
-      </div>
 
-      {/* Advanced (Lightweight) */}
-      {hasAdvanced && (
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showAdvanced ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            Show Advanced Options
-          </button>
-          {showAdvanced && (
-            <div className="mt-3 space-y-4 pl-4 border-l-2 border-muted ml-1.5">
-              <div className="space-y-1.5">
-                <Label htmlFor="submission_guidelines" className="text-sm font-medium">
-                  Submission Guidelines <span className="text-xs text-muted-foreground">(optional)</span>
-                </Label>
-                <Textarea
-                  id="submission_guidelines"
-                  placeholder="Describe format, file types, and submission requirements..."
-                  rows={3}
-                  className="text-base resize-none"
-                  {...register('submission_guidelines')}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="taxonomy_tags" className="text-sm font-medium">
-                  Taxonomy Tags <span className="text-xs text-muted-foreground">(optional)</span>
-                </Label>
+        {/* Award tiers */}
+        <div className="space-y-3">
+          {/* Platinum */}
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-xs font-bold shrink-0">
+              P
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm font-medium">
+                Platinum Award <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  {currencySymbol}
+                </span>
                 <Input
-                  id="taxonomy_tags"
-                  placeholder="e.g., AI, Machine Learning, Healthcare (comma-separated)"
-                  className="text-base"
-                  {...register('taxonomy_tags')}
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  className="text-base pl-8"
+                  {...register('platinum_award', { valueAsNumber: true })}
                 />
               </div>
             </div>
-          )}
-        </div>
-      )}
+          </div>
 
-      {/* Enterprise-only fields */}
+          {/* Gold */}
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-white text-xs font-bold shrink-0">
+              G
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm font-medium">
+                Gold Award <span className="text-destructive">*</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  {currencySymbol}
+                </span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  className="text-base pl-8"
+                  {...register('gold_award', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Silver */}
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-white text-xs font-bold shrink-0">
+              S
+            </div>
+            <div className="flex-1 space-y-1">
+              <Label className="text-sm font-medium">
+                Silver Award <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+              </Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                  {currencySymbol}
+                </span>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="0"
+                  className="text-base pl-8"
+                  {...register('silver_award', { valueAsNumber: true })}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Order validation */}
+        {hasRewardValues && !rewardOrderValid && (
+          <p className="text-xs text-destructive flex items-center gap-1">
+            <AlertTriangle className="h-3.5 w-3.5" />
+            Awards must be in descending order: Platinum &gt; Gold &gt; Silver
+          </p>
+        )}
+      </div>
+
+      {/* ── 3. Rejection Fee (Enterprise only) ── */}
       {!isLightweight && (
-        <>
-          <div className="space-y-1.5">
-            <Label htmlFor="submission_guidelines_ent" className="text-sm font-medium">
-              Submission Guidelines {isRequired('submission_guidelines') && <span className="text-destructive">*</span>}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Label className="text-sm font-medium">
+              Rejection Fee
             </Label>
-            <Textarea
-              id="submission_guidelines_ent"
-              placeholder="Describe format, file types, and submission requirements..."
-              rows={3}
-              className="text-base resize-none"
-              {...register('submission_guidelines')}
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="max-w-xs text-xs">
+                  The rejection fee is the percentage of the award that will be released to shortlisted
+                  solvers if all submitted solutions are ultimately rejected by the challenge owner.
+                  This protects solvers who invest time and resources in good-faith submissions.
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Percentage of award released to shortlisted solvers if all solutions are rejected.
+          </p>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">5%</span>
+              <span className="text-lg font-semibold text-foreground">{rejectionFeePct}%</span>
+              <span className="text-xs text-muted-foreground">20%</span>
+            </div>
+            <Controller
+              name="rejection_fee_pct"
+              control={control}
+              render={({ field }) => (
+                <Slider
+                  min={5}
+                  max={20}
+                  step={1}
+                  value={[field.value ?? 10]}
+                  onValueChange={([val]) => field.onChange(val)}
+                  className="w-full"
+                />
+              )}
             />
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="taxonomy_tags_ent" className="text-sm font-medium">
-              Taxonomy Tags {isRequired('taxonomy_tags') && <span className="text-destructive">*</span>}
-            </Label>
-            <Input
-              id="taxonomy_tags_ent"
-              placeholder="e.g., AI, Machine Learning, Healthcare (comma-separated)"
-              className="text-base"
-              {...register('taxonomy_tags')}
-            />
-          </div>
-        </>
+        </div>
       )}
     </div>
   );
