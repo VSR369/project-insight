@@ -1328,6 +1328,75 @@ export type Database = {
           },
         ]
       }
+      dispute_records: {
+        Row: {
+          arbitrator_id: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          dispute_type: string
+          evidence: Json
+          filed_at: string
+          id: string
+          raised_by: string
+          resolution: string | null
+          resolved_at: string | null
+          solution_id: string | null
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          arbitrator_id?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          dispute_type: string
+          evidence?: Json
+          filed_at?: string
+          id?: string
+          raised_by: string
+          resolution?: string | null
+          resolved_at?: string | null
+          solution_id?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          arbitrator_id?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          dispute_type?: string
+          evidence?: Json
+          filed_at?: string
+          id?: string
+          raised_by?: string
+          resolution?: string | null
+          resolved_at?: string | null
+          solution_id?: string | null
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dispute_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dispute_records_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_otp_verifications: {
         Row: {
           attempts: number
@@ -1507,6 +1576,127 @@ export type Database = {
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "seeker_organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escrow_records: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          deposit_amount: number
+          escrow_status: string
+          id: string
+          rejection_fee_percentage: number
+          released_amount: number
+          remaining_amount: number
+          transaction_log: Json
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          deposit_amount?: number
+          escrow_status?: string
+          id?: string
+          rejection_fee_percentage?: number
+          released_amount?: number
+          remaining_amount?: number
+          transaction_log?: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          deposit_amount?: number
+          escrow_status?: string
+          id?: string
+          rejection_fee_percentage?: number
+          released_amount?: number
+          remaining_amount?: number
+          transaction_log?: Json
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escrow_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: true
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evaluation_records: {
+        Row: {
+          ai_feasibility_score: number | null
+          ai_novelty_score: number | null
+          ai_plagiarism_score: number | null
+          commentary: string | null
+          conflict_action: string | null
+          conflict_declared: boolean
+          created_at: string
+          created_by: string | null
+          id: string
+          individual_score: number | null
+          review_round: number
+          reviewer_id: string
+          rubric_scores: Json | null
+          solution_id: string
+          submitted_at: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          ai_feasibility_score?: number | null
+          ai_novelty_score?: number | null
+          ai_plagiarism_score?: number | null
+          commentary?: string | null
+          conflict_action?: string | null
+          conflict_declared?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          individual_score?: number | null
+          review_round?: number
+          reviewer_id: string
+          rubric_scores?: Json | null
+          solution_id: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          ai_feasibility_score?: number | null
+          ai_novelty_score?: number | null
+          ai_plagiarism_score?: number | null
+          commentary?: string | null
+          conflict_action?: string | null
+          conflict_declared?: boolean
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          individual_score?: number | null
+          review_round?: number
+          reviewer_id?: string
+          rubric_scores?: Json | null
+          solution_id?: string
+          submitted_at?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "evaluation_records_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
             referencedColumns: ["id"]
           },
         ]
@@ -2106,6 +2296,72 @@ export type Database = {
             columns: ["reviewer_id"]
             isOneToOne: false
             referencedRelation: "reviewer_workload_distribution"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ip_transfer_records: {
+        Row: {
+          challenge_id: string
+          confirmed_at: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          initiated_at: string | null
+          ip_model: string
+          registration_reference: string | null
+          seeker_signed_at: string | null
+          solution_id: string
+          solver_signed_at: string | null
+          transfer_status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initiated_at?: string | null
+          ip_model: string
+          registration_reference?: string | null
+          seeker_signed_at?: string | null
+          solution_id: string
+          solver_signed_at?: string | null
+          transfer_status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initiated_at?: string | null
+          ip_model?: string
+          registration_reference?: string | null
+          seeker_signed_at?: string | null
+          solution_id?: string
+          solver_signed_at?: string | null
+          transfer_status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ip_transfer_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ip_transfer_records_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
             referencedColumns: ["id"]
           },
         ]
@@ -7182,6 +7438,56 @@ export type Database = {
           },
         ]
       }
+      rating_records: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          feedback_text: string | null
+          id: string
+          ratee_id: string
+          rater_id: string
+          rating: number
+          submitted_at: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          feedback_text?: string | null
+          id?: string
+          ratee_id: string
+          rater_id: string
+          rating: number
+          submitted_at?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          feedback_text?: string | null
+          id?: string
+          ratee_id?: string
+          rater_id?: string
+          rating?: number
+          submitted_at?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rating_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rbac_admin_contact: {
         Row: {
           email: string
@@ -9270,6 +9576,50 @@ export type Database = {
           },
         ]
       }
+      solution_access_log: {
+        Row: {
+          access_type: string
+          accessor_id: string
+          accessor_role: string | null
+          device_fingerprint: string | null
+          duration_seconds: number | null
+          id: string
+          ip_address: string | null
+          solution_id: string
+          timestamp: string
+        }
+        Insert: {
+          access_type: string
+          accessor_id: string
+          accessor_role?: string | null
+          device_fingerprint?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip_address?: string | null
+          solution_id: string
+          timestamp?: string
+        }
+        Update: {
+          access_type?: string
+          accessor_id?: string
+          accessor_role?: string | null
+          device_fingerprint?: string | null
+          duration_seconds?: number | null
+          id?: string
+          ip_address?: string | null
+          solution_id?: string
+          timestamp?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solution_access_log_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solution_provider_invitations: {
         Row: {
           accepted_at: string | null
@@ -9539,6 +9889,92 @@ export type Database = {
           },
         ]
       }
+      solutions: {
+        Row: {
+          abstract_text: string | null
+          ai_usage_declaration: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          current_phase: number | null
+          encryption_key_ref: string | null
+          evaluation_grade: string | null
+          experience: string | null
+          full_solution_url: string | null
+          governance_profile: string | null
+          id: string
+          ip_transfer_status: string | null
+          is_encrypted: boolean
+          methodology: string | null
+          payment_status: string | null
+          phase_status: string | null
+          provider_id: string
+          selection_status: string | null
+          submitted_at: string | null
+          timeline: string | null
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          abstract_text?: string | null
+          ai_usage_declaration?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          current_phase?: number | null
+          encryption_key_ref?: string | null
+          evaluation_grade?: string | null
+          experience?: string | null
+          full_solution_url?: string | null
+          governance_profile?: string | null
+          id?: string
+          ip_transfer_status?: string | null
+          is_encrypted?: boolean
+          methodology?: string | null
+          payment_status?: string | null
+          phase_status?: string | null
+          provider_id: string
+          selection_status?: string | null
+          submitted_at?: string | null
+          timeline?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          abstract_text?: string | null
+          ai_usage_declaration?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          current_phase?: number | null
+          encryption_key_ref?: string | null
+          evaluation_grade?: string | null
+          experience?: string | null
+          full_solution_url?: string | null
+          governance_profile?: string | null
+          id?: string
+          ip_transfer_status?: string | null
+          is_encrypted?: boolean
+          methodology?: string | null
+          payment_status?: string | null
+          phase_status?: string | null
+          provider_id?: string
+          selection_status?: string | null
+          submitted_at?: string | null
+          timeline?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solutions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       solver_profile_views: {
         Row: {
           created_at: string
@@ -9590,6 +10026,60 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      solver_profiles: {
+        Row: {
+          avg_grade: number | null
+          avg_rating: number | null
+          challenge_count: number
+          created_at: string
+          created_by: string | null
+          expertise_domains: Json
+          id: string
+          portfolio_settings: Json
+          portfolio_visible: boolean
+          reputation_score: number
+          updated_at: string | null
+          updated_by: string | null
+          user_id: string
+          verification_level: string
+          win_count: number
+        }
+        Insert: {
+          avg_grade?: number | null
+          avg_rating?: number | null
+          challenge_count?: number
+          created_at?: string
+          created_by?: string | null
+          expertise_domains?: Json
+          id?: string
+          portfolio_settings?: Json
+          portfolio_visible?: boolean
+          reputation_score?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id: string
+          verification_level?: string
+          win_count?: number
+        }
+        Update: {
+          avg_grade?: number | null
+          avg_rating?: number | null
+          challenge_count?: number
+          created_at?: string
+          created_by?: string | null
+          expertise_domains?: Json
+          id?: string
+          portfolio_settings?: Json
+          portfolio_visible?: boolean
+          reputation_score?: number
+          updated_at?: string | null
+          updated_by?: string | null
+          user_id?: string
+          verification_level?: string
+          win_count?: number
+        }
+        Relationships: []
       }
       specialities: {
         Row: {
