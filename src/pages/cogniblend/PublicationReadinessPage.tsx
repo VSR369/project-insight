@@ -27,7 +27,15 @@ export default function PublicationReadinessPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [publishedResult, setPublishedResult] = useState<{ id: string; title: string } | null>(null);
+
   const { data, isLoading, error } = usePublicationReadiness(id);
+  const escrowQuery = useEscrowDeposit(
+    data?.governanceProfile !== 'LIGHTWEIGHT' ? id : undefined,
+    user?.id,
+  );
+  const publishMutation = usePublishChallenge();
 
   /* ── Loading ── */
   if (isLoading) {
