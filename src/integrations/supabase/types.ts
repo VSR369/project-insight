@@ -11288,6 +11288,14 @@ export type Database = {
         Args: { p_enrollment_id: string; p_removed_area_ids: string[] }
         Returns: number
       }
+      handle_phase1_bypass: {
+        Args: {
+          p_challenge_id: string
+          p_operating_model: string
+          p_phase1_enabled?: boolean
+        }
+        Returns: undefined
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
