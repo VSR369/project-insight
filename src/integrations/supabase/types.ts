@@ -11252,6 +11252,7 @@ export type Database = {
           role_codes: string[]
         }[]
       }
+      get_user_dashboard_data: { Args: { p_user_id: string }; Returns: Json }
       get_user_roles: {
         Args: { p_challenge_id: string; p_user_id: string }
         Returns: string[]
