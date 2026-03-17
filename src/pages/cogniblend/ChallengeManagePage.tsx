@@ -327,6 +327,14 @@ export default function ChallengeManagePage() {
         canInitiate={data.canExtendDeadline}
       />
 
+      {/* ──────────────── CARD 4 — Q&A Management ──────────────── */}
+      <QAManagementCard
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        userId={user?.id ?? ''}
+        governanceProfile={data.governanceProfile}
+      />
+
       {/* ──────────────── Snapshot Modal ──────────────── */}
       <Dialog open={snapshotModalOpen} onOpenChange={setSnapshotModalOpen}>
         <DialogContent className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
