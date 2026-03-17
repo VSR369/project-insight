@@ -351,7 +351,7 @@ function getStepFields(step: number): string[] {
     case 3:
       return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
     case 4:
-      return ['submission_deadline', 'expected_timeline', 'review_duration', 'phase_notes'];
+      return ['submission_deadline', 'phase_durations'];
     default:
       return [];
   }
