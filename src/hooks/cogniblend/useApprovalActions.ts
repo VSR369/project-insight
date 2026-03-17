@@ -76,10 +76,11 @@ export function useReturnForModification() {
                 user_id: uid,
                 challenge_id: params.challengeId,
                 notification_type: 'RETURNED_FOR_MODIFICATION',
-              title: 'Challenge Returned for Modification',
-              message: params.reason,
-            })),
-          );
+                title: 'Challenge Returned for Modification',
+                message: params.reason,
+              })),
+            );
+          }
         }
       }
 
