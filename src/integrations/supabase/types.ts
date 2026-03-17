@@ -11192,6 +11192,7 @@ export type Database = {
       }
       get_my_admin_profile_id: { Args: never; Returns: string }
       get_my_admin_tier: { Args: { p_user_id: string }; Returns: string }
+      get_phase_required_role: { Args: { p_phase: number }; Returns: string }
       get_question_count_by_specialities: {
         Args: { p_speciality_ids: string[] }
         Returns: number
@@ -11238,6 +11239,18 @@ export type Database = {
       get_reviewer_interview_count: {
         Args: { p_days_lookback?: number; p_reviewer_id: string }
         Returns: number
+      }
+      get_user_all_challenge_roles: {
+        Args: { p_user_id: string }
+        Returns: {
+          challenge_id: string
+          challenge_title: string
+          current_phase: number
+          master_status: string
+          operating_model: string
+          phase_status: string
+          role_codes: string[]
+        }[]
       }
       get_user_roles: {
         Args: { p_challenge_id: string; p_user_id: string }
