@@ -345,7 +345,7 @@ function getStepFields(step: number): string[] {
     case 2:
       return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model'];
     case 3:
-      return ['criteria_list', 'currency_code', 'budget_min', 'budget_max', 'max_solutions'];
+      return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
     case 4:
       return ['submission_deadline', 'expected_timeline', 'review_duration', 'phase_notes'];
     default:
