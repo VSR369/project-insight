@@ -690,6 +690,7 @@ const App = () => (
               <Route path="invitations/panel-reviewers" element={<PermissionGuard permissionKey="invitations.view"><PanelReviewerInvitationsPage /></PermissionGuard>} />
               {/* Dev Tools — permission: supervisor.configure_system */}
               <Route path="smoke-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><SmokeTestPage /></PermissionGuard>} />
+              <Route path="test-setup" element={<PermissionGuard permissionKey="supervisor.configure_system"><TestSetupPage /></PermissionGuard>} />
               {/* Settings — permission: admin_management.view_settings */}
               <Route path="settings" element={<PermissionGuard permissionKey="admin_management.view_settings"><AdminSettingsPage /></PermissionGuard>} />
               {/* Interview Setup — permission: interview.view */}
