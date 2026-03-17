@@ -77,6 +77,24 @@ export default function PublicationReadinessPage() {
       {
         onSuccess: (result) => {
           setPublishedResult({ id: result.challengeId, title: result.challengeTitle });
+
+          // Dispatch solver notifications (non-blocking)
+          const rewardTotal =
+            data?.items?.reduce((sum: number, item: any) => {
+              if (item.label?.toLowerCase().includes('reward')) return sum + (item.value ?? 0);
+              return sum;
+            }, 0) ?? 0;
+          const deadlineDays = data?.items?.find((i: any) => i.key === 'submission_deadline')?.value
+            ? differenceInDays(new Date(data.items.find((i: any) => i.key === 'submission_deadline').value), new Date())
+            : null;
+
+          notifySolversMutation.mutate({
+            challengeId: result.challengeId,
+            challengeTitle: result.challengeTitle,
+            totalAward: rewardTotal,
+            currencyCode: 'USD',
+            deadlineDays,
+          });
         },
       },
     );
