@@ -139,7 +139,8 @@ export function AdminSidebar() {
   const [devToolsOpen, setDevToolsOpen] = useState(
     location.pathname === '/admin/regression-test-kit' ||
     location.pathname === '/admin/pulse-social-test' ||
-    location.pathname === '/admin/smoke-test'
+    location.pathname === '/admin/smoke-test' ||
+    location.pathname === '/admin/test-setup'
   );
 
   const isActive = (path: string) => location.pathname === path;
@@ -695,7 +696,8 @@ export function AdminSidebar() {
                         isActive={
                           isActive('/admin/regression-test-kit') ||
                           isActive('/admin/pulse-social-test') ||
-                          isActive('/admin/smoke-test')
+                          isActive('/admin/smoke-test') ||
+                          isActive('/admin/test-setup')
                         }
                       >
                         <TestTube2 className="h-4 w-4" />
@@ -736,6 +738,17 @@ export function AdminSidebar() {
                           >
                             <ChevronRight className="h-3 w-3 mr-1" />
                             Smoke Test
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                        <SidebarMenuSubItem>
+                          <SidebarMenuSubButton
+                            onClick={() => navigate('/admin/test-setup')}
+                            onMouseEnter={() => handleMouseEnter('/admin/test-setup')}
+                            isActive={isActive('/admin/test-setup')}
+                            className="cursor-pointer"
+                          >
+                            <ChevronRight className="h-3 w-3 mr-1" />
+                            Test Scenario Setup
                           </SidebarMenuSubButton>
                         </SidebarMenuSubItem>
                       </SidebarMenuSub>

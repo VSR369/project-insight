@@ -123,6 +123,7 @@ const InvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m =>
 const PanelReviewerInvitationsPage = lazy(() => import("@/pages/admin/invitations").then(m => ({ default: m.PanelReviewerInvitationsPage })));
 const AdminSettingsPage = lazy(() => import("@/pages/admin/MasterDataPlaceholder").then(m => ({ default: m.AdminSettingsPage })));
 const SmokeTestPage = lazy(() => import("@/pages/admin/SmokeTestPage"));
+const TestSetupPage = lazy(() => import("@/pages/admin/TestSetupPage"));
 const InterviewRequirementsPage = lazy(() => import("@/pages/admin/interview-requirements").then(m => ({ default: m.InterviewRequirementsPage })));
 const ReviewerApprovalsPage = lazy(() => import("@/pages/admin/reviewer-approvals").then(m => ({ default: m.ReviewerApprovalsPage })));
 const ReviewerAvailabilityPage = lazy(() => import("@/pages/admin/reviewer-availability").then(m => ({ default: m.ReviewerAvailabilityPage })));
@@ -689,6 +690,7 @@ const App = () => (
               <Route path="invitations/panel-reviewers" element={<PermissionGuard permissionKey="invitations.view"><PanelReviewerInvitationsPage /></PermissionGuard>} />
               {/* Dev Tools — permission: supervisor.configure_system */}
               <Route path="smoke-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><SmokeTestPage /></PermissionGuard>} />
+              <Route path="test-setup" element={<PermissionGuard permissionKey="supervisor.configure_system"><TestSetupPage /></PermissionGuard>} />
               {/* Settings — permission: admin_management.view_settings */}
               <Route path="settings" element={<PermissionGuard permissionKey="admin_management.view_settings"><AdminSettingsPage /></PermissionGuard>} />
               {/* Interview Setup — permission: interview.view */}
