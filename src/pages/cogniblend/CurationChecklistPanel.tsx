@@ -157,16 +157,17 @@ export default function CurationChecklistPanel({
   const { data: creatorUserId } = useQuery({
     queryKey: ["curation-creator", challengeId],
     queryFn: async () => {
-      const { data, error } = await (supabase
-        .from("user_challenge_roles")
+      const query = supabase
+        .from("user_challenge_roles" as any)
         .select("user_id")
         .eq("challenge_id", challengeId)
         .eq("role_code", "CR")
         .eq("status", "ACTIVE")
         .limit(1)
-        .maybeSingle() as any);
+        .maybeSingle();
+      const { data, error } = await query;
       if (error || !data) return null;
-      return (data as { user_id: string }).user_id;
+      return (data as any).user_id as string;
     },
     enabled: !!challengeId,
     staleTime: 5 * 60_000,
