@@ -5,15 +5,17 @@
 
 import { useAuth } from '@/hooks/useAuth';
 import { useCogniDashboard } from '@/hooks/cogniblend/useCogniDashboard';
+import { useCogniWaitingFor } from '@/hooks/cogniblend/useCogniWaitingFor';
 import { NeedsActionSection } from '@/components/cogniblend/dashboard/NeedsActionSection';
+import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForSection';
 import { toast } from 'sonner';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
   const { data: items = [], isLoading } = useCogniDashboard(user?.id);
+  const { data: waitingItems = [], isLoading: waitingLoading } = useCogniWaitingFor(user?.id);
 
   const handleTransition = (challengeId: string, action: string) => {
-    // Placeholder — will be wired to a mutation in a future module
     toast.info(`Action "${action}" on challenge ${challengeId.slice(0, 8)}… (not yet implemented)`);
   };
 
@@ -23,6 +25,10 @@ export default function CogniDashboardPage() {
         items={items}
         isLoading={isLoading}
         onTransition={handleTransition}
+      />
+      <WaitingForSection
+        items={waitingItems}
+        isLoading={waitingLoading}
       />
     </>
   );
