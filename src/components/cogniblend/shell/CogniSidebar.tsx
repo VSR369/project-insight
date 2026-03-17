@@ -4,25 +4,8 @@
  */
 
 import { useLocation, useNavigate } from 'react-router-dom';
-import {
-  LayoutDashboard,
-  ListChecks,
-  Lightbulb,
-  BarChart3,
-  Users,
-  BookOpen,
-  Settings,
-} from 'lucide-react';
-
-const NAV_ITEMS = [
-  { label: 'Dashboard', path: '/cogni/dashboard', icon: LayoutDashboard },
-  { label: 'Curation Queue', path: '/cogni/curation', icon: ListChecks },
-  { label: 'Challenges', path: '/cogni/challenges', icon: Lightbulb },
-  { label: 'Analytics', path: '/cogni/analytics', icon: BarChart3 },
-  { label: 'Team', path: '/cogni/team', icon: Users },
-  { label: 'Knowledge Centre', path: '/cogni/knowledge', icon: BookOpen },
-  { label: 'Settings', path: '/cogni/settings', icon: Settings },
-];
+import { LayoutDashboard } from 'lucide-react';
+import { CogniSidebarNav } from './CogniSidebarNav';
 
 interface CogniSidebarProps {
   isOpen: boolean;
@@ -56,8 +39,8 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
   const orgName = 'Acme Innovation Labs';
   const governanceProfile = 'LIGHTWEIGHT';
 
-  const handleNav = (path: string) => {
-    navigate(path);
+  const handleDashboardNav = () => {
+    navigate('/cogni/dashboard');
     onClose();
   };
 
@@ -75,8 +58,9 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
       {/* Org branding */}
       <div className="px-5 pt-5 pb-4">
         <h2
-          className="font-bold truncate"
+          className="font-bold truncate cursor-pointer"
           style={{ fontSize: 15, color: '#1F3864' }}
+          onClick={handleDashboardNav}
         >
           {orgName}
         </h2>
@@ -88,30 +72,26 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
       {/* Divider */}
       <div className="mx-4" style={{ height: 1, backgroundColor: '#E5E7EB' }} />
 
-      {/* Navigation */}
-      <nav className="px-3 py-3 space-y-0.5">
-        {NAV_ITEMS.map((item) => {
-          const active = location.pathname === item.path ||
-            location.pathname.startsWith(item.path + '/');
-          return (
-            <button
-              key={item.path}
-              onClick={() => handleNav(item.path)}
-              className={`
-                w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left
-                transition-colors text-sm font-medium
-                ${active
-                  ? 'bg-[#E6F1FB] text-[#185FA5]'
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-                }
-              `}
-            >
-              <item.icon className="h-[18px] w-[18px] shrink-0" />
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {/* Dashboard link */}
+      <div className="px-3 pt-3 pb-1">
+        <button
+          onClick={handleDashboardNav}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors text-sm font-medium"
+          style={{
+            borderLeft: location.pathname === '/cogni/dashboard' ? '3px solid #378ADD' : '3px solid transparent',
+            backgroundColor: location.pathname === '/cogni/dashboard' ? '#F0F7FF' : 'transparent',
+            color: location.pathname === '/cogni/dashboard' ? '#378ADD' : '#666',
+          }}
+        >
+          <LayoutDashboard style={{ width: 18, height: 18 }} className="shrink-0" />
+          <span>Dashboard</span>
+        </button>
+      </div>
+
+      {/* Role-aware navigation sections */}
+      <div className="flex-1 overflow-y-auto">
+        <CogniSidebarNav onNavigate={onClose} />
+      </div>
     </aside>
   );
 }
