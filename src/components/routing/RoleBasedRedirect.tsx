@@ -4,13 +4,14 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
-type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
+type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
 
 const PORTAL_ROUTES: Record<PortalType, string> = {
   admin: '/admin',
   provider: '/pulse/feed',
   reviewer: '/reviewer/dashboard',
   organization: '/org/dashboard',
+  cogniblend: '/cogni/dashboard',
 };
 
 /**
@@ -41,12 +42,13 @@ export function RoleBasedRedirect() {
       // Check sessionStorage for cached portal preference
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
 
-      // Fetch roles and provider/reviewer/org records in parallel
-      const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
+      // Fetch roles and provider/reviewer/org/cogni records in parallel
+      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
         supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle(),
+        supabase.rpc('get_user_all_challenge_roles', { p_user_id: user.id }),
       ]);
 
       // Fetch enrollments only if provider exists
@@ -61,6 +63,7 @@ export function RoleBasedRedirect() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasOrgUserRecord = !!orgUserResult.data;
+      const hasCogniRoles = (cogniRolesResult.data as unknown[] | null)?.length ? (cogniRolesResult.data as unknown[]).length > 0 : false;
       const hasEnrollments = (enrollmentsResult.data?.length || 0) > 0;
 
       // Validate cached portal - user must still have access
@@ -69,7 +72,8 @@ export function RoleBasedRedirect() {
           (cachedPortal === 'admin' && isPlatformAdmin) ||
           (cachedPortal === 'provider' && hasProviderRecord) ||
           (cachedPortal === 'reviewer' && isPanelReviewer) ||
-          (cachedPortal === 'organization' && hasOrgUserRecord);
+          (cachedPortal === 'organization' && hasOrgUserRecord) ||
+          (cachedPortal === 'cogniblend' && hasCogniRoles);
 
         if (canAccessCached) {
           // Handle pending reviewer special case
@@ -84,7 +88,7 @@ export function RoleBasedRedirect() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine portal by role priority: Admin > Reviewer > Seeker > Provider
+      // Determine portal by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) {
         targetPortal = 'admin';
@@ -92,6 +96,8 @@ export function RoleBasedRedirect() {
         targetPortal = 'reviewer';
       } else if (hasOrgUserRecord) {
         targetPortal = 'organization';
+      } else if (hasCogniRoles) {
+        targetPortal = 'cogniblend';
       } else if (hasProviderRecord) {
         targetPortal = 'provider';
       }

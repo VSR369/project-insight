@@ -175,6 +175,18 @@ export default function CogniLoginPage() {
               Forgot password?
             </button>
           </div>
+
+          {/* Back to main login */}
+          <div className="text-center">
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="text-muted-foreground hover:text-foreground hover:underline"
+              style={{ fontSize: 13 }}
+            >
+              ← Back to main login
+            </button>
+          </div>
         </form>
       </div>
     </div>

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase, Building2 } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn, Shield, User, ChevronDown, ChevronUp, ClipboardCheck, Briefcase, Building2, Lightbulb } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { loginSchema, LoginFormData } from '@/lib/validations/auth';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 // Portal type for routing
-type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
+type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
 
 
 // Tab configuration with icons and descriptions
@@ -63,6 +63,15 @@ const LOGIN_TABS: Array<{
     color: 'text-teal-600',
     borderColor: 'border-teal-600/30',
     description: 'Manage challenges, team, and billing for your organization',
+  },
+  {
+    id: 'cogniblend',
+    label: 'CogniBlend',
+    shortLabel: 'Cogni',
+    icon: Lightbulb,
+    color: 'text-sky-600',
+    borderColor: 'border-sky-600/30',
+    description: 'Open innovation — create, curate, and review challenges',
   },
 ];
 
@@ -138,6 +147,7 @@ const PORTAL_ROUTES: Record<PortalType, string> = {
   provider: '/pulse/feed',
   reviewer: '/reviewer/dashboard',
   organization: '/org/dashboard',
+  cogniblend: '/cogni/dashboard',
 };
 
 export default function Login() {
@@ -171,11 +181,12 @@ export default function Login() {
       const cachedPortal = sessionStorage.getItem('activePortal') as PortalType | null;
       
       // Fetch roles and records to validate or determine portal
-      const [rolesResult, providerResult, reviewerResult, orgUserResult] = await Promise.all([
+      const [rolesResult, providerResult, reviewerResult, orgUserResult, cogniRolesResult] = await Promise.all([
         supabase.from('user_roles').select('role').eq('user_id', user.id),
         supabase.from('solution_providers').select('id').eq('user_id', user.id).maybeSingle(),
         supabase.from('panel_reviewers').select('id, approval_status').eq('user_id', user.id).maybeSingle(),
-        supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle()
+        supabase.from('org_users').select('id').eq('user_id', user.id).eq('is_active', true).limit(1).maybeSingle(),
+        supabase.rpc('get_user_all_challenge_roles', { p_user_id: user.id }),
       ]);
 
       const roles = rolesResult.data;
@@ -184,6 +195,7 @@ export default function Login() {
       const isPendingReviewer = reviewerResult.data?.approval_status === 'pending';
       const hasProviderRecord = !!providerResult.data;
       const hasOrgUserRecord = !!orgUserResult.data;
+      const hasCogniRoles = (cogniRolesResult.data as unknown[] | null)?.length ? (cogniRolesResult.data as unknown[]).length > 0 : false;
 
       // Validate cached portal
       if (cachedPortal) {
@@ -191,7 +203,8 @@ export default function Login() {
           (cachedPortal === 'admin' && isPlatformAdmin) ||
           (cachedPortal === 'provider' && hasProviderRecord) ||
           (cachedPortal === 'reviewer' && isPanelReviewer) ||
-          (cachedPortal === 'organization' && hasOrgUserRecord);
+          (cachedPortal === 'organization' && hasOrgUserRecord) ||
+          (cachedPortal === 'cogniblend' && hasCogniRoles);
 
         if (canAccessCached) {
           if (cachedPortal === 'reviewer' && isPendingReviewer) {
@@ -204,11 +217,12 @@ export default function Login() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine by role priority: Admin > Reviewer > Organization > Provider
+      // Determine by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) targetPortal = 'admin';
       else if (isPanelReviewer) targetPortal = 'reviewer';
       else if (hasOrgUserRecord) targetPortal = 'organization';
+      else if (hasCogniRoles) targetPortal = 'cogniblend';
       else if (hasProviderRecord) targetPortal = 'provider';
 
       sessionStorage.setItem('activePortal', targetPortal);
@@ -280,6 +294,9 @@ export default function Login() {
             .maybeSingle()
         ]);
         
+        // Also check cogni roles
+        const cogniLoginResult = await supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId });
+        
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
         const reviewerRecord = reviewerResult.data;
@@ -290,6 +307,7 @@ export default function Login() {
         const isPendingReviewer = reviewerRecord?.approval_status === 'pending';
         const hasProviderRecord = !!providerRecord;
         const hasOrgUserRecord = !!orgUserRecord;
+        const hasCogniRoles = (cogniLoginResult.data as unknown[] | null)?.length ? (cogniLoginResult.data as unknown[]).length > 0 : false;
         
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
@@ -318,7 +336,8 @@ export default function Login() {
           (effectiveRole === 'admin' && isPlatformAdmin) ||
           (effectiveRole === 'provider' && hasProviderRecord) ||
           (effectiveRole === 'reviewer' && isPanelReviewer) ||
-          (effectiveRole === 'organization' && hasOrgUserRecord);
+          (effectiveRole === 'organization' && hasOrgUserRecord) ||
+          (effectiveRole === 'cogniblend' && hasCogniRoles);
         
         let targetPortal: PortalType = effectiveRole;
         
@@ -332,14 +351,17 @@ export default function Login() {
             toast.error(`No reviewer account found. Would you like to register as a reviewer?`);
           } else if (effectiveRole === 'organization' && !hasOrgUserRecord) {
             toast.error(`No organization account found. Please register your organization first.`);
+          } else if (effectiveRole === 'cogniblend' && !hasCogniRoles) {
+            toast.error(`No CogniBlend challenge roles found. You need to be assigned to a challenge first.`);
           } else if (effectiveRole === 'provider' && !hasProviderRecord) {
             toast.error(`No provider account found. Would you like to register as a provider?`);
           }
           
-          // Fallback to available portal: Admin > Reviewer > Organization > Provider
+          // Fallback to available portal: Admin > Reviewer > Organization > CogniBlend > Provider
           if (isPlatformAdmin) targetPortal = 'admin';
           else if (isPanelReviewer) targetPortal = 'reviewer';
           else if (hasOrgUserRecord) targetPortal = 'organization';
+          else if (hasCogniRoles) targetPortal = 'cogniblend';
           else if (hasProviderRecord) targetPortal = 'provider';
           else {
             toast.error('No valid account found. Please register first.');
@@ -390,7 +412,7 @@ export default function Login() {
           onValueChange={(v) => setSelectedRole(v as PortalType)}
           className="mb-4"
         >
-          <TabsList className="grid w-full grid-cols-4 h-auto p-1">
+          <TabsList className="grid w-full grid-cols-5 h-auto p-1">
             {LOGIN_TABS.map((tab) => {
               const Icon = tab.icon;
               return (
@@ -501,7 +523,8 @@ export default function Login() {
                     "w-full",
                   selectedRole === 'admin' && "bg-destructive hover:bg-destructive/90",
                     selectedRole === 'reviewer' && "bg-green-600 hover:bg-green-700",
-                    selectedRole === 'organization' && "bg-teal-600 hover:bg-teal-700"
+                    selectedRole === 'organization' && "bg-teal-600 hover:bg-teal-700",
+                    selectedRole === 'cogniblend' && "bg-sky-600 hover:bg-sky-700"
                   )} 
                   disabled={isLoading}
                 >
