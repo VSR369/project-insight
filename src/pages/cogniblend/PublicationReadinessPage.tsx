@@ -20,7 +20,6 @@ import { PublishConfirmModal } from '@/components/cogniblend/publication/Publish
 import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifySolvers } from '@/hooks/cogniblend/useNotifySolvers';
-import { differenceInDays } from 'date-fns';
 
 /* ─── Component ──────────────────────────────────────────── */
 
