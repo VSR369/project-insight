@@ -32,7 +32,7 @@ export function PublishSuccessScreen({ challengeId, challengeTitle }: PublishSuc
 
       <div className="flex flex-col sm:flex-row items-center gap-3 mt-4">
         <Button
-          onClick={() => navigate(`/cogni/browse`)}
+          onClick={() => navigate(`/cogni/challenges/${challengeId}/view`)}
         >
           View Published Challenge
         </Button>
