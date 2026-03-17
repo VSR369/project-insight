@@ -113,6 +113,8 @@ export default function ChallengeWizardPage() {
         review_duration: undefined,
         phase_notes: '',
         permitted_artifact_types: [],
+        phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
+        complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
       });
     }
   }, [challengeData, isEditMode, form]);
@@ -160,7 +162,9 @@ export default function ChallengeWizardPage() {
         expected_timeline: values.expected_timeline || null,
         review_duration: values.review_duration || null,
         notes: values.phase_notes || null,
+        phase_durations: values.phase_durations || null,
       },
+      complexity_parameters: values.complexity_params || null,
     };
   };
 
@@ -347,7 +351,7 @@ function getStepFields(step: number): string[] {
     case 3:
       return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
     case 4:
-      return ['submission_deadline', 'expected_timeline', 'review_duration', 'phase_notes'];
+      return ['submission_deadline', 'phase_durations'];
     default:
       return [];
   }
