@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 
 // Portal type for routing
-type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
+type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
 
 
 // Tab configuration with icons and descriptions
