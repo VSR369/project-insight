@@ -11122,6 +11122,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_sla_status: {
+        Args: { p_challenge_id: string; p_phase: number }
+        Returns: Json
+      }
       check_tier_limit: { Args: { p_org_id: string }; Returns: Json }
       check_user_limit: { Args: { p_org_id: string }; Returns: boolean }
       claim_from_queue: { Args: { p_queue_entry_id: string }; Returns: Json }
@@ -11412,6 +11416,7 @@ export type Database = {
       }
       process_membership_expiry: { Args: never; Returns: undefined }
       process_pending_downgrades: { Args: never; Returns: undefined }
+      process_sla_breaches: { Args: never; Returns: number }
       pulse_award_xp: {
         Args: {
           p_action_type: string
@@ -11554,6 +11559,15 @@ export type Database = {
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      start_sla_timer: {
+        Args: {
+          p_challenge_id: string
+          p_duration_days?: number
+          p_phase: number
+          p_role_code: string
+        }
+        Returns: undefined
+      }
       supervisor_reassign_to_self: {
         Args: { p_verification_id: string }
         Returns: Json
