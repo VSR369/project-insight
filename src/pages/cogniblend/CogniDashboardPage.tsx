@@ -8,6 +8,8 @@ import { useCogniDashboard } from '@/hooks/cogniblend/useCogniDashboard';
 import { useCogniWaitingFor } from '@/hooks/cogniblend/useCogniWaitingFor';
 import { NeedsActionSection } from '@/components/cogniblend/dashboard/NeedsActionSection';
 import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForSection';
+import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenChallengesSection';
+import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
 import { toast } from 'sonner';
 
 export default function CogniDashboardPage() {
@@ -30,6 +32,8 @@ export default function CogniDashboardPage() {
         items={waitingItems}
         isLoading={waitingLoading}
       />
+      <OpenChallengesSection />
+      <RecentActivitySection />
     </>
   );
 }
