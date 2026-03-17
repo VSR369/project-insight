@@ -104,7 +104,7 @@ export default function ChallengeWizardPage() {
         expected_timeline: (challengeData.phase_schedule as any)?.expected_timeline ?? '',
         review_duration: undefined,
         phase_notes: '',
-        permitted_artifact_types: '',
+        permitted_artifact_types: [],
       });
     }
   }, [challengeData, isEditMode, form]);
@@ -334,7 +334,7 @@ function getStepFields(step: number): string[] {
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level'];
     case 2:
-      return ['deliverables_list', 'maturity_level', 'ip_model', 'visibility', 'eligibility'];
+      return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model'];
     case 3:
       return ['criteria_list', 'currency_code', 'budget_min', 'budget_max', 'max_solutions'];
     case 4:
