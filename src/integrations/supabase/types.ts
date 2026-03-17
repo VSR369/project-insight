@@ -11373,6 +11373,17 @@ export type Database = {
         Returns: number
       }
       pulse_update_streak: { Args: { p_provider_id: string }; Returns: number }
+      reassign_role: {
+        Args: {
+          p_challenge_id: string
+          p_new_user_id: string
+          p_old_user_id: string
+          p_reason: string
+          p_reassigned_by: string
+          p_role_code: string
+        }
+        Returns: Json
+      }
       reassign_verification:
         | {
             Args: {
