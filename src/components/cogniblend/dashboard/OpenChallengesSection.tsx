@@ -1,6 +1,7 @@
 /**
  * OpenChallengesSection — Grid of active/published challenges on the dashboard.
  * Queries challenges with master_status = 'ACTIVE'.
+ * Responsive: single column on mobile, 2-col on tablet+.
  */
 
 import { useQuery } from '@tanstack/react-query';
@@ -65,9 +66,9 @@ export function OpenChallengesSection() {
 
   if (isLoading) {
     return (
-      <section className="mt-8">
-        <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">Open Challenges</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <section className="mt-6 lg:mt-8">
+        <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">Open Challenges</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
           {[1, 2].map((i) => (
             <Skeleton key={i} className="h-40 w-full rounded-xl" />
           ))}
@@ -78,11 +79,11 @@ export function OpenChallengesSection() {
 
   if (challenges.length === 0) {
     return (
-      <section className="mt-8">
-        <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">Open Challenges</h2>
-        <div className="flex flex-col items-center rounded-xl border border-border bg-card p-8">
-          <Search className="h-8 w-8 text-muted-foreground mb-2" />
-          <p className="text-sm text-muted-foreground text-center">
+      <section className="mt-6 lg:mt-8">
+        <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">Open Challenges</h2>
+        <div className="flex flex-col items-center rounded-xl border border-border bg-card p-6 lg:p-8">
+          <Search className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground mb-2" />
+          <p className="text-xs lg:text-sm text-muted-foreground text-center">
             No open challenges yet. Published challenges will appear here.
           </p>
         </div>
@@ -91,9 +92,9 @@ export function OpenChallengesSection() {
   }
 
   return (
-    <section className="mt-8">
-      <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">Open Challenges</h2>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+    <section className="mt-6 lg:mt-8">
+      <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">Open Challenges</h2>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
         {challenges.map((c) => {
           const daysLeft = c.submission_deadline
             ? differenceInDays(new Date(c.submission_deadline), new Date())
@@ -106,28 +107,28 @@ export function OpenChallengesSection() {
           return (
             <div
               key={c.id}
-              className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2"
+              className="rounded-xl border border-border bg-card p-3 lg:p-4 flex flex-col gap-2"
             >
               {/* Title */}
-              <span className="text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-2">
+              <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-2">
                 {c.title}
               </span>
 
               {/* Domain / complexity chips */}
               <div className="flex flex-wrap items-center gap-2">
                 {c.md_engagement_models?.name && (
-                  <span className="rounded-full bg-[hsl(210,60%,95%)] px-2.5 py-0.5 text-xs text-[hsl(210,60%,40%)]">
+                  <span className="rounded-full bg-[hsl(210,60%,95%)] px-2.5 py-0.5 text-[10px] lg:text-xs text-[hsl(210,60%,40%)]">
                     {c.md_engagement_models.name}
                   </span>
                 )}
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${cxStyle}`}>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium ${cxStyle}`}>
                   {cxLabel}
                 </span>
               </div>
 
               {/* Award amount */}
               {c.total_fee != null && (
-                <span className="text-base font-bold text-foreground">
+                <span className="text-sm lg:text-base font-bold text-foreground">
                   {c.currency_code ?? 'USD'} {c.total_fee.toLocaleString()}
                 </span>
               )}
@@ -136,7 +137,7 @@ export function OpenChallengesSection() {
               {daysLeft != null && (
                 <div className="flex items-center gap-1.5 text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
-                  <span className="text-xs">
+                  <span className="text-[11px] lg:text-xs">
                     {daysLeft > 0
                       ? `${daysLeft} day${daysLeft === 1 ? '' : 's'} remaining`
                       : daysLeft === 0
@@ -150,7 +151,7 @@ export function OpenChallengesSection() {
               <Button
                 variant="outline"
                 size="sm"
-                className="mt-auto w-fit text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10"
+                className="mt-auto w-full lg:w-fit text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10"
                 onClick={() => navigate(`/cogni/challenges/${c.id}`)}
               >
                 View Details

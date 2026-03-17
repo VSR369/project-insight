@@ -1,6 +1,11 @@
 /**
  * CogniShell — Persistent layout shell for all authenticated CogniBlend pages.
  * Renders sidebar, top bar, and an <Outlet /> for page content.
+ *
+ * Responsive margins:
+ *   Mobile (<768px): no left margin (sidebar overlay)
+ *   Tablet (768–1024px): ml-16 (icon sidebar)
+ *   Desktop (≥1024px): ml-64 (full sidebar)
  */
 
 import { Suspense, useState, useCallback } from 'react';
@@ -21,9 +26,7 @@ const ROUTE_TITLES: Record<string, string> = {
 };
 
 function getPageTitle(pathname: string): string {
-  // Exact match first
   if (ROUTE_TITLES[pathname]) return ROUTE_TITLES[pathname];
-  // Prefix match for nested routes
   const match = Object.entries(ROUTE_TITLES).find(([path]) =>
     pathname.startsWith(path + '/')
   );
@@ -31,7 +34,7 @@ function getPageTitle(pathname: string): string {
 }
 
 const ContentFallback = () => (
-  <div className="p-6 space-y-4">
+  <div className="p-4 lg:p-6 space-y-4">
     <Skeleton className="h-8 w-48" />
     <Skeleton className="h-4 w-32" />
     <Skeleton className="h-64 w-full" />
@@ -54,7 +57,7 @@ export function CogniShell() {
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/30 md:hidden"
+          className="fixed inset-0 z-40 bg-black/30 md:hidden"
           onClick={closeSidebar}
           aria-hidden
         />
@@ -66,10 +69,10 @@ export function CogniShell() {
         onToggleSidebar={toggleSidebar}
       />
 
-      {/* Main content */}
+      {/* Main content — responsive left margin */}
       <main
-        className="md:ml-64 mt-14 min-h-[calc(100vh-56px)]"
-        style={{ backgroundColor: '#F9FAFB', padding: 24 }}
+        className="mt-14 min-h-[calc(100vh-56px)] md:ml-16 lg:ml-64 p-4 lg:p-6"
+        style={{ backgroundColor: '#F9FAFB' }}
       >
         <Suspense fallback={<ContentFallback />}>
           <Outlet />
