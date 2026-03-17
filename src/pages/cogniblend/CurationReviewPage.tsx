@@ -605,72 +605,11 @@ export default function CurationReviewPage() {
 
         {/* RIGHT PANEL — 40% (2/5) */}
         <div className="lg:col-span-2">
-          <Card className="sticky top-4">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4 text-primary" />
-                Completeness Checklist
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                {filledCount} of {totalCount} sections complete
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {checklist.map((item) => (
-                <div
-                  key={item.key}
-                  className="flex items-center gap-2 py-1.5 border-b border-border/40 last:border-0"
-                >
-                  {item.filled ? (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
-                  ) : (
-                    <XCircle className="h-3.5 w-3.5 text-destructive shrink-0" />
-                  )}
-                  <span
-                    className={`text-xs ${
-                      item.filled
-                        ? "text-foreground"
-                        : "text-muted-foreground"
-                    }`}
-                  >
-                    {item.label}
-                  </span>
-                </div>
-              ))}
-
-              {/* Summary */}
-              <div className="pt-3 mt-2 border-t border-border">
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                  <span>Overall completeness</span>
-                  <span className="font-semibold text-foreground">
-                    {totalCount > 0
-                      ? Math.round((filledCount / totalCount) * 100)
-                      : 0}
-                    %
-                  </span>
-                </div>
-                <div className="mt-2 h-2 bg-muted rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{
-                      width: `${
-                        totalCount > 0
-                          ? Math.round((filledCount / totalCount) * 100)
-                          : 0
-                      }%`,
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Placeholder for future actions */}
-              <div className="pt-3">
-                <p className="text-[11px] text-muted-foreground italic text-center">
-                  Curation actions will be available in the next module.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <CurationChecklistPanel
+            challengeId={challengeId!}
+            challenge={challenge}
+            legalDocs={legalDocs}
+          />
         </div>
       </div>
     </div>
