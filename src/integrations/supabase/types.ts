@@ -11661,6 +11661,7 @@ export type Database = {
         Args: { p_l1: number; p_l2: number; p_l3: number }
         Returns: Json
       }
+      validate_gate_02: { Args: { p_challenge_id: string }; Returns: Json }
       validate_phase_transition: {
         Args: {
           p_challenge_id: string
