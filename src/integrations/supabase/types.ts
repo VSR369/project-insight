@@ -11122,6 +11122,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      check_tier_limit: { Args: { p_org_id: string }; Returns: Json }
       check_user_limit: { Args: { p_org_id: string }; Returns: boolean }
       claim_from_queue: { Args: { p_queue_entry_id: string }; Returns: Json }
       claim_org_for_verification: {
@@ -11294,6 +11295,7 @@ export type Database = {
         Args: { p_days_lookback?: number; p_reviewer_id: string }
         Returns: number
       }
+      get_tier_usage: { Args: { p_org_id: string }; Returns: Json }
       get_user_all_challenge_roles: {
         Args: { p_user_id: string }
         Returns: {
