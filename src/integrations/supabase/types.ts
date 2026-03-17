@@ -1054,6 +1054,7 @@ export type Database = {
           deleted_by: string | null
           deliverables: Json | null
           description: string | null
+          eligibility: string | null
           engagement_model_id: string | null
           evaluation_criteria: Json | null
           governance_profile: string | null
@@ -1102,6 +1103,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          eligibility?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           governance_profile?: string | null
@@ -1150,6 +1152,7 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          eligibility?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           governance_profile?: string | null
@@ -9323,6 +9326,7 @@ export type Database = {
           registration_number: string | null
           registration_step: number
           rejection_reason: string | null
+          subscription_tier: string | null
           subsidized_discount_pct: number
           suspended_at: string | null
           suspended_by: string | null
@@ -9387,6 +9391,7 @@ export type Database = {
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
+          subscription_tier?: string | null
           subsidized_discount_pct?: number
           suspended_at?: string | null
           suspended_by?: string | null
@@ -9451,6 +9456,7 @@ export type Database = {
           registration_number?: string | null
           registration_step?: number
           rejection_reason?: string | null
+          subscription_tier?: string | null
           subsidized_discount_pct?: number
           suspended_at?: string | null
           suspended_by?: string | null
