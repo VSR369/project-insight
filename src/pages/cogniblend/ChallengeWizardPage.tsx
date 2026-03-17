@@ -6,14 +6,17 @@
  *   LIGHTWEIGHT → 8 mandatory fields, advanced sections collapsed
  *   ENTERPRISE  → 16 mandatory fields, all fields visible
  *
- * Final submit label varies by governance_profile.
+ * Submission flow:
+ *   - Save Draft: persists all fields, keeps phase_status ACTIVE
+ *   - Submit: validates all steps, shows summary modal, then:
+ *     Enterprise → saves + navigates to /challenges/:id/legal
+ *     Lightweight → saves + complete_phase → /cogni/dashboard
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -32,6 +35,7 @@ import { StepProblem } from '@/components/cogniblend/challenge-wizard/StepProble
 import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepRequirements';
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
+import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import {
   challengeFormSchema,
   DEFAULT_FORM_VALUES,
@@ -44,6 +48,7 @@ export default function ChallengeWizardPage() {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+  const [showSummary, setShowSummary] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -63,12 +68,12 @@ export default function ChallengeWizardPage() {
 
   const governanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
-    : currentOrg ? 'LIGHTWEIGHT' : null; // default for new challenges
+    : currentOrg ? 'LIGHTWEIGHT' : null;
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
 
   // ═══════ Hooks — mutations ═══════
-  const saveDraftMutation = useSubmitSolutionRequest();
+  const createChallengeMutation = useSubmitSolutionRequest();
   const saveStepMutation = useSaveChallengeStep();
   const submitMutation = useSubmitChallengeForReview();
 
@@ -132,12 +137,34 @@ export default function ChallengeWizardPage() {
 
   // ═══════ Derived ═══════
   const isLightweight = governanceProfile === 'LIGHTWEIGHT';
+  const isEnterprise = governanceProfile === 'ENTERPRISE';
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Create Challenge';
 
-  // ═══════ Handlers ═══════
+  // ═══════ Helpers ═══════
   const buildFieldsFromForm = (values: ChallengeFormValues) => {
     const deliverables = values.deliverables_list.filter(Boolean);
     const criteria = values.weighted_criteria.filter((c) => c.name);
+
+    // Calculate complexity score from params
+    const weights = [0.20, 0.15, 0.15, 0.15, 0.15, 0.10, 0.10];
+    const paramKeys = ['technical_novelty', 'solution_maturity', 'domain_breadth', 'evaluation_complexity', 'ip_sensitivity', 'timeline_urgency', 'budget_scale'];
+    let complexityScore: number | null = null;
+    let complexityLevel: string | null = null;
+
+    if (values.complexity_params) {
+      complexityScore = paramKeys.reduce((sum, key, i) => {
+        return sum + ((values.complexity_params as any)?.[key] ?? 5) * weights[i];
+      }, 0);
+      if (complexityScore < 2) complexityLevel = 'L1';
+      else if (complexityScore < 4) complexityLevel = 'L2';
+      else if (complexityScore < 6) complexityLevel = 'L3';
+      else if (complexityScore < 8) complexityLevel = 'L4';
+      else complexityLevel = 'L5';
+    } else if (values.complexity_notes) {
+      // Lightweight dropdown
+      const map: Record<string, string> = { low: 'L1', medium: 'L3', high: 'L5' };
+      complexityLevel = map[values.complexity_notes] ?? null;
+    }
 
     return {
       title: values.title,
@@ -165,14 +192,70 @@ export default function ChallengeWizardPage() {
         phase_durations: values.phase_durations || null,
       },
       complexity_parameters: values.complexity_params || null,
+      complexity_score: complexityScore,
+      complexity_level: complexityLevel,
     };
   };
 
+  // ═══════ Cross-step validation ═══════
+  const validateAllSteps = async (): Promise<{ valid: boolean; firstErrorStep: number | null }> => {
+    // Validate all step fields together
+    const allFields = [
+      ...getStepFields(1),
+      ...getStepFields(2),
+      ...getStepFields(3),
+      ...getStepFields(4),
+    ];
+
+    const isValid = await form.trigger(allFields as any);
+
+    if (!isValid) {
+      // Find first step with errors
+      for (let step = 1; step <= TOTAL_STEPS; step++) {
+        const stepFields = getStepFields(step);
+        const stepValid = await form.trigger(stepFields as any);
+        if (!stepValid) {
+          return { valid: false, firstErrorStep: step };
+        }
+      }
+    }
+
+    // Check evaluation weights sum to 100%
+    const criteria = form.getValues('weighted_criteria');
+    const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
+    if (totalWeight !== 100) {
+      return { valid: false, firstErrorStep: 3 };
+    }
+
+    // Check reward order: Platinum > Gold > Silver
+    const platinum = form.getValues('platinum_award');
+    const gold = form.getValues('gold_award');
+    const silver = form.getValues('silver_award');
+    if (platinum <= 0 || gold <= 0 || platinum <= gold) {
+      return { valid: false, firstErrorStep: 3 };
+    }
+    if (silver !== undefined && silver > 0 && gold <= silver) {
+      return { valid: false, firstErrorStep: 3 };
+    }
+
+    return { valid: true, firstErrorStep: null };
+  };
+
+  // ═══════ Handlers ═══════
   const handleNext = async () => {
-    // Validate current step fields
     const stepFields = getStepFields(currentStep);
     const isValid = await form.trigger(stepFields as any);
     if (!isValid) return;
+
+    // Extra check: Step 3 weights must equal 100%
+    if (currentStep === 3) {
+      const criteria = form.getValues('weighted_criteria');
+      const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
+      if (totalWeight !== 100) {
+        toast.error(`Evaluation weights must sum to 100% (currently ${totalWeight}%)`);
+        return;
+      }
+    }
 
     // Auto-save step if editing existing challenge
     if (isEditMode && challengeId) {
@@ -187,8 +270,18 @@ export default function ChallengeWizardPage() {
       );
       setCurrentStep((s) => s + 1);
     } else {
-      // Final submit
-      handleSubmit();
+      // Step 4 "Submit" → full validation then show summary modal
+      const result = await validateAllSteps();
+      if (!result.valid && result.firstErrorStep) {
+        setCurrentStep(result.firstErrorStep);
+        if (result.firstErrorStep === 3) {
+          toast.error('Please fix evaluation criteria: weights must sum to 100%');
+        } else {
+          toast.error(`Please fix errors in Step ${result.firstErrorStep}`);
+        }
+        return;
+      }
+      setShowSummary(true);
     }
   };
 
@@ -208,48 +301,9 @@ export default function ChallengeWizardPage() {
         }
       );
     } else {
-      // Create new draft via initialize_challenge (no phase advance)
+      // Create new draft via initialize_challenge
       if (!currentOrg || !user?.id) return;
-      saveDraftMutation.mutate({
-        orgId: currentOrg.organizationId,
-        creatorId: user.id,
-        operatingModel: 'MP',
-        businessProblem: values.problem_statement || values.title,
-        expectedOutcomes: values.scope || '',
-        currency: values.currency_code,
-        budgetMin: values.platinum_award,
-        budgetMax: values.platinum_award,
-        expectedTimeline: values.expected_timeline || '',
-        domainTags: [],
-        urgency: 'normal',
-      });
-    }
-  };
-
-  const handleSubmit = async () => {
-    if (!user?.id) return;
-
-    if (isEditMode && challengeId) {
-      // Save final fields then complete phase
-      const values = form.getValues();
-      const fields = buildFieldsFromForm(values);
-
-      try {
-        await saveStepMutation.mutateAsync({ challengeId, fields });
-        await submitMutation.mutateAsync({
-          challengeId,
-          userId: user.id,
-        });
-        navigate('/cogni/dashboard');
-      } catch {
-        // Error handled by mutation onError
-      }
-    } else {
-      // New challenge — use the full solution request flow
-      if (!currentOrg) return;
-      const values = form.getValues();
-
-      saveDraftMutation.mutate(
+      createChallengeMutation.mutate(
         {
           orgId: currentOrg.organizationId,
           creatorId: user.id,
@@ -260,14 +314,94 @@ export default function ChallengeWizardPage() {
           budgetMin: values.platinum_award,
           budgetMax: values.platinum_award,
           expectedTimeline: values.expected_timeline || '',
-          domainTags: [],
+          domainTags: values.domain_tags ?? [],
           urgency: 'normal',
         },
         {
-          onSuccess: () => navigate('/cogni/dashboard'),
+          onSuccess: ({ challengeId: newId }) => {
+            // Now save all wizard fields to the newly created challenge
+            const fields = buildFieldsFromForm(values);
+            saveStepMutation.mutate(
+              { challengeId: newId, fields },
+              {
+                onSuccess: () => {
+                  toast.success('Draft saved');
+                  navigate(`/cogni/challenges/${newId}/edit`);
+                },
+              }
+            );
+          },
         }
       );
     }
+  };
+
+  const handleConfirmSubmit = async () => {
+    if (!user?.id) return;
+
+    const values = form.getValues();
+    const fields = buildFieldsFromForm(values);
+
+    if (isEditMode && challengeId) {
+      try {
+        // 1. Save all fields
+        await saveStepMutation.mutateAsync({ challengeId, fields });
+
+        if (isEnterprise) {
+          // Enterprise: navigate to legal review page
+          toast.success('Challenge saved. Proceeding to Legal Review.');
+          navigate(`/cogni/challenges/${challengeId}/legal`);
+        } else {
+          // Lightweight: complete_phase (Phase 2 → 3, auto-completes through)
+          await submitMutation.mutateAsync({
+            challengeId,
+            userId: user.id,
+          });
+          toast.success('Challenge created successfully!');
+          navigate('/cogni/dashboard');
+        }
+      } catch {
+        // Error handled by mutation onError
+      }
+    } else {
+      // New challenge: create then submit
+      if (!currentOrg) return;
+
+      try {
+        const { challengeId: newId } = await createChallengeMutation.mutateAsync({
+          orgId: currentOrg.organizationId,
+          creatorId: user.id,
+          operatingModel: 'MP',
+          businessProblem: values.problem_statement || values.title,
+          expectedOutcomes: values.scope || '',
+          currency: values.currency_code,
+          budgetMin: values.platinum_award,
+          budgetMax: values.platinum_award,
+          expectedTimeline: values.expected_timeline || '',
+          domainTags: values.domain_tags ?? [],
+          urgency: 'normal',
+        });
+
+        // Save full wizard fields
+        await saveStepMutation.mutateAsync({ challengeId: newId, fields });
+
+        if (isEnterprise) {
+          toast.success('Challenge saved. Proceeding to Legal Review.');
+          navigate(`/cogni/challenges/${newId}/legal`);
+        } else {
+          await submitMutation.mutateAsync({
+            challengeId: newId,
+            userId: user.id,
+          });
+          toast.success('Challenge created successfully!');
+          navigate('/cogni/dashboard');
+        }
+      } catch {
+        // Error handled by mutation onError
+      }
+    }
+
+    setShowSummary(false);
   };
 
   // ═══════ Render ═══════
@@ -331,11 +465,21 @@ export default function ChallengeWizardPage() {
             onBack={handleBack}
             onNext={handleNext}
             onSaveDraft={handleSaveDraft}
-            isSaving={saveStepMutation.isPending || saveDraftMutation.isPending}
+            isSaving={saveStepMutation.isPending || createChallengeMutation.isPending}
             isSubmitting={submitMutation.isPending}
           />
         </form>
       </div>
+
+      {/* Submission Summary Modal */}
+      <ChallengeSubmitSummaryModal
+        open={showSummary}
+        onOpenChange={setShowSummary}
+        values={form.getValues()}
+        governanceProfile={governanceProfile}
+        isSubmitting={saveStepMutation.isPending || submitMutation.isPending || createChallengeMutation.isPending}
+        onConfirm={handleConfirmSubmit}
+      />
     </div>
   );
 }
