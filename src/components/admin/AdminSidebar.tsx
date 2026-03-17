@@ -139,7 +139,8 @@ export function AdminSidebar() {
   const [devToolsOpen, setDevToolsOpen] = useState(
     location.pathname === '/admin/regression-test-kit' ||
     location.pathname === '/admin/pulse-social-test' ||
-    location.pathname === '/admin/smoke-test'
+    location.pathname === '/admin/smoke-test' ||
+    location.pathname === '/admin/test-setup'
   );
 
   const isActive = (path: string) => location.pathname === path;
