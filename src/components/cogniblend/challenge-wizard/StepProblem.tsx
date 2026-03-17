@@ -1,17 +1,88 @@
 /**
  * Step 1 — Problem Definition
- * Mandatory fields: title, description, problem_statement
- * Enterprise-only (advanced): scope
+ *
+ * Fields:
+ *   1. Title — max 100 chars, live counter
+ *   2. Problem Statement — min 200 chars, live counter
+ *   3. Scope — required (Enterprise), advanced expandable (Lightweight)
+ *   4. Domain Tags — multi-select with search + colored pills
+ *   5. Solution Maturity Level — 2×2 radio card grid
  */
 
-import { useState } from 'react';
-import { UseFormReturn } from 'react-hook-form';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { UseFormReturn, Controller } from 'react-hook-form';
+import {
+  ChevronDown,
+  ChevronRight,
+  FileText,
+  FlaskConical,
+  Code,
+  Rocket,
+  Search,
+  X,
+} from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import type { ChallengeFormValues } from './challengeFormSchema';
+
+/* ─── Constants ──────────────────────────────────────────── */
+
+const TITLE_MAX = 100;
+const PROBLEM_MIN = 200;
+
+const DOMAIN_TAGS = [
+  'AI/ML',
+  'Biotech',
+  'Clean Energy',
+  'Materials Science',
+  'Digital Health',
+  'Manufacturing',
+  'Software',
+  'Sustainability',
+] as const;
+
+const TAG_COLORS: Record<string, string> = {
+  'AI/ML': 'bg-violet-100 text-violet-700 border-violet-200',
+  'Biotech': 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  'Clean Energy': 'bg-green-100 text-green-700 border-green-200',
+  'Materials Science': 'bg-sky-100 text-sky-700 border-sky-200',
+  'Digital Health': 'bg-pink-100 text-pink-700 border-pink-200',
+  'Manufacturing': 'bg-orange-100 text-orange-700 border-orange-200',
+  'Software': 'bg-blue-100 text-blue-700 border-blue-200',
+  'Sustainability': 'bg-teal-100 text-teal-700 border-teal-200',
+};
+
+const MATURITY_OPTIONS = [
+  {
+    value: 'blueprint' as const,
+    name: 'Blueprint',
+    description: 'Concept, architecture, or design document',
+    Icon: FileText,
+  },
+  {
+    value: 'poc' as const,
+    name: 'PoC',
+    description: 'Feasibility demonstration with evidence',
+    Icon: FlaskConical,
+  },
+  {
+    value: 'prototype' as const,
+    name: 'Prototype',
+    description: 'Working demo, code, or hardware model',
+    Icon: Code,
+  },
+  {
+    value: 'pilot' as const,
+    name: 'Pilot',
+    description: 'Real-world deployment test with metrics',
+    Icon: Rocket,
+  },
+] as const;
+
+/* ─── Props ──────────────────────────────────────────────── */
 
 interface StepProblemProps {
   form: UseFormReturn<ChallengeFormValues>;
@@ -19,89 +90,119 @@ interface StepProblemProps {
   isLightweight: boolean;
 }
 
+/* ─── Component ──────────────────────────────────────────── */
+
 export function StepProblem({ form, mandatoryFields, isLightweight }: StepProblemProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const { register, formState: { errors } } = form;
+  const {
+    register,
+    formState: { errors },
+    watch,
+    control,
+  } = form;
+
+  const titleValue = watch('title') ?? '';
+  const problemValue = watch('problem_statement') ?? '';
+  const titleLen = titleValue.length;
+  const problemLen = problemValue.length;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
-  const advancedFields = ['scope'];
-  const hasAdvanced = isLightweight && advancedFields.some((f) => !mandatoryFields.includes(f));
-
   return (
-    <div className="space-y-5">
-      {/* Title */}
+    <div className="space-y-6">
+      {/* ── 1. Title ──────────────────────────────────── */}
       <div className="space-y-1.5">
         <Label htmlFor="title" className="text-sm font-medium">
-          Challenge Title {isRequired('title') && <span className="text-destructive">*</span>}
+          Challenge Title <span className="text-destructive">*</span>
         </Label>
         <Input
           id="title"
-          placeholder="e.g., AI-Powered Supply Chain Optimization"
-          className="text-base"
+          maxLength={TITLE_MAX + 20}
+          placeholder="Give your challenge a clear, descriptive title"
+          className={cn(
+            'text-base',
+            errors.title && 'border-destructive focus-visible:ring-destructive',
+          )}
           {...register('title')}
         />
-        {errors.title && (
-          <p className="text-xs text-destructive">{errors.title.message}</p>
-        )}
+        <div className="flex items-center justify-between">
+          {errors.title ? (
+            <p className="text-xs text-destructive">{errors.title.message}</p>
+          ) : (
+            <span />
+          )}
+          <span
+            className={cn(
+              'text-xs tabular-nums',
+              titleLen > TITLE_MAX
+                ? 'text-destructive font-medium'
+                : 'text-muted-foreground',
+            )}
+          >
+            {titleLen} / {TITLE_MAX}
+          </span>
+        </div>
       </div>
 
-      {/* Description */}
-      <div className="space-y-1.5">
-        <Label htmlFor="description" className="text-sm font-medium">
-          Brief Description {isRequired('description') && <span className="text-destructive">*</span>}
-        </Label>
-        <Textarea
-          id="description"
-          placeholder="Provide a concise overview of the challenge..."
-          rows={3}
-          className="text-base resize-none"
-          {...register('description')}
-        />
-        {errors.description && (
-          <p className="text-xs text-destructive">{errors.description.message}</p>
-        )}
-      </div>
-
-      {/* Problem Statement */}
+      {/* ── 2. Problem Statement ──────────────────────── */}
       <div className="space-y-1.5">
         <Label htmlFor="problem_statement" className="text-sm font-medium">
-          Problem Statement {isRequired('problem_statement') && <span className="text-destructive">*</span>}
+          Problem Statement <span className="text-destructive">*</span>
         </Label>
         <Textarea
           id="problem_statement"
-          placeholder="Describe the core problem this challenge aims to solve..."
-          rows={5}
-          className="text-base resize-none"
+          placeholder="Describe the problem in detail. What makes it challenging? What has been tried before?"
+          style={{ minHeight: 150 }}
+          className={cn(
+            'text-base resize-y',
+            errors.problem_statement &&
+              'border-destructive focus-visible:ring-destructive',
+          )}
           {...register('problem_statement')}
         />
-        {errors.problem_statement && (
-          <p className="text-xs text-destructive">{errors.problem_statement.message}</p>
-        )}
+        <div className="flex items-center justify-between">
+          {errors.problem_statement ? (
+            <p className="text-xs text-destructive">
+              {errors.problem_statement.message}
+            </p>
+          ) : (
+            <span />
+          )}
+          <span
+            className={cn(
+              'text-xs tabular-nums',
+              problemLen >= PROBLEM_MIN
+                ? 'text-[#1D9E75] font-medium'
+                : 'text-muted-foreground',
+            )}
+          >
+            {problemLen} / {PROBLEM_MIN} min
+          </span>
+        </div>
       </div>
 
-      {/* Scope — always visible for Enterprise, expandable for Lightweight */}
-      {!isLightweight && (
+      {/* ── 3. Scope ─────────────────────────────────── */}
+      {!isLightweight ? (
         <div className="space-y-1.5">
           <Label htmlFor="scope" className="text-sm font-medium">
             Scope {isRequired('scope') && <span className="text-destructive">*</span>}
           </Label>
           <Textarea
             id="scope"
-            placeholder="Define the boundaries and scope of the challenge..."
-            rows={3}
-            className="text-base resize-none"
+            placeholder="Define what is in scope and out of scope for solutions."
+            style={{ minHeight: 100 }}
+            className={cn(
+              'text-base resize-y',
+              errors.scope && 'border-destructive focus-visible:ring-destructive',
+            )}
             {...register('scope')}
           />
           {errors.scope && (
             <p className="text-xs text-destructive">{errors.scope.message}</p>
           )}
         </div>
-      )}
-
-      {/* Advanced Options (Lightweight only) */}
-      {hasAdvanced && (
-        <div className="pt-2">
+      ) : (
+        <div className="pt-1">
           <button
             type="button"
             onClick={() => setShowAdvanced(!showAdvanced)}
@@ -114,18 +215,18 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
             )}
             Show Advanced Options
           </button>
-
           {showAdvanced && (
-            <div className="mt-3 space-y-4 pl-1 border-l-2 border-muted ml-1.5">
+            <div className="mt-3 pl-1 border-l-2 border-muted ml-1.5">
               <div className="pl-4 space-y-1.5">
-                <Label htmlFor="scope" className="text-sm font-medium">
-                  Scope <span className="text-muted-foreground text-xs">(optional)</span>
+                <Label htmlFor="scope_adv" className="text-sm font-medium">
+                  Scope{' '}
+                  <span className="text-xs text-muted-foreground">(optional)</span>
                 </Label>
                 <Textarea
-                  id="scope"
-                  placeholder="Define the boundaries and scope..."
-                  rows={3}
-                  className="text-base resize-none"
+                  id="scope_adv"
+                  placeholder="Define what is in scope and out of scope for solutions."
+                  style={{ minHeight: 100 }}
+                  className="text-base resize-y"
                   {...register('scope')}
                 />
               </div>
@@ -133,6 +234,205 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
           )}
         </div>
       )}
+
+      {/* ── 4. Domain Tags ────────────────────────────── */}
+      <Controller
+        name="domain_tags"
+        control={control}
+        render={({ field }) => (
+          <DomainTagSelect
+            value={field.value}
+            onChange={field.onChange}
+            error={errors.domain_tags?.message}
+          />
+        )}
+      />
+
+      {/* ── 5. Solution Maturity Level ────────────────── */}
+      <Controller
+        name="maturity_level"
+        control={control}
+        render={({ field }) => (
+          <MaturityRadioCards
+            value={field.value}
+            onChange={field.onChange}
+            error={errors.maturity_level?.message}
+          />
+        )}
+      />
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Domain Tag Multi-Select (reuses M-11 tag list + colors)
+   ═══════════════════════════════════════════════════════════ */
+
+interface DomainTagSelectProps {
+  value: string[];
+  onChange: (tags: string[]) => void;
+  error?: string;
+}
+
+function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
+  const [search, setSearch] = useState('');
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const filtered = DOMAIN_TAGS.filter(
+    (tag) =>
+      tag.toLowerCase().includes(search.toLowerCase()) && !value.includes(tag),
+  );
+
+  const addTag = useCallback(
+    (tag: string) => {
+      onChange([...value, tag]);
+      setSearch('');
+      setShowDropdown(false);
+    },
+    [value, onChange],
+  );
+
+  const removeTag = useCallback(
+    (tag: string) => {
+      onChange(value.filter((t) => t !== tag));
+    },
+    [value, onChange],
+  );
+
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">
+        Domain Tags <span className="text-destructive">*</span>
+      </Label>
+
+      {/* Selected pills */}
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-1">
+          {value.map((tag) => (
+            <Badge
+              key={tag}
+              variant="outline"
+              className={cn(
+                'gap-1 pr-1 border',
+                TAG_COLORS[tag] || 'bg-secondary text-secondary-foreground',
+              )}
+            >
+              {tag}
+              <button
+                type="button"
+                onClick={() => removeTag(tag)}
+                className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+
+      {/* Search input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setShowDropdown(true);
+          }}
+          onFocus={() => setShowDropdown(true)}
+          onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+          placeholder="Search domain tags..."
+          className={cn(
+            'pl-9',
+            error && 'border-destructive focus-visible:ring-destructive',
+          )}
+        />
+
+        {showDropdown && filtered.length > 0 && (
+          <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+            {filtered.map((tag) => (
+              <button
+                key={tag}
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors"
+                onClick={() => addTag(tag)}
+              >
+                <Badge
+                  variant="outline"
+                  className={cn(
+                    'text-xs border',
+                    TAG_COLORS[tag] || 'bg-secondary',
+                  )}
+                >
+                  {tag}
+                </Badge>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {error && <p className="text-xs text-destructive">{error}</p>}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════
+   Maturity Level Radio Cards (2×2 grid)
+   ═══════════════════════════════════════════════════════════ */
+
+interface MaturityRadioCardsProps {
+  value: string | undefined;
+  onChange: (value: string) => void;
+  error?: string;
+}
+
+function MaturityRadioCards({ value, onChange, error }: MaturityRadioCardsProps) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-sm font-medium">
+        Solution Maturity Level <span className="text-destructive">*</span>
+      </Label>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        {MATURITY_OPTIONS.map((opt) => {
+          const isSelected = value === opt.value;
+          return (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => onChange(opt.value)}
+              className={cn(
+                'flex flex-col items-center text-center rounded-lg p-4 transition-all cursor-pointer border-2',
+                isSelected
+                  ? 'border-[#378ADD] bg-[#F0F7FF]'
+                  : 'border-border bg-card hover:border-muted-foreground/30',
+                error && !value && 'border-destructive',
+              )}
+            >
+              <opt.Icon
+                className={cn(
+                  'h-6 w-6 mb-2',
+                  isSelected ? 'text-[#378ADD]' : 'text-muted-foreground',
+                )}
+              />
+              <span
+                className={cn(
+                  'text-sm font-semibold',
+                  isSelected ? 'text-[#378ADD]' : 'text-foreground',
+                )}
+              >
+                {opt.name}
+              </span>
+              <span className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                {opt.description}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {error && <p className="text-xs text-destructive mt-1">{error}</p>}
     </div>
   );
 }
