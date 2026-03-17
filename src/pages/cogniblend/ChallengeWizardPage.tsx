@@ -162,7 +162,9 @@ export default function ChallengeWizardPage() {
         expected_timeline: values.expected_timeline || null,
         review_duration: values.review_duration || null,
         notes: values.phase_notes || null,
+        phase_durations: values.phase_durations || null,
       },
+      complexity_parameters: values.complexity_params || null,
     };
   };
 
