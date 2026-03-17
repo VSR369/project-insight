@@ -7,14 +7,17 @@ import { z } from 'zod';
 
 export const challengeFormSchema = z.object({
   // Step 1 — Problem
-  title: z.string().min(1, 'Title is required').max(200, 'Max 200 characters').trim(),
-  description: z.string().max(2000).optional().or(z.literal('')),
-  problem_statement: z.string().max(5000).optional().or(z.literal('')),
+  title: z.string().min(1, 'Title is required').max(100, 'Title cannot exceed 100 characters').trim(),
+  problem_statement: z.string().min(200, 'Problem statement must be at least 200 characters').max(5000, 'Max 5000 characters').trim(),
   scope: z.string().max(3000).optional().or(z.literal('')),
+  domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
+  maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
+    errorMap: () => ({ message: 'Please select a maturity level' }),
+  }),
 
   // Step 2 — Requirements
   deliverables_list: z.array(z.string()).default(['']),
-  maturity_level: z.string().optional().or(z.literal('')),
+  description: z.string().max(2000).optional().or(z.literal('')),
   ip_model: z.string().optional().or(z.literal('')),
   visibility: z.string().default('public'),
   eligibility: z.string().max(2000).optional().or(z.literal('')),
@@ -41,11 +44,12 @@ export type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
 
 export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   title: '',
-  description: '',
   problem_statement: '',
   scope: '',
+  domain_tags: [],
+  maturity_level: undefined as unknown as 'blueprint',
   deliverables_list: [''],
-  maturity_level: '',
+  description: '',
   ip_model: '',
   visibility: 'public',
   eligibility: '',

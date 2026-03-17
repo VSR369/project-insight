@@ -80,10 +80,11 @@ export default function ChallengeWizardPage() {
         description: challengeData.description ?? '',
         problem_statement: challengeData.problem_statement ?? '',
         scope: challengeData.scope ?? '',
+        domain_tags: [],
         deliverables_list: Array.isArray(challengeData.deliverables)
           ? (challengeData.deliverables as any).items ?? ['']
           : [''],
-        maturity_level: challengeData.maturity_level ?? '',
+        maturity_level: (challengeData.maturity_level as ChallengeFormValues['maturity_level']) ?? undefined as unknown as 'blueprint',
         ip_model: challengeData.ip_model ?? '',
         visibility: challengeData.visibility ?? 'public',
         eligibility: challengeData.eligibility ?? '',
@@ -331,7 +332,7 @@ export default function ChallengeWizardPage() {
 function getStepFields(step: number): string[] {
   switch (step) {
     case 1:
-      return ['title', 'description', 'problem_statement', 'scope'];
+      return ['title', 'problem_statement', 'domain_tags', 'maturity_level'];
     case 2:
       return ['deliverables_list', 'maturity_level', 'ip_model', 'visibility', 'eligibility'];
     case 3:
