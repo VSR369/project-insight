@@ -351,14 +351,17 @@ export default function Login() {
             toast.error(`No reviewer account found. Would you like to register as a reviewer?`);
           } else if (effectiveRole === 'organization' && !hasOrgUserRecord) {
             toast.error(`No organization account found. Please register your organization first.`);
+          } else if (effectiveRole === 'cogniblend' && !hasCogniRoles) {
+            toast.error(`No CogniBlend challenge roles found. You need to be assigned to a challenge first.`);
           } else if (effectiveRole === 'provider' && !hasProviderRecord) {
             toast.error(`No provider account found. Would you like to register as a provider?`);
           }
           
-          // Fallback to available portal: Admin > Reviewer > Organization > Provider
+          // Fallback to available portal: Admin > Reviewer > Organization > CogniBlend > Provider
           if (isPlatformAdmin) targetPortal = 'admin';
           else if (isPanelReviewer) targetPortal = 'reviewer';
           else if (hasOrgUserRecord) targetPortal = 'organization';
+          else if (hasCogniRoles) targetPortal = 'cogniblend';
           else if (hasProviderRecord) targetPortal = 'provider';
           else {
             toast.error('No valid account found. Please register first.');
