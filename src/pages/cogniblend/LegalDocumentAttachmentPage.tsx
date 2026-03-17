@@ -351,13 +351,13 @@ export default function LegalDocumentAttachmentPage() {
         );
       case "default_applied":
         return (
-          <Badge className="bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 text-xs">
+          <Badge variant="secondary" className="text-xs">
             Default Applied
           </Badge>
         );
       case "custom_uploaded":
         return (
-          <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300 text-xs">
+          <Badge variant="outline" className="text-xs border-primary text-primary">
             Custom Uploaded
           </Badge>
         );
