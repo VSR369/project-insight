@@ -88,7 +88,7 @@ export function RoleBasedRedirect() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine portal by role priority: Admin > Reviewer > Seeker > Provider
+      // Determine portal by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) {
         targetPortal = 'admin';
@@ -96,6 +96,8 @@ export function RoleBasedRedirect() {
         targetPortal = 'reviewer';
       } else if (hasOrgUserRecord) {
         targetPortal = 'organization';
+      } else if (hasCogniRoles) {
+        targetPortal = 'cogniblend';
       } else if (hasProviderRecord) {
         targetPortal = 'provider';
       }

@@ -523,7 +523,8 @@ export default function Login() {
                     "w-full",
                   selectedRole === 'admin' && "bg-destructive hover:bg-destructive/90",
                     selectedRole === 'reviewer' && "bg-green-600 hover:bg-green-700",
-                    selectedRole === 'organization' && "bg-teal-600 hover:bg-teal-700"
+                    selectedRole === 'organization' && "bg-teal-600 hover:bg-teal-700",
+                    selectedRole === 'cogniblend' && "bg-sky-600 hover:bg-sky-700"
                   )} 
                   disabled={isLoading}
                 >
