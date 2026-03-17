@@ -696,7 +696,8 @@ export function AdminSidebar() {
                         isActive={
                           isActive('/admin/regression-test-kit') ||
                           isActive('/admin/pulse-social-test') ||
-                          isActive('/admin/smoke-test')
+                          isActive('/admin/smoke-test') ||
+                          isActive('/admin/test-setup')
                         }
                       >
                         <TestTube2 className="h-4 w-4" />
