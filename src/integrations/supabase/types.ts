@@ -11670,6 +11670,7 @@ export type Database = {
         Returns: Json
       }
       validate_gate_02: { Args: { p_challenge_id: string }; Returns: Json }
+      validate_gate_04: { Args: { p_challenge_id: string }; Returns: Json }
       validate_phase_transition: {
         Args: {
           p_challenge_id: string
