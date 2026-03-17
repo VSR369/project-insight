@@ -9320,6 +9320,7 @@ export type Database = {
           organization_description: string | null
           organization_name: string
           organization_type_id: string | null
+          phase1_bypass: boolean
           preferred_currency: string | null
           preferred_language_id: string | null
           registrant_contact: Json | null
@@ -9385,6 +9386,7 @@ export type Database = {
           organization_description?: string | null
           organization_name: string
           organization_type_id?: string | null
+          phase1_bypass?: boolean
           preferred_currency?: string | null
           preferred_language_id?: string | null
           registrant_contact?: Json | null
@@ -9450,6 +9452,7 @@ export type Database = {
           organization_description?: string | null
           organization_name?: string
           organization_type_id?: string | null
+          phase1_bypass?: boolean
           preferred_currency?: string | null
           preferred_language_id?: string | null
           registrant_contact?: Json | null
