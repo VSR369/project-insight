@@ -11464,6 +11464,15 @@ export type Database = {
         Args: { p_l1: number; p_l2: number; p_l3: number }
         Returns: Json
       }
+      validate_role_assignment: {
+        Args: {
+          p_challenge_id: string
+          p_governance_profile: string
+          p_new_role: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       validate_tax_id: {
         Args: { p_country_id: string; p_tax_id: string }
         Returns: boolean
