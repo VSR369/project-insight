@@ -218,6 +218,10 @@ const OrgEmailTemplatesPage = lazy(() => import("@/pages/org/OrgEmailTemplatesPa
 const OrgKnowledgeCentrePage = lazy(() => import("@/pages/org/OrgKnowledgeCentrePage"));
 const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage"));
 
+// CogniBlend Pages (lazy loaded)
+const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
+const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
+
 
 const RegressionTestPage = lazy(() => import("@/pages/provider/RegressionTestPage"));
 const LifecycleRulesPage = lazy(() => import("@/pages/provider/LifecycleRulesPage"));
