@@ -296,6 +296,14 @@ const App = () => (
             <Route path="/activate" element={<LazyRoute><ActivationPage /></LazyRoute>} />
             <Route path="/org/login" element={<LazyRoute><OrgAdminLoginPage /></LazyRoute>} />
 
+            {/* CogniBlend Routes */}
+            <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
+            <Route path="/cogni/dashboard" element={
+              <AuthGuard>
+                <LazyRoute><CogniDashboardPage /></LazyRoute>
+              </AuthGuard>
+            } />
+
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>
               <Route path="/registration/organization-identity" element={
