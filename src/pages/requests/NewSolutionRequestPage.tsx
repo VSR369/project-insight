@@ -1,7 +1,11 @@
 /**
  * New Solution Request Page
  * Route: /requests/new
- * Allows seekers to submit a new solution request with structured fields.
+ * 
+ * Model-specific behavior:
+ * - MP: Account Manager submits on behalf of org, assigns to Challenge Architect (CR/R3)
+ * - AGG: Challenge Requestor submits. If phase1_bypass enabled, can skip to /challenges/new
+ * - AGG + no bypass: Standard form submission
  */
 
 import { useState, useCallback } from 'react';
@@ -10,7 +14,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { toast } from 'sonner';
-import { Send, X, Search } from 'lucide-react';
+import { Send, X, Search, Info, ArrowRight } from 'lucide-react';
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Select,
   SelectContent,
@@ -27,6 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
 
 // ============================================================================
 // CONSTANTS
@@ -66,34 +72,41 @@ const URGENCY_OPTIONS = [
 const MIN_PROBLEM_CHARS = 200;
 
 // ============================================================================
-// VALIDATION SCHEMA
+// VALIDATION SCHEMA (dynamic — architect_id required only for MP)
 // ============================================================================
 
-const solutionRequestSchema = z.object({
-  business_problem: z.string()
-    .min(MIN_PROBLEM_CHARS, `Business problem must be at least ${MIN_PROBLEM_CHARS} characters`)
-    .max(5000, 'Business problem must be 5000 characters or less')
-    .trim(),
-  expected_outcomes: z.string()
-    .min(1, 'Expected outcomes are required')
-    .max(2000, 'Expected outcomes must be 2000 characters or less')
-    .trim(),
-  currency: z.enum(['USD', 'EUR', 'GBP', 'INR'], {
-    errorMap: () => ({ message: 'Please select a currency' }),
-  }),
-  budget_min: z.coerce.number().min(0, 'Minimum budget must be 0 or more'),
-  budget_max: z.coerce.number().min(1, 'Maximum budget is required'),
-  expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
-    errorMap: () => ({ message: 'Please select a timeline' }),
-  }),
-  domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
-  urgency: z.enum(['standard', 'urgent', 'critical']).default('standard'),
-}).refine(data => data.budget_min < data.budget_max, {
-  message: 'Minimum must be less than maximum.',
-  path: ['budget_min'],
-});
+function buildSchema(isMP: boolean) {
+  const base = z.object({
+    business_problem: z.string()
+      .min(MIN_PROBLEM_CHARS, `Business problem must be at least ${MIN_PROBLEM_CHARS} characters`)
+      .max(5000, 'Business problem must be 5000 characters or less')
+      .trim(),
+    expected_outcomes: z.string()
+      .min(1, 'Expected outcomes are required')
+      .max(2000, 'Expected outcomes must be 2000 characters or less')
+      .trim(),
+    currency: z.enum(['USD', 'EUR', 'GBP', 'INR'], {
+      errorMap: () => ({ message: 'Please select a currency' }),
+    }),
+    budget_min: z.coerce.number().min(0, 'Minimum budget must be 0 or more'),
+    budget_max: z.coerce.number().min(1, 'Maximum budget is required'),
+    expected_timeline: z.enum(['1-3', '3-6', '6-12', '12+'], {
+      errorMap: () => ({ message: 'Please select a timeline' }),
+    }),
+    domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
+    urgency: z.enum(['standard', 'urgent', 'critical']).default('standard'),
+    architect_id: isMP
+      ? z.string().min(1, 'Please assign a Challenge Architect')
+      : z.string().optional(),
+  });
 
-type SolutionRequestFormValues = z.infer<typeof solutionRequestSchema>;
+  return base.refine(data => data.budget_min < data.budget_max, {
+    message: 'Minimum must be less than maximum.',
+    path: ['budget_min'],
+  });
+}
+
+type SolutionRequestFormValues = z.infer<ReturnType<typeof buildSchema>>;
 
 // ============================================================================
 // DOMAIN TAG MULTI-SELECT COMPONENT
@@ -211,8 +224,18 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
 export default function NewSolutionRequestPage() {
   const navigate = useNavigate();
 
+  // ── Hooks (always called, unconditionally) ──
+  const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
+  const { data: architects = [], isLoading: architectsLoading } = useChallengeArchitects();
+
+  const isMP = orgContext?.operatingModel === 'MP';
+  const isAGG = orgContext?.operatingModel === 'AGG';
+  const hasBypass = isAGG && orgContext?.phase1Bypass === true;
+
+  const schema = buildSchema(isMP);
+
   const form = useForm<SolutionRequestFormValues>({
-    resolver: zodResolver(solutionRequestSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
       business_problem: '',
       expected_outcomes: '',
@@ -222,6 +245,7 @@ export default function NewSolutionRequestPage() {
       expected_timeline: undefined,
       domain_tags: [],
       urgency: 'standard',
+      architect_id: '',
     },
     mode: 'onBlur',
   });
@@ -243,6 +267,18 @@ export default function NewSolutionRequestPage() {
     }
   };
 
+  // ── Loading state ──
+  if (orgLoading) {
+    return (
+      <div className="min-h-screen bg-muted/30 py-8 px-4">
+        <div className="max-w-[720px] mx-auto space-y-6">
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="h-[600px] w-full rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4">
       <div className="max-w-[720px] mx-auto space-y-6">
@@ -250,6 +286,39 @@ export default function NewSolutionRequestPage() {
         <h1 className="text-[22px] font-bold text-primary">
           New Solution Request
         </h1>
+
+        {/* Model-specific header text */}
+        {isMP && (
+          <p className="text-sm text-muted-foreground">
+            As Account Manager, you are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
+          </p>
+        )}
+        {isAGG && (
+          <p className="text-sm text-muted-foreground">
+            Describe your innovation challenge. After submission, you or your team will develop the full challenge specification.
+          </p>
+        )}
+
+        {/* AGG + Phase 1 Bypass Banner */}
+        {hasBypass && (
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+            <div className="flex items-start gap-2 flex-1">
+              <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
+              <p className="text-sm text-blue-800">
+                Your organization has direct challenge creation enabled. You can skip this request and create a challenge directly.
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-blue-300 text-blue-700 hover:bg-blue-100 shrink-0"
+              onClick={() => navigate('/challenges/new')}
+            >
+              Create Challenge Directly
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        )}
 
         {/* Form Card */}
         <Card className="rounded-xl border-border shadow-sm">
@@ -408,6 +477,52 @@ export default function NewSolutionRequestPage() {
                   )}
                 />
               </div>
+
+              {/* 7. Assign to Challenge Architect (MP only) */}
+              {isMP && (
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">
+                    Assign to Challenge Architect <span className="text-destructive">*</span>
+                  </Label>
+                  <Controller
+                    name="architect_id"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value} onValueChange={field.onChange}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder={
+                            architectsLoading
+                              ? 'Loading architects...'
+                              : architects.length === 0
+                                ? 'No architects available'
+                                : 'Select a Challenge Architect'
+                          } />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {architects.map(a => (
+                            <SelectItem key={a.userId} value={a.userId}>
+                              <span>{a.userName}</span>
+                              {a.userName !== a.userEmail && (
+                                <span className="text-muted-foreground ml-2 text-xs">
+                                  ({a.userEmail})
+                                </span>
+                              )}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                  {architects.length === 0 && !architectsLoading && (
+                    <p className="text-xs text-amber-600">
+                      No users with the Challenge Architect (R3) role found in your organization. Please assign this role first.
+                    </p>
+                  )}
+                  {errors.architect_id && (
+                    <p className="text-sm text-destructive">{errors.architect_id.message}</p>
+                  )}
+                </div>
+              )}
 
               {/* Submit */}
               <div className="flex justify-end gap-3 pt-4 border-t">
