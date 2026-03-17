@@ -318,6 +318,14 @@ export default function ChallengeManagePage() {
         </CardContent>
       </Card>
 
+      {/* ──────────────── CARD 3 — Amendments ──────────────── */}
+      <AmendmentCard
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        userId={user?.id ?? ''}
+        canInitiate={data.canExtendDeadline}
+      />
+
       {/* ──────────────── Snapshot Modal ──────────────── */}
       <Dialog open={snapshotModalOpen} onOpenChange={setSnapshotModalOpen}>
         <DialogContent className="w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
