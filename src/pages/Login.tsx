@@ -217,11 +217,12 @@ export default function Login() {
         sessionStorage.removeItem('activePortal');
       }
 
-      // Determine by role priority: Admin > Reviewer > Organization > Provider
+      // Determine by role priority: Admin > Reviewer > Organization > CogniBlend > Provider
       let targetPortal: PortalType = 'provider';
       if (isPlatformAdmin) targetPortal = 'admin';
       else if (isPanelReviewer) targetPortal = 'reviewer';
       else if (hasOrgUserRecord) targetPortal = 'organization';
+      else if (hasCogniRoles) targetPortal = 'cogniblend';
       else if (hasProviderRecord) targetPortal = 'provider';
 
       sessionStorage.setItem('activePortal', targetPortal);
