@@ -4,13 +4,14 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
-type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization';
+type PortalType = 'admin' | 'provider' | 'reviewer' | 'organization' | 'cogniblend';
 
 const PORTAL_ROUTES: Record<PortalType, string> = {
   admin: '/admin',
   provider: '/pulse/feed',
   reviewer: '/reviewer/dashboard',
   organization: '/org/dashboard',
+  cogniblend: '/cogni/dashboard',
 };
 
 /**
