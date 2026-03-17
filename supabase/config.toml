@@ -151,3 +151,6 @@ verify_jwt = false
 
 [functions.seed-cogni-test-data]
 verify_jwt = false
+
+[functions.setup-test-scenario]
+verify_jwt = false
