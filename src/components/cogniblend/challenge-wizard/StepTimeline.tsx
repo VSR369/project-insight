@@ -1,16 +1,41 @@
 /**
- * Step 4 — Timeline & Schedule
- * Mandatory fields: phase_schedule
- * Enterprise-only (advanced): permitted_artifact_types
+ * Step 4 — Timeline & Schedule + Complexity Assessment
+ * Section 1: Phase Schedule with date pickers and duration inputs
+ * Section 2: Complexity Assessment with weighted sliders (Enterprise) or dropdown (Lightweight)
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
-import { ChevronDown, ChevronRight } from 'lucide-react';
+import { format, addDays } from 'date-fns';
+import { CalendarIcon, Info, Check } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Slider } from '@/components/ui/slider';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
+
+/* ─── Types ──────────────────────────────────────────────── */
 
 interface StepTimelineProps {
   form: UseFormReturn<ChallengeFormValues>;
@@ -18,117 +43,304 @@ interface StepTimelineProps {
   isLightweight: boolean;
 }
 
+interface PhaseConfig {
+  key: string;
+  label: string;
+  phaseNumber: number;
+  defaultDays: number;
+  lightweightVisible: boolean;
+}
+
+interface ComplexityParam {
+  key: string;
+  label: string;
+  weight: number;
+}
+
+/* ─── Constants ──────────────────────────────────────────── */
+
+const PHASES: PhaseConfig[] = [
+  { key: 'phase_3', label: 'Phase 3 — Curation', phaseNumber: 3, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_4', label: 'Phase 4 — ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_5', label: 'Phase 5 — Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
+  { key: 'phase_8', label: 'Phase 8 — Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
+  { key: 'phase_9', label: 'Phase 9 — Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_10', label: 'Phase 10 — Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
+  { key: 'phase_11', label: 'Phase 11 — Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
+  { key: 'phase_12', label: 'Phase 12 — Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_13', label: 'Phase 13 — Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: false },
+];
+
+const COMPLEXITY_PARAMS: ComplexityParam[] = [
+  { key: 'technical_novelty', label: 'Technical Novelty', weight: 0.20 },
+  { key: 'solution_maturity', label: 'Solution Maturity', weight: 0.15 },
+  { key: 'domain_breadth', label: 'Domain Breadth', weight: 0.15 },
+  { key: 'evaluation_complexity', label: 'Evaluation Complexity', weight: 0.15 },
+  { key: 'ip_sensitivity', label: 'IP Sensitivity', weight: 0.15 },
+  { key: 'timeline_urgency', label: 'Timeline Urgency', weight: 0.10 },
+  { key: 'budget_scale', label: 'Budget Scale', weight: 0.10 },
+];
+
+function getComplexityLevel(score: number): { label: string; level: string; colorClass: string } {
+  if (score < 2.0) return { label: 'L1', level: 'Low', colorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
+  if (score < 4.0) return { label: 'L2', level: 'Low-Medium', colorClass: 'bg-blue-100 text-blue-800 border-blue-300' };
+  if (score < 6.0) return { label: 'L3', level: 'Medium', colorClass: 'bg-amber-100 text-amber-800 border-amber-300' };
+  if (score < 8.0) return { label: 'L4', level: 'High', colorClass: 'bg-orange-100 text-orange-800 border-orange-300' };
+  return { label: 'L5', level: 'Very High', colorClass: 'bg-red-100 text-red-800 border-red-300' };
+}
+
+/* ─── Component ──────────────────────────────────────────── */
+
 export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimelineProps) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const { register, formState: { errors } } = form;
+  const { setValue, watch } = form;
+
+  // Phase durations state
+  const existingSchedule = watch('phase_durations') ?? {};
+  const [phaseDurations, setPhaseDurations] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    PHASES.forEach((p) => {
+      initial[p.key] = (existingSchedule as any)?.[p.key] ?? p.defaultDays;
+    });
+    return initial;
+  });
+
+  const [startDate, setStartDate] = useState<Date | undefined>(() => {
+    const sd = watch('submission_deadline');
+    return sd ? new Date(sd) : new Date();
+  });
+
+  // Complexity sliders state
+  const existingParams = watch('complexity_params') ?? {};
+  const [paramValues, setParamValues] = useState<Record<string, number>>(() => {
+    const initial: Record<string, number> = {};
+    COMPLEXITY_PARAMS.forEach((p) => {
+      initial[p.key] = (existingParams as any)?.[p.key] ?? 5;
+    });
+    return initial;
+  });
+
+  // Lightweight complexity dropdown
+  const [lwComplexity, setLwComplexity] = useState<string>(() => {
+    const notes = watch('complexity_notes') ?? '';
+    if (notes === 'high') return 'high';
+    if (notes === 'medium') return 'medium';
+    return 'low';
+  });
+
+  // Visible phases
+  const visiblePhases = isLightweight
+    ? PHASES.filter((p) => p.lightweightVisible)
+    : PHASES;
+
+  // Phase start dates calculated sequentially
+  const phaseStartDates = useMemo(() => {
+    const dates: Record<string, Date> = {};
+    let cursor = startDate ?? new Date();
+    visiblePhases.forEach((p) => {
+      dates[p.key] = cursor;
+      cursor = addDays(cursor, phaseDurations[p.key] ?? p.defaultDays);
+    });
+    return dates;
+  }, [startDate, phaseDurations, visiblePhases]);
+
+  // Total duration
+  const totalDays = useMemo(() => {
+    return visiblePhases.reduce((sum, p) => sum + (phaseDurations[p.key] ?? p.defaultDays), 0);
+  }, [phaseDurations, visiblePhases]);
+
+  const totalMonths = (totalDays / 30).toFixed(1);
+
+  // Complexity score
+  const complexityScore = useMemo(() => {
+    return COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0);
+  }, [paramValues]);
+
+  const complexityInfo = getComplexityLevel(complexityScore);
+
+  // Sync to form
+  useEffect(() => {
+    setValue('phase_durations', phaseDurations as any, { shouldDirty: true });
+  }, [phaseDurations, setValue]);
+
+  useEffect(() => {
+    if (startDate) {
+      setValue('submission_deadline', startDate.toISOString().substring(0, 16), { shouldDirty: true });
+    }
+  }, [startDate, setValue]);
+
+  useEffect(() => {
+    if (!isLightweight) {
+      setValue('complexity_params', paramValues as any, { shouldDirty: true });
+      setValue('complexity_notes', complexityScore.toFixed(1), { shouldDirty: true });
+    } else {
+      setValue('complexity_notes', lwComplexity, { shouldDirty: true });
+    }
+  }, [paramValues, complexityScore, lwComplexity, isLightweight, setValue]);
+
+  const handleDurationChange = (key: string, val: number) => {
+    setPhaseDurations((prev) => ({ ...prev, [key]: Math.max(1, val) }));
+  };
+
+  const handleParamChange = (key: string, val: number[]) => {
+    setParamValues((prev) => ({ ...prev, [key]: val[0] }));
+  };
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
   return (
-    <div className="space-y-5">
-      {/* Submission Deadline */}
-      <div className="space-y-1.5">
-        <Label htmlFor="submission_deadline" className="text-sm font-medium">
-          Submission Deadline {isRequired('phase_schedule') && <span className="text-destructive">*</span>}
-        </Label>
-        <Input
-          id="submission_deadline"
-          type="datetime-local"
-          className="text-base max-w-sm"
-          {...register('submission_deadline')}
-        />
-        {errors.submission_deadline && (
-          <p className="text-xs text-destructive">{errors.submission_deadline.message}</p>
-        )}
-      </div>
+    <div className="space-y-8">
+      {/* ═══ SECTION 1: Phase Schedule ═══ */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-foreground">
+            Phase Schedule {isRequired('phase_schedule') && <span className="text-destructive">*</span>}
+          </h3>
+          <p className="text-xs text-muted-foreground">
+            Set start date and duration for each phase. Subsequent phase dates auto-calculate.
+          </p>
+        </div>
 
-      {/* Expected Timeline */}
-      <div className="space-y-1.5">
-        <Label htmlFor="expected_timeline" className="text-sm font-medium">
-          Expected Timeline
-        </Label>
-        <Input
-          id="expected_timeline"
-          placeholder="e.g., 4 weeks, 3 months"
-          className="text-base max-w-sm"
-          {...register('expected_timeline')}
-        />
-      </div>
+        {/* Start date picker */}
+        <div className="space-y-1.5">
+          <Label className="text-[13px] font-semibold">Challenge Start Date</Label>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  'w-full max-w-xs justify-start text-left text-base font-normal',
+                  !startDate && 'text-muted-foreground'
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {startDate ? format(startDate, 'PPP') : <span>Pick a date</span>}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="single"
+                selected={startDate}
+                onSelect={setStartDate}
+                disabled={(d) => d < new Date()}
+                initialFocus
+                className={cn('p-3 pointer-events-auto')}
+              />
+            </PopoverContent>
+          </Popover>
+        </div>
 
-      {/* Review Duration */}
-      <div className="space-y-1.5">
-        <Label htmlFor="review_duration" className="text-sm font-medium">
-          Review Period (days)
-        </Label>
-        <Input
-          id="review_duration"
-          type="number"
-          min={1}
-          max={90}
-          placeholder="14"
-          className="text-base max-w-[120px]"
-          {...register('review_duration', { valueAsNumber: true })}
-        />
-        <p className="text-xs text-muted-foreground">How long reviewers have to evaluate submissions</p>
-      </div>
-
-      {/* Phase Notes */}
-      <div className="space-y-1.5">
-        <Label htmlFor="phase_notes" className="text-sm font-medium">
-          Schedule Notes
-        </Label>
-        <Textarea
-          id="phase_notes"
-          placeholder="Any additional timing considerations, milestones, or dependencies..."
-          rows={3}
-          className="text-base resize-none"
-          {...register('phase_notes')}
-        />
-      </div>
-
-      {/* Advanced (Lightweight) */}
-      {isLightweight && (
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showAdvanced ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-            Show Advanced Options
-          </button>
-          {showAdvanced && (
-            <div className="mt-3 space-y-4 pl-4 border-l-2 border-muted ml-1.5">
-              <div className="space-y-1.5">
-                <Label htmlFor="permitted_artifact_types" className="text-sm font-medium">
-                  Permitted Artifact Types <span className="text-xs text-muted-foreground">(optional)</span>
-                </Label>
+        {/* Phase rows */}
+        <div className="space-y-2">
+          {visiblePhases.map((phase) => (
+            <div
+              key={phase.key}
+              className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
+            >
+              <div className="flex-1 min-w-0">
+                <p className="text-[13px] font-bold text-foreground truncate">{phase.label}</p>
+                <p className="text-xs text-muted-foreground">
+                  Starts: {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
                 <Input
-                  id="permitted_artifact_types"
-                  placeholder="e.g., PDF, DOCX, ZIP, Code Repository"
-                  className="text-base"
-                  {...register('permitted_artifact_types')}
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={phaseDurations[phase.key]}
+                  onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
+                  className="w-[72px] text-base text-center"
                 />
+                <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
               </div>
             </div>
-          )}
+          ))}
         </div>
-      )}
 
-      {/* Enterprise-only */}
-      {!isLightweight && (
-        <div className="space-y-1.5">
-          <Label htmlFor="permitted_artifact_types_ent" className="text-sm font-medium">
-            Permitted Artifact Types {isRequired('permitted_artifact_types') && <span className="text-destructive">*</span>}
-          </Label>
-          <Input
-            id="permitted_artifact_types_ent"
-            placeholder="e.g., PDF, DOCX, ZIP, Code Repository"
-            className="text-base"
-            {...register('permitted_artifact_types')}
-          />
+        {/* Total timeline */}
+        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+          <p className="text-sm font-bold text-foreground">
+            Estimated total duration:{' '}
+            <span className="text-primary">{totalDays} days</span>
+            <span className="text-muted-foreground font-normal"> ({totalMonths} months)</span>
+          </p>
         </div>
-      )}
+      </div>
+
+      {/* ═══ SECTION 2: Complexity Assessment ═══ */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-foreground">Complexity Assessment</h3>
+          <p className="text-xs text-muted-foreground">
+            {isLightweight
+              ? 'Select the overall complexity level for this challenge.'
+              : 'Rate each parameter to calculate the complexity score.'}
+          </p>
+        </div>
+
+        {isLightweight ? (
+          /* ─── Lightweight: simple dropdown ─── */
+          <div className="space-y-1.5 max-w-xs">
+            <Label className="text-[13px] font-semibold">Complexity Level</Label>
+            <Select value={lwComplexity} onValueChange={setLwComplexity}>
+              <SelectTrigger className="text-base">
+                <SelectValue placeholder="Select complexity" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="low">Low (L1–L2)</SelectItem>
+                <SelectItem value="medium">Medium (L3)</SelectItem>
+                <SelectItem value="high">High (L4–L5)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          /* ─── Enterprise: parameter sliders ─── */
+          <TooltipProvider>
+            <div className="space-y-5">
+              {COMPLEXITY_PARAMS.map((param) => (
+                <div key={param.key} className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[13px] font-bold text-foreground">{param.label}</span>
+                      <Badge variant="secondary" className="text-[11px] px-1.5 py-0 font-normal">
+                        {(param.weight * 100).toFixed(0)}%
+                      </Badge>
+                    </div>
+                    <span className="text-sm font-semibold text-primary tabular-nums w-6 text-right">
+                      {paramValues[param.key]}
+                    </span>
+                  </div>
+                  <Slider
+                    value={[paramValues[param.key]]}
+                    onValueChange={(v) => handleParamChange(param.key, v)}
+                    min={0}
+                    max={10}
+                    step={1}
+                    className="w-full"
+                  />
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>0</span>
+                    <span>5</span>
+                    <span>10</span>
+                  </div>
+                </div>
+              ))}
+
+              {/* Score display */}
+              <div className="rounded-lg border border-border bg-muted/30 px-5 py-4 flex items-center justify-between">
+                <div>
+                  <p className="text-[18px] font-bold text-foreground">
+                    Complexity Score: {complexityScore.toFixed(1)}
+                  </p>
+                </div>
+                <Badge className={cn('text-sm px-3 py-1 border font-semibold', complexityInfo.colorClass)}>
+                  {complexityInfo.label} — {complexityInfo.level}
+                </Badge>
+              </div>
+            </div>
+          </TooltipProvider>
+        )}
+      </div>
     </div>
   );
 }
