@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes, Outlet } from "react-router-dom";
 import { RegistrationLayout } from "@/components/layouts/RegistrationLayout";
 import { AuthProvider } from "@/hooks/useAuth";
+import { CogniShell } from "@/components/cogniblend/shell/CogniShell";
 import { EnrollmentProvider } from "@/contexts/EnrollmentContext";
 
 import { AuthGuard } from "@/components/auth/AuthGuard";
@@ -298,11 +299,13 @@ const App = () => (
 
             {/* CogniBlend Routes */}
             <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
-            <Route path="/cogni/dashboard" element={
+            <Route element={
               <AuthGuard>
-                <LazyRoute><CogniDashboardPage /></LazyRoute>
+                <CogniShell />
               </AuthGuard>
-            } />
+            }>
+              <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
+            </Route>
 
             {/* Seeker Registration Wizard (public, pre-auth) */}
             <Route element={<RegistrationLayout />}>
