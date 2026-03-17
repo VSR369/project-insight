@@ -770,7 +770,13 @@ export default function ApprovalReviewPage() {
         {activeTab === "overview" && <OverviewTab challenge={challenge} amendments={amendments} />}
         {activeTab === "evaluation" && <EvaluationTab challenge={challenge} />}
         {activeTab === "legal" && <LegalTab challengeId={challengeId!} legalDocs={legalDocs} />}
-        {activeTab === "publication" && <PublicationConfigTab challenge={challenge} />}
+        {activeTab === "publication" && (
+          <ApprovalPublicationConfigTab
+            challengeId={challengeId!}
+            challenge={challenge}
+            isApproved={isApproved}
+          />
+        )}
       </div>
     </div>
   );
