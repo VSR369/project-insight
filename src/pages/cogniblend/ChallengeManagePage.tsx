@@ -82,6 +82,7 @@ export default function ChallengeManagePage() {
 
   const [snapshotModalOpen, setSnapshotModalOpen] = useState(false);
   const [activeSnapshot, setActiveSnapshot] = useState<PackageVersion | null>(null);
+  const [extendModalOpen, setExtendModalOpen] = useState(false);
 
   const countdown = useCountdown(data?.submissionDeadline ?? null);
 
