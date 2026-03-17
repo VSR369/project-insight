@@ -20,6 +20,7 @@ import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentS
 import { useAuth } from '@/hooks/useAuth';
 import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
+import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
@@ -441,6 +442,9 @@ export default function PublicChallengeDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ═══ Q&A SECTION ═══ */}
+      <ChallengeQASection challengeId={id!} />
 
       {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
       {amendStatus?.requiresLegalReAcceptance && (

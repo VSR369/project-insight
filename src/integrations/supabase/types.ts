@@ -1127,6 +1127,7 @@ export type Database = {
           ip_model: string | null
           is_active: boolean
           is_deleted: boolean
+          is_qa_closed: boolean
           management_fee: number | null
           master_status: string | null
           maturity_level: string | null
@@ -1176,6 +1177,7 @@ export type Database = {
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
+          is_qa_closed?: boolean
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -1225,6 +1227,7 @@ export type Database = {
           ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
+          is_qa_closed?: boolean
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
