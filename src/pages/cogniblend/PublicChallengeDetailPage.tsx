@@ -15,6 +15,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
+import { useAuth } from '@/hooks/useAuth';
+import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
+import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
