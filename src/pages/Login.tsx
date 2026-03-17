@@ -294,6 +294,9 @@ export default function Login() {
             .maybeSingle()
         ]);
         
+        // Also check cogni roles
+        const cogniLoginResult = await supabase.rpc('get_user_all_challenge_roles', { p_user_id: userId });
+        
         const roles = rolesResult.data;
         const providerRecord = providerResult.data;
         const reviewerRecord = reviewerResult.data;
@@ -304,6 +307,7 @@ export default function Login() {
         const isPendingReviewer = reviewerRecord?.approval_status === 'pending';
         const hasProviderRecord = !!providerRecord;
         const hasOrgUserRecord = !!orgUserRecord;
+        const hasCogniRoles = (cogniLoginResult.data as unknown[] | null)?.length ? (cogniLoginResult.data as unknown[]).length > 0 : false;
         
         // Clear stale session storage on fresh login
         sessionStorage.removeItem('activeEnrollmentId');
