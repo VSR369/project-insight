@@ -19,6 +19,7 @@ import { useAuth } from '@/hooks/useAuth';
 export default function PublicationReadinessPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data, isLoading, error } = usePublicationReadiness(id);
 
