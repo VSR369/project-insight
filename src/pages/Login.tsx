@@ -336,7 +336,8 @@ export default function Login() {
           (effectiveRole === 'admin' && isPlatformAdmin) ||
           (effectiveRole === 'provider' && hasProviderRecord) ||
           (effectiveRole === 'reviewer' && isPanelReviewer) ||
-          (effectiveRole === 'organization' && hasOrgUserRecord);
+          (effectiveRole === 'organization' && hasOrgUserRecord) ||
+          (effectiveRole === 'cogniblend' && hasCogniRoles);
         
         let targetPortal: PortalType = effectiveRole;
         
