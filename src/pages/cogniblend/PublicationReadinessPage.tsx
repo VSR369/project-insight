@@ -38,6 +38,7 @@ export default function PublicationReadinessPage() {
     user?.id,
   );
   const publishMutation = usePublishChallenge();
+  const notifySolversMutation = useNotifySolvers();
 
   /* ── Loading ── */
   if (isLoading) {
