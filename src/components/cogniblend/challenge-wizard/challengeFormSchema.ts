@@ -77,4 +77,6 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   expected_timeline: '',
   review_duration: undefined,
   phase_notes: '',
+  phase_durations: undefined,
+  complexity_params: undefined,
 };

@@ -113,6 +113,8 @@ export default function ChallengeWizardPage() {
         review_duration: undefined,
         phase_notes: '',
         permitted_artifact_types: [],
+        phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
+        complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
       });
     }
   }, [challengeData, isEditMode, form]);
