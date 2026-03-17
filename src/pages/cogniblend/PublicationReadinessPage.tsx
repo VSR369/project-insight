@@ -3,15 +3,21 @@
  * Displays GATE-11 (Enterprise) or GATE-11-L (Lightweight) pre-publication checklist.
  */
 
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2 } from 'lucide-react';
+import { CheckCircle2, XCircle, ArrowLeft, ShieldCheck, AlertTriangle, Loader2, Rocket } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
+import { useEscrowDeposit } from '@/hooks/cogniblend/useEscrowDeposit';
+import { usePublishChallenge } from '@/hooks/cogniblend/usePublishChallenge';
 import { EscrowDepositSection } from '@/components/cogniblend/publication/EscrowDepositSection';
+import { PublishConfirmModal } from '@/components/cogniblend/publication/PublishConfirmModal';
+import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
 
 /* ─── Component ──────────────────────────────────────────── */
