@@ -4,12 +4,16 @@
  * Two-column layout showing Tier 1 (entry-phase) and Tier 2 (solution-phase)
  * legal document templates. Governance-aware: Lightweight auto-attaches defaults;
  * Enterprise requires manual attachment before proceeding.
+ *
+ * GATE-02 validation on submit → complete_phase (Phase 2 → 3).
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -17,12 +21,22 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
   FileText,
   Upload,
   CheckCircle2,
   ShieldCheck,
   ArrowRight,
   Info,
+  AlertCircle,
+  Send,
+  X,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -47,6 +61,11 @@ interface AttachedDoc {
 }
 
 type AttachmentStatus = "required" | "default_applied" | "custom_uploaded";
+
+interface GateResult {
+  passed: boolean;
+  failures: string[];
+}
 
 // Phase trigger mapping for Tier 2 documents
 const TIER2_PHASE_TRIGGER: Record<string, string> = {
@@ -86,7 +105,14 @@ export default function LegalDocumentAttachmentPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const completePhase = useCompletePhase();
+  const pageTopRef = useRef<HTMLDivElement>(null);
+
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
+  const [gateFailures, setGateFailures] = useState<string[]>([]);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
 
   // ══════════════════════════════════════
   // SECTION 2: Query — challenge metadata
@@ -183,10 +209,10 @@ export default function LegalDocumentAttachmentPage() {
       template: LegalTemplate;
       file: File;
     }) => {
-      // Upload to storage
-      const path = `legal/${challengeId}/${template.document_type}_${Date.now()}_${file.name}`;
+      // Upload to legal-docs storage bucket
+      const path = `${challengeId}/${template.document_type}_${Date.now()}_${file.name}`;
       const { error: uploadErr } = await supabase.storage
-        .from("documents")
+        .from("legal-docs")
         .upload(path, file);
       if (uploadErr) throw new Error(uploadErr.message);
 
@@ -333,9 +359,44 @@ export default function LegalDocumentAttachmentPage() {
     input.click();
   };
 
-  const handleProceed = () => {
-    toast.success("Legal documents attached. Proceeding to curation.");
-    navigate("/cogni/dashboard");
+  const handleSubmitForCuration = async () => {
+    setIsValidating(true);
+    setGateFailures([]);
+
+    try {
+      const { data, error } = await supabase.rpc("validate_gate_02", {
+        p_challenge_id: challengeId!,
+      });
+      if (error) throw new Error(error.message);
+
+      const result = (typeof data === "string" ? JSON.parse(data) : data) as GateResult;
+
+      if (!result.passed) {
+        setGateFailures(result.failures ?? ["Validation failed"]);
+        pageTopRef.current?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        setShowConfirmModal(true);
+      }
+    } catch (err: any) {
+      toast.error(`Validation error: ${err.message}`);
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    if (!user?.id || !challengeId) return;
+    setShowConfirmModal(false);
+
+    completePhase.mutate(
+      { challengeId, userId: user.id },
+      {
+        onSuccess: () => {
+          toast.success("Challenge submitted for curation.");
+          navigate("/cogni/dashboard");
+        },
+      }
+    );
   };
 
   // ══════════════════════════════════════
@@ -437,7 +498,7 @@ export default function LegalDocumentAttachmentPage() {
       : 100;
 
   return (
-    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
+    <div ref={pageTopRef} className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
       {/* Page Header */}
       <div>
         <h1 className="text-xl font-bold text-foreground">
@@ -447,6 +508,35 @@ export default function LegalDocumentAttachmentPage() {
           {challenge.title}
         </p>
       </div>
+
+      {/* GATE-02 validation failures banner */}
+      {gateFailures.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0" />
+              <p className="text-sm font-semibold text-destructive">
+                Validation failed — please resolve the following:
+              </p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 w-6 p-0"
+              onClick={() => setGateFailures([])}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <ul className="list-disc list-inside space-y-1 pl-7">
+            {gateFailures.map((f, i) => (
+              <li key={i} className="text-sm text-destructive/90">
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Lightweight auto-attach banner */}
       {isLightweight && (
@@ -531,18 +621,52 @@ export default function LegalDocumentAttachmentPage() {
             <Progress value={tier2Pct} className="h-2" />
           </div>
         </div>
-
-        <div className="flex justify-end">
-          <Button
-            onClick={handleProceed}
-            disabled={!allComplete}
-            className="gap-2"
-          >
-            Proceed to Curation
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        </div>
       </div>
+
+      {/* Submit for Curation button */}
+      <Button
+        className="w-full gap-2"
+        size="lg"
+        onClick={handleSubmitForCuration}
+        disabled={isValidating || completePhase.isPending}
+      >
+        <Send className="h-4 w-4" />
+        {isValidating
+          ? "Validating…"
+          : completePhase.isPending
+          ? "Submitting…"
+          : "Submit for Curation"}
+      </Button>
+
+      {/* Confirmation modal */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="w-full max-w-md">
+          <DialogHeader>
+            <DialogTitle>Submit for Curation Review</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Submit this challenge for curation review? The Curator will check
+            completeness and consistency before the challenge proceeds to
+            publication.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowConfirmModal(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleConfirmSubmit}
+              disabled={completePhase.isPending}
+              className="gap-2"
+            >
+              <ArrowRight className="h-4 w-4" />
+              {completePhase.isPending ? "Submitting…" : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
