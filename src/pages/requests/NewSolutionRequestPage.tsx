@@ -6,9 +6,11 @@
  * - MP: Account Manager submits on behalf of org, assigns to Challenge Architect (CR/R3)
  * - AGG: Challenge Requestor submits. If phase1_bypass enabled, can skip to /challenges/new
  * - AGG + no bypass: Standard form submission
+ * 
+ * BR-SR-005: Duplicate detection — informational, not blocking.
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -33,6 +35,8 @@ import {
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
+import { useDuplicateDetection } from '@/hooks/queries/useDuplicateDetection';
+import { DuplicateMatchesPanel, DuplicateWarningBanner } from '@/components/requests/DuplicateMatchesPanel';
 
 // ============================================================================
 // CONSTANTS
@@ -153,7 +157,6 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
         Domain Tags <span className="text-destructive">*</span>
       </Label>
 
-      {/* Selected tags */}
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2">
           {value.map(tag => (
@@ -175,7 +178,6 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
         </div>
       )}
 
-      {/* Search input */}
       <div className="relative">
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -223,6 +225,10 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
 
 export default function NewSolutionRequestPage() {
   const navigate = useNavigate();
+  const matchesPanelRef = useRef<HTMLDivElement>(null);
+
+  // ── State ──
+  const [warningDismissed, setWarningDismissed] = useState(false);
 
   // ── Hooks (always called, unconditionally) ──
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
@@ -256,6 +262,14 @@ export default function NewSolutionRequestPage() {
   const charCount = businessProblem?.length || 0;
   const isMinMet = charCount >= MIN_PROBLEM_CHARS;
 
+  // ── Duplicate Detection ──
+  const { matches, isSearching, hasHighSimilarity } = useDuplicateDetection(businessProblem || '');
+  const showWarning = hasHighSimilarity && !warningDismissed;
+
+  const scrollToMatches = useCallback(() => {
+    matchesPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
   const onSubmit = async (data: SolutionRequestFormValues) => {
     try {
       // TODO: Save to Supabase solution_requests table
@@ -279,9 +293,11 @@ export default function NewSolutionRequestPage() {
     );
   }
 
+  const hasMatches = matches.length > 0;
+
   return (
     <div className="min-h-screen bg-muted/30 py-8 px-4">
-      <div className="max-w-[720px] mx-auto space-y-6">
+      <div className="max-w-[1100px] mx-auto space-y-6">
         {/* Page Title */}
         <h1 className="text-[22px] font-bold text-primary">
           New Solution Request
@@ -289,19 +305,19 @@ export default function NewSolutionRequestPage() {
 
         {/* Model-specific header text */}
         {isMP && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground max-w-[720px]">
             As Account Manager, you are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
           </p>
         )}
         {isAGG && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground max-w-[720px]">
             Describe your innovation challenge. After submission, you or your team will develop the full challenge specification.
           </p>
         )}
 
         {/* AGG + Phase 1 Bypass Banner */}
         {hasBypass && (
-          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-blue-50 border border-blue-200 px-4 py-3 max-w-[720px]">
             <div className="flex items-start gap-2 flex-1">
               <Info className="h-5 w-5 text-blue-600 shrink-0 mt-0.5" />
               <p className="text-sm text-blue-800">
@@ -320,228 +336,261 @@ export default function NewSolutionRequestPage() {
           </div>
         )}
 
-        {/* Form Card */}
-        <Card className="rounded-xl border-border shadow-sm">
-          <CardContent className="p-6">
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        {/* Main layout: Form + Matches Panel side by side on desktop */}
+        <div className="flex flex-col lg:flex-row gap-6 items-start">
+          {/* Form Card */}
+          <Card className="rounded-xl border-border shadow-sm w-full max-w-[720px]">
+            <CardContent className="p-6">
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
-              {/* 1. Business Problem */}
-              <div className="space-y-2">
-                <Label htmlFor="business_problem" className="text-sm font-medium">
-                  Describe the business problem you want to solve <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="business_problem"
-                  {...register('business_problem')}
-                  className="min-h-[120px] resize-y"
-                  placeholder="Describe the core business challenge, its impact, and what you've tried so far..."
-                />
-                <p className={cn(
-                  'text-xs transition-colors',
-                  isMinMet ? 'text-green-600' : 'text-muted-foreground'
-                )}>
-                  {charCount} / {MIN_PROBLEM_CHARS} minimum characters
-                </p>
-                {errors.business_problem && (
-                  <p className="text-sm text-destructive">{errors.business_problem.message}</p>
-                )}
-              </div>
-
-              {/* 2. Expected Outcomes */}
-              <div className="space-y-2">
-                <Label htmlFor="expected_outcomes" className="text-sm font-medium">
-                  What outcomes do you expect from a successful solution? <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  id="expected_outcomes"
-                  {...register('expected_outcomes')}
-                  className="min-h-[80px] resize-y"
-                  placeholder="Describe measurable outcomes, KPIs, or success criteria..."
-                />
-                {errors.expected_outcomes && (
-                  <p className="text-sm text-destructive">{errors.expected_outcomes.message}</p>
-                )}
-              </div>
-
-              {/* 3. Budget Range */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Budget Range <span className="text-destructive">*</span></Label>
-                <div className="flex flex-col lg:flex-row gap-3">
-                  <Controller
-                    name="currency"
-                    control={control}
-                    render={({ field }) => (
-                      <Select value={field.value} onValueChange={field.onChange}>
-                        <SelectTrigger className="w-full lg:w-[140px]">
-                          <SelectValue placeholder="Currency" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CURRENCY_OPTIONS.map(c => (
-                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
+                {/* 1. Business Problem */}
+                <div className="space-y-2">
+                  <Label htmlFor="business_problem" className="text-sm font-medium">
+                    Describe the business problem you want to solve <span className="text-destructive">*</span>
+                  </Label>
+                  <Textarea
+                    id="business_problem"
+                    {...register('business_problem')}
+                    className="min-h-[120px] resize-y"
+                    placeholder="Describe the core business challenge, its impact, and what you've tried so far..."
                   />
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="Minimum Budget"
-                      {...register('budget_min')}
-                      min={0}
-                    />
-                  </div>
-                  <div className="flex-1">
-                    <Input
-                      type="number"
-                      placeholder="Maximum Budget"
-                      {...register('budget_max')}
-                      min={0}
-                    />
-                  </div>
+                  <p className={cn(
+                    'text-xs transition-colors',
+                    isMinMet ? 'text-green-600' : 'text-muted-foreground'
+                  )}>
+                    {charCount} / {MIN_PROBLEM_CHARS} minimum characters
+                  </p>
+                  {errors.business_problem && (
+                    <p className="text-sm text-destructive">{errors.business_problem.message}</p>
+                  )}
                 </div>
-                {errors.budget_min && (
-                  <p className="text-sm text-destructive">{errors.budget_min.message}</p>
-                )}
-                {errors.budget_max && (
-                  <p className="text-sm text-destructive">{errors.budget_max.message}</p>
-                )}
-              </div>
 
-              {/* 4. Expected Timeline */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">
-                  Expected Timeline <span className="text-destructive">*</span>
-                </Label>
-                <Controller
-                  name="expected_timeline"
-                  control={control}
-                  render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select expected timeline" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TIMELINE_OPTIONS.map(t => (
-                          <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                />
-                {errors.expected_timeline && (
-                  <p className="text-sm text-destructive">{errors.expected_timeline.message}</p>
-                )}
-              </div>
-
-              {/* 5. Domain Tags */}
-              <Controller
-                name="domain_tags"
-                control={control}
-                render={({ field }) => (
-                  <DomainTagSelect
-                    value={field.value}
-                    onChange={field.onChange}
-                    error={errors.domain_tags?.message}
+                {/* 2. Expected Outcomes */}
+                <div className="space-y-2">
+                  <Label htmlFor="expected_outcomes" className="text-sm font-medium">
+                    What outcomes do you expect from a successful solution? <span className="text-destructive">*</span>
+                  </Label>
+                  <Textarea
+                    id="expected_outcomes"
+                    {...register('expected_outcomes')}
+                    className="min-h-[80px] resize-y"
+                    placeholder="Describe measurable outcomes, KPIs, or success criteria..."
                   />
-                )}
-              />
-
-              {/* 6. Urgency */}
-              <div className="space-y-3">
-                <Label className="text-sm font-medium">Urgency</Label>
-                <Controller
-                  name="urgency"
-                  control={control}
-                  render={({ field }) => (
-                    <RadioGroup
-                      value={field.value}
-                      onValueChange={field.onChange}
-                      className="flex flex-col sm:flex-row gap-3"
-                    >
-                      {URGENCY_OPTIONS.map(opt => (
-                        <label
-                          key={opt.value}
-                          className={cn(
-                            'flex items-center gap-2 rounded-lg border px-4 py-3 cursor-pointer transition-all',
-                            field.value === opt.value
-                              ? opt.colorClass
-                              : 'border-border bg-background hover:bg-accent/50'
-                          )}
-                        >
-                          <RadioGroupItem value={opt.value} />
-                          <span className="text-sm font-medium">{opt.label}</span>
-                        </label>
-                      ))}
-                    </RadioGroup>
+                  {errors.expected_outcomes && (
+                    <p className="text-sm text-destructive">{errors.expected_outcomes.message}</p>
                   )}
-                />
-              </div>
+                </div>
 
-              {/* 7. Assign to Challenge Architect (MP only) */}
-              {isMP && (
+                {/* 3. Budget Range */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Budget Range <span className="text-destructive">*</span></Label>
+                  <div className="flex flex-col lg:flex-row gap-3">
+                    <Controller
+                      name="currency"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className="w-full lg:w-[140px]">
+                            <SelectValue placeholder="Currency" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CURRENCY_OPTIONS.map(c => (
+                              <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Minimum Budget"
+                        {...register('budget_min')}
+                        min={0}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <Input
+                        type="number"
+                        placeholder="Maximum Budget"
+                        {...register('budget_max')}
+                        min={0}
+                      />
+                    </div>
+                  </div>
+                  {errors.budget_min && (
+                    <p className="text-sm text-destructive">{errors.budget_min.message}</p>
+                  )}
+                  {errors.budget_max && (
+                    <p className="text-sm text-destructive">{errors.budget_max.message}</p>
+                  )}
+                </div>
+
+                {/* 4. Expected Timeline */}
                 <div className="space-y-2">
                   <Label className="text-sm font-medium">
-                    Assign to Challenge Architect <span className="text-destructive">*</span>
+                    Expected Timeline <span className="text-destructive">*</span>
                   </Label>
                   <Controller
-                    name="architect_id"
+                    name="expected_timeline"
                     control={control}
                     render={({ field }) => (
                       <Select value={field.value} onValueChange={field.onChange}>
                         <SelectTrigger className="w-full">
-                          <SelectValue placeholder={
-                            architectsLoading
-                              ? 'Loading architects...'
-                              : architects.length === 0
-                                ? 'No architects available'
-                                : 'Select a Challenge Architect'
-                          } />
+                          <SelectValue placeholder="Select expected timeline" />
                         </SelectTrigger>
                         <SelectContent>
-                          {architects.map(a => (
-                            <SelectItem key={a.userId} value={a.userId}>
-                              <span>{a.userName}</span>
-                              {a.userName !== a.userEmail && (
-                                <span className="text-muted-foreground ml-2 text-xs">
-                                  ({a.userEmail})
-                                </span>
-                              )}
-                            </SelectItem>
+                          {TIMELINE_OPTIONS.map(t => (
+                            <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
                     )}
                   />
-                  {architects.length === 0 && !architectsLoading && (
-                    <p className="text-xs text-amber-600">
-                      No users with the Challenge Architect (R3) role found in your organization. Please assign this role first.
-                    </p>
-                  )}
-                  {errors.architect_id && (
-                    <p className="text-sm text-destructive">{errors.architect_id.message}</p>
+                  {errors.expected_timeline && (
+                    <p className="text-sm text-destructive">{errors.expected_timeline.message}</p>
                   )}
                 </div>
-              )}
 
-              {/* Submit */}
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => navigate(-1)}
-                  disabled={isSubmitting}
-                >
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  <Send className="h-4 w-4 mr-2" />
-                  {isSubmitting ? 'Submitting...' : 'Submit Request'}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
+                {/* 5. Domain Tags */}
+                <Controller
+                  name="domain_tags"
+                  control={control}
+                  render={({ field }) => (
+                    <DomainTagSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      error={errors.domain_tags?.message}
+                    />
+                  )}
+                />
+
+                {/* 6. Urgency */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Urgency</Label>
+                  <Controller
+                    name="urgency"
+                    control={control}
+                    render={({ field }) => (
+                      <RadioGroup
+                        value={field.value}
+                        onValueChange={field.onChange}
+                        className="flex flex-col sm:flex-row gap-3"
+                      >
+                        {URGENCY_OPTIONS.map(opt => (
+                          <label
+                            key={opt.value}
+                            className={cn(
+                              'flex items-center gap-2 rounded-lg border px-4 py-3 cursor-pointer transition-all',
+                              field.value === opt.value
+                                ? opt.colorClass
+                                : 'border-border bg-background hover:bg-accent/50'
+                            )}
+                          >
+                            <RadioGroupItem value={opt.value} />
+                            <span className="text-sm font-medium">{opt.label}</span>
+                          </label>
+                        ))}
+                      </RadioGroup>
+                    )}
+                  />
+                </div>
+
+                {/* 7. Assign to Challenge Architect (MP only) */}
+                {isMP && (
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">
+                      Assign to Challenge Architect <span className="text-destructive">*</span>
+                    </Label>
+                    <Controller
+                      name="architect_id"
+                      control={control}
+                      render={({ field }) => (
+                        <Select value={field.value} onValueChange={field.onChange}>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder={
+                              architectsLoading
+                                ? 'Loading architects...'
+                                : architects.length === 0
+                                  ? 'No architects available'
+                                  : 'Select a Challenge Architect'
+                            } />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {architects.map(a => (
+                              <SelectItem key={a.userId} value={a.userId}>
+                                <span>{a.userName}</span>
+                                {a.userName !== a.userEmail && (
+                                  <span className="text-muted-foreground ml-2 text-xs">
+                                    ({a.userEmail})
+                                  </span>
+                                )}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    />
+                    {architects.length === 0 && !architectsLoading && (
+                      <p className="text-xs text-amber-600">
+                        No users with the Challenge Architect (R3) role found in your organization. Please assign this role first.
+                      </p>
+                    )}
+                    {errors.architect_id && (
+                      <p className="text-sm text-destructive">{errors.architect_id.message}</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Duplicate Warning Banner (advisory, dismissible) */}
+                {showWarning && (
+                  <DuplicateWarningBanner
+                    onViewMatches={scrollToMatches}
+                    onDismiss={() => setWarningDismissed(true)}
+                  />
+                )}
+
+                {/* Duplicate matches — shown below form on mobile */}
+                <div className="lg:hidden">
+                  {hasMatches && (
+                    <DuplicateMatchesPanel
+                      ref={matchesPanelRef}
+                      matches={matches}
+                      isSearching={isSearching}
+                    />
+                  )}
+                </div>
+
+                {/* Submit */}
+                <div className="flex justify-end gap-3 pt-4 border-t">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => navigate(-1)}
+                    disabled={isSubmitting}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" disabled={isSubmitting}>
+                    <Send className="h-4 w-4 mr-2" />
+                    {isSubmitting ? 'Submitting...' : 'Submit Request'}
+                  </Button>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Duplicate Matches Panel — RIGHT side on desktop */}
+          <div className="hidden lg:block w-full max-w-[340px] sticky top-8">
+            {hasMatches && (
+              <DuplicateMatchesPanel
+                ref={matchesPanelRef}
+                matches={matches}
+                isSearching={isSearching}
+              />
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
