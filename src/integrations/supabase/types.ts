@@ -11330,6 +11330,10 @@ export type Database = {
         Returns: string[]
       }
       get_user_tenant_id: { Args: never; Returns: string }
+      get_valid_transitions: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: Json
+      }
       get_visible_org_ids: {
         Args: { p_parent_org_id: string }
         Returns: string[]
