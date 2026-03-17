@@ -1,7 +1,6 @@
 /**
  * CogniTopBar — Top navigation bar for CogniBlend shell.
- * Fixed top, offset by sidebar width on desktop.
- * Contains: hamburger (mobile), page title, spacer, TierUsageBar, NotificationBell, user avatar dropdown.
+ * Responsive left offset: none on mobile, 64px tablet, 256px desktop.
  */
 
 import { useState, useRef, useEffect } from 'react';
@@ -74,7 +73,6 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   // TODO: Replace with real org context data
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const orgName = 'Acme Innovation Labs';
-  const orgId = ''; // placeholder
   const userRoles = ['CR', 'CU']; // placeholder
   const initials = getInitials(userName);
 
@@ -83,7 +81,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   // ═══════════════════════════════════════════
   return (
     <header
-      className="fixed top-0 right-0 left-0 md:left-64 z-20 flex items-center px-4 gap-3 bg-white border-b"
+      className="fixed top-0 right-0 left-0 md:left-16 lg:left-64 z-20 flex items-center px-3 lg:px-4 gap-2 lg:gap-3 bg-white border-b"
       style={{ height: 56, borderColor: '#E5E7EB' }}
     >
       {/* Mobile hamburger */}
@@ -95,20 +93,13 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
         <Menu className="h-6 w-6 text-muted-foreground" />
       </button>
 
-      {/* Page title */}
-      <h1 className="font-bold text-foreground" style={{ fontSize: 16 }}>
+      {/* Page title — slightly smaller on mobile */}
+      <h1 className="font-bold text-foreground text-sm lg:text-base truncate">
         {pageTitle}
       </h1>
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* TierUsageBar (compact) — only render if orgId is available */}
-      {/* {orgId && (
-        <div className="hidden lg:block max-w-[260px]">
-          <TierUsageBar orgId={orgId} />
-        </div>
-      )} */}
 
       {/* NotificationBell */}
       <NotificationBell />

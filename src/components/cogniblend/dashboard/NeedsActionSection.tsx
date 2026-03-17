@@ -2,6 +2,9 @@
  * NeedsActionSection — "Needs Your Action" widget for CogniBlend Dashboard.
  * Shows challenge cards with SLA status & transition buttons, or an empty state.
  * Complete Phase buttons show spinner + 'Completing…' while in flight.
+ *
+ * Responsive: action buttons stack vertically full-width on mobile.
+ * Headings and padding reduced on mobile.
  */
 
 import { CheckCircle, Loader2 } from 'lucide-react';
@@ -48,7 +51,7 @@ function SlaIndicator({ sla }: { sla: SlaStatus | null }) {
     <div className="flex items-center gap-2">
       <span className={`inline-block h-2 w-2 rounded-full ${c.dot}`} />
       <span
-        className={`text-[13px] ${
+        className={`text-xs lg:text-[13px] ${
           sla.status === 'BREACHED'
             ? 'font-bold text-[hsl(1,71%,59%)]'
             : 'text-muted-foreground'
@@ -90,7 +93,7 @@ export function NeedsActionSection({
   if (isLoading) {
     return (
       <section>
-        <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">
+        <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
           Needs Your Action
         </h2>
         <div className="space-y-3">
@@ -106,13 +109,13 @@ export function NeedsActionSection({
   if (items.length === 0) {
     return (
       <section>
-        <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">
+        <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
           Needs Your Action
         </h2>
-        <div className="flex flex-col items-center rounded-xl bg-[hsl(150,40%,93%)] p-5 animate-fade-in">
-          <CheckCircle className="h-8 w-8 text-[hsl(155,68%,37%)] mb-2" />
-          <p className="text-base font-bold text-[hsl(155,68%,37%)]">All caught up!</p>
-          <p className="text-[13px] text-muted-foreground">
+        <div className="flex flex-col items-center rounded-xl bg-[hsl(150,40%,93%)] p-4 lg:p-5 animate-fade-in">
+          <CheckCircle className="h-7 w-7 lg:h-8 lg:w-8 text-[hsl(155,68%,37%)] mb-2" />
+          <p className="text-sm lg:text-base font-bold text-[hsl(155,68%,37%)]">All caught up!</p>
+          <p className="text-xs lg:text-[13px] text-muted-foreground">
             No challenges need your action right now.
           </p>
         </div>
@@ -123,7 +126,7 @@ export function NeedsActionSection({
   /* Challenge cards */
   return (
     <section>
-      <h2 className="text-lg font-bold text-[hsl(218,52%,25%)] mb-4">
+      <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
         Needs Your Action
       </h2>
       <div className="space-y-3">
@@ -133,26 +136,26 @@ export function NeedsActionSection({
           return (
             <div
               key={item.challenge_id}
-              className="rounded-xl border border-border bg-card p-4"
+              className="rounded-xl border border-border bg-card p-3 lg:p-4"
             >
               {/* Row 1: title + phase badge */}
-              <div className="flex items-start justify-between gap-3 mb-2">
-                <span className="text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
+              <div className="flex items-start justify-between gap-2 lg:gap-3 mb-2">
+                <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
                   {item.title}
                 </span>
-                <span className="shrink-0 rounded-full bg-[hsl(247,67%,96%)] px-2.5 py-0.5 text-xs text-[hsl(248,35%,50%)]">
+                <span className="shrink-0 rounded-full bg-[hsl(247,67%,96%)] px-2 lg:px-2.5 py-0.5 text-[10px] lg:text-xs text-[hsl(248,35%,50%)]">
                   {PHASE_LABELS[item.current_phase] ?? item.phase_label}
                 </span>
               </div>
 
               {/* Row 2: SLA */}
-              <div className="mb-3">
+              <div className="mb-2 lg:mb-3">
                 <SlaIndicator sla={item.sla} />
               </div>
 
-              {/* Row 3: transition buttons */}
+              {/* Row 3: transition buttons — stacked on mobile, horizontal on desktop */}
               {item.transitions.length > 0 && (
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-col lg:flex-row gap-2">
                   {item.transitions.map((t) => {
                     const { variant, className } = transitionVariant(t);
                     const isCompleteBtn = t.label.toLowerCase().includes('complete') || t.style === 'primary';
@@ -163,7 +166,7 @@ export function NeedsActionSection({
                         variant={variant}
                         size="sm"
                         disabled={isCompleting}
-                        className={`text-[13px] px-4 py-1.5 h-auto rounded-md ${className}`}
+                        className={`text-[13px] px-4 py-1.5 h-auto rounded-md w-full lg:w-auto ${className}`}
                         onClick={() => onTransition?.(item.challenge_id, t.action)}
                       >
                         {isCompleting && isCompleteBtn ? (
