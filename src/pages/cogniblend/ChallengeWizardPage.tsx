@@ -104,7 +104,7 @@ export default function ChallengeWizardPage() {
         expected_timeline: (challengeData.phase_schedule as any)?.expected_timeline ?? '',
         review_duration: undefined,
         phase_notes: '',
-        permitted_artifact_types: '',
+        permitted_artifact_types: [],
       });
     }
   }, [challengeData, isEditMode, form]);
