@@ -11,12 +11,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
+import { EscrowDepositSection } from '@/components/cogniblend/publication/EscrowDepositSection';
+import { useAuth } from '@/hooks/useAuth';
 
 /* ─── Component ──────────────────────────────────────────── */
 
 export default function PublicationReadinessPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const { data, isLoading, error } = usePublicationReadiness(id);
 
@@ -155,6 +158,11 @@ export default function PublicationReadinessPage() {
           ))}
         </CardContent>
       </Card>
+
+      {/* ═══ Escrow Section (Enterprise only) ═══ */}
+      {!isLightweight && id && (
+        <EscrowDepositSection challengeId={id} userId={user?.id} />
+      )}
 
       {/* ═══ Summary Footer ═══ */}
       <div className="text-center pb-8">
