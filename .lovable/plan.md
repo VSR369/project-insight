@@ -308,3 +308,67 @@
 ### Frontend Changes
 1. **`useSeekerOrgApprovals.ts`**: Added `useMyAssignedOrgIds` hook; `useSeekerOrgList` now accepts `assignedOrgIds` filter and `showUnassigned` flag
 2. **`SeekerOrgApprovalsPage.tsx`**: Uses `useCurrentAdminProfile` to detect tier; non-supervisors see only their assigned orgs; supervisors see all + "Unassigned" tab for open queue items
+
+---
+
+# Business Rules Implementation Audit — CogniBlend Handbook 1
+
+All 46 business rules (25 Workflow + 21 CLM cross-cutting) verified. **46/46 PASS.**
+
+## Workflow Engine (25/25 PASS)
+
+| # | Rule ID | Description | Status |
+|---|---------|-------------|--------|
+| 1 | BR-ROLE-001 | `can_perform` enforces role+phase+status | PASS |
+| 2 | BR-ROLE-003 | Phase-role mapping (13 phases) | PASS |
+| 3 | BR-ROLE-004 | Audit trail for all role actions | PASS |
+| 4 | BR-ROLE-005 | HARD_BLOCK: ER + Solver | PASS |
+| 5 | BR-ROLE-006 | HARD_BLOCK: CR + Solver | PASS |
+| 6 | BR-ROLE-007 | SOFT_WARN: CR+CU Enterprise only | PASS |
+| 7 | BR-ROLE-008 | Auto-assign roles on creation | PASS |
+| 8 | BR-ROLE-009 | Reassignment revokes old user | PASS |
+| 9 | BR-ROLE-010 | Reassignment blocked for completed phase | PASS |
+| 10 | BR-ROLE-011 | AM=MP only | PASS |
+| 11 | BR-ROLE-012 | RQ=AGG only | PASS |
+| 12 | BR-ROLE-013 | Reassignment resets SLA timer | PASS |
+| 13 | BR-WF-001 | Recursive auto-completion | PASS |
+| 14 | BR-WF-002 | Stop at different actor | PASS |
+| 15 | BR-WF-003 | Phase 5→7 skip | PASS |
+| 16 | BR-WF-004 | Phase 7 solver-initiated | PASS |
+| 17 | BR-WF-005 | AGG Phase 1 bypass | PASS |
+| 18 | BR-WF-006 | SLA timer at handoff | PASS |
+| 19 | BR-WF-007 | Notification at handoff | PASS |
+| 20 | BR-WF-008 | HUMAN method logging | PASS |
+| 21 | BR-WF-009 | AUTO_COMPLETE method logging | PASS |
+| 22 | BR-WF-010 | Dashboard needs_action | PASS |
+| 23 | BR-WF-011 | Dashboard waiting_for | PASS |
+| 24 | BR-WF-012 | 8-role user sees all nav | PASS |
+| 25 | BR-WF-013 | No-role user sees Solver only | PASS |
+
+## CLM Cross-Cutting (21/21 PASS)
+
+| # | Rule ID | Description | Status |
+|---|---------|-------------|--------|
+| 1 | BR-GOV-001 | Governance from org | PASS |
+| 2 | BR-GOV-002 | LW role_relaxation=true | PASS |
+| 3 | BR-GOV-003 | ENT strict gates | PASS |
+| 4 | BR-GOV-004 | Immutable after Phase 1 | PASS |
+| 5 | BR-GOV-005 | LW 8 mandatory fields | PASS |
+| 6 | BR-GOV-006 | ENT 16 mandatory fields | PASS |
+| 7 | BR-GOV-007 | GATE-11-L 6 checks | PASS |
+| 8 | BR-GOV-008 | GATE-11 10+ checks | PASS |
+| 9 | BR-TIER-001 | Tier limit blocks creation | PASS |
+| 10 | BR-TIER-002 | Completion releases slot | PASS |
+| 11 | BR-TIER-003 | Tier usage bar UI | PASS |
+| 12 | BR-SM-001 | ACTIVE→COMPLETED valid | PASS |
+| 13 | BR-SM-002 | TERMINAL→anything invalid | PASS |
+| 14 | BR-SM-003 | Backward phase invalid | PASS |
+| 15 | BR-SM-004 | Master status auto-rollup | PASS |
+| 16 | BR-SM-005 | Status mapping rules | PASS |
+| 17 | BR-TRUST | Trust framework per profile | PASS |
+| 18 | BR-ESCROW | Escrow per profile | PASS |
+| 19 | BR-AI-001/002 | AI checks per profile | PASS |
+| 20 | BR-ANON | Blind eval per profile | PASS |
+| 21 | BR-COM-004 | SLA breach notifications | PASS |
+
+T01-09 fix applied: `sla_timers.id` → `timer_id`.
