@@ -10932,6 +10932,38 @@ export type Database = {
           },
         ]
       }
+      recent_activity_view: {
+        Row: {
+          action: string | null
+          audit_id: string | null
+          challenge_id: string | null
+          challenge_title: string | null
+          created_at: string | null
+          details: Json | null
+          method: string | null
+          phase_from: number | null
+          phase_to: number | null
+          solution_id: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_trail_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "audit_trail_solution_id_fkey"
+            columns: ["solution_id"]
+            isOneToOne: false
+            referencedRelation: "solutions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reviewer_workload_distribution: {
         Row: {
           days_since_last: number | null
@@ -11326,6 +11358,19 @@ export type Database = {
         Returns: boolean
       }
       is_supervisor_tier: { Args: { p_user_id: string }; Returns: boolean }
+      log_audit: {
+        Args: {
+          p_action: string
+          p_challenge_id: string
+          p_details?: Json
+          p_method: string
+          p_phase_from?: number
+          p_phase_to?: number
+          p_solution_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       place_in_open_queue: {
         Args: {
           p_ip_address?: string
