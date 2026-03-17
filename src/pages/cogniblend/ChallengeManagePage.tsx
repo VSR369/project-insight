@@ -24,6 +24,7 @@ import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManage
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
+import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
@@ -324,6 +325,14 @@ export default function ChallengeManagePage() {
         challengeTitle={data.title}
         userId={user?.id ?? ''}
         canInitiate={data.canExtendDeadline}
+      />
+
+      {/* ──────────────── CARD 4 — Q&A Management ──────────────── */}
+      <QAManagementCard
+        challengeId={data.challengeId}
+        challengeTitle={data.title}
+        userId={user?.id ?? ''}
+        governanceProfile={data.governanceProfile}
       />
 
       {/* ──────────────── Snapshot Modal ──────────────── */}
