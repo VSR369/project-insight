@@ -19,6 +19,7 @@ import { EscrowDepositSection } from '@/components/cogniblend/publication/Escrow
 import { PublishConfirmModal } from '@/components/cogniblend/publication/PublishConfirmModal';
 import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
 import { useAuth } from '@/hooks/useAuth';
+import { useNotifySolvers } from '@/hooks/cogniblend/useNotifySolvers';
 
 /* ─── Component ──────────────────────────────────────────── */
 
@@ -36,6 +37,7 @@ export default function PublicationReadinessPage() {
     user?.id,
   );
   const publishMutation = usePublishChallenge();
+  const notifySolversMutation = useNotifySolvers();
 
   /* ── Loading ── */
   if (isLoading) {
@@ -74,6 +76,15 @@ export default function PublicationReadinessPage() {
       {
         onSuccess: (result) => {
           setPublishedResult({ id: result.challengeId, title: result.challengeTitle });
+
+          // Dispatch solver notifications (non-blocking, fire-and-forget)
+          notifySolversMutation.mutate({
+            challengeId: result.challengeId,
+            challengeTitle: result.challengeTitle,
+            totalAward: 0,        // Hook will fetch from reward_structure
+            currencyCode: 'USD',
+            deadlineDays: null,    // Hook will compute from submission_deadline
+          });
         },
       },
     );
