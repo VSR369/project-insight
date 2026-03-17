@@ -876,6 +876,68 @@ export type Database = {
           },
         ]
       }
+      challenge_qa: {
+        Row: {
+          anonymous_id: string | null
+          answer_text: string | null
+          answered_at: string | null
+          answered_by: string | null
+          asked_at: string
+          asked_by: string
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          is_closed: boolean
+          is_published: boolean
+          qa_id: string
+          question_text: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          anonymous_id?: string | null
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          asked_at?: string
+          asked_by: string
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          is_closed?: boolean
+          is_published?: boolean
+          qa_id?: string
+          question_text: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          anonymous_id?: string | null
+          answer_text?: string | null
+          answered_at?: string | null
+          answered_by?: string | null
+          asked_at?: string
+          asked_by?: string
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          is_closed?: boolean
+          is_published?: boolean
+          qa_id?: string
+          question_text?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_qa_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_role_assignments: {
         Row: {
           assigned_at: string
@@ -11636,6 +11698,14 @@ export type Database = {
           p_role_code: string
         }
         Returns: undefined
+      }
+      submit_question: {
+        Args: {
+          p_challenge_id: string
+          p_question_text: string
+          p_user_id: string
+        }
+        Returns: string
       }
       supervisor_reassign_to_self: {
         Args: { p_verification_id: string }
