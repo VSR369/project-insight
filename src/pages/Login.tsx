@@ -64,6 +64,15 @@ const LOGIN_TABS: Array<{
     borderColor: 'border-teal-600/30',
     description: 'Manage challenges, team, and billing for your organization',
   },
+  {
+    id: 'cogniblend',
+    label: 'CogniBlend',
+    shortLabel: 'Cogni',
+    icon: Lightbulb,
+    color: 'text-sky-600',
+    borderColor: 'border-sky-600/30',
+    description: 'Open innovation — create, curate, and review challenges',
+  },
 ];
 
 // Development test accounts - only visible in dev mode
