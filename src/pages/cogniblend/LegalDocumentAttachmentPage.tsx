@@ -5,7 +5,11 @@
  * legal document templates. Governance-aware: Lightweight auto-attaches defaults;
  * Enterprise requires manual attachment before proceeding.
  *
- * GATE-02 validation on submit → complete_phase (Phase 2 → 3).
+ * Features:
+ *  - Preview modal for attached docs (PDF embed / text display)
+ *  - Remove custom upload → revert to default
+ *  - Audit trail logging via log_audit RPC
+ *  - GATE-02 validation on submit → complete_phase (Phase 2 → 3)
  */
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -37,6 +41,8 @@ import {
   AlertCircle,
   Send,
   X,
+  Eye,
+  Trash2,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -96,6 +102,25 @@ function getDocStatus(
 }
 
 // ---------------------------------------------------------------------------
+// Helper: log to audit_trail via RPC
+// ---------------------------------------------------------------------------
+async function logLegalAudit(
+  userId: string,
+  challengeId: string,
+  action: string,
+  details: Record<string, unknown>
+) {
+  await supabase.rpc("log_audit", {
+    p_user_id: userId,
+    p_challenge_id: challengeId,
+    p_solution_id: "",
+    p_action: action,
+    p_method: "UI",
+    p_details: details as Json,
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function LegalDocumentAttachmentPage() {
@@ -113,6 +138,16 @@ export default function LegalDocumentAttachmentPage() {
   const [gateFailures, setGateFailures] = useState<string[]>([]);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isValidating, setIsValidating] = useState(false);
+
+  // Preview state
+  const [previewDoc, setPreviewDoc] = useState<{
+    name: string;
+    url: string;
+    isPdf: boolean;
+  } | null>(null);
+
+  // Remove confirmation state
+  const [removeTarget, setRemoveTarget] = useState<LegalTemplate | null>(null);
 
   // ══════════════════════════════════════
   // SECTION 2: Query — challenge metadata
@@ -179,6 +214,13 @@ export default function LegalDocumentAttachmentPage() {
   // ══════════════════════════════════════
   const attachDefaultMutation = useMutation({
     mutationFn: async (template: LegalTemplate) => {
+      const existing = attachedDocs.find(
+        (d) =>
+          d.document_type === template.document_type &&
+          d.tier === template.tier
+      );
+      const isReplace = !!existing;
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -191,6 +233,21 @@ export default function LegalDocumentAttachmentPage() {
         { onConflict: "challenge_id,document_type,tier" as any }
       );
       if (error) throw new Error(error.message);
+
+      // Audit
+      if (user?.id && challengeId) {
+        await logLegalAudit(
+          user.id,
+          challengeId,
+          isReplace ? "LEGAL_DOC_REPLACED" : "LEGAL_DOC_ATTACHED",
+          {
+            document_type: template.document_type,
+            tier: template.tier,
+            status: "default_applied",
+            template_version: "v1.0",
+          }
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -209,6 +266,13 @@ export default function LegalDocumentAttachmentPage() {
       template: LegalTemplate;
       file: File;
     }) => {
+      const existing = attachedDocs.find(
+        (d) =>
+          d.document_type === template.document_type &&
+          d.tier === template.tier
+      );
+      const isReplace = !!existing;
+
       // Upload to legal-docs storage bucket
       const path = `${challengeId}/${template.document_type}_${Date.now()}_${file.name}`;
       const { error: uploadErr } = await supabase.storage
@@ -229,6 +293,22 @@ export default function LegalDocumentAttachmentPage() {
         { onConflict: "challenge_id,document_type,tier" as any }
       );
       if (error) throw new Error(error.message);
+
+      // Audit
+      if (user?.id && challengeId) {
+        await logLegalAudit(
+          user.id,
+          challengeId,
+          isReplace ? "LEGAL_DOC_REPLACED" : "LEGAL_DOC_ATTACHED",
+          {
+            document_type: template.document_type,
+            tier: template.tier,
+            status: "custom_uploaded",
+            file_name: file.name,
+            template_version: "custom",
+          }
+        );
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({
@@ -240,6 +320,69 @@ export default function LegalDocumentAttachmentPage() {
     onError: (err: Error) => {
       setUploadingDocType(null);
       toast.error(`Upload failed: ${err.message}`);
+    },
+  });
+
+  const removeCustomMutation = useMutation({
+    mutationFn: async (template: LegalTemplate) => {
+      // Find the attached doc record
+      const attached = attachedDocs.find(
+        (d) =>
+          d.document_type === template.document_type &&
+          d.tier === template.tier &&
+          d.status === "custom_uploaded"
+      );
+      if (!attached) throw new Error("No custom document found");
+
+      // List and remove files from storage for this doc type
+      const { data: files } = await supabase.storage
+        .from("legal-docs")
+        .list(challengeId!, {
+          search: template.document_type,
+        });
+      if (files && files.length > 0) {
+        const paths = files
+          .filter((f) => f.name.startsWith(template.document_type))
+          .map((f) => `${challengeId}/${f.name}`);
+        if (paths.length > 0) {
+          await supabase.storage.from("legal-docs").remove(paths);
+        }
+      }
+
+      // Revert to default: upsert with default status
+      const { error } = await supabase.from("challenge_legal_docs").upsert(
+        {
+          challenge_id: challengeId!,
+          document_type: template.document_type,
+          document_name: template.document_name,
+          tier: template.tier,
+          status: "default_applied",
+          maturity_level: challenge?.maturity_level ?? null,
+        },
+        { onConflict: "challenge_id,document_type,tier" as any }
+      );
+      if (error) throw new Error(error.message);
+
+      // Audit
+      if (user?.id && challengeId) {
+        await logLegalAudit(user.id, challengeId, "LEGAL_DOC_REPLACED", {
+          document_type: template.document_type,
+          tier: template.tier,
+          status: "reverted_to_default",
+          template_version: "v1.0",
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ["challenge-legal-docs", challengeId],
+      });
+      setRemoveTarget(null);
+      toast.success("Custom document removed. Default applied.");
+    },
+    onError: (err: Error) => {
+      setRemoveTarget(null);
+      toast.error(`Remove failed: ${err.message}`);
     },
   });
 
@@ -359,6 +502,54 @@ export default function LegalDocumentAttachmentPage() {
     input.click();
   };
 
+  const handlePreview = async (template: LegalTemplate) => {
+    const attached = attachedDocs.find(
+      (d) =>
+        d.document_type === template.document_type && d.tier === template.tier
+    );
+    if (!attached) return;
+
+    if (attached.status === "default_applied") {
+      // Default templates — show informational preview
+      setPreviewDoc({
+        name: template.document_name,
+        url: "",
+        isPdf: false,
+      });
+      return;
+    }
+
+    // Custom uploaded — get signed URL from storage
+    const { data: files } = await supabase.storage
+      .from("legal-docs")
+      .list(challengeId!, { search: template.document_type });
+
+    const matchedFile = files?.find((f) =>
+      f.name.startsWith(template.document_type)
+    );
+    if (!matchedFile) {
+      toast.error("File not found in storage");
+      return;
+    }
+
+    const { data: urlData } = await supabase.storage
+      .from("legal-docs")
+      .createSignedUrl(`${challengeId}/${matchedFile.name}`, 3600);
+
+    if (urlData?.signedUrl) {
+      const isPdf =
+        matchedFile.name.toLowerCase().endsWith(".pdf") ||
+        (attached.document_name ?? "").toLowerCase().endsWith(".pdf");
+      setPreviewDoc({
+        name: attached.document_name ?? template.document_name,
+        url: urlData.signedUrl,
+        isPdf,
+      });
+    } else {
+      toast.error("Could not generate preview URL");
+    }
+  };
+
   const handleSubmitForCuration = async () => {
     setIsValidating(true);
     setGateFailures([]);
@@ -369,7 +560,9 @@ export default function LegalDocumentAttachmentPage() {
       });
       if (error) throw new Error(error.message);
 
-      const result = (typeof data === "string" ? JSON.parse(data) : data) as GateResult;
+      const result = (
+        typeof data === "string" ? JSON.parse(data) : data
+      ) as GateResult;
 
       if (!result.passed) {
         setGateFailures(result.failures ?? ["Validation failed"]);
@@ -418,7 +611,10 @@ export default function LegalDocumentAttachmentPage() {
         );
       case "custom_uploaded":
         return (
-          <Badge variant="outline" className="text-xs border-primary text-primary">
+          <Badge
+            variant="outline"
+            className="text-xs border-primary text-primary"
+          >
             Custom Uploaded
           </Badge>
         );
@@ -431,6 +627,8 @@ export default function LegalDocumentAttachmentPage() {
   ) => {
     const status = getDocStatus(template, attachedDocs);
     const isUploading = uploadingDocType === template.document_type;
+    const isCustom = status === "custom_uploaded";
+    const isAttached = status !== "required";
 
     return (
       <Card
@@ -446,16 +644,18 @@ export default function LegalDocumentAttachmentPage() {
               <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
                 {template.description}
               </p>
-              {showPhaseTrigger && TIER2_PHASE_TRIGGER[template.document_type] && (
-                <p className="text-[11px] text-muted-foreground italic mt-1">
-                  Triggered at: {TIER2_PHASE_TRIGGER[template.document_type]}
-                </p>
-              )}
+              {showPhaseTrigger &&
+                TIER2_PHASE_TRIGGER[template.document_type] && (
+                  <p className="text-[11px] text-muted-foreground italic mt-1">
+                    Triggered at:{" "}
+                    {TIER2_PHASE_TRIGGER[template.document_type]}
+                  </p>
+                )}
             </div>
             {statusBadge(status)}
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               variant="outline"
               size="sm"
@@ -479,6 +679,33 @@ export default function LegalDocumentAttachmentPage() {
               <Upload className="h-3.5 w-3.5 mr-1" />
               {isUploading ? "Uploading…" : "Upload Custom"}
             </Button>
+
+            {/* Preview button — visible when attached */}
+            {isAttached && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground"
+                onClick={() => handlePreview(template)}
+              >
+                <Eye className="h-3.5 w-3.5 mr-1" />
+                Preview
+              </Button>
+            )}
+
+            {/* Remove button — visible only for custom uploads */}
+            {isCustom && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                onClick={() => setRemoveTarget(template)}
+                disabled={removeCustomMutation.isPending}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Remove
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -504,9 +731,7 @@ export default function LegalDocumentAttachmentPage() {
         <h1 className="text-xl font-bold text-foreground">
           Legal Document Attachment
         </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          {challenge.title}
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{challenge.title}</p>
       </div>
 
       {/* GATE-02 validation failures banner */}
@@ -638,7 +863,9 @@ export default function LegalDocumentAttachmentPage() {
           : "Submit for Curation"}
       </Button>
 
-      {/* Confirmation modal */}
+      {/* ═══════════════ MODALS ═══════════════ */}
+
+      {/* Confirmation modal — submit for curation */}
       <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
         <DialogContent className="w-full max-w-md">
           <DialogHeader>
@@ -663,6 +890,100 @@ export default function LegalDocumentAttachmentPage() {
             >
               <ArrowRight className="h-4 w-4" />
               {completePhase.isPending ? "Submitting…" : "Submit"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Preview modal */}
+      <Dialog
+        open={!!previewDoc}
+        onOpenChange={(open) => !open && setPreviewDoc(null)}
+      >
+        <DialogContent className="w-full max-w-[640px] max-h-[80vh] flex flex-col overflow-hidden">
+          <DialogHeader className="shrink-0">
+            <DialogTitle className="text-base">
+              {previewDoc?.name ?? "Document Preview"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 min-h-0 overflow-y-auto">
+            {previewDoc?.url ? (
+              previewDoc.isPdf ? (
+                <iframe
+                  src={previewDoc.url}
+                  className="w-full h-[60vh] rounded border border-border"
+                  title="PDF Preview"
+                />
+              ) : (
+                <div className="p-4 space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    This document type cannot be rendered inline. Use the link
+                    below to download and view.
+                  </p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    asChild
+                  >
+                    <a
+                      href={previewDoc.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Download Document
+                    </a>
+                  </Button>
+                </div>
+              )
+            ) : (
+              <div className="p-4 space-y-2">
+                <p className="text-sm text-foreground font-medium">
+                  System Default Template
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  This document uses the platform&apos;s default legal template.
+                  The standard template is maintained by the platform
+                  governance team and is automatically kept up to date.
+                </p>
+                <p className="text-xs text-muted-foreground italic">
+                  Template version: v1.0
+                </p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Remove custom document confirmation modal */}
+      <Dialog
+        open={!!removeTarget}
+        onOpenChange={(open) => !open && setRemoveTarget(null)}
+      >
+        <DialogContent className="w-full max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Remove Custom Document
+            </DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground py-2">
+            Remove the custom document for{" "}
+            <span className="font-medium text-foreground">
+              {removeTarget?.document_name}
+            </span>
+            ? The system default will be applied instead.
+          </p>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setRemoveTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (removeTarget) removeCustomMutation.mutate(removeTarget);
+              }}
+              disabled={removeCustomMutation.isPending}
+            >
+              {removeCustomMutation.isPending ? "Removing…" : "Remove"}
             </Button>
           </DialogFooter>
         </DialogContent>
