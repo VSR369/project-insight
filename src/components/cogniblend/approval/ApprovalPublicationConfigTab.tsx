@@ -143,6 +143,7 @@ export default function ApprovalPublicationConfigTab({
   challengeId,
   challenge,
   isApproved,
+  onConfigChange,
 }: PublicationConfigTabProps) {
   // ══════════════════════════════════════
   // SECTION 1: State
