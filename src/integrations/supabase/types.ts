@@ -409,6 +409,62 @@ export type Database = {
           },
         ]
       }
+      amendment_records: {
+        Row: {
+          amendment_number: number
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          initiated_by: string | null
+          reason: string | null
+          scope_of_change: string | null
+          status: string | null
+          updated_at: string | null
+          updated_by: string | null
+          version_after: number | null
+          version_before: number | null
+        }
+        Insert: {
+          amendment_number: number
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initiated_by?: string | null
+          reason?: string | null
+          scope_of_change?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version_after?: number | null
+          version_before?: number | null
+        }
+        Update: {
+          amendment_number?: number
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          initiated_by?: string | null
+          reason?: string | null
+          scope_of_change?: string | null
+          status?: string | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version_after?: number | null
+          version_before?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "amendment_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       assessment_attempt_responses: {
         Row: {
           answered_at: string | null
@@ -663,6 +719,103 @@ export type Database = {
         }
         Relationships: []
       }
+      challenge_legal_docs: {
+        Row: {
+          attached_by: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          document_name: string | null
+          document_type: string
+          id: string
+          maturity_level: string | null
+          status: string | null
+          template_version: string | null
+          tier: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          attached_by?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_type: string
+          id?: string
+          maturity_level?: string | null
+          status?: string | null
+          template_version?: string | null
+          tier: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          attached_by?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          document_name?: string | null
+          document_type?: string
+          id?: string
+          maturity_level?: string | null
+          status?: string | null
+          template_version?: string | null
+          tier?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_legal_docs_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      challenge_package_versions: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          snapshot: Json | null
+          updated_at: string | null
+          updated_by: string | null
+          version_number: number
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version_number: number
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          snapshot?: Json | null
+          updated_at?: string | null
+          updated_by?: string | null
+          version_number?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "challenge_package_versions_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenge_role_assignments: {
         Row: {
           assigned_at: string
@@ -830,26 +983,46 @@ export type Database = {
       }
       challenges: {
         Row: {
+          completed_at: string | null
           complexity_id: string | null
+          complexity_level: string | null
+          complexity_parameters: Json | null
+          complexity_score: number | null
           consulting_fee: number | null
           created_at: string
           created_by: string | null
           currency_code: string | null
+          current_phase: number | null
           deleted_at: string | null
           deleted_by: string | null
+          deliverables: Json | null
           description: string | null
           engagement_model_id: string | null
+          evaluation_criteria: Json | null
+          governance_profile: string | null
           id: string
+          ip_model: string | null
           is_active: boolean
           is_deleted: boolean
           management_fee: number | null
+          master_status: string | null
+          maturity_level: string | null
           max_solutions: number | null
+          operating_model: string | null
           organization_id: string
           payment_status: string | null
+          phase_schedule: Json | null
+          phase_status: string | null
+          problem_statement: string | null
+          published_at: string | null
+          rejection_fee_percentage: number | null
+          reward_structure: Json | null
+          scope: string | null
           shadow_fee_amount: number | null
           solutions_awarded: number
           solver_eligibility_id: string | null
           status: string
+          submission_deadline: string | null
           tenant_id: string
           title: string
           total_fee: number | null
@@ -858,26 +1031,46 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          completed_at?: string | null
           complexity_id?: string | null
+          complexity_level?: string | null
+          complexity_parameters?: Json | null
+          complexity_score?: number | null
           consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
           currency_code?: string | null
+          current_phase?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
+          deliverables?: Json | null
           description?: string | null
           engagement_model_id?: string | null
+          evaluation_criteria?: Json | null
+          governance_profile?: string | null
           id?: string
+          ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
           management_fee?: number | null
+          master_status?: string | null
+          maturity_level?: string | null
           max_solutions?: number | null
+          operating_model?: string | null
           organization_id: string
           payment_status?: string | null
+          phase_schedule?: Json | null
+          phase_status?: string | null
+          problem_statement?: string | null
+          published_at?: string | null
+          rejection_fee_percentage?: number | null
+          reward_structure?: Json | null
+          scope?: string | null
           shadow_fee_amount?: number | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           status?: string
+          submission_deadline?: string | null
           tenant_id: string
           title: string
           total_fee?: number | null
@@ -886,26 +1079,46 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          completed_at?: string | null
           complexity_id?: string | null
+          complexity_level?: string | null
+          complexity_parameters?: Json | null
+          complexity_score?: number | null
           consulting_fee?: number | null
           created_at?: string
           created_by?: string | null
           currency_code?: string | null
+          current_phase?: number | null
           deleted_at?: string | null
           deleted_by?: string | null
+          deliverables?: Json | null
           description?: string | null
           engagement_model_id?: string | null
+          evaluation_criteria?: Json | null
+          governance_profile?: string | null
           id?: string
+          ip_model?: string | null
           is_active?: boolean
           is_deleted?: boolean
           management_fee?: number | null
+          master_status?: string | null
+          maturity_level?: string | null
           max_solutions?: number | null
+          operating_model?: string | null
           organization_id?: string
           payment_status?: string | null
+          phase_schedule?: Json | null
+          phase_status?: string | null
+          problem_statement?: string | null
+          published_at?: string | null
+          rejection_fee_percentage?: number | null
+          reward_structure?: Json | null
+          scope?: string | null
           shadow_fee_amount?: number | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
           status?: string
+          submission_deadline?: string | null
           tenant_id?: string
           title?: string
           total_fee?: number | null
