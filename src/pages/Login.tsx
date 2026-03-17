@@ -147,6 +147,7 @@ const PORTAL_ROUTES: Record<PortalType, string> = {
   provider: '/pulse/feed',
   reviewer: '/reviewer/dashboard',
   organization: '/org/dashboard',
+  cogniblend: '/cogni/dashboard',
 };
 
 export default function Login() {
