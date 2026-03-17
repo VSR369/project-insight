@@ -777,6 +777,7 @@ export default function ApprovalReviewPage() {
             challengeId={challengeId!}
             challenge={challenge}
             isApproved={isApproved}
+            onConfigChange={setPubConfig}
           />
         )}
       </div>
