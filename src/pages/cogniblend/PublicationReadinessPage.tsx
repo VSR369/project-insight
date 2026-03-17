@@ -63,6 +63,33 @@ export default function PublicationReadinessPage() {
 
   const isLightweight = data.governanceProfile === 'LIGHTWEIGHT';
 
+  // Publish disabled logic
+  const escrowBlocking = !isLightweight && escrowQuery.data?.escrow?.escrow_status !== 'FUNDED';
+  const canPublish = data.allPassed && !escrowBlocking;
+
+  const handlePublish = () => {
+    if (!id || !user?.id) return;
+    publishMutation.mutate(
+      { challengeId: id, userId: user.id },
+      {
+        onSuccess: (result) => {
+          setPublishedResult({ id: result.challengeId, title: result.challengeTitle });
+        },
+      },
+    );
+    setConfirmOpen(false);
+  };
+
+  // Success screen
+  if (publishedResult) {
+    return (
+      <PublishSuccessScreen
+        challengeId={publishedResult.id}
+        challengeTitle={publishedResult.title}
+      />
+    );
+  }
+
   return (
     <div className="space-y-6 max-w-3xl mx-auto">
       {/* ═══ Header ═══ */}
