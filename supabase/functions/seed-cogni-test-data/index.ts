@@ -159,9 +159,9 @@ serve(async (req) => {
 
     // ─── Step 7: Legal docs for each challenge ───
     const legalDocs = challenges.flatMap(ch => [
-      { challenge_id: ch.id, document_type: "NDA", tier: "TIER_1", status: "default_applied", template_version: "1.0", document_name: "Standard NDA" },
-      { challenge_id: ch.id, document_type: "TERMS_OF_PARTICIPATION", tier: "TIER_1", status: "default_applied", template_version: "1.0", document_name: "Terms of Participation" },
-      { challenge_id: ch.id, document_type: "IP_ASSIGNMENT", tier: "TIER_2", status: "default_applied", template_version: "1.0", document_name: "IP Assignment Agreement" },
+      { challenge_id: ch.id, document_type: "NDA", tier: "TIER_1", status: "ATTACHED", template_version: "1.0", document_name: "Standard NDA" },
+      { challenge_id: ch.id, document_type: "TERMS_OF_PARTICIPATION", tier: "TIER_1", status: "ATTACHED", template_version: "1.0", document_name: "Terms of Participation" },
+      { challenge_id: ch.id, document_type: "IP_ASSIGNMENT", tier: "TIER_2", status: "ATTACHED", template_version: "1.0", document_name: "IP Assignment Agreement" },
     ]);
 
     // Delete existing legal docs first
