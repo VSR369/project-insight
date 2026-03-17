@@ -11013,6 +11013,15 @@ export type Database = {
         }
         Returns: number
       }
+      can_perform: {
+        Args: {
+          p_challenge_id: string
+          p_required_phase?: number
+          p_required_role: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       can_switch_engagement_model: {
         Args: { p_new_model_id: string; p_org_id: string }
         Returns: boolean
@@ -11229,6 +11238,10 @@ export type Database = {
       get_reviewer_interview_count: {
         Args: { p_days_lookback?: number; p_reviewer_id: string }
         Returns: number
+      }
+      get_user_roles: {
+        Args: { p_challenge_id: string; p_user_id: string }
+        Returns: string[]
       }
       get_user_tenant_id: { Args: never; Returns: string }
       get_visible_org_ids: {
