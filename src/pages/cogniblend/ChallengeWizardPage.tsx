@@ -82,6 +82,9 @@ export default function ChallengeWizardPage() {
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
 
+  // ═══════ Hooks — completion tracking ═══════
+  const formCompletion = useFormCompletion(form, isLightweight);
+
   // ═══════ Hooks — mutations ═══════
   const createChallengeMutation = useSubmitSolutionRequest();
   const saveStepMutation = useSaveChallengeStep();
