@@ -171,7 +171,7 @@ export function MyChallengesSection({
                     </span>
                     {/* Status */}
                     <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', statusStyle)}>
-                      {item.master_status}
+                      {STATUS_LABEL[item.master_status] ?? item.master_status}
                     </span>
                     {/* Role */}
                     {roleStyle && (
