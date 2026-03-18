@@ -137,7 +137,7 @@ export function StepReviewSubmit({ form, isLightweight, onNavigateToStep }: Step
         { label: 'Required Proficiencies', value: v.required_proficiencies?.length ? `${v.required_proficiencies.length} selected` : '', isValid: true },
         { label: 'Required Sub-Domains', value: v.required_sub_domains?.length ? `${v.required_sub_domains.length} selected` : '', isValid: true },
         { label: 'Required Specialities', value: v.required_specialities?.length ? `${v.required_specialities.length} selected` : '', isValid: true },
-        { label: 'IP Model', value: v.ip_model ?? '', isValid: true },
+        { label: 'Eligibility', value: v.eligibility ? '✓ Provided' : '', isValid: true },
         { label: 'Permitted Artifact Types', value: v.permitted_artifact_types?.length ? `${v.permitted_artifact_types.length} types` : '', isValid: true },
       ],
     },
