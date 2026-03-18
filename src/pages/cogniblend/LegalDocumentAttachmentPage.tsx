@@ -320,7 +320,13 @@ export default function LegalDocumentAttachmentPage() {
         .upload(path, file);
       if (uploadErr) throw new Error(uploadErr.message);
 
-      // Upsert legal doc record
+      // Upsert legal doc record with version history
+      const uploadHistory = buildVersionHistory(
+        existing?.version_history ?? [],
+        user?.id ?? 'system',
+        isReplace ? 'replaced' : 'custom_uploaded'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -329,6 +335,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "custom_uploaded",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: uploadHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
