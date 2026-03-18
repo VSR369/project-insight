@@ -230,16 +230,26 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const industryIds = useMemo(() => industrySegmentId ? [industrySegmentId] : [], [industrySegmentId]);
   const { data: proficiencyAreas = [] } = useProficiencyAreasBySegments(industryIds);
 
-  // ── Group solver categories by model_category ──
-  const groupedCategories = useMemo(() => {
-    const groups: Record<string, typeof solverCategories> = {};
-    for (const cat of solverCategories) {
-      const key = (cat as any).model_category || 'Legacy';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(cat);
-    }
-    return groups;
+  // ── Filter solver categories: legacy only (exclude BRD 5.7.1) ──
+  const legacyCategories = useMemo(() => {
+    return solverCategories.filter((cat) => (cat as any).model_category !== 'brd_5_7_1');
   }, [solverCategories]);
+
+  // ── "All Categories" toggle for participation modes ──
+  const isAllModes = eligibleModes.length === 0;
+  const toggleAllModes = (checked: boolean) => {
+    if (checked) {
+      setValue('eligible_participation_modes', [], { shouldDirty: true });
+    }
+  };
+  const toggleMode = (modeId: string) => {
+    if (eligibleModes.includes(modeId)) {
+      const updated = eligibleModes.filter((m: string) => m !== modeId);
+      setValue('eligible_participation_modes', updated, { shouldDirty: true });
+    } else {
+      setValue('eligible_participation_modes', [...eligibleModes, modeId], { shouldDirty: true });
+    }
+  };
 
   // ── Selected category details ──
   const selectedCategory = useMemo(() => {
