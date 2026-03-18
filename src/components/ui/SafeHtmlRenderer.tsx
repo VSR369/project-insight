@@ -19,7 +19,7 @@ interface SafeHtmlRendererProps {
 /**
  * DOMPurify config: allow formatting tags, images, and embedded video iframes.
  */
-const PURIFY_CONFIG: DOMPurify.Config = {
+const PURIFY_CONFIG = {
   ALLOWED_TAGS: [
     'p', 'br', 'strong', 'b', 'em', 'i', 'u',
     'h1', 'h2', 'h3', 'h4',
