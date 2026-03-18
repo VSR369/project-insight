@@ -36,6 +36,8 @@ import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepR
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
+import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
+import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
 import {
   createChallengeFormSchema,
   challengeFormSchema,
@@ -79,6 +81,9 @@ export default function ChallengeWizardPage() {
   });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
+
+  // ═══════ Hooks — completion tracking ═══════
+  const formCompletion = useFormCompletion(form, isLightweight);
 
   // ═══════ Hooks — mutations ═══════
   const createChallengeMutation = useSubmitSolutionRequest();
@@ -426,6 +431,13 @@ export default function ChallengeWizardPage() {
       <ChallengeProgressBar
         currentStep={currentStep}
         completedSteps={completedSteps}
+        stepFieldCounts={formCompletion.steps}
+      />
+
+      {/* Overall Completion */}
+      <FormCompletionBar
+        filledCount={formCompletion.totalFilled}
+        totalCount={formCompletion.totalRequired}
       />
 
       {/* Form Card */}

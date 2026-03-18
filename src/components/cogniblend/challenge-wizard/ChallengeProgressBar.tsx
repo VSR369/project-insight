@@ -15,14 +15,21 @@ const STEPS = [
   { number: 4, label: 'Timeline' },
 ] as const;
 
+interface StepFieldCount {
+  filled: number;
+  total: number;
+}
+
 interface ChallengeProgressBarProps {
   currentStep: number;
   completedSteps: number[];
+  stepFieldCounts?: StepFieldCount[];
 }
 
 export function ChallengeProgressBar({
   currentStep,
   completedSteps,
+  stepFieldCounts,
 }: ChallengeProgressBarProps) {
   return (
     <div className="w-full py-6 px-4">
@@ -80,6 +87,11 @@ export function ChallengeProgressBar({
                 >
                   {step.label}
                 </span>
+                {stepFieldCounts && stepFieldCounts[index] && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                    {stepFieldCounts[index].filled}/{stepFieldCounts[index].total} fields
+                  </span>
+                )}
               </div>
 
               {/* Connecting line */}
