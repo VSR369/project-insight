@@ -12,6 +12,7 @@ export interface MyChallengeItem {
   title: string;
   current_phase: number;
   master_status: string;
+  phase_status: string;
   role_code: string;
   governance_profile: string;
 }
