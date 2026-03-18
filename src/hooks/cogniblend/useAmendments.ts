@@ -19,6 +19,7 @@ export interface AmendmentRecord {
   scopeOfChange: string | null;
   reason: string | null;
   isMaterial: boolean;
+  withdrawalDeadline: string | null;
   createdAt: string;
   versionBefore: number | null;
   versionAfter: number | null;
