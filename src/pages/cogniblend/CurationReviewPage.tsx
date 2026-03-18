@@ -143,9 +143,7 @@ const SECTIONS: SectionDef[] = [
     label: "Scope",
     isFilled: (ch) => !!ch.scope?.trim(),
     render: (ch) => (
-      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-        {ch.scope || "—"}
-      </p>
+      <SafeHtmlRenderer html={ch.scope} />
     ),
   },
   {

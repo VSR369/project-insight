@@ -299,9 +299,7 @@ export default function PublicChallengeDetailPage() {
                 <CardTitle className="text-sm font-bold text-foreground">Scope & Expected Outcomes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {data.scope}
-                </p>
+                <SafeHtmlRenderer html={data.scope} />
               </CardContent>
             </Card>
           )}
