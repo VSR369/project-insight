@@ -108,6 +108,9 @@ export default function PublicChallengeDetailPage() {
   const guidelines = (deliverables?.submission_guidelines ?? data.description ?? '') as string;
   const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
 
+  /** Derive enrollment model from challenge_enrollment field or legacy eligibility */
+  const enrollmentModel = deriveEnrollmentModel(data.challenge_enrollment, data.eligibility);
+
   const eligibilityLabel: Record<string, string> = {
     anyone: 'open submissions',
     registered_users: 'Registered Users',
