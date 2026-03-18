@@ -112,6 +112,22 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
   const rejectionFeePct = watch('rejection_fee_pct') ?? 10;
   const numRewarded = watch('num_rewarded_solutions') ?? '3';
   const paymentMode = watch('payment_mode') ?? 'escrow';
+  const ipModel = watch('ip_model') ?? '';
+  const maturityLevel = watch('maturity_level');
+  const effortLevel = watch('effort_level') ?? '';
+
+  // Auto-set IP model default from maturity level
+  useEffect(() => {
+    if (isLightweight && maturityLevel && !ipModel) {
+      const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
+      if (defaultIp) setValue('ip_model', defaultIp);
+    }
+  }, [maturityLevel, isLightweight, ipModel, setValue]);
+
+  // Compute reward guidance from effort level
+  const rewardGuidance = EFFORT_LEVELS.find((e) => e.value === effortLevel)?.guidance ?? '';
+  // Compute IP suggestion from maturity level
+  const ipSuggestion = maturityLevel ? IP_OPTIONS.find((o) => o.value === MATURITY_IP_DEFAULTS[maturityLevel])?.label ?? '' : '';
 
   const { fields: milestones, append, remove } = useFieldArray({
     control,
