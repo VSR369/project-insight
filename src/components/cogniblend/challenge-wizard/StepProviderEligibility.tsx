@@ -206,6 +206,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
 
   // ── Data hooks ──
   const { data: solverCategories = [], isLoading: loadingCategories } = useSolverEligibility();
+  const { data: participationModes = [], isLoading: loadingModes } = useParticipationModes();
   const { data: expertiseLevels = [] } = useExpertiseLevels();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
