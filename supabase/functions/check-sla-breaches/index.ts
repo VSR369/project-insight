@@ -12,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Use service_role to bypass RLS for cron-triggered calls
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""
@@ -31,7 +30,71 @@ serve(async (req) => {
 
     const breachCount = data ?? 0;
 
-    // ── Step 2: Process SLA escalation tiers ─────────────────
+    // ── Step 2: Percentage-based SLA warnings (GAP-08) ───────
+    // Find ACTIVE timers at >= 80% elapsed without a warning sent
+    let warningCount = 0;
+    try {
+      const { data: activeTimers } = await supabaseAdmin
+        .from("sla_timers")
+        .select("timer_id, challenge_id, phase, role_code, started_at, deadline_at, warning_sent_at, phase_duration_days")
+        .eq("status", "ACTIVE")
+        .is("warning_sent_at", null);
+
+      if (activeTimers?.length) {
+        const now = Date.now();
+        const warningUpdates: string[] = [];
+
+        for (const timer of activeTimers) {
+          const startMs = new Date(timer.started_at).getTime();
+          const deadlineMs = new Date(timer.deadline_at).getTime();
+          const totalDuration = deadlineMs - startMs;
+          if (totalDuration <= 0) continue;
+
+          const elapsed = now - startMs;
+          const pctElapsed = elapsed / totalDuration;
+
+          if (pctElapsed >= 0.8 && pctElapsed < 1.0) {
+            warningUpdates.push(timer.timer_id);
+
+            // Get role holders for this challenge to notify
+            const { data: roleHolders } = await supabaseAdmin
+              .from("user_challenge_roles")
+              .select("user_id")
+              .eq("challenge_id", timer.challenge_id)
+              .eq("role_code", timer.role_code)
+              .eq("is_active", true);
+
+            if (roleHolders?.length) {
+              const hoursRemaining = Math.round((deadlineMs - now) / 3600000);
+              const notifications = roleHolders.map((r: { user_id: string }) => ({
+                user_id: r.user_id,
+                challenge_id: timer.challenge_id,
+                notification_type: "SLA_WARNING_80PCT",
+                title: "SLA Warning: 80% Elapsed",
+                message: `Phase ${timer.phase} SLA is at 80% — approximately ${hoursRemaining}h remaining before breach.`,
+              }));
+              await supabaseAdmin.from("cogni_notifications").insert(notifications);
+            }
+          }
+        }
+
+        if (warningUpdates.length > 0) {
+          // Batch update warning_sent_at
+          for (const tid of warningUpdates) {
+            await supabaseAdmin
+              .from("sla_timers")
+              .update({ warning_sent_at: new Date().toISOString() })
+              .eq("timer_id", tid);
+          }
+          warningCount = warningUpdates.length;
+          console.log(`SLA 80% warnings sent: ${warningCount}`);
+        }
+      }
+    } catch (warnErr: any) {
+      console.error("SLA warning processing failed:", warnErr.message);
+    }
+
+    // ── Step 3: Process SLA escalation tiers ─────────────────
     let escalatedCount = 0;
     let autoHeldCount = 0;
 
@@ -53,14 +116,52 @@ serve(async (req) => {
       console.error("Escalation processing failed:", escError.message);
     }
 
-    // ── Step 3: Auto-cancel challenges on hold too long ──────
-    // Find challenges that are ON_HOLD where the hold duration
-    // exceeds max_hold_days on their paused SLA timers.
+    // ── Step 4: Governance-aware auto-hold enforcement (GAP-07) ──
+    // For LIGHTWEIGHT governance, revert any auto-holds that were just set
+    // (LIGHTWEIGHT = inform only, no auto-hold or auto-cancel)
+    let lightweightRevertCount = 0;
+    try {
+      // Find challenges that are ON_HOLD with LIGHTWEIGHT governance
+      const { data: lwHeld } = await supabaseAdmin
+        .from("challenges")
+        .select("id")
+        .eq("phase_status", "ON_HOLD")
+        .eq("governance_profile", "LIGHTWEIGHT")
+        .eq("is_deleted", false);
+
+      if (lwHeld?.length) {
+        for (const ch of lwHeld) {
+          // Revert from ON_HOLD back to the previous status (use ACTIVE as default)
+          await supabaseAdmin
+            .from("challenges")
+            .update({ phase_status: "ACTIVE" })
+            .eq("id", ch.id)
+            .eq("governance_profile", "LIGHTWEIGHT");
+
+          // Un-pause any timers that were paused by auto-hold
+          await supabaseAdmin
+            .from("sla_timers")
+            .update({ status: "ACTIVE" })
+            .eq("challenge_id", ch.id)
+            .eq("status", "PAUSED");
+
+          lightweightRevertCount++;
+        }
+        if (lightweightRevertCount > 0) {
+          console.log(`Reverted ${lightweightRevertCount} LIGHTWEIGHT auto-holds (inform only)`);
+        }
+      }
+    } catch (lwErr: any) {
+      console.error("Lightweight governance revert failed:", lwErr.message);
+    }
+
+    // ── Step 5: Auto-cancel challenges on hold too long ──────
+    // Only for ENTERPRISE governance (GAP-07: LIGHTWEIGHT skips auto-cancel)
     let autoCancelCount = 0;
 
     const { data: onHoldChallenges, error: holdErr } = await supabaseAdmin
       .from("challenges")
-      .select("id, title, current_phase")
+      .select("id, title, current_phase, governance_profile")
       .eq("phase_status", "ON_HOLD")
       .eq("is_deleted", false);
 
@@ -68,7 +169,11 @@ serve(async (req) => {
       console.error("Error fetching ON_HOLD challenges:", holdErr.message);
     } else if (onHoldChallenges?.length) {
       for (const challenge of onHoldChallenges) {
-        // Check if any paused timer has exceeded max_hold_days
+        // GAP-07: Skip auto-cancel for LIGHTWEIGHT governance
+        if (challenge.governance_profile === "LIGHTWEIGHT") {
+          continue;
+        }
+
         const { data: expiredTimers } = await supabaseAdmin
           .from("sla_timers")
           .select("timer_id, max_hold_days, started_at")
@@ -106,7 +211,7 @@ serve(async (req) => {
 
         // Log audit
         await supabaseAdmin.rpc("log_audit", {
-          p_user_id: "00000000-0000-0000-0000-000000000000", // system user
+          p_user_id: "00000000-0000-0000-0000-000000000000",
           p_challenge_id: challenge.id,
           p_solution_id: "",
           p_action: "CHALLENGE_AUTO_CANCELLED",
@@ -144,15 +249,17 @@ serve(async (req) => {
       }
     }
 
-    console.log(`SLA breach check complete: ${breachCount} breaches, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${autoCancelCount} auto-cancelled`);
+    console.log(`SLA check complete: ${breachCount} breaches, ${warningCount} warnings, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${lightweightRevertCount} lw-reverted, ${autoCancelCount} auto-cancelled`);
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           breaches_processed: breachCount,
+          warnings_sent: warningCount,
           escalations_processed: escalatedCount,
           auto_held: autoHeldCount,
+          lightweight_reverted: lightweightRevertCount,
           auto_cancelled: autoCancelCount,
           checked_at: new Date().toISOString(),
         },

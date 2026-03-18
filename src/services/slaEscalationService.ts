@@ -33,6 +33,24 @@ export interface SLATimerWithEscalation {
   auto_hold_on_breach: boolean;
   last_escalated_at: string | null;
   started_at: string;
+  warning_sent_at: string | null;
+  phase_duration_days: number | null;
+}
+
+/**
+ * Compute percentage elapsed for an SLA timer.
+ * Returns a value between 0 and 1+ (>1 means breached).
+ */
+export function computeSlaElapsedPercent(
+  startedAt: string,
+  deadlineAt: string,
+): number {
+  const startMs = new Date(startedAt).getTime();
+  const deadlineMs = new Date(deadlineAt).getTime();
+  const totalDuration = deadlineMs - startMs;
+  if (totalDuration <= 0) return 1;
+  const elapsed = Date.now() - startMs;
+  return elapsed / totalDuration;
 }
 
 const TIER_LABELS: Record<number, string> = {
@@ -113,7 +131,7 @@ export function useSLAEscalationStatus(challengeId: string | undefined) {
       if (!challengeId) return [];
       const { data, error } = await supabase
         .from('sla_timers')
-        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at')
+        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at, warning_sent_at, phase_duration_days')
         .eq('challenge_id', challengeId)
         .order('phase');
       if (error) throw new Error(error.message);
@@ -134,7 +152,7 @@ export function useActiveEscalations(challengeId: string | undefined) {
       if (!challengeId) return [];
       const { data, error } = await supabase
         .from('sla_timers')
-        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at')
+        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at, warning_sent_at, phase_duration_days')
         .eq('challenge_id', challengeId)
         .eq('status', 'BREACHED')
         .gt('escalation_tier', 0)
