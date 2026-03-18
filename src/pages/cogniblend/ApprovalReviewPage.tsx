@@ -50,6 +50,7 @@ import {
   ChevronUp,
   FileText,
   Eye,
+  Lock,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
