@@ -7,6 +7,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedWaitingChallenge } from '@/hooks/cogniblend/useCogniWaitingFor';
 import type { SlaStatus } from '@/hooks/cogniblend/useCogniDashboard';
+import { SlaCountdown } from './SlaCountdown';
+import { PhaseProgressBar } from './PhaseProgressBar';
 
 /* ── Phase badge mapping ───────────────────────────────────── */
 
@@ -104,6 +106,11 @@ export function WaitingForSection({ items, isLoading }: WaitingForSectionProps) 
               </span>
             </div>
 
+            {/* Phase progress bar */}
+            <div className="mb-2">
+              <PhaseProgressBar currentPhase={item.current_phase} />
+            </div>
+
             {/* Row 2 */}
             <p className="text-xs lg:text-[13px] text-muted-foreground mb-1">
               <span className="italic">Waiting for: </span>
@@ -119,8 +126,11 @@ export function WaitingForSection({ items, isLoading }: WaitingForSectionProps) 
               </p>
             )}
 
-            {/* Row 4 */}
-            <SlaIndicator sla={item.sla} />
+            {/* Row 4: SLA countdown + indicator */}
+            <div className="flex flex-col lg:flex-row lg:items-center gap-1.5 lg:gap-4">
+              <SlaCountdown deadlineAt={item.sla_deadline_at} />
+              <SlaIndicator sla={item.sla} />
+            </div>
           </div>
         ))}
       </div>

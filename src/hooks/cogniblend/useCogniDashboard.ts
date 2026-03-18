@@ -23,6 +23,7 @@ export interface SlaStatus {
   days_remaining: number | null;
   days_overdue: number | null;
   percentage_used: number;
+  deadline_at?: string | null;
 }
 
 export interface ValidTransition {
@@ -34,6 +35,7 @@ export interface ValidTransition {
 export interface EnrichedChallenge extends NeedsActionChallenge {
   sla: SlaStatus | null;
   transitions: ValidTransition[];
+  sla_deadline_at: string | null;
 }
 
 /* ── Hook ─────────────────────────────────────────────────── */
@@ -60,7 +62,7 @@ export function useCogniDashboard(userId: string | undefined) {
       // 2. Enrich each item with SLA + transitions (parallel)
       const enriched = await Promise.all(
         items.map(async (item) => {
-          const [slaRes, transRes] = await Promise.all([
+          const [slaRes, transRes, timerRes] = await Promise.all([
             supabase.rpc('check_sla_status', {
               p_challenge_id: item.challenge_id,
               p_phase: item.current_phase,
@@ -69,6 +71,15 @@ export function useCogniDashboard(userId: string | undefined) {
               p_challenge_id: item.challenge_id,
               p_user_id: userId,
             }),
+            supabase
+              .from('sla_timers')
+              .select('deadline_at')
+              .eq('challenge_id', item.challenge_id)
+              .eq('phase', item.current_phase)
+              .eq('status', 'ACTIVE')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
           ]);
 
           const sla = slaRes.error
@@ -83,7 +94,9 @@ export function useCogniDashboard(userId: string | undefined) {
                 ? JSON.parse(transRes.data)
                 : transRes.data) as ValidTransition[] | null) ?? [];
 
-          return { ...item, sla, transitions } satisfies EnrichedChallenge;
+          const sla_deadline_at = timerRes?.data?.deadline_at ?? null;
+
+          return { ...item, sla, transitions, sla_deadline_at } satisfies EnrichedChallenge;
         }),
       );
 

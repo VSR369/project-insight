@@ -11,6 +11,8 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedChallenge, SlaStatus, ValidTransition } from '@/hooks/cogniblend/useCogniDashboard';
+import { SlaCountdown } from './SlaCountdown';
+import { PhaseProgressBar } from './PhaseProgressBar';
 
 /* ── Phase badge mapping ──────────────────────────────────── */
 
@@ -165,8 +167,14 @@ export function NeedsActionSection({
                 </span>
               </div>
 
-              {/* Row 2: SLA */}
-              <div className="mb-2 lg:mb-3">
+              {/* Phase progress bar */}
+              <div className="mb-2">
+                <PhaseProgressBar currentPhase={item.current_phase} />
+              </div>
+
+              {/* Row 2: SLA countdown + indicator */}
+              <div className="flex flex-col lg:flex-row lg:items-center gap-1.5 lg:gap-4 mb-2 lg:mb-3">
+                <SlaCountdown deadlineAt={item.sla_deadline_at} />
                 <SlaIndicator sla={item.sla} />
               </div>
 

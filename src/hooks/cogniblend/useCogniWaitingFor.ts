@@ -24,6 +24,7 @@ export interface WaitingForChallenge {
 
 export interface EnrichedWaitingChallenge extends WaitingForChallenge {
   sla: SlaStatus | null;
+  sla_deadline_at: string | null;
 }
 
 /* ── Hook ─────────────────────────────────────────────────── */
@@ -49,10 +50,21 @@ export function useCogniWaitingFor(userId: string | undefined) {
       // Enrich with SLA for the waiting phase
       const enriched = await Promise.all(
         items.map(async (item) => {
-          const slaRes = await supabase.rpc('check_sla_status', {
-            p_challenge_id: item.challenge_id,
-            p_phase: item.current_phase,
-          });
+          const [slaRes, timerRes] = await Promise.all([
+            supabase.rpc('check_sla_status', {
+              p_challenge_id: item.challenge_id,
+              p_phase: item.current_phase,
+            }),
+            supabase
+              .from('sla_timers')
+              .select('deadline_at')
+              .eq('challenge_id', item.challenge_id)
+              .eq('phase', item.current_phase)
+              .eq('status', 'ACTIVE')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle(),
+          ]);
 
           const sla = slaRes.error
             ? null
@@ -60,7 +72,9 @@ export function useCogniWaitingFor(userId: string | undefined) {
                 ? JSON.parse(slaRes.data)
                 : slaRes.data) as SlaStatus | null);
 
-          return { ...item, sla } satisfies EnrichedWaitingChallenge;
+          const sla_deadline_at = timerRes?.data?.deadline_at ?? null;
+
+          return { ...item, sla, sla_deadline_at } satisfies EnrichedWaitingChallenge;
         }),
       );
 
