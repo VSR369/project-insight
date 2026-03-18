@@ -300,6 +300,9 @@ export function StepRequirements({ form, mandatoryFields, isLightweight }: StepR
         )}
       </div>
 
+      {/* ── 3b. Upload Submission Template ── */}
+      <SubmissionTemplateUpload form={form} />
+
       {/* ── 4. Solver Eligibility ── */}
       <Controller
         name="solver_eligibility_types"
