@@ -2754,6 +2754,7 @@ export type Database = {
           required_for_maturity: Json
           template_id: string
           tier: string
+          trigger_phase: number | null
           updated_at: string | null
         }
         Insert: {
@@ -2766,6 +2767,7 @@ export type Database = {
           required_for_maturity?: Json
           template_id?: string
           tier: string
+          trigger_phase?: number | null
           updated_at?: string | null
         }
         Update: {
@@ -2778,6 +2780,7 @@ export type Database = {
           required_for_maturity?: Json
           template_id?: string
           tier?: string
+          trigger_phase?: number | null
           updated_at?: string | null
         }
         Relationships: []
