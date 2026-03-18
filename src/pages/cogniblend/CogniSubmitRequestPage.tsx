@@ -45,6 +45,8 @@ import { useIndustrySegmentOptions, useSubDomainOptions } from '@/hooks/queries/
 import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
+import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
+import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 
 // ============================================================================
 // CONSTANTS
