@@ -370,6 +370,30 @@ function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: D
         )}
       </div>
 
+      {/* Taxonomy auto-suggestions (GAP-11) */}
+      {taxonomySuggestions.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground font-medium">
+            Suggested from problem statement:
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {taxonomySuggestions
+              .filter((s) => !value.includes(s.tag))
+              .slice(0, 6)
+              .map((s) => (
+                <button
+                  key={s.tag}
+                  type="button"
+                  onClick={() => addTag(s.tag)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border border-dashed border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  + {s.tag}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
   );
