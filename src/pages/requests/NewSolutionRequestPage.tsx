@@ -41,6 +41,7 @@ import { useDuplicateDetection } from '@/hooks/queries/useDuplicateDetection';
 import { DuplicateMatchesPanel, DuplicateWarningBanner } from '@/components/requests/DuplicateMatchesPanel';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useCreateDuplicateReview } from '@/hooks/cogniblend/useDuplicateReview';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 
 // ============================================================================
