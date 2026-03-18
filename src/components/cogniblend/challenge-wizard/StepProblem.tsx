@@ -573,6 +573,20 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         )}
       />
 
+      {/* ── 16b. Taxonomy Tags ────────────────────────── */}
+      <div className="space-y-1.5">
+        <Label htmlFor="taxonomy_tags" className="text-sm font-medium">
+          Taxonomy Tags <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+        </Label>
+        <Input
+          id="taxonomy_tags"
+          placeholder="Comma-separated taxonomy tags, e.g. SAP, ERP, Cloud Migration"
+          className="text-base"
+          {...register('taxonomy_tags')}
+        />
+        <p className="text-xs text-muted-foreground">Used for advanced classification and search indexing</p>
+      </div>
+
       {/* ── 17. Solution Maturity Level ───────────────── */}
       <Controller
         name="maturity_level"

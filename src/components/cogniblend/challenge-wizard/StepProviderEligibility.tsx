@@ -222,7 +222,7 @@ interface StepProviderEligibilityProps {
 /* ─── Main Component ─────────────────────────────────── */
 
 export function StepProviderEligibility({ form, mandatoryFields, isLightweight }: StepProviderEligibilityProps) {
-  const { formState: { errors }, control, watch, setValue } = form;
+  const { formState: { errors }, control, watch, setValue, register } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
