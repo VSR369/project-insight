@@ -1428,6 +1428,39 @@ export type Database = {
           },
         ]
       }
+      communication_permissions: {
+        Row: {
+          allowed: boolean
+          challenge_phase_max: number
+          challenge_phase_min: number
+          created_at: string
+          from_role: string
+          id: string
+          to_role: string
+          updated_at: string | null
+        }
+        Insert: {
+          allowed?: boolean
+          challenge_phase_max?: number
+          challenge_phase_min?: number
+          created_at?: string
+          from_role: string
+          id?: string
+          to_role: string
+          updated_at?: string | null
+        }
+        Update: {
+          allowed?: boolean
+          challenge_phase_max?: number
+          challenge_phase_min?: number
+          created_at?: string
+          from_role?: string
+          id?: string
+          to_role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       composite_interview_slots: {
         Row: {
           available_reviewer_count: number

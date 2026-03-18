@@ -249,7 +249,54 @@ serve(async (req) => {
       }
     }
 
-    console.log(`SLA check complete: ${breachCount} breaches, ${warningCount} warnings, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${lightweightRevertCount} lw-reverted, ${autoCancelCount} auto-cancelled`);
+    // ── Step 6: Legal re-acceptance expiry suspension (GAP-16) ──
+    // Scan for expired re-acceptance windows and suspend solver enrollments
+    let reacceptSuspendCount = 0;
+    try {
+      const { data: expiredReaccept } = await supabaseAdmin
+        .from("legal_reacceptance_records")
+        .select("id, challenge_id, solver_id")
+        .eq("status", "PENDING")
+        .lt("deadline_at", new Date().toISOString());
+
+      if (expiredReaccept?.length) {
+        for (const record of expiredReaccept) {
+          // Update re-acceptance record to expired
+          await supabaseAdmin
+            .from("legal_reacceptance_records")
+            .update({ status: "EXPIRED" })
+            .eq("id", record.id);
+
+          // Suspend solver's enrollment for this challenge
+          await supabaseAdmin
+            .from("challenge_submissions")
+            .update({ status: "SUSPENDED_PENDING_REACCEPTANCE" })
+            .eq("challenge_id", record.challenge_id)
+            .eq("user_id", record.solver_id)
+            .neq("status", "TERMINAL");
+
+          // Notify solver
+          if (record.solver_id) {
+            await supabaseAdmin.from("cogni_notifications").insert({
+              user_id: record.solver_id,
+              challenge_id: record.challenge_id,
+              notification_type: "LEGAL_REACCEPT_EXPIRED",
+              title: "Enrollment Suspended — Legal Re-acceptance Required",
+              message: "Your enrollment has been suspended because the legal re-acceptance deadline has passed. Please contact the challenge team to resolve.",
+            });
+          }
+
+          reacceptSuspendCount++;
+        }
+        if (reacceptSuspendCount > 0) {
+          console.log(`Legal re-acceptance: ${reacceptSuspendCount} solver enrollments suspended`);
+        }
+      }
+    } catch (reaccErr: any) {
+      console.error("Legal re-acceptance suspension failed:", reaccErr.message);
+    }
+
+    console.log(`SLA check complete: ${breachCount} breaches, ${warningCount} warnings, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${lightweightRevertCount} lw-reverted, ${autoCancelCount} auto-cancelled, ${reacceptSuspendCount} reaccept-suspended`);
 
     return new Response(
       JSON.stringify({
@@ -261,6 +308,7 @@ serve(async (req) => {
           auto_held: autoHeldCount,
           lightweight_reverted: lightweightRevertCount,
           auto_cancelled: autoCancelCount,
+          reaccept_suspended: reacceptSuspendCount,
           checked_at: new Date().toISOString(),
         },
       }),

@@ -50,6 +50,7 @@ import {
   ChevronUp,
   FileText,
   Eye,
+  Lock,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -83,6 +84,7 @@ interface ChallengeData {
   max_solutions: number | null;
   submission_deadline: string | null;
   phase_status: string | null;
+  master_status: string | null;
   targeting_filters: Json | null;
 }
 
@@ -249,8 +251,11 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {challenge.operating_model && (
-            <Badge variant="outline" className="text-[10px] font-semibold">
+            <Badge variant="outline" className="text-[10px] font-semibold inline-flex items-center gap-1">
               {challenge.operating_model.toUpperCase().includes("MARKET") ? "MP" : "AGG"}
+              {(challenge.master_status === 'ACTIVE' || (challenge.current_phase ?? 0) >= 7) && (
+                <Lock className="h-3 w-3 text-muted-foreground" />
+              )}
             </Badge>
           )}
           {challenge.maturity_level && (
@@ -663,7 +668,7 @@ export default function ApprovalReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, eligibility_model, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, targeting_filters"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, eligibility_model, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, master_status, targeting_filters"
         )
         .eq("id", challengeId!)
         .single();
