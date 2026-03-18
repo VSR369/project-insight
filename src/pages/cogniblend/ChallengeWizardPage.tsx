@@ -126,7 +126,6 @@ export default function ChallengeWizardPage() {
         maturity_level: (challengeData.maturity_level as ChallengeFormValues['maturity_level']) ?? undefined as unknown as 'blueprint',
         ip_model: challengeData.ip_model ?? '',
         eligibility: challengeData.eligibility ?? '',
-        eligibility: challengeData.eligibility ?? '',
         complexity_notes: '',
         // New Step 1 fields from JSONB
         context_background: deliverables?.context_background ?? '',
