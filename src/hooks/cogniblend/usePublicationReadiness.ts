@@ -110,20 +110,29 @@ export function usePublicationReadiness(challengeId: string | undefined) {
         .select('id, tier, status, document_type')
         .eq('challenge_id', challengeId);
 
-      // For solver match: check if any active solver profiles exist
-      // (simplified: count solver_profiles as a proxy)
-      const { count: solverCount } = await supabase
-        .from('challenge_submissions')
-        .select('id', { count: 'exact', head: true })
-        .eq('challenge_id', challengeId);
+      // GAP-12: Real solver matchmaking based on complexity and certification tier
+      let solverMatchCount = 0;
+      const complexityTierMap: Record<string, number> = {
+        LOW: 1, MEDIUM: 1, HIGH: 2, EXPERT: 3,
+      };
+      const minTier = complexityTierMap[String(challenge.complexity_level ?? '')] ?? 1;
 
-      // If no submissions yet, check if there are any solver profiles at all as a proxy
-      let solverMatchCount = solverCount ?? 0;
-      if (solverMatchCount === 0) {
-        const { count: profileCount } = await supabase
-          .from('solver_profiles' as any)
-          .select('id', { count: 'exact', head: true });
-        solverMatchCount = profileCount ?? 0;
+      const { data: matchedSolvers, error: solverErr } = await supabase
+        .from('solver_profiles' as any)
+        .select('id, certification_tier', { count: 'exact', head: false })
+        .eq('is_active', true)
+        .gte('certification_tier', minTier)
+        .limit(100);
+
+      solverMatchCount = solverErr ? 0 : (matchedSolvers?.length ?? 0);
+
+      // Fallback: if no solver_profiles table yet, check submissions
+      if (solverMatchCount === 0 && !solverErr) {
+        const { count: subCount } = await supabase
+          .from('challenge_submissions')
+          .select('id', { count: 'exact', head: true })
+          .eq('challenge_id', challengeId);
+        solverMatchCount = subCount ?? 0;
       }
 
       const c = challenge as Record<string, unknown>;

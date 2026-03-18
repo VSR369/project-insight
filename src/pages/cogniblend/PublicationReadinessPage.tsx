@@ -16,6 +16,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
 import { useEscrowDeposit } from '@/hooks/cogniblend/useEscrowDeposit';
 import { usePublishChallenge } from '@/hooks/cogniblend/usePublishChallenge';
+import { useMatchingSolvers } from '@/hooks/cogniblend/useMatchingSolvers';
 import { EscrowDepositSection } from '@/components/cogniblend/publication/EscrowDepositSection';
 import { PublishConfirmModal } from '@/components/cogniblend/publication/PublishConfirmModal';
 import { PublishSuccessScreen } from '@/components/cogniblend/publication/PublishSuccessScreen';
