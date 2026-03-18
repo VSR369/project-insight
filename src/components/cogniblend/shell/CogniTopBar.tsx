@@ -7,7 +7,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
 interface CogniTopBarProps {
   pageTitle: string;

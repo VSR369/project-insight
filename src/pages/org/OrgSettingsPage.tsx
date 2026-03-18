@@ -15,6 +15,8 @@ import { EngagementModelTab } from '@/components/org-settings/EngagementModelTab
 import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
