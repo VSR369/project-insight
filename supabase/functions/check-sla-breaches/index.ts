@@ -144,13 +144,15 @@ serve(async (req) => {
       }
     }
 
-    console.log(`SLA breach check complete: ${breachCount} breaches processed, ${autoCancelCount} auto-cancelled`);
+    console.log(`SLA breach check complete: ${breachCount} breaches, ${escalatedCount} escalated, ${autoHeldCount} auto-held, ${autoCancelCount} auto-cancelled`);
 
     return new Response(
       JSON.stringify({
         success: true,
         data: {
           breaches_processed: breachCount,
+          escalations_processed: escalatedCount,
+          auto_held: autoHeldCount,
           auto_cancelled: autoCancelCount,
           checked_at: new Date().toISOString(),
         },
