@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
 import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
+import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
+import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
