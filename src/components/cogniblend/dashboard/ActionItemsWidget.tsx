@@ -1,11 +1,11 @@
 /**
- * ActionItemsWidget — Dashboard widget showing welcome banner, stats, and action items
- * for ALL CogniBlend roles (AM, RQ, CR, CA, CU, ID, etc.).
+ * ActionItemsWidget — Dashboard widget showing welcome banner, stats, and action items.
+ * Filters by active workspace role from CogniRoleContext.
  */
 
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, FileText, Clock, AlertTriangle, Eye, Pencil, Play, ArrowRight } from 'lucide-react';
+import { Plus, FileText, Clock, AlertTriangle, Eye, Pencil, Play, ArrowRight, Layers } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,25 +15,12 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
-import { useMyRequests, type RequestRow } from '@/hooks/queries/useMyRequests';
+import { useMyRequests } from '@/hooks/queries/useMyRequests';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
-import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { Skeleton } from '@/components/ui/skeleton';
-
-/* ── Role display labels ──────────────────────────────── */
-
-const ROLE_DISPLAY: Record<string, string> = {
-  AM: 'Account Manager',
-  RQ: 'Change Requestor',
-  CR: 'Challenge Creator',
-  CA: 'Challenge Architect',
-  CU: 'Curator',
-  ID: 'Innovation Director',
-  ER: 'Evaluation Reviewer',
-  LC: 'Legal Compliance',
-  FC: 'Finance Controller',
-};
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { ROLE_DISPLAY, ROLE_PRIMARY_ACTION } from '@/types/cogniRoles';
 
 /* ── Status badge config ──────────────────────────────── */
 
@@ -60,14 +47,6 @@ function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function getPrimaryRole(allRoleCodes: Set<string>): string {
-  const priority = ['CA', 'CR', 'AM', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC'];
-  for (const code of priority) {
-    if (allRoleCodes.has(code)) return code;
-  }
-  return 'CR';
-}
-
 /* ── Component ───────────────────────────────────────── */
 
 export function ActionItemsWidget() {
@@ -75,11 +54,15 @@ export function ActionItemsWidget() {
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
-  const { allRoleCodes, data: roleData } = useCogniUserRoles();
+  const {
+    activeRole,
+    challengeRoleMap,
+    isRolesLoading,
+  } = useCogniRoleContext();
   const { data: requestsData, isLoading: reqLoading } = useMyRequests('all', '');
   const { data: challengesData, isLoading: chLoading } = useMyChallenges(user?.id);
 
-  const isLoading = reqLoading || chLoading;
+  const isLoading = reqLoading || chLoading || isRolesLoading;
 
   const allSRRows = useMemo(
     () => requestsData?.pages.flatMap((p) => p.rows) ?? [],
@@ -88,7 +71,18 @@ export function ActionItemsWidget() {
 
   const challengeItems = challengesData?.items ?? [];
 
-  // Merge into unified action items (challenges take priority, fallback to SRs)
+  // Filter challenges by active role using challengeRoleMap
+  const filteredChallengeItems = useMemo(() => {
+    if (!activeRole) return challengeItems;
+    return challengeItems.filter((ch) => {
+      const roles = challengeRoleMap.get(ch.challenge_id) ?? [];
+      // Always show drafts created by the user (the "Finish Draft" edge case)
+      if (ch.master_status === 'DRAFT') return true;
+      return roles.includes(activeRole);
+    });
+  }, [challengeItems, activeRole, challengeRoleMap]);
+
+  // Merge into unified action items
   const actionItems = useMemo(() => {
     const items: Array<{
       id: string;
@@ -99,47 +93,52 @@ export function ActionItemsWidget() {
       phase?: number;
     }> = [];
 
-    // Challenges from role assignments
-    for (const ch of challengeItems) {
+    for (const ch of filteredChallengeItems) {
       items.push({
         id: ch.challenge_id,
         title: ch.title,
         status: ch.master_status,
-        created_at: '', // no created_at from this query
+        created_at: '',
         type: 'challenge',
         phase: ch.current_phase,
       });
     }
 
-    // SRs not yet converted to challenges
-    for (const sr of allSRRows) {
-      if (!items.some((i) => i.id === sr.id)) {
-        items.push({
-          id: sr.id,
-          title: sr.title,
-          status: sr.master_status,
-          created_at: sr.created_at,
-          type: 'request',
-        });
+    // SRs only relevant for AM/RQ roles or if no active role
+    const showSRs = !activeRole || ['AM', 'RQ'].includes(activeRole);
+    if (showSRs) {
+      for (const sr of allSRRows) {
+        if (!items.some((i) => i.id === sr.id)) {
+          items.push({
+            id: sr.id,
+            title: sr.title,
+            status: sr.master_status,
+            created_at: sr.created_at,
+            type: 'request',
+          });
+        }
       }
     }
 
     return items.slice(0, 15);
-  }, [challengeItems, allSRRows]);
+  }, [filteredChallengeItems, allSRRows, activeRole]);
 
-  // Stats
-  const activeChallenges = challengeItems.filter(
+  // Stats (filtered)
+  const activeChallenges = filteredChallengeItems.filter(
     (c) => c.master_status === 'ACTIVE' || c.master_status === 'IN_PREPARATION' || c.master_status === 'PUBLISHED'
   ).length;
-  const pendingActions = challengeItems.filter(
+  const pendingActions = filteredChallengeItems.filter(
     (c) => c.master_status === 'DRAFT' || c.master_status === 'RETURNED'
-  ).length + allSRRows.filter((r) => r.master_status === 'DRAFT').length;
-  const slaAlerts = roleData?.filter((r) => r.phase_status === 'SLA_BREACHED').length ?? 0;
+  ).length + ((!activeRole || ['AM', 'RQ'].includes(activeRole))
+    ? allSRRows.filter((r) => r.master_status === 'DRAFT').length
+    : 0);
 
-  const primaryRole = getPrimaryRole(allRoleCodes);
-  const roleName = ROLE_DISPLAY[primaryRole] ?? 'Team Member';
+  const roleName = ROLE_DISPLAY[activeRole] ?? 'Team Member';
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : 'Aggregator';
   const orgName = currentOrg?.orgName ?? 'Your Organization';
+
+  // Dynamic primary action based on active role
+  const primaryAction = ROLE_PRIMARY_ACTION[activeRole] ?? ROLE_PRIMARY_ACTION['CR'];
 
   if (isLoading) {
     return (
@@ -153,8 +152,8 @@ export function ActionItemsWidget() {
 
   return (
     <div className="space-y-4 mb-6">
-      {/* ── Welcome Banner (dark gradient) ──────────── */}
-      <div className="rounded-xl p-5 text-white" style={{ background: 'linear-gradient(135deg, hsl(218,52%,22%) 0%, hsl(218,52%,35%) 100%)' }}>
+      {/* ── Welcome Banner ──────────── */}
+      <div className="rounded-xl p-5 text-white" style={{ background: 'linear-gradient(135deg, hsl(218 52% 22%) 0%, hsl(218 52% 35%) 100%)' }}>
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold">
@@ -168,12 +167,12 @@ export function ActionItemsWidget() {
             </p>
           </div>
           <Button
-            onClick={() => navigate('/cogni/challenges/new')}
+            onClick={() => navigate(primaryAction.route)}
             size="sm"
             className="gap-1.5 shrink-0 bg-white text-[hsl(218,52%,25%)] hover:bg-white/90"
           >
             <Plus className="h-4 w-4" />
-            Create Challenge
+            {primaryAction.label}
           </Button>
         </div>
       </div>
@@ -208,7 +207,7 @@ export function ActionItemsWidget() {
               <AlertTriangle className="h-5 w-5 text-destructive" />
             </div>
             <div>
-              <p className="text-2xl font-bold text-foreground">{slaAlerts}</p>
+              <p className="text-2xl font-bold text-foreground">0</p>
               <p className="text-xs text-muted-foreground">SLA Alerts</p>
             </div>
           </CardContent>
@@ -218,7 +217,7 @@ export function ActionItemsWidget() {
       {/* ── Action Items Table ─────────────────────── */}
       {actionItems.length > 0 && (
         <Card className="border-border">
-          <div className="px-4 py-3 border-b">
+          <div className="px-4 py-3 border-b border-border flex items-center justify-between">
             <h3 className="text-sm font-semibold text-foreground">My Action Items</h3>
           </div>
           <div className="relative w-full overflow-auto">
@@ -304,6 +303,19 @@ export function ActionItemsWidget() {
               </TableBody>
             </Table>
           </div>
+
+          {/* "See all tasks" secondary link */}
+          {activeRole && challengeItems.length > filteredChallengeItems.length && (
+            <div className="px-4 py-2.5 border-t border-border">
+              <button
+                onClick={() => navigate('/cogni/my-challenges')}
+                className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+              >
+                <Layers className="h-3 w-3" />
+                See all tasks across roles ({challengeItems.length} total)
+              </button>
+            </div>
+          )}
         </Card>
       )}
 
@@ -311,9 +323,11 @@ export function ActionItemsWidget() {
         <Card className="border-border">
           <CardContent className="py-8 text-center">
             <FileText className="h-10 w-10 mx-auto text-muted-foreground/40 mb-3" />
-            <p className="text-sm text-muted-foreground">No action items yet.</p>
-            <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate('/cogni/challenges/new')}>
-              Create your first challenge
+            <p className="text-sm text-muted-foreground">
+              No items for your {roleName} workspace.
+            </p>
+            <Button variant="outline" size="sm" className="mt-3" onClick={() => navigate(primaryAction.route)}>
+              {primaryAction.label}
             </Button>
           </CardContent>
         </Card>
