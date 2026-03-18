@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
@@ -132,6 +133,7 @@ export default function ChallengeManagePage() {
         <h1 className="text-lg lg:text-xl font-bold text-foreground leading-tight">
           {data.title}
         </h1>
+        <GovernanceProfileBadge profile={data.governanceProfile} compact />
         <Badge className="w-fit bg-[hsl(155,50%,42%)] hover:bg-[hsl(155,50%,38%)] text-white text-[11px]">
           {data.masterStatus}
         </Badge>

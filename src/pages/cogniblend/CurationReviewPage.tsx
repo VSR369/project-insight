@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import { Badge } from "@/components/ui/badge";
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -572,11 +573,7 @@ export default function CurationReviewPage() {
             {challenge.title}
           </p>
         </div>
-        {challenge.governance_profile && (
-          <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
-            {challenge.governance_profile}
-          </Badge>
-        )}
+        <GovernanceProfileBadge profile={challenge.governance_profile} compact />
         {/* Hold / Resume actions */}
         {user?.id && (
           <HoldResumeActions

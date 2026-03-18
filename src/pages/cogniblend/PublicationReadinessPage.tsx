@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Separator } from '@/components/ui/separator';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { usePublicationReadiness } from '@/hooks/cogniblend/usePublicationReadiness';
@@ -123,17 +124,7 @@ export default function PublicationReadinessPage() {
               {data.challengeTitle}
             </p>
           </div>
-          <Badge
-            variant="secondary"
-            className={cn(
-              'shrink-0 text-xs font-semibold px-2.5 py-0.5 border',
-              isLightweight
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : 'bg-violet-50 text-violet-700 border-violet-200'
-            )}
-          >
-            {isLightweight ? 'Lightweight' : 'Enterprise'}
-          </Badge>
+          <GovernanceProfileBadge profile={data.governanceProfile} compact />
         </div>
       </div>
 

@@ -18,6 +18,7 @@ import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles"
 import ApprovalPublicationConfigTab from "@/components/cogniblend/approval/ApprovalPublicationConfigTab";
 import ApprovalActionBar from "@/components/cogniblend/approval/ApprovalActionBar";
 import { Badge } from "@/components/ui/badge";
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -747,6 +748,7 @@ export default function ApprovalReviewPage() {
           <h1 className="text-xl font-bold text-foreground truncate">Approval Review</h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
+        <GovernanceProfileBadge profile={challenge.governance_profile} compact />
         <Badge variant="outline" className="text-[10px] shrink-0">
           Phase {challenge.current_phase ?? 4}
         </Badge>
