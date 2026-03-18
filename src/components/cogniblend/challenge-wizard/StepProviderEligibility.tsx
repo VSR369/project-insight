@@ -417,7 +417,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
             Solver Tier
           </h4>
           <p className="text-xs text-muted-foreground">
-            What level of solver can participate? This auto-configures visibility and enrollment settings.
+            What level of solver can participate? This determines both who can participate and who can discover this challenge.
           </p>
         </div>
 
