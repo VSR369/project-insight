@@ -71,6 +71,7 @@ interface AttachedDoc {
   tier: string;
   status: string | null;
   version_history: VersionEntry[];
+  lc_status?: string | null;
 }
 
 interface VersionEntry {
