@@ -513,6 +513,9 @@ export default function CurationChecklistPanel({
         </CardContent>
       </Card>
 
+      {/* Modification Points Tracker — curator can review statuses */}
+      <ModificationPointsTracker challengeId={challengeId} mode="curator" />
+
       {/* Incomplete Items Modal */}
       <Dialog open={showIncompleteModal} onOpenChange={setShowIncompleteModal}>
         <DialogContent className="w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden">
