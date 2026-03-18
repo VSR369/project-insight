@@ -158,5 +158,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     evaluation_criteria: c.evaluation_criteria as Record<string, unknown> | null,
     deliverables: c.deliverables as Record<string, unknown> | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
+    challenge_enrollment: c.challenge_enrollment as string | null,
+    tenant_id: c.tenant_id as string,
   };
 }

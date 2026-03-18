@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
+import { SolverEnrollmentCTA } from '@/components/cogniblend/solver/SolverEnrollmentCTA';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
