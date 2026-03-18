@@ -254,6 +254,12 @@ export default function LegalDocumentAttachmentPage() {
       );
       const isReplace = !!existing;
 
+      const newHistory = buildVersionHistory(
+        existing?.version_history ?? [],
+        user?.id ?? 'system',
+        isReplace ? 'replaced' : 'default_applied'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -262,6 +268,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "default_applied",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: newHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
