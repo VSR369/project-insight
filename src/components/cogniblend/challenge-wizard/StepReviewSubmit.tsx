@@ -1,12 +1,13 @@
 /**
  * Step 7 — Review & Submit
- * Read-only summary of all fields across steps 1-6.
+ * Dynamically shows ALL form values grouped by wizard step.
  */
 
 import { UseFormReturn } from 'react-hook-form';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { CheckCircle, AlertCircle, Pencil } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
@@ -14,6 +15,7 @@ interface StepReviewSubmitProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
   isLightweight: boolean;
+  onNavigateToStep?: (step: number) => void;
 }
 
 function SummaryRow({ label, value, isValid }: { label: string; value: string; isValid: boolean }) {
@@ -26,7 +28,7 @@ function SummaryRow({ label, value, isValid }: { label: string; value: string; i
       )}
       <div className="min-w-0 flex-1">
         <p className="text-xs text-muted-foreground">{label}</p>
-        <p className={cn('text-sm', isValid ? 'text-foreground' : 'text-destructive italic')}>
+        <p className={cn('text-sm break-words', isValid ? 'text-foreground' : 'text-destructive italic')}>
           {value || 'Not provided'}
         </p>
       </div>
@@ -34,63 +36,137 @@ function SummaryRow({ label, value, isValid }: { label: string; value: string; i
   );
 }
 
-export function StepReviewSubmit({ form, isLightweight }: StepReviewSubmitProps) {
+function formatValue(val: unknown): string {
+  if (val === null || val === undefined || val === '') return '';
+  if (typeof val === 'boolean') return val ? 'Yes' : 'No';
+  if (typeof val === 'number') return val.toLocaleString();
+  if (Array.isArray(val)) {
+    if (val.length === 0) return '';
+    if (typeof val[0] === 'object') return `${val.length} items`;
+    return val.join(', ');
+  }
+  if (typeof val === 'object') return JSON.stringify(val).substring(0, 100) + '…';
+  return String(val);
+}
+
+function stripHtml(html: string): string {
+  if (!html) return '';
+  return html.replace(/<[^>]*>/g, '').trim();
+}
+
+export function StepReviewSubmit({ form, isLightweight, onNavigateToStep }: StepReviewSubmitProps) {
   const v = form.getValues();
 
   const sections = [
     {
-      title: 'Challenge Brief',
+      title: 'Step 1: Challenge Brief',
+      step: 1,
       fields: [
         { label: 'Title', value: v.title, isValid: !!v.title },
-        { label: 'Problem Statement', value: v.problem_statement ? `${v.problem_statement.length} characters` : '', isValid: !!v.problem_statement },
+        { label: 'Industry Segment', value: v.industry_segment_id || '', isValid: true },
+        { label: 'Experience Countries', value: v.experience_countries?.length ? `${v.experience_countries.length} selected` : '', isValid: true },
+        { label: 'Context & Background', value: stripHtml(v.context_background ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Problem Statement', value: stripHtml(v.problem_statement ?? '') ? `${stripHtml(v.problem_statement ?? '').length} characters` : '', isValid: !!stripHtml(v.problem_statement ?? '') },
+        { label: 'Detailed Description', value: stripHtml(v.detailed_description ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Root Causes', value: stripHtml(v.root_causes ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Scope', value: stripHtml(v.scope ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Deliverables', value: v.deliverables_list?.filter(Boolean).length ? `${v.deliverables_list.filter(Boolean).length} items` : '', isValid: (v.deliverables_list?.filter(Boolean).length ?? 0) > 0 },
+        { label: 'Affected Stakeholders', value: stripHtml(v.affected_stakeholders ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Current Deficiencies', value: stripHtml(v.current_deficiencies ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Expected Outcomes', value: stripHtml(v.expected_outcomes ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Preferred Approach', value: stripHtml(v.preferred_approach ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Approaches NOT of Interest', value: stripHtml(v.approaches_not_of_interest ?? '') ? '✓ Provided' : '', isValid: true },
+        { label: 'Submission Guidelines', value: v.submission_guidelines ? '✓ Provided' : '', isValid: true },
         { label: 'Domain Tags', value: v.domain_tags?.join(', ') ?? '', isValid: (v.domain_tags?.length ?? 0) > 0 },
         { label: 'Maturity Level', value: v.maturity_level ?? '', isValid: !!v.maturity_level },
-        { label: 'Scope', value: v.scope ? '✓ Provided' : '', isValid: true },
       ],
     },
     {
-      title: 'Evaluation Criteria',
+      title: 'Step 2: Evaluation Criteria',
+      step: 2,
       fields: [
         { label: 'Criteria Count', value: `${v.weighted_criteria?.length ?? 0} criteria`, isValid: (v.weighted_criteria?.length ?? 0) > 0 },
         { label: 'Total Weight', value: `${v.weighted_criteria?.reduce((s, c) => s + c.weight, 0) ?? 0}%`, isValid: (v.weighted_criteria?.reduce((s, c) => s + c.weight, 0) ?? 0) === 100 },
+        ...(v.weighted_criteria ?? []).map((c, i) => ({
+          label: `Criterion ${i + 1}: ${c.name || 'Unnamed'}`,
+          value: `Weight: ${c.weight}%${c.description ? ` — ${c.description}` : ''}`,
+          isValid: !!c.name && c.weight > 0,
+        })),
       ],
     },
     {
-      title: 'Rewards & Payment',
+      title: 'Step 3: Rewards & Payment',
+      step: 3,
       fields: [
+        { label: 'Reward Type', value: v.reward_type ?? 'monetary', isValid: true },
         { label: 'Currency', value: v.currency_code, isValid: !!v.currency_code },
         { label: 'Platinum Award', value: v.platinum_award > 0 ? `${v.currency_code} ${v.platinum_award.toLocaleString()}` : '', isValid: v.platinum_award > 0 },
         { label: 'Gold Award', value: v.gold_award > 0 ? `${v.currency_code} ${v.gold_award.toLocaleString()}` : '', isValid: v.gold_award > 0 },
+        { label: 'Silver Award', value: v.silver_award && v.silver_award > 0 ? `${v.currency_code} ${v.silver_award.toLocaleString()}` : '', isValid: true },
+        { label: 'Rewarded Solutions', value: v.num_rewarded_solutions ?? '', isValid: true },
+        { label: 'Payment Mode', value: v.payment_mode ?? '', isValid: true },
+        { label: 'Rejection Fee', value: `${v.rejection_fee_pct}%`, isValid: true },
+        { label: 'Payment Milestones', value: v.payment_milestones?.length ? `${v.payment_milestones.length} milestones` : '', isValid: true },
       ],
     },
     {
-      title: 'Timeline',
+      title: 'Step 4: Timeline & Phases',
+      step: 4,
       fields: [
         { label: 'Submission Deadline', value: v.submission_deadline ?? '', isValid: !!v.submission_deadline },
         { label: 'Expected Timeline', value: v.expected_timeline ?? '', isValid: true },
+        { label: 'Review Duration', value: v.review_duration ? `${v.review_duration} days` : '', isValid: true },
+        { label: 'Phase Notes', value: v.phase_notes ? '✓ Provided' : '', isValid: true },
+        { label: 'Phase Durations', value: v.phase_durations ? `${Object.keys(v.phase_durations).length} phases configured` : '', isValid: true },
+        { label: 'Complexity Notes', value: v.complexity_notes ?? '', isValid: true },
+        { label: 'Complexity Parameters', value: v.complexity_params ? `${Object.keys(v.complexity_params).length} parameters` : '', isValid: true },
       ],
     },
     {
-      title: 'Provider Eligibility',
+      title: 'Step 5: Provider Eligibility',
+      step: 5,
       fields: [
-        { label: 'Solver Category', value: v.solver_eligibility_id ?? '', isValid: !!v.solver_eligibility_id },
+        { label: 'Eligible Participation Modes', value: (v.eligible_participation_modes?.length ?? 0) > 0 ? `${v.eligible_participation_modes.length} selected` : 'All Categories', isValid: true },
+        { label: 'Solver Tiers', value: (v.solver_eligibility_ids?.length ?? 0) > 0 ? `${v.solver_eligibility_ids.length} selected` : 'All (no restriction)', isValid: true },
+        { label: 'Challenge Visibility', value: v.challenge_visibility ?? '', isValid: true },
+        { label: 'Challenge Enrollment', value: v.challenge_enrollment ?? '', isValid: true },
+        { label: 'Challenge Submission', value: v.challenge_submission ?? '', isValid: true },
+        { label: 'Required Expertise Level', value: v.required_expertise_level_id ?? '', isValid: true },
+        { label: 'Required Proficiencies', value: v.required_proficiencies?.length ? `${v.required_proficiencies.length} selected` : '', isValid: true },
+        { label: 'Required Sub-Domains', value: v.required_sub_domains?.length ? `${v.required_sub_domains.length} selected` : '', isValid: true },
+        { label: 'Required Specialities', value: v.required_specialities?.length ? `${v.required_specialities.length} selected` : '', isValid: true },
         { label: 'IP Model', value: v.ip_model ?? '', isValid: true },
-        { label: 'Required Proficiencies', value: (v.required_proficiencies?.length ?? 0) > 0 ? v.required_proficiencies.join(', ') : '', isValid: true },
-        { label: 'Required Sub-Domains', value: `${v.required_sub_domains?.length ?? 0} selected`, isValid: true },
+        { label: 'Permitted Artifact Types', value: v.permitted_artifact_types?.length ? `${v.permitted_artifact_types.length} types` : '', isValid: true },
+      ],
+    },
+    {
+      title: 'Step 6: Solution Templates',
+      step: 6,
+      fields: [
+        { label: 'Solution Category Description', value: v.solution_category_description ? '✓ Provided' : '', isValid: true },
+        { label: 'Solution Template', value: v.submission_template_url ? '✓ Uploaded' : 'Not uploaded', isValid: true },
       ],
     },
   ];
 
+  // Filter out empty optional fields for cleaner display
+  const filteredSections = sections.map((section) => ({
+    ...section,
+    fields: section.fields.filter((f) => f.value || !f.isValid),
+  }));
+
   const totalFields = sections.flatMap((s) => s.fields);
-  const validCount = totalFields.filter((f) => f.isValid).length;
-  const allValid = validCount === totalFields.length;
+  const requiredFields = totalFields.filter((f) => !f.isValid || f.value);
+  const validCount = requiredFields.filter((f) => f.isValid).length;
+  const invalidCount = requiredFields.filter((f) => !f.isValid).length;
+  const allValid = invalidCount === 0;
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-base font-bold text-foreground mb-1">Review & Submit</h3>
         <p className="text-sm text-muted-foreground">
-          Review all challenge details before submitting for review.
+          Review all challenge details before submitting. Click "Edit" on any section to go back and modify.
         </p>
       </div>
 
@@ -108,7 +184,7 @@ export function StepReviewSubmit({ form, isLightweight }: StepReviewSubmitProps)
         )}
         <div>
           <p className="text-sm font-semibold text-foreground">
-            {allValid ? 'Ready to Submit' : `${validCount}/${totalFields.length} fields complete`}
+            {allValid ? 'Ready to Submit' : `${invalidCount} issue(s) to resolve`}
           </p>
           <p className="text-xs text-muted-foreground">
             {allValid
@@ -119,21 +195,38 @@ export function StepReviewSubmit({ form, isLightweight }: StepReviewSubmitProps)
       </div>
 
       {/* Section summaries */}
-      {sections.map((section) => (
-        <Card key={section.title} className="border-border">
-          <div className="px-4 py-2.5 border-b flex items-center justify-between">
-            <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
-            <Badge variant="outline" className="text-[10px]">
-              {section.fields.filter((f) => f.isValid).length}/{section.fields.length}
-            </Badge>
-          </div>
-          <CardContent className="p-4">
-            {section.fields.map((field) => (
-              <SummaryRow key={field.label} {...field} />
-            ))}
-          </CardContent>
-        </Card>
-      ))}
+      {filteredSections.map((section) => {
+        if (section.fields.length === 0) return null;
+        const sectionValid = section.fields.filter((f) => f.isValid).length;
+        return (
+          <Card key={section.title} className="border-border">
+            <div className="px-4 py-2.5 border-b flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-foreground">{section.title}</h4>
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-[10px]">
+                  {sectionValid}/{section.fields.length}
+                </Badge>
+                {onNavigateToStep && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-xs text-primary"
+                    onClick={() => onNavigateToStep(section.step)}
+                  >
+                    <Pencil className="h-3 w-3 mr-1" /> Edit
+                  </Button>
+                )}
+              </div>
+            </div>
+            <CardContent className="p-4">
+              {section.fields.map((field) => (
+                <SummaryRow key={field.label} {...field} />
+              ))}
+            </CardContent>
+          </Card>
+        );
+      })}
     </div>
   );
 }
