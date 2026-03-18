@@ -35,6 +35,7 @@ export interface ValidTransition {
 export interface EnrichedChallenge extends NeedsActionChallenge {
   sla: SlaStatus | null;
   transitions: ValidTransition[];
+  sla_deadline_at: string | null;
 }
 
 /* ── Hook ─────────────────────────────────────────────────── */
