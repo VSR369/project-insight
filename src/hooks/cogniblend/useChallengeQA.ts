@@ -111,6 +111,14 @@ export function useSubmitQuestion() {
           .eq('qa_id', qaId);
       }
 
+      // Log to communication_log for governance
+      await logCommunication({
+        challengeId,
+        senderId: user.id,
+        messageText: questionText,
+        channel: 'QA',
+      });
+
       return qaId;
     },
     onSuccess: (_qaId, variables) => {

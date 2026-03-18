@@ -60,6 +60,14 @@ export function useAnswerQuestion() {
         .eq('qa_id', qaId);
       if (error) throw new Error(error.message);
 
+      // Log answer to communication_log
+      await logCommunication({
+        challengeId,
+        senderId: userId,
+        messageText: answerText,
+        channel: 'QA',
+      });
+
       // Audit
       await supabase.from('audit_trail').insert({
         user_id: userId,
