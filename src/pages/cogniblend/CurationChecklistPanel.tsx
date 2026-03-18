@@ -138,6 +138,28 @@ export default function CurationChecklistPanel({
   const queryClient = useQueryClient();
   const completePhase = useCompletePhase();
 
+  // Query modification points for blocking check
+  const { data: modPoints = [] } = useQuery({
+    queryKey: ['modification-points', 'challenge', challengeId],
+    queryFn: async () => {
+      const { data: amendments } = await supabase
+        .from('amendment_records')
+        .select('id')
+        .eq('challenge_id', challengeId);
+      if (!amendments?.length) return [];
+      const { data } = await supabase
+        .from('modification_points')
+        .select('severity, status')
+        .in('amendment_id', amendments.map((a) => a.id));
+      return data ?? [];
+    },
+    enabled: !!challengeId,
+    staleTime: 30_000,
+  });
+  const hasOutstandingRequired = modPoints.some(
+    (p: any) => p.severity === 'REQUIRED' && p.status === 'OUTSTANDING',
+  );
+
   // ══════════════════════════════════════
   // SECTION 3: Query — amendment records count
   // ══════════════════════════════════════
