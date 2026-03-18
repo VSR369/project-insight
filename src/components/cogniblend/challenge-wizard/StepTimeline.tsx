@@ -7,7 +7,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
-import { CalendarIcon, Info, Check } from 'lucide-react';
+import { CalendarIcon, Info, Check, Plus, X, Globe, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -94,6 +95,143 @@ function getComplexityLevel(score: number): { label: string; level: string; colo
   if (score < 6.0) return { label: 'L3', level: 'Medium', colorClass: 'bg-amber-100 text-amber-800 border-amber-300' };
   if (score < 8.0) return { label: 'L4', level: 'High', colorClass: 'bg-orange-100 text-orange-800 border-orange-300' };
   return { label: 'L5', level: 'Very High', colorClass: 'bg-red-100 text-red-800 border-red-300' };
+}
+
+/* ─── Lightweight Visibility Toggle ──────────────────────── */
+
+function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
+  const { setValue, watch } = form;
+  const visibility = watch('visibility') || 'public';
+  const isPublic = visibility === 'public';
+
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState('');
+
+  const handleToggle = (checked: boolean) => {
+    if (checked) {
+      setValue('visibility', 'public', { shouldDirty: true });
+      setValue('eligibility', 'anyone', { shouldDirty: true });
+    } else {
+      setValue('visibility', 'invite_only', { shouldDirty: true });
+      setValue('eligibility', 'invited_only', { shouldDirty: true });
+    }
+  };
+
+  const addEmail = () => {
+    const email = emailInput.trim().toLowerCase();
+    if (!email) return;
+    // Basic email check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    if (inviteEmails.includes(email)) return;
+    setInviteEmails((prev) => [...prev, email]);
+    setEmailInput('');
+  };
+
+  const removeEmail = (email: string) => {
+    setInviteEmails((prev) => prev.filter((e) => e !== email));
+  };
+
+  return (
+    <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-foreground">
+          Challenge Visibility <span className="text-destructive">*</span>
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Control who can discover and submit solutions to this challenge.
+        </p>
+      </div>
+
+      {/* Toggle card */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {isPublic ? (
+              <Globe className="h-5 w-5 text-primary" />
+            ) : (
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            )}
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                {isPublic ? 'Public' : 'Private — Invite Only'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isPublic
+                  ? 'Anyone can see and submit solutions'
+                  : 'Only invited solvers can view and submit'}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={isPublic}
+            onCheckedChange={handleToggle}
+          />
+        </div>
+      </div>
+
+      {/* Invite list — shown only when Private */}
+      {!isPublic && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-4">
+          <Label className="text-[13px] font-semibold">Invite Solvers</Label>
+          <p className="text-xs text-muted-foreground">
+            Add email addresses of solvers who should be invited to this challenge.
+          </p>
+
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="solver@example.com"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addEmail();
+                }
+              }}
+              className="text-base flex-1"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={addEmail}
+              disabled={!emailInput.trim()}
+              className="shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+
+          {inviteEmails.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {inviteEmails.map((email) => (
+                <Badge
+                  key={email}
+                  variant="secondary"
+                  className="flex items-center gap-1 text-xs py-1 px-2"
+                >
+                  {email}
+                  <button
+                    type="button"
+                    onClick={() => removeEmail(email)}
+                    className="ml-0.5 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {inviteEmails.length === 0 && (
+            <p className="text-xs italic text-muted-foreground">
+              No solvers invited yet. Add email addresses above.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -276,91 +414,7 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
 
       {/* ═══ SECTION 2: Publication Settings (Lightweight Only) ═══ */}
       {isLightweight && (
-        <div className="space-y-4 border-t border-border pt-6">
-          <div className="space-y-1">
-            <h3 className="text-base font-bold text-foreground">
-              Publication Settings <span className="text-destructive">*</span>
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Configure who can see and submit solutions to this challenge.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Visibility */}
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-semibold">
-                Who can see this challenge? <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={watch('visibility') || 'public'}
-                onValueChange={(v) => {
-                  setValue('visibility', v, { shouldDirty: true });
-                  // Reset eligibility if it becomes invalid
-                  const elig = watch('eligibility') || '';
-                  if (v === 'invite_only' && elig !== 'invited_only') {
-                    setValue('eligibility', 'invited_only', { shouldDirty: true });
-                  }
-                }}
-              >
-                <SelectTrigger className="text-base">
-                  <SelectValue placeholder="Select visibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">
-                    <div>
-                      <span className="font-medium">Public</span>
-                      <p className="text-xs text-muted-foreground">Anyone on the internet can see this challenge</p>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="invite_only">
-                    <div>
-                      <span className="font-medium">Invite Only</span>
-                      <p className="text-xs text-muted-foreground">Only specific invitees can view</p>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Eligibility */}
-            <div className="space-y-1.5">
-              <Label className="text-[13px] font-semibold">
-                Who can submit solutions? <span className="text-destructive">*</span>
-              </Label>
-              <Select
-                value={watch('eligibility') || 'anyone'}
-                onValueChange={(v) => setValue('eligibility', v, { shouldDirty: true })}
-              >
-                <SelectTrigger className="text-base">
-                  <SelectValue placeholder="Select eligibility" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem
-                    value="anyone"
-                    disabled={watch('visibility') === 'invite_only'}
-                  >
-                    <div>
-                      <span className="font-medium">Anyone</span>
-                      <p className="text-xs text-muted-foreground">Open to all solvers</p>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="invited_only">
-                    <div>
-                      <span className="font-medium">Invited Only</span>
-                      <p className="text-xs text-muted-foreground">Only invited experts can submit</p>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-              {watch('visibility') === 'invite_only' && watch('eligibility') !== 'invited_only' && (
-                <p className="text-xs text-destructive mt-1">
-                  Eligibility cannot be broader than visibility. Solvers must be able to see the challenge to submit.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
+        <LightweightVisibilityToggle form={form} />
       )}
 
       {/* ═══ SECTION 3: Complexity Assessment ═══ */}
