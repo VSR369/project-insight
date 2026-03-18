@@ -720,22 +720,22 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
           /* ─── Enterprise: parameter sliders ─── */
           <TooltipProvider>
             <div className="space-y-5">
-              {COMPLEXITY_PARAMS.map((param) => (
-                <div key={param.key} className="space-y-2">
+              {complexityParams.map((param) => (
+                <div key={param.param_key} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold text-foreground">{param.label}</span>
+                      <span className="text-[13px] font-bold text-foreground">{param.name}</span>
                       <Badge variant="secondary" className="text-[11px] px-1.5 py-0 font-normal">
                         {(param.weight * 100).toFixed(0)}%
                       </Badge>
                     </div>
                     <span className="text-sm font-semibold text-primary tabular-nums w-6 text-right">
-                      {paramValues[param.key]}
+                      {paramValues[param.param_key]}
                     </span>
                   </div>
                   <Slider
-                    value={[paramValues[param.key]]}
-                    onValueChange={(v) => handleParamChange(param.key, v)}
+                    value={[paramValues[param.param_key] ?? 5]}
+                    onValueChange={(v) => handleParamChange(param.param_key, v)}
                     min={0}
                     max={10}
                     step={1}
