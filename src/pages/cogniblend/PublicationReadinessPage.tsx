@@ -124,17 +124,7 @@ export default function PublicationReadinessPage() {
               {data.challengeTitle}
             </p>
           </div>
-          <Badge
-            variant="secondary"
-            className={cn(
-              'shrink-0 text-xs font-semibold px-2.5 py-0.5 border',
-              isLightweight
-                ? 'bg-blue-50 text-blue-700 border-blue-200'
-                : 'bg-violet-50 text-violet-700 border-violet-200'
-            )}
-          >
-            {isLightweight ? 'Lightweight' : 'Enterprise'}
-          </Badge>
+          <GovernanceProfileBadge profile={data.governanceProfile} compact />
         </div>
       </div>
 

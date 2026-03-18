@@ -748,6 +748,7 @@ export default function ApprovalReviewPage() {
           <h1 className="text-xl font-bold text-foreground truncate">Approval Review</h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
+        <GovernanceProfileBadge profile={challenge.governance_profile} compact />
         <Badge variant="outline" className="text-[10px] shrink-0">
           Phase {challenge.current_phase ?? 4}
         </Badge>
