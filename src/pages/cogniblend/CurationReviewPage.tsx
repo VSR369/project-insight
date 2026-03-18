@@ -41,6 +41,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import CurationChecklistPanel from "./CurationChecklistPanel";
+import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
 import type { Json } from "@/integrations/supabase/types";
 
 // ---------------------------------------------------------------------------
@@ -640,11 +641,15 @@ export default function CurationReviewPage() {
         </div>
 
         {/* RIGHT PANEL — 40% (2/5) */}
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 space-y-4">
           <CurationChecklistPanel
             challengeId={challengeId!}
             challenge={challenge}
             legalDocs={legalDocs}
+          />
+          <PaymentScheduleSection
+            challengeId={challengeId!}
+            rewardStructure={challenge.reward_structure}
           />
         </div>
       </div>
