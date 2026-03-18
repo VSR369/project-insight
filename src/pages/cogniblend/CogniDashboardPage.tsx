@@ -14,6 +14,7 @@ import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForS
 import { MyChallengesSection } from '@/components/cogniblend/dashboard/MyChallengesSection';
 import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenChallengesSection';
 import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
+import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
