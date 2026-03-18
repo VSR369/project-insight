@@ -431,6 +431,13 @@ export default function ChallengeWizardPage() {
       <ChallengeProgressBar
         currentStep={currentStep}
         completedSteps={completedSteps}
+        stepFieldCounts={formCompletion.steps}
+      />
+
+      {/* Overall Completion */}
+      <FormCompletionBar
+        filledCount={formCompletion.totalFilled}
+        totalCount={formCompletion.totalRequired}
       />
 
       {/* Form Card */}
