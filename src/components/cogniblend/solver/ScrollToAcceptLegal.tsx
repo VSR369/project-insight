@@ -9,6 +9,7 @@ import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -43,7 +44,7 @@ export function ScrollToAcceptLegal({
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const threshold = 10;
+    const threshold = 20;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
     if (atBottom && !scrolledToBottom) {
       setScrolledToBottom(true);
@@ -91,13 +92,23 @@ export function ScrollToAcceptLegal({
 
       {/* Acceptance checkbox */}
       <div className="flex items-start gap-2.5">
-        <Checkbox
-          id="scroll-accept-terms"
-          checked={accepted}
-          onCheckedChange={(v) => onAcceptedChange(v === true)}
-          disabled={!scrolledToBottom}
-          className="mt-0.5"
-        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="mt-0.5">
+              <Checkbox
+                id="scroll-accept-terms"
+                checked={accepted}
+                onCheckedChange={(v) => onAcceptedChange(v === true)}
+                disabled={!scrolledToBottom}
+              />
+            </span>
+          </TooltipTrigger>
+          {!scrolledToBottom && (
+            <TooltipContent side="right" className="text-xs max-w-[200px]">
+              Please read the entire document before accepting
+            </TooltipContent>
+          )}
+        </Tooltip>
         <label
           htmlFor="scroll-accept-terms"
           className={cn(
