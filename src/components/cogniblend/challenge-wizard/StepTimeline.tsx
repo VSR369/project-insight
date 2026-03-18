@@ -60,15 +60,15 @@ interface PhaseConfig {
 /* ─── Constants ──────────────────────────────────────────── */
 
 const PHASES: PhaseConfig[] = [
-  { key: 'phase_3', label: 'Phase 3 — Curation', phaseNumber: 3, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_4', label: 'Phase 4 — ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_5', label: 'Phase 5 — Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
-  { key: 'phase_8', label: 'Phase 8 — Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
-  { key: 'phase_9', label: 'Phase 9 — Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_10', label: 'Phase 10 — Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
-  { key: 'phase_11', label: 'Phase 11 — Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
-  { key: 'phase_12', label: 'Phase 12 — Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_13', label: 'Phase 13 — Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: false },
+  { key: 'phase_3', label: 'Curation', phaseNumber: 3, defaultDays: 7, lightweightVisible: false },
+  { key: 'phase_4', label: 'ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_5', label: 'Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
+  { key: 'phase_8', label: 'Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
+  { key: 'phase_9', label: 'Partial Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_10', label: 'Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
+  { key: 'phase_11', label: 'Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
+  { key: 'phase_12', label: 'Final Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_13', label: 'Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: true },
 ];
 
 /* ─── Hardcoded fallback (used only when DB is unreachable) ── */
