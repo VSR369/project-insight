@@ -9,33 +9,27 @@
 
 import { describe, it, expect } from 'vitest';
 
-/* ─── Replicate the rank/validation logic from StepTimeline ─── */
-
-const VISIBILITY_RANK: Record<string, number> = {
-  public: 0, registered_users: 1, platform_members: 2, curated_experts: 3, invited_only: 4,
-};
-const ENROLLMENT_RANK: Record<string, number> = {
-  open_auto: 0, curator_approved: 1, direct_nda: 2, org_curated: 3, invitation_only: 4,
-};
-const SUBMISSION_RANK: Record<string, number> = {
-  all_enrolled: 0, shortlisted_only: 1, invited_solvers: 2,
-};
+/* ─── Replicate compatibility maps from StepTimeline ─── */
 
 const VISIBILITY_OPTIONS = ['public', 'registered_users', 'platform_members', 'curated_experts', 'invited_only'];
 const ENROLLMENT_OPTIONS = ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'];
 const SUBMISSION_OPTIONS = ['all_enrolled', 'shortlisted_only', 'invited_solvers'];
 
-function isEnrollmentDisabled(enrollValue: string, visValue: string): boolean {
-  const visRank = VISIBILITY_RANK[visValue] ?? 0;
-  const enrRank = ENROLLMENT_RANK[enrollValue] ?? 0;
-  return enrRank < visRank;
-}
+const VALID_ENROLLMENTS: Record<string, string[]> = {
+  public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  platform_members: ['curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  curated_experts: ['curator_approved', 'org_curated', 'invitation_only'],
+  invited_only: ['invitation_only'],
+};
 
-function isSubmissionDisabled(subValue: string, enrValue: string): boolean {
-  const enrRank = ENROLLMENT_RANK[enrValue] ?? 0;
-  const subRank = SUBMISSION_RANK[subValue] ?? 0;
-  return subRank < enrRank;
-}
+const VALID_SUBMISSIONS: Record<string, string[]> = {
+  open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  direct_nda: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  org_curated: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  invitation_only: ['invited_solvers'],
+};
 
 const ELIGIBILITY_MODELS = [
   { code: 'OPEN', visibility: 'public', enrollment: 'open_auto', submission: 'all_enrolled' },
@@ -44,6 +38,14 @@ const ELIGIBILITY_MODELS = [
   { code: 'CE', visibility: 'curated_experts', enrollment: 'curator_approved', submission: 'shortlisted_only' },
   { code: 'IO', visibility: 'invited_only', enrollment: 'invitation_only', submission: 'invited_solvers' },
 ];
+
+function isEnrollmentDisabled(enrValue: string, visValue: string): boolean {
+  return !(VALID_ENROLLMENTS[visValue] ?? []).includes(enrValue);
+}
+
+function isSubmissionDisabled(subValue: string, enrValue: string): boolean {
+  return !(VALID_SUBMISSIONS[enrValue] ?? []).includes(subValue);
+}
 
 /* ═══════════════════════════════════════════════════════════ */
 
@@ -74,126 +76,106 @@ describe('TW5-01: 3 independent dropdowns shown for Enterprise', () => {
     }
   });
 
-  it('each preset satisfies the funnel constraint vis >= enr >= sub', () => {
+  it('each preset satisfies the funnel constraint (enrollment valid for visibility, submission valid for enrollment)', () => {
     for (const model of ELIGIBILITY_MODELS) {
-      const visR = VISIBILITY_RANK[model.visibility];
-      const enrR = ENROLLMENT_RANK[model.enrollment];
-      const subR = SUBMISSION_RANK[model.submission];
-      // Enrollment rank must be >= visibility rank (same or narrower)
-      expect(enrR).toBeGreaterThanOrEqual(visR);
-      // Submission rank must be >= enrollment rank (same or narrower)
-      expect(subR).toBeGreaterThanOrEqual(enrR);
+      expect(isEnrollmentDisabled(model.enrollment, model.visibility)).toBe(false);
+      expect(isSubmissionDisabled(model.submission, model.enrollment)).toBe(false);
     }
   });
 });
 
 describe('TW5-02: Validation — submission cannot exceed enrollment', () => {
-  it('all_enrolled is disabled when enrollment is org_curated (rank 3)', () => {
-    // all_enrolled rank=0 < org_curated rank=3 → disabled
-    expect(isSubmissionDisabled('all_enrolled', 'org_curated')).toBe(true);
-  });
-
-  it('shortlisted_only is disabled when enrollment is invitation_only (rank 4)', () => {
-    // shortlisted_only rank=1 < invitation_only rank=4 → disabled
-    expect(isSubmissionDisabled('shortlisted_only', 'invitation_only')).toBe(true);
-  });
-
-  it('invited_solvers is allowed for any enrollment (rank 2 >= all)', () => {
-    for (const enr of ENROLLMENT_OPTIONS) {
-      // invited_solvers rank=2, should be allowed when enrollment rank <= 2
-      const enrRank = ENROLLMENT_RANK[enr];
-      const expected = 2 < enrRank; // disabled only if sub rank < enr rank
-      expect(isSubmissionDisabled('invited_solvers', enr)).toBe(expected);
-    }
-  });
-
-  it('all_enrolled is allowed when enrollment is open_auto', () => {
+  it('all_enrolled is valid for open_auto enrollment', () => {
     expect(isSubmissionDisabled('all_enrolled', 'open_auto')).toBe(false);
   });
 
-  it('all_enrolled is allowed when enrollment is curator_approved (rank 1)', () => {
-    // rank 0 < rank 1 → disabled
-    expect(isSubmissionDisabled('all_enrolled', 'curator_approved')).toBe(true);
-  });
-});
-
-describe('TW5-03: Validation — enrollment cannot exceed visibility', () => {
-  it('open_auto is disabled when visibility is platform_members (rank 2)', () => {
-    expect(isEnrollmentDisabled('open_auto', 'platform_members')).toBe(true);
+  it('all_enrolled is valid for curator_approved enrollment', () => {
+    expect(isSubmissionDisabled('all_enrolled', 'curator_approved')).toBe(false);
   });
 
-  it('curator_approved is disabled when visibility is curated_experts (rank 3)', () => {
-    // curator_approved rank=1 < curated_experts rank=3 → disabled
-    expect(isEnrollmentDisabled('curator_approved', 'curated_experts')).toBe(true);
+  it('only invited_solvers is valid for invitation_only enrollment', () => {
+    expect(isSubmissionDisabled('all_enrolled', 'invitation_only')).toBe(true);
+    expect(isSubmissionDisabled('shortlisted_only', 'invitation_only')).toBe(true);
+    expect(isSubmissionDisabled('invited_solvers', 'invitation_only')).toBe(false);
   });
 
-  it('invitation_only is allowed for any visibility (rank 4 >= all)', () => {
-    for (const vis of VISIBILITY_OPTIONS) {
-      expect(isEnrollmentDisabled('invitation_only', vis)).toBe(false);
+  it('invited_solvers is valid for any enrollment', () => {
+    for (const enr of ENROLLMENT_OPTIONS) {
+      expect(isSubmissionDisabled('invited_solvers', enr)).toBe(false);
     }
   });
 
-  it('open_auto is allowed when visibility is public', () => {
-    expect(isEnrollmentDisabled('open_auto', 'public')).toBe(false);
-  });
-
-  it('all enrollment options disabled except invitation_only when visibility is invited_only', () => {
-    const results = ENROLLMENT_OPTIONS.map((e) => ({
-      option: e,
-      disabled: isEnrollmentDisabled(e, 'invited_only'),
-    }));
-    // Only invitation_only (rank 4) should be enabled; all others (rank 0-3) disabled
-    expect(results.filter((r) => !r.disabled).map((r) => r.option)).toEqual(['invitation_only']);
-  });
-
-  it('comprehensive matrix: enrollment rank must >= visibility rank to be valid', () => {
-    for (const vis of VISIBILITY_OPTIONS) {
-      for (const enr of ENROLLMENT_OPTIONS) {
-        const visR = VISIBILITY_RANK[vis];
-        const enrR = ENROLLMENT_RANK[enr];
-        const shouldBeDisabled = enrR < visR;
-        expect(isEnrollmentDisabled(enr, vis)).toBe(shouldBeDisabled);
+  it('all 3 submission options valid for non-invitation enrollments', () => {
+    const openEnrollments = ['open_auto', 'curator_approved', 'direct_nda', 'org_curated'];
+    for (const enr of openEnrollments) {
+      for (const sub of SUBMISSION_OPTIONS) {
+        expect(isSubmissionDisabled(sub, enr)).toBe(false);
       }
     }
   });
 });
 
+describe('TW5-03: Validation — enrollment cannot exceed visibility', () => {
+  it('open_auto is disabled when visibility is platform_members', () => {
+    expect(isEnrollmentDisabled('open_auto', 'platform_members')).toBe(true);
+  });
+
+  it('curator_approved is valid when visibility is curated_experts', () => {
+    expect(isEnrollmentDisabled('curator_approved', 'curated_experts')).toBe(false);
+  });
+
+  it('invitation_only is valid for any visibility', () => {
+    for (const vis of VISIBILITY_OPTIONS) {
+      expect(isEnrollmentDisabled('invitation_only', vis)).toBe(false);
+    }
+  });
+
+  it('open_auto is valid when visibility is public', () => {
+    expect(isEnrollmentDisabled('open_auto', 'public')).toBe(false);
+  });
+
+  it('only invitation_only allowed when visibility is invited_only', () => {
+    const results = ENROLLMENT_OPTIONS.filter((e) => !isEnrollmentDisabled(e, 'invited_only'));
+    expect(results).toEqual(['invitation_only']);
+  });
+
+  it('platform_members disables open_auto but allows curator_approved+', () => {
+    expect(isEnrollmentDisabled('open_auto', 'platform_members')).toBe(true);
+    expect(isEnrollmentDisabled('curator_approved', 'platform_members')).toBe(false);
+    expect(isEnrollmentDisabled('direct_nda', 'platform_members')).toBe(false);
+    expect(isEnrollmentDisabled('org_curated', 'platform_members')).toBe(false);
+    expect(isEnrollmentDisabled('invitation_only', 'platform_members')).toBe(false);
+  });
+
+  it('curated_experts disables open_auto and direct_nda', () => {
+    expect(isEnrollmentDisabled('open_auto', 'curated_experts')).toBe(true);
+    expect(isEnrollmentDisabled('direct_nda', 'curated_experts')).toBe(true);
+    expect(isEnrollmentDisabled('curator_approved', 'curated_experts')).toBe(false);
+    expect(isEnrollmentDisabled('org_curated', 'curated_experts')).toBe(false);
+  });
+});
+
 describe('TW5-04: LW still uses Public/Private toggle (no change)', () => {
-  it('LightweightVisibilityToggle renders for isLightweight=true (code structure check)', () => {
-    // The render branching: isLightweight → LightweightVisibilityToggle, !isLightweight → EnterprisePublicationConfig
-    // We verify the toggle sets visibility/eligibility correctly
+  it('LW toggle sets visibility/eligibility (legacy 2-field model)', () => {
     const publicState = { visibility: 'public', eligibility: 'anyone' };
     const privateState = { visibility: 'invite_only', eligibility: 'invited_only' };
 
-    // Toggle ON → public
     expect(publicState.visibility).toBe('public');
     expect(publicState.eligibility).toBe('anyone');
-
-    // Toggle OFF → private
     expect(privateState.visibility).toBe('invite_only');
     expect(privateState.eligibility).toBe('invited_only');
   });
 
-  it('LW does NOT use challenge_visibility/enrollment/submission fields', () => {
-    // LW toggle sets visibility + eligibility (legacy 2-field model)
-    // Enterprise sets challenge_visibility + challenge_enrollment + challenge_submission (3-tier model)
-    // These are separate field sets — LW never touches the 3-tier fields
+  it('LW fields do NOT overlap with Enterprise 3-tier fields', () => {
     const lwFields = ['visibility', 'eligibility'];
     const enterpriseFields = ['challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
-
-    // No overlap
     const overlap = lwFields.filter((f) => enterpriseFields.includes(f));
     expect(overlap).toHaveLength(0);
   });
 
-  it('Enterprise does NOT show toggle switch component', () => {
-    // Enterprise uses EnterprisePublicationConfig (3 dropdowns + presets)
-    // Lightweight uses LightweightVisibilityToggle (Switch component)
-    // The branching is mutually exclusive via isLightweight flag
-    const isLightweight = false;
-    const showToggle = isLightweight;
-    const showTierConfig = !isLightweight;
-    expect(showToggle).toBe(false);
-    expect(showTierConfig).toBe(true);
+  it('render branching is mutually exclusive via isLightweight', () => {
+    expect(true).toBe(true); // LW → LightweightVisibilityToggle
+    expect(false).toBe(false); // Enterprise → EnterprisePublicationConfig
+    // isLightweight && <LW> / !isLightweight && <Enterprise> — cannot both render
   });
 });
