@@ -80,6 +80,7 @@ export default function ApprovalActionBar({
   const returnMutation = useReturnForModification();
   const rejectMutation = useRejectChallenge();
   const completePhase = useCompletePhase();
+  const createPoints = useCreateModificationPoints();
 
   // ══════════════════════════════════════
   // SECTION 3: Handlers
