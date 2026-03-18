@@ -135,6 +135,7 @@ export default function SolutionRequestsPage() {
                   <TableHead className="uppercase text-xs tracking-wider">Challenge Title</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider">Submitted At</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider">Status</TableHead>
+                  <TableHead className="uppercase text-xs tracking-wider">Actions</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider w-10" />
                 </TableRow>
               </TableHeader>
