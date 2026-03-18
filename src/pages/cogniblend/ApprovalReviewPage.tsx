@@ -79,6 +79,7 @@ interface ChallengeData {
   max_solutions: number | null;
   submission_deadline: string | null;
   phase_status: string | null;
+  targeting_filters: Json | null;
 }
 
 interface LegalDoc {
