@@ -637,7 +637,7 @@ export default function ChallengeWizardPage() {
             <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 7 && (
-            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} onNavigateToStep={(step) => setCurrentStep(step)} />
           )}
 
           {/* Bottom Bar */}
