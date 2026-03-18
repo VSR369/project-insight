@@ -995,13 +995,22 @@ export default function LegalDocumentAttachmentPage() {
         className="w-full gap-2"
         size="lg"
         onClick={handleSubmitForCuration}
-        disabled={isValidating || completePhase.isPending}
+        disabled={
+          isValidating ||
+          completePhase.isPending ||
+          (lcStatus?.hasPending ?? false) ||
+          (lcStatus?.hasRejected ?? false)
+        }
       >
         <Send className="h-4 w-4" />
         {isValidating
           ? "Validating…"
           : completePhase.isPending
           ? "Submitting…"
+          : lcStatus?.hasPending
+          ? "Awaiting LC Review…"
+          : lcStatus?.hasRejected
+          ? "LC Rejected — Revise Documents"
           : "Submit for Curation"}
       </Button>
 
