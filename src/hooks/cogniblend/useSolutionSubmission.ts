@@ -95,7 +95,7 @@ export function useSolverSolution(challengeId: string | undefined, providerId: s
 
       const { data, error } = await supabase
         .from('solutions')
-        .select('id, challenge_id, provider_id, abstract_text, methodology, timeline, experience, ai_usage_declaration, current_phase, phase_status, submitted_at, created_at')
+        .select('id, challenge_id, provider_id, abstract_text, methodology, timeline, experience, ai_usage_declaration, current_phase, phase_status, selection_status, payment_status, submitted_at, created_at')
         .eq('challenge_id', challengeId)
         .eq('provider_id', providerId)
         .maybeSingle();
