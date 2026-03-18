@@ -114,6 +114,7 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
   const silverAward = watch('silver_award');
   const currencyCode = watch('currency_code') ?? 'USD';
   const currencySymbol = CURRENCY_OPTIONS.find((c) => c.value === currencyCode)?.symbol ?? '$';
+  const rewardType = watch('reward_type') ?? 'monetary';
 
   const rewardOrderValid =
     platinumAward > goldAward &&
