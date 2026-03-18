@@ -157,10 +157,26 @@ export function usePublicationReadiness(challengeId: string | undefined) {
       const c = challenge as Record<string, unknown>;
       const isLightweight = c.governance_profile === 'LIGHTWEIGHT';
       const docs = legalDocs ?? [];
+      const lcRequired = !!(c.lc_review_required);
 
       const checks = isLightweight
         ? buildLightweightChecks(c, docs, solverMatchCount)
         : buildEnterpriseChecks(c, docs, solverMatchCount);
+
+      // GATE-11 safeguard: LC approval check (applies to both profiles when lc_review_required)
+      if (lcRequired) {
+        const lcUnapproved = docs.filter(
+          (d: any) => d.lc_status !== 'approved'
+        ).length;
+        checks.push({
+          id: 'lc_approval',
+          label: 'All legal docs approved by Legal Coordinator',
+          detail: lcUnapproved > 0
+            ? `${lcUnapproved} doc(s) pending LC approval`
+            : 'All docs LC-approved',
+          passed: lcUnapproved === 0,
+        });
+      }
 
       const failCount = checks.filter((ch) => !ch.passed).length;
 
