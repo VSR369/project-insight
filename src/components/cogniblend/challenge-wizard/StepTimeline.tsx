@@ -4,7 +4,8 @@
  * Section 2: Complexity Assessment with weighted sliders (Enterprise) or dropdown (Lightweight)
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useComplexityParams } from '@/hooks/queries/useComplexityParams';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
 import { CalendarIcon, Info, Check, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
