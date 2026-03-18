@@ -1,14 +1,20 @@
 /**
- * Step 4 — Timeline & Schedule + Complexity Assessment
- * Section 1: Phase Schedule with date pickers and duration inputs
- * Section 2: Complexity Assessment with weighted sliders (Enterprise) or dropdown (Lightweight)
+ * Step 4 — Timeline & Phase Schedule
+ *
+ * Sections:
+ *   1. Overall Timeline (start date, deadline, total duration)
+ *   2. Phase Schedule Configuration (table with auto-calculated dates)
+ *   3. Visual Timeline (Gantt View)
+ *   4. Publication Configuration (Enterprise 3-tier / Lightweight toggle)
+ *   5. Targeting Filters
+ *   6. Complexity Assessment
  */
 
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useComplexityParams } from '@/hooks/queries/useComplexityParams';
 import { UseFormReturn } from 'react-hook-form';
-import { format, addDays } from 'date-fns';
-import { CalendarIcon, Info, Check, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
+import { format, addDays, differenceInDays } from 'date-fns';
+import { CalendarIcon, Info, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -51,27 +57,28 @@ interface StepTimelineProps {
 
 interface PhaseConfig {
   key: string;
+  letter: string;
   label: string;
-  phaseNumber: number;
   defaultDays: number;
   lightweightVisible: boolean;
+  color: string;
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
 
 const PHASES: PhaseConfig[] = [
-  { key: 'phase_3', label: 'Curation', phaseNumber: 3, defaultDays: 7, lightweightVisible: false },
-  { key: 'phase_4', label: 'ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_5', label: 'Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
-  { key: 'phase_8', label: 'Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
-  { key: 'phase_9', label: 'Partial Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_10', label: 'Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
-  { key: 'phase_11', label: 'Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
-  { key: 'phase_12', label: 'Final Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_13', label: 'Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: true },
+  { key: 'curation_period',        letter: 'a', label: 'Curation Period',                  defaultDays: 7,  lightweightVisible: false, color: 'bg-blue-800' },
+  { key: 'id_review',              letter: 'b', label: 'Innovation Director Review',       defaultDays: 5,  lightweightVisible: false, color: 'bg-blue-600' },
+  { key: 'modification_period',    letter: 'c', label: 'Modification Period (if returned)', defaultDays: 5,  lightweightVisible: false, color: 'bg-red-400' },
+  { key: 'qa_period',              letter: 'd', label: 'Q&A Period',                       defaultDays: 14, lightweightVisible: true,  color: 'bg-orange-500' },
+  { key: 'abstract_submission',    letter: 'e', label: 'Abstract Submission Deadline',     defaultDays: 21, lightweightVisible: true,  color: 'bg-indigo-500' },
+  { key: 'screening_shortlisting', letter: 'f', label: 'Screening / Shortlisting',        defaultDays: 10, lightweightVisible: true,  color: 'bg-teal-500' },
+  { key: 'full_solution_upload',   letter: 'g', label: 'Full Solution Upload',             defaultDays: 30, lightweightVisible: true,  color: 'bg-purple-600' },
+  { key: 'expert_evaluation',      letter: 'h', label: 'Expert Evaluation',                defaultDays: 21, lightweightVisible: true,  color: 'bg-red-600' },
+  { key: 'final_selection',        letter: 'i', label: 'Final Selection Decision',         defaultDays: 7,  lightweightVisible: true,  color: 'bg-emerald-500' },
 ];
 
-/* ─── Hardcoded fallback (used only when DB is unreachable) ── */
+/* ─── Complexity helpers ─────────────────────────────────── */
 
 const FALLBACK_COMPLEXITY_PARAMS = [
   { param_key: 'technical_novelty', name: 'Technical Novelty', weight: 0.20 },
@@ -83,7 +90,6 @@ const FALLBACK_COMPLEXITY_PARAMS = [
   { param_key: 'budget_scale', name: 'Budget Scale', weight: 0.10 },
 ];
 
-/** Lightweight complexity options with fixed scores */
 const LW_COMPLEXITY_OPTIONS = [
   { value: 'low', label: 'Low', description: 'Routine problem, well-understood domain', level: 'L1', score: 2.0, badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
   { value: 'medium', label: 'Medium', description: 'Moderate novelty, some cross-domain', level: 'L3', score: 5.0, badgeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
@@ -120,10 +126,7 @@ function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFo
 
   const addEmail = () => {
     const email = emailInput.trim().toLowerCase();
-    if (!email) return;
-    // Basic email check
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
-    if (inviteEmails.includes(email)) return;
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || inviteEmails.includes(email)) return;
     setInviteEmails((prev) => [...prev, email]);
     setEmailInput('');
   };
@@ -143,91 +146,43 @@ function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFo
         </p>
       </div>
 
-      {/* Toggle card */}
       <div className="rounded-lg border border-border bg-muted/30 p-4">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            {isPublic ? (
-              <Globe className="h-5 w-5 text-primary" />
-            ) : (
-              <Lock className="h-5 w-5 text-muted-foreground" />
-            )}
+            {isPublic ? <Globe className="h-5 w-5 text-primary" /> : <Lock className="h-5 w-5 text-muted-foreground" />}
             <div>
-              <p className="text-sm font-bold text-foreground">
-                {isPublic ? 'Public' : 'Private — Invite Only'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {isPublic
-                  ? 'Anyone can see and submit solutions'
-                  : 'Only invited solvers can view and submit'}
-              </p>
+              <p className="text-sm font-bold text-foreground">{isPublic ? 'Public' : 'Private — Invite Only'}</p>
+              <p className="text-xs text-muted-foreground">{isPublic ? 'Anyone can see and submit solutions' : 'Only invited solvers can view and submit'}</p>
             </div>
           </div>
-          <Switch
-            checked={isPublic}
-            onCheckedChange={handleToggle}
-          />
+          <Switch checked={isPublic} onCheckedChange={handleToggle} />
         </div>
       </div>
 
-      {/* Invite list — shown only when Private */}
       {!isPublic && (
         <div className="space-y-3 rounded-lg border border-border bg-background p-4">
           <Label className="text-[13px] font-semibold">Invite Solvers</Label>
-          <p className="text-xs text-muted-foreground">
-            Add email addresses of solvers who should be invited to this challenge.
-          </p>
-
+          <p className="text-xs text-muted-foreground">Add email addresses of solvers who should be invited.</p>
           <div className="flex gap-2">
-            <Input
-              type="email"
-              placeholder="solver@example.com"
-              value={emailInput}
+            <Input type="email" placeholder="solver@example.com" value={emailInput}
               onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addEmail();
-                }
-              }}
-              className="text-base flex-1"
-            />
-            <Button
-              type="button"
-              size="sm"
-              onClick={addEmail}
-              disabled={!emailInput.trim()}
-              className="shrink-0"
-            >
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEmail(); } }}
+              className="text-base flex-1" />
+            <Button type="button" size="sm" onClick={addEmail} disabled={!emailInput.trim()} className="shrink-0">
               <Plus className="h-4 w-4 mr-1" /> Add
             </Button>
           </div>
-
-          {inviteEmails.length > 0 && (
+          {inviteEmails.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {inviteEmails.map((email) => (
-                <Badge
-                  key={email}
-                  variant="secondary"
-                  className="flex items-center gap-1 text-xs py-1 px-2"
-                >
+                <Badge key={email} variant="secondary" className="flex items-center gap-1 text-xs py-1 px-2">
                   {email}
-                  <button
-                    type="button"
-                    onClick={() => removeEmail(email)}
-                    className="ml-0.5 hover:text-destructive"
-                  >
-                    <X className="h-3 w-3" />
-                  </button>
+                  <button type="button" onClick={() => removeEmail(email)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
                 </Badge>
               ))}
             </div>
-          )}
-
-          {inviteEmails.length === 0 && (
-            <p className="text-xs italic text-muted-foreground">
-              No solvers invited yet. Add email addresses above.
-            </p>
+          ) : (
+            <p className="text-xs italic text-muted-foreground">No solvers invited yet.</p>
           )}
         </div>
       )}
@@ -259,12 +214,6 @@ const SUBMISSION_OPTIONS = [
   { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
 ] as const;
 
-/** Scope ordering: higher index = narrower scope (used for visibility rank display) */
-const VISIBILITY_RANK: Record<string, number> = {
-  public: 0, registered_users: 1, platform_members: 2, curated_experts: 3, invited_only: 4,
-};
-
-/** Valid enrollment options per visibility tier (compatibility-based funnel) */
 const VALID_ENROLLMENTS: Record<string, string[]> = {
   public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
   registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
@@ -273,7 +222,6 @@ const VALID_ENROLLMENTS: Record<string, string[]> = {
   invited_only: ['invitation_only'],
 };
 
-/** Valid submission options per enrollment tier (compatibility-based funnel) */
 const VALID_SUBMISSIONS: Record<string, string[]> = {
   open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
   curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
@@ -282,7 +230,6 @@ const VALID_SUBMISSIONS: Record<string, string[]> = {
   invitation_only: ['invited_solvers'],
 };
 
-/** BRD §5.7.1 — 5 Solver Eligibility Model presets */
 const ELIGIBILITY_MODELS = [
   { code: 'OPEN', label: 'Open', description: 'Anyone registered can participate', visibility: 'public', enrollment: 'open_auto', submission: 'all_enrolled' },
   { code: 'DR', label: 'Direct Registration', description: 'Open with NDA requirement', visibility: 'registered_users', enrollment: 'direct_nda', submission: 'all_enrolled' },
@@ -300,65 +247,35 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
   const validEnrollments = VALID_ENROLLMENTS[vis] ?? ENROLLMENT_OPTIONS.map((o) => o.value);
   const validSubmissions = VALID_SUBMISSIONS[enr] ?? SUBMISSION_OPTIONS.map((o) => o.value);
 
-  /** Enrollment cannot exceed visibility scope */
   const isEnrollmentDisabled = (value: string) => !validEnrollments.includes(value);
-
-  /** Submission cannot exceed enrollment scope */
   const isSubmissionDisabled = (value: string) => !validSubmissions.includes(value);
 
-  // Auto-correct if current selection becomes invalid
   useEffect(() => {
     if (!validEnrollments.includes(enr)) {
       setValue('challenge_enrollment', validEnrollments[0], { shouldDirty: true });
     }
-  }, [vis]);
+  }, [vis]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!validSubmissions.includes(sub)) {
       setValue('challenge_submission', validSubmissions[0], { shouldDirty: true });
     }
-  }, [enr]);
+  }, [enr]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  /** Apply an eligibility model preset */
   const applyPreset = (model: typeof ELIGIBILITY_MODELS[number]) => {
     setValue('challenge_visibility', model.visibility, { shouldDirty: true });
     setValue('challenge_enrollment', model.enrollment, { shouldDirty: true });
     setValue('challenge_submission', model.submission, { shouldDirty: true });
   };
 
-  /** Detect which preset (if any) matches the current selection */
   const activePreset = ELIGIBILITY_MODELS.find(
     (m) => m.visibility === vis && m.enrollment === enr && m.submission === sub
   );
 
   const tierCards = [
-    {
-      title: 'Tier 1 — Visibility',
-      subtitle: 'Who can SEE the challenge',
-      icon: Eye,
-      value: vis,
-      onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }),
-      options: VISIBILITY_OPTIONS,
-      isDisabled: () => false,
-    },
-    {
-      title: 'Tier 2 — Enrollment',
-      subtitle: 'Who can REQUEST to participate',
-      icon: UserPlus,
-      value: enr,
-      onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }),
-      options: ENROLLMENT_OPTIONS,
-      isDisabled: isEnrollmentDisabled,
-    },
-    {
-      title: 'Tier 3 — Submission',
-      subtitle: 'Who can SUBMIT solutions',
-      icon: FileText,
-      value: sub,
-      onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }),
-      options: SUBMISSION_OPTIONS,
-      isDisabled: isSubmissionDisabled,
-    },
+    { title: 'Tier 1 — Visibility', subtitle: 'Who can SEE the challenge', icon: Eye, value: vis, onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }), options: VISIBILITY_OPTIONS, isDisabled: () => false },
+    { title: 'Tier 2 — Enrollment', subtitle: 'Who can REQUEST to participate', icon: UserPlus, value: enr, onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }), options: ENROLLMENT_OPTIONS, isDisabled: isEnrollmentDisabled },
+    { title: 'Tier 3 — Submission', subtitle: 'Who can SUBMIT solutions', icon: FileText, value: sub, onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }), options: SUBMISSION_OPTIONS, isDisabled: isSubmissionDisabled },
   ];
 
   return (
@@ -372,36 +289,25 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
         </p>
       </div>
 
-      {/* ─── Eligibility Model Presets ─── */}
       <div className="space-y-2">
         <Label className="text-[13px] font-semibold">Solver Eligibility Model</Label>
         <div className="flex flex-wrap gap-2">
           {ELIGIBILITY_MODELS.map((model) => (
-            <button
-              key={model.code}
-              type="button"
-              onClick={() => applyPreset(model)}
-              className={cn(
-                'rounded-lg border px-3 py-2 text-left transition-colors text-xs',
-                activePreset?.code === model.code
-                  ? 'border-primary bg-primary/10 text-primary font-semibold'
-                  : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50'
-              )}
-            >
+            <button key={model.code} type="button" onClick={() => applyPreset(model)}
+              className={cn('rounded-lg border px-3 py-2 text-left transition-colors text-xs',
+                activePreset?.code === model.code ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50')}>
               <span className="font-bold">{model.code}</span>
               <span className="ml-1.5">{model.label}</span>
             </button>
           ))}
         </div>
-        {activePreset && (
+        {activePreset ? (
           <p className="text-xs text-muted-foreground italic">{activePreset.description}</p>
-        )}
-        {!activePreset && (
+        ) : (
           <p className="text-xs text-muted-foreground italic">Custom configuration — no preset matches.</p>
         )}
       </div>
 
-      {/* ─── 3-tier cards ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
         {tierCards.map((tier, idx) => {
           const Icon = tier.icon;
@@ -423,27 +329,19 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
                 </CardHeader>
                 <CardContent className="flex-1 pt-0 space-y-2">
                   <Select value={tier.value} onValueChange={tier.onChange}>
-                    <SelectTrigger className="text-base w-full">
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger className="text-base w-full"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {tier.options.map((opt) => {
                         const disabled = tier.isDisabled(opt.value);
                         return (
                           <SelectItem key={opt.value} value={opt.value} disabled={disabled}>
-                            <span className={cn(disabled && 'opacity-50')}>
-                              {opt.label}
-                            </span>
+                            <span className={cn(disabled && 'opacity-50')}>{opt.label}</span>
                           </SelectItem>
                         );
                       })}
                     </SelectContent>
                   </Select>
-                  {selectedOpt && (
-                    <p className="text-[11px] text-muted-foreground leading-tight">
-                      {selectedOpt.description}
-                    </p>
-                  )}
+                  {selectedOpt && <p className="text-[11px] text-muted-foreground leading-tight">{selectedOpt.description}</p>}
                 </CardContent>
               </Card>
             </div>
@@ -451,17 +349,93 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
         })}
       </div>
 
-      {/* ─── Access Model Summary Card ─── */}
-      <AccessModelSummary
-        visibility={vis}
-        enrollment={enr}
-        submission={sub}
-      />
+      <AccessModelSummary visibility={vis} enrollment={enr} submission={sub} />
     </div>
   );
 }
 
-/* ─── Component ──────────────────────────────────────────── */
+/* ─── Gantt View ─────────────────────────────────────────── */
+
+interface GanttViewProps {
+  phases: PhaseConfig[];
+  phaseDurations: Record<string, number>;
+  startDate: Date;
+  totalDays: number;
+}
+
+function GanttView({ phases, phaseDurations, startDate, totalDays }: GanttViewProps) {
+  const endDate = addDays(startDate, totalDays);
+
+  // Calculate each phase's position
+  const phasePositions = useMemo(() => {
+    let dayOffset = 0;
+    return phases.map((phase) => {
+      const duration = phaseDurations[phase.key] ?? phase.defaultDays;
+      const start = dayOffset;
+      dayOffset += duration;
+      return { ...phase, startDay: start, duration, pct: (duration / totalDays) * 100 };
+    });
+  }, [phases, phaseDurations, totalDays]);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-foreground">Visual Timeline (Gantt View)</h3>
+      </div>
+
+      {/* Total timeline bar */}
+      <div className="space-y-1">
+        <div className="flex items-center justify-between">
+          <span className="text-xs text-muted-foreground">Total Timeline</span>
+          <span className="text-xs font-medium text-muted-foreground">{totalDays} days</span>
+        </div>
+        <div className="rounded-md bg-primary h-7 flex items-center px-3 text-[11px] font-semibold text-primary-foreground">
+          {format(startDate, 'yyyy-MM-dd')} → {format(endDate, 'yyyy-MM-dd')}
+        </div>
+      </div>
+
+      {/* Individual phase bars */}
+      <div className="space-y-3 mt-2">
+        {phasePositions.map((phase) => (
+          <div key={phase.key} className="space-y-0.5">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-foreground font-medium">
+                {phase.letter}. {phase.label}
+              </span>
+              <span className="text-xs text-muted-foreground">{phase.duration} days</span>
+            </div>
+            <div className="relative w-full h-5 rounded bg-muted/30">
+              <div
+                className={cn('absolute top-0 h-full rounded text-[10px] font-semibold text-white flex items-center px-1.5 min-w-[24px]', phase.color)}
+                style={{
+                  left: `${(phase.startDay / totalDays) * 100}%`,
+                  width: `${Math.max(phase.pct, 2)}%`,
+                }}
+              >
+                {phase.duration > 5 ? `${phase.duration}d` : ''}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Phase Color Legend */}
+      <div className="pt-3 border-t border-border">
+        <p className="text-xs font-medium text-muted-foreground mb-2">Phase Color Legend:</p>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {phases.map((phase) => (
+            <div key={phase.key} className="flex items-center gap-1.5">
+              <div className={cn('h-3 w-3 rounded-sm', phase.color)} />
+              <span className="text-[11px] text-muted-foreground">{phase.letter}. {phase.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Main Component ─────────────────────────────────────── */
 
 export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimelineProps) {
   const { setValue, watch } = form;
@@ -481,6 +455,8 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
     return sd ? new Date(sd) : new Date();
   });
 
+  const [overallDeadline, setOverallDeadline] = useState<Date | undefined>(undefined);
+
   // Fetch complexity params from master data
   const { data: dbComplexityParams } = useComplexityParams();
   const complexityParams = useMemo(() => {
@@ -498,7 +474,6 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
     return initial;
   });
 
-  // Re-initialize param values when DB params load
   useEffect(() => {
     if (dbComplexityParams && dbComplexityParams.length > 0) {
       setParamValues((prev) => {
@@ -511,7 +486,6 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
     }
   }, [dbComplexityParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Lightweight complexity dropdown
   const [lwComplexity, setLwComplexity] = useState<string>(() => {
     const notes = watch('complexity_notes') ?? '';
     if (notes === 'high') return 'high';
@@ -520,27 +494,45 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
   });
 
   // Visible phases
-  const visiblePhases = isLightweight
-    ? PHASES.filter((p) => p.lightweightVisible)
-    : PHASES;
-
-  // Phase start dates calculated sequentially
-  const phaseStartDates = useMemo(() => {
-    const dates: Record<string, Date> = {};
-    let cursor = startDate ?? new Date();
-    visiblePhases.forEach((p) => {
-      dates[p.key] = cursor;
-      cursor = addDays(cursor, phaseDurations[p.key] ?? p.defaultDays);
-    });
-    return dates;
-  }, [startDate, phaseDurations, visiblePhases]);
+  const visiblePhases = isLightweight ? PHASES.filter((p) => p.lightweightVisible) : PHASES;
 
   // Total duration
   const totalDays = useMemo(() => {
     return visiblePhases.reduce((sum, p) => sum + (phaseDurations[p.key] ?? p.defaultDays), 0);
   }, [phaseDurations, visiblePhases]);
 
-  const totalMonths = (totalDays / 30).toFixed(1);
+  // Phase start/end dates calculated sequentially
+  const phaseScheduleData = useMemo(() => {
+    const data: Record<string, { start: Date; end: Date }> = {};
+    let cursor = startDate ?? new Date();
+    visiblePhases.forEach((p) => {
+      const dur = phaseDurations[p.key] ?? p.defaultDays;
+      const end = addDays(cursor, dur);
+      data[p.key] = { start: cursor, end };
+      cursor = end;
+    });
+    return data;
+  }, [startDate, phaseDurations, visiblePhases]);
+
+  // Auto-calculate overall deadline from phases
+  const calculatedDeadline = useMemo(() => {
+    return addDays(startDate ?? new Date(), totalDays);
+  }, [startDate, totalDays]);
+
+  // Set overall deadline from calculated if not manually set
+  useEffect(() => {
+    if (!overallDeadline) {
+      setOverallDeadline(calculatedDeadline);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Total duration display (between start and deadline)
+  const displayTotalDays = useMemo(() => {
+    if (startDate && overallDeadline) {
+      return differenceInDays(overallDeadline, startDate);
+    }
+    return totalDays;
+  }, [startDate, overallDeadline, totalDays]);
 
   // Complexity score
   const complexityScore = useMemo(() => {
@@ -581,112 +573,143 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
 
   return (
     <div className="space-y-8">
-      {/* ═══ SECTION 1: Phase Schedule ═══ */}
+      {/* ═══ SECTION 1: Overall Timeline ═══ */}
       <div className="space-y-4">
         <div className="space-y-1">
-          <h3 className="text-base font-bold text-foreground">
-            Phase Schedule {isRequired('phase_schedule') && <span className="text-destructive">*</span>}
-          </h3>
+          <h3 className="text-base font-bold text-foreground italic">Overall Timeline</h3>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-end">
+          {/* Challenge Start Date */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold">
+              Challenge Start Date <span className="text-destructive">*</span>
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline"
+                  className={cn('w-full justify-start text-left text-base font-normal', !startDate && 'text-muted-foreground')}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {startDate ? format(startDate, 'dd-MM-yyyy') : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={startDate} onSelect={setStartDate}
+                  disabled={(d) => d < new Date()} initialFocus className={cn('p-3 pointer-events-auto')} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Overall Deadline */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold">
+              Overall Deadline <span className="text-destructive">*</span>
+            </Label>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline"
+                  className={cn('w-full justify-start text-left text-base font-normal', !overallDeadline && 'text-muted-foreground')}>
+                  <CalendarIcon className="mr-2 h-4 w-4" />
+                  {overallDeadline ? format(overallDeadline, 'dd-MM-yyyy') : <span>Pick a date</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar mode="single" selected={overallDeadline} onSelect={setOverallDeadline}
+                  disabled={(d) => startDate ? d <= startDate : d < new Date()} initialFocus className={cn('p-3 pointer-events-auto')} />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {/* Total Duration */}
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold">Total Duration</Label>
+            <div className="flex items-center h-10 rounded-md border border-input bg-muted/30 px-4">
+              <span className="text-base font-bold text-primary">{displayTotalDays} days</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ═══ SECTION 2: Phase Schedule Configuration ═══ */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-foreground italic">Phase Schedule Configuration</h3>
           <p className="text-xs text-muted-foreground">
-            Set start date and duration for each phase. Subsequent phase dates auto-calculate.
+            Configure duration for each downstream phase. Default values from System Master Data shown as placeholders.
           </p>
         </div>
 
-        {/* Start date picker */}
-        <div className="space-y-1.5">
-          <Label className="text-[13px] font-semibold">Challenge Start Date</Label>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  'w-full max-w-xs justify-start text-left text-base font-normal',
-                  !startDate && 'text-muted-foreground'
-                )}
-              >
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {startDate ? format(startDate, 'PPP') : <span>Pick a date</span>}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar
-                mode="single"
-                selected={startDate}
-                onSelect={setStartDate}
-                disabled={(d) => d < new Date()}
-                initialFocus
-                className={cn('p-3 pointer-events-auto')}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
-
-        {/* Phase schedule table */}
         <div className="relative w-full overflow-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/50">
-                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phase</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Default</th>
-                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Duration</th>
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground">Phase</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Duration (Days) *</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Default</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">Start Date (auto)</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground">End Date (auto)</th>
               </tr>
             </thead>
             <tbody>
-              {visiblePhases.map((phase, idx) => (
-                <tr
-                  key={phase.key}
-                  className={cn(
-                    'border-b border-border last:border-b-0',
-                    idx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
-                  )}
-                >
-                  <td className="px-4 py-3">
-                    <p className="text-[13px] font-medium text-foreground">{phase.label}</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
-                    </p>
-                  </td>
-                  <td className="px-4 py-3 text-center">
-                    <span className="text-xs text-muted-foreground">{phase.defaultDays}d</span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <Input
-                        type="number"
-                        min={1}
-                        max={365}
-                        value={phaseDurations[phase.key]}
-                        onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
-                        className="w-[68px] text-base text-center"
-                      />
-                      <span className="text-xs text-muted-foreground">days</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {visiblePhases.map((phase, idx) => {
+                const schedule = phaseScheduleData[phase.key];
+                return (
+                  <tr key={phase.key} className={cn('border-b border-border last:border-b-0', idx % 2 === 0 ? 'bg-background' : 'bg-muted/20')}>
+                    <td className="px-4 py-3">
+                      <span className="text-[13px] font-medium text-foreground">{phase.letter}. {phase.label}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-center">
+                        <Input type="number" min={1} max={365}
+                          value={phaseDurations[phase.key]}
+                          onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
+                          className="w-[68px] text-base text-center" />
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs text-muted-foreground">({phase.defaultDays})</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        {schedule ? format(schedule.start, 'MMM d') : '—'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <span className="text-xs text-muted-foreground">
+                        {schedule ? format(schedule.end, 'MMM d') : '—'}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
 
-        {/* Total timeline */}
-        <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-          <p className="text-sm font-bold text-foreground">
-            Estimated total duration:{' '}
-            <span className="text-primary">{totalDays} days</span>
-            <span className="text-muted-foreground font-normal"> ({totalMonths} months)</span>
+        {/* Info banner */}
+        <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3 flex items-start gap-2.5">
+          <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+          <p className="text-xs text-muted-foreground">
+            Default values are from System Master Data. You can customise per challenge. Phase dates auto-calculate based on durations.
           </p>
         </div>
       </div>
 
-      {/* ═══ SECTION 2: Publication Settings ═══ */}
-      {isLightweight && (
-        <LightweightVisibilityToggle form={form} />
-      )}
-      {!isLightweight && (
-        <EnterprisePublicationConfig form={form} />
+      {/* ═══ SECTION 3: Gantt View ═══ */}
+      {startDate && (
+        <GanttView
+          phases={visiblePhases}
+          phaseDurations={phaseDurations}
+          startDate={startDate}
+          totalDays={totalDays}
+        />
       )}
 
-      {/* ═══ SECTION 2b: Targeting Filters ═══ */}
+      {/* ═══ SECTION 4: Publication Settings ═══ */}
+      {isLightweight && <LightweightVisibilityToggle form={form} />}
+      {!isLightweight && <EnterprisePublicationConfig form={form} />}
+
+      {/* ═══ SECTION 5: Targeting Filters ═══ */}
       <div className="border-t border-border pt-6">
         <TargetingFiltersSection
           value={(watch('targeting_filters') as TargetingFilters) ?? EMPTY_TARGETING_FILTERS}
@@ -695,24 +718,20 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         />
       </div>
 
+      {/* ═══ SECTION 6: Complexity Assessment ═══ */}
       <div className="space-y-4 border-t border-border pt-6">
         <div className="space-y-1">
           <h3 className="text-base font-bold text-foreground">Complexity Assessment</h3>
           <p className="text-xs text-muted-foreground">
-            {isLightweight
-              ? 'Select the overall complexity level for this challenge.'
-              : 'Rate each parameter to calculate the complexity score.'}
+            {isLightweight ? 'Select the overall complexity level for this challenge.' : 'Rate each parameter to calculate the complexity score.'}
           </p>
         </div>
 
         {isLightweight ? (
-          /* ─── Lightweight: simple dropdown with badge ─── */
           <div className="space-y-3 max-w-md">
             <Label className="text-[13px] font-semibold">Challenge Complexity</Label>
             <Select value={lwComplexity} onValueChange={setLwComplexity}>
-              <SelectTrigger className="text-base">
-                <SelectValue placeholder="Select complexity" />
-              </SelectTrigger>
+              <SelectTrigger className="text-base"><SelectValue placeholder="Select complexity" /></SelectTrigger>
               <SelectContent>
                 {LW_COMPLEXITY_OPTIONS.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
@@ -725,7 +744,6 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
               </SelectContent>
             </Select>
 
-            {/* Selected complexity badge */}
             {(() => {
               const selected = LW_COMPLEXITY_OPTIONS.find((o) => o.value === lwComplexity);
               if (!selected) return null;
@@ -735,10 +753,7 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
                     <p className="text-sm font-bold text-foreground">Selected Complexity</p>
                     <p className="text-xs text-muted-foreground">{selected.description}</p>
                   </div>
-                  <Badge
-                    variant="outline"
-                    className={cn('text-sm px-3 py-1 font-semibold', selected.badgeClass)}
-                  >
+                  <Badge variant="outline" className={cn('text-sm px-3 py-1 font-semibold', selected.badgeClass)}>
                     {selected.level} — {selected.label}
                   </Badge>
                 </div>
@@ -746,7 +761,6 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
             })()}
           </div>
         ) : (
-          /* ─── Enterprise: parameter sliders ─── */
           <TooltipProvider>
             <div className="space-y-5">
               {complexityParams.map((param) => (
@@ -765,25 +779,17 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
                   <Slider
                     value={[paramValues[param.param_key] ?? 5]}
                     onValueChange={(v) => handleParamChange(param.param_key, v)}
-                    min={0}
-                    max={10}
-                    step={1}
-                    className="w-full"
+                    min={0} max={10} step={1} className="w-full"
                   />
                   <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>0</span>
-                    <span>5</span>
-                    <span>10</span>
+                    <span>0</span><span>5</span><span>10</span>
                   </div>
                 </div>
               ))}
 
-              {/* Score display */}
               <div className="rounded-lg border border-border bg-muted/30 px-5 py-4 flex items-center justify-between">
                 <div>
-                  <p className="text-[18px] font-bold text-foreground">
-                    Complexity Score: {complexityScore.toFixed(1)}
-                  </p>
+                  <p className="text-[18px] font-bold text-foreground">Complexity Score: {complexityScore.toFixed(1)}</p>
                 </div>
                 <Badge className={cn('text-sm px-3 py-1 border font-semibold', complexityInfo.colorClass)}>
                   {complexityInfo.label} — {complexityInfo.level}
