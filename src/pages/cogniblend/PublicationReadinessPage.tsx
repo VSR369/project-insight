@@ -40,6 +40,7 @@ export default function PublicationReadinessPage() {
   );
   const publishMutation = usePublishChallenge();
   const notifySolversMutation = useNotifySolvers();
+  const { data: solverMatch } = useMatchingSolvers(id);
 
   /* ── Loading ── */
   if (isLoading) {
