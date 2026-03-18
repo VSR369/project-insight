@@ -256,6 +256,8 @@ export default function SolutionSubmitPage() {
   const isLoading = enrollmentLoading || tier2Loading || solutionLoading || challengeLoading;
   const isEnrolled = enrollment?.status === 'APPROVED';
   const isAlreadySubmitted = existingSolution?.phase_status === 'ACTIVE' && !!existingSolution?.submitted_at;
+  const isLightweight = challenge?.governance_profile === 'LIGHTWEIGHT';
+  const isEnterprise = challenge?.governance_profile === 'ENTERPRISE';
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
   const missingDocs = useMemo(
     () => TIER_2_DOCUMENTS.filter(d => tier2Status?.missing?.includes(d.type)),
