@@ -165,7 +165,10 @@ function showSequentialToasts(
 
 /* ── Hook ─────────────────────────────────────────────────── */
 
-export function useCompletePhase() {
+export function useCompletePhase(
+  userRoleCodes?: Set<string>,
+  navigateFn?: (path: string) => void,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -222,11 +225,16 @@ export function useCompletePhase() {
       return result;
     },
     onSuccess: (result) => {
-      showSequentialToasts(result, () => {
-        queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
-        queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
-      });
+      showSequentialToasts(
+        result,
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+          queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+        },
+        userRoleCodes,
+        navigateFn,
+      );
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'complete_phase' });
