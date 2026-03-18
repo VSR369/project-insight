@@ -176,9 +176,7 @@ export default function ChallengeWizardPage() {
         expected_timeline: (challengeData.phase_schedule as any)?.expected_timeline ?? '',
         review_duration: undefined,
         phase_notes: '',
-        solver_eligibility_types: Array.isArray((challengeData as any)?.solver_eligibility_types)
-          ? (challengeData as any).solver_eligibility_types
-          : ['individual'],
+        solver_eligibility_id: (challengeData as any)?.solver_eligibility_id ?? '',
         permitted_artifact_types: deliverables?.permitted_artifact_types ?? [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
