@@ -214,7 +214,10 @@ export default function LegalDocumentAttachmentPage() {
         .select("id, document_type, document_name, tier, status, version_history")
         .eq("challenge_id", challengeId!);
       if (error) throw new Error(error.message);
-      return (data ?? []) as AttachedDoc[];
+      return (data ?? []).map((d: any) => ({
+        ...d,
+        version_history: Array.isArray(d.version_history) ? d.version_history : [],
+      })) as AttachedDoc[];
     },
     enabled: !!challengeId,
   });
