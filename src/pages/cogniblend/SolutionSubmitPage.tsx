@@ -225,7 +225,7 @@ export default function SolutionSubmitPage() {
       if (!challengeId) return null;
       const { data, error } = await supabase
         .from('challenges')
-        .select('id, title, phase_schedule, operating_model')
+        .select('id, title, phase_schedule, operating_model, governance_profile, deliverables, submission_deadline')
         .eq('id', challengeId)
         .single();
       if (error) throw new Error(error.message);
