@@ -103,7 +103,7 @@ export function EnrollmentApprovalQueue({ challengeId }: EnrollmentApprovalQueue
                 key={enrollment.id}
                 className="flex items-center gap-3 p-3 rounded-lg border bg-card"
               >
-                <Clock className="h-4 w-4 text-amber-500 shrink-0" />
+              <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium truncate">
                     Solver {enrollment.solver_id.slice(0, 8)}…
