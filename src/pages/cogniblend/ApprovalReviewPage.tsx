@@ -644,7 +644,7 @@ export default function ApprovalReviewPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
   // ══════════════════════════════════════
   // SECTION 2: Query — challenge data
   // ══════════════════════════════════════
