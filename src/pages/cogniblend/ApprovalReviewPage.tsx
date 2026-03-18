@@ -76,6 +76,7 @@ interface ChallengeData {
   current_phase: number | null;
   max_solutions: number | null;
   submission_deadline: string | null;
+  phase_status: string | null;
 }
 
 interface LegalDoc {
