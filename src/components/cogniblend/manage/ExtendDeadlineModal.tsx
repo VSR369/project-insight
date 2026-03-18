@@ -48,12 +48,35 @@ export function ExtendDeadlineModal({
   userId,
 }: ExtendDeadlineModalProps) {
   const [newDate, setNewDate] = useState<Date | undefined>();
+  const [extendDays, setExtendDays] = useState<string>('');
   const [reason, setReason] = useState('');
+  const [notifySolvers, setNotifySolvers] = useState(true);
   const extendMutation = useExtendDeadline();
 
   const currentDate = currentDeadline ? new Date(currentDeadline) : new Date();
   const reasonTooShort = reason.trim().length < MIN_REASON_LENGTH;
   const canSubmit = !!newDate && !reasonTooShort && !extendMutation.isPending;
+
+  const handleDateSelect = useCallback((date: Date | undefined) => {
+    setNewDate(date);
+    if (date) {
+      const diffMs = date.getTime() - currentDate.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      setExtendDays(diffDays > 0 ? String(diffDays) : '');
+    } else {
+      setExtendDays('');
+    }
+  }, [currentDate]);
+
+  const handleDaysChange = useCallback((value: string) => {
+    setExtendDays(value);
+    const days = parseInt(value, 10);
+    if (!isNaN(days) && days > 0) {
+      setNewDate(addDays(currentDate, days));
+    } else {
+      setNewDate(undefined);
+    }
+  }, [currentDate]);
 
   const handleExtend = () => {
     if (!newDate) return;
@@ -66,6 +89,7 @@ export function ExtendDeadlineModal({
         oldDeadline: currentDeadline ?? new Date().toISOString(),
         newDeadline: newDate.toISOString(),
         reason: reason.trim(),
+        notifySolvers,
       },
       {
         onSuccess: () => {
