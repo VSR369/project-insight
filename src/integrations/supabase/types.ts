@@ -1161,6 +1161,7 @@ export type Database = {
           solver_eligibility_types: Json | null
           status: string
           submission_deadline: string | null
+          submission_template_url: string | null
           tenant_id: string
           title: string
           total_fee: number | null
@@ -1216,6 +1217,7 @@ export type Database = {
           solver_eligibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
+          submission_template_url?: string | null
           tenant_id: string
           title: string
           total_fee?: number | null
@@ -1271,6 +1273,7 @@ export type Database = {
           solver_eligibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
+          submission_template_url?: string | null
           tenant_id?: string
           title?: string
           total_fee?: number | null

@@ -124,6 +124,7 @@ export default function ChallengeWizardPage() {
         silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
         rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: '',
+        submission_template_url: (challengeData as any)?.submission_template_url ?? '',
         taxonomy_tags: '',
         submission_deadline: challengeData.submission_deadline
           ? challengeData.submission_deadline.substring(0, 16)
@@ -220,6 +221,7 @@ export default function ChallengeWizardPage() {
       challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
+      submission_template_url: values.submission_template_url || null,
       phase_schedule: {
         expected_timeline: values.expected_timeline || null,
         review_duration: values.review_duration || null,

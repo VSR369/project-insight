@@ -43,6 +43,7 @@ import {
   AlertTriangle,
   CheckCircle,
   LogOut,
+  Download,
 } from 'lucide-react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 
@@ -229,7 +230,7 @@ export default function SolutionSubmitPage() {
       if (!challengeId) return null;
       const { data, error } = await supabase
         .from('challenges')
-        .select('id, title, phase_schedule, operating_model, governance_profile, deliverables, submission_deadline')
+        .select('id, title, phase_schedule, operating_model, governance_profile, deliverables, submission_deadline, submission_template_url')
         .eq('id', challengeId)
         .single();
       if (error) throw new Error(error.message);
@@ -486,6 +487,30 @@ export default function SolutionSubmitPage() {
             </div>
             <Button size="sm" onClick={handleOpenLegalGate}>
               Review & Accept
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Submission Template Download */}
+      {(challenge as any)?.submission_template_url && (
+        <Card className="border-border">
+          <CardContent className="p-4 flex items-center gap-3">
+            <FileText className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Submission Template Available</p>
+              <p className="text-xs text-muted-foreground">Use this template to structure your submission.</p>
+            </div>
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={(challenge as any).submission_template_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Download Template
+              </a>
             </Button>
           </CardContent>
         </Card>
