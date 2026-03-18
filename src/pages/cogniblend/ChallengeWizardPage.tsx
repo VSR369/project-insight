@@ -194,12 +194,16 @@ export default function ChallengeWizardPage() {
       scope: values.scope || null,
       deliverables: deliverables.length ? { items: deliverables } : null,
       evaluation_criteria: criteria.length ? { criteria } : null,
-      reward_structure: {
-        currency: values.currency_code,
-        platinum: values.platinum_award,
-        gold: values.gold_award,
-        silver: values.silver_award ?? null,
-      },
+      reward_structure: isLightweight
+        ? values.reward_type === 'non_monetary'
+          ? { type: 'non_monetary', description: values.reward_description || '' }
+          : { type: 'monetary', amount: values.platinum_award, currency: values.currency_code }
+        : {
+            currency: values.currency_code,
+            platinum: values.platinum_award,
+            gold: values.gold_award,
+            silver: values.silver_award ?? null,
+          },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
