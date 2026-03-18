@@ -170,9 +170,9 @@ export function useInitiateAmendment() {
         if (solverIds.length > 0) {
           const rows = solverIds.map((uid) => ({
             user_id: uid,
-            notification_type: 'AMENDMENT_INITIATED',
-            title: 'Challenge Amendment in Progress',
-            message: `An amendment to "${challengeTitle}" has been initiated affecting: ${scopes.join(', ')}. This is a material change — you will have 7 days to withdraw without penalty once published.`,
+            notification_type: 'MATERIAL_AMENDMENT',
+            title: 'Material Amendment — Withdrawal Window Open',
+            message: `Material amendment made to "${challengeTitle}". You have 7 days to withdraw without penalty. Affected areas: ${scopes.join(', ')}.`,
             challenge_id: challengeId,
             is_read: false,
           }));
