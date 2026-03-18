@@ -49,6 +49,7 @@ interface PublicationConfigTabProps {
     max_solutions: number | null;
     submission_deadline: string | null;
     ip_model: string | null;
+    targeting_filters: Json | null;
   };
   isApproved: boolean;
   onConfigChange?: (config: { visibility: string; eligibility: string; isReady: boolean }) => void;
