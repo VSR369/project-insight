@@ -2,11 +2,22 @@
  * useSolverLegalGate — Phase-triggered Tier 2 legal acceptance gate.
  * Checks if the solver has pending Tier 2 legal docs for the current
  * solution phase and blocks progression until all are accepted.
+ *
+ * R-04: Governance-aware — skips Enterprise-only doc types for Lightweight.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
+
+/* ─── Enterprise-only doc types (BRD BR-LGL-001-A Tier 2 matrix) ─── */
+
+const ENTERPRISE_ONLY_DOC_TYPES = [
+  'ESCROW_TERMS',
+  'IP_ASSIGNMENT_DEED',
+  'PERFORMANCE_BOND',
+  'ENTERPRISE_EVALUATION_TERMS',
+] as const;
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -34,9 +45,10 @@ export function useSolverLegalGate(
   challengeId: string | undefined,
   userId: string | undefined,
   currentPhase: number | undefined,
+  governanceProfile: string | undefined,
 ): SolverLegalGateResult {
   const { data, isLoading } = useQuery({
-    queryKey: ['solver-legal-gate', challengeId, userId, currentPhase],
+    queryKey: ['solver-legal-gate', challengeId, userId, currentPhase, governanceProfile],
     queryFn: async (): Promise<{ cleared: boolean; pendingDocs: PendingLegalDoc[] }> => {
       if (!challengeId || !userId || !currentPhase) {
         return { cleared: true, pendingDocs: [] };
@@ -56,6 +68,18 @@ export function useSolverLegalGate(
         return { cleared: true, pendingDocs: [] };
       }
 
+      // R-04: Filter out Enterprise-only docs for Lightweight governance
+      const isLightweight = governanceProfile === 'LIGHTWEIGHT';
+      const filteredTemplates = isLightweight
+        ? (templates as any[]).filter(
+            (t) => !ENTERPRISE_ONLY_DOC_TYPES.includes(t.document_type as any)
+          )
+        : (templates as any[]);
+
+      if (filteredTemplates.length === 0) {
+        return { cleared: true, pendingDocs: [] };
+      }
+
       // 2. Get docs this solver has already accepted for this challenge
       const { data: accepted, error: accErr } = await supabase
         .from('legal_acceptance_ledger')
@@ -69,7 +93,7 @@ export function useSolverLegalGate(
       const acceptedTypes = new Set((accepted ?? []).map((a: any) => a.document_type));
 
       // 3. Filter to unaccepted docs
-      const pending = (templates as any[])
+      const pending = filteredTemplates
         .filter((t) => !acceptedTypes.has(t.document_type))
         .map((t) => ({
           template_id: t.template_id,

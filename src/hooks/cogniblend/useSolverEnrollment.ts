@@ -129,3 +129,106 @@ export function useWithdrawEnrollment() {
     },
   });
 }
+
+/* ─── useApproveEnrollment (R-05) ────────────────────────── */
+
+export function useApproveEnrollment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ enrollmentId, challengeId }: { enrollmentId: string; challengeId: string }) => {
+      const withAudit = await withUpdatedBy({
+        status: 'APPROVED',
+        approved_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('solver_enrollments')
+        .update(withAudit as any)
+        .eq('id', enrollmentId);
+
+      if (error) throw new Error(error.message);
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['solver-enrollment', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments', variables.challengeId] });
+      toast.success('Enrollment approved');
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'approve_enrollment' });
+    },
+  });
+}
+
+/* ─── useRejectEnrollment (R-05) ─────────────────────────── */
+
+export function useRejectEnrollment() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({
+      enrollmentId,
+      challengeId,
+      reason,
+    }: {
+      enrollmentId: string;
+      challengeId: string;
+      reason?: string;
+    }) => {
+      const withAudit = await withUpdatedBy({
+        status: 'REJECTED',
+        updated_at: new Date().toISOString(),
+      });
+      const { error } = await supabase
+        .from('solver_enrollments')
+        .update(withAudit as any)
+        .eq('id', enrollmentId);
+
+      if (error) throw new Error(error.message);
+
+      // Log rejection reason in audit trail if provided
+      if (reason) {
+        const { data: { user } } = await supabase.auth.getUser();
+        await supabase.from('audit_trail').insert({
+          user_id: user?.id ?? '',
+          challenge_id: challengeId,
+          action: 'ENROLLMENT_REJECTED',
+          method: 'MANUAL',
+          details: { enrollment_id: enrollmentId, reason },
+        });
+      }
+    },
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['solver-enrollment', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['pending-enrollments', variables.challengeId] });
+      toast.success('Enrollment rejected');
+    },
+    onError: (error: Error) => {
+      handleMutationError(error, { operation: 'reject_enrollment' });
+    },
+  });
+}
+
+/* ─── usePendingEnrollments (R-05) ───────────────────────── */
+
+export function usePendingEnrollments(challengeId: string | undefined) {
+  return useQuery({
+    queryKey: ['pending-enrollments', challengeId],
+    queryFn: async () => {
+      if (!challengeId) return [];
+
+      const { data, error } = await supabase
+        .from('solver_enrollments')
+        .select('id, solver_id, enrollment_model, enrolled_at, status')
+        .eq('challenge_id', challengeId)
+        .eq('status', 'PENDING')
+        .eq('is_deleted', false)
+        .order('enrolled_at', { ascending: true });
+
+      if (error) throw new Error(error.message);
+      return data ?? [];
+    },
+    enabled: !!challengeId,
+    ...CACHE_STANDARD,
+  });
+}
