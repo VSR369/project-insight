@@ -235,12 +235,12 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
           name="industry_segment_id"
           control={control}
           render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+            <Select value={field.value || '__none__'} onValueChange={(v) => field.onChange(v === '__none__' ? '' : v)}>
               <SelectTrigger className="text-base">
                 <SelectValue placeholder={loadingSegments ? 'Loading…' : 'Select industry segment'} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">None</SelectItem>
+                <SelectItem value="__none__">None</SelectItem>
                 {industrySegments.map((seg) => (
                   <SelectItem key={seg.id} value={seg.id}>
                     {seg.name}
