@@ -18,6 +18,7 @@ export interface CurrentOrg {
   verificationStatus: string | null;
   tcVersionAccepted: string | null;
   governanceProfile: string;
+  lcReviewRequired: boolean;
 }
 
 export function useCurrentOrg() {
