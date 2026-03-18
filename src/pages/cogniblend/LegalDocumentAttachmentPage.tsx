@@ -240,12 +240,13 @@ export default function LegalDocumentAttachmentPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenge_legal_docs")
-        .select("id, document_type, document_name, tier, status, version_history")
+        .select("id, document_type, document_name, tier, status, version_history, lc_status")
         .eq("challenge_id", challengeId!);
       if (error) throw new Error(error.message);
       return (data ?? []).map((d: any) => ({
         ...d,
         version_history: Array.isArray(d.version_history) ? d.version_history : [],
+        lc_status: d.lc_status ?? null,
       })) as AttachedDoc[];
     },
     enabled: !!challengeId,
