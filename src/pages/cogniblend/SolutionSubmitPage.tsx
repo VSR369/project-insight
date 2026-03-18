@@ -583,14 +583,23 @@ export default function SolutionSubmitPage() {
             </CardContent>
           </Card>
 
-          {/* File Attachments */}
+          {/* File Attachments — LIGHTWEIGHT: "Solution Files (optional)"; ENTERPRISE: standard */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
                 <FileText className="h-4 w-4" />
-                File Attachments
-                <span className="text-xs text-muted-foreground font-normal">(Optional, max 10 files, 50MB total)</span>
+                {isLightweight ? 'Solution Files' : 'File Attachments'}
+                <span className="text-xs text-muted-foreground font-normal">
+                  {isLightweight
+                    ? '(Optional — attach solution files for direct owner review, max 10 files, 50MB total)'
+                    : '(Optional, max 10 files, 50MB total)'}
+                </span>
               </CardTitle>
+              {isLightweight && (
+                <CardDescription>
+                  Lightweight challenges use single-stage submission. Your solution files are reviewed directly by the challenge owner — no screening step.
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-2">
               <FileUploadZone
@@ -616,6 +625,18 @@ export default function SolutionSubmitPage() {
             </CardContent>
           </Card>
 
+          {/* Governance Info Banner */}
+          {isEnterprise && (
+            <Card className="border-muted bg-muted/30">
+              <CardContent className="p-4 flex items-start gap-3">
+                <Shield className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  <strong>Enterprise two-stage submission:</strong> Your abstract will be screened first. If shortlisted, you will be notified to upload your full solution with deliverable files.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Actions */}
           <div className="flex flex-col-reverse lg:flex-row gap-3 justify-end">
             <Button
@@ -632,7 +653,7 @@ export default function SolutionSubmitPage() {
               disabled={submitMutation.isPending || needsLegalAcceptance || fileSizeExceeded}
             >
               <Send className="h-4 w-4 mr-2" />
-              {submitMutation.isPending ? 'Submitting...' : 'Submit Abstract'}
+              {submitMutation.isPending ? 'Submitting...' : isLightweight ? 'Submit Solution' : 'Submit Abstract'}
             </Button>
           </div>
         </form>
