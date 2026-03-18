@@ -29,6 +29,7 @@ interface ChallengeProgressBarProps {
 export function ChallengeProgressBar({
   currentStep,
   completedSteps,
+  stepFieldCounts,
 }: ChallengeProgressBarProps) {
   return (
     <div className="w-full py-6 px-4">
