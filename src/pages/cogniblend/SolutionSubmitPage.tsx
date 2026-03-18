@@ -375,7 +375,11 @@ export default function SolutionSubmitPage() {
       existingId: existingSolution?.id,
       challengeId: challengeId!,
       providerId: userId!,
-      ...values,
+      abstractText: values.abstractText,
+      methodology: values.methodology,
+      timeline: values.timeline,
+      experience: values.experience,
+      aiUsageDeclaration: values.aiUsageDeclaration,
     });
   };
 
