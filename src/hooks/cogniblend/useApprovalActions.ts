@@ -98,6 +98,8 @@ export function useReturnForModification() {
           target_role: targetRole,
         } as unknown as Json,
       });
+
+      return amendData.id as string;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-review'] });
