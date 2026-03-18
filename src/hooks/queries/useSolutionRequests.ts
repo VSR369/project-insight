@@ -154,6 +154,8 @@ export function useSolutionRequests(mpRoles: SlmRoleCode[] = []) {
           created_at: c.created_at,
           assignment_count: team.total,
           team,
+          phase_status: c.phase_status ?? null,
+          current_phase: c.current_phase ?? 1,
         };
       }) as SolutionRequestRow[];
     },
