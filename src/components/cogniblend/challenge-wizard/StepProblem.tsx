@@ -177,23 +177,15 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
             <span />
           )}
           <span
-            className={cn(
-              'text-xs tabular-nums',
-              problemLen >= PROBLEM_MIN
-                ? 'text-[#1D9E75] font-medium'
-                : 'text-muted-foreground',
-            )}
-          >
-            {problemLen} / {PROBLEM_MIN} min
-          </span>
-        </div>
-      </div>
-
-      {/* ── 3. Scope ─────────────────────────────────── */}
-      {!isLightweight ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="scope" className="text-sm font-medium">
-            Scope {isRequired('scope') && <span className="text-destructive">*</span>}
+              className={cn(
+                'text-xs tabular-nums',
+                problemLen >= problemMin
+                  ? 'text-[#1D9E75] font-medium'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {problemLen} / {problemMin} min
+            </span>
           </Label>
           <Textarea
             id="scope"
