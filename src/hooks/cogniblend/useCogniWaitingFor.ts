@@ -24,6 +24,7 @@ export interface WaitingForChallenge {
 
 export interface EnrichedWaitingChallenge extends WaitingForChallenge {
   sla: SlaStatus | null;
+  sla_deadline_at: string | null;
 }
 
 /* ── Hook ─────────────────────────────────────────────────── */
