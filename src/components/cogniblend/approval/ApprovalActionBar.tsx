@@ -5,6 +5,8 @@
  *   1. Click "Approve" (only active on Overview tab) → switches to Publication Config
  *   2. Configure visibility + eligibility + finalize complexity
  *   3. "Confirm Approval" becomes active → saves config, calls complete_phase
+ *
+ * Return flow now supports structured modification points.
  */
 
 import { useState } from 'react';
