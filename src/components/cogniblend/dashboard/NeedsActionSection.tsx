@@ -1,18 +1,16 @@
 /**
  * NeedsActionSection — "Needs Your Action" widget for CogniBlend Dashboard.
- * Shows challenge cards with SLA status & transition buttons, or an empty state.
- * Complete Phase buttons show spinner + 'Completing…' while in flight.
- *
- * Responsive: action buttons stack vertically full-width on mobile.
- * Headings and padding reduced on mobile.
+ * Filters by activeRole when provided. Shows SLA status & transition buttons.
  */
 
+import { useMemo } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedChallenge, SlaStatus, ValidTransition } from '@/hooks/cogniblend/useCogniDashboard';
 import { SlaCountdown } from './SlaCountdown';
 import { PhaseProgressBar } from './PhaseProgressBar';
+import { ROLE_DISPLAY } from '@/types/cogniRoles';
 
 /* ── Phase → required role code mapping ───────────────────── */
 
@@ -101,6 +99,7 @@ interface NeedsActionSectionProps {
   isLoading: boolean;
   completingChallengeId?: string | null;
   onTransition?: (challengeId: string, action: string) => void;
+  activeRole?: string;
 }
 
 /* ── SLA urgency sort order ────────────────────────────────── */
@@ -124,8 +123,16 @@ export function NeedsActionSection({
   isLoading,
   completingChallengeId,
   onTransition,
+  activeRole,
 }: NeedsActionSectionProps) {
-  const sortedItems = sortBySlaUrgency(items);
+  /* Filter by activeRole using PHASE_ROLE_MAP */
+  const roleFilteredItems = useMemo(() => {
+    if (!activeRole) return items;
+    return items.filter((item) => PHASE_ROLE_MAP[item.current_phase] === activeRole);
+  }, [items, activeRole]);
+
+  const sortedItems = sortBySlaUrgency(roleFilteredItems);
+
   /* Loading skeleton */
   if (isLoading) {
     return (
@@ -144,6 +151,7 @@ export function NeedsActionSection({
 
   /* Empty state */
   if (sortedItems.length === 0) {
+    const roleName = activeRole ? (ROLE_DISPLAY[activeRole] ?? activeRole) : null;
     return (
       <section>
         <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
@@ -153,7 +161,9 @@ export function NeedsActionSection({
           <CheckCircle className="h-7 w-7 lg:h-8 lg:w-8 text-[hsl(155,68%,37%)] mb-2" />
           <p className="text-sm lg:text-base font-bold text-[hsl(155,68%,37%)]">All caught up!</p>
           <p className="text-xs lg:text-[13px] text-muted-foreground">
-            No challenges need your action right now.
+            {roleName
+              ? `No challenges need your action as ${roleName} right now.`
+              : 'No challenges need your action right now.'}
           </p>
         </div>
       </section>

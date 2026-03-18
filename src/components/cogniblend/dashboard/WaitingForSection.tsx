@@ -1,14 +1,23 @@
 /**
  * WaitingForSection — "Waiting for Others" widget for CogniBlend Dashboard.
+ * Filters by activeRole when provided — shows only challenges where the user's
+ * next action phase matches the active workspace role.
  * Hidden entirely when no items. Shows role names, never person names.
- * Responsive: reduced padding/fonts on mobile.
  */
 
+import { useMemo } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedWaitingChallenge } from '@/hooks/cogniblend/useCogniWaitingFor';
 import type { SlaStatus } from '@/hooks/cogniblend/useCogniDashboard';
 import { SlaCountdown } from './SlaCountdown';
 import { PhaseProgressBar } from './PhaseProgressBar';
+
+/* ── Phase → role code mapping (mirrors NeedsActionSection) ── */
+
+const PHASE_ROLE_MAP: Record<number, string> = {
+  1: 'AM', 2: 'CR', 3: 'CU', 4: 'ID', 5: 'ID', 6: 'ID',
+  7: 'ER', 8: 'ER', 9: 'ID', 10: 'FC', 11: 'LC', 12: 'FC', 13: 'CR',
+};
 
 /* ── Phase badge mapping ───────────────────────────────────── */
 
@@ -65,9 +74,27 @@ function SlaIndicator({ sla }: { sla: SlaStatus | null }) {
 interface WaitingForSectionProps {
   items: EnrichedWaitingChallenge[];
   isLoading: boolean;
+  activeRole?: string;
 }
 
-export function WaitingForSection({ items, isLoading }: WaitingForSectionProps) {
+export function WaitingForSection({ items, isLoading, activeRole }: WaitingForSectionProps) {
+  /* Filter: show only items where user's next action phase matches activeRole */
+  const filteredItems = useMemo(() => {
+    if (!activeRole) return items;
+    return items.filter((item) => {
+      // Show if the user's next phase role matches activeRole
+      if (item.next_user_phase != null && PHASE_ROLE_MAP[item.next_user_phase] === activeRole) {
+        return true;
+      }
+      // Also show if the current phase's owning role matches activeRole
+      // (user is waiting because someone else holds the current phase)
+      if (PHASE_ROLE_MAP[item.current_phase] === activeRole) {
+        return true;
+      }
+      return false;
+    });
+  }, [items, activeRole]);
+
   if (isLoading) {
     return (
       <section className="mt-6 lg:mt-8">
@@ -83,7 +110,7 @@ export function WaitingForSection({ items, isLoading }: WaitingForSectionProps) 
     );
   }
 
-  if (items.length === 0) return null;
+  if (filteredItems.length === 0) return null;
 
   return (
     <section className="mt-6 lg:mt-8">
@@ -91,7 +118,7 @@ export function WaitingForSection({ items, isLoading }: WaitingForSectionProps) 
         Waiting for Others
       </h2>
       <div className="space-y-3">
-        {items.map((item) => (
+        {filteredItems.map((item) => (
           <div
             key={item.challenge_id}
             className="rounded-xl border border-border bg-card p-3 lg:p-4"

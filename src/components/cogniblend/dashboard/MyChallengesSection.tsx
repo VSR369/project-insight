@@ -1,26 +1,34 @@
 /**
- * MyChallengesSection — "My Challenges" widget with role filter tabs
- * and master_status grouping (In Preparation → Active → Completed → Cancelled/Terminated).
+ * MyChallengesSection — "My Challenges" widget with dynamic role filter tabs
+ * driven by availableRoles from CogniRoleContext.
+ * Auto-selects the tab matching activeRole on mount/change.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Briefcase } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { cn } from '@/lib/utils';
+import { ROLE_DISPLAY } from '@/types/cogniRoles';
 import type { MyChallengeItem } from '@/hooks/cogniblend/useMyChallenges';
 
-/* ── Tab definitions ─────────────────────────────────────── */
+/* ── Role codes that have meaningful "My Challenges" tabs ─── */
 
-const ROLE_TABS = [
-  { key: 'ALL', label: 'All', roleCode: null },
-  { key: 'CR', label: 'As Creator', roleCode: 'CR' },
-  { key: 'CU', label: 'As Curator', roleCode: 'CU' },
-  { key: 'ER', label: 'As Reviewer', roleCode: 'ER' },
-  { key: 'ID', label: 'As Approver', roleCode: 'ID' },
-] as const;
+const TAB_ELIGIBLE_ROLES = ['CR', 'CU', 'ER', 'ID', 'LC', 'FC', 'AM', 'RQ', 'CA'] as const;
+
+const TAB_LABELS: Record<string, string> = {
+  CR: 'As Creator',
+  CU: 'As Curator',
+  ER: 'As Reviewer',
+  ID: 'As Approver',
+  LC: 'As Legal',
+  FC: 'As Finance',
+  AM: 'As Acct Mgr',
+  RQ: 'As Requestor',
+  CA: 'As Architect',
+};
 
 /* ── Master-status group ordering ────────────────────────── */
 
@@ -96,15 +104,42 @@ interface MyChallengesSectionProps {
   items: MyChallengeItem[];
   roleCounts: Record<string, number>;
   isLoading: boolean;
+  activeRole?: string;
+  availableRoles?: string[];
 }
 
 export function MyChallengesSection({
   items,
   roleCounts,
   isLoading,
+  activeRole,
+  availableRoles,
 }: MyChallengesSectionProps) {
+  /* Build dynamic tabs: "All" + tabs for roles user actually holds */
+  const roleTabs = useMemo(() => {
+    const tabs: { key: string; label: string; roleCode: string | null }[] = [
+      { key: 'ALL', label: 'All', roleCode: null },
+    ];
+    const userRoles = availableRoles ?? [];
+    for (const role of TAB_ELIGIBLE_ROLES) {
+      if (userRoles.includes(role)) {
+        tabs.push({ key: role, label: TAB_LABELS[role] ?? `As ${role}`, roleCode: role });
+      }
+    }
+    return tabs;
+  }, [availableRoles]);
+
   const [activeTab, setActiveTab] = useState<string>('ALL');
   const navigate = useNavigate();
+
+  /* Auto-select tab matching activeRole when workspace changes */
+  useEffect(() => {
+    if (!activeRole) return;
+    const matchingTab = roleTabs.find((t) => t.key === activeRole);
+    if (matchingTab) {
+      setActiveTab(activeRole);
+    }
+  }, [activeRole, roleTabs]);
 
   const filteredItems = useMemo(() => {
     if (activeTab === 'ALL') return items;
@@ -148,9 +183,9 @@ export function MyChallengesSection({
         My Challenges
       </h2>
 
-      {/* ── Filter Tabs ─────────────────────────────────── */}
+      {/* ── Filter Tabs (dynamic from availableRoles) ──── */}
       <div className="flex flex-wrap gap-1.5 mb-4">
-        {ROLE_TABS.map((tab) => {
+        {roleTabs.map((tab) => {
           const count = tab.roleCode === null ? totalCount : (roleCounts[tab.roleCode] ?? 0);
           const isActive = activeTab === tab.key;
 
@@ -189,7 +224,7 @@ export function MyChallengesSection({
           <p className="text-xs lg:text-sm text-muted-foreground text-center">
             {activeTab === 'ALL'
               ? 'You have no challenge assignments yet.'
-              : `No challenges for this role.`}
+              : `No challenges for your ${ROLE_DISPLAY[activeTab] ?? activeTab} role.`}
           </p>
         </div>
       ) : (
