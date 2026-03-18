@@ -9,7 +9,7 @@
  *   5. Solution Maturity Level — 2×2 radio card grid
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   ChevronDown,
