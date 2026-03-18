@@ -47,6 +47,8 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     complexity_notes: z.string().max(2000).optional().or(z.literal('')),
     permitted_artifact_types: z.array(z.string()).default([]),
     submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
+    solver_eligibility_types: z.array(z.enum(['individual', 'organization', 'solution_cluster']))
+      .min(1, 'At least one solver eligibility type is required'),
 
     // Step 3 — Evaluation
     weighted_criteria: z.array(z.object({
@@ -108,6 +110,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   reward_description: '',
   permitted_artifact_types: [],
   submission_guidelines: '',
+  solver_eligibility_types: ['individual'] as ('individual' | 'organization' | 'solution_cluster')[],
   taxonomy_tags: '',
   submission_deadline: '',
   expected_timeline: '',
