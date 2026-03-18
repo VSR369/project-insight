@@ -14,11 +14,14 @@ import {
   Check,
   AlertTriangle,
   Info,
+  DollarSign,
+  Award,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -111,6 +114,7 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
   const silverAward = watch('silver_award');
   const currencyCode = watch('currency_code') ?? 'USD';
   const currencySymbol = CURRENCY_OPTIONS.find((c) => c.value === currencyCode)?.symbol ?? '$';
+  const rewardType = watch('reward_type') ?? 'monetary';
 
   const rewardOrderValid =
     platinumAward > goldAward &&
@@ -272,112 +276,214 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
         <Label className="text-sm font-medium">
           Reward Structure <span className="text-destructive">*</span>
         </Label>
-        <p className="text-xs text-muted-foreground">
-          Define tiered awards. Amounts must be in descending order.
-        </p>
 
-        {/* Currency selector */}
-        <div className="max-w-[180px]">
-          <Label className="text-xs text-muted-foreground">Currency</Label>
-          <Controller
-            name="currency_code"
-            control={control}
-            render={({ field }) => (
-              <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
-                <SelectTrigger className="text-base">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCY_OPTIONS.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+        {isLightweight ? (
+          /* ─── Lightweight: monetary/non-monetary toggle ─── */
+          <>
+            <p className="text-xs text-muted-foreground">
+              Choose a reward type for this challenge.
+            </p>
+
+            {/* Radio toggle */}
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setValue('reward_type', 'monetary', { shouldDirty: true })}
+                className={cn(
+                  'flex-1 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
+                  rewardType === 'monetary'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border hover:bg-muted/50'
+                )}
+              >
+                <DollarSign className={cn('h-5 w-5 shrink-0', rewardType === 'monetary' ? 'text-primary' : 'text-muted-foreground')} />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Monetary Award</p>
+                  <p className="text-xs text-muted-foreground">Cash prize for winning solutions</p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setValue('reward_type', 'non_monetary', { shouldDirty: true })}
+                className={cn(
+                  'flex-1 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
+                  rewardType === 'non_monetary'
+                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                    : 'border-border hover:bg-muted/50'
+                )}
+              >
+                <Award className={cn('h-5 w-5 shrink-0', rewardType === 'non_monetary' ? 'text-primary' : 'text-muted-foreground')} />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Non-Monetary Recognition</p>
+                  <p className="text-xs text-muted-foreground">Publication credit, partnership, etc.</p>
+                </div>
+              </button>
+            </div>
+
+            {rewardType === 'monetary' ? (
+              <div className="flex items-end gap-3">
+                <div className="max-w-[140px] space-y-1">
+                  <Label className="text-xs text-muted-foreground">Currency</Label>
+                  <Controller
+                    name="currency_code"
+                    control={control}
+                    render={({ field }) => (
+                      <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
+                        <SelectTrigger className="text-base">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CURRENCY_OPTIONS.map((c) => (
+                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-xs text-muted-foreground">
+                    Award Amount <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className="text-base pl-8"
+                      {...register('platinum_award', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">
+                  Describe the recognition <span className="text-destructive">*</span>
+                </Label>
+                <Textarea
+                  placeholder="e.g., Publication credit, partnership opportunity, mentorship program access..."
+                  className="resize-none text-base"
+                  rows={3}
+                  {...register('reward_description')}
+                />
+              </div>
             )}
-          />
-        </div>
+          </>
+        ) : (
+          /* ─── Enterprise: Platinum/Gold/Silver 3-tier ─── */
+          <>
+            <p className="text-xs text-muted-foreground">
+              Define tiered awards. Amounts must be in descending order.
+            </p>
 
-        {/* Award tiers */}
-        <div className="space-y-3">
-          {/* Platinum */}
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-xs font-bold shrink-0">
-              P
+            {/* Currency selector */}
+            <div className="max-w-[180px]">
+              <Label className="text-xs text-muted-foreground">Currency</Label>
+              <Controller
+                name="currency_code"
+                control={control}
+                render={({ field }) => (
+                  <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
+                    <SelectTrigger className="text-base">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {CURRENCY_OPTIONS.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
-            <div className="flex-1 space-y-1">
-              <Label className="text-sm font-medium">
-                Platinum Award <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  {currencySymbol}
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0"
-                  className="text-base pl-8"
-                  {...register('platinum_award', { valueAsNumber: true })}
-                />
+
+            {/* Award tiers */}
+            <div className="space-y-3">
+              {/* Platinum */}
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-xs font-bold shrink-0">
+                  P
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-sm font-medium">
+                    Platinum Award <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className="text-base pl-8"
+                      {...register('platinum_award', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Gold */}
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-white text-xs font-bold shrink-0">
+                  G
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-sm font-medium">
+                    Gold Award <span className="text-destructive">*</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className="text-base pl-8"
+                      {...register('gold_award', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Silver */}
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
+                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-white text-xs font-bold shrink-0">
+                  S
+                </div>
+                <div className="flex-1 space-y-1">
+                  <Label className="text-sm font-medium">
+                    Silver Award <span className="text-xs text-muted-foreground ml-1">(optional)</span>
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
+                      {currencySymbol}
+                    </span>
+                    <Input
+                      type="number"
+                      min={0}
+                      placeholder="0"
+                      className="text-base pl-8"
+                      {...register('silver_award', { valueAsNumber: true })}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Gold */}
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-white text-xs font-bold shrink-0">
-              G
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label className="text-sm font-medium">
-                Gold Award <span className="text-destructive">*</span>
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  {currencySymbol}
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0"
-                  className="text-base pl-8"
-                  {...register('gold_award', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Silver */}
-          <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-white text-xs font-bold shrink-0">
-              S
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label className="text-sm font-medium">
-                Silver Award <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-              </Label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                  {currencySymbol}
-                </span>
-                <Input
-                  type="number"
-                  min={0}
-                  placeholder="0"
-                  className="text-base pl-8"
-                  {...register('silver_award', { valueAsNumber: true })}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Order validation */}
-        {hasRewardValues && !rewardOrderValid && (
-          <p className="text-xs text-destructive flex items-center gap-1">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            Awards must be in descending order: Platinum &gt; Gold &gt; Silver
-          </p>
+            {/* Order validation */}
+            {hasRewardValues && !rewardOrderValid && (
+              <p className="text-xs text-destructive flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Awards must be in descending order: Platinum &gt; Gold &gt; Silver
+              </p>
+            )}
+          </>
         )}
       </div>
 

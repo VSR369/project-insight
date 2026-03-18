@@ -59,6 +59,8 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     silver_award: z.number().min(0).optional(),
     rejection_fee_pct: z.number().min(5).max(20).default(10),
     taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
+    reward_type: z.enum(['monetary', 'non_monetary']).default('monetary'),
+    reward_description: z.string().max(2000).optional().or(z.literal('')),
 
     // Step 4 — Timeline
     submission_deadline: z.string().optional().or(z.literal('')),
@@ -97,6 +99,8 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   gold_award: 0,
   silver_award: undefined,
   rejection_fee_pct: 10,
+  reward_type: 'monetary',
+  reward_description: '',
   permitted_artifact_types: [],
   submission_guidelines: '',
   taxonomy_tags: '',
