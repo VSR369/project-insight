@@ -10244,12 +10244,14 @@ export type Database = {
           last_escalated_at: string | null
           max_hold_days: number
           phase: number
+          phase_duration_days: number | null
           role_code: string
           started_at: string
           status: string
           timer_id: string
           updated_at: string | null
           updated_by: string | null
+          warning_sent_at: string | null
         }
         Insert: {
           auto_hold_on_breach?: boolean
@@ -10263,12 +10265,14 @@ export type Database = {
           last_escalated_at?: string | null
           max_hold_days?: number
           phase: number
+          phase_duration_days?: number | null
           role_code: string
           started_at?: string
           status?: string
           timer_id?: string
           updated_at?: string | null
           updated_by?: string | null
+          warning_sent_at?: string | null
         }
         Update: {
           auto_hold_on_breach?: boolean
@@ -10282,12 +10286,14 @@ export type Database = {
           last_escalated_at?: string | null
           max_hold_days?: number
           phase?: number
+          phase_duration_days?: number | null
           role_code?: string
           started_at?: string
           status?: string
           timer_id?: string
           updated_at?: string | null
           updated_by?: string | null
+          warning_sent_at?: string | null
         }
         Relationships: [
           {
