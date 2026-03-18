@@ -5,46 +5,73 @@
 
 import { z } from 'zod';
 
-export const challengeFormSchema = z.object({
-  // Step 1 — Problem
-  title: z.string().min(1, 'Title is required').max(100, 'Title cannot exceed 100 characters').trim(),
-  problem_statement: z.string().min(200, 'Problem statement must be at least 200 characters').max(5000, 'Max 5000 characters').trim(),
-  scope: z.string().max(3000).optional().or(z.literal('')),
-  domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
-  maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
-    errorMap: () => ({ message: 'Please select a maturity level' }),
-  }),
+/* ── Governance-aware min lengths ──────────────────────── */
+export const PROBLEM_MIN_ENTERPRISE = 500;
+export const PROBLEM_MIN_LIGHTWEIGHT = 200;
+export const SCOPE_MIN_ENTERPRISE = 200;
+export const SCOPE_MIN_LIGHTWEIGHT = 100;
+export const TITLE_MAX = 200;
 
-  // Step 2 — Requirements
-  deliverables_list: z.array(z.string()).default(['']),
-  description: z.string().max(2000).optional().or(z.literal('')),
-  ip_model: z.string().optional().or(z.literal('')),
-  visibility: z.string().default('public'),
-  eligibility: z.string().max(2000).optional().or(z.literal('')),
-  complexity_notes: z.string().max(2000).optional().or(z.literal('')),
-  permitted_artifact_types: z.array(z.string()).default([]),
-  submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
+/**
+ * Creates a governance-aware challenge form schema.
+ * Enterprise has stricter minimum lengths for problem_statement and scope.
+ */
+export function createChallengeFormSchema(isLightweight: boolean) {
+  const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
+  const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
 
-  // Step 3 — Evaluation
-  weighted_criteria: z.array(z.object({
-    name: z.string().min(1, 'Criterion name is required').max(200),
-    weight: z.number().min(0).max(100),
-  })).min(1, 'At least one criterion is required'),
-  currency_code: z.string().default('USD'),
-  platinum_award: z.number().min(0).default(0),
-  gold_award: z.number().min(0).default(0),
-  silver_award: z.number().min(0).optional(),
-  rejection_fee_pct: z.number().min(5).max(20).default(10),
-  taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
+  return z.object({
+    // Step 1 — Problem
+    title: z.string().min(1, 'Title is required').max(TITLE_MAX, `Title cannot exceed ${TITLE_MAX} characters`).trim(),
+    problem_statement: z.string()
+      .min(problemMin, `Problem statement must be at least ${problemMin} characters`)
+      .max(5000, 'Max 5000 characters')
+      .trim(),
+    scope: isLightweight
+      ? z.string().max(3000).optional().or(z.literal(''))
+      : z.string()
+          .min(scopeMin, `Scope must be at least ${scopeMin} characters`)
+          .max(3000, 'Max 3000 characters')
+          .trim(),
+    domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
+    maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {
+      errorMap: () => ({ message: 'Please select a maturity level' }),
+    }),
 
-  // Step 4 — Timeline
-  submission_deadline: z.string().optional().or(z.literal('')),
-  expected_timeline: z.string().max(200).optional().or(z.literal('')),
-  review_duration: z.number().int().min(1).max(90).optional(),
-  phase_notes: z.string().max(2000).optional().or(z.literal('')),
-  phase_durations: z.record(z.string(), z.number().min(1).max(365)).optional(),
-  complexity_params: z.record(z.string(), z.number().min(0).max(10)).optional(),
-});
+    // Step 2 — Requirements
+    deliverables_list: z.array(z.string()).default(['']),
+    description: z.string().max(2000).optional().or(z.literal('')),
+    ip_model: z.string().optional().or(z.literal('')),
+    visibility: z.string().default('public'),
+    eligibility: z.string().max(2000).optional().or(z.literal('')),
+    complexity_notes: z.string().max(2000).optional().or(z.literal('')),
+    permitted_artifact_types: z.array(z.string()).default([]),
+    submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
+
+    // Step 3 — Evaluation
+    weighted_criteria: z.array(z.object({
+      name: z.string().min(1, 'Criterion name is required').max(200),
+      weight: z.number().min(0).max(100),
+    })).min(1, 'At least one criterion is required'),
+    currency_code: z.string().default('USD'),
+    platinum_award: z.number().min(0).default(0),
+    gold_award: z.number().min(0).default(0),
+    silver_award: z.number().min(0).optional(),
+    rejection_fee_pct: z.number().min(5).max(20).default(10),
+    taxonomy_tags: z.string().max(500).optional().or(z.literal('')),
+
+    // Step 4 — Timeline
+    submission_deadline: z.string().optional().or(z.literal('')),
+    expected_timeline: z.string().max(200).optional().or(z.literal('')),
+    review_duration: z.number().int().min(1).max(90).optional(),
+    phase_notes: z.string().max(2000).optional().or(z.literal('')),
+    phase_durations: z.record(z.string(), z.number().min(1).max(365)).optional(),
+    complexity_params: z.record(z.string(), z.number().min(0).max(10)).optional(),
+  });
+}
+
+/** Default schema (lightweight) — used for type inference */
+export const challengeFormSchema = createChallengeFormSchema(true);
 
 export type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
 

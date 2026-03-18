@@ -2,9 +2,9 @@
  * Step 1 — Problem Definition
  *
  * Fields:
- *   1. Title — max 100 chars, live counter
- *   2. Problem Statement — min 200 chars, live counter
- *   3. Scope — required (Enterprise), advanced expandable (Lightweight)
+ *   1. Title — max 200 chars, live counter
+ *   2. Problem Statement — min 500 (ENT) / 200 (LW) chars, live counter with green threshold
+ *   3. Scope — min 200 (ENT) / 100 (LW), required (Enterprise), advanced expandable (Lightweight)
  *   4. Domain Tags — multi-select with search + colored pills
  *   5. Solution Maturity Level — 2×2 radio card grid
  */
@@ -30,8 +30,11 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
 
-const TITLE_MAX = 100;
-const PROBLEM_MIN = 200;
+const TITLE_MAX = 200;
+const PROBLEM_MIN_ENTERPRISE = 500;
+const PROBLEM_MIN_LIGHTWEIGHT = 200;
+const SCOPE_MIN_ENTERPRISE = 200;
+const SCOPE_MIN_LIGHTWEIGHT = 100;
 
 const DOMAIN_TAGS = [
   'AI/ML',
@@ -103,8 +106,13 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const titleValue = watch('title') ?? '';
   const problemValue = watch('problem_statement') ?? '';
+  const scopeValue = watch('scope') ?? '';
   const titleLen = titleValue.length;
   const problemLen = problemValue.length;
+  const scopeLen = scopeValue.length;
+
+  const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
+  const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
@@ -169,71 +177,98 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
             <span />
           )}
           <span
-            className={cn(
-              'text-xs tabular-nums',
-              problemLen >= PROBLEM_MIN
-                ? 'text-[#1D9E75] font-medium'
-                : 'text-muted-foreground',
-            )}
-          >
-            {problemLen} / {PROBLEM_MIN} min
-          </span>
+              className={cn(
+                'text-xs tabular-nums',
+                problemLen >= problemMin
+                  ? 'text-[#1D9E75] font-medium'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {problemLen} / {problemMin} min
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* ── 3. Scope ─────────────────────────────────── */}
-      {!isLightweight ? (
-        <div className="space-y-1.5">
-          <Label htmlFor="scope" className="text-sm font-medium">
-            Scope {isRequired('scope') && <span className="text-destructive">*</span>}
-          </Label>
-          <Textarea
-            id="scope"
-            placeholder="Define what is in scope and out of scope for solutions."
-            style={{ minHeight: 100 }}
-            className={cn(
-              'text-base resize-y',
-              errors.scope && 'border-destructive focus-visible:ring-destructive',
-            )}
-            {...register('scope')}
-          />
-          {errors.scope && (
-            <p className="text-xs text-destructive">{errors.scope.message}</p>
-          )}
-        </div>
-      ) : (
-        <div className="pt-1">
-          <button
-            type="button"
-            onClick={() => setShowAdvanced(!showAdvanced)}
-            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            {showAdvanced ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
-            Show Advanced Options
-          </button>
-          {showAdvanced && (
-            <div className="mt-3 pl-1 border-l-2 border-muted ml-1.5">
-              <div className="pl-4 space-y-1.5">
-                <Label htmlFor="scope_adv" className="text-sm font-medium">
-                  Scope{' '}
-                  <span className="text-xs text-muted-foreground">(optional)</span>
-                </Label>
-                <Textarea
-                  id="scope_adv"
-                  placeholder="Define what is in scope and out of scope for solutions."
-                  style={{ minHeight: 100 }}
-                  className="text-base resize-y"
-                  {...register('scope')}
-                />
-              </div>
+        {/* ── 3. Scope ─────────────────────────────────── */}
+        {!isLightweight ? (
+          <div className="space-y-1.5">
+            <Label htmlFor="scope" className="text-sm font-medium">
+              Scope {isRequired('scope') && <span className="text-destructive">*</span>}
+            </Label>
+            <Textarea
+              id="scope"
+              placeholder="Define what is in scope and out of scope for solutions."
+              style={{ minHeight: 100 }}
+              className={cn(
+                'text-base resize-y',
+                errors.scope && 'border-destructive focus-visible:ring-destructive',
+              )}
+              {...register('scope')}
+            />
+            <div className="flex items-center justify-between">
+              {errors.scope ? (
+                <p className="text-xs text-destructive">{errors.scope.message}</p>
+              ) : (
+                <span />
+              )}
+              <span
+                className={cn(
+                  'text-xs tabular-nums',
+                  scopeLen >= scopeMin
+                    ? 'text-[#1D9E75] font-medium'
+                    : 'text-muted-foreground',
+                )}
+              >
+                {scopeLen} / {scopeMin} min
+              </span>
             </div>
-          )}
-        </div>
-      )}
+          </div>
+        ) : (
+          <div className="pt-1">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showAdvanced ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+              Show Advanced Options
+            </button>
+            {showAdvanced && (
+              <div className="mt-3 pl-1 border-l-2 border-muted ml-1.5">
+                <div className="pl-4 space-y-1.5">
+                  <Label htmlFor="scope_adv" className="text-sm font-medium">
+                    Scope{' '}
+                    <span className="text-xs text-muted-foreground">(optional)</span>
+                  </Label>
+                  <Textarea
+                    id="scope_adv"
+                    placeholder="Define what is in scope and out of scope for solutions."
+                    style={{ minHeight: 100 }}
+                    className="text-base resize-y"
+                    {...register('scope')}
+                  />
+                  <div className="flex items-center justify-between">
+                    <span />
+                    <span
+                      className={cn(
+                        'text-xs tabular-nums',
+                        scopeLen >= scopeMin
+                          ? 'text-[#1D9E75] font-medium'
+                          : 'text-muted-foreground',
+                      )}
+                    >
+                      {scopeLen} / {scopeMin} min
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
       {/* ── 4. Domain Tags ────────────────────────────── */}
       <Controller

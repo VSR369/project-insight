@@ -13,7 +13,7 @@
  *     Lightweight → saves + complete_phase → /cogni/dashboard
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -37,6 +37,7 @@ import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEva
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import {
+  createChallengeFormSchema,
   challengeFormSchema,
   DEFAULT_FORM_VALUES,
   type ChallengeFormValues,
@@ -56,19 +57,26 @@ export default function ChallengeWizardPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
 
-  // ═══════ Hooks — form ═══════
-  const form = useForm<ChallengeFormValues>({
-    resolver: zodResolver(challengeFormSchema),
-    defaultValues: DEFAULT_FORM_VALUES,
-  });
-
-  // ═══════ Hooks — queries ═══════
+  // ═══════ Hooks — queries (before form, for governance-aware schema) ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
 
   const governanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : currentOrg ? 'LIGHTWEIGHT' : null;
+
+  const isLightweight = governanceProfile !== 'ENTERPRISE';
+
+  const activeSchema = useMemo(
+    () => createChallengeFormSchema(isLightweight),
+    [isLightweight],
+  );
+
+  // ═══════ Hooks — form ═══════
+  const form = useForm<ChallengeFormValues>({
+    resolver: zodResolver(activeSchema),
+    defaultValues: DEFAULT_FORM_VALUES,
+  });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
 
@@ -136,7 +144,6 @@ export default function ChallengeWizardPage() {
   }
 
   // ═══════ Derived ═══════
-  const isLightweight = governanceProfile === 'LIGHTWEIGHT';
   const isEnterprise = governanceProfile === 'ENTERPRISE';
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Create Challenge';
 
