@@ -83,12 +83,29 @@ interface NeedsActionSectionProps {
   onTransition?: (challengeId: string, action: string) => void;
 }
 
+/* ── SLA urgency sort order ────────────────────────────────── */
+
+const SLA_SORT_ORDER: Record<string, number> = {
+  BREACHED: 0,
+  APPROACHING: 1,
+  ON_TRACK: 2,
+};
+
+function sortBySlaUrgency(items: EnrichedChallenge[]): EnrichedChallenge[] {
+  return [...items].sort((a, b) => {
+    const aRank = SLA_SORT_ORDER[a.sla?.status ?? 'ON_TRACK'] ?? 2;
+    const bRank = SLA_SORT_ORDER[b.sla?.status ?? 'ON_TRACK'] ?? 2;
+    return aRank - bRank;
+  });
+}
+
 export function NeedsActionSection({
   items,
   isLoading,
   completingChallengeId,
   onTransition,
 }: NeedsActionSectionProps) {
+  const sortedItems = sortBySlaUrgency(items);
   /* Loading skeleton */
   if (isLoading) {
     return (
