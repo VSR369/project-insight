@@ -36,6 +36,7 @@ import {
   XCircle,
   FileText,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import CurationChecklistPanel from "./CurationChecklistPanel";
 import type { Json } from "@/integrations/supabase/types";
@@ -64,6 +65,7 @@ interface ChallengeData {
   operating_model: string | null;
   governance_profile: string | null;
   current_phase: number | null;
+  phase_status: string | null;
 }
 
 interface LegalDocSummary {
@@ -462,7 +464,7 @@ export default function CurationReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, phase_status"
         )
         .eq("id", challengeId!)
         .single();
@@ -545,6 +547,8 @@ export default function CurationReviewPage() {
     );
   }
 
+  const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+
   // ══════════════════════════════════════
   // SECTION 6: Render
   // ══════════════════════════════════════
@@ -574,6 +578,25 @@ export default function CurationReviewPage() {
           </Badge>
         )}
       </div>
+
+      {/* LEGAL_VERIFICATION_PENDING blocking banner */}
+      {isLegalPending && (
+        <div className="flex items-start gap-3 rounded-lg border border-[hsl(38,80%,60%)]/40 bg-[hsl(38,80%,60%)]/10 p-4">
+          <AlertTriangle className="h-5 w-5 text-[hsl(38,68%,41%)] shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              Legal documents must be attached before curation can begin.
+            </p>
+            <Button
+              variant="link"
+              className="h-auto p-0 text-sm text-primary"
+              onClick={() => navigate(`/cogni/challenges/${challengeId}/legal`)}
+            >
+              Navigate to Legal Documents to complete this step →
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Two-panel layout */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">

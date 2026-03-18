@@ -75,6 +75,7 @@ interface CurationChecklistPanelProps {
     operating_model: string | null;
     governance_profile: string | null;
     current_phase: number | null;
+    phase_status: string | null;
   };
   legalDocs: Array<{ tier: string; total: number; attached: number }>;
   onEditModeToggle?: (editing: boolean) => void;
@@ -316,7 +317,13 @@ export default function CurationChecklistPanel({
     setManualOverrides((prev) => ({ ...prev, [id]: checked }));
   };
 
+  const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+
   const handleSubmitClick = () => {
+    if (isLegalPending) {
+      toast.error('Legal documents must be attached before curation can begin. Navigate to Legal Documents to complete this step.');
+      return;
+    }
     if (!allComplete) {
       setShowIncompleteModal(true);
       return;
@@ -460,7 +467,7 @@ export default function CurationChecklistPanel({
             <Button
               className="w-full"
               onClick={handleSubmitClick}
-              disabled={completePhase.isPending}
+              disabled={completePhase.isPending || isLegalPending}
             >
               {completePhase.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />

@@ -12,6 +12,7 @@ export interface MyChallengeItem {
   title: string;
   current_phase: number;
   master_status: string;
+  phase_status: string;
   role_code: string;
   governance_profile: string;
 }
@@ -33,7 +34,7 @@ export function useMyChallenges(userId: string | undefined) {
           role_code,
           challenge_id,
           challenges!user_challenge_roles_challenge_id_fkey (
-            id, title, current_phase, master_status, governance_profile
+            id, title, current_phase, master_status, phase_status, governance_profile
           )
         `)
         .eq('user_id', userId)
@@ -56,6 +57,7 @@ export function useMyChallenges(userId: string | undefined) {
           title: ch.title,
           current_phase: ch.current_phase ?? 1,
           master_status: ch.master_status ?? 'DRAFT',
+          phase_status: ch.phase_status ?? 'ACTIVE',
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
         });
