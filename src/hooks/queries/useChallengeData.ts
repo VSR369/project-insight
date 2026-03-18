@@ -81,7 +81,7 @@ export function useSolverEligibility() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('md_solver_eligibility')
-        .select('id, code, label, description, requires_auth, requires_provider_record, requires_certification, min_star_rating, display_order')
+        .select('id, code, label, description, requires_auth, requires_provider_record, requires_certification, min_star_rating, display_order, model_category, default_visibility, default_enrollment, default_submission')
         .eq('is_active', true)
         .order('display_order');
       if (error) throw new Error(error.message);
