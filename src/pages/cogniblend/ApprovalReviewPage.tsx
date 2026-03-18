@@ -741,9 +741,19 @@ export default function ApprovalReviewPage() {
           <h1 className="text-xl font-bold text-foreground truncate">Approval Review</h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
-        <Badge variant="outline" className="text-[10px] ml-auto shrink-0">
+        <Badge variant="outline" className="text-[10px] shrink-0">
           Phase {challenge.current_phase ?? 4}
         </Badge>
+        {/* Hold / Resume actions */}
+        {user?.id && (
+          <HoldResumeActions
+            challengeId={challengeId!}
+            challengeTitle={challenge.title}
+            currentPhase={challenge.current_phase ?? 4}
+            phaseStatus={challenge.phase_status ?? null}
+            userId={user.id}
+          />
+        )}
       </div>
 
       {/* Collapsible Challenge Summary */}
