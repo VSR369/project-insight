@@ -147,7 +147,7 @@ export function NeedsActionSection({
         Needs Your Action
       </h2>
       <div className="space-y-3">
-        {items.map((item) => {
+        {sortedItems.map((item) => {
           const isCompleting = completingChallengeId === item.challenge_id;
 
           return (
