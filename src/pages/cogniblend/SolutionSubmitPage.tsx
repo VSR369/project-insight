@@ -306,11 +306,20 @@ export default function SolutionSubmitPage() {
         <Card className="border-primary/30">
           <CardContent className="p-8 text-center space-y-4">
             <CheckCircle className="h-12 w-12 text-primary mx-auto" />
-            <h2 className="text-xl font-semibold text-foreground">Abstract Already Submitted</h2>
-            <Badge variant="secondary" className="text-sm">Submitted — Awaiting Screening</Badge>
+            <h2 className="text-xl font-semibold text-foreground">
+              {isEnterprise ? 'Abstract Submitted' : 'Solution Submitted'}
+            </h2>
+            <Badge variant="secondary" className="text-sm">
+              {isEnterprise ? 'Submitted — Awaiting Screening' : 'Submitted — Awaiting Owner Review'}
+            </Badge>
             <p className="text-muted-foreground">
-              Your abstract was submitted on {existingSolution?.submitted_at ? new Date(existingSolution.submitted_at).toLocaleDateString() : 'N/A'}.
+              Your {isEnterprise ? 'abstract' : 'solution'} was submitted on {existingSolution?.submitted_at ? new Date(existingSolution.submitted_at).toLocaleDateString() : 'N/A'}.
             </p>
+            {isEnterprise && (
+              <p className="text-xs text-muted-foreground">
+                If shortlisted, you will be notified to upload your full solution.
+              </p>
+            )}
             <Button variant="outline" onClick={() => navigate(`/cogni/challenges/${challengeId}/view`)}>
               <ArrowLeft className="h-4 w-4 mr-2" /> Back to Challenge
             </Button>
