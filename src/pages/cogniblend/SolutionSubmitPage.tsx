@@ -21,6 +21,7 @@ import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/us
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { WithdrawSolutionModal } from '@/components/cogniblend/solver/WithdrawSolutionModal';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
+import { SolutionStatusBadge } from '@/components/cogniblend/SolutionStatusBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
@@ -393,9 +394,12 @@ export default function SolutionSubmitPage() {
             <h2 className="text-xl font-semibold text-foreground">
               {isEnterprise ? 'Abstract Submitted' : 'Solution Submitted'}
             </h2>
-            <Badge variant="secondary" className="text-sm">
-              {isEnterprise ? 'Submitted — Awaiting Screening' : 'Submitted — Awaiting Owner Review'}
-            </Badge>
+            <SolutionStatusBadge
+              currentPhase={existingSolution?.current_phase ?? null}
+              phaseStatus={existingSolution?.phase_status ?? null}
+              selectionStatus={existingSolution?.selection_status ?? null}
+              className="text-sm"
+            />
             <p className="text-muted-foreground">
               Your {isEnterprise ? 'abstract' : 'solution'} was submitted on {existingSolution?.submitted_at ? new Date(existingSolution.submitted_at).toLocaleDateString() : 'N/A'}.
             </p>

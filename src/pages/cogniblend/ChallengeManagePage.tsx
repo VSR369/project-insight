@@ -15,6 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SolutionStatusBadge } from '@/components/cogniblend/SolutionStatusBadge';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -65,14 +66,19 @@ function useCountdown(deadline: string | null) {
   return remaining;
 }
 
-/* ─── Status colour map ──────────────────────────────────── */
+/* ─── Submission status → SolutionDisplayStatus mapping ──── */
 
-const STATUS_STYLE: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-[hsl(210,60%,95%)] text-[hsl(210,68%,40%)]',
-  under_review: 'bg-[hsl(38,60%,92%)] text-[hsl(38,68%,35%)]',
-  accepted: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
-  rejected: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
+import { type SolutionDisplayStatus } from '@/constants/solutionStatus.constants';
+
+const SUBMISSION_STATUS_MAP: Record<string, SolutionDisplayStatus> = {
+  draft: 'DRAFT',
+  submitted: 'SUBMITTED',
+  under_review: 'UNDER_SCREENING',
+  under_screening: 'UNDER_SCREENING',
+  shortlisted: 'SHORTLISTED',
+  accepted: 'SELECTED',
+  rejected: 'REJECTED',
+  withdrawn: 'WITHDRAWN',
 };
 
 /* ─── Page ───────────────────────────────────────────────── */
@@ -198,7 +204,7 @@ export default function ChallengeManagePage() {
                 <tbody>
                   {data.submissions.map((s) => {
                     const statusKey = s.status.toLowerCase().replace(/\s+/g, '_');
-                    const style = STATUS_STYLE[statusKey] ?? STATUS_STYLE.draft;
+                    const mappedStatus = SUBMISSION_STATUS_MAP[statusKey] ?? 'DRAFT';
                     return (
                       <tr key={s.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2 pr-4 font-medium text-foreground">
@@ -215,9 +221,11 @@ export default function ChallengeManagePage() {
                           {format(new Date(s.submittedAt), 'dd MMM yyyy')}
                         </td>
                         <td className="py-2">
-                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium capitalize ${style}`}>
-                            {s.status}
-                          </span>
+                          <SolutionStatusBadge
+                            currentPhase={null}
+                            phaseStatus={null}
+                            overrideStatus={mappedStatus}
+                          />
                         </td>
                       </tr>
                     );
