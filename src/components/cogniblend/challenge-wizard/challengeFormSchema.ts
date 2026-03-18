@@ -1,6 +1,6 @@
 /**
  * Zod schema for the Challenge Creation wizard form.
- * Covers all 4 steps. Validation severity depends on governance_profile.
+ * Covers all 7 steps. Validation severity depends on governance_profile.
  */
 
 import { z } from 'zod';
@@ -21,7 +21,7 @@ export function createChallengeFormSchema(isLightweight: boolean) {
   const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
 
   return z.object({
-    // Step 1 — Problem
+    // Step 1 — Challenge Brief
     title: z.string().min(1, 'Title is required').max(TITLE_MAX, `Title cannot exceed ${TITLE_MAX} characters`).trim(),
     problem_statement: z.string()
       .min(problemMin, `Problem statement must be at least ${problemMin} characters`)
@@ -38,7 +38,21 @@ export function createChallengeFormSchema(isLightweight: boolean) {
       errorMap: () => ({ message: 'Please select a maturity level' }),
     }),
 
-    // Step 2 — Requirements
+    // Step 1 — New rich-text fields
+    context_background: z.string().max(5000).optional().or(z.literal('')),
+    detailed_description: z.string().max(5000).optional().or(z.literal('')),
+    root_causes: z.string().max(5000).optional().or(z.literal('')),
+    affected_stakeholders: z.string().max(5000).optional().or(z.literal('')),
+    current_deficiencies: z.string().max(5000).optional().or(z.literal('')),
+    expected_outcomes: z.string().max(5000).optional().or(z.literal('')),
+    preferred_approach: z.string().max(5000).optional().or(z.literal('')),
+    approaches_not_of_interest: z.string().max(5000).optional().or(z.literal('')),
+
+    // Step 1 — New selectors
+    industry_segment_id: z.string().optional().or(z.literal('')),
+    experience_countries: z.array(z.string()).default([]),
+
+    // Step 2 — Requirements (now includes deliverables moved from old step 2)
     deliverables_list: z.array(z.string()).default(['']),
     description: z.string().max(2000).optional().or(z.literal('')),
     ip_model: z.string().optional().or(z.literal('')),
@@ -51,7 +65,7 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     solver_eligibility_types: z.array(z.enum(['individual', 'organization', 'solution_cluster']))
       .min(1, 'At least one solver eligibility type is required'),
 
-    // Step 3 — Evaluation
+    // Step 2 — Evaluation
     weighted_criteria: z.array(z.object({
       name: z.string().min(1, 'Criterion name is required').max(200),
       weight: z.number().min(0).max(100),
@@ -73,12 +87,12 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     phase_durations: z.record(z.string(), z.number().min(1).max(365)).optional(),
     complexity_params: z.record(z.string(), z.number().min(0).max(10)).optional(),
 
-    // Step 4 — Enterprise 3-tier publication config
+    // Step 5 — Enterprise 3-tier publication config
     challenge_visibility: z.string().optional().or(z.literal('')),
     challenge_enrollment: z.string().optional().or(z.literal('')),
     challenge_submission: z.string().optional().or(z.literal('')),
 
-    // Step 4 — Targeting filters (JSONB)
+    // Step 5 — Targeting filters (JSONB)
     targeting_filters: z.object({
       industries: z.array(z.string()).default([]),
       geographies: z.array(z.string()).default([]),
@@ -103,6 +117,19 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   scope: '',
   domain_tags: [],
   maturity_level: undefined as unknown as 'blueprint',
+
+  // New Step 1 fields
+  context_background: '',
+  detailed_description: '',
+  root_causes: '',
+  affected_stakeholders: '',
+  current_deficiencies: '',
+  expected_outcomes: '',
+  preferred_approach: '',
+  approaches_not_of_interest: '',
+  industry_segment_id: '',
+  experience_countries: [],
+
   deliverables_list: [''],
   description: '',
   ip_model: '',

@@ -1,5 +1,5 @@
 /**
- * ChallengeProgressBar — Horizontal 4-step progress indicator
+ * ChallengeProgressBar — Horizontal 7-step progress indicator
  * for the Challenge Creation wizard.
  *
  * States: Active (blue), Completed (green + checkmark), Future (gray border)
@@ -9,10 +9,13 @@ import { Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 const STEPS = [
-  { number: 1, label: 'Problem' },
-  { number: 2, label: 'Requirements' },
-  { number: 3, label: 'Evaluation' },
+  { number: 1, label: 'Challenge Brief' },
+  { number: 2, label: 'Evaluation' },
+  { number: 3, label: 'Rewards' },
   { number: 4, label: 'Timeline' },
+  { number: 5, label: 'Eligibility' },
+  { number: 6, label: 'Templates' },
+  { number: 7, label: 'Review' },
 ] as const;
 
 interface StepFieldCount {
@@ -32,8 +35,8 @@ export function ChallengeProgressBar({
   stepFieldCounts,
 }: ChallengeProgressBarProps) {
   return (
-    <div className="w-full py-6 px-4">
-      <div className="flex items-center justify-between max-w-xl mx-auto">
+    <div className="w-full py-4 px-2">
+      <div className="flex items-center justify-between max-w-2xl mx-auto">
         {STEPS.map((step, index) => {
           const isCompleted = completedSteps.includes(step.number);
           const isActive = currentStep === step.number;
@@ -45,7 +48,7 @@ export function ChallengeProgressBar({
               <div className="flex flex-col items-center relative">
                 <div
                   className={cn(
-                    'w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold transition-colors',
+                    'w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold transition-colors',
                     isCompleted && 'text-white',
                     isActive && 'text-white',
                     isFuture && 'border-2 text-muted-foreground'
@@ -60,36 +63,24 @@ export function ChallengeProgressBar({
                   }}
                 >
                   {isCompleted ? (
-                    <Check className="h-4 w-4" strokeWidth={3} />
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
                   ) : (
                     step.number
                   )}
                 </div>
                 <span
                   className={cn(
-                    'text-xs mt-1.5 whitespace-nowrap font-medium',
+                    'text-[10px] mt-1 whitespace-nowrap font-medium',
                     isCompleted && 'text-[#1D9E75]',
                     isActive && 'text-[#378ADD]',
                     isFuture && 'text-muted-foreground'
                   )}
                 >
-                  Step {step.number}
-                </span>
-                <span
-                  className={cn(
-                    'text-[11px] whitespace-nowrap',
-                    isCompleted
-                      ? 'text-[#1D9E75]'
-                      : isActive
-                        ? 'text-[#378ADD]'
-                        : 'text-muted-foreground'
-                  )}
-                >
                   {step.label}
                 </span>
                 {stepFieldCounts && stepFieldCounts[index] && (
-                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
-                    {stepFieldCounts[index].filled}/{stepFieldCounts[index].total} fields
+                  <span className="text-[9px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                    {stepFieldCounts[index].filled}/{stepFieldCounts[index].total}
                   </span>
                 )}
               </div>
@@ -97,7 +88,7 @@ export function ChallengeProgressBar({
               {/* Connecting line */}
               {index < STEPS.length - 1 && (
                 <div
-                  className="flex-1 h-0.5 mx-2 mt-[-24px]"
+                  className="flex-1 h-0.5 mx-1.5 mt-[-20px]"
                   style={{
                     backgroundColor: isCompleted ? '#1D9E75' : '#D1D5DB',
                   }}
