@@ -42,6 +42,7 @@ interface PublicationConfigTabProps {
     id: string;
     visibility: string | null;
     eligibility: string | null;
+    eligibility_model: string | null;
     challenge_enrollment: string | null;
     challenge_submission: string | null;
     governance_profile: string | null;
@@ -54,8 +55,37 @@ interface PublicationConfigTabProps {
     targeting_filters: Json | null;
   };
   isApproved: boolean;
-  onConfigChange?: (config: { visibility: string; eligibility: string; enrollment: string; submission: string; isReady: boolean }) => void;
+  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }) => void;
 }
+
+interface TierOption {
+  value: string;
+  label: string;
+  description: string;
+  rank: number; // higher = broader
+}
+
+interface ComplexityParam {
+  key: string;
+  label: string;
+  weight: number;
+}
+
+/* ── BRD §5.7.1 Formal Eligibility Models ───────────────── */
+
+interface EligibilityModelOption {
+  code: string;
+  label: string;
+  description: string;
+}
+
+const ELIGIBILITY_MODELS: EligibilityModelOption[] = [
+  { code: 'OC', label: 'Open Challenge (OC)', description: 'Any solver can enroll — no restrictions. Ideal for broad innovation challenges.' },
+  { code: 'DR', label: 'Direct Registered (DR)', description: 'Registered platform members with NDA acceptance. Standard for IP-sensitive challenges.' },
+  { code: 'CE', label: 'Curated Expert (CE)', description: 'Verified experts at L2+ expertise. For complex, domain-specific challenges.' },
+  { code: 'IO', label: 'Invite Only (IO)', description: 'Only explicitly invited solvers can participate. Maximum control over solver pool.' },
+  { code: 'HY', label: 'Hybrid (HY)', description: 'Combines multiple models — e.g., CE for evaluation, OC for submission. Contact admin to configure.' },
+];
 
 interface TierOption {
   value: string;
