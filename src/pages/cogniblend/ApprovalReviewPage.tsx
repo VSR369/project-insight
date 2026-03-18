@@ -649,7 +649,7 @@ export default function ApprovalReviewPage() {
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [isApproved, setIsApproved] = useState(false);
-  const [pubConfig, setPubConfig] = useState<{ visibility: string; eligibility: string; enrollment: string; submission: string; isReady: boolean }>({ visibility: '', eligibility: '', enrollment: '', submission: '', isReady: false });
+  const [pubConfig, setPubConfig] = useState<{ visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }>({ visibility: '', eligibility: '', eligibilityModel: '', enrollment: '', submission: '', isReady: false });
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
