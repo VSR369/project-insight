@@ -1,0 +1,1 @@
+CREATE INDEX IF NOT EXISTS idx_notification_routing_phase_event ON public.notification_routing (phase, event_type) WHERE is_active = TRUE;
