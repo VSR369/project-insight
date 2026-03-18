@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { extractKeywords, matchTagsByKeywords } from '@/lib/keywordExtractor';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
