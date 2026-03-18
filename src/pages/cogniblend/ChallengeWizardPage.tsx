@@ -63,7 +63,10 @@ export default function ChallengeWizardPage() {
 
   // ═══════ Hooks — queries (before form, for governance-aware schema) ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
+  const { data: orgContext } = useOrgModelContext();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
+
+  const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
   const governanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
