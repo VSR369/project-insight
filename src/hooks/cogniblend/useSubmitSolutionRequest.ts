@@ -77,6 +77,10 @@ export function useSubmitSolutionRequest() {
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
+            constraints: payload.constraints || undefined,
+            industry_segment_id: payload.industrySegmentId || undefined,
+            sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
+            specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
         } as any)
         .eq('id', challengeId);
