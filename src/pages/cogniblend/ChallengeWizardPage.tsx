@@ -416,7 +416,7 @@ export default function ChallengeWizardPage() {
         const { challengeId: newId } = await createChallengeMutation.mutateAsync({
           orgId: currentOrg.organizationId,
           creatorId: user.id,
-          operatingModel: 'MP',
+          operatingModel: isAggBypass ? 'AGG' : 'MP',
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: values.scope || '',
           currency: values.currency_code,
@@ -426,6 +426,23 @@ export default function ChallengeWizardPage() {
           domainTags: values.domain_tags ?? [],
           urgency: 'normal',
         });
+
+        // If AGG bypass, write Phase 1 bypassed audit entry
+        if (isAggBypass) {
+          await supabase.from('audit_trail').insert({
+            user_id: user.id,
+            challenge_id: newId,
+            action: 'PHASE_COMPLETED',
+            method: 'SYSTEM',
+            phase_from: 1,
+            phase_to: 2,
+            details: {
+              status: 'COMPLETED_BYPASSED',
+              reason: 'AGG_PHASE1_BYPASS',
+            },
+            created_by: user.id,
+          });
+        }
 
         // Save full wizard fields
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
