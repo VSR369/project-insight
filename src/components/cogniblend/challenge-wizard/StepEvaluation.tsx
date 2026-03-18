@@ -64,12 +64,33 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
   const totalWeight = weightedCriteria.reduce((sum, c) => sum + (c.weight || 0), 0);
 
   const addCriterion = () => {
-    setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0 }]);
+    if (isLightweight) {
+      // Auto-distribute weights equally
+      const newList = [...weightedCriteria, { name: '', weight: 0 }];
+      const evenWeight = Math.floor(100 / newList.length);
+      const distributed = newList.map((c, i) => ({
+        ...c,
+        weight: i === newList.length - 1 ? 100 - evenWeight * (newList.length - 1) : evenWeight,
+      }));
+      setValue('weighted_criteria', distributed);
+    } else {
+      setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0 }]);
+    }
   };
 
   const removeCriterion = (index: number) => {
     if (weightedCriteria.length <= 1) return;
-    setValue('weighted_criteria', weightedCriteria.filter((_, i) => i !== index));
+    const filtered = weightedCriteria.filter((_, i) => i !== index);
+    if (isLightweight) {
+      const evenWeight = Math.floor(100 / filtered.length);
+      const distributed = filtered.map((c, i) => ({
+        ...c,
+        weight: i === filtered.length - 1 ? 100 - evenWeight * (filtered.length - 1) : evenWeight,
+      }));
+      setValue('weighted_criteria', distributed);
+    } else {
+      setValue('weighted_criteria', filtered);
+    }
   };
 
   const updateCriterionName = (index: number, name: string) => {
