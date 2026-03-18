@@ -80,6 +80,7 @@ export function useCurrentOrg() {
         verificationStatus: org?.verification_status ?? null,
         tcVersionAccepted: org?.tc_version_accepted ?? null,
         governanceProfile: org?.governance_profile ?? 'LIGHTWEIGHT',
+        lcReviewRequired: !!(org?.lc_review_required),
       };
     },
     enabled: !!user?.id,
