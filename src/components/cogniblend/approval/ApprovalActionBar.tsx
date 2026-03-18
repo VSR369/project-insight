@@ -19,6 +19,7 @@ import {
   useReturnForModification,
   useRejectChallenge,
 } from '@/hooks/cogniblend/useApprovalActions';
+import { useCreateModificationPoints, type ModificationPointInput } from '@/hooks/cogniblend/useModificationPoints';
 import ApprovalReturnModal from './ApprovalReturnModal';
 import ApprovalRejectModal from './ApprovalRejectModal';
 import { Button } from '@/components/ui/button';
