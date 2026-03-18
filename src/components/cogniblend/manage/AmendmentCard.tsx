@@ -1,18 +1,17 @@
 /**
  * AmendmentCard — Card 3 on the Challenge Management page.
  *
- * Displays amendment history table and "Initiate Amendment" button (ID role only).
+ * Displays amendment history with expandable detail panels and "Initiate Amendment" button (ID role only).
  */
 
 import { useState } from 'react';
-import { PenLine, AlertTriangle } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useAmendmentHistory, AmendmentRecord } from '@/hooks/cogniblend/useAmendments';
+import { useAmendmentHistory } from '@/hooks/cogniblend/useAmendments';
 import { InitiateAmendmentModal } from '@/components/cogniblend/manage/InitiateAmendmentModal';
-import { format } from 'date-fns';
+import { AmendmentDetailPanel } from '@/components/cogniblend/manage/AmendmentDetailPanel';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -21,29 +20,6 @@ interface AmendmentCardProps {
   challengeTitle: string;
   userId: string;
   canInitiate: boolean;
-}
-
-/* ─── Status badge styles ────────────────────────────────── */
-
-const STATUS_STYLE: Record<string, string> = {
-  INITIATED: 'bg-[hsl(38,60%,92%)] text-[hsl(38,68%,35%)]',
-  IMPLEMENTING: 'bg-[hsl(210,60%,95%)] text-[hsl(210,68%,40%)]',
-  UNDER_REVIEW: 'bg-[hsl(270,40%,93%)] text-[hsl(270,50%,40%)]',
-  APPROVED: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
-  REJECTED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
-};
-
-/* ─── Helpers ────────────────────────────────────────────── */
-
-function parseScopeAreas(scopeOfChange: string | null): string {
-  if (!scopeOfChange) return '—';
-  try {
-    const parsed = JSON.parse(scopeOfChange);
-    if (Array.isArray(parsed?.areas)) return parsed.areas.join(', ');
-  } catch {
-    // plain text fallback
-  }
-  return scopeOfChange;
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -75,7 +51,7 @@ export function AmendmentCard({ challengeId, challengeTitle, userId, canInitiate
             </Button>
           )}
 
-          {/* Amendment history table */}
+          {/* Amendment history */}
           {isLoading ? (
             <p className="text-xs text-muted-foreground italic py-2">Loading amendments…</p>
           ) : amendments.length === 0 ? (
@@ -85,49 +61,22 @@ export function AmendmentCard({ challengeId, challengeTitle, userId, canInitiate
           ) : (
             <>
               <Separator />
-              <div className="relative w-full overflow-auto">
-                <table className="w-full text-left text-xs lg:text-sm">
-                  <thead>
-                    <tr className="border-b border-border">
-                      <th className="pb-2 pr-3 font-semibold text-muted-foreground">#</th>
-                      <th className="pb-2 pr-3 font-semibold text-muted-foreground">Date</th>
-                      <th className="pb-2 pr-3 font-semibold text-muted-foreground">Scope</th>
-                      <th className="pb-2 pr-3 font-semibold text-muted-foreground">Status</th>
-                      <th className="pb-2 font-semibold text-muted-foreground">Summary</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {amendments.map((a) => {
-                      const style = STATUS_STYLE[a.status] ?? STATUS_STYLE.INITIATED;
-                      return (
-                        <tr key={a.id} className="border-b border-border/50 last:border-0">
-                          <td className="py-2 pr-3 font-medium text-foreground">
-                            {a.amendmentNumber}
-                          </td>
-                          <td className="py-2 pr-3 text-muted-foreground whitespace-nowrap">
-                            {format(new Date(a.createdAt), 'dd MMM yyyy')}
-                          </td>
-                          <td className="py-2 pr-3 text-muted-foreground max-w-[140px] truncate">
-                            {parseScopeAreas(a.scopeOfChange)}
-                            {a.isMaterial && (
-                              <span className="ml-1.5 inline-flex items-center gap-0.5 text-[hsl(38,70%,45%)]" title="Material change">
-                                <AlertTriangle className="h-3 w-3" />
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-2 pr-3">
-                            <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium ${style}`}>
-                              {a.status.replace(/_/g, ' ')}
-                            </span>
-                          </td>
-                          <td className="py-2 text-muted-foreground max-w-[180px] truncate">
-                            {a.reason ?? '—'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <div className="space-y-2">
+                {amendments.map((a) => (
+                  <AmendmentDetailPanel
+                    key={a.id}
+                    amendmentId={a.id}
+                    challengeId={challengeId}
+                    amendmentNumber={a.amendmentNumber}
+                    status={a.status}
+                    scopeOfChange={a.scopeOfChange}
+                    reason={a.reason}
+                    isMaterial={a.isMaterial}
+                    createdAt={a.createdAt}
+                    withdrawalDeadline={a.withdrawalDeadline}
+                    canEdit={canInitiate}
+                  />
+                ))}
               </div>
             </>
           )}

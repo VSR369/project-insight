@@ -19,6 +19,7 @@ export interface AmendmentRecord {
   scopeOfChange: string | null;
   reason: string | null;
   isMaterial: boolean;
+  withdrawalDeadline: string | null;
   createdAt: string;
   versionBefore: number | null;
   versionAfter: number | null;
@@ -48,7 +49,7 @@ export function useAmendmentHistory(challengeId: string | undefined) {
 
       const { data, error } = await supabase
         .from('amendment_records')
-        .select('id, amendment_number, status, scope_of_change, reason, created_at, version_before, version_after')
+        .select('id, amendment_number, status, scope_of_change, reason, withdrawal_deadline, created_at, version_before, version_after')
         .eq('challenge_id', challengeId)
         .order('amendment_number', { ascending: true });
 
@@ -70,6 +71,7 @@ export function useAmendmentHistory(challengeId: string | undefined) {
           scopeOfChange: a.scope_of_change,
           reason: a.reason,
           isMaterial,
+          withdrawalDeadline: (a as any).withdrawal_deadline ?? null,
           createdAt: a.created_at,
           versionBefore: a.version_before,
           versionAfter: a.version_after,
@@ -115,7 +117,12 @@ export function useInitiateAmendment() {
         is_material: isMaterial,
       });
 
-      // 4. Insert amendment_record
+      // 4. Compute withdrawal deadline (7 days from now if material)
+      const withdrawalDeadline = isMaterial
+        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      // 5. Insert amendment_record
       const { error: insertErr } = await supabase.from('amendment_records').insert({
         challenge_id: challengeId,
         amendment_number: nextNumber,
@@ -124,6 +131,7 @@ export function useInitiateAmendment() {
         reason,
         initiated_by: userId,
         version_before: currentVersion,
+        withdrawal_deadline: withdrawalDeadline,
         created_by: userId,
       });
 
@@ -164,9 +172,9 @@ export function useInitiateAmendment() {
         if (solverIds.length > 0) {
           const rows = solverIds.map((uid) => ({
             user_id: uid,
-            notification_type: 'AMENDMENT_INITIATED',
-            title: 'Challenge Amendment in Progress',
-            message: `An amendment to "${challengeTitle}" has been initiated affecting: ${scopes.join(', ')}. This is a material change — you will have 7 days to withdraw without penalty once published.`,
+            notification_type: 'MATERIAL_AMENDMENT',
+            title: 'Material Amendment — Withdrawal Window Open',
+            message: `Material amendment made to "${challengeTitle}". You have 7 days to withdraw without penalty. Affected areas: ${scopes.join(', ')}.`,
             challenge_id: challengeId,
             is_read: false,
           }));
