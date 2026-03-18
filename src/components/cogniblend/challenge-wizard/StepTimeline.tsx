@@ -97,6 +97,143 @@ function getComplexityLevel(score: number): { label: string; level: string; colo
   return { label: 'L5', level: 'Very High', colorClass: 'bg-red-100 text-red-800 border-red-300' };
 }
 
+/* ─── Lightweight Visibility Toggle ──────────────────────── */
+
+function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
+  const { setValue, watch } = form;
+  const visibility = watch('visibility') || 'public';
+  const isPublic = visibility === 'public';
+
+  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
+  const [emailInput, setEmailInput] = useState('');
+
+  const handleToggle = (checked: boolean) => {
+    if (checked) {
+      setValue('visibility', 'public', { shouldDirty: true });
+      setValue('eligibility', 'anyone', { shouldDirty: true });
+    } else {
+      setValue('visibility', 'invite_only', { shouldDirty: true });
+      setValue('eligibility', 'invited_only', { shouldDirty: true });
+    }
+  };
+
+  const addEmail = () => {
+    const email = emailInput.trim().toLowerCase();
+    if (!email) return;
+    // Basic email check
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return;
+    if (inviteEmails.includes(email)) return;
+    setInviteEmails((prev) => [...prev, email]);
+    setEmailInput('');
+  };
+
+  const removeEmail = (email: string) => {
+    setInviteEmails((prev) => prev.filter((e) => e !== email));
+  };
+
+  return (
+    <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-foreground">
+          Challenge Visibility <span className="text-destructive">*</span>
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Control who can discover and submit solutions to this challenge.
+        </p>
+      </div>
+
+      {/* Toggle card */}
+      <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {isPublic ? (
+              <Globe className="h-5 w-5 text-primary" />
+            ) : (
+              <Lock className="h-5 w-5 text-muted-foreground" />
+            )}
+            <div>
+              <p className="text-sm font-bold text-foreground">
+                {isPublic ? 'Public' : 'Private — Invite Only'}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {isPublic
+                  ? 'Anyone can see and submit solutions'
+                  : 'Only invited solvers can view and submit'}
+              </p>
+            </div>
+          </div>
+          <Switch
+            checked={isPublic}
+            onCheckedChange={handleToggle}
+          />
+        </div>
+      </div>
+
+      {/* Invite list — shown only when Private */}
+      {!isPublic && (
+        <div className="space-y-3 rounded-lg border border-border bg-background p-4">
+          <Label className="text-[13px] font-semibold">Invite Solvers</Label>
+          <p className="text-xs text-muted-foreground">
+            Add email addresses of solvers who should be invited to this challenge.
+          </p>
+
+          <div className="flex gap-2">
+            <Input
+              type="email"
+              placeholder="solver@example.com"
+              value={emailInput}
+              onChange={(e) => setEmailInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  addEmail();
+                }
+              }}
+              className="text-base flex-1"
+            />
+            <Button
+              type="button"
+              size="sm"
+              onClick={addEmail}
+              disabled={!emailInput.trim()}
+              className="shrink-0"
+            >
+              <Plus className="h-4 w-4 mr-1" /> Add
+            </Button>
+          </div>
+
+          {inviteEmails.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {inviteEmails.map((email) => (
+                <Badge
+                  key={email}
+                  variant="secondary"
+                  className="flex items-center gap-1 text-xs py-1 px-2"
+                >
+                  {email}
+                  <button
+                    type="button"
+                    onClick={() => removeEmail(email)}
+                    className="ml-0.5 hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              ))}
+            </div>
+          )}
+
+          {inviteEmails.length === 0 && (
+            <p className="text-xs italic text-muted-foreground">
+              No solvers invited yet. Add email addresses above.
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ─── Component ──────────────────────────────────────────── */
 
 export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimelineProps) {
