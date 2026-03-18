@@ -7,8 +7,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
-import { CheckCircle, AlertTriangle, Rocket } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Rocket, ArrowRight } from 'lucide-react';
 import { createElement } from 'react';
+
+/* ── Role → navigation route mapping ─────────────────────── */
+
+const ROLE_NAV_MAP: Record<string, { label: string; path: string }> = {
+  CR: { label: 'Challenge Creator', path: '/cogni/my-challenges' },
+  CU: { label: 'Curator', path: '/cogni/curation' },
+  ID: { label: 'Innovation Director', path: '/cogni/approval' },
+  ER: { label: 'Evaluation Reviewer', path: '/cogni/review' },
+  LC: { label: 'Legal Counsel', path: '/cogni/legal' },
+  FC: { label: 'Finance Controller', path: '/cogni/escrow' },
+  AM: { label: 'Account Manager', path: '/cogni/my-requests' },
+  RQ: { label: 'Challenge Requestor', path: '/cogni/my-requests' },
+};
 
 /* ── Response shape from complete_phase ───────────────────── */
 
