@@ -11,6 +11,8 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from "@/components/cogniblend/publication/TargetingFiltersSection";
+import type { TargetingFilters } from "@/components/cogniblend/publication/TargetingFiltersSection";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
