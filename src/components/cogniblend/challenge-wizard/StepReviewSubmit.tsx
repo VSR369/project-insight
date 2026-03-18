@@ -45,7 +45,7 @@ export function StepReviewSubmit({ form, isLightweight }: StepReviewSubmitProps)
         { label: 'Problem Statement', value: v.problem_statement ? `${v.problem_statement.length} characters` : '', isValid: !!v.problem_statement },
         { label: 'Domain Tags', value: v.domain_tags?.join(', ') ?? '', isValid: (v.domain_tags?.length ?? 0) > 0 },
         { label: 'Maturity Level', value: v.maturity_level ?? '', isValid: !!v.maturity_level },
-        { label: 'Context & Background', value: v.context_background ? '✓ Provided' : '', isValid: true },
+        { label: 'Scope', value: v.scope ? '✓ Provided' : '', isValid: true },
       ],
     },
     {
