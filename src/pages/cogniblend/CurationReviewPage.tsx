@@ -36,6 +36,7 @@ import {
   XCircle,
   FileText,
   Shield,
+  AlertTriangle,
 } from "lucide-react";
 import CurationChecklistPanel from "./CurationChecklistPanel";
 import type { Json } from "@/integrations/supabase/types";
