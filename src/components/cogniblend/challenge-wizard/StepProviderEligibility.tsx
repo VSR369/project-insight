@@ -777,38 +777,18 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         </div>
       </div>
 
-      {/* ═══ SECTION 3: IP Model ═══ */}
+      {/* ═══ SECTION 3: Eligibility Text ═══ */}
       <div className="space-y-1.5 border-t border-border pt-6">
         <Label className="text-sm font-medium">
-          IP Model{' '}
-          {!isLightweight && isRequired('ip_model') && <span className="text-destructive">*</span>}
-          {isLightweight && <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          Eligibility Criteria (Text)
+          <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
-        <p className="text-xs text-muted-foreground">Select how intellectual property will be handled</p>
-        <Controller name="ip_model" control={control}
-          render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
-              <SelectTrigger className="text-base"><SelectValue placeholder="Select IP ownership model" /></SelectTrigger>
-              <SelectContent>
-                <TooltipProvider delayDuration={200}>
-                  {IP_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <div className="flex items-center gap-2">
-                        <span>{opt.label}</span>
-                        <span className="text-xs text-muted-foreground">— {opt.short}</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" /></TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs text-xs">{opt.tooltip}</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </TooltipProvider>
-              </SelectContent>
-            </Select>
-          )}
+        <Textarea
+          placeholder="Describe any additional eligibility requirements for solvers..."
+          rows={3}
+          className="text-base resize-none"
+          {...form.register('eligibility')}
         />
-        {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
       </div>
 
       {/* ═══ SECTION 4: Permitted Artifact Types ═══ */}
