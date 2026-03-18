@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { logCommunication } from '@/lib/communicationLogger';
 
 export interface ChallengeQARow {
   qa_id: string;
@@ -109,6 +110,14 @@ export function useSubmitQuestion() {
           })
           .eq('qa_id', qaId);
       }
+
+      // Log to communication_log for governance
+      await logCommunication({
+        challengeId,
+        senderId: user.id,
+        messageText: questionText,
+        channel: 'QA',
+      });
 
       return qaId;
     },

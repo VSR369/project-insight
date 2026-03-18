@@ -1363,6 +1363,62 @@ export type Database = {
           },
         ]
       }
+      communication_log: {
+        Row: {
+          challenge_id: string
+          channel: string
+          created_at: string
+          created_by: string | null
+          flag_reason: string | null
+          flagged: boolean
+          log_id: string
+          logged_at: string
+          message_text: string
+          review_action: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          sender_id: string
+        }
+        Insert: {
+          challenge_id: string
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          flag_reason?: string | null
+          flagged?: boolean
+          log_id?: string
+          logged_at?: string
+          message_text: string
+          review_action?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_id: string
+        }
+        Update: {
+          challenge_id?: string
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          flag_reason?: string | null
+          flagged?: boolean
+          log_id?: string
+          logged_at?: string
+          message_text?: string
+          review_action?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          sender_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "communication_log_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       composite_interview_slots: {
         Row: {
           available_reviewer_count: number

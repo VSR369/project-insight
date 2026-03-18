@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
+import { logCommunication } from '@/lib/communicationLogger';
 
 export interface ManagedQARow {
   qa_id: string;
@@ -58,6 +59,14 @@ export function useAnswerQuestion() {
         .update(payload as any)
         .eq('qa_id', qaId);
       if (error) throw new Error(error.message);
+
+      // Log answer to communication_log
+      await logCommunication({
+        challengeId,
+        senderId: userId,
+        messageText: answerText,
+        channel: 'QA',
+      });
 
       // Audit
       await supabase.from('audit_trail').insert({
