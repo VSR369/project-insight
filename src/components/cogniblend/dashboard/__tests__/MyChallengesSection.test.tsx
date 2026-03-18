@@ -25,6 +25,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 2,
     governance_profile: 'LIGHTWEIGHT',
     role_code: 'CR',
+    operating_model: 'MP',
   },
   {
     challenge_id: 'c2',
@@ -34,6 +35,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 1,
     governance_profile: 'ENTERPRISE',
     role_code: 'CU',
+    operating_model: 'MP',
   },
   {
     challenge_id: 'c3',
@@ -43,6 +45,7 @@ const ITEMS: MyChallengeItem[] = [
     current_phase: 3,
     governance_profile: 'LIGHTWEIGHT',
     role_code: 'CR',
+    operating_model: 'AGG',
   },
 ];
 

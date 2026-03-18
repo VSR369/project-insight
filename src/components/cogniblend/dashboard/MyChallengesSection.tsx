@@ -44,12 +44,14 @@ const STATUS_STYLE: Record<string, string> = {
   TERMINATED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
   LEGAL_VERIFICATION_PENDING: 'bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]',
   ON_HOLD: 'bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]',
+  COMPLETED_BYPASSED: 'bg-muted text-muted-foreground italic',
 };
 
 /** Display label overrides for phase_status */
 const STATUS_LABEL: Record<string, string> = {
   LEGAL_VERIFICATION_PENDING: 'Awaiting Legal',
   ON_HOLD: 'On Hold',
+  COMPLETED_BYPASSED: 'Bypassed',
 };
 
 /* ── Role badge styling ──────────────────────────────────── */
@@ -179,6 +181,12 @@ export function MyChallengesSection({
                     {item.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
                       <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]">
                         Awaiting Legal
+                      </span>
+                    )}
+                    {/* Phase 1 Bypassed badge (AGG orgs) */}
+                    {item.operating_model === 'AGG' && item.current_phase >= 2 && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-normal italic bg-muted text-muted-foreground">
+                        Phase 1: Bypassed
                       </span>
                     )}
                     {/* Role */}

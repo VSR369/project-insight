@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import {
   useChallengeDetail,
   useMandatoryFields,
@@ -62,7 +63,10 @@ export default function ChallengeWizardPage() {
 
   // ═══════ Hooks — queries (before form, for governance-aware schema) ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
+  const { data: orgContext } = useOrgModelContext();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
+
+  const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
   const governanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
@@ -412,7 +416,7 @@ export default function ChallengeWizardPage() {
         const { challengeId: newId } = await createChallengeMutation.mutateAsync({
           orgId: currentOrg.organizationId,
           creatorId: user.id,
-          operatingModel: 'MP',
+          operatingModel: isAggBypass ? 'AGG' : 'MP',
           businessProblem: values.problem_statement || values.title,
           expectedOutcomes: values.scope || '',
           currency: values.currency_code,
@@ -422,6 +426,23 @@ export default function ChallengeWizardPage() {
           domainTags: values.domain_tags ?? [],
           urgency: 'normal',
         });
+
+        // If AGG bypass, write Phase 1 bypassed audit entry
+        if (isAggBypass) {
+          await supabase.from('audit_trail').insert({
+            user_id: user.id,
+            challenge_id: newId,
+            action: 'PHASE_COMPLETED',
+            method: 'SYSTEM',
+            phase_from: 1,
+            phase_to: 2,
+            details: {
+              status: 'COMPLETED_BYPASSED',
+              reason: 'AGG_PHASE1_BYPASS',
+            },
+            created_by: user.id,
+          });
+        }
 
         // Save full wizard fields
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
@@ -460,6 +481,25 @@ export default function ChallengeWizardPage() {
           ? 'Lightweight governance — fewer required fields'
           : 'Enterprise governance — all fields required'}
       </p>
+
+      {/* AGG Phase 1 Bypass Banner */}
+      {isAggBypass && !isEditMode && (
+        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
+          <span className="shrink-0 mt-0.5 rounded-full bg-[hsl(210,68%,54%)] p-1">
+            <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-[hsl(210,68%,30%)]">
+              Phase 1 Bypass Active
+            </p>
+            <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
+              Your organization has Aggregator model with direct creation enabled. Phase 1 (Solution Request) is automatically skipped.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Progress Bar */}
       <ChallengeProgressBar
