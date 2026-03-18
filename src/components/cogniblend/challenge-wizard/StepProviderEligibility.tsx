@@ -263,6 +263,8 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
       if (cat.default_visibility) setValue('challenge_visibility', cat.default_visibility, { shouldDirty: true });
       if (cat.default_enrollment) setValue('challenge_enrollment', cat.default_enrollment, { shouldDirty: true });
       if (cat.default_submission) setValue('challenge_submission', cat.default_submission, { shouldDirty: true });
+      // Derive visibility from solver tier code for backward compat
+      setValue('visibility', cat.code || cat.label || '', { shouldDirty: true });
     }
   }, [selectedCategory, setValue]);
 
