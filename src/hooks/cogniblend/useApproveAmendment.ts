@@ -20,6 +20,7 @@ interface ApproveAmendmentPayload {
 /* ─── Constants ──────────────────────────────────────────── */
 
 const WITHDRAWAL_WINDOW_DAYS = 7;
+const REACCEPTANCE_WINDOW_DAYS = 7;
 const BATCH_SIZE = 50;
 
 /* ─── Hook ───────────────────────────────────────────────── */
