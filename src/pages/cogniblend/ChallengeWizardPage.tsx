@@ -232,7 +232,7 @@ export default function ChallengeWizardPage() {
   const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
 
   // Calculate draft SLA (10 business days)
-  const createdAt = challengeData?.created_at ? new Date(challengeData.created_at) : new Date();
+  const createdAt = (challengeData as any)?.created_at ? new Date((challengeData as any).created_at) : new Date();
   const slaDays = 10;
   const slaDeadline = new Date(createdAt);
   slaDeadline.setDate(slaDeadline.getDate() + slaDays);

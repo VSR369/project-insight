@@ -17,6 +17,7 @@ import { MyChallengesSection } from '@/components/cogniblend/dashboard/MyChallen
 import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenChallengesSection';
 import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
+import { RecentNotificationsWidget } from '@/components/cogniblend/dashboard/RecentNotificationsWidget';
 import { Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -42,7 +43,7 @@ export default function CogniDashboardPage() {
 
   return (
     <>
-      {/* ── Action Items Widget (AM/RQ roles) ────────────── */}
+      {/* ── Action Items Widget (all roles) ────────────── */}
       <ActionItemsWidget />
 
       {/* ── AGG Phase 1 Bypass Banner ────────────────────── */}
@@ -64,16 +65,19 @@ export default function CogniDashboardPage() {
         completingChallengeId={completePhase.isPending ? (completePhase.variables?.challengeId ?? null) : null}
         onTransition={handleTransition}
       />
-      <WaitingForSection
-        items={waitingItems}
-        isLoading={waitingLoading}
-      />
+      <WaitingForSection items={waitingItems} isLoading={waitingLoading} />
       <MyChallengesSection
         items={myChallenges?.items ?? []}
         roleCounts={myChallenges?.roleCounts ?? {}}
         isLoading={myChallengesLoading}
       />
       <OpenChallengesSection />
+
+      {/* ── Recent Notifications ──────────────────────── */}
+      <div className="mt-5">
+        <RecentNotificationsWidget />
+      </div>
+
       <RecentActivitySection />
     </>
   );
