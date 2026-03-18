@@ -538,7 +538,7 @@ function getStepFields(step: number): string[] {
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level'];
     case 2:
-      return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model'];
+      return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model', 'solver_eligibility_types'];
     case 3:
       return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
     case 4:
