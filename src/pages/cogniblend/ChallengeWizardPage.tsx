@@ -68,6 +68,7 @@ export default function ChallengeWizardPage() {
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
+  const { data: tierLimit, isLoading: tierLimitLoading } = useTierLimitCheck();
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
