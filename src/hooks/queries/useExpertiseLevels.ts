@@ -16,6 +16,7 @@ export function useExpertiseLevels(includeInactive = false) {
       let query = supabase
         .from("expertise_levels")
         .select("id, name, description, level_number, min_years, max_years, default_quorum_count, is_active, created_at, updated_at, created_by, updated_by")
+        .not('name', 'like', '__SMOKE_TEST_%')
         .order("level_number", { ascending: true });
 
       if (!includeInactive) {

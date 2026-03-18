@@ -66,6 +66,8 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     eligible_participation_modes: z.array(z.string()).default([]),
     // Step 5 — Solver tier (database-driven single selection; empty = All)
     solver_eligibility_id: z.string().optional().or(z.literal('')),
+    // Step 5 — Solver tier multi-select (checkboxes)
+    solver_eligibility_ids: z.array(z.string()).default([]),
     // Step 5 — Provider eligibility criteria
     required_expertise_level_id: z.string().optional().or(z.literal('')),
     required_proficiencies: z.array(z.string()).default([]),
@@ -117,6 +119,9 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     challenge_submission: z.string().optional().or(z.literal('')),
 
     // Step 5 — Targeting filters (JSONB)
+    // Step 6 — Solution category
+    solution_category_description: z.string().max(2000).optional().or(z.literal('')),
+
     targeting_filters: z.object({
       industries: z.array(z.string()).default([]),
       geographies: z.array(z.string()).default([]),
@@ -179,6 +184,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   submission_template_url: '',
   eligible_participation_modes: [],
   solver_eligibility_id: '',
+  solver_eligibility_ids: [],
   required_expertise_level_id: '',
   required_proficiencies: [],
   required_sub_domains: [],
@@ -200,6 +206,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   challenge_visibility: '',
   challenge_enrollment: '',
   challenge_submission: '',
+  solution_category_description: '',
   targeting_filters: {
     industries: [],
     geographies: [],

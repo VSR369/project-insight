@@ -3,8 +3,7 @@
  *
  * 4-column table: # | Criterion Name | Weight % | Description + trash
  * Scoring Rubrics accordion below (5-level per criterion)
- * Enterprise: full weighted table + rubrics
- * Lightweight: simple checklist, auto-distributed weights, no rubrics
+ * All modes show the full table with editable weights. Default values pre-filled.
  */
 
 import { useState } from 'react';
@@ -42,7 +41,7 @@ interface StepEvaluationProps {
 
 /* ─── Component ──────────────────────────────────────── */
 
-export function StepEvaluation({ form, isLightweight }: StepEvaluationProps) {
+export function StepEvaluation({ form }: StepEvaluationProps) {
   const { formState: { errors }, watch, setValue } = form;
 
   const weightedCriteria = watch('weighted_criteria') ?? [];
@@ -63,32 +62,13 @@ export function StepEvaluation({ form, isLightweight }: StepEvaluationProps) {
   /* ── CRUD helpers ── */
 
   const addCriterion = () => {
-    if (isLightweight) {
-      const newList = [...weightedCriteria, { name: '', weight: 0, description: '' }];
-      const evenWeight = Math.floor(100 / newList.length);
-      const distributed = newList.map((c, i) => ({
-        ...c,
-        weight: i === newList.length - 1 ? 100 - evenWeight * (newList.length - 1) : evenWeight,
-      }));
-      setValue('weighted_criteria', distributed);
-    } else {
-      setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0, description: '' }]);
-    }
+    setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0, description: '' }]);
   };
 
   const removeCriterion = (index: number) => {
     if (weightedCriteria.length <= 1) return;
     const filtered = weightedCriteria.filter((_, i) => i !== index);
-    if (isLightweight) {
-      const evenWeight = Math.floor(100 / filtered.length);
-      const distributed = filtered.map((c, i) => ({
-        ...c,
-        weight: i === filtered.length - 1 ? 100 - evenWeight * (filtered.length - 1) : evenWeight,
-      }));
-      setValue('weighted_criteria', distributed);
-    } else {
-      setValue('weighted_criteria', filtered);
-    }
+    setValue('weighted_criteria', filtered);
     // Clean up rubric open state
     setOpenRubrics((prev) => {
       const next = new Set<number>();
@@ -124,120 +104,85 @@ export function StepEvaluation({ form, isLightweight }: StepEvaluationProps) {
       <div>
         <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
         <p className="text-sm text-muted-foreground">
-          {isLightweight
-            ? 'Define criteria for evaluating submissions. All criteria are weighted equally.'
-            : 'Define criteria and assign weights that sum to 100%.'}
+          Define criteria and assign weights that sum to 100%. All fields are editable.
         </p>
       </div>
 
-      {isLightweight ? (
-        /* ─── Lightweight: simple checklist ─── */
-        <>
-          <div className="space-y-2">
-            {weightedCriteria.map((criterion, index) => (
-              <div key={index} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-6 text-center shrink-0">{index + 1}</span>
-                <Input
-                  placeholder="e.g., Technical Feasibility"
-                  value={criterion.name}
-                  onChange={(e) => updateField(index, 'name', e.target.value)}
-                  className="text-base flex-1"
-                />
-                {weightedCriteria.length > 1 ? (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(index)}
-                    className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : <div className="h-9 w-9 shrink-0" />}
-              </div>
-            ))}
-          </div>
-          <Button type="button" variant="ghost" size="sm" onClick={addCriterion} className="text-primary hover:text-primary/80">
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add Criterion
-          </Button>
-          <p className="text-xs italic text-muted-foreground">
-            All criteria are weighted equally in Lightweight mode.
-          </p>
-        </>
-      ) : (
-        /* ─── Enterprise: 4-column weighted table ─── */
-        <>
-          {/* Table header */}
-          <div className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 px-1">
-            <span className="text-xs font-medium text-muted-foreground text-center">#</span>
-            <span className="text-xs font-medium text-muted-foreground">Criterion Name <span className="text-destructive">*</span></span>
-            <span className="text-xs font-medium text-muted-foreground text-center">Weight % <span className="text-destructive">*</span></span>
-            <span className="text-xs font-medium text-muted-foreground">Description</span>
-            <span />
-          </div>
+      {/* ─── Full 4-column weighted table (all modes) ─── */}
+      {/* Table header */}
+      <div className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 px-1">
+        <span className="text-xs font-medium text-muted-foreground text-center">#</span>
+        <span className="text-xs font-medium text-muted-foreground">Criterion Name <span className="text-destructive">*</span></span>
+        <span className="text-xs font-medium text-muted-foreground text-center">Weight % <span className="text-destructive">*</span></span>
+        <span className="text-xs font-medium text-muted-foreground">Description</span>
+        <span />
+      </div>
 
-          {/* Table rows */}
-          <div className="space-y-2">
-            {weightedCriteria.map((criterion, index) => (
-              <div key={index} className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 items-center">
-                <span className="text-sm text-muted-foreground text-center font-medium">{index + 1}</span>
-                <Input
-                  placeholder="e.g., Technical Approach"
-                  value={criterion.name}
-                  onChange={(e) => updateField(index, 'name', e.target.value)}
-                  className="text-base"
-                />
-                <Input
-                  type="number"
-                  min={0}
-                  max={100}
-                  value={criterion.weight}
-                  onChange={(e) => updateField(index, 'weight', Number(e.target.value) || 0)}
-                  className="text-base text-center"
-                />
-                <Input
-                  placeholder="Brief description..."
-                  value={criterion.description ?? ''}
-                  onChange={(e) => updateField(index, 'description', e.target.value)}
-                  className="text-base"
-                />
-                {weightedCriteria.length > 1 ? (
-                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(index)}
-                    className="h-9 w-9 text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                ) : <div className="h-9 w-9" />}
-              </div>
-            ))}
+      {/* Table rows */}
+      <div className="space-y-2">
+        {weightedCriteria.map((criterion, index) => (
+          <div key={index} className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 items-center">
+            <span className="text-sm text-muted-foreground text-center font-medium">{index + 1}</span>
+            <Input
+              placeholder="e.g., Technical Approach"
+              value={criterion.name}
+              onChange={(e) => updateField(index, 'name', e.target.value)}
+              className="text-base"
+            />
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              value={criterion.weight}
+              onChange={(e) => updateField(index, 'weight', Number(e.target.value) || 0)}
+              className="text-base text-center"
+            />
+            <Input
+              placeholder="Brief description..."
+              value={criterion.description ?? ''}
+              onChange={(e) => updateField(index, 'description', e.target.value)}
+              className="text-base"
+            />
+            {weightedCriteria.length > 1 ? (
+              <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(index)}
+                className="h-9 w-9 text-muted-foreground hover:text-destructive">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            ) : <div className="h-9 w-9" />}
           </div>
+        ))}
+      </div>
 
-          {/* Total Weight footer */}
-          <div
-            className={cn(
-              'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
-              totalWeight === 100
-                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                : totalWeight > 100
-                  ? 'border-destructive/30 bg-destructive/5 text-destructive'
-                  : 'border-amber-200 bg-amber-50 text-amber-700',
-            )}
-          >
-            {totalWeight === 100 ? (
-              <><Check className="h-4 w-4" /> Total Weight: 100% ✓</>
-            ) : totalWeight > 100 ? (
-              <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — exceeds 100%</>
-            ) : (
-              <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — must sum to 100%</>
-            )}
-          </div>
+      {/* Total Weight footer */}
+      <div
+        className={cn(
+          'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
+          totalWeight === 100
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : totalWeight > 100
+              ? 'border-destructive/30 bg-destructive/5 text-destructive'
+              : 'border-amber-200 bg-amber-50 text-amber-700',
+        )}
+      >
+        {totalWeight === 100 ? (
+          <><Check className="h-4 w-4" /> Total Weight: 100% ✓</>
+        ) : totalWeight > 100 ? (
+          <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — exceeds 100%</>
+        ) : (
+          <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — must sum to 100%</>
+        )}
+      </div>
 
-          <Button type="button" variant="ghost" size="sm" onClick={addCriterion} className="text-primary hover:text-primary/80">
-            <Plus className="h-3.5 w-3.5 mr-1" /> + Add Criterion
-          </Button>
-        </>
-      )}
+      <Button type="button" variant="ghost" size="sm" onClick={addCriterion} className="text-primary hover:text-primary/80">
+        <Plus className="h-3.5 w-3.5 mr-1" /> + Add Criterion
+      </Button>
 
       {errors.weighted_criteria && (
         <p className="text-xs text-destructive">{errors.weighted_criteria.message}</p>
       )}
 
-      {/* ── Scoring Rubrics (Enterprise only) ── */}
-      {!isLightweight && namedCriteria.length > 0 && (
+      {/* ── Scoring Rubrics (all modes) ── */}
+      {namedCriteria.length > 0 && (
         <div className="space-y-3 pt-4 border-t border-border">
           <div>
             <h4 className="text-sm font-bold text-foreground mb-0.5">Scoring Rubrics</h4>
