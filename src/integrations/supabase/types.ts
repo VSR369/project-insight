@@ -3918,12 +3918,16 @@ export type Database = {
           code: string
           created_at: string
           created_by: string | null
+          default_enrollment: string | null
+          default_submission: string | null
+          default_visibility: string | null
           description: string | null
           display_order: number
           id: string
           is_active: boolean
           label: string
           min_star_rating: number | null
+          model_category: string | null
           requires_auth: boolean
           requires_certification: boolean
           requires_provider_record: boolean
@@ -3934,12 +3938,16 @@ export type Database = {
           code: string
           created_at?: string
           created_by?: string | null
+          default_enrollment?: string | null
+          default_submission?: string | null
+          default_visibility?: string | null
           description?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
           label: string
           min_star_rating?: number | null
+          model_category?: string | null
           requires_auth?: boolean
           requires_certification?: boolean
           requires_provider_record?: boolean
@@ -3950,12 +3958,16 @@ export type Database = {
           code?: string
           created_at?: string
           created_by?: string | null
+          default_enrollment?: string | null
+          default_submission?: string | null
+          default_visibility?: string | null
           description?: string | null
           display_order?: number
           id?: string
           is_active?: boolean
           label?: string
           min_star_rating?: number | null
+          model_category?: string | null
           requires_auth?: boolean
           requires_certification?: boolean
           requires_provider_record?: boolean
