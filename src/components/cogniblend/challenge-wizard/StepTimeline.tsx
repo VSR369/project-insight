@@ -7,7 +7,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
-import { CalendarIcon, Info, Check } from 'lucide-react';
+import { CalendarIcon, Info, Check, Plus, X, Globe, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
