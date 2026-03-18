@@ -127,6 +127,7 @@ interface DomainTagSelectProps {
   value: string[];
   onChange: (tags: string[]) => void;
   error?: string;
+  businessProblem?: string;
 }
 
 function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
