@@ -2,9 +2,9 @@
  * Step 1 — Problem Definition
  *
  * Fields:
- *   1. Title — max 100 chars, live counter
- *   2. Problem Statement — min 200 chars, live counter
- *   3. Scope — required (Enterprise), advanced expandable (Lightweight)
+ *   1. Title — max 200 chars, live counter
+ *   2. Problem Statement — min 500 (ENT) / 200 (LW) chars, live counter with green threshold
+ *   3. Scope — min 200 (ENT) / 100 (LW), required (Enterprise), advanced expandable (Lightweight)
  *   4. Domain Tags — multi-select with search + colored pills
  *   5. Solution Maturity Level — 2×2 radio card grid
  */
