@@ -2556,6 +2556,7 @@ export type Database = {
           id: string
           ip_address: string | null
           phase_triggered: number | null
+          scroll_confirmed: boolean
           tier: string | null
           user_id: string
         }
@@ -2570,6 +2571,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           phase_triggered?: number | null
+          scroll_confirmed?: boolean
           tier?: string | null
           user_id: string
         }
@@ -2584,6 +2586,7 @@ export type Database = {
           id?: string
           ip_address?: string | null
           phase_triggered?: number | null
+          scroll_confirmed?: boolean
           tier?: string | null
           user_id?: string
         }
