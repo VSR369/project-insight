@@ -18,7 +18,9 @@ import {
 } from '@/hooks/cogniblend/useSolutionSubmission';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/useWithdrawSolution';
+import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { WithdrawSolutionModal } from '@/components/cogniblend/solver/WithdrawSolutionModal';
+import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
