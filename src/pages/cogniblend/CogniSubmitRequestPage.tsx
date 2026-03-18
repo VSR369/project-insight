@@ -246,6 +246,7 @@ export default function CogniSubmitRequestPage() {
 
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
+  const readinessGate = useRoleReadinessGate();
   const { data: architects = [], isLoading: architectsLoading } = useChallengeArchitects();
   const submitMutation = useSubmitSolutionRequest();
   const draftMutation = useSaveDraft();
