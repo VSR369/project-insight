@@ -12,7 +12,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { useComplexityParams } from '@/hooks/queries/useComplexityParams';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays, differenceInDays } from 'date-fns';
-import { CalendarIcon, Info, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
+import { CalendarIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,8 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -41,9 +39,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
-import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
-import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
-import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
