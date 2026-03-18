@@ -4,7 +4,7 @@
  */
 
 /** Role priority order — highest priority first */
-export const ROLE_PRIORITY = ['CA', 'CR', 'AM', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC'] as const;
+export const ROLE_PRIORITY: string[] = ['CA', 'CR', 'AM', 'RQ', 'CU', 'ID', 'ER', 'LC', 'FC'];
 
 /** Role code → human-readable name */
 export const ROLE_DISPLAY: Record<string, string> = {
