@@ -115,4 +115,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   phase_notes: '',
   phase_durations: undefined,
   complexity_params: undefined,
+  challenge_visibility: '',
+  challenge_enrollment: '',
+  challenge_submission: '',
 };
