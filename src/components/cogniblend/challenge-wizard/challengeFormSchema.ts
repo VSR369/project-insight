@@ -62,8 +62,10 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     permitted_artifact_types: z.array(z.string()).default([]),
     submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
     submission_template_url: z.string().optional().or(z.literal('')),
-    // Step 5 — Solver eligibility (database-driven single selection)
-    solver_eligibility_id: z.string().min(1, 'Please select a solver category'),
+    // Step 5 — Provider Category (multi-select from participation_modes; empty = All)
+    eligible_participation_modes: z.array(z.string()).default([]),
+    // Step 5 — Solver tier (database-driven single selection; empty = All)
+    solver_eligibility_id: z.string().optional().or(z.literal('')),
     // Step 5 — Provider eligibility criteria
     required_expertise_level_id: z.string().optional().or(z.literal('')),
     required_proficiencies: z.array(z.string()).default([]),
