@@ -237,8 +237,10 @@ const ChallengeManagePage = lazy(() => import("@/pages/cogniblend/ChallengeManag
 const SolutionSubmitPage = lazy(() => import("@/pages/cogniblend/SolutionSubmitPage"));
 const FullSolutionUploadPage = lazy(() => import("@/pages/cogniblend/FullSolutionUploadPage"));
 const ScreeningReviewPage = lazy(() => import("@/pages/cogniblend/ScreeningReviewPage"));
+const CogniSubmitRequestPage = lazy(() => import("@/pages/cogniblend/CogniSubmitRequestPage"));
+const CogniMyRequestsPage = lazy(() => import("@/pages/cogniblend/CogniMyRequestsPage"));
 
-// Solution Request Pages (lazy loaded)
+// Solution Request Pages (lazy loaded — backward-compatible standalone routes)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
 const SolutionRequestsListPage = lazy(() => import("@/pages/requests/SolutionRequestsListPage"));
 

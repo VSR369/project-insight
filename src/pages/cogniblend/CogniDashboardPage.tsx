@@ -38,6 +38,9 @@ export default function CogniDashboardPage() {
 
   return (
     <>
+      {/* ── Action Items Widget (AM/RQ roles) ────────────── */}
+      <ActionItemsWidget />
+
       {/* ── AGG Phase 1 Bypass Banner ────────────────────── */}
       {showBypassBanner && (
         <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-5 flex items-center gap-3">
