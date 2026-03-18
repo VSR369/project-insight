@@ -30,7 +30,7 @@ const ITEMS: MyChallengeItem[] = [
   {
     challenge_id: 'c2',
     title: 'Quantum Computing',
-    master_status: 'DRAFT',
+    master_status: 'IN_PREPARATION',
     phase_status: 'LEGAL_VERIFICATION_PENDING',
     current_phase: 1,
     governance_profile: 'ENTERPRISE',
