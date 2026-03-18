@@ -81,6 +81,13 @@ const COMPLEXITY_PARAMS: ComplexityParam[] = [
   { key: 'budget_scale', label: 'Budget Scale', weight: 0.10 },
 ];
 
+/** Lightweight complexity options with fixed scores */
+const LW_COMPLEXITY_OPTIONS = [
+  { value: 'low', label: 'Low', description: 'Routine problem, well-understood domain', level: 'L1', score: 2.0, badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'medium', label: 'Medium', description: 'Moderate novelty, some cross-domain', level: 'L3', score: 5.0, badgeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
+  { value: 'high', label: 'High', description: 'Significant innovation, new territory', level: 'L5', score: 9.0, badgeClass: 'bg-red-100 text-red-800 border-red-300' },
+] as const;
+
 function getComplexityLevel(score: number): { label: string; level: string; colorClass: string } {
   if (score < 2.0) return { label: 'L1', level: 'Low', colorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
   if (score < 4.0) return { label: 'L2', level: 'Low-Medium', colorClass: 'bg-blue-100 text-blue-800 border-blue-300' };
@@ -368,19 +375,44 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         </div>
 
         {isLightweight ? (
-          /* ─── Lightweight: simple dropdown ─── */
-          <div className="space-y-1.5 max-w-xs">
-            <Label className="text-[13px] font-semibold">Complexity Level</Label>
+          /* ─── Lightweight: simple dropdown with badge ─── */
+          <div className="space-y-3 max-w-md">
+            <Label className="text-[13px] font-semibold">Challenge Complexity</Label>
             <Select value={lwComplexity} onValueChange={setLwComplexity}>
               <SelectTrigger className="text-base">
                 <SelectValue placeholder="Select complexity" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="low">Low (L1–L2)</SelectItem>
-                <SelectItem value="medium">Medium (L3)</SelectItem>
-                <SelectItem value="high">High (L4–L5)</SelectItem>
+                {LW_COMPLEXITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{opt.label} — {opt.description}</span>
+                      <span className="text-xs text-muted-foreground">Maps to {opt.level} (score {opt.score})</span>
+                    </div>
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
+
+            {/* Selected complexity badge */}
+            {(() => {
+              const selected = LW_COMPLEXITY_OPTIONS.find((o) => o.value === lwComplexity);
+              if (!selected) return null;
+              return (
+                <div className="rounded-lg border border-border bg-muted/30 px-5 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-foreground">Selected Complexity</p>
+                    <p className="text-xs text-muted-foreground">{selected.description}</p>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={cn('text-sm px-3 py-1 font-semibold', selected.badgeClass)}
+                  >
+                    {selected.level} — {selected.label}
+                  </Badge>
+                </div>
+              );
+            })()}
           </div>
         ) : (
           /* ─── Enterprise: parameter sliders ─── */

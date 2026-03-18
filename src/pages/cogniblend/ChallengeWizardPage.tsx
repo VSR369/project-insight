@@ -174,9 +174,17 @@ export default function ChallengeWizardPage() {
       else if (complexityScore < 8) complexityLevel = 'L4';
       else complexityLevel = 'L5';
     } else if (values.complexity_notes) {
-      // Lightweight dropdown
-      const map: Record<string, string> = { low: 'L1', medium: 'L3', high: 'L5' };
-      complexityLevel = map[values.complexity_notes] ?? null;
+      // Lightweight dropdown — fixed level + score mapping
+      const lwMap: Record<string, { level: string; score: number }> = {
+        low: { level: 'L1', score: 2.0 },
+        medium: { level: 'L3', score: 5.0 },
+        high: { level: 'L5', score: 9.0 },
+      };
+      const mapped = lwMap[values.complexity_notes];
+      if (mapped) {
+        complexityLevel = mapped.level;
+        complexityScore = mapped.score;
+      }
     }
 
     return {
