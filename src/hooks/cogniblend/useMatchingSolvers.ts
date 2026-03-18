@@ -40,7 +40,7 @@ export function useMatchingSolvers(challengeId: string | undefined) {
       if (sErr || !solvers) return { totalMatched: 0, byTier: [] };
 
       // Apply visibility/eligibility filtering
-      const matchedSolvers = solvers as Array<{
+      const matchedSolvers = (solvers as unknown) as Array<{
         id: string;
         user_id: string;
         certification_tier: number;
