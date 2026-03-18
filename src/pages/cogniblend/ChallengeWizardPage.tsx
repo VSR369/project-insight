@@ -23,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import {
   useChallengeDetail,
   useMandatoryFields,
