@@ -4632,6 +4632,48 @@ export type Database = {
           },
         ]
       }
+      notification_routing: {
+        Row: {
+          cc_roles: string[]
+          created_at: string
+          created_by: string | null
+          escalation_roles: string[]
+          event_type: string
+          id: string
+          is_active: boolean
+          phase: number
+          primary_recipient_role: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          cc_roles?: string[]
+          created_at?: string
+          created_by?: string | null
+          escalation_roles?: string[]
+          event_type: string
+          id?: string
+          is_active?: boolean
+          phase: number
+          primary_recipient_role: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          cc_roles?: string[]
+          created_at?: string
+          created_by?: string | null
+          escalation_roles?: string[]
+          event_type?: string
+          id?: string
+          is_active?: boolean
+          phase?: number
+          primary_recipient_role?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       open_queue_entries: {
         Row: {
           claimed_at: string | null
