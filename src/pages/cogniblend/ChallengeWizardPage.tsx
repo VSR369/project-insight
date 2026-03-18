@@ -308,7 +308,8 @@ export default function ChallengeWizardPage() {
           },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
-      visibility: values.visibility || null,
+      hook: (values as any).hook || null,
+      effort_level: (values as any).effort_level || null,
       eligibility: values.eligibility || null,
       solver_eligibility_id: values.solver_eligibility_id || null,
       solver_eligibility_types: values.eligible_participation_modes?.length
