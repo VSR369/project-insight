@@ -1165,6 +1165,7 @@ export type Database = {
           status: string
           submission_deadline: string | null
           submission_template_url: string | null
+          targeting_filters: Json | null
           tenant_id: string
           termination_type: string | null
           title: string
@@ -1222,6 +1223,7 @@ export type Database = {
           status?: string
           submission_deadline?: string | null
           submission_template_url?: string | null
+          targeting_filters?: Json | null
           tenant_id: string
           termination_type?: string | null
           title: string
@@ -1279,6 +1281,7 @@ export type Database = {
           status?: string
           submission_deadline?: string | null
           submission_template_url?: string | null
+          targeting_filters?: Json | null
           tenant_id?: string
           termination_type?: string | null
           title?: string
