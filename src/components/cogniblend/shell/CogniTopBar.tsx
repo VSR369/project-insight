@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
