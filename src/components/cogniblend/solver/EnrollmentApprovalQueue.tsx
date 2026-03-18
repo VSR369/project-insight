@@ -127,7 +127,7 @@ export function EnrollmentApprovalQueue({ challengeId }: EnrollmentApprovalQueue
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 text-xs text-destructive border-destructive/30 hover:bg-destructive/5"
+                    className="h-8 text-xs text-destructive"
                     onClick={() => handleRejectClick(enrollment.id)}
                     disabled={rejectMutation.isPending}
                   >
