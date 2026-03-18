@@ -336,9 +336,9 @@ const App = () => (
               <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
 
-              {/* Placeholder routes for unimplemented CogniBlend features */}
-              <Route path="/cogni/submit-request" element={<LazyRoute><CogniPlaceholderPage title="Submit Request" description="Submit a new innovation challenge request to your organization." /></LazyRoute>} />
-              <Route path="/cogni/my-requests" element={<LazyRoute><CogniPlaceholderPage title="My Requests" description="View and track your submitted challenge requests." /></LazyRoute>} />
+              {/* Solution Request routes inside CogniShell */}
+              <Route path="/cogni/submit-request" element={<LazyRoute><CogniSubmitRequestPage /></LazyRoute>} />
+              <Route path="/cogni/my-requests" element={<LazyRoute><CogniMyRequestsPage /></LazyRoute>} />
               <Route path="/cogni/my-challenges" element={<LazyRoute><CogniPlaceholderPage title="My Challenges" description="Manage challenges you have created or are assigned to." /></LazyRoute>} />
               <Route path="/cogni/approval" element={<LazyRoute><ApprovalQueuePage /></LazyRoute>} />
               <Route path="/cogni/approval/:id" element={<LazyRoute><ApprovalReviewPage /></LazyRoute>} />
