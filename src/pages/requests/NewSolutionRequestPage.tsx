@@ -11,7 +11,7 @@
  * BR-SR-005: Duplicate detection — informational, not blocking.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { extractKeywords, matchTagsByKeywords } from '@/lib/keywordExtractor';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext, useChallengeArchitects } from '@/hooks/queries/useSolutionRequestContext';
@@ -126,15 +127,23 @@ interface DomainTagSelectProps {
   value: string[];
   onChange: (tags: string[]) => void;
   error?: string;
+  businessProblem?: string;
 }
 
-function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
+function DomainTagSelect({ value, onChange, error, businessProblem = '' }: DomainTagSelectProps) {
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
   const filtered = DEFAULT_DOMAIN_TAGS.filter(
     tag => tag.toLowerCase().includes(search.toLowerCase()) && !value.includes(tag)
   );
+
+  // Auto-suggest tags based on business problem keywords
+  const suggestedTags = useMemo(() => {
+    if (!businessProblem || businessProblem.length < 100) return [];
+    const keywords = extractKeywords(businessProblem, 5);
+    return matchTagsByKeywords(keywords, DEFAULT_DOMAIN_TAGS, value);
+  }, [businessProblem, value]);
 
   const addTag = useCallback((tag: string) => {
     onChange([...value, tag]);
@@ -181,6 +190,26 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
               </button>
             </Badge>
           ))}
+        </div>
+      )}
+      {/* Suggested Tags Row */}
+      {suggestedTags.length > 0 && (
+        <div className="space-y-1 mb-2">
+          <p className="text-[12px] text-muted-foreground">
+            Suggested based on your description
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestedTags.map(tag => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => addTag(tag)}
+                className="inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+              >
+                + {tag}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
@@ -538,6 +567,7 @@ export default function NewSolutionRequestPage() {
                       value={field.value}
                       onChange={field.onChange}
                       error={errors.domain_tags?.message}
+                      businessProblem={businessProblem}
                     />
                   )}
                 />
