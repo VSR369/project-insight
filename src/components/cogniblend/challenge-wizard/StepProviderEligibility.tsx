@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
+import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
