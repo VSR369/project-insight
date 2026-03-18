@@ -131,6 +131,7 @@ const InterviewKitPage = lazy(() => import("@/pages/admin/interview-kit").then(m
 const InterviewKitQuestionsPage = lazy(() => import("@/pages/admin/interview-kit").then(m => ({ default: m.InterviewKitQuestionsPage })));
 const PulseSocialTestPage = lazy(() => import("@/pages/admin/PulseSocialTestPage"));
 const RegressionTestKitPage = lazy(() => import("@/pages/admin/RegressionTestKitPage"));
+const CommunicationsPage = lazy(() => import("@/pages/admin/CommunicationsPage"));
 
 // Seeker Config Admin Pages (lazy loaded)
 const DepartmentsPage = lazy(() => import("@/pages/admin/departments").then(m => ({ default: m.DepartmentsPage })));
