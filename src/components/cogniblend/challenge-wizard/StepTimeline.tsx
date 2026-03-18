@@ -260,15 +260,27 @@ const SUBMISSION_OPTIONS = [
   { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
 ] as const;
 
-/** Scope ordering: higher index = narrower scope */
+/** Scope ordering: higher index = narrower scope (used for visibility rank display) */
 const VISIBILITY_RANK: Record<string, number> = {
   public: 0, registered_users: 1, platform_members: 2, curated_experts: 3, invited_only: 4,
 };
-const ENROLLMENT_RANK: Record<string, number> = {
-  open_auto: 0, curator_approved: 1, direct_nda: 2, org_curated: 3, invitation_only: 4,
+
+/** Valid enrollment options per visibility tier (compatibility-based funnel) */
+const VALID_ENROLLMENTS: Record<string, string[]> = {
+  public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  platform_members: ['curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  curated_experts: ['curator_approved', 'org_curated', 'invitation_only'],
+  invited_only: ['invitation_only'],
 };
-const SUBMISSION_RANK: Record<string, number> = {
-  all_enrolled: 0, shortlisted_only: 1, invited_solvers: 2,
+
+/** Valid submission options per enrollment tier (compatibility-based funnel) */
+const VALID_SUBMISSIONS: Record<string, string[]> = {
+  open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  direct_nda: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  org_curated: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  invitation_only: ['invited_solvers'],
 };
 
 /** BRD §5.7.1 — 5 Solver Eligibility Model presets */
@@ -286,33 +298,25 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
   const enr = watch('challenge_enrollment') || 'open_auto';
   const sub = watch('challenge_submission') || 'all_enrolled';
 
-  const visRank = VISIBILITY_RANK[vis] ?? 0;
-  const enrRank = ENROLLMENT_RANK[enr] ?? 0;
+  const validEnrollments = VALID_ENROLLMENTS[vis] ?? ENROLLMENT_OPTIONS.map((o) => o.value);
+  const validSubmissions = VALID_SUBMISSIONS[enr] ?? SUBMISSION_OPTIONS.map((o) => o.value);
 
   /** Enrollment cannot exceed visibility scope */
-  const isEnrollmentDisabled = (value: string) => {
-    const rank = ENROLLMENT_RANK[value] ?? 0;
-    return rank < visRank;
-  };
+  const isEnrollmentDisabled = (value: string) => !validEnrollments.includes(value);
 
   /** Submission cannot exceed enrollment scope */
-  const isSubmissionDisabled = (value: string) => {
-    const rank = SUBMISSION_RANK[value] ?? 0;
-    return rank < enrRank;
-  };
+  const isSubmissionDisabled = (value: string) => !validSubmissions.includes(value);
 
   // Auto-correct if current selection becomes invalid
   useEffect(() => {
-    if (isEnrollmentDisabled(enr)) {
-      const validEnr = Object.entries(ENROLLMENT_RANK).find(([, r]) => r >= visRank);
-      if (validEnr) setValue('challenge_enrollment', validEnr[0], { shouldDirty: true });
+    if (!validEnrollments.includes(enr)) {
+      setValue('challenge_enrollment', validEnrollments[0], { shouldDirty: true });
     }
   }, [vis]);
 
   useEffect(() => {
-    if (isSubmissionDisabled(sub)) {
-      const validSub = Object.entries(SUBMISSION_RANK).find(([, r]) => r >= enrRank);
-      if (validSub) setValue('challenge_submission', validSub[0], { shouldDirty: true });
+    if (!validSubmissions.includes(sub)) {
+      setValue('challenge_submission', validSubmissions[0], { shouldDirty: true });
     }
   }, [enr]);
 
