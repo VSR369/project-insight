@@ -157,6 +157,15 @@ export default function ChallengeWizardPage() {
         platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
         gold_award: (challengeData.reward_structure as any)?.gold ?? 0,
         silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
+        num_rewarded_solutions: (challengeData.reward_structure as any)?.num_rewarded ?? '3',
+        payment_mode: (challengeData.reward_structure as any)?.payment_mode ?? 'escrow',
+        payment_milestones: Array.isArray((challengeData.reward_structure as any)?.payment_milestones)
+          ? (challengeData.reward_structure as any).payment_milestones
+          : [
+              { name: 'Abstract Shortlisted', pct: 10, trigger: 'on_shortlisting' },
+              { name: 'Full Solution Submitted', pct: 30, trigger: 'on_full_submission' },
+              { name: 'Solution Selected', pct: 60, trigger: 'on_selection' },
+            ],
         rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: deliverables?.submission_guidelines ?? '',
         submission_template_url: (challengeData as any)?.submission_template_url ?? '',
@@ -295,6 +304,9 @@ export default function ChallengeWizardPage() {
             platinum: values.platinum_award,
             gold: values.gold_award,
             silver: values.silver_award ?? null,
+            num_rewarded: values.num_rewarded_solutions ?? '3',
+            payment_mode: values.payment_mode ?? 'escrow',
+            payment_milestones: values.payment_milestones ?? [],
           },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
@@ -663,7 +675,7 @@ function getStepFields(step: number): string[] {
     case 2:
       return ['weighted_criteria'];
     case 3:
-      return ['currency_code', 'platinum_award', 'gold_award'];
+      return ['currency_code', 'platinum_award', 'gold_award', 'num_rewarded_solutions', 'payment_milestones'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
