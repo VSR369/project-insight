@@ -49,10 +49,10 @@ export function ActionItemsWidget() {
   const { user } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
-  const { roleCodes } = useCogniUserRoles();
-
-  const isAMorRQ = roleCodes.includes('AM') || roleCodes.includes('RQ');
+  const { allRoleCodes } = useCogniUserRoles();
   const { data, isLoading } = useMyRequests('all', '');
+
+  const isAMorRQ = allRoleCodes.has('AM') || allRoleCodes.has('RQ');
 
   const allRows = useMemo(
     () => data?.pages.flatMap((p) => p.rows) ?? [],
@@ -76,7 +76,7 @@ export function ActionItemsWidget() {
   }
 
   const modelLabel = orgContext?.operatingModel === 'MP' ? 'Marketplace' : 'Aggregator';
-  const orgName = currentOrg?.organizationName ?? 'Your Organization';
+  const orgName = currentOrg?.orgName ?? 'Your Organization';
 
   return (
     <div className="space-y-4 mb-6">
