@@ -144,7 +144,6 @@ export default function ChallengeWizardPage() {
   }
 
   // ═══════ Derived ═══════
-  const isLightweight = governanceProfile === 'LIGHTWEIGHT';
   const isEnterprise = governanceProfile === 'ENTERPRISE';
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Create Challenge';
 
