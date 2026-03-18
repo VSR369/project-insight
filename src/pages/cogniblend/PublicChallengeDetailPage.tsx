@@ -477,13 +477,13 @@ export default function PublicChallengeDetailPage() {
       <ChallengeQASection challengeId={id!} />
 
       {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
-      {amendStatus?.requiresLegalReAcceptance && (
+      {reacceptStatus?.hasPending && reacceptStatus.record && (
         <LegalReAcceptModal
           open={legalModalOpen}
           onOpenChange={setLegalModalOpen}
           challengeId={id!}
           userId={user?.id ?? ''}
-          amendmentNumber={amendStatus.amendmentNumber ?? 1}
+          record={reacceptStatus.record}
         />
       )}
 
