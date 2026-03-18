@@ -242,6 +242,8 @@ export default function SolutionSubmitPage() {
   const saveDraftMutation = useSaveSolutionDraft();
   const submitMutation = useSubmitSolution();
   const legalMutation = useRecordLegalAcceptance();
+  const { data: withdrawalCtx } = useWithdrawalContext(challengeId, existingSolution?.id);
+  const withdrawMutation = useWithdrawSolution();
 
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
