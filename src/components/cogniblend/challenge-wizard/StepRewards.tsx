@@ -14,6 +14,7 @@
  *  10. Rejection Fee slider (Enterprise only)
  */
 
+import { useEffect } from 'react';
 import { UseFormReturn, Controller, useFieldArray } from 'react-hook-form';
 import {
   AlertTriangle,

@@ -676,7 +676,7 @@ function getStepFields(step: number): string[] {
     case 2:
       return ['weighted_criteria'];
     case 3:
-      return ['currency_code', 'platinum_award', 'gold_award', 'num_rewarded_solutions', 'payment_milestones'];
+      return ['currency_code', 'platinum_award', 'gold_award', 'num_rewarded_solutions', 'payment_milestones', 'ip_model', 'effort_level'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
