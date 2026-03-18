@@ -42,6 +42,7 @@ export function useCurrentOrg() {
             verification_status,
             tc_version_accepted,
             governance_profile,
+            lc_review_required,
             seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
               md_subscription_tiers!seeker_subscriptions_tier_id_fkey ( code )
             )
