@@ -249,8 +249,11 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
         </div>
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           {challenge.operating_model && (
-            <Badge variant="outline" className="text-[10px] font-semibold">
+            <Badge variant="outline" className="text-[10px] font-semibold inline-flex items-center gap-1">
               {challenge.operating_model.toUpperCase().includes("MARKET") ? "MP" : "AGG"}
+              {(challenge.master_status === 'ACTIVE' || (challenge.current_phase ?? 0) >= 7) && (
+                <Lock className="h-3 w-3 text-muted-foreground" />
+              )}
             </Badge>
           )}
           {challenge.maturity_level && (
