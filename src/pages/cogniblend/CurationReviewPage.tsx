@@ -135,9 +135,7 @@ const SECTIONS: SectionDef[] = [
     label: "Problem Statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
     render: (ch) => (
-      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-        {ch.problem_statement || "—"}
-      </p>
+      <SafeHtmlRenderer html={ch.problem_statement} />
     ),
   },
   {
