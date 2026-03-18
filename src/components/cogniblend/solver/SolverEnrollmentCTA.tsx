@@ -8,6 +8,8 @@
  *   OC    → application → pending approval
  *   CE    → L2+ check → legal acceptance → enrollment
  *   IO    → no enroll button; invited see "Accept Invitation"
+ *
+ * For AGG-model challenges: after NDA, shows Anti-Disintermediation Agreement.
  */
 
 import { useState } from 'react';
@@ -41,6 +43,8 @@ interface SolverEnrollmentCTAProps {
   enrollmentModel: string;
   isEligible: boolean;
   eligibilityLabel?: string;
+  /** Whether this challenge uses the AGG operating model */
+  isAggModel?: boolean;
 }
 
 /* ─── NDA Legal Content (placeholder) ────────────────────── */
@@ -71,6 +75,43 @@ By enrolling in this challenge, you agree to the following terms:
 
 By clicking "Accept & Enroll," you acknowledge that you have read, understood, and agree to be bound by these terms.`;
 
+/* ─── Anti-Disintermediation Agreement Content ───────────── */
+
+const AD_AGREEMENT_CONTENT = `ANTI-DISINTERMEDIATION AGREEMENT
+
+This Anti-Disintermediation Agreement ("Agreement") is entered into as a condition of participation in this Aggregator-model challenge.
+
+1. NO OUTSIDE COMMUNICATION: The Solver agrees not to initiate, engage in, or facilitate any direct communication with the Challenge Sponsor (Seeker) outside of the platform's designated communication channels. All communications regarding the challenge must occur exclusively through the platform Q&A system, messaging tools, and official submission channels.
+
+2. NO PLATFORM BYPASS: The Solver agrees not to bypass the platform for direct engagement with the Challenge Sponsor, including but not limited to:
+   a) Soliciting or accepting direct contracts related to the challenge subject matter
+   b) Sharing contact information (email, phone, social media) with the Sponsor
+   c) Arranging meetings, calls, or communications outside the platform
+   d) Using third-party intermediaries to circumvent this restriction
+
+3. RESTRICTION PERIOD: This restriction applies from the date of enrollment through 12 months after the challenge conclusion or the Solver's withdrawal, whichever is later.
+
+4. TIERED PENALTIES FOR VIOLATION:
+
+   FIRST OFFENSE — WARNING:
+   Upon first verified violation, the Solver will receive a formal written warning. The warning will be recorded in the Solver's platform profile and visible to platform administrators.
+
+   SECOND OFFENSE — CHALLENGE DISQUALIFICATION:
+   Upon second verified violation (whether in the same or different challenge), the Solver will be immediately disqualified from the current challenge. Any submitted solutions will be withdrawn. The Solver forfeits eligibility for any awards or compensation.
+
+   THIRD OFFENSE — PLATFORM BAN:
+   Upon third verified violation, the Solver's account will be permanently suspended. All active enrollments will be terminated. The Solver will be barred from future participation on the platform.
+
+5. MONITORING: The platform employs automated and manual monitoring of communications to detect potential violations. Flagged communications will be reviewed by the platform compliance team before any enforcement action.
+
+6. REPORTING: Solvers are encouraged to report suspected violations by other participants. Reports are confidential and protected from retaliation.
+
+7. EXCEPTIONS: Platform-facilitated introductions, post-award engagement procedures, and communications expressly authorized by the platform governance team are exempt from this Agreement.
+
+8. ACKNOWLEDGMENT: By accepting this Agreement, the Solver acknowledges understanding of the tiered penalty structure and agrees that enforcement actions are at the platform's reasonable discretion.
+
+By clicking "Accept," you confirm that you have read, understood, and agree to be bound by this Anti-Disintermediation Agreement.`;
+
 /* ─── Legal Acceptance Dialog (BR-LGL-007) ───────────────── */
 
 function LegalAcceptDialog({
@@ -78,23 +119,46 @@ function LegalAcceptDialog({
   onOpenChange,
   onAccept,
   isSubmitting,
+  showAdAgreement,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onAccept: (scrollConfirmed: boolean) => void;
+  onAccept: (scrollConfirmed: boolean, adAccepted: boolean) => void;
   isSubmitting: boolean;
+  showAdAgreement: boolean;
 }) {
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [scrollConfirmed, setScrollConfirmed] = useState(false);
+  const [step, setStep] = useState<'nda' | 'ad'>('nda');
+  const [ndaAccepted, setNdaAccepted] = useState(false);
+  const [ndaScrollConfirmed, setNdaScrollConfirmed] = useState(false);
+  const [adAccepted, setAdAccepted] = useState(false);
+  const [adScrollConfirmed, setAdScrollConfirmed] = useState(false);
 
   // Reset state when dialog opens/closes
   const handleOpenChange = (v: boolean) => {
     if (!v) {
-      setTermsAccepted(false);
-      setScrollConfirmed(false);
+      setStep('nda');
+      setNdaAccepted(false);
+      setNdaScrollConfirmed(false);
+      setAdAccepted(false);
+      setAdScrollConfirmed(false);
     }
     onOpenChange(v);
   };
+
+  const handleNdaNext = () => {
+    if (showAdAgreement) {
+      setStep('ad');
+    } else {
+      onAccept(ndaScrollConfirmed, false);
+    }
+  };
+
+  const handleAdAccept = () => {
+    onAccept(ndaScrollConfirmed, true);
+  };
+
+  const isNdaStep = step === 'nda';
+  const stepLabel = showAdAgreement ? (isNdaStep ? 'Step 1 of 2' : 'Step 2 of 2') : '';
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -102,35 +166,75 @@ function LegalAcceptDialog({
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <ShieldCheck className="h-5 w-5 text-primary" />
-            Legal Terms & NDA
+            {isNdaStep ? 'Legal Terms & NDA' : 'Anti-Disintermediation Agreement'}
           </DialogTitle>
-          <p className="text-xs text-muted-foreground">
-            Please read the terms below. You must scroll to the bottom before accepting.
-          </p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-muted-foreground">
+              {isNdaStep
+                ? 'Please read the terms below. You must scroll to the bottom before accepting.'
+                : 'This AGG-model challenge requires acceptance of anti-disintermediation terms.'}
+            </p>
+            {stepLabel && (
+              <span className="text-[10px] font-semibold text-muted-foreground bg-muted px-2 py-0.5 rounded-full shrink-0 ml-2">
+                {stepLabel}
+              </span>
+            )}
+          </div>
         </DialogHeader>
 
         <div className="flex-1 min-h-0 overflow-y-auto py-2">
-          <ScrollToAcceptLegal
-            documentContent={NDA_CONTENT}
-            accepted={termsAccepted}
-            onAcceptedChange={setTermsAccepted}
-            onScrollConfirmed={setScrollConfirmed}
-            maxHeight={400}
-          />
+          {isNdaStep ? (
+            <ScrollToAcceptLegal
+              documentContent={NDA_CONTENT}
+              accepted={ndaAccepted}
+              onAcceptedChange={setNdaAccepted}
+              onScrollConfirmed={setNdaScrollConfirmed}
+              maxHeight={400}
+            />
+          ) : (
+            <ScrollToAcceptLegal
+              documentContent={AD_AGREEMENT_CONTENT}
+              accepted={adAccepted}
+              onAcceptedChange={setAdAccepted}
+              onScrollConfirmed={setAdScrollConfirmed}
+              acceptLabel="I have read and agree to the Anti-Disintermediation Agreement and its tiered penalty structure."
+              maxHeight={400}
+            />
+          )}
         </div>
 
         <DialogFooter className="shrink-0 gap-2">
+          {!isNdaStep && (
+            <Button variant="outline" size="sm" onClick={() => setStep('nda')}>
+              Back
+            </Button>
+          )}
           <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            size="sm"
-            disabled={!termsAccepted || !scrollConfirmed || isSubmitting}
-            onClick={() => onAccept(scrollConfirmed)}
-          >
-            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-            Accept & Enroll
-          </Button>
+          {isNdaStep ? (
+            <Button
+              size="sm"
+              disabled={!ndaAccepted || !ndaScrollConfirmed || isSubmitting}
+              onClick={handleNdaNext}
+            >
+              {showAdAgreement ? 'Continue' : (
+                <>
+                  {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+                  Accept & Enroll
+                </>
+              )}
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              disabled={!adAccepted || !adScrollConfirmed || isSubmitting}
+              onClick={handleAdAccept}
+            >
+              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+              Accept & Enroll
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -155,6 +259,7 @@ export function SolverEnrollmentCTA({
   enrollmentModel,
   isEligible,
   eligibilityLabel,
+  isAggModel = false,
 }: SolverEnrollmentCTAProps) {
   const { user } = useAuth();
   const { data: enrollment, isLoading: statusLoading } = useSolverEnrollmentStatus(challengeId, user?.id);
@@ -321,8 +426,8 @@ export function SolverEnrollmentCTA({
     }
   };
 
-  const handleLegalAccept = (scrollConfirmed: boolean) => {
-    // 1. Record in legal_acceptance_ledger with scroll_confirmed + IP
+  const handleLegalAccept = (scrollConfirmed: boolean, adAccepted: boolean) => {
+    // 1. Record NDA in legal_acceptance_ledger
     legalAcceptanceMutation.mutate({
       challengeId,
       userId: user.id,
@@ -332,7 +437,19 @@ export function SolverEnrollmentCTA({
       scrollConfirmed,
     });
 
-    // 2. Create enrollment
+    // 2. Record AD agreement if applicable
+    if (isAggModel && adAccepted) {
+      legalAcceptanceMutation.mutate({
+        challengeId,
+        userId: user.id,
+        documentType: 'anti_disintermediation',
+        documentName: 'Anti-Disintermediation Agreement',
+        tier: 'TIER_1',
+        scrollConfirmed: true,
+      });
+    }
+
+    // 3. Create enrollment with ad_accepted flag
     enrollMutation.mutate(
       {
         challengeId,
@@ -341,6 +458,7 @@ export function SolverEnrollmentCTA({
         enrollmentModel: model,
         autoApprove: true,
         legalAccepted: true,
+        adAccepted: isAggModel ? adAccepted : false,
       },
       {
         onSuccess: () => setLegalDialogOpen(false),
@@ -373,11 +491,13 @@ export function SolverEnrollmentCTA({
       <p className="text-xs text-muted-foreground text-center">{modelInfo.description}</p>
 
       {/* Legal acceptance dialog for DR and CE — uses ScrollToAcceptLegal (BR-LGL-007) */}
+      {/* For AGG model: shows Anti-Disintermediation Agreement as step 2 */}
       <LegalAcceptDialog
         open={legalDialogOpen}
         onOpenChange={setLegalDialogOpen}
         onAccept={handleLegalAccept}
         isSubmitting={isProcessing}
+        showAdAgreement={isAggModel}
       />
     </div>
   );
