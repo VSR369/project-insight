@@ -66,6 +66,8 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     eligible_participation_modes: z.array(z.string()).default([]),
     // Step 5 — Solver tier (database-driven single selection; empty = All)
     solver_eligibility_id: z.string().optional().or(z.literal('')),
+    // Step 5 — Solver tier multi-select (checkboxes)
+    solver_eligibility_ids: z.array(z.string()).default([]),
     // Step 5 — Provider eligibility criteria
     required_expertise_level_id: z.string().optional().or(z.literal('')),
     required_proficiencies: z.array(z.string()).default([]),
