@@ -9851,6 +9851,7 @@ export type Database = {
           created_at: string
           created_by: string | null
           deadline_at: string
+          max_hold_days: number
           phase: number
           role_code: string
           started_at: string
@@ -9866,6 +9867,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline_at: string
+          max_hold_days?: number
           phase: number
           role_code: string
           started_at?: string
@@ -9881,6 +9883,7 @@ export type Database = {
           created_at?: string
           created_by?: string | null
           deadline_at?: string
+          max_hold_days?: number
           phase?: number
           role_code?: string
           started_at?: string
