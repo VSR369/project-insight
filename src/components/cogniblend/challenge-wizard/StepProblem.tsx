@@ -268,6 +268,8 @@ interface DomainTagSelectProps {
   value: string[];
   onChange: (tags: string[]) => void;
   error?: string;
+  /** Auto-suggested tags from taxonomy matching (GAP-11) */
+  taxonomySuggestions?: Array<{ tag: string; source: string }>;
 }
 
 function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
