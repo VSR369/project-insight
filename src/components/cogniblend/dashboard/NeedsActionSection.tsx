@@ -123,7 +123,7 @@ export function NeedsActionSection({
   }
 
   /* Empty state */
-  if (items.length === 0) {
+  if (sortedItems.length === 0) {
     return (
       <section>
         <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
