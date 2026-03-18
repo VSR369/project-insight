@@ -47,6 +47,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   // SECTION 2: Context and custom hooks
   // ═══════════════════════════════════════════
   const { user, signOut } = useAuth();
+  const { data: currentOrg } = useCurrentOrg();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
