@@ -8457,6 +8457,36 @@ export type Database = {
         }
         Relationships: []
       }
+      role_authority_matrix: {
+        Row: {
+          created_at: string
+          description: string | null
+          from_status: string
+          id: string
+          phase: number
+          required_role: string
+          to_status: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          from_status: string
+          id?: string
+          phase: number
+          required_role: string
+          to_status: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          from_status?: string
+          id?: string
+          phase?: number
+          required_role?: string
+          to_status?: string
+        }
+        Relationships: []
+      }
       role_conflict_rules: {
         Row: {
           applies_scope: string
@@ -12219,15 +12249,25 @@ export type Database = {
         Args: { p_challenge_id: string }
         Returns: Json
       }
-      validate_phase_transition: {
-        Args: {
-          p_challenge_id: string
-          p_from_status: string
-          p_to_status: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
+      validate_phase_transition:
+        | {
+            Args: {
+              p_challenge_id: string
+              p_from_status: string
+              p_to_status: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_challenge_id: string
+              p_from_status: string
+              p_to_status: string
+              p_user_id: string
+            }
+            Returns: Json
+          }
       validate_role_assignment: {
         Args: {
           p_challenge_id: string
