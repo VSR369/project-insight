@@ -206,6 +206,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   challenge_visibility: '',
   challenge_enrollment: '',
   challenge_submission: '',
+  solution_category_description: '',
   targeting_filters: {
     industries: [],
     geographies: [],
