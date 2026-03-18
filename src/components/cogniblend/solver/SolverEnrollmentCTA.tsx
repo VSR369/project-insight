@@ -10,16 +10,13 @@
  *   IO    → no enroll button; invited see "Accept Invitation"
  */
 
-import { useState, useRef, useCallback } from 'react';
+import { useState } from 'react';
 import {
   CheckCircle2, Clock, UserPlus, ShieldCheck, Lock,
-  FileText, Loader2, XCircle, ChevronDown,
+  Loader2, XCircle,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -27,13 +24,14 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import {
   useSolverEnrollmentStatus,
   useEnrollInChallenge,
   useWithdrawEnrollment,
 } from '@/hooks/cogniblend/useSolverEnrollment';
+import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
+import { ScrollToAcceptLegal } from './ScrollToAcceptLegal';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -73,7 +71,7 @@ By enrolling in this challenge, you agree to the following terms:
 
 By clicking "Accept & Enroll," you acknowledge that you have read, understood, and agree to be bound by these terms.`;
 
-/* ─── Legal Acceptance Dialog ────────────────────────────── */
+/* ─── Legal Acceptance Dialog (BR-LGL-007) ───────────────── */
 
 function LegalAcceptDialog({
   open,
@@ -83,25 +81,26 @@ function LegalAcceptDialog({
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  onAccept: () => void;
+  onAccept: (scrollConfirmed: boolean) => void;
   isSubmitting: boolean;
 }) {
-  const [scrolledToBottom, setScrolledToBottom] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollConfirmed, setScrollConfirmed] = useState(false);
 
-  const handleScroll = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
-    if (atBottom && !scrolledToBottom) setScrolledToBottom(true);
-  }, [scrolledToBottom]);
+  // Reset state when dialog opens/closes
+  const handleOpenChange = (v: boolean) => {
+    if (!v) {
+      setTermsAccepted(false);
+      setScrollConfirmed(false);
+    }
+    onOpenChange(v);
+  };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
         <DialogHeader className="shrink-0">
-          <DialogTitle className="flex items-center gap-2">
+          <DialogTitle className="flex items-center gap-2 text-base font-bold">
             <ShieldCheck className="h-5 w-5 text-primary" />
             Legal Terms & NDA
           </DialogTitle>
@@ -110,57 +109,29 @@ function LegalAcceptDialog({
           </p>
         </DialogHeader>
 
-        <div className="flex-1 min-h-0 relative">
-          <div
-            ref={scrollRef}
-            onScroll={handleScroll}
-            className="h-full overflow-y-auto border border-border rounded-md p-4 text-sm text-foreground whitespace-pre-line leading-relaxed"
-            style={{ maxHeight: '45vh' }}
+        <div className="flex-1 min-h-0 overflow-y-auto py-2">
+          <ScrollToAcceptLegal
+            documentContent={NDA_CONTENT}
+            accepted={termsAccepted}
+            onAcceptedChange={setTermsAccepted}
+            onScrollConfirmed={setScrollConfirmed}
+            maxHeight={400}
+          />
+        </div>
+
+        <DialogFooter className="shrink-0 gap-2">
+          <Button variant="outline" size="sm" onClick={() => handleOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            disabled={!termsAccepted || !scrollConfirmed || isSubmitting}
+            onClick={() => onAccept(scrollConfirmed)}
           >
-            {NDA_CONTENT}
-          </div>
-          {!scrolledToBottom && (
-            <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-background to-transparent h-12 flex items-end justify-center pb-1 pointer-events-none">
-              <Badge variant="secondary" className="text-[11px] animate-bounce pointer-events-auto">
-                <ChevronDown className="h-3 w-3 mr-1" /> Scroll to continue
-              </Badge>
-            </div>
-          )}
-        </div>
-
-        <div className="shrink-0 pt-3 space-y-3">
-          <div className="flex items-start gap-2">
-            <Checkbox
-              id="accept-terms"
-              checked={termsAccepted}
-              onCheckedChange={(v) => setTermsAccepted(v === true)}
-              disabled={!scrolledToBottom}
-            />
-            <label
-              htmlFor="accept-terms"
-              className={cn(
-                'text-xs cursor-pointer leading-tight',
-                scrolledToBottom ? 'text-foreground' : 'text-muted-foreground'
-              )}
-            >
-              I have read and agree to the Non-Disclosure Agreement and IP terms.
-            </label>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button
-              size="sm"
-              disabled={!termsAccepted || !scrolledToBottom || isSubmitting}
-              onClick={onAccept}
-            >
-              {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
-              Accept & Enroll
-            </Button>
-          </DialogFooter>
-        </div>
+            {isSubmitting && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            Accept & Enroll
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -189,6 +160,7 @@ export function SolverEnrollmentCTA({
   const { data: enrollment, isLoading: statusLoading } = useSolverEnrollmentStatus(challengeId, user?.id);
   const enrollMutation = useEnrollInChallenge();
   const withdrawMutation = useWithdrawEnrollment();
+  const legalAcceptanceMutation = useRecordLegalAcceptance();
 
   const [legalDialogOpen, setLegalDialogOpen] = useState(false);
 
@@ -349,7 +321,18 @@ export function SolverEnrollmentCTA({
     }
   };
 
-  const handleLegalAccept = () => {
+  const handleLegalAccept = (scrollConfirmed: boolean) => {
+    // 1. Record in legal_acceptance_ledger with scroll_confirmed + IP
+    legalAcceptanceMutation.mutate({
+      challengeId,
+      userId: user.id,
+      documentType: 'enrollment_nda',
+      documentName: 'NDA & IP Terms',
+      tier: 'TIER_1',
+      scrollConfirmed,
+    });
+
+    // 2. Create enrollment
     enrollMutation.mutate(
       {
         challengeId,
@@ -365,6 +348,8 @@ export function SolverEnrollmentCTA({
     );
   };
 
+  const isProcessing = enrollMutation.isPending || legalAcceptanceMutation.isPending;
+
   const buttonLabel =
     model === 'OC' ? 'Request Enrollment' :
     model === 'DR' || model === 'CE' ? 'Enroll (NDA Required)' :
@@ -376,9 +361,9 @@ export function SolverEnrollmentCTA({
         size="lg"
         className="w-full"
         onClick={handleEnroll}
-        disabled={enrollMutation.isPending}
+        disabled={isProcessing}
       >
-        {enrollMutation.isPending ? (
+        {isProcessing ? (
           <Loader2 className="h-4 w-4 animate-spin mr-2" />
         ) : (
           <UserPlus className="h-4 w-4 mr-2" />
@@ -387,12 +372,12 @@ export function SolverEnrollmentCTA({
       </Button>
       <p className="text-xs text-muted-foreground text-center">{modelInfo.description}</p>
 
-      {/* Legal acceptance dialog for DR and CE */}
+      {/* Legal acceptance dialog for DR and CE — uses ScrollToAcceptLegal (BR-LGL-007) */}
       <LegalAcceptDialog
         open={legalDialogOpen}
         onOpenChange={setLegalDialogOpen}
         onAccept={handleLegalAccept}
-        isSubmitting={enrollMutation.isPending}
+        isSubmitting={isProcessing}
       />
     </div>
   );
