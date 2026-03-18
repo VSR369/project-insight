@@ -60,15 +60,15 @@ interface PhaseConfig {
 /* ─── Constants ──────────────────────────────────────────── */
 
 const PHASES: PhaseConfig[] = [
-  { key: 'phase_3', label: 'Phase 3 — Curation', phaseNumber: 3, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_4', label: 'Phase 4 — ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_5', label: 'Phase 5 — Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
-  { key: 'phase_8', label: 'Phase 8 — Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
-  { key: 'phase_9', label: 'Phase 9 — Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_10', label: 'Phase 10 — Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
-  { key: 'phase_11', label: 'Phase 11 — Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
-  { key: 'phase_12', label: 'Phase 12 — Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
-  { key: 'phase_13', label: 'Phase 13 — Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: false },
+  { key: 'phase_3', label: 'Curation', phaseNumber: 3, defaultDays: 7, lightweightVisible: false },
+  { key: 'phase_4', label: 'ID Review', phaseNumber: 4, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_5', label: 'Publication', phaseNumber: 5, defaultDays: 3, lightweightVisible: false },
+  { key: 'phase_8', label: 'Screening', phaseNumber: 8, defaultDays: 10, lightweightVisible: true },
+  { key: 'phase_9', label: 'Partial Payment', phaseNumber: 9, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_10', label: 'Evaluation', phaseNumber: 10, defaultDays: 30, lightweightVisible: true },
+  { key: 'phase_11', label: 'Selection', phaseNumber: 11, defaultDays: 5, lightweightVisible: true },
+  { key: 'phase_12', label: 'Final Payment', phaseNumber: 12, defaultDays: 5, lightweightVisible: false },
+  { key: 'phase_13', label: 'Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: true },
 ];
 
 /* ─── Hardcoded fallback (used only when DB is unreachable) ── */
@@ -621,32 +621,51 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
           </Popover>
         </div>
 
-        {/* Phase rows */}
-        <div className="space-y-2">
-          {visiblePhases.map((phase) => (
-            <div
-              key={phase.key}
-              className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-foreground truncate">{phase.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  Starts: {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={phaseDurations[phase.key]}
-                  onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
-                  className="w-[72px] text-base text-center"
-                />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
-              </div>
-            </div>
-          ))}
+        {/* Phase schedule table */}
+        <div className="relative w-full overflow-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phase</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Default</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visiblePhases.map((phase, idx) => (
+                <tr
+                  key={phase.key}
+                  className={cn(
+                    'border-b border-border last:border-b-0',
+                    idx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
+                  )}
+                >
+                  <td className="px-4 py-3">
+                    <p className="text-[13px] font-medium text-foreground">{phase.label}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-xs text-muted-foreground">{phase.defaultDays}d</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={phaseDurations[phase.key]}
+                        onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
+                        className="w-[68px] text-base text-center"
+                      />
+                      <span className="text-xs text-muted-foreground">days</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Total timeline */}
