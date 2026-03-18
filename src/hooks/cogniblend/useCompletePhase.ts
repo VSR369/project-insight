@@ -46,6 +46,8 @@ interface CompletePhaseResult {
 function showSequentialToasts(
   result: CompletePhaseResult,
   onAllDone: () => void,
+  userRoleCodes?: Set<string>,
+  navigateFn?: (path: string) => void,
 ) {
   const phases = result.phases_auto_completed ?? [];
   let delay = 0;
