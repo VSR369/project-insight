@@ -134,6 +134,9 @@ export default function ChallengeWizardPage() {
         permitted_artifact_types: [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
+        challenge_visibility: (challengeData as any)?.challenge_visibility ?? '',
+        challenge_enrollment: (challengeData as any)?.challenge_enrollment ?? '',
+        challenge_submission: (challengeData as any)?.challenge_submission ?? '',
       });
     }
   }, [challengeData, isEditMode, form]);
