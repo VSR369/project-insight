@@ -1587,6 +1587,66 @@ export type Database = {
           },
         ]
       }
+      duplicate_reviews: {
+        Row: {
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          matched_challenge_id: string
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          similarity_percent: number
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          matched_challenge_id: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_percent?: number
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          matched_challenge_id?: string
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          similarity_percent?: number
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "duplicate_reviews_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "duplicate_reviews_matched_challenge_id_fkey"
+            columns: ["matched_challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       email_otp_verifications: {
         Row: {
           attempts: number
