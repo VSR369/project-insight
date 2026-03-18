@@ -17,6 +17,7 @@ export interface CurrentOrg {
   isInternalDepartment: boolean;
   verificationStatus: string | null;
   tcVersionAccepted: string | null;
+  governanceProfile: string;
 }
 
 export function useCurrentOrg() {
