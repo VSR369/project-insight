@@ -21,6 +21,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 import { ChallengeQASection } from '@/components/cogniblend/solver/ChallengeQASection';
+import { SolverEnrollmentCTA } from '@/components/cogniblend/solver/SolverEnrollmentCTA';
 
 /* ─── Helpers ────────────────────────────────────────────── */
 
@@ -52,6 +53,24 @@ function getMaturityLabel(level: string | null): string {
     case 'pilot': return 'Pilot';
     default: return level || '—';
   }
+}
+
+/** Map challenge_enrollment or legacy eligibility to BRD enrollment model code */
+function deriveEnrollmentModel(challengeEnrollment: string | null, eligibility: string | null): string {
+  if (challengeEnrollment) {
+    const map: Record<string, string> = {
+      open_auto: 'OPEN',
+      direct_nda: 'DR',
+      org_curated: 'OC',
+      curator_approved: 'CE',
+      invitation_only: 'IO',
+    };
+    return map[challengeEnrollment] ?? 'OPEN';
+  }
+  // Fallback from legacy eligibility
+  if (eligibility === 'invited_only') return 'IO';
+  if (eligibility === 'curated_experts') return 'CE';
+  return 'OPEN';
 }
 
 /* ─── Component ──────────────────────────────────────────── */
@@ -106,6 +125,9 @@ export default function PublicChallengeDetailPage() {
   const artifactTypes = (deliverables?.permitted_artifact_types ?? []) as string[];
   const guidelines = (deliverables?.submission_guidelines ?? data.description ?? '') as string;
   const phaseSchedule = data.phase_schedule as Record<string, unknown> | null;
+
+  /** Derive enrollment model from challenge_enrollment field or legacy eligibility */
+  const enrollmentModel = deriveEnrollmentModel(data.challenge_enrollment, data.eligibility);
 
   const eligibilityLabel: Record<string, string> = {
     anyone: 'open submissions',
@@ -194,15 +216,16 @@ export default function PublicChallengeDetailPage() {
                 </div>
               )}
 
-              {data.isEligible ? (
-                <Button size="lg" className="shrink-0">
-                  Submit Solution
-                </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground italic max-w-[260px]">
-                  This challenge requires {eligibilityLabel[data.eligibility ?? ''] ?? 'specific eligibility'} to submit solutions.
-                </p>
-              )}
+              {/* Enrollment CTA */}
+              <div className="w-full sm:w-auto sm:min-w-[220px]">
+                <SolverEnrollmentCTA
+                  challengeId={data.id}
+                  tenantId={data.tenant_id}
+                  enrollmentModel={enrollmentModel}
+                  isEligible={data.isEligible}
+                  eligibilityLabel={eligibilityLabel[data.eligibility ?? '']}
+                />
+              </div>
             </div>
           </div>
         </div>

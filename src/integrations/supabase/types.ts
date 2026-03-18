@@ -1105,6 +1105,9 @@ export type Database = {
       }
       challenges: {
         Row: {
+          challenge_enrollment: string | null
+          challenge_submission: string | null
+          challenge_visibility: string | null
           completed_at: string | null
           complexity_id: string | null
           complexity_level: string | null
@@ -1155,6 +1158,9 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
+          challenge_enrollment?: string | null
+          challenge_submission?: string | null
+          challenge_visibility?: string | null
           completed_at?: string | null
           complexity_id?: string | null
           complexity_level?: string | null
@@ -1205,6 +1211,9 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
+          challenge_enrollment?: string | null
+          challenge_submission?: string | null
+          challenge_visibility?: string | null
           completed_at?: string | null
           complexity_id?: string | null
           complexity_level?: string | null
@@ -10309,6 +10318,90 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solver_enrollments: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          enrolled_at: string
+          enrollment_model: string
+          id: string
+          is_deleted: boolean
+          legal_accepted_at: string | null
+          rejected_at: string | null
+          rejected_by: string | null
+          rejection_reason: string | null
+          solver_id: string
+          status: string
+          tenant_id: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          enrolled_at?: string
+          enrollment_model: string
+          id?: string
+          is_deleted?: boolean
+          legal_accepted_at?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          solver_id: string
+          status?: string
+          tenant_id: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          deleted_at?: string | null
+          deleted_by?: string | null
+          enrolled_at?: string
+          enrollment_model?: string
+          id?: string
+          is_deleted?: boolean
+          legal_accepted_at?: string | null
+          rejected_at?: string | null
+          rejected_by?: string | null
+          rejection_reason?: string | null
+          solver_id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solver_enrollments_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solver_enrollments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "seeker_organizations"
             referencedColumns: ["id"]
           },
         ]

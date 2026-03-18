@@ -32,6 +32,8 @@ export interface PublicChallengeData {
   isEligible: boolean;
   isVisible: boolean;
   daysRemaining: number | null;
+  challenge_enrollment: string | null;
+  tenant_id: string;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
@@ -86,8 +88,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
           id, title, problem_statement, scope, description,
           maturity_level, complexity_level, complexity_score,
           operating_model, visibility, eligibility, currency_code,
-          submission_deadline, published_at,
-          reward_structure, evaluation_criteria, deliverables, phase_schedule
+          submission_deadline, published_at, tenant_id,
+          reward_structure, evaluation_criteria, deliverables, phase_schedule,
+          challenge_enrollment
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
@@ -155,5 +158,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     evaluation_criteria: c.evaluation_criteria as Record<string, unknown> | null,
     deliverables: c.deliverables as Record<string, unknown> | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
+    challenge_enrollment: c.challenge_enrollment as string | null,
+    tenant_id: c.tenant_id as string,
   };
 }
