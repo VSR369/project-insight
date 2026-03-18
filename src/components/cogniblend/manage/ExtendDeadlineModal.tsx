@@ -141,7 +141,7 @@ export function ExtendDeadlineModal({
                 <Calendar
                   mode="single"
                   selected={newDate}
-                  onSelect={setNewDate}
+                  onSelect={handleDateSelect}
                   disabled={(date) => date <= currentDate}
                   initialFocus
                   className={cn('p-3 pointer-events-auto')}
