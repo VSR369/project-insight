@@ -30,18 +30,13 @@ import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
-import {
-  useChallengeDetail,
-  useMandatoryFields,
-  useSaveChallengeStep,
-  useSubmitChallengeForReview,
-} from '@/hooks/queries/useChallengeForm';
+import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
 import { StepProblem } from '@/components/cogniblend/challenge-wizard/StepProblem';
-import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepRequirements';
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
+import { StepRewards } from '@/components/cogniblend/challenge-wizard/StepRewards';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { StepProviderEligibility } from '@/components/cogniblend/challenge-wizard/StepProviderEligibility';
 import { StepTemplates } from '@/components/cogniblend/challenge-wizard/StepTemplates';
