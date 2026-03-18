@@ -263,6 +263,8 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
       if (cat.default_visibility) setValue('challenge_visibility', cat.default_visibility, { shouldDirty: true });
       if (cat.default_enrollment) setValue('challenge_enrollment', cat.default_enrollment, { shouldDirty: true });
       if (cat.default_submission) setValue('challenge_submission', cat.default_submission, { shouldDirty: true });
+      // Derive visibility from solver tier code for backward compat
+      setValue('visibility', cat.code || cat.label || '', { shouldDirty: true });
     }
   }, [selectedCategory, setValue]);
 
@@ -415,7 +417,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
             Solver Tier
           </h4>
           <p className="text-xs text-muted-foreground">
-            What level of solver can participate? This auto-configures visibility and enrollment settings.
+            What level of solver can participate? This determines both who can participate and who can discover this challenge.
           </p>
         </div>
 
@@ -431,10 +433,11 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               <RadioGroup value={field.value ?? ''} onValueChange={(val) => {
                 field.onChange(val);
                 if (val === '') {
-                  // "All" selected — set most open defaults
+                  // "All" selected — set most open defaults and clear visibility
                   setValue('challenge_visibility', 'public', { shouldDirty: true });
                   setValue('challenge_enrollment', 'open_auto', { shouldDirty: true });
                   setValue('challenge_submission', 'all_enrolled', { shouldDirty: true });
+                  setValue('visibility', '', { shouldDirty: true });
                 }
               }} className="space-y-2">
                 {/* Virtual "All" option */}

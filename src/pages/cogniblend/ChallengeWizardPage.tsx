@@ -308,7 +308,7 @@ export default function ChallengeWizardPage() {
           },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
-      visibility: values.visibility || 'public',
+      visibility: values.visibility || null,
       eligibility: values.eligibility || null,
       solver_eligibility_id: values.solver_eligibility_id || null,
       solver_eligibility_types: values.eligible_participation_modes?.length
@@ -680,7 +680,7 @@ function getStepFields(step: number): string[] {
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['eligible_participation_modes', 'solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
+      return ['visibility', 'eligible_participation_modes', 'solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
     case 6:
       return [];
     case 7:

@@ -54,7 +54,6 @@ export default function ChallengeCreatePage() {
       description: '',
       engagement_model_id: '',
       complexity_id: '',
-      visibility: 'private',
     },
   });
 
@@ -130,7 +129,6 @@ export default function ChallengeCreatePage() {
       totalFee: pricing.hasDiscount ? pricing.discountedTotalFee : pricing.totalFee,
       currencyCode: pricing.currencyCode,
       maxSolutions,
-      visibility: data.visibility,
     });
   };
 
@@ -184,28 +182,6 @@ export default function ChallengeCreatePage() {
                     <FormControl>
                       <Textarea {...field} placeholder="Describe the challenge..." rows={4} className="text-base" />
                     </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="visibility"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Visibility</FormLabel>
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <FormControl>
-                        <SelectTrigger className="text-base">
-                          <SelectValue placeholder="Select visibility" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="private">Private</SelectItem>
-                        <SelectItem value="marketplace">Marketplace</SelectItem>
-                        <SelectItem value="invited">Invited Only</SelectItem>
-                      </SelectContent>
-                    </Select>
                     <FormMessage />
                   </FormItem>
                 )}
