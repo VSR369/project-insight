@@ -137,6 +137,9 @@ export default function ChallengeManagePage() {
         </Badge>
       </div>
 
+      {/* ──────────────── Duplicate Review Panel ──────────────── */}
+      {id && <DuplicateReviewPanel challengeId={id} />}
+
       {/* ──────────────── CARD 1 — Submission Tracker ──────────────── */}
       <Card>
         <CardHeader className="pb-2">
