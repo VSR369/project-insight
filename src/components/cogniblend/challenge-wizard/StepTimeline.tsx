@@ -5,9 +5,7 @@
  *   1. Overall Timeline (start date, deadline, total duration)
  *   2. Phase Schedule Configuration (table with auto-calculated dates)
  *   3. Visual Timeline (Gantt View)
- *   4. Publication Configuration (Enterprise 3-tier / Lightweight toggle)
- *   5. Targeting Filters
- *   6. Complexity Assessment
+ *   4. Complexity Assessment
  */
 
 import { useState, useMemo, useEffect } from 'react';
