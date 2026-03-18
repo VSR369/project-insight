@@ -7,8 +7,8 @@ import { z } from 'zod';
 
 export const challengeFormSchema = z.object({
   // Step 1 — Problem
-  title: z.string().min(1, 'Title is required').max(100, 'Title cannot exceed 100 characters').trim(),
-  problem_statement: z.string().min(200, 'Problem statement must be at least 200 characters').max(5000, 'Max 5000 characters').trim(),
+  title: z.string().min(1, 'Title is required').max(200, 'Title cannot exceed 200 characters').trim(),
+  problem_statement: z.string().min(1, 'Problem statement is required').max(5000, 'Max 5000 characters').trim(),
   scope: z.string().max(3000).optional().or(z.literal('')),
   domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
   maturity_level: z.enum(['blueprint', 'poc', 'prototype', 'pilot'], {

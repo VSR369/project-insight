@@ -30,8 +30,11 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
 
-const TITLE_MAX = 100;
-const PROBLEM_MIN = 200;
+const TITLE_MAX = 200;
+const PROBLEM_MIN_ENTERPRISE = 500;
+const PROBLEM_MIN_LIGHTWEIGHT = 200;
+const SCOPE_MIN_ENTERPRISE = 200;
+const SCOPE_MIN_LIGHTWEIGHT = 100;
 
 const DOMAIN_TAGS = [
   'AI/ML',
