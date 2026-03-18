@@ -192,9 +192,28 @@ function DomainTagSelect({ value, onChange, error, businessProblem = '' }: Domai
           ))}
         </div>
       )}
+      {/* Suggested Tags Row */}
+      {suggestedTags.length > 0 && (
+        <div className="space-y-1 mb-2">
+          <p className="text-[12px] text-muted-foreground">
+            Suggested based on your description
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {suggestedTags.map(tag => (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => addTag(tag)}
+                className="inline-flex items-center rounded-full border border-blue-300 bg-blue-50 px-2.5 py-0.5 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors cursor-pointer"
+              >
+                + {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="relative">
-        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             value={search}
