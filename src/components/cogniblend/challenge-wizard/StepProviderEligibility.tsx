@@ -223,7 +223,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const maturityLevel = watch('maturity_level');
   const selectedArtifacts = watch('permitted_artifact_types') ?? [];
   const availableArtifacts = ARTIFACT_TIERS[maturityLevel] ?? [];
-  const ipModel = watch('ip_model');
+  const selectedArtifacts = watch('permitted_artifact_types') ?? [];
   const solverEligibilityIds = watch('solver_eligibility_ids') ?? [];
   const industrySegmentId = watch('industry_segment_id') ?? '';
   const experienceCountries = watch('experience_countries') ?? [];
