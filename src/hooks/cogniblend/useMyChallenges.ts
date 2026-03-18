@@ -15,6 +15,7 @@ export interface MyChallengeItem {
   phase_status: string;
   role_code: string;
   governance_profile: string;
+  operating_model: string | null;
 }
 
 export interface MyChallengesData {
