@@ -209,6 +209,7 @@ export default function ApprovalPublicationConfigTab({
   // ══════════════════════════════════════
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
+  const [eligibilityModel, setEligibilityModel] = useState(challenge.eligibility_model || "");
   const [enrollment, setEnrollment] = useState(challenge.challenge_enrollment || "");
   const [submission, setSubmission] = useState(challenge.challenge_submission || "");
   const [complexityFinalized, setComplexityFinalized] = useState(false);
