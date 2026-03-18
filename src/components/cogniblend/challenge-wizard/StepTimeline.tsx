@@ -36,6 +36,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
+import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
