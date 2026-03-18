@@ -2,22 +2,24 @@
  * Organization Settings Page (ORG-001)
  * 
  * Post-registration settings page with tabbed layout:
- * Profile | Admin | Subscription | Engagement Model | Audit Trail
+ * Profile | Admin | Subscription | Engagement Model | Governance | Audit Trail
  */
 
-import { Building2, CreditCard, Shuffle, History, UserCircle } from 'lucide-react';
+import { Building2, CreditCard, Shuffle, History, UserCircle, ShieldCheck } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import { ProfileTab } from '@/components/org-settings/ProfileTab';
 import { AdminDetailsTab } from '@/components/org-settings/AdminDetailsTab';
 import { SubscriptionTab } from '@/components/org-settings/SubscriptionTab';
 import { EngagementModelTab } from '@/components/org-settings/EngagementModelTab';
+import { GovernanceProfileTab } from '@/components/org-settings/GovernanceProfileTab';
 import { AuditTrailTable } from '@/components/org-settings/AuditTrailTable';
 
 import { useOrgContext } from '@/contexts/OrgContext';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
   const { data: currentOrg } = useCurrentOrg();
@@ -35,7 +37,7 @@ export default function OrgSettingsPage() {
       </div>
       <FeatureErrorBoundary featureName="Org Settings Tabs">
         <Tabs defaultValue="profile" className="w-full">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="profile" className="flex items-center gap-2">
             <Building2 className="h-4 w-4" />
             <span className="hidden lg:inline">Profile</span>
@@ -51,6 +53,10 @@ export default function OrgSettingsPage() {
           <TabsTrigger value="engagement" className="flex items-center gap-2">
             <Shuffle className="h-4 w-4" />
             <span className="hidden lg:inline">Engagement</span>
+          </TabsTrigger>
+          <TabsTrigger value="governance" className="flex items-center gap-2">
+            <ShieldCheck className="h-4 w-4" />
+            <span className="hidden lg:inline">Governance</span>
           </TabsTrigger>
           <TabsTrigger value="audit" className="flex items-center gap-2">
             <History className="h-4 w-4" />
@@ -72,6 +78,10 @@ export default function OrgSettingsPage() {
 
         <TabsContent value="engagement" className="mt-6">
           <EngagementModelTab organizationId={organizationId} />
+        </TabsContent>
+
+        <TabsContent value="governance" className="mt-6">
+          <GovernanceProfileTab organizationId={organizationId} />
         </TabsContent>
 
         <TabsContent value="audit" className="mt-6">
