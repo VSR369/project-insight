@@ -19,6 +19,7 @@ interface ExtendDeadlinePayload {
   oldDeadline: string;
   newDeadline: string;
   reason: string;
+  notifySolvers: boolean;
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -32,7 +33,7 @@ export function useExtendDeadline() {
 
   return useMutation({
     mutationFn: async (payload: ExtendDeadlinePayload): Promise<void> => {
-      const { challengeId, challengeTitle, userId, oldDeadline, newDeadline, reason } = payload;
+      const { challengeId, challengeTitle, userId, oldDeadline, newDeadline, reason, notifySolvers } = payload;
 
       // 1. Update submission_deadline
       const { error: updateErr } = await supabase
@@ -66,37 +67,39 @@ export function useExtendDeadline() {
         });
       }
 
-      // 3. Notify all solvers who submitted to this challenge
-      const { data: submissions } = await supabase
-        .from('challenge_submissions')
-        .select('user_id')
-        .eq('challenge_id', challengeId)
-        .eq('is_deleted', false)
-        .not('user_id', 'is', null);
+      // 3. Conditionally notify solvers
+      if (notifySolvers) {
+        const { data: submissions } = await supabase
+          .from('challenge_submissions')
+          .select('user_id')
+          .eq('challenge_id', challengeId)
+          .eq('is_deleted', false)
+          .not('user_id', 'is', null);
 
-      const solverUserIds = [
-        ...new Set((submissions ?? []).map((s) => s.user_id).filter(Boolean)),
-      ] as string[];
+        const solverUserIds = [
+          ...new Set((submissions ?? []).map((s) => s.user_id).filter(Boolean)),
+        ] as string[];
 
-      if (solverUserIds.length > 0) {
-        const formattedDate = new Date(newDeadline).toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        });
+        if (solverUserIds.length > 0) {
+          const formattedDate = new Date(newDeadline).toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          });
 
-        const notificationRows = solverUserIds.map((uid) => ({
-          user_id: uid,
-          notification_type: 'DEADLINE_EXTENDED',
-          title: 'Submission Deadline Extended',
-          message: `The submission deadline for ${challengeTitle} has been extended to ${formattedDate}. Reason: ${reason}`,
-          challenge_id: challengeId,
-          is_read: false,
-        }));
+          const notificationRows = solverUserIds.map((uid) => ({
+            user_id: uid,
+            notification_type: 'DEADLINE_EXTENDED',
+            title: 'Submission Deadline Extended',
+            message: `The submission deadline for ${challengeTitle} has been extended to ${formattedDate}. Reason: ${reason}`,
+            challenge_id: challengeId,
+            is_read: false,
+          }));
 
-        for (let i = 0; i < notificationRows.length; i += BATCH_SIZE) {
-          const batch = notificationRows.slice(i, i + BATCH_SIZE);
-          await supabase.from('cogni_notifications').insert(batch);
+          for (let i = 0; i < notificationRows.length; i += BATCH_SIZE) {
+            const batch = notificationRows.slice(i, i + BATCH_SIZE);
+            await supabase.from('cogni_notifications').insert(batch);
+          }
         }
       }
     },
@@ -104,7 +107,12 @@ export function useExtendDeadline() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: ['manage-challenge', variables.challengeId] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
-      toast.success('Deadline extended successfully');
+      const formattedDate = new Date(variables.newDeadline).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      toast.success(`Deadline extended to ${formattedDate}`);
     },
 
     onError: (error: Error) => {

@@ -4,14 +4,16 @@
  * Requires new date (after current deadline) and reason (min 50 chars).
  */
 
-import { useState } from 'react';
-import { format } from 'date-fns';
+import { useState, useCallback } from 'react';
+import { format, addDays } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
@@ -46,12 +48,35 @@ export function ExtendDeadlineModal({
   userId,
 }: ExtendDeadlineModalProps) {
   const [newDate, setNewDate] = useState<Date | undefined>();
+  const [extendDays, setExtendDays] = useState<string>('');
   const [reason, setReason] = useState('');
+  const [notifySolvers, setNotifySolvers] = useState(true);
   const extendMutation = useExtendDeadline();
 
   const currentDate = currentDeadline ? new Date(currentDeadline) : new Date();
   const reasonTooShort = reason.trim().length < MIN_REASON_LENGTH;
   const canSubmit = !!newDate && !reasonTooShort && !extendMutation.isPending;
+
+  const handleDateSelect = useCallback((date: Date | undefined) => {
+    setNewDate(date);
+    if (date) {
+      const diffMs = date.getTime() - currentDate.getTime();
+      const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+      setExtendDays(diffDays > 0 ? String(diffDays) : '');
+    } else {
+      setExtendDays('');
+    }
+  }, [currentDate]);
+
+  const handleDaysChange = useCallback((value: string) => {
+    setExtendDays(value);
+    const days = parseInt(value, 10);
+    if (!isNaN(days) && days > 0) {
+      setNewDate(addDays(currentDate, days));
+    } else {
+      setNewDate(undefined);
+    }
+  }, [currentDate]);
 
   const handleExtend = () => {
     if (!newDate) return;
@@ -64,11 +89,14 @@ export function ExtendDeadlineModal({
         oldDeadline: currentDeadline ?? new Date().toISOString(),
         newDeadline: newDate.toISOString(),
         reason: reason.trim(),
+        notifySolvers,
       },
       {
         onSuccess: () => {
           setNewDate(undefined);
+          setExtendDays('');
           setReason('');
+          setNotifySolvers(true);
           onOpenChange(false);
         },
       },
@@ -113,13 +141,26 @@ export function ExtendDeadlineModal({
                 <Calendar
                   mode="single"
                   selected={newDate}
-                  onSelect={setNewDate}
+                  onSelect={handleDateSelect}
                   disabled={(date) => date <= currentDate}
                   initialFocus
                   className={cn('p-3 pointer-events-auto')}
                 />
               </PopoverContent>
             </Popover>
+          </div>
+
+          {/* Extend by N days */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">Or Extend by Days</Label>
+            <Input
+              type="number"
+              min={1}
+              value={extendDays}
+              onChange={(e) => handleDaysChange(e.target.value)}
+              placeholder="e.g. 14"
+              className="text-sm"
+            />
           </div>
 
           {/* Reason */}
@@ -148,6 +189,18 @@ export function ExtendDeadlineModal({
                 {reason.length} / 500
               </p>
             </div>
+          </div>
+
+          {/* Notify checkbox */}
+          <div className="flex items-center space-x-2 pt-1">
+            <Checkbox
+              id="notify-solvers"
+              checked={notifySolvers}
+              onCheckedChange={(checked) => setNotifySolvers(checked === true)}
+            />
+            <Label htmlFor="notify-solvers" className="text-xs text-foreground cursor-pointer">
+              Notify all enrolled solvers
+            </Label>
           </div>
         </div>
 
