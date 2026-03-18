@@ -295,10 +295,10 @@ export default function ApprovalPublicationConfigTab({
 
   // Notify parent of configuration readiness
   const hasAccessErrors = !!validationError || !!enrollmentError || !!submissionError;
-  const isConfigReady = !!visibility && !!eligibility && !hasAccessErrors && complexityFinalized;
+  const isConfigReady = !!visibility && !!eligibility && !!eligibilityModel && !hasAccessErrors && complexityFinalized;
   useEffect(() => {
-    onConfigChange?.({ visibility, eligibility, enrollment, submission, isReady: isConfigReady });
-  }, [visibility, eligibility, enrollment, submission, isConfigReady, onConfigChange]);
+    onConfigChange?.({ visibility, eligibility, eligibilityModel, enrollment, submission, isReady: isConfigReady });
+  }, [visibility, eligibility, eligibilityModel, enrollment, submission, isConfigReady, onConfigChange]);
 
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
