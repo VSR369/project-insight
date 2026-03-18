@@ -11679,6 +11679,10 @@ export type Database = {
         Args: { p_booking_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
+      check_curation_cycle_limit: {
+        Args: { p_challenge_id: string; p_max_cycles?: number }
+        Returns: Json
+      }
       check_delegated_scope: {
         Args: { p_admin_id: string; p_entity_scope: Json }
         Returns: boolean
@@ -11784,6 +11788,14 @@ export type Database = {
           p_certifying_user_id: string
           p_composite_score: number
           p_enrollment_id: string
+        }
+        Returns: Json
+      }
+      finalize_complexity: {
+        Args: {
+          p_adjusted_score: number
+          p_challenge_id: string
+          p_user_id: string
         }
         Returns: Json
       }
