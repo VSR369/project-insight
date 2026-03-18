@@ -18,6 +18,7 @@ import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles"
 import ApprovalPublicationConfigTab from "@/components/cogniblend/approval/ApprovalPublicationConfigTab";
 import ApprovalActionBar from "@/components/cogniblend/approval/ApprovalActionBar";
 import { Badge } from "@/components/ui/badge";
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
