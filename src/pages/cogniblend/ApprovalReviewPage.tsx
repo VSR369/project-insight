@@ -13,6 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
+import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
 import ApprovalPublicationConfigTab from "@/components/cogniblend/approval/ApprovalPublicationConfigTab";
 import ApprovalActionBar from "@/components/cogniblend/approval/ApprovalActionBar";
 import { Badge } from "@/components/ui/badge";
@@ -643,7 +644,7 @@ export default function ApprovalReviewPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  const { data: userRoleCodes = [] } = useUserChallengeRoles(user?.id, challengeId);
   // ══════════════════════════════════════
   // SECTION 2: Query — challenge data
   // ══════════════════════════════════════
@@ -752,6 +753,7 @@ export default function ApprovalReviewPage() {
             currentPhase={challenge.current_phase ?? 4}
             phaseStatus={challenge.phase_status ?? null}
             userId={user.id}
+            userRoleCodes={userRoleCodes}
           />
         )}
       </div>
