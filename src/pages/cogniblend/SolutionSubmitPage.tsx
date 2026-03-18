@@ -18,7 +18,9 @@ import {
 } from '@/hooks/cogniblend/useSolutionSubmission';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
 import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/useWithdrawSolution';
+import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { WithdrawSolutionModal } from '@/components/cogniblend/solver/WithdrawSolutionModal';
+import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
@@ -200,6 +202,7 @@ export default function SolutionSubmitPage() {
   const [legalAccepted, setLegalAccepted] = useState<Record<string, boolean>>({});
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [reacceptModalOpen, setReacceptModalOpen] = useState(false);
 
   // ═══ SECTION 2: Context and hooks ═══
   const { id: challengeId } = useParams<{ id: string }>();
@@ -245,6 +248,7 @@ export default function SolutionSubmitPage() {
   const legalMutation = useRecordLegalAcceptance();
   const { data: withdrawalCtx } = useWithdrawalContext(challengeId, existingSolution?.id);
   const withdrawMutation = useWithdrawSolution();
+  const { data: reacceptStatus } = useLegalReacceptanceStatus(challengeId, userId);
 
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
@@ -259,6 +263,13 @@ export default function SolutionSubmitPage() {
     }
   }, [existingSolution, form]);
 
+  // Auto-open re-acceptance modal
+  useEffect(() => {
+    if (reacceptStatus?.hasPending) {
+      setReacceptModalOpen(true);
+    }
+  }, [reacceptStatus?.hasPending]);
+
   // ═══ SECTION 6: Derived / Computed ═══
   const isLoading = enrollmentLoading || tier2Loading || solutionLoading || challengeLoading;
   const isEnrolled = enrollment?.status === 'APPROVED';
@@ -267,6 +278,7 @@ export default function SolutionSubmitPage() {
   const isLightweight = challenge?.governance_profile === 'LIGHTWEIGHT';
   const isEnterprise = challenge?.governance_profile === 'ENTERPRISE';
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
+  const needsReacceptance = reacceptStatus?.hasPending ?? false;
   const missingDocs = useMemo(
     () => TIER_2_DOCUMENTS.filter(d => tier2Status?.missing?.includes(d.type)),
     [tier2Status]
@@ -324,6 +336,37 @@ export default function SolutionSubmitPage() {
             </Button>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  if (needsReacceptance && reacceptStatus?.record) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <Card className="border-[hsl(38,60%,70%)]/40">
+          <CardContent className="p-8 text-center space-y-4">
+            <FileText className="h-12 w-12 text-[hsl(38,68%,41%)] mx-auto" />
+            <h2 className="text-xl font-semibold text-foreground">Legal Re-Acceptance Required</h2>
+            <p className="text-muted-foreground">
+              The legal terms for this challenge have been updated. You must accept the updated terms before submitting.
+            </p>
+            <Badge variant="outline" className="text-sm border-[hsl(38,60%,70%)] text-[hsl(38,68%,41%)]">
+              {reacceptStatus.record.days_remaining} day{reacceptStatus.record.days_remaining !== 1 ? 's' : ''} remaining
+            </Badge>
+            <div className="pt-2">
+              <Button onClick={() => setReacceptModalOpen(true)}>
+                Review & Accept Terms
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <LegalReAcceptModal
+          open={reacceptModalOpen}
+          onOpenChange={setReacceptModalOpen}
+          challengeId={challengeId!}
+          userId={userId ?? ''}
+          record={reacceptStatus.record}
+        />
       </div>
     );
   }

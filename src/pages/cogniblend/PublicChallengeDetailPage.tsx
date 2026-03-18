@@ -3,7 +3,7 @@
  * Route: /cogni/challenges/:id/view
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
@@ -18,6 +18,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
+import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { useAuth } from '@/hooks/useAuth';
 import { WithdrawalBanner } from '@/components/cogniblend/solver/WithdrawalBanner';
 import { LegalReAcceptModal } from '@/components/cogniblend/solver/LegalReAcceptModal';
@@ -83,8 +84,16 @@ export default function PublicChallengeDetailPage() {
   const { user } = useAuth();
   const { data, isLoading, error } = usePublicChallenge(id);
   const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
+  const { data: reacceptStatus } = useLegalReacceptanceStatus(id, user?.id);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
+
+  // Auto-open modal when solver has pending re-acceptance
+  useEffect(() => {
+    if (reacceptStatus?.hasPending && !legalModalOpen) {
+      setLegalModalOpen(true);
+    }
+  }, [reacceptStatus?.hasPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Loading ── */
   if (isLoading) {
@@ -468,13 +477,13 @@ export default function PublicChallengeDetailPage() {
       <ChallengeQASection challengeId={id!} />
 
       {/* ═══ LEGAL RE-ACCEPT MODAL ═══ */}
-      {amendStatus?.requiresLegalReAcceptance && (
+      {reacceptStatus?.hasPending && reacceptStatus.record && (
         <LegalReAcceptModal
           open={legalModalOpen}
           onOpenChange={setLegalModalOpen}
           challengeId={id!}
           userId={user?.id ?? ''}
-          amendmentNumber={amendStatus.amendmentNumber ?? 1}
+          record={reacceptStatus.record}
         />
       )}
 

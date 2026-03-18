@@ -2720,6 +2720,57 @@ export type Database = {
         }
         Relationships: []
       }
+      legal_reacceptance_records: {
+        Row: {
+          accepted_at: string | null
+          amendment_id: string
+          challenge_id: string
+          created_at: string
+          created_by: string | null
+          deadline_at: string
+          id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string | null
+          amendment_id: string
+          challenge_id: string
+          created_at?: string
+          created_by?: string | null
+          deadline_at: string
+          id?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string | null
+          amendment_id?: string
+          challenge_id?: string
+          created_at?: string
+          created_by?: string | null
+          deadline_at?: string
+          id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_reacceptance_records_amendment_id_fkey"
+            columns: ["amendment_id"]
+            isOneToOne: false
+            referencedRelation: "amendment_records"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_reacceptance_records_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       level_speciality_map: {
         Row: {
           created_at: string
@@ -11635,6 +11686,7 @@ export type Database = {
         Args: { p_enrollment_id: string; p_user_id: string }
         Returns: undefined
       }
+      expire_legal_reacceptances: { Args: never; Returns: number }
       finalize_certification: {
         Args: {
           p_certifying_user_id: string
