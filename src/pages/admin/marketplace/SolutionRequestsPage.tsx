@@ -74,6 +74,7 @@ function AssignmentPanelView({
 }
 
 export default function SolutionRequestsPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedChallenge, setSelectedChallenge] = useState<SolutionRequestRow | null>(null);
   const { data: mpRoles } = useChallengeRoleCodes("mp");
