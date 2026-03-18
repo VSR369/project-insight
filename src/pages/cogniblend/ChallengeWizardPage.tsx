@@ -168,13 +168,24 @@ export default function ChallengeWizardPage() {
   }, [isEditMode, tierLimit]);
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading)) {
+  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading) || (!isEditMode && readinessGate.isLoading)) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <Skeleton className="h-8 w-60" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full rounded-xl" />
       </div>
+    );
+  }
+
+  // Role readiness gate — block new challenges if downstream roles missing
+  if (!isEditMode && !readinessGate.isReady) {
+    return (
+      <SubmissionBlockedScreen
+        orgId={readinessGate.orgId}
+        model={readinessGate.model}
+        onBack={() => navigate('/cogni/dashboard')}
+      />
     );
   }
 
