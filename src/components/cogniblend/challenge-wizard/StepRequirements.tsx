@@ -303,69 +303,13 @@ export function StepRequirements({ form, mandatoryFields, isLightweight }: StepR
       {/* ── 3b. Upload Submission Template ── */}
       <SubmissionTemplateUpload form={form} />
 
-      {/* ── 4. Solver Eligibility ── */}
-      <Controller
-        name="solver_eligibility_types"
-        control={control}
-        render={({ field }) => {
-          const selected: string[] = field.value ?? [];
-          const toggle = (val: string) => {
-            if (selected.includes(val)) {
-              field.onChange(selected.filter((v: string) => v !== val));
-            } else {
-              field.onChange([...selected, val]);
-            }
-          };
-
-          const options = [
-            { value: 'individual', label: 'Individual Solvers', desc: 'Solo participants submitting solutions independently' },
-            { value: 'organization', label: 'Organization / Team', desc: 'Teams or companies submitting as a collective' },
-            { value: 'solution_cluster', label: 'Solution Cluster', desc: 'Coordinated multi-party submissions addressing sub-problems' },
-          ];
-
-          return (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">
-                Solver Eligibility <span className="text-destructive">*</span>
-              </Label>
-              <p className="text-xs text-muted-foreground">
-                Who can submit solutions? Select at least one.
-              </p>
-
-              <div className="space-y-2">
-                {options.map((opt) => {
-                  const checked = selected.includes(opt.value);
-                  return (
-                    <label
-                      key={opt.value}
-                      className={cn(
-                        'flex items-start gap-3 rounded-lg border px-3 py-3 cursor-pointer transition-colors',
-                        checked
-                          ? 'border-primary/30 bg-primary/5'
-                          : 'border-border bg-background hover:bg-muted/50',
-                      )}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        onCheckedChange={() => toggle(opt.value)}
-                        className="mt-0.5"
-                      />
-                      <div>
-                        <span className="text-sm font-medium">{opt.label}</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                      </div>
-                    </label>
-                  );
-                })}
-              </div>
-
-              {errors.solver_eligibility_types && (
-                <p className="text-xs text-destructive">{errors.solver_eligibility_types.message}</p>
-              )}
-            </div>
-          );
-        }}
-      />
+      {/* ── 4. Solver Eligibility (moved to Step 5 — showing read-only note) ── */}
+      <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
+        <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+        <p className="text-xs text-muted-foreground">
+          Solver eligibility is configured in <strong>Step 5 — Provider Eligibility & Matchmaking</strong>.
+        </p>
+      </div>
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           IP Model{' '}
