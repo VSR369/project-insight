@@ -124,6 +124,7 @@ export default function ChallengeWizardPage() {
         silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
         rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: '',
+        submission_template_url: (challengeData as any)?.submission_template_url ?? '',
         taxonomy_tags: '',
         submission_deadline: challengeData.submission_deadline
           ? challengeData.submission_deadline.substring(0, 16)
