@@ -371,6 +371,7 @@ export default function SolutionSubmitPage() {
     );
   }
 
+  if (isAlreadySubmitted) {
     const handleWithdrawConfirm = (reason: string) => {
       if (!existingSolution?.id || !challengeId || !userId || !withdrawalCtx) return;
       withdrawMutation.mutate({
