@@ -44,7 +44,7 @@ export function ScrollToAcceptLegal({
   const checkScroll = useCallback(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const threshold = 10;
+    const threshold = 20;
     const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight <= threshold;
     if (atBottom && !scrolledToBottom) {
       setScrolledToBottom(true);
