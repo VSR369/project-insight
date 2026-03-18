@@ -14,6 +14,7 @@ import {
   CheckSquare,
   ShieldCheck,
   FileText,
+  FileCheck,
   Eye,
   BarChart2,
   Award,
