@@ -31,7 +31,29 @@ serve(async (req) => {
 
     const breachCount = data ?? 0;
 
-    // ── Step 2: Auto-cancel challenges on hold too long ──────
+    // ── Step 2: Process SLA escalation tiers ─────────────────
+    let escalatedCount = 0;
+    let autoHeldCount = 0;
+
+    try {
+      const { data: escalationResult, error: escErr } = await supabaseAdmin.rpc(
+        "process_sla_escalation"
+      );
+
+      if (escErr) {
+        console.error("SLA escalation processing error:", escErr.message);
+      } else if (escalationResult && escalationResult.length > 0) {
+        escalatedCount = escalationResult[0]?.escalated_count ?? 0;
+        autoHeldCount = escalationResult[0]?.auto_held_count ?? 0;
+        console.log(
+          `Escalation processed: ${escalatedCount} escalated, ${autoHeldCount} auto-held`
+        );
+      }
+    } catch (escError: any) {
+      console.error("Escalation processing failed:", escError.message);
+    }
+
+    // ── Step 3: Auto-cancel challenges on hold too long ──────
     // Find challenges that are ON_HOLD where the hold duration
     // exceeds max_hold_days on their paused SLA timers.
     let autoCancelCount = 0;
