@@ -245,6 +245,7 @@ export default function NewSolutionRequestPage() {
   const { data: architects = [], isLoading: architectsLoading } = useChallengeArchitects();
   const submitMutation = useSubmitSolutionRequest();
   const draftMutation = useSaveDraft();
+  const createDuplicateReview = useCreateDuplicateReview();
 
   const isMP = orgContext?.operatingModel === 'MP';
   const isAGG = orgContext?.operatingModel === 'AGG';
