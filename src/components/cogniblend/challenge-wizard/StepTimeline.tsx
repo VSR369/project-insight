@@ -542,8 +542,8 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
 
   // Complexity score
   const complexityScore = useMemo(() => {
-    return COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0);
-  }, [paramValues]);
+    return complexityParams.reduce((sum, p) => sum + (paramValues[p.param_key] ?? 5) * p.weight, 0);
+  }, [paramValues, complexityParams]);
 
   const complexityInfo = getComplexityLevel(complexityScore);
 
