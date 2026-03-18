@@ -56,7 +56,7 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     deliverables_list: z.array(z.string()).default(['']),
     description: z.string().max(2000).optional().or(z.literal('')),
     ip_model: z.string().optional().or(z.literal('')),
-    visibility: z.string().default('public'),
+    visibility: z.string().optional().or(z.literal('')),
     eligibility: z.string().max(2000).optional().or(z.literal('')),
     complexity_notes: z.string().max(2000).optional().or(z.literal('')),
     permitted_artifact_types: z.array(z.string()).default([]),
