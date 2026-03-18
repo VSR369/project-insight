@@ -131,6 +131,26 @@ async function logLegalAudit(
 }
 
 // ---------------------------------------------------------------------------
+// Helper: build updated version_history array
+// ---------------------------------------------------------------------------
+function buildVersionHistory(
+  existing: VersionEntry[],
+  userId: string,
+  changeType: string
+): VersionEntry[] {
+  const nextVersion = (existing?.length ?? 0) + 1;
+  return [
+    ...(existing ?? []),
+    {
+      version: nextVersion,
+      modified_by: userId,
+      modified_at: new Date().toISOString(),
+      change_type: changeType,
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function LegalDocumentAttachmentPage() {
