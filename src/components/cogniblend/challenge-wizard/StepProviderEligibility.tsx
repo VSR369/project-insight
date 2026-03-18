@@ -433,10 +433,11 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               <RadioGroup value={field.value ?? ''} onValueChange={(val) => {
                 field.onChange(val);
                 if (val === '') {
-                  // "All" selected — set most open defaults
+                  // "All" selected — set most open defaults and clear visibility
                   setValue('challenge_visibility', 'public', { shouldDirty: true });
                   setValue('challenge_enrollment', 'open_auto', { shouldDirty: true });
                   setValue('challenge_submission', 'all_enrolled', { shouldDirty: true });
+                  setValue('visibility', '', { shouldDirty: true });
                 }
               }} className="space-y-2">
                 {/* Virtual "All" option */}
