@@ -4458,6 +4458,56 @@ export type Database = {
           },
         ]
       }
+      modification_points: {
+        Row: {
+          addressed_at: string | null
+          addressed_by: string | null
+          amendment_id: string
+          created_at: string
+          created_by: string | null
+          description: string
+          id: string
+          severity: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          addressed_at?: string | null
+          addressed_by?: string | null
+          amendment_id: string
+          created_at?: string
+          created_by?: string | null
+          description: string
+          id?: string
+          severity: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          addressed_at?: string | null
+          addressed_by?: string | null
+          amendment_id?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          id?: string
+          severity?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "modification_points_amendment_id_fkey"
+            columns: ["amendment_id"]
+            isOneToOne: false
+            referencedRelation: "amendment_records"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notification_audit_log: {
         Row: {
           created_at: string
