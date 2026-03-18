@@ -81,6 +81,13 @@ const COMPLEXITY_PARAMS: ComplexityParam[] = [
   { key: 'budget_scale', label: 'Budget Scale', weight: 0.10 },
 ];
 
+/** Lightweight complexity options with fixed scores */
+const LW_COMPLEXITY_OPTIONS = [
+  { value: 'low', label: 'Low', description: 'Routine problem, well-understood domain', level: 'L1', score: 2.0, badgeClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+  { value: 'medium', label: 'Medium', description: 'Moderate novelty, some cross-domain', level: 'L3', score: 5.0, badgeClass: 'bg-amber-100 text-amber-800 border-amber-300' },
+  { value: 'high', label: 'High', description: 'Significant innovation, new territory', level: 'L5', score: 9.0, badgeClass: 'bg-red-100 text-red-800 border-red-300' },
+] as const;
+
 function getComplexityLevel(score: number): { label: string; level: string; colorClass: string } {
   if (score < 2.0) return { label: 'L1', level: 'Low', colorClass: 'bg-emerald-100 text-emerald-800 border-emerald-300' };
   if (score < 4.0) return { label: 'L2', level: 'Low-Medium', colorClass: 'bg-blue-100 text-blue-800 border-blue-300' };
