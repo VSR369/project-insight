@@ -9,14 +9,19 @@
  *   5. IP Model — dropdown with info tooltips
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   Plus,
   Trash2,
   GripVertical,
   Info,
+  Upload,
+  FileText,
+  X,
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
