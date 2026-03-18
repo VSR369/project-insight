@@ -43,8 +43,10 @@ import {
   X,
   Eye,
   Trash2,
+  History,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
+import { LegalVersionHistory } from "@/components/cogniblend/LegalVersionHistory";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -64,6 +66,14 @@ interface AttachedDoc {
   document_name: string | null;
   tier: string;
   status: string | null;
+  version_history: VersionEntry[];
+}
+
+interface VersionEntry {
+  version: number;
+  modified_by: string;
+  modified_at: string;
+  change_type: string;
 }
 
 type AttachmentStatus = "required" | "default_applied" | "custom_uploaded";
@@ -118,6 +128,26 @@ async function logLegalAudit(
     p_method: "UI",
     p_details: details as Json,
   });
+}
+
+// ---------------------------------------------------------------------------
+// Helper: build updated version_history array
+// ---------------------------------------------------------------------------
+function buildVersionHistory(
+  existing: VersionEntry[],
+  userId: string,
+  changeType: string
+): VersionEntry[] {
+  const nextVersion = (existing?.length ?? 0) + 1;
+  return [
+    ...(existing ?? []),
+    {
+      version: nextVersion,
+      modified_by: userId,
+      modified_at: new Date().toISOString(),
+      change_type: changeType,
+    },
+  ];
 }
 
 // ---------------------------------------------------------------------------
@@ -201,10 +231,13 @@ export default function LegalDocumentAttachmentPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenge_legal_docs")
-        .select("id, document_type, document_name, tier, status")
+        .select("id, document_type, document_name, tier, status, version_history")
         .eq("challenge_id", challengeId!);
       if (error) throw new Error(error.message);
-      return (data ?? []) as AttachedDoc[];
+      return (data ?? []).map((d: any) => ({
+        ...d,
+        version_history: Array.isArray(d.version_history) ? d.version_history : [],
+      })) as AttachedDoc[];
     },
     enabled: !!challengeId,
   });
@@ -221,6 +254,12 @@ export default function LegalDocumentAttachmentPage() {
       );
       const isReplace = !!existing;
 
+      const newHistory = buildVersionHistory(
+        existing?.version_history ?? [],
+        user?.id ?? 'system',
+        isReplace ? 'replaced' : 'default_applied'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -229,6 +268,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "default_applied",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: newHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
@@ -280,7 +320,13 @@ export default function LegalDocumentAttachmentPage() {
         .upload(path, file);
       if (uploadErr) throw new Error(uploadErr.message);
 
-      // Upsert legal doc record
+      // Upsert legal doc record with version history
+      const uploadHistory = buildVersionHistory(
+        existing?.version_history ?? [],
+        user?.id ?? 'system',
+        isReplace ? 'replaced' : 'custom_uploaded'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -289,6 +335,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "custom_uploaded",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: uploadHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
@@ -349,7 +396,13 @@ export default function LegalDocumentAttachmentPage() {
         }
       }
 
-      // Revert to default: upsert with default status
+      // Revert to default: upsert with version history
+      const revertHistory = buildVersionHistory(
+        attached?.version_history ?? [],
+        user?.id ?? 'system',
+        'reverted_to_default'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -358,6 +411,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "default_applied",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: revertHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
@@ -645,6 +699,9 @@ export default function LegalDocumentAttachmentPage() {
     showPhaseTrigger: boolean
   ) => {
     const status = getDocStatus(template, attachedDocs);
+    const attached = attachedDocs.find(
+      (d) => d.document_type === template.document_type && d.tier === template.tier
+    );
     const isUploading = uploadingDocType === template.document_type;
     const isCustom = status === "custom_uploaded";
     const isAttached = status !== "required";
@@ -726,6 +783,11 @@ export default function LegalDocumentAttachmentPage() {
               </Button>
             )}
           </div>
+
+          {/* Version History */}
+          {attached && attached.version_history.length > 0 && (
+            <LegalVersionHistory history={attached.version_history} />
+          )}
         </CardContent>
       </Card>
     );

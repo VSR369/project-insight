@@ -794,6 +794,7 @@ export type Database = {
           tier: string
           updated_at: string | null
           updated_by: string | null
+          version_history: Json
         }
         Insert: {
           attached_by?: string | null
@@ -809,6 +810,7 @@ export type Database = {
           tier: string
           updated_at?: string | null
           updated_by?: string | null
+          version_history?: Json
         }
         Update: {
           attached_by?: string | null
@@ -824,6 +826,7 @@ export type Database = {
           tier?: string
           updated_at?: string | null
           updated_by?: string | null
+          version_history?: Json
         }
         Relationships: [
           {
