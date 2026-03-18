@@ -1,374 +1,146 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# Plan: Fix Challenge Wizard — Data Integrity, Master Data Integration, and UI Corrections
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## Critical Bug: `initialize_challenge` Duplicate Function (BLOCKER)
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
+The network logs show a **300 error** when saving:
+```
+"Could not choose the best candidate function between:
+  public.initialize_challenge(p_org_id, p_title, p_operating_model, p_creator_id),
+  public.initialize_challenge(p_org_id, p_creator_id, p_title, p_operating_model)"
+```
 
-## Tier Permission Matrix
+There are two overloaded versions of `initialize_challenge` in the database with the same parameter types but different ordering. One must be dropped.
 
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+**Fix**: SQL migration to drop the duplicate function, keeping only one signature.
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## Fixes Organized by Wizard Step
 
-## What Was Implemented
+### Step 1 — Challenge Brief
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+**1. Industry Segment: Pull from master data (currently a free-text input)**
+- Current: `<Input placeholder="e.g., Automotive..." {...register('industry_segment_id')} />` (StepProblem.tsx L180-183) — a plain text input
+- Fix: Replace with a `<Select>` dropdown using `useIndustrySegmentOptions()` hook (already exists in `useTaxonomySelectors.ts`). The hook fetches from `industry_segments` table.
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+**2. Experience Countries: Pull from master data**
+- Current: Free-text input with manual typing (StepProblem.tsx L186-215)
+- Fix: Replace with a searchable multi-select dropdown using `useCountries()` hook (already exists in `useMasterData.ts`). Show country name, store country ID.
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
+**3. Domain Tags: Allow multiple custom entries**
+- Current: Only allows selecting from 8 hardcoded tags (`DOMAIN_TAGS` array, StepProblem.tsx L58-61)
+- Fix: Add a free-text "Add custom tag" input alongside the predefined list, so users can type and add custom domain tags that aren't in the preset list.
 
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
+### Step 2 — Evaluation Criteria
 
-### MOD-02 Role-Based Access Matrix
+**4. Weightage must be editable in all modes**
+- Current: Lightweight mode hides weight inputs and auto-distributes equally (StepEvaluation.tsx L133-161). Weight column is not shown. Description and rubrics hidden.
+- Fix: Show the full 4-column table (Name, Weight, Description, Rubric) in all modes. Keep default values pre-filled but make all fields editable. Remove the "equally weighted" restriction for lightweight mode. The `isLightweight` branching at L133 will be removed.
 
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+### Step 5 — Provider Eligibility
 
----
+**5. Provider Category: Show checkboxes from master data (not fixed "ALL")**
+- Current: Shows "All Categories" checkbox + individual modes from `useParticipationModes()`. The issue is the toggle logic — when "All" is checked, individual checkboxes disappear (L373: `{!isAllModes && participationModes.map(...)}`).
+- Fix: Always show all participation mode checkboxes. "All Categories" becomes a "Select All" toggle that checks/unchecks all. Individual modes always visible with checkboxes.
 
-# MOD-02 Gap Fix Log (Latest)
+**6. Solver Tier: Change from RadioGroup to Checkboxes**
+- Current: RadioGroup allowing single selection (StepProviderEligibility.tsx L429-510)
+- Fix: Replace `RadioGroup` + `RadioGroupItem` with checkbox list, store as `string[]` in a new schema field or repurpose `solver_eligibility_id` to accept multiple. Since schema has `solver_eligibility_id` as single string, add a new `solver_eligibility_ids: z.array(z.string()).default([])` field, or change the existing field to an array.
 
-## What Was Fixed
+**7. Required Expertise Level: Pull from master data, clean up SMOKE_TEST entries, show only level + name**
+- Current: Uses `useExpertiseLevels()` which fetches ALL including inactive and smoke test data. The dropdown shows name + description (L624-633).
+- Fix: Add `.not('name', 'like', '__SMOKE_TEST_%')` filter to the query. In the SelectItem, show only `level_number` and `name`, remove description display.
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
+**8. Required Proficiencies: Pull from master data (currently free-text chips)**
+- Current: `TextChipInput` with manual typing (L641-647)
+- Fix: Replace with a searchable multi-select from `proficiency_areas` table using `useAllProficiencyAreas(true)` hook (already exists in `useScopeTaxonomy.ts`).
 
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
+**9. Required Sub-Domains: Currently only shows when industry segment selected**
+- Current: Only renders if `proficiencyAreas.length > 0` (L650), which requires `industrySegmentId` to be set.
+- Fix: When no industry segment is selected, use `useAllProficiencyAreas(true)` to show all available sub-domains. Always render the sub-domain section.
 
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
+**10. Required Specialities: Pull from master data (currently free-text chips)**
+- Current: `TextChipInput` with manual typing (L692-699)
+- Fix: Replace with searchable multi-select from `specialities` table using `useSpecialitiesBySubDomains()` or a new `useAllSpecialities()` hook. Cascade from selected sub-domains.
 
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
+**11. Permitted Artifact Types: Add video and audio types**
+- Current: `ARTIFACT_TIERS` constant (L49-61) does not include audio types.
+- Fix: Add `'Audio Recording'` to poc/prototype/pilot tiers. `'Video Demo'` already exists but add `'Audio Demo'` and `'Audio Narration'` options.
 
----
+### Step 6 — Templates
 
-# MOD-05: Performance Metrics Dashboard — Implementation Complete
+**12. Rename "Submission Template" to "Solution Templates"**
+- Current label: "Submission Template" (StepTemplates.tsx L76)
+- Fix: Rename to "Solution Templates"
 
-## What Was Implemented
+**13. Add Solution Category + Description field**
+- Add a section for "Solution Category" with description, pulled from master data (a new `solution_categories` concept, or leverage existing `proficiency_areas`). Include a "+Add New" button allowing creators to add categories not in master data.
+- Add schema fields: `solution_category_id` (string, optional) and `solution_category_description` (string, optional).
 
-### Database (Migration)
-- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
-- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
-- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
-- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
-- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
+**14. Legal Document Templates: Allow document uploads**
+- Current: Legal docs section is display-only with static badges (StepTemplates.tsx L148-184). No upload capability.
+- Fix: Add upload buttons for each legal document type:
+  - "Challenge Life Cycle Management Terms & Conditions" — new doc type
+  - "Non-Disclosure Agreement" — already listed
+  - Support model-specific documents (Aggregator vs Marketplace) by reading `operating_model` from form/org context
+- Reuse the existing `supabase.storage.from('challenge-assets').upload()` pattern from the submission template upload.
 
-### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
-- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
-- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
-- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
-- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
-- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
+### Step 7 — Review & Submit
 
-### Frontend — SCR-05-02: My Performance (All Admins)
-- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
-- No peer comparison data (BR-MPA-038(a))
-- Route: `/admin/my-performance` — all admin tiers
+**15. Show ALL captured parameters from all tabs**
+- Current: Shows a hardcoded subset of fields in 5 sections (StepReviewSubmit.tsx L48-80). Missing: context fields, all eligibility criteria, phase durations, payment milestones, legal docs, targeting filters, etc.
+- Fix: Rebuild `StepReviewSubmit` to dynamically iterate all form values from `form.getValues()`. Group by wizard step. Show every filled field. Add "Edit" buttons per section that navigate back to the corresponding step.
 
-### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
-- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
-- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
-- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
-- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
+### Cross-Cutting: Data Persistence
 
-### Shared Components
-- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
+**16. Fix `initialize_challenge` duplicate function**
+- SQL migration: `DROP FUNCTION IF EXISTS public.initialize_challenge(uuid, text, text, uuid);` — drop the older overload, keep the one matching the call signature in `useSubmitSolutionRequest.ts`.
 
-### Hooks
-- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
-- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
-- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
+**17. Ensure form data persists across tab navigation**
+- Current: Steps use conditional rendering (`{currentStep === 1 && <StepProblem ... />}`), which unmounts components. However, react-hook-form retains values in its store.
+- Verify: The `form.getValues()` call in `buildFieldsFromForm` already captures all fields. The issue is likely the `initialize_challenge` 300 error blocking saves. Once the duplicate function is fixed, saves should work.
 
-### Navigation
-- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
-- All routes lazy-loaded
+**18. Ensure all fields from `buildFieldsFromForm` map to DB columns**
+- Current `buildFieldsFromForm` (L248-335) constructs the update payload. Verify each field maps to an actual column in the `challenges` table. Fields stored in JSONB (`deliverables`, `reward_structure`, `phase_schedule`) must have correct nested structure.
 
-## MOD-05 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
-| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
-| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
-| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
-| CSV Export | ❌ | ❌ | ✅ |
-
-## All 10 Gaps — Closed
-
-| Gap | Fix |
-|-----|-----|
-| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
-| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
-| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
-| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
-| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
-| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
-| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
-| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
-| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
-| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
-- No route conflicts with existing paths
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+**19. Storage bucket RLS for document uploads**
+- Verify `challenge-assets` bucket has proper RLS policies allowing authenticated users to upload. The network logs show a successful upload (200), so this appears to work. Add RLS for any new legal document uploads.
 
 ---
 
-# MOD-06: Reassignment Workflow — Implementation Complete
+## Implementation Order
 
-## What Was Implemented
-
-### Database (Migration)
-- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
-- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
-- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
-- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
-- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
-- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
-
-### Edge Functions
-- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
-
-### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
-- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
-- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
-- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
-- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Reassignments" with pending count badge (supervisor only)
-
-### Frontend — MOD-M-04: Supervisor Reassign Modal
-- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
-- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
-- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
-- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
-
-### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
-- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
-- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
-
-### Frontend — SCR-06-02: Extensions
-- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
-- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
-
-## MOD-06 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
-| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
-| Approve/Decline Requests | ❌ | ❌ | ✅ |
-| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
-| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
-
-## Business Rules Cross-Reference
-
-| BR | Enforcement | Status |
-|----|------------|--------|
-| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
-| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
-| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
-| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
-| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
-| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
-- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
-- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
-- No route conflicts with existing paths
+1. **DB Migration**: Drop duplicate `initialize_challenge` function (unblocks all saves)
+2. **Step 1**: Replace Industry Segment input with Select dropdown from master data
+3. **Step 1**: Replace Experience Countries with searchable multi-select from countries table
+4. **Step 1**: Add custom domain tag entry alongside predefined tags
+5. **Step 2**: Make all evaluation criteria fields editable in all modes (remove lightweight restrictions)
+6. **Step 5**: Fix Provider Category to always show checkboxes
+7. **Step 5**: Change Solver Tier from radio to checkboxes
+8. **Step 5**: Clean up Expertise Levels query (filter SMOKE_TEST, show only level+name)
+9. **Step 5**: Replace Proficiencies/Specialities free-text with master data selectors
+10. **Step 5**: Always show Sub-Domains section (even without industry segment)
+11. **Step 5**: Add audio/video artifact types
+12. **Step 6**: Rename to Solution Templates, add solution category, add legal doc uploads
+13. **Step 7**: Rebuild Review tab to show all parameters from all tabs
+14. **Cross-cutting**: Verify all `buildFieldsFromForm` fields map to DB, ensure RLS allows saves
 
 ---
 
-# Master Data Consistency Fix — Implementation Complete
+## Files to Modify
 
-## What Was Fixed
+| File | Changes |
+|------|---------|
+| SQL migration (new) | Drop duplicate `initialize_challenge` |
+| `StepProblem.tsx` | Industry segment → Select, Countries → multi-select, Domain tags → allow custom |
+| `StepEvaluation.tsx` | Remove isLightweight branching, show full table always |
+| `StepProviderEligibility.tsx` | Provider checkboxes always visible, Solver tier → checkboxes, Expertise filter, Proficiencies/Sub-domains/Specialities from master data, add audio artifacts |
+| `StepTemplates.tsx` | Rename, add solution category section, add legal doc upload |
+| `StepReviewSubmit.tsx` | Complete rewrite to show all form fields dynamically |
+| `challengeFormSchema.ts` | Add `solver_eligibility_ids`, `solution_category_id`, `solution_category_description` |
+| `ChallengeWizardPage.tsx` | Update `buildFieldsFromForm` for new fields, update `getStepFields` |
+| `useScopeTaxonomy.ts` | Add `useAllSpecialities()` hook |
+| `useExpertiseLevels.ts` | Add SMOKE_TEST filter |
 
-### Database Migration
-- **`org_type_expertise`** column on `platform_admin_profiles`: Converted from `TEXT[]` (hardcoded strings like "Corporation") to `UUID[]` (references to `organization_types` master data table)
-- **Data migration**: Mapped existing text values to `organization_types.id` UUIDs (e.g., "Corporation" → CORPORATE UUID)
-- **Cleaned up overloaded RPCs**: Dropped all duplicate `execute_auto_assignment` and `get_eligible_admins_ranked` function signatures; recreated each with a single clean signature using `p_org_type UUID`
-
-### Frontend
-- **`OrgTypeExpertisePicker.tsx`**: Rewritten from 7 hardcoded checkbox strings to a searchable Command popover querying `organization_types` master data via `useOrganizationTypes()` hook — same pattern as Industry and Country pickers
-- **`ExpertiseTags.tsx`**: Updated `org_type` branch to query `organization_types` table by UUID instead of returning raw strings
-- **`platformAdminForm.schema.ts`**: Changed `org_type_expertise` Zod validation from `z.array(z.string())` to `z.array(z.string().uuid())`
-- **`IndustryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useIndustrySegments()` hook from `useMasterData.ts`
-- **`CountryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useCountries()` hook from `useMasterData.ts`
-
-## Scoring Engine Impact
-- L3 (Org Type) scoring in `execute_auto_assignment` and `get_eligible_admins_ranked` now correctly compares UUID-to-UUID, fixing the silent mismatch where text strings never matched seeker org type UUIDs
-
-## Future: `seeking_org_admins.domain_scope`
-- Currently `TEXT NOT NULL DEFAULT 'ALL'` — adequate for PRIMARY admin (full scope)
-- When Delegated Admin feature is built, MUST convert to JSONB with UUID references to existing master data tables: `industry_segments.id`, `proficiency_areas.id`, `specialities.id`
-- **No new lookup tables or JSON string lists** — reuse existing master data exclusively
-
----
-
-## Auto-Assignment Engine Wiring (Completed)
-
-### Rules (BRD Section 3.1 + user override)
-- **Trigger**: DB trigger fires on `verification_status` → `payment_submitted`
-- **Scoring**: L1 Industry (50pts, hard gate), L2 Country (30pts, wildcard=15), L3 Org Type (20pts, wildcard=10)
-- **2-pass system**: Pass 1 = Available only, Pass 2 = Available + Partially Available
-- **Tiebreakers**: Total score DESC → Workload ratio ASC → Assignment Priority ASC → Round-robin
-- **Fallback**: Open Queue if no candidate scores > 0 on L1
-- **Supervisor exclusion** (user override): `admin_tier != 'supervisor'` in all candidate queries
-- Senior Admins and Basic Admins compete equally (no tier priority)
-
-### Database Changes
-1. **`execute_auto_assignment` RPC**: Added `AND pap.admin_tier != 'supervisor'` to affinity check, both scoring passes, and fallback eligibility check
-2. **`get_eligible_admins_ranked` RPC**: Added `AND pap.admin_tier != 'supervisor'` filter
-3. **`fn_auto_assign_on_payment_submitted` trigger function**: Creates `platform_admin_verifications` record, collects org industries/country/type, calls `execute_auto_assignment`, updates verification on success
-4. **`trg_seeker_org_auto_assign` trigger**: AFTER UPDATE OF `verification_status` ON `seeker_organizations`
-
-### Frontend Changes
-1. **`useSeekerOrgApprovals.ts`**: Added `useMyAssignedOrgIds` hook; `useSeekerOrgList` now accepts `assignedOrgIds` filter and `showUnassigned` flag
-2. **`SeekerOrgApprovalsPage.tsx`**: Uses `useCurrentAdminProfile` to detect tier; non-supervisors see only their assigned orgs; supervisors see all + "Unassigned" tab for open queue items
-
----
-
-# Business Rules Implementation Audit — CogniBlend Handbook 1
-
-All 46 business rules (25 Workflow + 21 CLM cross-cutting) verified. **46/46 PASS.**
-
-## Workflow Engine (25/25 PASS)
-
-| # | Rule ID | Description | Status |
-|---|---------|-------------|--------|
-| 1 | BR-ROLE-001 | `can_perform` enforces role+phase+status | PASS |
-| 2 | BR-ROLE-003 | Phase-role mapping (13 phases) | PASS |
-| 3 | BR-ROLE-004 | Audit trail for all role actions | PASS |
-| 4 | BR-ROLE-005 | HARD_BLOCK: ER + Solver | PASS |
-| 5 | BR-ROLE-006 | HARD_BLOCK: CR + Solver | PASS |
-| 6 | BR-ROLE-007 | SOFT_WARN: CR+CU Enterprise only | PASS |
-| 7 | BR-ROLE-008 | Auto-assign roles on creation | PASS |
-| 8 | BR-ROLE-009 | Reassignment revokes old user | PASS |
-| 9 | BR-ROLE-010 | Reassignment blocked for completed phase | PASS |
-| 10 | BR-ROLE-011 | AM=MP only | PASS |
-| 11 | BR-ROLE-012 | RQ=AGG only | PASS |
-| 12 | BR-ROLE-013 | Reassignment resets SLA timer | PASS |
-| 13 | BR-WF-001 | Recursive auto-completion | PASS |
-| 14 | BR-WF-002 | Stop at different actor | PASS |
-| 15 | BR-WF-003 | Phase 5→7 skip | PASS |
-| 16 | BR-WF-004 | Phase 7 solver-initiated | PASS |
-| 17 | BR-WF-005 | AGG Phase 1 bypass | PASS |
-| 18 | BR-WF-006 | SLA timer at handoff | PASS |
-| 19 | BR-WF-007 | Notification at handoff | PASS |
-| 20 | BR-WF-008 | HUMAN method logging | PASS |
-| 21 | BR-WF-009 | AUTO_COMPLETE method logging | PASS |
-| 22 | BR-WF-010 | Dashboard needs_action | PASS |
-| 23 | BR-WF-011 | Dashboard waiting_for | PASS |
-| 24 | BR-WF-012 | 8-role user sees all nav | PASS |
-| 25 | BR-WF-013 | No-role user sees Solver only | PASS |
-
-## CLM Cross-Cutting (21/21 PASS)
-
-| # | Rule ID | Description | Status |
-|---|---------|-------------|--------|
-| 1 | BR-GOV-001 | Governance from org | PASS |
-| 2 | BR-GOV-002 | LW role_relaxation=true | PASS |
-| 3 | BR-GOV-003 | ENT strict gates | PASS |
-| 4 | BR-GOV-004 | Immutable after Phase 1 | PASS |
-| 5 | BR-GOV-005 | LW 8 mandatory fields | PASS |
-| 6 | BR-GOV-006 | ENT 16 mandatory fields | PASS |
-| 7 | BR-GOV-007 | GATE-11-L 6 checks | PASS |
-| 8 | BR-GOV-008 | GATE-11 10+ checks | PASS |
-| 9 | BR-TIER-001 | Tier limit blocks creation | PASS |
-| 10 | BR-TIER-002 | Completion releases slot | PASS |
-| 11 | BR-TIER-003 | Tier usage bar UI | PASS |
-| 12 | BR-SM-001 | ACTIVE→COMPLETED valid | PASS |
-| 13 | BR-SM-002 | TERMINAL→anything invalid | PASS |
-| 14 | BR-SM-003 | Backward phase invalid | PASS |
-| 15 | BR-SM-004 | Master status auto-rollup | PASS |
-| 16 | BR-SM-005 | Status mapping rules | PASS |
-| 17 | BR-TRUST | Trust framework per profile | PASS |
-| 18 | BR-ESCROW | Escrow per profile | PASS |
-| 19 | BR-AI-001/002 | AI checks per profile | PASS |
-| 20 | BR-ANON | Blind eval per profile | PASS |
-| 21 | BR-COM-004 | SLA breach notifications | PASS |
-
-T01-09 fix applied: `sla_timers.id` → `timer_id`.
