@@ -125,6 +125,39 @@ export function useCompletePhase() {
       challengeId: string;
       userId: string;
     }): Promise<CompletePhaseResult> => {
+      // ── Pre-flight: check for outstanding REQUIRED modification points ──
+      const { data: amendments } = await supabase
+        .from('amendment_records')
+        .select('id, amendment_number, status')
+        .eq('challenge_id', params.challengeId)
+        .order('amendment_number', { ascending: false })
+        .limit(1);
+
+      if (amendments && amendments.length > 0) {
+        const latestAmendment = amendments[0];
+
+        // Check 3-cycle max (GAP-09: escalate to ID instead of allowing another return)
+        if (latestAmendment.amendment_number >= 3 && latestAmendment.status === 'PENDING') {
+          throw new Error(
+            'Maximum modification cycles (3) reached. This challenge must be escalated to the Innovation Director for resolution.'
+          );
+        }
+
+        // Check for unaddressed REQUIRED points
+        const { data: outstandingPoints } = await supabase
+          .from('modification_points')
+          .select('id, severity, status')
+          .eq('amendment_id', latestAmendment.id)
+          .eq('severity', 'REQUIRED')
+          .eq('status', 'OUTSTANDING');
+
+        if (outstandingPoints && outstandingPoints.length > 0) {
+          throw new Error(
+            `Cannot proceed: ${outstandingPoints.length} required modification point(s) are still outstanding. All REQUIRED points must be ADDRESSED or WAIVED before resubmission.`
+          );
+        }
+      }
+
       // Small delay so user sees the spinner state
       await new Promise((r) => setTimeout(r, 500));
 

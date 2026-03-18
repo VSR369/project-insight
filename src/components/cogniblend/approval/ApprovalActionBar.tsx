@@ -48,7 +48,7 @@ interface ApprovalActionBarProps {
   isApproved: boolean;
   setIsApproved: (v: boolean) => void;
   pubConfigReady: boolean;
-  pubConfigValues: { visibility: string; eligibility: string };
+  pubConfigValues: { visibility: string; eligibility: string; eligibilityModel?: string; enrollment?: string; submission?: string };
 }
 
 // ---------------------------------------------------------------------------
@@ -107,6 +107,9 @@ export default function ApprovalActionBar({
         .update({
           visibility: pubConfigValues.visibility,
           eligibility: pubConfigValues.eligibility,
+          eligibility_model: pubConfigValues.eligibilityModel || null,
+          challenge_enrollment: pubConfigValues.enrollment || null,
+          challenge_submission: pubConfigValues.submission || null,
           updated_by: user.id,
         })
         .eq('id', challengeId);

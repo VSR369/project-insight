@@ -42,6 +42,7 @@ interface PublicationConfigTabProps {
     id: string;
     visibility: string | null;
     eligibility: string | null;
+    eligibility_model: string | null;
     challenge_enrollment: string | null;
     challenge_submission: string | null;
     governance_profile: string | null;
@@ -54,8 +55,37 @@ interface PublicationConfigTabProps {
     targeting_filters: Json | null;
   };
   isApproved: boolean;
-  onConfigChange?: (config: { visibility: string; eligibility: string; enrollment: string; submission: string; isReady: boolean }) => void;
+  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }) => void;
 }
+
+interface TierOption {
+  value: string;
+  label: string;
+  description: string;
+  rank: number; // higher = broader
+}
+
+interface ComplexityParam {
+  key: string;
+  label: string;
+  weight: number;
+}
+
+/* ── BRD §5.7.1 Formal Eligibility Models ───────────────── */
+
+interface EligibilityModelOption {
+  code: string;
+  label: string;
+  description: string;
+}
+
+const ELIGIBILITY_MODELS: EligibilityModelOption[] = [
+  { code: 'OC', label: 'Open Challenge (OC)', description: 'Any solver can enroll — no restrictions. Ideal for broad innovation challenges.' },
+  { code: 'DR', label: 'Direct Registered (DR)', description: 'Registered platform members with NDA acceptance. Standard for IP-sensitive challenges.' },
+  { code: 'CE', label: 'Curated Expert (CE)', description: 'Verified experts at L2+ expertise. For complex, domain-specific challenges.' },
+  { code: 'IO', label: 'Invite Only (IO)', description: 'Only explicitly invited solvers can participate. Maximum control over solver pool.' },
+  { code: 'HY', label: 'Hybrid (HY)', description: 'Combines multiple models — e.g., CE for evaluation, OC for submission. Contact admin to configure.' },
+];
 
 interface TierOption {
   value: string;
@@ -179,6 +209,7 @@ export default function ApprovalPublicationConfigTab({
   // ══════════════════════════════════════
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
+  const [eligibilityModel, setEligibilityModel] = useState(challenge.eligibility_model || "");
   const [enrollment, setEnrollment] = useState(challenge.challenge_enrollment || "");
   const [submission, setSubmission] = useState(challenge.challenge_submission || "");
   const [complexityFinalized, setComplexityFinalized] = useState(false);
@@ -264,10 +295,10 @@ export default function ApprovalPublicationConfigTab({
 
   // Notify parent of configuration readiness
   const hasAccessErrors = !!validationError || !!enrollmentError || !!submissionError;
-  const isConfigReady = !!visibility && !!eligibility && !hasAccessErrors && complexityFinalized;
+  const isConfigReady = !!visibility && !!eligibility && !!eligibilityModel && !hasAccessErrors && complexityFinalized;
   useEffect(() => {
-    onConfigChange?.({ visibility, eligibility, enrollment, submission, isReady: isConfigReady });
-  }, [visibility, eligibility, enrollment, submission, isConfigReady, onConfigChange]);
+    onConfigChange?.({ visibility, eligibility, eligibilityModel, enrollment, submission, isReady: isConfigReady });
+  }, [visibility, eligibility, eligibilityModel, enrollment, submission, isConfigReady, onConfigChange]);
 
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
@@ -496,6 +527,32 @@ export default function ApprovalPublicationConfigTab({
                 <p className="text-xs text-destructive font-medium">{validationError}</p>
               </div>
             )}
+          </div>
+
+          {/* ── Eligibility Model (BRD §5.7.1) ─── */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Solver Eligibility Model</Label>
+            <p className="text-xs text-muted-foreground">
+              Defines the enrollment flow solvers must follow. Maps to BRD §5.7.1 codes.
+            </p>
+            <Select value={eligibilityModel} onValueChange={setEligibilityModel}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select eligibility model" />
+              </SelectTrigger>
+              <SelectContent>
+                {ELIGIBILITY_MODELS.map((model) => (
+                  <SelectItem key={model.code} value={model.code}>
+                    <div className="py-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{model.label}</p>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0">{model.code}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{model.description}</p>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {/* ── Enrollment Tier (Enterprise only) ─── */}

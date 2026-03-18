@@ -73,6 +73,7 @@ interface ChallengeData {
   maturity_level: string | null;
   visibility: string | null;
   eligibility: string | null;
+  eligibility_model: string | null;
   challenge_enrollment: string | null;
   challenge_submission: string | null;
   description: string | null;
@@ -648,7 +649,7 @@ export default function ApprovalReviewPage() {
   // ══════════════════════════════════════
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
   const [isApproved, setIsApproved] = useState(false);
-  const [pubConfig, setPubConfig] = useState<{ visibility: string; eligibility: string; enrollment: string; submission: string; isReady: boolean }>({ visibility: '', eligibility: '', enrollment: '', submission: '', isReady: false });
+  const [pubConfig, setPubConfig] = useState<{ visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }>({ visibility: '', eligibility: '', eligibilityModel: '', enrollment: '', submission: '', isReady: false });
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -662,7 +663,7 @@ export default function ApprovalReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, targeting_filters"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, eligibility_model, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, targeting_filters"
         )
         .eq("id", challengeId!)
         .single();
