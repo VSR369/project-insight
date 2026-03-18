@@ -20,11 +20,17 @@ import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfil
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
 export default function OrgSettingsPage() {
   const { organizationId } = useOrgContext();
+  const { data: currentOrg } = useCurrentOrg();
 
   return (
     <>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight">Organization Settings</h1>
+        <div className="flex items-center gap-3 flex-wrap">
+          <h1 className="text-2xl font-bold tracking-tight">Organization Settings</h1>
+          {currentOrg?.governanceProfile && (
+            <GovernanceProfileBadge profile={currentOrg.governanceProfile} />
+          )}
+        </div>
         <p className="text-muted-foreground mt-1">Manage your organization profile, admin, subscription, and engagement model.</p>
       </div>
       <FeatureErrorBoundary featureName="Org Settings Tabs">
