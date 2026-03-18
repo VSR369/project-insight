@@ -12,6 +12,7 @@
 
 import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 
+import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
