@@ -18,6 +18,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
+import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useLcReviewStatus } from "@/hooks/cogniblend/useLcReviewStatus";
+import { useLegalReviewRequest } from "@/hooks/cogniblend/useLegalReviewRequest";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,7 @@ import {
   Eye,
   Trash2,
   History,
+  Scale,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { LegalVersionHistory } from "@/components/cogniblend/LegalVersionHistory";
