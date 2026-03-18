@@ -657,13 +657,13 @@ function getStepFields(step: number): string[] {
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level', 'deliverables_list'];
     case 2:
-      return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
+      return ['weighted_criteria'];
     case 3:
-      return ['permitted_artifact_types', 'ip_model', 'solver_eligibility_types'];
+      return ['currency_code', 'platinum_award', 'gold_award'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['targeting_filters'];
+      return ['solver_eligibility_types', 'ip_model', 'permitted_artifact_types', 'targeting_filters'];
     case 6:
       return [];
     case 7:
