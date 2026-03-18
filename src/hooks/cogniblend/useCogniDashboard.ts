@@ -23,6 +23,7 @@ export interface SlaStatus {
   days_remaining: number | null;
   days_overdue: number | null;
   percentage_used: number;
+  deadline_at?: string | null;
 }
 
 export interface ValidTransition {
