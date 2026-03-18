@@ -7,6 +7,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { withUpdatedBy } from '@/lib/auditFields';
 import { toast } from 'sonner';
+import { logCommunication } from '@/lib/communicationLogger';
 
 export interface ManagedQARow {
   qa_id: string;
