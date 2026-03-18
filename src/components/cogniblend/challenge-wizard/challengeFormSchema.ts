@@ -62,8 +62,13 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     permitted_artifact_types: z.array(z.string()).default([]),
     submission_guidelines: z.string().max(3000).optional().or(z.literal('')),
     submission_template_url: z.string().optional().or(z.literal('')),
-    solver_eligibility_types: z.array(z.enum(['individual', 'organization', 'solution_cluster']))
-      .min(1, 'At least one solver eligibility type is required'),
+    // Step 5 — Solver eligibility (database-driven single selection)
+    solver_eligibility_id: z.string().min(1, 'Please select a solver category'),
+    // Step 5 — Provider eligibility criteria
+    required_expertise_level_id: z.string().optional().or(z.literal('')),
+    required_proficiencies: z.array(z.string()).default([]),
+    required_sub_domains: z.array(z.string()).default([]),
+    required_specialities: z.array(z.string()).default([]),
 
     // Step 2 — Evaluation
     weighted_criteria: z.array(z.object({
@@ -170,7 +175,11 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   permitted_artifact_types: [],
   submission_guidelines: '',
   submission_template_url: '',
-  solver_eligibility_types: ['individual'] as ('individual' | 'organization' | 'solution_cluster')[],
+  solver_eligibility_id: '',
+  required_expertise_level_id: '',
+  required_proficiencies: [],
+  required_sub_domains: [],
+  required_specialities: [],
   taxonomy_tags: '',
   num_rewarded_solutions: '3' as const,
   payment_mode: 'escrow' as const,

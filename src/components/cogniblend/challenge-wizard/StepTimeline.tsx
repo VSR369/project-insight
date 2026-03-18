@@ -5,16 +5,14 @@
  *   1. Overall Timeline (start date, deadline, total duration)
  *   2. Phase Schedule Configuration (table with auto-calculated dates)
  *   3. Visual Timeline (Gantt View)
- *   4. Publication Configuration (Enterprise 3-tier / Lightweight toggle)
- *   5. Targeting Filters
- *   6. Complexity Assessment
+ *   4. Complexity Assessment
  */
 
 import { useState, useMemo, useEffect } from 'react';
 import { useComplexityParams } from '@/hooks/queries/useComplexityParams';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays, differenceInDays } from 'date-fns';
-import { CalendarIcon, Info, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
+import { CalendarIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,8 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -43,9 +39,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
-import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
-import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
-import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -104,255 +97,6 @@ function getComplexityLevel(score: number): { label: string; level: string; colo
   return { label: 'L5', level: 'Very High', colorClass: 'bg-red-100 text-red-800 border-red-300' };
 }
 
-/* ─── Lightweight Visibility Toggle ──────────────────────── */
-
-function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
-  const { setValue, watch } = form;
-  const visibility = watch('visibility') || 'public';
-  const isPublic = visibility === 'public';
-
-  const [inviteEmails, setInviteEmails] = useState<string[]>([]);
-  const [emailInput, setEmailInput] = useState('');
-
-  const handleToggle = (checked: boolean) => {
-    if (checked) {
-      setValue('visibility', 'public', { shouldDirty: true });
-      setValue('eligibility', 'anyone', { shouldDirty: true });
-    } else {
-      setValue('visibility', 'invite_only', { shouldDirty: true });
-      setValue('eligibility', 'invited_only', { shouldDirty: true });
-    }
-  };
-
-  const addEmail = () => {
-    const email = emailInput.trim().toLowerCase();
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || inviteEmails.includes(email)) return;
-    setInviteEmails((prev) => [...prev, email]);
-    setEmailInput('');
-  };
-
-  const removeEmail = (email: string) => {
-    setInviteEmails((prev) => prev.filter((e) => e !== email));
-  };
-
-  return (
-    <div className="space-y-4 border-t border-border pt-6">
-      <div className="space-y-1">
-        <h3 className="text-base font-bold text-foreground">
-          Challenge Visibility <span className="text-destructive">*</span>
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Control who can discover and submit solutions to this challenge.
-        </p>
-      </div>
-
-      <div className="rounded-lg border border-border bg-muted/30 p-4">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            {isPublic ? <Globe className="h-5 w-5 text-primary" /> : <Lock className="h-5 w-5 text-muted-foreground" />}
-            <div>
-              <p className="text-sm font-bold text-foreground">{isPublic ? 'Public' : 'Private — Invite Only'}</p>
-              <p className="text-xs text-muted-foreground">{isPublic ? 'Anyone can see and submit solutions' : 'Only invited solvers can view and submit'}</p>
-            </div>
-          </div>
-          <Switch checked={isPublic} onCheckedChange={handleToggle} />
-        </div>
-      </div>
-
-      {!isPublic && (
-        <div className="space-y-3 rounded-lg border border-border bg-background p-4">
-          <Label className="text-[13px] font-semibold">Invite Solvers</Label>
-          <p className="text-xs text-muted-foreground">Add email addresses of solvers who should be invited.</p>
-          <div className="flex gap-2">
-            <Input type="email" placeholder="solver@example.com" value={emailInput}
-              onChange={(e) => setEmailInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addEmail(); } }}
-              className="text-base flex-1" />
-            <Button type="button" size="sm" onClick={addEmail} disabled={!emailInput.trim()} className="shrink-0">
-              <Plus className="h-4 w-4 mr-1" /> Add
-            </Button>
-          </div>
-          {inviteEmails.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {inviteEmails.map((email) => (
-                <Badge key={email} variant="secondary" className="flex items-center gap-1 text-xs py-1 px-2">
-                  {email}
-                  <button type="button" onClick={() => removeEmail(email)} className="ml-0.5 hover:text-destructive"><X className="h-3 w-3" /></button>
-                </Badge>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs italic text-muted-foreground">No solvers invited yet.</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/* ─── Enterprise 3-Tier Publication Config ───────────────── */
-
-const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Public', description: 'Visible to everyone on the platform and search engines' },
-  { value: 'registered_users', label: 'Registered Users', description: 'Visible only to authenticated platform users' },
-  { value: 'platform_members', label: 'Platform Members', description: 'Visible only to users with active memberships' },
-  { value: 'curated_experts', label: 'Curated Experts', description: 'Visible only to experts curated by the platform' },
-  { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
-] as const;
-
-const ENROLLMENT_OPTIONS = [
-  { value: 'open_auto', label: 'Open Enrollment (auto-approved)', description: 'Anyone eligible can enroll without approval' },
-  { value: 'curator_approved', label: 'Curator-Approved Enrollment', description: 'Curator reviews and approves enrollment requests' },
-  { value: 'direct_nda', label: 'Direct Registration (NDA required)', description: 'Enrollment requires signing an NDA first' },
-  { value: 'org_curated', label: 'Organization-Curated', description: 'The seeking organization selects who can enroll' },
-  { value: 'invitation_only', label: 'Invitation Only', description: 'Only specifically invited solvers can enroll' },
-] as const;
-
-const SUBMISSION_OPTIONS = [
-  { value: 'all_enrolled', label: 'All Enrolled', description: 'Any enrolled participant can submit solutions' },
-  { value: 'shortlisted_only', label: 'Shortlisted Only', description: 'Only shortlisted participants can submit' },
-  { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
-] as const;
-
-const VALID_ENROLLMENTS: Record<string, string[]> = {
-  public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  platform_members: ['curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  curated_experts: ['curator_approved', 'org_curated', 'invitation_only'],
-  invited_only: ['invitation_only'],
-};
-
-const VALID_SUBMISSIONS: Record<string, string[]> = {
-  open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  direct_nda: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  org_curated: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  invitation_only: ['invited_solvers'],
-};
-
-const ELIGIBILITY_MODELS = [
-  { code: 'OPEN', label: 'Open', description: 'Anyone registered can participate', visibility: 'public', enrollment: 'open_auto', submission: 'all_enrolled' },
-  { code: 'DR', label: 'Direct Registration', description: 'Open with NDA requirement', visibility: 'registered_users', enrollment: 'direct_nda', submission: 'all_enrolled' },
-  { code: 'OC', label: 'Organization-Curated', description: 'Org-level pre-approved pool', visibility: 'platform_members', enrollment: 'org_curated', submission: 'all_enrolled' },
-  { code: 'CE', label: 'Curated Expert', description: 'Platform-verified experts only', visibility: 'curated_experts', enrollment: 'curator_approved', submission: 'shortlisted_only' },
-  { code: 'IO', label: 'Invitation Only', description: 'Seeker invites specific solvers', visibility: 'invited_only', enrollment: 'invitation_only', submission: 'invited_solvers' },
-] as const;
-
-function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
-  const { setValue, watch } = form;
-  const vis = watch('challenge_visibility') || 'public';
-  const enr = watch('challenge_enrollment') || 'open_auto';
-  const sub = watch('challenge_submission') || 'all_enrolled';
-
-  const validEnrollments = VALID_ENROLLMENTS[vis] ?? ENROLLMENT_OPTIONS.map((o) => o.value);
-  const validSubmissions = VALID_SUBMISSIONS[enr] ?? SUBMISSION_OPTIONS.map((o) => o.value);
-
-  const isEnrollmentDisabled = (value: string) => !validEnrollments.includes(value);
-  const isSubmissionDisabled = (value: string) => !validSubmissions.includes(value);
-
-  useEffect(() => {
-    if (!validEnrollments.includes(enr)) {
-      setValue('challenge_enrollment', validEnrollments[0], { shouldDirty: true });
-    }
-  }, [vis]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (!validSubmissions.includes(sub)) {
-      setValue('challenge_submission', validSubmissions[0], { shouldDirty: true });
-    }
-  }, [enr]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const applyPreset = (model: typeof ELIGIBILITY_MODELS[number]) => {
-    setValue('challenge_visibility', model.visibility, { shouldDirty: true });
-    setValue('challenge_enrollment', model.enrollment, { shouldDirty: true });
-    setValue('challenge_submission', model.submission, { shouldDirty: true });
-  };
-
-  const activePreset = ELIGIBILITY_MODELS.find(
-    (m) => m.visibility === vis && m.enrollment === enr && m.submission === sub
-  );
-
-  const tierCards = [
-    { title: 'Tier 1 — Visibility', subtitle: 'Who can SEE the challenge', icon: Eye, value: vis, onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }), options: VISIBILITY_OPTIONS, isDisabled: () => false },
-    { title: 'Tier 2 — Enrollment', subtitle: 'Who can REQUEST to participate', icon: UserPlus, value: enr, onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }), options: ENROLLMENT_OPTIONS, isDisabled: isEnrollmentDisabled },
-    { title: 'Tier 3 — Submission', subtitle: 'Who can SUBMIT solutions', icon: FileText, value: sub, onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }), options: SUBMISSION_OPTIONS, isDisabled: isSubmissionDisabled },
-  ];
-
-  return (
-    <div className="space-y-4 border-t border-border pt-6">
-      <div className="space-y-1">
-        <h3 className="text-base font-bold text-foreground">
-          Publication Configuration <span className="text-destructive">*</span>
-        </h3>
-        <p className="text-xs text-muted-foreground">
-          Select an eligibility model or manually configure tiers. Funnel: Visibility ≥ Enrollment ≥ Submission.
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label className="text-[13px] font-semibold">Solver Eligibility Model</Label>
-        <div className="flex flex-wrap gap-2">
-          {ELIGIBILITY_MODELS.map((model) => (
-            <button key={model.code} type="button" onClick={() => applyPreset(model)}
-              className={cn('rounded-lg border px-3 py-2 text-left transition-colors text-xs',
-                activePreset?.code === model.code ? 'border-primary bg-primary/10 text-primary font-semibold' : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50')}>
-              <span className="font-bold">{model.code}</span>
-              <span className="ml-1.5">{model.label}</span>
-            </button>
-          ))}
-        </div>
-        {activePreset ? (
-          <p className="text-xs text-muted-foreground italic">{activePreset.description}</p>
-        ) : (
-          <p className="text-xs text-muted-foreground italic">Custom configuration — no preset matches.</p>
-        )}
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
-        {tierCards.map((tier, idx) => {
-          const Icon = tier.icon;
-          const selectedOpt = tier.options.find((o) => o.value === tier.value);
-          return (
-            <div key={tier.title} className="relative flex">
-              {idx > 0 && (
-                <div className="hidden lg:flex absolute -left-[14px] top-1/2 -translate-y-1/2 z-10">
-                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                </div>
-              )}
-              <Card className="flex-1 flex flex-col">
-                <CardHeader className="pb-2 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <Icon className="h-4 w-4 text-primary" />
-                    <CardTitle className="text-sm">{tier.title}</CardTitle>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">{tier.subtitle}</p>
-                </CardHeader>
-                <CardContent className="flex-1 pt-0 space-y-2">
-                  <Select value={tier.value} onValueChange={tier.onChange}>
-                    <SelectTrigger className="text-base w-full"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {tier.options.map((opt) => {
-                        const disabled = tier.isDisabled(opt.value);
-                        return (
-                          <SelectItem key={opt.value} value={opt.value} disabled={disabled}>
-                            <span className={cn(disabled && 'opacity-50')}>{opt.label}</span>
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                  {selectedOpt && <p className="text-[11px] text-muted-foreground leading-tight">{selectedOpt.description}</p>}
-                </CardContent>
-              </Card>
-            </div>
-          );
-        })}
-      </div>
-
-      <AccessModelSummary visibility={vis} enrollment={enr} submission={sub} />
-    </div>
-  );
-}
 
 /* ─── Gantt View ─────────────────────────────────────────── */
 
@@ -705,20 +449,7 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         />
       )}
 
-      {/* ═══ SECTION 4: Publication Settings ═══ */}
-      {isLightweight && <LightweightVisibilityToggle form={form} />}
-      {!isLightweight && <EnterprisePublicationConfig form={form} />}
-
-      {/* ═══ SECTION 5: Targeting Filters ═══ */}
-      <div className="border-t border-border pt-6">
-        <TargetingFiltersSection
-          value={(watch('targeting_filters') as TargetingFilters) ?? EMPTY_TARGETING_FILTERS}
-          onChange={(filters) => setValue('targeting_filters', filters as any, { shouldDirty: true })}
-          isLightweight={isLightweight}
-        />
-      </div>
-
-      {/* ═══ SECTION 6: Complexity Assessment ═══ */}
+      {/* ═══ SECTION 4: Complexity Assessment ═══ */}
       <div className="space-y-4 border-t border-border pt-6">
         <div className="space-y-1">
           <h3 className="text-base font-bold text-foreground">Complexity Assessment</h3>

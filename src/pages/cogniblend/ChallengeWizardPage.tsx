@@ -176,9 +176,7 @@ export default function ChallengeWizardPage() {
         expected_timeline: (challengeData.phase_schedule as any)?.expected_timeline ?? '',
         review_duration: undefined,
         phase_notes: '',
-        solver_eligibility_types: Array.isArray((challengeData as any)?.solver_eligibility_types)
-          ? (challengeData as any).solver_eligibility_types
-          : ['individual'],
+        solver_eligibility_id: (challengeData as any)?.solver_eligibility_id ?? '',
         permitted_artifact_types: deliverables?.permitted_artifact_types ?? [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
@@ -312,7 +310,7 @@ export default function ChallengeWizardPage() {
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
-      solver_eligibility_types: values.solver_eligibility_types ?? ['individual'],
+      solver_eligibility_id: values.solver_eligibility_id || null,
       challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
       challenge_enrollment: isLightweight ? null : (values.challenge_enrollment || 'open_auto'),
       challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
@@ -679,7 +677,7 @@ function getStepFields(step: number): string[] {
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['solver_eligibility_types', 'ip_model', 'permitted_artifact_types', 'targeting_filters'];
+      return ['solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
     case 6:
       return [];
     case 7:
