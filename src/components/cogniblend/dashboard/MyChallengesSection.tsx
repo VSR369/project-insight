@@ -1,7 +1,6 @@
 /**
- * MyChallengesSection — "My Challenges" widget with role filter tabs.
- * Tabs: All | As Creator | As Curator | As Reviewer | As Approver
- * Each tab shows a badge count. Clicking a tab filters the list.
+ * MyChallengesSection — "My Challenges" widget with role filter tabs
+ * and master_status grouping (In Preparation → Active → Completed → Cancelled/Terminated).
  */
 
 import { useState, useMemo } from 'react';
@@ -23,22 +22,36 @@ const ROLE_TABS = [
   { key: 'ID', label: 'As Approver', roleCode: 'ID' },
 ] as const;
 
+/* ── Master-status group ordering ────────────────────────── */
+
+const MASTER_STATUS_GROUPS = [
+  { key: 'ACTIVE', label: 'Active', order: 0 },
+  { key: 'IN_PREPARATION', label: 'In Preparation', order: 1 },
+  { key: 'COMPLETED', label: 'Completed', order: 2 },
+  { key: 'CANCELLED', label: 'Cancelled', order: 3 },
+  { key: 'TERMINATED', label: 'Terminated', order: 4 },
+] as const;
+
+const STATUS_GROUP_ORDER: Record<string, number> = Object.fromEntries(
+  MASTER_STATUS_GROUPS.map((g) => [g.key, g.order]),
+);
+
+const STATUS_GROUP_LABEL: Record<string, string> = Object.fromEntries(
+  MASTER_STATUS_GROUPS.map((g) => [g.key, g.label]),
+);
+
 /* ── Phase label helper ──────────────────────────────────── */
 
 const PHASE_LABELS: Record<number, string> = {
-  1: 'Phase 1',
-  2: 'Phase 2',
-  3: 'Phase 3',
-  4: 'Phase 4',
-  5: 'Phase 5',
-  6: 'Phase 6',
+  1: 'Phase 1', 2: 'Phase 2', 3: 'Phase 3',
+  4: 'Phase 4', 5: 'Phase 5', 6: 'Phase 6',
 };
 
 /* ── Status badge styling ────────────────────────────────── */
 
 const STATUS_STYLE: Record<string, string> = {
   IN_PREPARATION: 'bg-muted text-muted-foreground',
-  DRAFT: 'bg-muted text-muted-foreground', // legacy fallback
+  DRAFT: 'bg-muted text-muted-foreground',
   ACTIVE: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
   COMPLETED: 'bg-[hsl(210,60%,95%)] text-[hsl(210,60%,40%)]',
   CANCELLED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
@@ -48,10 +61,9 @@ const STATUS_STYLE: Record<string, string> = {
   COMPLETED_BYPASSED: 'bg-muted text-muted-foreground italic',
 };
 
-/** Display label overrides for phase_status */
 const STATUS_LABEL: Record<string, string> = {
   IN_PREPARATION: 'In Preparation',
-  DRAFT: 'In Preparation', // legacy fallback
+  DRAFT: 'In Preparation',
   CANCELLED: 'Cancelled',
   TERMINATED: 'Terminated',
   LEGAL_VERIFICATION_PENDING: 'Awaiting Legal',
@@ -66,6 +78,16 @@ const ROLE_STYLE: Record<string, { bg: string; color: string }> = {
   CU: { bg: '#EDE9FE', color: '#7C3AED' },
   ID: { bg: '#E6F1FB', color: '#185FA5' },
   ER: { bg: '#FCE7F3', color: '#BE185D' },
+};
+
+/* ── Group header styling ────────────────────────────────── */
+
+const GROUP_HEADER_STYLE: Record<string, string> = {
+  ACTIVE: 'text-[hsl(155,68%,30%)] border-l-[hsl(155,68%,50%)]',
+  IN_PREPARATION: 'text-muted-foreground border-l-muted-foreground',
+  COMPLETED: 'text-[hsl(210,60%,40%)] border-l-[hsl(210,60%,50%)]',
+  CANCELLED: 'text-[hsl(1,60%,45%)] border-l-[hsl(1,60%,55%)]',
+  TERMINATED: 'text-[hsl(1,60%,45%)] border-l-[hsl(1,60%,55%)]',
 };
 
 /* ── Props ────────────────────────────────────────────────── */
@@ -88,6 +110,19 @@ export function MyChallengesSection({
     if (activeTab === 'ALL') return items;
     return items.filter((item) => item.role_code === activeTab);
   }, [items, activeTab]);
+
+  /** Group filtered items by master_status, sorted by group order */
+  const groupedItems = useMemo(() => {
+    const groups = new Map<string, MyChallengeItem[]>();
+    for (const item of filteredItems) {
+      const status = item.master_status || 'IN_PREPARATION';
+      if (!groups.has(status)) groups.set(status, []);
+      groups.get(status)!.push(item);
+    }
+    return [...groups.entries()].sort(
+      ([a], [b]) => (STATUS_GROUP_ORDER[a] ?? 99) - (STATUS_GROUP_ORDER[b] ?? 99),
+    );
+  }, [filteredItems]);
 
   const totalCount = items.length;
 
@@ -147,7 +182,7 @@ export function MyChallengesSection({
         })}
       </div>
 
-      {/* ── Challenge List ───────────────────────────────── */}
+      {/* ── Challenge List (grouped by master_status) ──── */}
       {filteredItems.length === 0 ? (
         <div className="flex flex-col items-center rounded-xl border border-border bg-card p-6">
           <Briefcase className="h-7 w-7 text-muted-foreground mb-2" />
@@ -158,68 +193,81 @@ export function MyChallengesSection({
           </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {filteredItems.map((item) => {
-            const roleStyle = ROLE_STYLE[item.role_code];
-            const statusStyle = STATUS_STYLE[item.master_status] ?? STATUS_STYLE.DRAFT;
-
-            return (
+        <div className="space-y-4">
+          {groupedItems.map(([status, groupItems]) => (
+            <div key={status}>
+              {/* Group Header */}
               <div
-                key={`${item.challenge_id}-${item.role_code}`}
-                className="rounded-xl border border-border bg-card p-3 lg:p-4 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4"
+                className={cn(
+                  'border-l-2 pl-2.5 mb-2 flex items-center gap-2',
+                  GROUP_HEADER_STYLE[status] ?? 'text-muted-foreground border-l-muted-foreground',
+                )}
               >
-                {/* Title + badges */}
-                <div className="flex-1 min-w-0">
-                  <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
-                    {item.title}
-                  </span>
-                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
-                    {/* Phase */}
-                    <span className="rounded-full bg-[hsl(247,67%,96%)] px-2 py-0.5 text-[10px] text-[hsl(248,35%,50%)]">
-                      {PHASE_LABELS[item.current_phase] ?? `Phase ${item.current_phase}`}
-                    </span>
-                    {/* Status */}
-                    <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', statusStyle)}>
-                      {STATUS_LABEL[item.master_status] ?? item.master_status}
-                    </span>
-                    {/* Awaiting Legal badge */}
-                    {item.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]">
-                        Awaiting Legal
-                      </span>
-                    )}
-                    {/* Phase 1 Bypassed badge (AGG orgs) */}
-                    {item.operating_model === 'AGG' && item.current_phase >= 2 && (
-                      <span className="rounded-full px-2 py-0.5 text-[10px] font-normal italic bg-muted text-muted-foreground">
-                        Phase 1: Bypassed
-                      </span>
-                    )}
-                    {/* Role */}
-                    {roleStyle && (
-                      <span
-                        className="rounded-full px-2 py-0.5 text-[10px] font-bold"
-                        style={{ backgroundColor: roleStyle.bg, color: roleStyle.color }}
-                      >
-                        {item.role_code}
-                      </span>
-                    )}
-                    {/* Governance */}
-                    <GovernanceProfileBadge profile={item.governance_profile} compact />
-                  </div>
-                </div>
-
-                {/* View button */}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="shrink-0 text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10 w-full lg:w-auto"
-                  onClick={() => navigate(`/cogni/challenges/${item.challenge_id}`)}
-                >
-                  View
-                </Button>
+                <span className="text-xs font-semibold uppercase tracking-wide">
+                  {STATUS_GROUP_LABEL[status] ?? status}
+                </span>
+                <span className="text-[10px] font-medium opacity-60">
+                  ({groupItems.length})
+                </span>
               </div>
-            );
-          })}
+
+              {/* Items */}
+              <div className="space-y-2">
+                {groupItems.map((item) => {
+                  const roleStyle = ROLE_STYLE[item.role_code];
+                  const statusStyle = STATUS_STYLE[item.master_status] ?? STATUS_STYLE.DRAFT;
+
+                  return (
+                    <div
+                      key={`${item.challenge_id}-${item.role_code}`}
+                      className="rounded-xl border border-border bg-card p-3 lg:p-4 flex flex-col lg:flex-row lg:items-center gap-2 lg:gap-4"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
+                          {item.title}
+                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                          <span className="rounded-full bg-[hsl(247,67%,96%)] px-2 py-0.5 text-[10px] text-[hsl(248,35%,50%)]">
+                            {PHASE_LABELS[item.current_phase] ?? `Phase ${item.current_phase}`}
+                          </span>
+                          <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', statusStyle)}>
+                            {STATUS_LABEL[item.master_status] ?? item.master_status}
+                          </span>
+                          {item.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]">
+                              Awaiting Legal
+                            </span>
+                          )}
+                          {item.operating_model === 'AGG' && item.current_phase >= 2 && (
+                            <span className="rounded-full px-2 py-0.5 text-[10px] font-normal italic bg-muted text-muted-foreground">
+                              Phase 1: Bypassed
+                            </span>
+                          )}
+                          {roleStyle && (
+                            <span
+                              className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                              style={{ backgroundColor: roleStyle.bg, color: roleStyle.color }}
+                            >
+                              {item.role_code}
+                            </span>
+                          )}
+                          <GovernanceProfileBadge profile={item.governance_profile} compact />
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="shrink-0 text-[13px] border-[hsl(210,68%,54%)] text-[hsl(210,68%,54%)] hover:bg-[hsl(210,68%,54%)]/10 w-full lg:w-auto"
+                        onClick={() => navigate(`/cogni/challenges/${item.challenge_id}`)}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </section>

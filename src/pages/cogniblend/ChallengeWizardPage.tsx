@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
+import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import {
   useChallengeDetail,
   useMandatoryFields,
@@ -54,6 +56,7 @@ export default function ChallengeWizardPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [showTierLimit, setShowTierLimit] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -65,6 +68,7 @@ export default function ChallengeWizardPage() {
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
+  const { data: tierLimit, isLoading: tierLimitLoading } = useTierLimitCheck();
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
@@ -153,13 +157,38 @@ export default function ChallengeWizardPage() {
     }
   }, [challengeData, isEditMode, form]);
 
+  // ═══════ Hooks — tier limit gate (new challenges only) ═══════
+  useEffect(() => {
+    if (!isEditMode && tierLimit && !tierLimit.allowed) {
+      setShowTierLimit(true);
+    }
+  }, [isEditMode, tierLimit]);
+
   // ═══════ Conditional returns ═══════
-  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading) {
+  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading)) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <Skeleton className="h-8 w-60" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // Hard gate: if tier limit reached for new challenges, block the wizard
+  if (!isEditMode && tierLimit && !tierLimit.allowed) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <TierLimitModal
+          isOpen={showTierLimit}
+          onClose={() => {
+            setShowTierLimit(false);
+            navigate('/cogni/dashboard');
+          }}
+          tierName={tierLimit.tier_name}
+          maxAllowed={tierLimit.max_allowed}
+          currentActive={tierLimit.current_active}
+        />
       </div>
     );
   }
