@@ -29,7 +29,7 @@ export function usePublishChallenge() {
     mutationFn: async (payload: PublishPayload): Promise<PublishResult> => {
       const { challengeId, userId } = payload;
 
-      // 1. Fetch full challenge snapshot data
+      // 1. Fetch full challenge snapshot data (all 16+ BRD fields)
       const { data: challenge, error: fetchErr } = await supabase
         .from('challenges')
         .select(`
@@ -37,9 +37,12 @@ export function usePublishChallenge() {
           deliverables, evaluation_criteria, reward_structure,
           maturity_level, phase_schedule, complexity_parameters,
           complexity_score, complexity_level, ip_model,
-          visibility, eligibility, governance_profile,
-          operating_model, currency_code, max_solutions,
-          submission_deadline, rejection_fee_percentage
+          visibility, eligibility, eligibility_model,
+          challenge_visibility, challenge_enrollment, challenge_submission,
+          governance_profile, operating_model, currency_code,
+          max_solutions, submission_deadline, rejection_fee_percentage,
+          solver_eligibility_types, targeting_filters,
+          challenge_model_is_agg
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
