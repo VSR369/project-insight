@@ -494,7 +494,7 @@ export default function CurationChecklistPanel({
             <Button
               className="w-full"
               onClick={handleSubmitClick}
-              disabled={completePhase.isPending || isLegalPending}
+              disabled={completePhase.isPending || isLegalPending || hasOutstandingRequired}
             >
               {completePhase.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
