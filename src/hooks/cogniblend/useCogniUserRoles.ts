@@ -49,15 +49,15 @@ export function useCogniUserRoles() {
 
   // Badge counts derived from challenge data
   const activeChallengeCount = query.data?.filter(
-    (r) => r.master_status === 'ACTIVE'
+    (r) => r.master_status === 'ACTIVE' || r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
   const curationQueueCount = query.data?.filter(
-    (r) => r.current_phase === 3 && r.master_status === 'ACTIVE'
+    (r) => r.current_phase === 3 && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
   const approvalQueueCount = query.data?.filter(
-    (r) => r.current_phase === 4 && r.master_status === 'ACTIVE'
+    (r) => r.current_phase === 4 && r.master_status === 'IN_PREPARATION'
   ).length ?? 0;
 
   return {
