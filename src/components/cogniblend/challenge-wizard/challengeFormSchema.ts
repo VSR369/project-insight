@@ -69,6 +69,14 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     weighted_criteria: z.array(z.object({
       name: z.string().min(1, 'Criterion name is required').max(200),
       weight: z.number().min(0).max(100),
+      description: z.string().max(500).optional().or(z.literal('')),
+      rubrics: z.object({
+        score_1: z.string().max(500).optional().or(z.literal('')),
+        score_2: z.string().max(500).optional().or(z.literal('')),
+        score_3: z.string().max(500).optional().or(z.literal('')),
+        score_4: z.string().max(500).optional().or(z.literal('')),
+        score_5: z.string().max(500).optional().or(z.literal('')),
+      }).optional(),
     })).min(1, 'At least one criterion is required'),
     currency_code: z.string().default('USD'),
     platinum_award: z.number().min(0).default(0),
