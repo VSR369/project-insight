@@ -24,6 +24,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
+import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import {
   useChallengeDetail,
   useMandatoryFields,
