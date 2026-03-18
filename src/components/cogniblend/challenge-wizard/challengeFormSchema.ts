@@ -157,7 +157,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   deliverables_list: [''],
   description: '',
   ip_model: '',
-  visibility: 'public',
+  visibility: '',
   eligibility: '',
   complexity_notes: '',
   weighted_criteria: [
