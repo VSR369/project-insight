@@ -621,32 +621,51 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
           </Popover>
         </div>
 
-        {/* Phase rows */}
-        <div className="space-y-2">
-          {visiblePhases.map((phase) => (
-            <div
-              key={phase.key}
-              className="flex items-center gap-3 rounded-lg border border-border bg-muted/30 px-4 py-3"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="text-[13px] font-bold text-foreground truncate">{phase.label}</p>
-                <p className="text-xs text-muted-foreground">
-                  Starts: {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <Input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={phaseDurations[phase.key]}
-                  onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
-                  className="w-[72px] text-base text-center"
-                />
-                <span className="text-xs text-muted-foreground whitespace-nowrap">days</span>
-              </div>
-            </div>
-          ))}
+        {/* Phase schedule table */}
+        <div className="relative w-full overflow-auto rounded-lg border border-border">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border bg-muted/50">
+                <th className="px-4 py-2.5 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider">Phase</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Default</th>
+                <th className="px-4 py-2.5 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visiblePhases.map((phase, idx) => (
+                <tr
+                  key={phase.key}
+                  className={cn(
+                    'border-b border-border last:border-b-0',
+                    idx % 2 === 0 ? 'bg-background' : 'bg-muted/20',
+                  )}
+                >
+                  <td className="px-4 py-3">
+                    <p className="text-[13px] font-medium text-foreground">{phase.label}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {phaseStartDates[phase.key] ? format(phaseStartDates[phase.key], 'MMM d, yyyy') : '—'}
+                    </p>
+                  </td>
+                  <td className="px-4 py-3 text-center">
+                    <span className="text-xs text-muted-foreground">{phase.defaultDays}d</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1.5">
+                      <Input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={phaseDurations[phase.key]}
+                        onChange={(e) => handleDurationChange(phase.key, parseInt(e.target.value) || 1)}
+                        className="w-[68px] text-base text-center"
+                      />
+                      <span className="text-xs text-muted-foreground">days</span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
         {/* Total timeline */}
