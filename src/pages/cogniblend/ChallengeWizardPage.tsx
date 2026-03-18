@@ -125,7 +125,6 @@ export default function ChallengeWizardPage() {
         deliverables_list: Array.isArray(deliverables?.items) ? deliverables.items : [''],
         maturity_level: (challengeData.maturity_level as ChallengeFormValues['maturity_level']) ?? undefined as unknown as 'blueprint',
         ip_model: challengeData.ip_model ?? '',
-        visibility: challengeData.visibility ?? 'public',
         eligibility: challengeData.eligibility ?? '',
         complexity_notes: '',
         // New Step 1 fields from JSONB
@@ -308,7 +307,8 @@ export default function ChallengeWizardPage() {
           },
       maturity_level: values.maturity_level || null,
       ip_model: values.ip_model || null,
-      visibility: values.visibility || null,
+      hook: (values as any).hook || null,
+      effort_level: (values as any).effort_level || null,
       eligibility: values.eligibility || null,
       solver_eligibility_id: values.solver_eligibility_id || null,
       solver_eligibility_types: values.eligible_participation_modes?.length
@@ -676,11 +676,11 @@ function getStepFields(step: number): string[] {
     case 2:
       return ['weighted_criteria'];
     case 3:
-      return ['currency_code', 'platinum_award', 'gold_award', 'num_rewarded_solutions', 'payment_milestones'];
+      return ['currency_code', 'platinum_award', 'gold_award', 'num_rewarded_solutions', 'payment_milestones', 'ip_model', 'effort_level'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['visibility', 'eligible_participation_modes', 'solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
+      return ['eligible_participation_modes', 'solver_eligibility_ids', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission', 'eligibility'];
     case 6:
       return [];
     case 7:

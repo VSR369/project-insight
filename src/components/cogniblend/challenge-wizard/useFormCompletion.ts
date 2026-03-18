@@ -33,7 +33,7 @@ function getRequiredFieldsByStep(isLightweight: boolean): Array<Array<keyof Chal
     // Step 2 — Requirements
     isLightweight
       ? ['deliverables_list']
-      : ['deliverables_list', 'submission_guidelines', 'ip_model', 'visibility', 'eligibility'],
+      : ['deliverables_list', 'submission_guidelines', 'ip_model', 'eligibility'],
 
     // Step 3 — Evaluation
     isLightweight

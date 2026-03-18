@@ -6,12 +6,15 @@
  *   2. Number of Rewarded Solutions (Top 1/2/3)
  *   3. Reward Tiers (Platinum/Gold/Silver)
  *   4. Total Reward Pool
- *   5. Payment Mode (Escrow / Direct)
- *   6. Payment Schedule (milestone-based)
- *   7. Platform Provider Fee banner
- *   8. Rejection Fee slider (Enterprise only)
+ *   5. IP Model (moved from Step 5)
+ *   6. Effort Level + Reward Guidance
+ *   7. Payment Mode (Escrow / Direct)
+ *   8. Payment Schedule (milestone-based)
+ *   9. Platform Provider Fee banner
+ *  10. Rejection Fee slider (Enterprise only)
  */
 
+import { useEffect } from 'react';
 import { UseFormReturn, Controller, useFieldArray } from 'react-hook-form';
 import {
   AlertTriangle,
@@ -69,6 +72,28 @@ const TRIGGER_OPTIONS = [
   { value: 'on_ip_transfer', label: 'On IP Transfer' },
 ] as const;
 
+const IP_OPTIONS = [
+  { value: 'exclusive_assignment', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
+  { value: 'non_exclusive_license', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
+  { value: 'exclusive_license', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
+  { value: 'joint_ownership', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
+  { value: 'no_transfer', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
+] as const;
+
+const MATURITY_IP_DEFAULTS: Record<string, string> = {
+  blueprint: 'non_exclusive_license',
+  poc: 'non_exclusive_license',
+  prototype: 'exclusive_assignment',
+  pilot: 'exclusive_assignment',
+};
+
+const EFFORT_LEVELS = [
+  { value: 'low', label: 'Low', description: 'Minimal effort — straightforward problem', guidance: '< $5,000' },
+  { value: 'medium', label: 'Medium', description: 'Moderate effort — some complexity', guidance: '$5,000 – $25,000' },
+  { value: 'high', label: 'High', description: 'Significant effort — complex, multi-domain', guidance: '$25,000 – $100,000' },
+  { value: 'very_high', label: 'Very High', description: 'Extensive effort — cutting-edge research', guidance: '$100,000+' },
+] as const;
+
 interface StepRewardsProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
@@ -87,6 +112,22 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
   const rejectionFeePct = watch('rejection_fee_pct') ?? 10;
   const numRewarded = watch('num_rewarded_solutions') ?? '3';
   const paymentMode = watch('payment_mode') ?? 'escrow';
+  const ipModel = watch('ip_model') ?? '';
+  const maturityLevel = watch('maturity_level');
+  const effortLevel = watch('effort_level') ?? '';
+
+  // Auto-set IP model default from maturity level
+  useEffect(() => {
+    if (isLightweight && maturityLevel && !ipModel) {
+      const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
+      if (defaultIp) setValue('ip_model', defaultIp);
+    }
+  }, [maturityLevel, isLightweight, ipModel, setValue]);
+
+  // Compute reward guidance from effort level
+  const rewardGuidance = EFFORT_LEVELS.find((e) => e.value === effortLevel)?.guidance ?? '';
+  // Compute IP suggestion from maturity level
+  const ipSuggestion = maturityLevel ? IP_OPTIONS.find((o) => o.value === MATURITY_IP_DEFAULTS[maturityLevel])?.label ?? '' : '';
 
   const { fields: milestones, append, remove } = useFieldArray({
     control,
@@ -279,6 +320,75 @@ export function StepRewards({ form, isLightweight }: StepRewardsProps) {
               <span className="text-lg font-bold text-primary">{formatAmount(totalPool)}</span>
             </div>
           )}
+
+          {/* ═══ 4b. Effort Level ═══ */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">Effort Level <span className="text-destructive">*</span></Label>
+            <p className="text-xs text-muted-foreground">Estimated effort required from solvers</p>
+            <Controller name="effort_level" control={control}
+              render={({ field }) => (
+                <RadioGroup value={field.value ?? ''} onValueChange={field.onChange} className="grid grid-cols-1 lg:grid-cols-2 gap-2">
+                  {EFFORT_LEVELS.map((level) => (
+                    <label key={level.value} className={cn(
+                      'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors',
+                      field.value === level.value ? 'border-primary bg-primary/5 ring-1 ring-primary' : 'border-border hover:bg-muted/50',
+                    )}>
+                      <RadioGroupItem value={level.value} className="mt-0.5" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">{level.label}</p>
+                        <p className="text-xs text-muted-foreground">{level.description}</p>
+                        <p className="text-xs font-medium text-primary mt-0.5">Suggested reward: {level.guidance}</p>
+                      </div>
+                    </label>
+                  ))}
+                </RadioGroup>
+              )}
+            />
+            {rewardGuidance && (
+              <div className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-900 dark:bg-blue-950/30 p-3 flex items-start gap-2.5">
+                <Info className="h-4 w-4 text-blue-500 shrink-0 mt-0.5" />
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Reward Guidance:</span> Based on effort level, suggested reward range is <span className="font-semibold text-primary">{rewardGuidance}</span>
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* ═══ 4c. IP Model ═══ */}
+          <div className="space-y-3">
+            <Label className="text-sm font-medium">
+              IP Model <span className="text-destructive">*</span>
+            </Label>
+            <p className="text-xs text-muted-foreground">How intellectual property will be handled for winning solutions</p>
+            <Controller name="ip_model" control={control}
+              render={({ field }) => (
+                <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                  <SelectTrigger className="text-base"><SelectValue placeholder="Select IP ownership model" /></SelectTrigger>
+                  <SelectContent>
+                    <TooltipProvider delayDuration={200}>
+                      {IP_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>
+                          <div className="flex items-center gap-2">
+                            <span>{opt.label}</span>
+                            <span className="text-xs text-muted-foreground">— {opt.short}</span>
+                            <Tooltip>
+                              <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" /></TooltipTrigger>
+                              <TooltipContent side="right" className="max-w-xs text-xs">{opt.tooltip}</TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </TooltipProvider>
+                  </SelectContent>
+                </Select>
+              )}
+            />
+            {ipSuggestion && (
+              <p className="text-xs text-muted-foreground">
+                <span className="font-medium">Suggested:</span> {ipSuggestion} (based on maturity level)
+              </p>
+            )}
+          </div>
 
           {/* ═══ 5. Payment Mode ═══ */}
           {!isLightweight && (

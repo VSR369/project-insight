@@ -16,6 +16,7 @@ import { CalendarIcon, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
@@ -448,6 +449,48 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
           totalDays={totalDays}
         />
       )}
+
+      {/* ═══ SECTION 3b: Review Duration, Expected Timeline, Phase Notes ═══ */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <h3 className="text-base font-bold text-foreground">Additional Timeline Details</h3>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold">
+              Review Duration (days)
+            </Label>
+            <Input
+              type="number"
+              min={1}
+              max={90}
+              placeholder="e.g. 14"
+              className="text-base"
+              value={watch('review_duration') ?? ''}
+              onChange={(e) => setValue('review_duration', e.target.value ? parseInt(e.target.value) : undefined, { shouldDirty: true })}
+            />
+            <p className="text-xs text-muted-foreground">How many days for evaluation panel review</p>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[13px] font-semibold">
+              Expected Timeline
+            </Label>
+            <Input
+              placeholder="e.g. 3-6 months"
+              className="text-base"
+              {...form.register('expected_timeline')}
+            />
+            <p className="text-xs text-muted-foreground">High-level timeline expectation</p>
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-[13px] font-semibold">Phase Notes</Label>
+          <Textarea
+            placeholder="Any additional notes about the phase schedule, special considerations, etc."
+            rows={3}
+            className="text-base resize-none"
+            {...form.register('phase_notes')}
+          />
+        </div>
+      </div>
 
       {/* ═══ SECTION 4: Complexity Assessment ═══ */}
       <div className="space-y-4 border-t border-border pt-6">

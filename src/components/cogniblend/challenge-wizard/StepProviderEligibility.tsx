@@ -12,6 +12,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import { Info, Star, Shield, UserCheck, Globe, Lock, ChevronRight, Eye, UserPlus, FileText, Plus, X, Search } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -58,20 +59,7 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
   ],
 };
 
-const IP_OPTIONS = [
-  { value: 'exclusive_assignment', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
-  { value: 'non_exclusive_license', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
-  { value: 'exclusive_license', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
-  { value: 'joint_ownership', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
-  { value: 'no_transfer', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
-] as const;
-
-const MATURITY_IP_DEFAULTS: Record<string, string> = {
-  blueprint: 'non_exclusive_license',
-  poc: 'non_exclusive_license',
-  prototype: 'exclusive_assignment',
-  pilot: 'exclusive_assignment',
-};
+/* IP_OPTIONS and MATURITY_IP_DEFAULTS moved to StepRewards.tsx */
 
 /* ─── Enterprise Publication Config ──────────────────── */
 
@@ -221,7 +209,7 @@ interface StepProviderEligibilityProps {
 /* ─── Main Component ─────────────────────────────────── */
 
 export function StepProviderEligibility({ form, mandatoryFields, isLightweight }: StepProviderEligibilityProps) {
-  const { formState: { errors }, control, watch, setValue } = form;
+  const { formState: { errors }, control, watch, setValue, register } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
@@ -235,7 +223,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const maturityLevel = watch('maturity_level');
   const selectedArtifacts = watch('permitted_artifact_types') ?? [];
   const availableArtifacts = ARTIFACT_TIERS[maturityLevel] ?? [];
-  const ipModel = watch('ip_model');
   const solverEligibilityIds = watch('solver_eligibility_ids') ?? [];
   const industrySegmentId = watch('industry_segment_id') ?? '';
   const experienceCountries = watch('experience_countries') ?? [];
@@ -334,13 +321,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
     }
   };
 
-  // ── IP model default ──
-  useEffect(() => {
-    if (isLightweight && maturityLevel && !ipModel) {
-      const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
-      if (defaultIp) setValue('ip_model', defaultIp);
-    }
-  }, [maturityLevel, isLightweight, ipModel, setValue]);
+  /* IP model auto-fill moved to StepRewards */
 
   // ── Targeting filters ──
   const currentFilters = (watch('targeting_filters') ?? EMPTY_TARGETING_FILTERS) as TargetingFilters;
@@ -777,38 +758,18 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         </div>
       </div>
 
-      {/* ═══ SECTION 3: IP Model ═══ */}
+      {/* ═══ SECTION 3: Eligibility Text ═══ */}
       <div className="space-y-1.5 border-t border-border pt-6">
         <Label className="text-sm font-medium">
-          IP Model{' '}
-          {!isLightweight && isRequired('ip_model') && <span className="text-destructive">*</span>}
-          {isLightweight && <span className="text-xs text-muted-foreground ml-1">(optional)</span>}
+          Eligibility Criteria (Text)
+          <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
-        <p className="text-xs text-muted-foreground">Select how intellectual property will be handled</p>
-        <Controller name="ip_model" control={control}
-          render={({ field }) => (
-            <Select value={field.value ?? ''} onValueChange={field.onChange}>
-              <SelectTrigger className="text-base"><SelectValue placeholder="Select IP ownership model" /></SelectTrigger>
-              <SelectContent>
-                <TooltipProvider delayDuration={200}>
-                  {IP_OPTIONS.map((opt) => (
-                    <SelectItem key={opt.value} value={opt.value}>
-                      <div className="flex items-center gap-2">
-                        <span>{opt.label}</span>
-                        <span className="text-xs text-muted-foreground">— {opt.short}</span>
-                        <Tooltip>
-                          <TooltipTrigger asChild><Info className="h-3.5 w-3.5 text-muted-foreground shrink-0" /></TooltipTrigger>
-                          <TooltipContent side="right" className="max-w-xs text-xs">{opt.tooltip}</TooltipContent>
-                        </Tooltip>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </TooltipProvider>
-              </SelectContent>
-            </Select>
-          )}
+        <Textarea
+          placeholder="Describe any additional eligibility requirements for solvers..."
+          rows={3}
+          className="text-base resize-none"
+          {...form.register('eligibility')}
         />
-        {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
       </div>
 
       {/* ═══ SECTION 4: Permitted Artifact Types ═══ */}
