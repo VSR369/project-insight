@@ -1158,6 +1158,7 @@ export type Database = {
           shadow_fee_amount: number | null
           solutions_awarded: number
           solver_eligibility_id: string | null
+          solver_eligibility_types: Json | null
           status: string
           submission_deadline: string | null
           tenant_id: string
@@ -1212,6 +1213,7 @@ export type Database = {
           shadow_fee_amount?: number | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
+          solver_eligibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
           tenant_id: string
@@ -1266,6 +1268,7 @@ export type Database = {
           shadow_fee_amount?: number | null
           solutions_awarded?: number
           solver_eligibility_id?: string | null
+          solver_eligibility_types?: Json | null
           status?: string
           submission_deadline?: string | null
           tenant_id?: string

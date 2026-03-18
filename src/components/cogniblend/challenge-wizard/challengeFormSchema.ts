@@ -110,6 +110,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   reward_description: '',
   permitted_artifact_types: [],
   submission_guidelines: '',
+  solver_eligibility_types: ['individual'] as ('individual' | 'organization' | 'solution_cluster')[],
   taxonomy_tags: '',
   submission_deadline: '',
   expected_timeline: '',
