@@ -55,6 +55,24 @@ function getMaturityLabel(level: string | null): string {
   }
 }
 
+/** Map challenge_enrollment or legacy eligibility to BRD enrollment model code */
+function deriveEnrollmentModel(challengeEnrollment: string | null, eligibility: string | null): string {
+  if (challengeEnrollment) {
+    const map: Record<string, string> = {
+      open_auto: 'OPEN',
+      direct_nda: 'DR',
+      org_curated: 'OC',
+      curator_approved: 'CE',
+      invitation_only: 'IO',
+    };
+    return map[challengeEnrollment] ?? 'OPEN';
+  }
+  // Fallback from legacy eligibility
+  if (eligibility === 'invited_only') return 'IO';
+  if (eligibility === 'curated_experts') return 'CE';
+  return 'OPEN';
+}
+
 /* ─── Component ──────────────────────────────────────────── */
 
 export default function PublicChallengeDetailPage() {
