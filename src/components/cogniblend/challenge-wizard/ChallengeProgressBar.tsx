@@ -15,9 +15,15 @@ const STEPS = [
   { number: 4, label: 'Timeline' },
 ] as const;
 
+interface StepFieldCount {
+  filled: number;
+  total: number;
+}
+
 interface ChallengeProgressBarProps {
   currentStep: number;
   completedSteps: number[];
+  stepFieldCounts?: StepFieldCount[];
 }
 
 export function ChallengeProgressBar({
