@@ -135,4 +135,14 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   challenge_visibility: '',
   challenge_enrollment: '',
   challenge_submission: '',
+  targeting_filters: {
+    industries: [],
+    geographies: [],
+    expertise_domains: [],
+    certifications: [],
+    languages: [],
+    min_solver_rating: 'any',
+    past_performance: 'any',
+    solver_cluster: 'any',
+  },
 };
