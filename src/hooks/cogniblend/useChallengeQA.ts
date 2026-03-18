@@ -57,7 +57,7 @@ export function useMyQuestions(challengeId: string | undefined) {
       if (!challengeId || !user?.id) return [];
       const { data, error } = await supabase
         .from('challenge_qa' as any)
-        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at')
+        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at, compliance_flagged')
         .eq('challenge_id', challengeId)
         .eq('asked_by', user.id)
         .order('asked_at', { ascending: true });
