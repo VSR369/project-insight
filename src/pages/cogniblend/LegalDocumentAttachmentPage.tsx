@@ -577,19 +577,38 @@ export default function LegalDocumentAttachmentPage() {
     }
   };
 
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     if (!user?.id || !challengeId) return;
     setShowConfirmModal(false);
 
-    completePhase.mutate(
-      { challengeId, userId: user.id },
-      {
-        onSuccess: () => {
-          toast.success("Challenge submitted for curation.");
-          navigate("/cogni/dashboard");
-        },
+    try {
+      // If coming from LEGAL_VERIFICATION_PENDING, transition to COMPLETED first and log audit
+      if (challenge?.phase_status === 'LEGAL_VERIFICATION_PENDING') {
+        await supabase
+          .from('challenges')
+          .update({ phase_status: 'COMPLETED' })
+          .eq('id', challengeId);
+
+        await logLegalAudit(user.id, challengeId, 'LEGAL_VERIFICATION_COMPLETE', {
+          previous_phase_status: 'LEGAL_VERIFICATION_PENDING',
+          new_phase_status: 'COMPLETED',
+          governance_profile: challenge?.governance_profile,
+        });
       }
-    );
+
+      // Now advance to Phase 3 via complete_phase
+      completePhase.mutate(
+        { challengeId, userId: user.id },
+        {
+          onSuccess: () => {
+            toast.success("Challenge submitted for curation.");
+            navigate("/cogni/dashboard");
+          },
+        }
+      );
+    } catch (err: any) {
+      toast.error(`Submission error: ${err.message}`);
+    }
   };
 
   // ══════════════════════════════════════
