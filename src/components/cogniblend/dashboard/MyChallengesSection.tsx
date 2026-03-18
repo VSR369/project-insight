@@ -183,6 +183,12 @@ export function MyChallengesSection({
                         Awaiting Legal
                       </span>
                     )}
+                    {/* Phase 1 Bypassed badge (AGG orgs) */}
+                    {item.operating_model === 'AGG' && item.current_phase >= 2 && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-normal italic bg-muted text-muted-foreground">
+                        Phase 1: Bypassed
+                      </span>
+                    )}
                     {/* Role */}
                     {roleStyle && (
                       <span
