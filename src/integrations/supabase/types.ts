@@ -1166,6 +1166,7 @@ export type Database = {
           submission_deadline: string | null
           submission_template_url: string | null
           tenant_id: string
+          termination_type: string | null
           title: string
           total_fee: number | null
           updated_at: string | null
@@ -1222,6 +1223,7 @@ export type Database = {
           submission_deadline?: string | null
           submission_template_url?: string | null
           tenant_id: string
+          termination_type?: string | null
           title: string
           total_fee?: number | null
           updated_at?: string | null
@@ -1278,6 +1280,7 @@ export type Database = {
           submission_deadline?: string | null
           submission_template_url?: string | null
           tenant_id?: string
+          termination_type?: string | null
           title?: string
           total_fee?: number | null
           updated_at?: string | null
