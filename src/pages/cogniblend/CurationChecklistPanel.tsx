@@ -317,7 +317,13 @@ export default function CurationChecklistPanel({
     setManualOverrides((prev) => ({ ...prev, [id]: checked }));
   };
 
+  const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+
   const handleSubmitClick = () => {
+    if (isLegalPending) {
+      toast.error('Legal documents must be attached before curation can begin. Navigate to Legal Documents to complete this step.');
+      return;
+    }
     if (!allComplete) {
       setShowIncompleteModal(true);
       return;
