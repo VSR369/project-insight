@@ -33,7 +33,7 @@ export function useExtendDeadline() {
 
   return useMutation({
     mutationFn: async (payload: ExtendDeadlinePayload): Promise<void> => {
-      const { challengeId, challengeTitle, userId, oldDeadline, newDeadline, reason } = payload;
+      const { challengeId, challengeTitle, userId, oldDeadline, newDeadline, reason, notifySolvers } = payload;
 
       // 1. Update submission_deadline
       const { error: updateErr } = await supabase
