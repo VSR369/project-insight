@@ -177,6 +177,7 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   permitted_artifact_types: [],
   submission_guidelines: '',
   submission_template_url: '',
+  eligible_participation_modes: [],
   solver_eligibility_id: '',
   required_expertise_level_id: '',
   required_proficiencies: [],
