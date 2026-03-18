@@ -11,6 +11,8 @@ import { CheckCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedChallenge, SlaStatus, ValidTransition } from '@/hooks/cogniblend/useCogniDashboard';
+import { SlaCountdown } from './SlaCountdown';
+import { PhaseProgressBar } from './PhaseProgressBar';
 
 /* ── Phase badge mapping ──────────────────────────────────── */
 
