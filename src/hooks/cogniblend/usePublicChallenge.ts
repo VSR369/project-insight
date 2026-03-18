@@ -32,6 +32,8 @@ export interface PublicChallengeData {
   isEligible: boolean;
   isVisible: boolean;
   daysRemaining: number | null;
+  challenge_enrollment: string | null;
+  tenant_id: string;
 }
 
 /* ─── Eligibility / visibility helpers ───────────────────── */
