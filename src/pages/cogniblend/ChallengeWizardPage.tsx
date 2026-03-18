@@ -26,6 +26,8 @@ import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
+import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
+import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 import {
   useChallengeDetail,
   useMandatoryFields,
