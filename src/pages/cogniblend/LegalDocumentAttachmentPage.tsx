@@ -64,6 +64,14 @@ interface AttachedDoc {
   document_name: string | null;
   tier: string;
   status: string | null;
+  version_history: VersionEntry[];
+}
+
+interface VersionEntry {
+  version: number;
+  modified_by: string;
+  modified_at: string;
+  change_type: string;
 }
 
 type AttachmentStatus = "required" | "default_applied" | "custom_uploaded";
