@@ -753,6 +753,7 @@ export default function ApprovalReviewPage() {
             currentPhase={challenge.current_phase ?? 4}
             phaseStatus={challenge.phase_status ?? null}
             userId={user.id}
+            userRoleCodes={userRoleCodes}
           />
         )}
       </div>
