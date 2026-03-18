@@ -54,7 +54,6 @@ export default function ChallengeCreatePage() {
       description: '',
       engagement_model_id: '',
       complexity_id: '',
-      visibility: 'private',
     },
   });
 
