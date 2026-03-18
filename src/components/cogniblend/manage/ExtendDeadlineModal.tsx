@@ -94,7 +94,9 @@ export function ExtendDeadlineModal({
       {
         onSuccess: () => {
           setNewDate(undefined);
+          setExtendDays('');
           setReason('');
+          setNotifySolvers(true);
           onOpenChange(false);
         },
       },
