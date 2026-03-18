@@ -10,6 +10,7 @@
  *  - Make Direct Correction: toggles left panel to edit mode.
  */
 
+import ModificationPointsTracker from '@/components/cogniblend/ModificationPointsTracker';
 import { useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -134,6 +135,28 @@ export default function CurationChecklistPanel({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const completePhase = useCompletePhase();
+
+  // Query modification points for blocking check
+  const { data: modPoints = [] } = useQuery({
+    queryKey: ['modification-points', 'challenge', challengeId],
+    queryFn: async () => {
+      const { data: amendments } = await supabase
+        .from('amendment_records')
+        .select('id')
+        .eq('challenge_id', challengeId);
+      if (!amendments?.length) return [];
+      const { data } = await supabase
+        .from('modification_points')
+        .select('severity, status')
+        .in('amendment_id', amendments.map((a) => a.id));
+      return data ?? [];
+    },
+    enabled: !!challengeId,
+    staleTime: 30_000,
+  });
+  const hasOutstandingRequired = modPoints.some(
+    (p: any) => p.severity === 'REQUIRED' && p.status === 'OUTSTANDING',
+  );
 
   // ══════════════════════════════════════
   // SECTION 3: Query — amendment records count
@@ -324,6 +347,10 @@ export default function CurationChecklistPanel({
       toast.error('Legal documents must be attached before curation can begin. Navigate to Legal Documents to complete this step.');
       return;
     }
+    if (hasOutstandingRequired) {
+      toast.error('All Required modification points must be Addressed or Waived before submitting to Innovation Director.');
+      return;
+    }
     if (!allComplete) {
       setShowIncompleteModal(true);
       return;
@@ -467,7 +494,7 @@ export default function CurationChecklistPanel({
             <Button
               className="w-full"
               onClick={handleSubmitClick}
-              disabled={completePhase.isPending || isLegalPending}
+              disabled={completePhase.isPending || isLegalPending || hasOutstandingRequired}
             >
               {completePhase.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-1.5" />
@@ -510,6 +537,9 @@ export default function CurationChecklistPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Modification Points Tracker — curator can review statuses */}
+      <ModificationPointsTracker challengeId={challengeId} mode="curator" />
 
       {/* Incomplete Items Modal */}
       <Dialog open={showIncompleteModal} onOpenChange={setShowIncompleteModal}>

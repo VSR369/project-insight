@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -277,7 +278,7 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
 }
 
 /** Overview Tab */
-function OverviewTab({ challenge, amendments }: { challenge: ChallengeData; amendments: AmendmentRecord[] }) {
+function OverviewTab({ challenge, amendments, challengeId }: { challenge: ChallengeData; amendments: AmendmentRecord[]; challengeId: string }) {
   // Checklist result bar
   const checklistLabels = [
     "Problem Statement", "Scope", "Deliverables", "Evaluation Weights = 100%",
@@ -418,6 +419,9 @@ function OverviewTab({ challenge, amendments }: { challenge: ChallengeData; amen
           )}
         </CardContent>
       </Card>
+
+      {/* Modification Points — read-only for ID */}
+      <ModificationPointsTracker challengeId={challengeId} mode="readonly" />
     </div>
   );
 }
@@ -783,7 +787,7 @@ export default function ApprovalReviewPage() {
 
       {/* Tab Content */}
       <div className="min-h-[300px]">
-        {activeTab === "overview" && <OverviewTab challenge={challenge} amendments={amendments} />}
+        {activeTab === "overview" && <OverviewTab challenge={challenge} amendments={amendments} challengeId={challengeId!} />}
         {activeTab === "evaluation" && <EvaluationTab challenge={challenge} />}
         {activeTab === "legal" && <LegalTab challengeId={challengeId!} legalDocs={legalDocs} />}
         {activeTab === "publication" && (

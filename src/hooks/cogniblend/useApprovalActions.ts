@@ -32,8 +32,8 @@ export function useReturnForModification() {
         .select('*', { count: 'exact', head: true })
         .eq('challenge_id', params.challengeId);
 
-      // 2. Insert amendment record
-      const { error: amendError } = await supabase
+      // 2. Insert amendment record and return its ID
+      const { data: amendData, error: amendError } = await supabase
         .from('amendment_records')
         .insert({
           challenge_id: params.challengeId,
@@ -43,7 +43,9 @@ export function useReturnForModification() {
           status: 'INITIATED',
           scope_of_change: 'RETURNED_FOR_MODIFICATION',
           created_by: params.userId,
-        });
+        })
+        .select('id')
+        .single();
       if (amendError) throw new Error(amendError.message);
 
       // 3. Identify target role (Curator for Enterprise, Creator for Lightweight)
@@ -96,6 +98,8 @@ export function useReturnForModification() {
           target_role: targetRole,
         } as unknown as Json,
       });
+
+      return amendData.id as string;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['approval-review'] });

@@ -5,6 +5,8 @@
  *   1. Click "Approve" (only active on Overview tab) → switches to Publication Config
  *   2. Configure visibility + eligibility + finalize complexity
  *   3. "Confirm Approval" becomes active → saves config, calls complete_phase
+ *
+ * Return flow now supports structured modification points.
  */
 
 import { useState } from 'react';
@@ -17,6 +19,7 @@ import {
   useReturnForModification,
   useRejectChallenge,
 } from '@/hooks/cogniblend/useApprovalActions';
+import { useCreateModificationPoints, type ModificationPointInput } from '@/hooks/cogniblend/useModificationPoints';
 import ApprovalReturnModal from './ApprovalReturnModal';
 import ApprovalRejectModal from './ApprovalRejectModal';
 import { Button } from '@/components/ui/button';
@@ -77,6 +80,7 @@ export default function ApprovalActionBar({
   const returnMutation = useReturnForModification();
   const rejectMutation = useRejectChallenge();
   const completePhase = useCompletePhase();
+  const createPoints = useCreateModificationPoints();
 
   // ══════════════════════════════════════
   // SECTION 3: Handlers
@@ -123,8 +127,8 @@ export default function ApprovalActionBar({
     }
   };
 
-  /** Return for Modification */
-  const handleReturn = (reason: string) => {
+  /** Return for Modification — now with structured points */
+  const handleReturn = (reason: string, points: ModificationPointInput[]) => {
     if (!user?.id) return;
     returnMutation.mutate(
       {
@@ -134,7 +138,15 @@ export default function ApprovalActionBar({
         governanceProfile: challenge.governance_profile,
       },
       {
-        onSuccess: () => {
+        onSuccess: (amendmentId) => {
+          // Create modification points linked to the new amendment
+          if (amendmentId && points.length > 0) {
+            createPoints.mutate({
+              amendmentId,
+              challengeId,
+              points,
+            });
+          }
           setReturnOpen(false);
           setTimeout(() => navigate('/cogni/approval'), 1500);
         },
