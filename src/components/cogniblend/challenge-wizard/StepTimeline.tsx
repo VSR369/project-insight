@@ -4,7 +4,8 @@
  * Section 2: Complexity Assessment with weighted sliders (Enterprise) or dropdown (Lightweight)
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useComplexityParams } from '@/hooks/queries/useComplexityParams';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
 import { CalendarIcon, Info, Check, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
@@ -54,12 +55,6 @@ interface PhaseConfig {
   lightweightVisible: boolean;
 }
 
-interface ComplexityParam {
-  key: string;
-  label: string;
-  weight: number;
-}
-
 /* ─── Constants ──────────────────────────────────────────── */
 
 const PHASES: PhaseConfig[] = [
@@ -74,14 +69,16 @@ const PHASES: PhaseConfig[] = [
   { key: 'phase_13', label: 'Phase 13 — Closure', phaseNumber: 13, defaultDays: 14, lightweightVisible: false },
 ];
 
-const COMPLEXITY_PARAMS: ComplexityParam[] = [
-  { key: 'technical_novelty', label: 'Technical Novelty', weight: 0.20 },
-  { key: 'solution_maturity', label: 'Solution Maturity', weight: 0.15 },
-  { key: 'domain_breadth', label: 'Domain Breadth', weight: 0.15 },
-  { key: 'evaluation_complexity', label: 'Evaluation Complexity', weight: 0.15 },
-  { key: 'ip_sensitivity', label: 'IP Sensitivity', weight: 0.15 },
-  { key: 'timeline_urgency', label: 'Timeline Urgency', weight: 0.10 },
-  { key: 'budget_scale', label: 'Budget Scale', weight: 0.10 },
+/* ─── Hardcoded fallback (used only when DB is unreachable) ── */
+
+const FALLBACK_COMPLEXITY_PARAMS = [
+  { param_key: 'technical_novelty', name: 'Technical Novelty', weight: 0.20 },
+  { param_key: 'solution_maturity', name: 'Solution Maturity', weight: 0.15 },
+  { param_key: 'domain_breadth', name: 'Domain Breadth', weight: 0.15 },
+  { param_key: 'evaluation_complexity', name: 'Evaluation Complexity', weight: 0.15 },
+  { param_key: 'ip_sensitivity', name: 'IP Sensitivity', weight: 0.15 },
+  { param_key: 'timeline_urgency', name: 'Timeline Urgency', weight: 0.10 },
+  { param_key: 'budget_scale', name: 'Budget Scale', weight: 0.10 },
 ];
 
 /** Lightweight complexity options with fixed scores */
@@ -482,15 +479,35 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
     return sd ? new Date(sd) : new Date();
   });
 
+  // Fetch complexity params from master data
+  const { data: dbComplexityParams } = useComplexityParams();
+  const complexityParams = useMemo(() => {
+    if (dbComplexityParams && dbComplexityParams.length > 0) return dbComplexityParams;
+    return FALLBACK_COMPLEXITY_PARAMS;
+  }, [dbComplexityParams]);
+
   // Complexity sliders state
   const existingParams = watch('complexity_params') ?? {};
   const [paramValues, setParamValues] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    COMPLEXITY_PARAMS.forEach((p) => {
-      initial[p.key] = (existingParams as any)?.[p.key] ?? 5;
+    FALLBACK_COMPLEXITY_PARAMS.forEach((p) => {
+      initial[p.param_key] = (existingParams as any)?.[p.param_key] ?? 5;
     });
     return initial;
   });
+
+  // Re-initialize param values when DB params load
+  useEffect(() => {
+    if (dbComplexityParams && dbComplexityParams.length > 0) {
+      setParamValues((prev) => {
+        const next: Record<string, number> = {};
+        dbComplexityParams.forEach((p) => {
+          next[p.param_key] = prev[p.param_key] ?? (existingParams as any)?.[p.param_key] ?? 5;
+        });
+        return next;
+      });
+    }
+  }, [dbComplexityParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lightweight complexity dropdown
   const [lwComplexity, setLwComplexity] = useState<string>(() => {
@@ -525,8 +542,8 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
 
   // Complexity score
   const complexityScore = useMemo(() => {
-    return COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0);
-  }, [paramValues]);
+    return complexityParams.reduce((sum, p) => sum + (paramValues[p.param_key] ?? 5) * p.weight, 0);
+  }, [paramValues, complexityParams]);
 
   const complexityInfo = getComplexityLevel(complexityScore);
 
@@ -703,22 +720,22 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
           /* ─── Enterprise: parameter sliders ─── */
           <TooltipProvider>
             <div className="space-y-5">
-              {COMPLEXITY_PARAMS.map((param) => (
-                <div key={param.key} className="space-y-2">
+              {complexityParams.map((param) => (
+                <div key={param.param_key} className="space-y-2">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-[13px] font-bold text-foreground">{param.label}</span>
+                      <span className="text-[13px] font-bold text-foreground">{param.name}</span>
                       <Badge variant="secondary" className="text-[11px] px-1.5 py-0 font-normal">
                         {(param.weight * 100).toFixed(0)}%
                       </Badge>
                     </div>
                     <span className="text-sm font-semibold text-primary tabular-nums w-6 text-right">
-                      {paramValues[param.key]}
+                      {paramValues[param.param_key]}
                     </span>
                   </div>
                   <Slider
-                    value={[paramValues[param.key]]}
-                    onValueChange={(v) => handleParamChange(param.key, v)}
+                    value={[paramValues[param.param_key] ?? 5]}
+                    onValueChange={(v) => handleParamChange(param.param_key, v)}
                     min={0}
                     max={10}
                     step={1}

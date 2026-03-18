@@ -2801,6 +2801,48 @@ export type Database = {
         }
         Relationships: []
       }
+      master_complexity_params: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          description: string | null
+          display_order: number
+          id: string
+          is_active: boolean
+          name: string
+          param_key: string
+          updated_at: string | null
+          updated_by: string | null
+          weight: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name: string
+          param_key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weight?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          description?: string | null
+          display_order?: number
+          id?: string
+          is_active?: boolean
+          name?: string
+          param_key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          weight?: number
+        }
+        Relationships: []
+      }
       md_availability_statuses: {
         Row: {
           code: string
