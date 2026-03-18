@@ -112,7 +112,7 @@ export function useDuplicateDetection(businessProblem: string) {
         return {
           id: ch.id,
           title: ch.title,
-          masterStatus: ch.master_status ?? 'DRAFT',
+          masterStatus: ch.master_status ?? 'IN_PREPARATION',
           problemStatement: ch.problem_statement,
           keywordHits: hits,
         };
