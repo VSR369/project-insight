@@ -211,7 +211,7 @@ export default function LegalDocumentAttachmentPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenge_legal_docs")
-        .select("id, document_type, document_name, tier, status")
+        .select("id, document_type, document_name, tier, status, version_history")
         .eq("challenge_id", challengeId!);
       if (error) throw new Error(error.message);
       return (data ?? []) as AttachedDoc[];
