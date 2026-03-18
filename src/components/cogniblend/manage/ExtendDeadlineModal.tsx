@@ -150,6 +150,19 @@ export function ExtendDeadlineModal({
             </Popover>
           </div>
 
+          {/* Extend by N days */}
+          <div className="space-y-1.5">
+            <Label className="text-xs font-semibold text-foreground">Or Extend by Days</Label>
+            <Input
+              type="number"
+              min={1}
+              value={extendDays}
+              onChange={(e) => handleDaysChange(e.target.value)}
+              placeholder="e.g. 14"
+              className="text-sm"
+            />
+          </div>
+
           {/* Reason */}
           <div className="space-y-1.5">
             <Label className="text-xs font-semibold text-foreground">
