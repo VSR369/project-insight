@@ -56,6 +56,7 @@ export function useMyChallenges(userId: string | undefined) {
           title: ch.title,
           current_phase: ch.current_phase ?? 1,
           master_status: ch.master_status ?? 'DRAFT',
+          phase_status: ch.phase_status ?? 'ACTIVE',
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',
         });
