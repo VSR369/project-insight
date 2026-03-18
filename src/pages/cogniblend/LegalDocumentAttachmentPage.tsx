@@ -782,6 +782,16 @@ export default function LegalDocumentAttachmentPage() {
         </div>
       )}
 
+      {/* LEGAL_VERIFICATION_PENDING amber banner (Enterprise only) */}
+      {challenge?.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
+        <div className="flex items-start gap-3 rounded-lg border border-[hsl(38,80%,60%)]/40 bg-[hsl(38,80%,60%)]/10 p-4">
+          <AlertCircle className="h-5 w-5 text-[hsl(38,68%,41%)] shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground">
+            This challenge requires legal document attachment before it can be submitted for curation.
+          </p>
+        </div>
+      )}
+
       {/* Lightweight auto-attach banner */}
       {isLightweight && (
         <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
