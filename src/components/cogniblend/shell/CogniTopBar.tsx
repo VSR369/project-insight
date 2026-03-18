@@ -102,6 +102,11 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
         {pageTitle}
       </h1>
 
+      {/* Governance Profile Badge */}
+      {governanceProfile && (
+        <GovernanceProfileBadge profile={governanceProfile} />
+      )}
+
       {/* Spacer */}
       <div className="flex-1" />
 
