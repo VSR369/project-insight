@@ -129,7 +129,6 @@ export default function ChallengeCreatePage() {
       totalFee: pricing.hasDiscount ? pricing.discountedTotalFee : pricing.totalFee,
       currencyCode: pricing.currencyCode,
       maxSolutions,
-      visibility: data.visibility,
     });
   };
 
