@@ -172,6 +172,13 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   submission_template_url: '',
   solver_eligibility_types: ['individual'] as ('individual' | 'organization' | 'solution_cluster')[],
   taxonomy_tags: '',
+  num_rewarded_solutions: '3' as const,
+  payment_mode: 'escrow' as const,
+  payment_milestones: [
+    { name: 'Abstract Shortlisted', pct: 10, trigger: 'on_shortlisting' },
+    { name: 'Full Solution Submitted', pct: 30, trigger: 'on_full_submission' },
+    { name: 'Solution Selected', pct: 60, trigger: 'on_selection' },
+  ],
   submission_deadline: '',
   expected_timeline: '',
   review_duration: undefined,
