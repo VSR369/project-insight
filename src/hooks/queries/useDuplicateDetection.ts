@@ -99,7 +99,7 @@ export function useDuplicateDetection(businessProblem: string) {
         .from('challenges')
         .select('id, title, master_status, problem_statement')
         .eq('organization_id', orgId)
-        .in('master_status', ['DRAFT', 'ACTIVE'])
+        .in('master_status', ['IN_PREPARATION', 'ACTIVE'])
         .or(orConditions)
         .limit(10);
 
