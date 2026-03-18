@@ -788,6 +788,10 @@ export type Database = {
           document_name: string | null
           document_type: string
           id: string
+          lc_review_notes: string | null
+          lc_reviewed_at: string | null
+          lc_reviewed_by: string | null
+          lc_status: string | null
           maturity_level: string | null
           status: string | null
           template_version: string | null
@@ -804,6 +808,10 @@ export type Database = {
           document_name?: string | null
           document_type: string
           id?: string
+          lc_review_notes?: string | null
+          lc_reviewed_at?: string | null
+          lc_reviewed_by?: string | null
+          lc_status?: string | null
           maturity_level?: string | null
           status?: string | null
           template_version?: string | null
@@ -820,6 +828,10 @@ export type Database = {
           document_name?: string | null
           document_type?: string
           id?: string
+          lc_review_notes?: string | null
+          lc_reviewed_at?: string | null
+          lc_reviewed_by?: string | null
+          lc_status?: string | null
           maturity_level?: string | null
           status?: string | null
           template_version?: string | null
@@ -1145,6 +1157,7 @@ export type Database = {
           is_active: boolean
           is_deleted: boolean
           is_qa_closed: boolean
+          lc_review_required: boolean
           management_fee: number | null
           master_status: string | null
           maturity_level: string | null
@@ -1204,6 +1217,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_qa_closed?: boolean
+          lc_review_required?: boolean
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -1263,6 +1277,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_qa_closed?: boolean
+          lc_review_required?: boolean
           management_fee?: number | null
           master_status?: string | null
           maturity_level?: string | null
@@ -2868,6 +2883,72 @@ export type Database = {
             columns: ["challenge_id"]
             isOneToOne: false
             referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      legal_review_requests: {
+        Row: {
+          challenge_id: string
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          document_id: string | null
+          id: string
+          is_mandatory: boolean
+          lc_user_id: string | null
+          notes: string | null
+          requested_at: string
+          requested_by: string
+          status: string
+          updated_at: string | null
+          updated_by: string | null
+        }
+        Insert: {
+          challenge_id: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          is_mandatory?: boolean
+          lc_user_id?: string | null
+          notes?: string | null
+          requested_at?: string
+          requested_by: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Update: {
+          challenge_id?: string
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          document_id?: string | null
+          id?: string
+          is_mandatory?: boolean
+          lc_user_id?: string | null
+          notes?: string | null
+          requested_at?: string
+          requested_by?: string
+          status?: string
+          updated_at?: string | null
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "legal_review_requests_challenge_id_fkey"
+            columns: ["challenge_id"]
+            isOneToOne: false
+            referencedRelation: "challenges"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "legal_review_requests_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "challenge_legal_docs"
             referencedColumns: ["id"]
           },
         ]
@@ -9833,6 +9914,7 @@ export type Database = {
           is_active: boolean
           is_deleted: boolean
           is_enterprise: boolean
+          lc_review_required: boolean
           legal_entity_name: string | null
           logo_url: string | null
           max_concurrent_active: number
@@ -9899,6 +9981,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_enterprise?: boolean
+          lc_review_required?: boolean
           legal_entity_name?: string | null
           logo_url?: string | null
           max_concurrent_active?: number
@@ -9965,6 +10048,7 @@ export type Database = {
           is_active?: boolean
           is_deleted?: boolean
           is_enterprise?: boolean
+          lc_review_required?: boolean
           legal_entity_name?: string | null
           logo_url?: string | null
           max_concurrent_active?: number
@@ -12023,15 +12107,25 @@ export type Database = {
         }
         Returns: boolean
       }
-      initialize_challenge: {
-        Args: {
-          p_creator_id: string
-          p_operating_model: string
-          p_org_id: string
-          p_title: string
-        }
-        Returns: string
-      }
+      initialize_challenge:
+        | {
+            Args: {
+              p_creator_id: string
+              p_operating_model: string
+              p_org_id: string
+              p_title: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_creator_id: string
+              p_operating_model: string
+              p_org_id: string
+              p_title: string
+            }
+            Returns: string
+          }
       is_email_domain_blocked: { Args: { p_email: string }; Returns: boolean }
       is_primary_org_admin: { Args: { p_org_id: string }; Returns: boolean }
       is_pulse_provider_owner: {

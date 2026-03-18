@@ -18,6 +18,9 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useCompletePhase } from "@/hooks/cogniblend/useCompletePhase";
+import { useUserChallengeRoles } from "@/hooks/cogniblend/useUserChallengeRoles";
+import { useLcReviewStatus } from "@/hooks/cogniblend/useLcReviewStatus";
+import { useLegalReviewRequest } from "@/hooks/cogniblend/useLegalReviewRequest";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -44,6 +47,7 @@ import {
   Eye,
   Trash2,
   History,
+  Scale,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
 import { LegalVersionHistory } from "@/components/cogniblend/LegalVersionHistory";
@@ -67,6 +71,7 @@ interface AttachedDoc {
   tier: string;
   status: string | null;
   version_history: VersionEntry[];
+  lc_status?: string | null;
 }
 
 interface VersionEntry {
@@ -163,6 +168,10 @@ export default function LegalDocumentAttachmentPage() {
   const { user } = useAuth();
   const completePhase = useCompletePhase();
   const pageTopRef = useRef<HTMLDivElement>(null);
+  const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
+  const { data: lcStatus } = useLcReviewStatus(challengeId);
+  const legalReviewRequest = useLegalReviewRequest();
+  const userHasLcRole = userRoles.includes('LC');
 
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const [gateFailures, setGateFailures] = useState<string[]>([]);
@@ -189,7 +198,7 @@ export default function LegalDocumentAttachmentPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, maturity_level, governance_profile, organization_id, phase_status"
+          "id, title, maturity_level, governance_profile, organization_id, phase_status, lc_review_required"
         )
         .eq("id", challengeId)
         .single();
@@ -231,12 +240,13 @@ export default function LegalDocumentAttachmentPage() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("challenge_legal_docs")
-        .select("id, document_type, document_name, tier, status, version_history")
+        .select("id, document_type, document_name, tier, status, version_history, lc_status")
         .eq("challenge_id", challengeId!);
       if (error) throw new Error(error.message);
       return (data ?? []).map((d: any) => ({
         ...d,
         version_history: Array.isArray(d.version_history) ? d.version_history : [],
+        lc_status: d.lc_status ?? null,
       })) as AttachedDoc[];
     },
     enabled: !!challengeId,
@@ -865,6 +875,47 @@ export default function LegalDocumentAttachmentPage() {
         </div>
       )}
 
+      {/* LC Review Required banner */}
+      {(challenge as any)?.lc_review_required && !userHasLcRole && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-400/40 bg-amber-50 p-4">
+          <Scale className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <p className="text-sm font-medium text-foreground">
+              Legal Coordinator review is required
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Your organization requires Legal Coordinator approval for all legal documents before this challenge can proceed to curation.
+            </p>
+            {!lcStatus?.hasPending && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="mt-2 text-xs border-amber-400 text-amber-700 hover:bg-amber-50"
+                onClick={() => {
+                  if (challengeId) {
+                    legalReviewRequest.mutate({
+                      challengeId,
+                      documentId: null,
+                      lcUserId: null,
+                      isMandatory: true,
+                    });
+                  }
+                }}
+                disabled={legalReviewRequest.isPending}
+              >
+                <Send className="h-3.5 w-3.5 mr-1" />
+                {legalReviewRequest.isPending ? 'Sending…' : 'Send All Docs to Legal Coordinator'}
+              </Button>
+            )}
+            {lcStatus?.hasPending && (
+              <Badge variant="outline" className="mt-2 border-amber-300 bg-amber-100 text-amber-700 text-xs">
+                Awaiting LC review
+              </Badge>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Two-column layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* LEFT — Tier 1 */}
@@ -944,13 +995,22 @@ export default function LegalDocumentAttachmentPage() {
         className="w-full gap-2"
         size="lg"
         onClick={handleSubmitForCuration}
-        disabled={isValidating || completePhase.isPending}
+        disabled={
+          isValidating ||
+          completePhase.isPending ||
+          (lcStatus?.hasPending ?? false) ||
+          (lcStatus?.hasRejected ?? false)
+        }
       >
         <Send className="h-4 w-4" />
         {isValidating
           ? "Validating…"
           : completePhase.isPending
           ? "Submitting…"
+          : lcStatus?.hasPending
+          ? "Awaiting LC Review…"
+          : lcStatus?.hasRejected
+          ? "LC Rejected — Revise Documents"
           : "Submit for Curation"}
       </Button>
 

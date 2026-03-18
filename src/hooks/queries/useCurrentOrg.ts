@@ -18,6 +18,7 @@ export interface CurrentOrg {
   verificationStatus: string | null;
   tcVersionAccepted: string | null;
   governanceProfile: string;
+  lcReviewRequired: boolean;
 }
 
 export function useCurrentOrg() {
@@ -41,6 +42,7 @@ export function useCurrentOrg() {
             verification_status,
             tc_version_accepted,
             governance_profile,
+            lc_review_required,
             seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
               md_subscription_tiers!seeker_subscriptions_tier_id_fkey ( code )
             )
@@ -78,6 +80,7 @@ export function useCurrentOrg() {
         verificationStatus: org?.verification_status ?? null,
         tcVersionAccepted: org?.tc_version_accepted ?? null,
         governanceProfile: org?.governance_profile ?? 'LIGHTWEIGHT',
+        lcReviewRequired: !!(org?.lc_review_required),
       };
     },
     enabled: !!user?.id,
