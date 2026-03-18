@@ -233,6 +233,7 @@ const ApprovalReviewPage = lazy(() => import("@/pages/cogniblend/ApprovalReviewP
 const PublicationReadinessPage = lazy(() => import("@/pages/cogniblend/PublicationReadinessPage"));
 const PublicChallengeDetailPage = lazy(() => import("@/pages/cogniblend/PublicChallengeDetailPage"));
 const ChallengeManagePage = lazy(() => import("@/pages/cogniblend/ChallengeManagePage"));
+const SolutionSubmitPage = lazy(() => import("@/pages/cogniblend/SolutionSubmitPage"));
 
 // Solution Request Pages (lazy loaded)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
