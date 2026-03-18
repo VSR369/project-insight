@@ -8,7 +8,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /* ── Mock toast ─────────────────────────────────────────── */
-let mockToastError: ReturnType<typeof vi.fn>;
+const mockToastError = vi.fn();
+
+beforeEach(() => {
+  mockToastError.mockClear();
+});
 
 describe('TW2-02 — Curation blocked while legal pending', () => {
   it('blocks submit and shows error toast when phase_status is LEGAL_VERIFICATION_PENDING', () => {
