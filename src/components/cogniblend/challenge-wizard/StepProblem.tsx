@@ -114,6 +114,9 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
+  // GAP-11: Auto-suggest taxonomy tags from problem statement
+  const problemStatement = watch('problem_statement') ?? '';
+  const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(problemStatement);
   return (
     <div className="space-y-6">
       {/* ── 1. Title ──────────────────────────────────── */}
