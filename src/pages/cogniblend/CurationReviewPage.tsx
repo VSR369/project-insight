@@ -574,9 +574,19 @@ export default function CurationReviewPage() {
           </p>
         </div>
         {challenge.governance_profile && (
-          <Badge variant="outline" className="text-[10px] ml-auto shrink-0 capitalize">
+          <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
             {challenge.governance_profile}
           </Badge>
+        )}
+        {/* Hold / Resume actions */}
+        {user?.id && (
+          <HoldResumeActions
+            challengeId={challengeId!}
+            challengeTitle={challenge.title}
+            currentPhase={challenge.current_phase ?? 3}
+            phaseStatus={challenge.phase_status ?? null}
+            userId={user.id}
+          />
         )}
       </div>
 
