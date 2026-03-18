@@ -5,15 +5,13 @@
  */
 
 import { useState } from 'react';
-import { PenLine, AlertTriangle } from 'lucide-react';
+import { PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { useAmendmentHistory, AmendmentRecord } from '@/hooks/cogniblend/useAmendments';
+import { useAmendmentHistory } from '@/hooks/cogniblend/useAmendments';
 import { InitiateAmendmentModal } from '@/components/cogniblend/manage/InitiateAmendmentModal';
 import { AmendmentDetailPanel } from '@/components/cogniblend/manage/AmendmentDetailPanel';
-import { format } from 'date-fns';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
