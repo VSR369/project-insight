@@ -168,6 +168,10 @@ export default function LegalDocumentAttachmentPage() {
   const { user } = useAuth();
   const completePhase = useCompletePhase();
   const pageTopRef = useRef<HTMLDivElement>(null);
+  const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
+  const { data: lcStatus } = useLcReviewStatus(challengeId);
+  const legalReviewRequest = useLegalReviewRequest();
+  const userHasLcRole = userRoles.includes('LC');
 
   const [uploadingDocType, setUploadingDocType] = useState<string | null>(null);
   const [gateFailures, setGateFailures] = useState<string[]>([]);
