@@ -22,10 +22,12 @@ import { toast } from 'sonner';
 
 export default function CogniDashboardPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { allRoleCodes } = useCogniUserRoles();
   const { data: items = [], isLoading } = useCogniDashboard(user?.id);
   const { data: waitingItems = [], isLoading: waitingLoading } = useCogniWaitingFor(user?.id);
   const { data: myChallenges, isLoading: myChallengesLoading } = useMyChallenges(user?.id);
-  const completePhase = useCompletePhase();
+  const completePhase = useCompletePhase(allRoleCodes, navigate);
   const { data: orgContext } = useOrgModelContext();
 
   const showBypassBanner = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
