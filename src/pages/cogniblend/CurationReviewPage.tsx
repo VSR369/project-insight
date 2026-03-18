@@ -12,6 +12,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -573,9 +574,19 @@ export default function CurationReviewPage() {
           </p>
         </div>
         {challenge.governance_profile && (
-          <Badge variant="outline" className="text-[10px] ml-auto shrink-0 capitalize">
+          <Badge variant="outline" className="text-[10px] shrink-0 capitalize">
             {challenge.governance_profile}
           </Badge>
+        )}
+        {/* Hold / Resume actions */}
+        {user?.id && (
+          <HoldResumeActions
+            challengeId={challengeId!}
+            challengeTitle={challenge.title}
+            currentPhase={challenge.current_phase ?? 3}
+            phaseStatus={challenge.phase_status ?? null}
+            userId={user.id}
+          />
         )}
       </div>
 

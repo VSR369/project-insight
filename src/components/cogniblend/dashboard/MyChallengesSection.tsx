@@ -43,11 +43,13 @@ const STATUS_STYLE: Record<string, string> = {
   CANCELLED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
   TERMINATED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
   LEGAL_VERIFICATION_PENDING: 'bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]',
+  ON_HOLD: 'bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]',
 };
 
 /** Display label overrides for phase_status */
 const STATUS_LABEL: Record<string, string> = {
   LEGAL_VERIFICATION_PENDING: 'Awaiting Legal',
+  ON_HOLD: 'On Hold',
 };
 
 /* ── Role badge styling ──────────────────────────────────── */

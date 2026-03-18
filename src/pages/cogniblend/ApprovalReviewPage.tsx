@@ -12,6 +12,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import ApprovalPublicationConfigTab from "@/components/cogniblend/approval/ApprovalPublicationConfigTab";
 import ApprovalActionBar from "@/components/cogniblend/approval/ApprovalActionBar";
 import { Badge } from "@/components/ui/badge";
@@ -75,6 +76,7 @@ interface ChallengeData {
   current_phase: number | null;
   max_solutions: number | null;
   submission_deadline: string | null;
+  phase_status: string | null;
 }
 
 interface LegalDoc {
@@ -651,7 +653,7 @@ export default function ApprovalReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status"
         )
         .eq("id", challengeId!)
         .single();
@@ -739,9 +741,19 @@ export default function ApprovalReviewPage() {
           <h1 className="text-xl font-bold text-foreground truncate">Approval Review</h1>
           <p className="text-sm text-muted-foreground truncate">{challenge.title}</p>
         </div>
-        <Badge variant="outline" className="text-[10px] ml-auto shrink-0">
+        <Badge variant="outline" className="text-[10px] shrink-0">
           Phase {challenge.current_phase ?? 4}
         </Badge>
+        {/* Hold / Resume actions */}
+        {user?.id && (
+          <HoldResumeActions
+            challengeId={challengeId!}
+            challengeTitle={challenge.title}
+            currentPhase={challenge.current_phase ?? 4}
+            phaseStatus={challenge.phase_status ?? null}
+            userId={user.id}
+          />
+        )}
       </div>
 
       {/* Collapsible Challenge Summary */}

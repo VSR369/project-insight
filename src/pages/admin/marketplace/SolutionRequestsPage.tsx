@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowRight, ArrowLeft, Clock, History } from "lucide-react";
+import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useSolutionRequests, useChallengeAssignments, computeTeamComposition } from "@/hooks/queries/useSolutionRequests";
 import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
 import { ChallengeAssignmentPanel } from "@/components/admin/marketplace/ChallengeAssignmentPanel";
@@ -72,6 +74,7 @@ function AssignmentPanelView({
 }
 
 export default function SolutionRequestsPage() {
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedChallenge, setSelectedChallenge] = useState<SolutionRequestRow | null>(null);
   const { data: mpRoles } = useChallengeRoleCodes("mp");
@@ -132,6 +135,7 @@ export default function SolutionRequestsPage() {
                   <TableHead className="uppercase text-xs tracking-wider">Challenge Title</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider">Submitted At</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider">Status</TableHead>
+                  <TableHead className="uppercase text-xs tracking-wider">Actions</TableHead>
                   <TableHead className="uppercase text-xs tracking-wider w-10" />
                 </TableRow>
               </TableHeader>
@@ -143,12 +147,13 @@ export default function SolutionRequestsPage() {
                       <TableCell><Skeleton className="h-4 w-48" /></TableCell>
                       <TableCell><Skeleton className="h-4 w-24" /></TableCell>
                       <TableCell><Skeleton className="h-5 w-28" /></TableCell>
+                      <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                       <TableCell />
                     </TableRow>
                   ))
                 ) : !requests?.length ? (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <Clock className="h-8 w-8 text-muted-foreground mb-3" />
                         <p className="text-sm text-muted-foreground">
@@ -181,6 +186,17 @@ export default function SolutionRequestsPage() {
                           <Badge variant={statusInfo.variant} className={statusInfo.className}>
                             {statusInfo.label}
                           </Badge>
+                        </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {user?.id && (
+                            <HoldResumeActions
+                              challengeId={req.id}
+                              challengeTitle={req.title}
+                              currentPhase={req.current_phase}
+                              phaseStatus={req.phase_status}
+                              userId={user.id}
+                            />
+                          )}
                         </TableCell>
                         <TableCell>
                           <ArrowRight className="h-4 w-4 text-muted-foreground" />

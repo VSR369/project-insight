@@ -31,6 +31,8 @@ export interface SolutionRequestRow {
   created_at: string;
   assignment_count: number;
   team: TeamComposition;
+  phase_status: string | null;
+  current_phase: number;
 }
 
 export interface ChallengeAssignmentRow {
@@ -103,7 +105,7 @@ export function useSolutionRequests(mpRoles: SlmRoleCode[] = []) {
         supabase
           .from("challenges")
           .select(`
-            id, title, status, organization_id, engagement_model_id, created_at,
+            id, title, status, organization_id, engagement_model_id, created_at, phase_status, current_phase,
             seeker_organizations!challenges_organization_id_fkey ( organization_name )
           `)
           .eq("is_active", true)
@@ -152,6 +154,8 @@ export function useSolutionRequests(mpRoles: SlmRoleCode[] = []) {
           created_at: c.created_at,
           assignment_count: team.total,
           team,
+          phase_status: c.phase_status ?? null,
+          current_phase: c.current_phase ?? 1,
         };
       }) as SolutionRequestRow[];
     },
