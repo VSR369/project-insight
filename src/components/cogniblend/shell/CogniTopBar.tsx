@@ -75,7 +75,8 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
 
   // TODO: Replace with real org context data
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const orgName = 'Acme Innovation Labs';
+  const orgName = currentOrg?.orgName ?? 'Acme Innovation Labs';
+  const governanceProfile = currentOrg?.governanceProfile ?? null;
   const userRoles = ['CR', 'CU']; // placeholder
   const initials = getInitials(userName);
 
