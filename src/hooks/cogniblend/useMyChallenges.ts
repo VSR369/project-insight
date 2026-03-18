@@ -31,6 +31,7 @@ export function useMyChallenges(userId: string | undefined) {
       const { data, error } = await supabase
         .from('user_challenge_roles')
         .select(`
+          role_code,
           challenge_id,
           challenges!user_challenge_roles_challenge_id_fkey (
             id, title, current_phase, master_status, phase_status, governance_profile
