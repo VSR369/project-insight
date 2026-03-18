@@ -14,6 +14,24 @@ import type { EnrichedChallenge, SlaStatus, ValidTransition } from '@/hooks/cogn
 import { SlaCountdown } from './SlaCountdown';
 import { PhaseProgressBar } from './PhaseProgressBar';
 
+/* ── Phase → required role code mapping ───────────────────── */
+
+const PHASE_ROLE_MAP: Record<number, string> = {
+  1: 'AM',
+  2: 'CR',
+  3: 'CU',
+  4: 'ID',
+  5: 'ID',
+  6: 'ID',
+  7: 'ER',
+  8: 'ER',
+  9: 'ID',
+  10: 'FC',
+  11: 'LC',
+  12: 'FC',
+  13: 'CR',
+};
+
 /* ── Phase badge mapping ──────────────────────────────────── */
 
 const PHASE_LABELS: Record<number, string> = {
@@ -157,11 +175,18 @@ export function NeedsActionSection({
               key={item.challenge_id}
               className="rounded-xl border border-border bg-card p-3 lg:p-4"
             >
-              {/* Row 1: title + phase badge */}
+              {/* Row 1: title + phase badge + role context */}
               <div className="flex items-start justify-between gap-2 lg:gap-3 mb-2">
-                <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
-                  {item.title}
-                </span>
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-[13px] lg:text-[15px] font-bold text-[hsl(218,52%,25%)] line-clamp-1">
+                    {item.title}
+                  </span>
+                  {PHASE_ROLE_MAP[item.current_phase] && (
+                    <span className="shrink-0 rounded bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-accent-foreground">
+                      Act as: {PHASE_ROLE_MAP[item.current_phase]}
+                    </span>
+                  )}
+                </div>
                 <span className="shrink-0 rounded-full bg-[hsl(247,67%,96%)] px-2 lg:px-2.5 py-0.5 text-[10px] lg:text-xs text-[hsl(248,35%,50%)]">
                   {PHASE_LABELS[item.current_phase] ?? item.phase_label}
                 </span>

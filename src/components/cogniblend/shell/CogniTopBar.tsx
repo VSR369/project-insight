@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
@@ -48,6 +49,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   // ═══════════════════════════════════════════
   const { user, signOut } = useAuth();
   const { data: currentOrg } = useCurrentOrg();
+  const { allRoleCodes } = useCogniUserRoles();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +79,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
   const orgName = currentOrg?.orgName ?? 'Acme Innovation Labs';
   const governanceProfile = currentOrg?.governanceProfile ?? null;
-  const userRoles = ['CR', 'CU']; // placeholder
+  const userRoles = Array.from(allRoleCodes);
   const initials = getInitials(userName);
 
   // ═══════════════════════════════════════════

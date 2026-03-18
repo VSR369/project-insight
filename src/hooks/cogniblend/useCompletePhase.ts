@@ -7,8 +7,21 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
-import { CheckCircle, AlertTriangle, Rocket } from 'lucide-react';
+import { CheckCircle, AlertTriangle, Rocket, ArrowRight } from 'lucide-react';
 import { createElement } from 'react';
+
+/* ── Role → navigation route mapping ─────────────────────── */
+
+const ROLE_NAV_MAP: Record<string, { label: string; path: string }> = {
+  CR: { label: 'Challenge Creator', path: '/cogni/my-challenges' },
+  CU: { label: 'Curator', path: '/cogni/curation' },
+  ID: { label: 'Innovation Director', path: '/cogni/approval' },
+  ER: { label: 'Evaluation Reviewer', path: '/cogni/review' },
+  LC: { label: 'Legal Counsel', path: '/cogni/legal' },
+  FC: { label: 'Finance Controller', path: '/cogni/escrow' },
+  AM: { label: 'Account Manager', path: '/cogni/my-requests' },
+  RQ: { label: 'Challenge Requestor', path: '/cogni/my-requests' },
+};
 
 /* ── Response shape from complete_phase ───────────────────── */
 
@@ -33,6 +46,8 @@ interface CompletePhaseResult {
 function showSequentialToasts(
   result: CompletePhaseResult,
   onAllDone: () => void,
+  userRoleCodes?: Set<string>,
+  navigateFn?: (path: string) => void,
 ) {
   const phases = result.phases_auto_completed ?? [];
   let delay = 0;
@@ -87,27 +102,60 @@ function showSequentialToasts(
       );
     } else if (
       result.stopped_reason === 'different_actor' &&
-      result.waiting_for_role_name
+      result.waiting_for_role
     ) {
-      toast(
-        createElement(
-          'div',
-          { className: 'flex items-center gap-2' },
-          createElement(AlertTriangle, {
-            className: 'h-4 w-4 shrink-0 text-[hsl(38,68%,41%)]',
-          }),
+      // Check if user holds the waiting role → smart "Next step" toast
+      const userHoldsRole = userRoleCodes?.has(result.waiting_for_role);
+      const navTarget = ROLE_NAV_MAP[result.waiting_for_role];
+
+      if (userHoldsRole && navTarget && navigateFn) {
+        toast(
           createElement(
-            'span',
-            { className: 'text-[13px]' },
-            `Waiting for: ${result.waiting_for_role_name} to take action on Phase ${result.new_phase}.`,
+            'div',
+            { className: 'flex items-center gap-2' },
+            createElement(ArrowRight, {
+              className: 'h-4 w-4 shrink-0 text-primary',
+            }),
+            createElement(
+              'span',
+              { className: 'text-[13px]' },
+              `Next: Act as ${navTarget.label} → Phase ${result.new_phase}`,
+            ),
           ),
-        ),
-        {
-          duration: 3000,
-          className:
-            'border-l-4 border-l-[hsl(38,68%,41%)] shadow-md w-[280px]',
-        },
-      );
+          {
+            duration: 5000,
+            className:
+              'border-l-4 border-l-primary shadow-md w-[320px] cursor-pointer',
+            action: {
+              label: 'Go →',
+              onClick: () => navigateFn(navTarget.path),
+            },
+          },
+        );
+
+        // Auto-navigate after a short delay
+        setTimeout(() => navigateFn(navTarget.path), 2000);
+      } else {
+        toast(
+          createElement(
+            'div',
+            { className: 'flex items-center gap-2' },
+            createElement(AlertTriangle, {
+              className: 'h-4 w-4 shrink-0 text-[hsl(38,68%,41%)]',
+            }),
+            createElement(
+              'span',
+              { className: 'text-[13px]' },
+              `Waiting for: ${result.waiting_for_role_name ?? result.waiting_for_role} to take action on Phase ${result.new_phase}.`,
+            ),
+          ),
+          {
+            duration: 3000,
+            className:
+              'border-l-4 border-l-[hsl(38,68%,41%)] shadow-md w-[280px]',
+          },
+        );
+      }
     }
 
     // Refresh after final toast
@@ -117,7 +165,10 @@ function showSequentialToasts(
 
 /* ── Hook ─────────────────────────────────────────────────── */
 
-export function useCompletePhase() {
+export function useCompletePhase(
+  userRoleCodes?: Set<string>,
+  navigateFn?: (path: string) => void,
+) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -174,11 +225,16 @@ export function useCompletePhase() {
       return result;
     },
     onSuccess: (result) => {
-      showSequentialToasts(result, () => {
-        queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
-        queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
-        queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
-      });
+      showSequentialToasts(
+        result,
+        () => {
+          queryClient.invalidateQueries({ queryKey: ['cogni-dashboard'] });
+          queryClient.invalidateQueries({ queryKey: ['cogni-waiting-for'] });
+          queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
+        },
+        userRoleCodes,
+        navigateFn,
+      );
     },
     onError: (error: Error) => {
       handleMutationError(error, { operation: 'complete_phase' });

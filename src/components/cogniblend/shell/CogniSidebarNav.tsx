@@ -143,8 +143,23 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     onNavigate?.();
   };
 
+  const isSoloMode = allRoleCodes.size >= 6;
+
   return (
     <nav className="px-3 py-3 space-y-5">
+      {/* Solo Mode indicator */}
+      {isSoloMode && !collapsed && (
+        <div className="mx-3 mb-1 flex items-center gap-1.5 rounded-md bg-primary/5 border border-primary/15 px-2.5 py-1.5">
+          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Solo Mode</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">{allRoleCodes.size} roles</span>
+        </div>
+      )}
+      {isSoloMode && collapsed && (
+        <div className="flex justify-center mb-1" title={`Solo Mode — ${allRoleCodes.size} roles`}>
+          <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+        </div>
+      )}
       {SECTIONS.map((section) => {
         const visibleItems = section.items.filter((item) => isVisible(item.requiredRoles));
         if (visibleItems.length === 0) return null;
