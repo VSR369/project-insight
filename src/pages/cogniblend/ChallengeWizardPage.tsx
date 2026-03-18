@@ -311,6 +311,9 @@ export default function ChallengeWizardPage() {
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
       solver_eligibility_id: values.solver_eligibility_id || null,
+      solver_eligibility_types: values.eligible_participation_modes?.length
+        ? values.eligible_participation_modes
+        : null,
       challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
       challenge_enrollment: isLightweight ? null : (values.challenge_enrollment || 'open_auto'),
       challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
@@ -677,7 +680,7 @@ function getStepFields(step: number): string[] {
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
+      return ['eligible_participation_modes', 'solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
     case 6:
       return [];
     case 7:

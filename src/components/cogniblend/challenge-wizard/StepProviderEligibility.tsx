@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
+import { useParticipationModes } from '@/hooks/queries/useMasterData';
 import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
@@ -205,6 +206,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
 
   // ── Data hooks ──
   const { data: solverCategories = [], isLoading: loadingCategories } = useSolverEligibility();
+  const { data: participationModes = [], isLoading: loadingModes } = useParticipationModes();
   const { data: expertiseLevels = [] } = useExpertiseLevels();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
@@ -222,21 +224,32 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const challengeVisibility = watch('challenge_visibility') || '';
   const challengeEnrollment = watch('challenge_enrollment') || '';
   const challengeSubmission = watch('challenge_submission') || '';
+  const eligibleModes = watch('eligible_participation_modes') ?? [];
 
   // ── Sub-domains from taxonomy ──
   const industryIds = useMemo(() => industrySegmentId ? [industrySegmentId] : [], [industrySegmentId]);
   const { data: proficiencyAreas = [] } = useProficiencyAreasBySegments(industryIds);
 
-  // ── Group solver categories by model_category ──
-  const groupedCategories = useMemo(() => {
-    const groups: Record<string, typeof solverCategories> = {};
-    for (const cat of solverCategories) {
-      const key = (cat as any).model_category || 'Legacy';
-      if (!groups[key]) groups[key] = [];
-      groups[key].push(cat);
-    }
-    return groups;
+  // ── Filter solver categories: legacy only (exclude BRD 5.7.1) ──
+  const legacyCategories = useMemo(() => {
+    return solverCategories.filter((cat) => (cat as any).model_category !== 'brd_5_7_1');
   }, [solverCategories]);
+
+  // ── "All Categories" toggle for participation modes ──
+  const isAllModes = eligibleModes.length === 0;
+  const toggleAllModes = (checked: boolean) => {
+    if (checked) {
+      setValue('eligible_participation_modes', [], { shouldDirty: true });
+    }
+  };
+  const toggleMode = (modeId: string) => {
+    if (eligibleModes.includes(modeId)) {
+      const updated = eligibleModes.filter((m: string) => m !== modeId);
+      setValue('eligible_participation_modes', updated, { shouldDirty: true });
+    } else {
+      setValue('eligible_participation_modes', [...eligibleModes, modeId], { shouldDirty: true });
+    }
+  };
 
   // ── Selected category details ──
   const selectedCategory = useMemo(() => {
@@ -321,85 +334,175 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         </p>
       </div>
 
-      {/* ═══ SECTION 1: Challenge Visibility & Solver Category ═══ */}
+      {/* ═══ SECTION 1A: Provider Category (Layer 1) ═══ */}
       <div className="space-y-4">
         <div className="space-y-1">
           <h4 className="text-sm font-bold text-foreground">
-            Solver Category <span className="text-destructive">*</span>
+            Provider Category
           </h4>
           <p className="text-xs text-muted-foreground">
-            Select which category of solvers can participate. This auto-configures visibility and enrollment settings.
+            Which types of solution providers can participate in this challenge?
+          </p>
+        </div>
+
+        {loadingModes ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
+            <p className="text-sm text-muted-foreground">Loading categories…</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* All Categories toggle */}
+            <label
+              className={cn(
+                'flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                isAllModes
+                  ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                  : 'border-border bg-background hover:bg-muted/50',
+              )}
+            >
+              <Checkbox checked={isAllModes} onCheckedChange={(checked) => toggleAllModes(!!checked)} />
+              <div>
+                <span className="text-sm font-semibold text-foreground">All Categories</span>
+                <p className="text-xs text-muted-foreground">Accept providers from all participation categories</p>
+              </div>
+            </label>
+
+            {/* Individual mode checkboxes */}
+            {!isAllModes && participationModes.map((mode) => {
+              const checked = eligibleModes.includes(mode.id);
+              return (
+                <label
+                  key={mode.id}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                    checked
+                      ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border bg-background hover:bg-muted/50',
+                  )}
+                >
+                  <Checkbox checked={checked} onCheckedChange={() => toggleMode(mode.id)} />
+                  <div>
+                    <span className="text-sm font-semibold text-foreground">{mode.name}</span>
+                    {mode.description && (
+                      <p className="text-xs text-muted-foreground">{mode.description}</p>
+                    )}
+                  </div>
+                </label>
+              );
+            })}
+
+            {/* Show individual options prompt */}
+            {isAllModes && (
+              <button
+                type="button"
+                onClick={() => {
+                  // Set to all modes selected individually
+                  setValue('eligible_participation_modes', participationModes.map((m) => m.id), { shouldDirty: true });
+                }}
+                className="text-xs text-primary hover:underline"
+              >
+                Or select specific categories →
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ═══ SECTION 1B: Solver Tier (Layer 2) ═══ */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h4 className="text-sm font-bold text-foreground">
+            Solver Tier
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            What level of solver can participate? This auto-configures visibility and enrollment settings.
           </p>
         </div>
 
         {loadingCategories ? (
           <div className="rounded-lg border border-border bg-muted/30 p-6 text-center">
-            <p className="text-sm text-muted-foreground">Loading solver categories…</p>
+            <p className="text-sm text-muted-foreground">Loading solver tiers…</p>
           </div>
         ) : (
           <Controller
             name="solver_eligibility_id"
             control={control}
             render={({ field }) => (
-              <div className="space-y-4">
-                {Object.entries(groupedCategories).map(([groupLabel, categories]) => (
-                  <div key={groupLabel} className="space-y-2">
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                      {groupLabel === 'brd_5_7_1' ? 'BRD 5.7.1 Models' : groupLabel}
-                    </p>
-                    <RadioGroup value={field.value} onValueChange={field.onChange} className="space-y-2">
-                      {categories.map((cat) => {
-                        const isSelected = field.value === cat.id;
-                        return (
-                          <label
-                            key={cat.id}
-                            className={cn(
-                              'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
-                              isSelected
-                                ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
-                                : 'border-border bg-background hover:bg-muted/50',
-                            )}
-                          >
-                            <RadioGroupItem value={cat.id} className="mt-0.5" />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-sm font-semibold text-foreground">{cat.label}</span>
-                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{cat.code}</Badge>
-                                {cat.min_star_rating && cat.min_star_rating > 0 && (
-                                  <StarBadge count={cat.min_star_rating} />
-                                )}
-                              </div>
-                              {cat.description && (
-                                <p className="text-xs text-muted-foreground mt-0.5">{cat.description}</p>
-                              )}
-                              <div className="flex flex-wrap gap-1.5 mt-1.5">
-                                {cat.requires_auth && (
-                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
-                                    <Shield className="h-3 w-3" /> Auth Required
-                                  </Badge>
-                                )}
-                                {cat.requires_certification && (
-                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
-                                    <UserCheck className="h-3 w-3" /> Certified
-                                  </Badge>
-                                )}
-                                {cat.requires_provider_record && (
-                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
-                                    <UserCheck className="h-3 w-3" /> Provider Record
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                          </label>
-                        );
-                      })}
-                    </RadioGroup>
+              <RadioGroup value={field.value ?? ''} onValueChange={(val) => {
+                field.onChange(val);
+                if (val === '') {
+                  // "All" selected — set most open defaults
+                  setValue('challenge_visibility', 'public', { shouldDirty: true });
+                  setValue('challenge_enrollment', 'open_auto', { shouldDirty: true });
+                  setValue('challenge_submission', 'all_enrolled', { shouldDirty: true });
+                }
+              }} className="space-y-2">
+                {/* Virtual "All" option */}
+                <label
+                  className={cn(
+                    'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                    (!field.value)
+                      ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                      : 'border-border bg-background hover:bg-muted/50',
+                  )}
+                >
+                  <RadioGroupItem value="" className="mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-foreground">All (no restriction)</span>
+                      <Badge variant="outline" className="text-[10px] px-1.5 py-0">ALL</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Any solver on the platform can participate</p>
                   </div>
-                ))}
-                {errors.solver_eligibility_id && (
-                  <p className="text-xs text-destructive">{errors.solver_eligibility_id.message}</p>
-                )}
-              </div>
+                </label>
+
+                {/* Legacy categories */}
+                {legacyCategories.map((cat) => {
+                  const isSelected = field.value === cat.id;
+                  return (
+                    <label
+                      key={cat.id}
+                      className={cn(
+                        'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                        isSelected
+                          ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                          : 'border-border bg-background hover:bg-muted/50',
+                      )}
+                    >
+                      <RadioGroupItem value={cat.id} className="mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold text-foreground">{cat.label}</span>
+                          <Badge variant="outline" className="text-[10px] px-1.5 py-0">{cat.code}</Badge>
+                          {cat.min_star_rating && cat.min_star_rating > 0 && (
+                            <StarBadge count={cat.min_star_rating} />
+                          )}
+                        </div>
+                        {cat.description && (
+                          <p className="text-xs text-muted-foreground mt-0.5">{cat.description}</p>
+                        )}
+                        <div className="flex flex-wrap gap-1.5 mt-1.5">
+                          {cat.requires_auth && (
+                            <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                              <Shield className="h-3 w-3" /> Auth Required
+                            </Badge>
+                          )}
+                          {cat.requires_certification && (
+                            <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                              <UserCheck className="h-3 w-3" /> Certified
+                            </Badge>
+                          )}
+                          {cat.requires_provider_record && (
+                            <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                              <UserCheck className="h-3 w-3" /> Provider Record
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })}
+              </RadioGroup>
             )}
           />
         )}
