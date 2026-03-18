@@ -48,7 +48,7 @@ interface ApprovalActionBarProps {
   isApproved: boolean;
   setIsApproved: (v: boolean) => void;
   pubConfigReady: boolean;
-  pubConfigValues: { visibility: string; eligibility: string };
+  pubConfigValues: { visibility: string; eligibility: string; eligibilityModel?: string; enrollment?: string; submission?: string };
 }
 
 // ---------------------------------------------------------------------------
