@@ -202,6 +202,7 @@ export default function SolutionSubmitPage() {
   const [legalAccepted, setLegalAccepted] = useState<Record<string, boolean>>({});
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [reacceptModalOpen, setReacceptModalOpen] = useState(false);
 
   // ═══ SECTION 2: Context and hooks ═══
   const { id: challengeId } = useParams<{ id: string }>();
