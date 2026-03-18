@@ -94,6 +94,19 @@ export function useSubmitSolutionRequest() {
           .insert(crAssignment as any);
 
         if (roleError) throw new Error(roleError.message);
+
+        // Audit: ROLE_ASSIGNED for CR
+        await supabase.from('audit_trail').insert({
+          user_id: payload.creatorId,
+          challenge_id: challengeId,
+          action: 'ROLE_ASSIGNED',
+          method: 'USER',
+          details: {
+            role_code: 'CR',
+            assigned_to: payload.architectId,
+            operating_model: 'MP',
+          },
+        });
       }
 
       // 4. Complete phase to advance from Phase 1 → Phase 2
