@@ -179,6 +179,8 @@ export default function ApprovalPublicationConfigTab({
   // ══════════════════════════════════════
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
+  const [enrollment, setEnrollment] = useState(challenge.challenge_enrollment || "");
+  const [submission, setSubmission] = useState(challenge.challenge_submission || "");
   const [complexityFinalized, setComplexityFinalized] = useState(false);
   const [targetingFilters, setTargetingFilters] = useState<TargetingFilters>(() => {
     const existing = parseJson<TargetingFilters>(challenge.targeting_filters);
@@ -208,10 +210,22 @@ export default function ApprovalPublicationConfigTab({
 
   const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_LIGHTWEIGHT;
   const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_LIGHTWEIGHT;
+  const enrollmentOptions = isEnterprise ? ENROLLMENT_OPTIONS_ENTERPRISE : ENROLLMENT_OPTIONS_LIGHTWEIGHT;
+  const submissionOptions = isEnterprise ? SUBMISSION_OPTIONS_ENTERPRISE : SUBMISSION_OPTIONS_LIGHTWEIGHT;
 
   const maxEligRank = useMemo(
-    () => getMaxEligibilityRank(visibility, visibilityOptions),
+    () => getMaxTierRank(visibility, visibilityOptions),
     [visibility, visibilityOptions]
+  );
+
+  const maxEnrollRank = useMemo(
+    () => getMaxTierRank(visibility, visibilityOptions),
+    [visibility, visibilityOptions]
+  );
+
+  const maxSubmissionRank = useMemo(
+    () => getMaxTierRank(enrollment, enrollmentOptions),
+    [enrollment, enrollmentOptions]
   );
 
   const validationError = useMemo(() => {
@@ -223,6 +237,24 @@ export default function ApprovalPublicationConfigTab({
     return null;
   }, [visibility, eligibility, maxEligRank, eligibilityOptions]);
 
+  const enrollmentError = useMemo(() => {
+    if (!isEnterprise || !visibility || !enrollment) return null;
+    const enrOpt = enrollmentOptions.find((e) => e.value === enrollment);
+    if (enrOpt && enrOpt.rank > maxEnrollRank) {
+      return "Enrollment cannot be broader than visibility.";
+    }
+    return null;
+  }, [isEnterprise, visibility, enrollment, maxEnrollRank, enrollmentOptions]);
+
+  const submissionError = useMemo(() => {
+    if (!isEnterprise || !enrollment || !submission) return null;
+    const subOpt = submissionOptions.find((s) => s.value === submission);
+    if (subOpt && subOpt.rank > maxSubmissionRank) {
+      return "Submission tier cannot be broader than enrollment tier.";
+    }
+    return null;
+  }, [isEnterprise, enrollment, submission, maxSubmissionRank, submissionOptions]);
+
   const complexityScore = useMemo(
     () => COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0),
     [paramValues]
@@ -231,10 +263,11 @@ export default function ApprovalPublicationConfigTab({
   const complexityInfo = useMemo(() => getComplexityLevel(complexityScore), [complexityScore]);
 
   // Notify parent of configuration readiness
-  const isConfigReady = !!visibility && !!eligibility && !validationError && complexityFinalized;
+  const hasAccessErrors = !!validationError || !!enrollmentError || !!submissionError;
+  const isConfigReady = !!visibility && !!eligibility && !hasAccessErrors && complexityFinalized;
   useEffect(() => {
-    onConfigChange?.({ visibility, eligibility, isReady: isConfigReady });
-  }, [visibility, eligibility, isConfigReady, onConfigChange]);
+    onConfigChange?.({ visibility, eligibility, enrollment, submission, isReady: isConfigReady });
+  }, [visibility, eligibility, enrollment, submission, isConfigReady, onConfigChange]);
 
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
@@ -284,20 +317,36 @@ export default function ApprovalPublicationConfigTab({
     setParamValues((prev) => ({ ...prev, [key]: value[0] }));
   }, [complexityFinalized]);
 
+  /** Auto-correct child tiers when parent changes */
+  const autoCorrectChildTier = (
+    parentValue: string,
+    parentOptions: TierOption[],
+    childValue: string,
+    childOptions: TierOption[],
+    setChild: (v: string) => void,
+  ) => {
+    const maxRank = getMaxTierRank(parentValue, parentOptions);
+    const childOpt = childOptions.find((c) => c.value === childValue);
+    if (childOpt && childOpt.rank > maxRank) {
+      const valid = childOptions.filter((c) => c.rank <= maxRank);
+      if (valid.length > 0) setChild(valid[0].value);
+    }
+  };
+
   const handleVisibilityChange = useCallback((val: string) => {
     setVisibility(val);
-    // Auto-correct eligibility if it becomes invalid
-    const newMaxRank = getMaxEligibilityRank(val, visibilityOptions);
-    const currentEligOpt = eligibilityOptions.find((e) => e.value === eligibility);
-    if (currentEligOpt && currentEligOpt.rank > newMaxRank) {
-      // Reset to the most restrictive valid option
-      const validOptions = eligibilityOptions.filter((e) => e.rank <= newMaxRank);
-      if (validOptions.length > 0) {
-        setEligibility(validOptions[0].value);
-      }
+    autoCorrectChildTier(val, visibilityOptions, eligibility, eligibilityOptions, setEligibility);
+    if (isEnterprise) {
+      autoCorrectChildTier(val, visibilityOptions, enrollment, enrollmentOptions, setEnrollment);
     }
-  }, [eligibility, eligibilityOptions, visibilityOptions]);
+  }, [eligibility, eligibilityOptions, visibilityOptions, enrollment, enrollmentOptions, isEnterprise]);
 
+  const handleEnrollmentChange = useCallback((val: string) => {
+    setEnrollment(val);
+    if (isEnterprise) {
+      autoCorrectChildTier(val, enrollmentOptions, submission, submissionOptions, setSubmission);
+    }
+  }, [enrollmentOptions, submission, submissionOptions, isEnterprise]);
   // ══════════════════════════════════════
   // SECTION 6: Render — not approved yet
   // ══════════════════════════════════════
