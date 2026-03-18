@@ -106,8 +106,13 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const titleValue = watch('title') ?? '';
   const problemValue = watch('problem_statement') ?? '';
+  const scopeValue = watch('scope') ?? '';
   const titleLen = titleValue.length;
   const problemLen = problemValue.length;
+  const scopeLen = scopeValue.length;
+
+  const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
+  const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
