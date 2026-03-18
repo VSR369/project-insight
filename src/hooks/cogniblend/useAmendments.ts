@@ -71,6 +71,7 @@ export function useAmendmentHistory(challengeId: string | undefined) {
           scopeOfChange: a.scope_of_change,
           reason: a.reason,
           isMaterial,
+          withdrawalDeadline: (a as any).withdrawal_deadline ?? null,
           createdAt: a.created_at,
           versionBefore: a.version_before,
           versionAfter: a.version_after,
