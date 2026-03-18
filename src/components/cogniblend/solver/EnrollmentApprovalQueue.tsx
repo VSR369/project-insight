@@ -86,7 +86,7 @@ export function EnrollmentApprovalQueue({ challengeId }: EnrollmentApprovalQueue
             <Users className="h-4 w-4" />
             Enrollment Approval Queue
             {enrollments.length > 0 && (
-              <span className="ml-auto text-xs font-normal bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full">
+              <span className="ml-auto text-xs font-normal bg-accent text-accent-foreground px-2 py-0.5 rounded-full">
                 {enrollments.length} pending
               </span>
             )}
