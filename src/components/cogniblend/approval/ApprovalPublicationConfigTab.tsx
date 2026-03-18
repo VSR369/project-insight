@@ -42,6 +42,8 @@ interface PublicationConfigTabProps {
     id: string;
     visibility: string | null;
     eligibility: string | null;
+    challenge_enrollment: string | null;
+    challenge_submission: string | null;
     governance_profile: string | null;
     complexity_score: number | null;
     complexity_level: string | null;
@@ -52,17 +54,10 @@ interface PublicationConfigTabProps {
     targeting_filters: Json | null;
   };
   isApproved: boolean;
-  onConfigChange?: (config: { visibility: string; eligibility: string; isReady: boolean }) => void;
+  onConfigChange?: (config: { visibility: string; eligibility: string; enrollment: string; submission: string; isReady: boolean }) => void;
 }
 
-interface VisibilityOption {
-  value: string;
-  label: string;
-  description: string;
-  rank: number; // higher = broader
-}
-
-interface EligibilityOption {
+interface TierOption {
   value: string;
   label: string;
   description: string;
@@ -75,26 +70,57 @@ interface ComplexityParam {
   weight: number;
 }
 
-const VISIBILITY_OPTIONS_ENTERPRISE: VisibilityOption[] = [
+/* ── Visibility Options ─────────────────────────────────── */
+
+const VISIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
   { value: "invite_only", label: "Invite Only", description: "Specific invitees can view this challenge", rank: 1 },
   { value: "curated_experts", label: "Curated Experts", description: "Verified experts on the platform only", rank: 2 },
   { value: "registered_users", label: "Registered Users", description: "Platform members only", rank: 3 },
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
 
-const VISIBILITY_OPTIONS_LIGHTWEIGHT: VisibilityOption[] = [
+const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
   { value: "invite_only", label: "Invite Only", description: "Specific invitees can view this challenge", rank: 1 },
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
 
-const ELIGIBILITY_OPTIONS_ENTERPRISE: EligibilityOption[] = [
+/* ── Enrollment Options ─────────────────────────────────── */
+
+const ENROLLMENT_OPTIONS_ENTERPRISE: TierOption[] = [
+  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
+  { value: "org_curated", label: "Organization-Curated", description: "Enrollment requires org approval", rank: 2 },
+  { value: "curator_approved", label: "Curator-Approved", description: "Curator reviews enrollment requests", rank: 3 },
+  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
+];
+
+const ENROLLMENT_OPTIONS_LIGHTWEIGHT: TierOption[] = [
+  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
+  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
+];
+
+/* ── Submission Options ─────────────────────────────────── */
+
+const SUBMISSION_OPTIONS_ENTERPRISE: TierOption[] = [
+  { value: "invited_solvers", label: "Invited Solvers Only", description: "Only specifically invited solvers can submit", rank: 1 },
+  { value: "shortlisted_only", label: "Shortlisted Only", description: "Only shortlisted participants can submit", rank: 2 },
+  { value: "all_enrolled", label: "All Enrolled Participants", description: "Any enrolled solver can submit", rank: 3 },
+];
+
+const SUBMISSION_OPTIONS_LIGHTWEIGHT: TierOption[] = [
+  { value: "invited_solvers", label: "Invited Only", description: "Only specifically invited solvers can submit", rank: 1 },
+  { value: "all_enrolled", label: "All Enrolled", description: "Any enrolled solver can submit", rank: 3 },
+];
+
+/* ── Legacy Eligibility Options (backward compatibility) ── */
+
+const ELIGIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
   { value: "invited_experts", label: "Invited Experts Only", description: "Only specifically invited experts can submit", rank: 1 },
   { value: "curated_experts", label: "Curated Experts Only", description: "Verified experts on the platform can submit", rank: 2 },
   { value: "registered_users", label: "Registered Users", description: "Any registered platform member can submit", rank: 3 },
   { value: "anyone", label: "Anyone (Open)", description: "Open to all — no restrictions on who can submit", rank: 4 },
 ];
 
-const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: EligibilityOption[] = [
+const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
   { value: "invited_experts", label: "Invited Only", description: "Only specifically invited experts can submit", rank: 1 },
   { value: "anyone", label: "Anyone", description: "Open to all — no restrictions on who can submit", rank: 4 },
 ];
