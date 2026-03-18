@@ -83,12 +83,29 @@ interface NeedsActionSectionProps {
   onTransition?: (challengeId: string, action: string) => void;
 }
 
+/* ── SLA urgency sort order ────────────────────────────────── */
+
+const SLA_SORT_ORDER: Record<string, number> = {
+  BREACHED: 0,
+  APPROACHING: 1,
+  ON_TRACK: 2,
+};
+
+function sortBySlaUrgency(items: EnrichedChallenge[]): EnrichedChallenge[] {
+  return [...items].sort((a, b) => {
+    const aRank = SLA_SORT_ORDER[a.sla?.status ?? 'ON_TRACK'] ?? 2;
+    const bRank = SLA_SORT_ORDER[b.sla?.status ?? 'ON_TRACK'] ?? 2;
+    return aRank - bRank;
+  });
+}
+
 export function NeedsActionSection({
   items,
   isLoading,
   completingChallengeId,
   onTransition,
 }: NeedsActionSectionProps) {
+  const sortedItems = sortBySlaUrgency(items);
   /* Loading skeleton */
   if (isLoading) {
     return (
@@ -106,7 +123,7 @@ export function NeedsActionSection({
   }
 
   /* Empty state */
-  if (items.length === 0) {
+  if (sortedItems.length === 0) {
     return (
       <section>
         <h2 className="text-base lg:text-lg font-bold text-[hsl(218,52%,25%)] mb-3 lg:mb-4">
@@ -130,7 +147,7 @@ export function NeedsActionSection({
         Needs Your Action
       </h2>
       <div className="space-y-3">
-        {items.map((item) => {
+        {sortedItems.map((item) => {
           const isCompleting = completingChallengeId === item.challenge_id;
 
           return (
