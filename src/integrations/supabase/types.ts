@@ -885,6 +885,9 @@ export type Database = {
           asked_at: string
           asked_by: string
           challenge_id: string
+          compliance_flag_reason: string | null
+          compliance_flagged: boolean
+          compliance_flagged_at: string | null
           created_at: string
           created_by: string | null
           is_closed: boolean
@@ -902,6 +905,9 @@ export type Database = {
           asked_at?: string
           asked_by: string
           challenge_id: string
+          compliance_flag_reason?: string | null
+          compliance_flagged?: boolean
+          compliance_flagged_at?: string | null
           created_at?: string
           created_by?: string | null
           is_closed?: boolean
@@ -919,6 +925,9 @@ export type Database = {
           asked_at?: string
           asked_by?: string
           challenge_id?: string
+          compliance_flag_reason?: string | null
+          compliance_flagged?: boolean
+          compliance_flagged_at?: string | null
           created_at?: string
           created_by?: string | null
           is_closed?: boolean
@@ -1106,6 +1115,7 @@ export type Database = {
       challenges: {
         Row: {
           challenge_enrollment: string | null
+          challenge_model_is_agg: boolean
           challenge_submission: string | null
           challenge_visibility: string | null
           completed_at: string | null
@@ -1159,6 +1169,7 @@ export type Database = {
         }
         Insert: {
           challenge_enrollment?: string | null
+          challenge_model_is_agg?: boolean
           challenge_submission?: string | null
           challenge_visibility?: string | null
           completed_at?: string | null
@@ -1212,6 +1223,7 @@ export type Database = {
         }
         Update: {
           challenge_enrollment?: string | null
+          challenge_model_is_agg?: boolean
           challenge_submission?: string | null
           challenge_visibility?: string | null
           completed_at?: string | null
@@ -10327,6 +10339,7 @@ export type Database = {
       }
       solver_enrollments: {
         Row: {
+          ad_accepted: boolean
           approved_at: string | null
           approved_by: string | null
           challenge_id: string
@@ -10349,6 +10362,7 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          ad_accepted?: boolean
           approved_at?: string | null
           approved_by?: string | null
           challenge_id: string
@@ -10371,6 +10385,7 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          ad_accepted?: boolean
           approved_at?: string | null
           approved_by?: string | null
           challenge_id?: string

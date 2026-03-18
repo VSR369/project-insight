@@ -2,10 +2,11 @@
  * ChallengeQASection — Q&A panel for the public challenge view.
  * Shows published Q&A pairs + an "Ask Question" form for authenticated solvers.
  * Hides the form when Q&A is closed.
+ * BR-COM-003: Flags messages containing contact information for compliance review.
  */
 
 import { useState } from 'react';
-import { MessageSquare, Lock } from 'lucide-react';
+import { MessageSquare, Lock, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { scanForContactInfo } from '@/lib/complianceScanner';
 import {
   useChallengeQuestions,
   useMyQuestions,
@@ -29,6 +31,7 @@ interface ChallengeQASectionProps {
 
 function QAPair({ qa, isMine }: { qa: ChallengeQARow; isMine?: boolean }) {
   const isPending = !qa.is_published && isMine;
+  const isComplianceFlagged = (qa as any).compliance_flagged === true;
 
   return (
     <div className="space-y-2">
@@ -38,13 +41,22 @@ function QAPair({ qa, isMine }: { qa: ChallengeQARow; isMine?: boolean }) {
           <span className="font-semibold text-primary">Q:</span>{' '}
           {qa.question_text}
         </p>
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
           <span>Asked by {qa.anonymous_id ?? 'Anonymous'}</span>
           <span>·</span>
           <span>{format(new Date(qa.asked_at), 'MMM d, yyyy')}</span>
           {isPending && (
             <Badge variant="secondary" className="text-[10px] font-medium ml-1">
               Pending answer
+            </Badge>
+          )}
+          {isComplianceFlagged && (
+            <Badge
+              variant="outline"
+              className="text-[10px] font-medium ml-1 border-amber-400 bg-amber-50 text-amber-700"
+            >
+              <AlertTriangle className="h-2.5 w-2.5 mr-0.5" />
+              Flagged for compliance review
             </Badge>
           )}
         </div>
@@ -97,16 +109,42 @@ export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
   });
   const isQaClosed = qaClosedFlag ?? false;
   const [questionText, setQuestionText] = useState('');
+  const [complianceWarning, setComplianceWarning] = useState<string | null>(null);
 
   // Merge: show published + user's own unpublished (deduped)
   const publishedIds = new Set(publishedQA.map((q) => q.qa_id));
   const myPending = myQuestions.filter((q) => !publishedIds.has(q.qa_id));
   const allVisible = [...publishedQA, ...myPending];
 
+  // BR-COM-003: Scan input for contact information
+  const handleQuestionChange = (text: string) => {
+    setQuestionText(text);
+    if (text.trim().length > 10) {
+      const scan = scanForContactInfo(text);
+      if (scan.flagged) {
+        setComplianceWarning(scan.reasons.join(', '));
+      } else {
+        setComplianceWarning(null);
+      }
+    } else {
+      setComplianceWarning(null);
+    }
+  };
+
   const handleSubmit = async () => {
     if (questionText.trim().length < 20) return;
-    await submitQuestion.mutateAsync({ challengeId, questionText: questionText.trim() });
+
+    // BR-COM-003: Check for contact info and auto-flag
+    const scan = scanForContactInfo(questionText.trim());
+
+    await submitQuestion.mutateAsync({
+      challengeId,
+      questionText: questionText.trim(),
+      complianceFlagged: scan.flagged,
+      complianceFlagReason: scan.flagged ? scan.reasons.join('; ') : undefined,
+    });
     setQuestionText('');
+    setComplianceWarning(null);
   };
 
   return (
@@ -148,10 +186,26 @@ export function ChallengeQASection({ challengeId }: ChallengeQASectionProps) {
           <Textarea
             placeholder="Ask a question about this challenge... (minimum 20 characters)"
             value={questionText}
-            onChange={(e) => setQuestionText(e.target.value)}
+            onChange={(e) => handleQuestionChange(e.target.value)}
             rows={3}
             className="text-sm resize-none"
           />
+
+          {/* BR-COM-003: Compliance warning */}
+          {complianceWarning && (
+            <div className="flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <p className="text-xs font-semibold text-amber-800">Compliance Notice</p>
+                <p className="text-xs text-amber-700">
+                  Your message appears to contain contact information ({complianceWarning}).
+                  Messages with contact info will be flagged for compliance review.
+                  Consider removing personal contact details.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <p className="text-xs text-muted-foreground">
               {questionText.trim().length}/20 min characters

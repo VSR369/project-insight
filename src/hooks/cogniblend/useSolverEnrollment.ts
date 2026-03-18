@@ -60,6 +60,7 @@ export function useEnrollInChallenge() {
       enrollmentModel,
       autoApprove,
       legalAccepted,
+      adAccepted = false,
     }: {
       challengeId: string;
       solverId: string;
@@ -67,6 +68,7 @@ export function useEnrollInChallenge() {
       enrollmentModel: string;
       autoApprove: boolean;
       legalAccepted: boolean;
+      adAccepted?: boolean;
     }) => {
       const enrollment = await withCreatedBy({
         challenge_id: challengeId,
@@ -77,6 +79,7 @@ export function useEnrollInChallenge() {
         enrolled_at: new Date().toISOString(),
         approved_at: autoApprove ? new Date().toISOString() : null,
         legal_accepted_at: legalAccepted ? new Date().toISOString() : null,
+        ad_accepted: adAccepted,
       });
 
       const { data, error } = await supabase

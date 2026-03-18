@@ -34,7 +34,7 @@ export function useChallengeQuestions(challengeId: string | undefined) {
       if (!challengeId) return [];
       const { data, error } = await supabase
         .from('challenge_qa' as any)
-        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at')
+        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at, compliance_flagged')
         .eq('challenge_id', challengeId)
         .eq('is_published', true)
         .order('asked_at', { ascending: true });
@@ -57,7 +57,7 @@ export function useMyQuestions(challengeId: string | undefined) {
       if (!challengeId || !user?.id) return [];
       const { data, error } = await supabase
         .from('challenge_qa' as any)
-        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at')
+        .select('qa_id, challenge_id, asked_by, question_text, anonymous_id, answer_text, answered_by, is_published, is_closed, asked_at, answered_at, compliance_flagged')
         .eq('challenge_id', challengeId)
         .eq('asked_by', user.id)
         .order('asked_at', { ascending: true });
@@ -80,9 +80,13 @@ export function useSubmitQuestion() {
     mutationFn: async ({
       challengeId,
       questionText,
+      complianceFlagged,
+      complianceFlagReason,
     }: {
       challengeId: string;
       questionText: string;
+      complianceFlagged?: boolean;
+      complianceFlagReason?: string;
     }): Promise<string> => {
       if (!user?.id) throw new Error('Authentication required');
 
@@ -92,7 +96,21 @@ export function useSubmitQuestion() {
         p_question_text: questionText,
       });
       if (error) throw new Error(error.message);
-      return data as unknown as string;
+      const qaId = data as unknown as string;
+
+      // BR-COM-003: Flag for compliance review if contact info detected
+      if (complianceFlagged && qaId) {
+        await supabase
+          .from('challenge_qa' as any)
+          .update({
+            compliance_flagged: true,
+            compliance_flagged_at: new Date().toISOString(),
+            compliance_flag_reason: complianceFlagReason ?? null,
+          })
+          .eq('qa_id', qaId);
+      }
+
+      return qaId;
     },
     onSuccess: (_qaId, variables) => {
       queryClient.invalidateQueries({ queryKey: ['challenge_qa', 'published', variables.challengeId] });
