@@ -479,15 +479,35 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
     return sd ? new Date(sd) : new Date();
   });
 
+  // Fetch complexity params from master data
+  const { data: dbComplexityParams } = useComplexityParams();
+  const complexityParams = useMemo(() => {
+    if (dbComplexityParams && dbComplexityParams.length > 0) return dbComplexityParams;
+    return FALLBACK_COMPLEXITY_PARAMS;
+  }, [dbComplexityParams]);
+
   // Complexity sliders state
   const existingParams = watch('complexity_params') ?? {};
   const [paramValues, setParamValues] = useState<Record<string, number>>(() => {
     const initial: Record<string, number> = {};
-    COMPLEXITY_PARAMS.forEach((p) => {
-      initial[p.key] = (existingParams as any)?.[p.key] ?? 5;
+    FALLBACK_COMPLEXITY_PARAMS.forEach((p) => {
+      initial[p.param_key] = (existingParams as any)?.[p.param_key] ?? 5;
     });
     return initial;
   });
+
+  // Re-initialize param values when DB params load
+  useEffect(() => {
+    if (dbComplexityParams && dbComplexityParams.length > 0) {
+      setParamValues((prev) => {
+        const next: Record<string, number> = {};
+        dbComplexityParams.forEach((p) => {
+          next[p.param_key] = prev[p.param_key] ?? (existingParams as any)?.[p.param_key] ?? 5;
+        });
+        return next;
+      });
+    }
+  }, [dbComplexityParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Lightweight complexity dropdown
   const [lwComplexity, setLwComplexity] = useState<string>(() => {
