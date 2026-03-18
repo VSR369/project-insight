@@ -402,7 +402,12 @@ export default function ChallengeWizardPage() {
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
 
         if (isEnterprise) {
-          toast.success('Challenge saved. Proceeding to Legal Review.');
+          // Enterprise: set phase_status to LEGAL_VERIFICATION_PENDING
+          await supabase
+            .from('challenges')
+            .update({ phase_status: 'LEGAL_VERIFICATION_PENDING' })
+            .eq('id', newId);
+          toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${newId}/legal`);
         } else {
           await submitMutation.mutateAsync({
