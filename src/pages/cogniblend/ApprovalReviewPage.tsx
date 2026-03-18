@@ -662,7 +662,7 @@ export default function ApprovalReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, targeting_filters"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, targeting_filters"
         )
         .eq("id", challengeId!)
         .single();

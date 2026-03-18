@@ -156,12 +156,12 @@ function formatDate(iso: string) {
 }
 
 /**
- * Get maximum allowed eligibility rank based on visibility rank.
- * Eligibility cannot be broader (higher rank) than visibility.
+ * Get maximum allowed tier rank based on parent tier rank.
+ * Child tier cannot be broader (higher rank) than parent.
  */
-function getMaxEligibilityRank(visibilityValue: string, visOptions: VisibilityOption[]): number {
-  const vis = visOptions.find((v) => v.value === visibilityValue);
-  return vis?.rank ?? 0;
+function getMaxTierRank(parentValue: string, parentOptions: TierOption[]): number {
+  const opt = parentOptions.find((v) => v.value === parentValue);
+  return opt?.rank ?? 0;
 }
 
 // --------------------------------------------------------------------------
