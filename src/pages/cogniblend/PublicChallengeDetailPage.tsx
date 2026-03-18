@@ -3,7 +3,7 @@
  * Route: /cogni/challenges/:id/view
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
