@@ -159,7 +159,7 @@ export default function LegalDocumentAttachmentPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, maturity_level, governance_profile, organization_id"
+          "id, title, maturity_level, governance_profile, organization_id, phase_status"
         )
         .eq("id", challengeId)
         .single();
@@ -577,19 +577,38 @@ export default function LegalDocumentAttachmentPage() {
     }
   };
 
-  const handleConfirmSubmit = () => {
+  const handleConfirmSubmit = async () => {
     if (!user?.id || !challengeId) return;
     setShowConfirmModal(false);
 
-    completePhase.mutate(
-      { challengeId, userId: user.id },
-      {
-        onSuccess: () => {
-          toast.success("Challenge submitted for curation.");
-          navigate("/cogni/dashboard");
-        },
+    try {
+      // If coming from LEGAL_VERIFICATION_PENDING, transition to COMPLETED first and log audit
+      if (challenge?.phase_status === 'LEGAL_VERIFICATION_PENDING') {
+        await supabase
+          .from('challenges')
+          .update({ phase_status: 'COMPLETED' })
+          .eq('id', challengeId);
+
+        await logLegalAudit(user.id, challengeId, 'LEGAL_VERIFICATION_COMPLETE', {
+          previous_phase_status: 'LEGAL_VERIFICATION_PENDING',
+          new_phase_status: 'COMPLETED',
+          governance_profile: challenge?.governance_profile,
+        });
       }
-    );
+
+      // Now advance to Phase 3 via complete_phase
+      completePhase.mutate(
+        { challengeId, userId: user.id },
+        {
+          onSuccess: () => {
+            toast.success("Challenge submitted for curation.");
+            navigate("/cogni/dashboard");
+          },
+        }
+      );
+    } catch (err: any) {
+      toast.error(`Submission error: ${err.message}`);
+    }
   };
 
   // ══════════════════════════════════════
@@ -760,6 +779,16 @@ export default function LegalDocumentAttachmentPage() {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+
+      {/* LEGAL_VERIFICATION_PENDING amber banner (Enterprise only) */}
+      {challenge?.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
+        <div className="flex items-start gap-3 rounded-lg border border-[hsl(38,80%,60%)]/40 bg-[hsl(38,80%,60%)]/10 p-4">
+          <AlertCircle className="h-5 w-5 text-[hsl(38,68%,41%)] shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground">
+            This challenge requires legal document attachment before it can be submitted for curation.
+          </p>
         </div>
       )}
 

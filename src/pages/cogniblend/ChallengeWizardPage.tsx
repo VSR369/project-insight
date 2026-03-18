@@ -18,6 +18,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
@@ -360,8 +361,12 @@ export default function ChallengeWizardPage() {
         await saveStepMutation.mutateAsync({ challengeId, fields });
 
         if (isEnterprise) {
-          // Enterprise: navigate to legal review page
-          toast.success('Challenge saved. Proceeding to Legal Review.');
+          // Enterprise: set phase_status to LEGAL_VERIFICATION_PENDING
+          await supabase
+            .from('challenges')
+            .update({ phase_status: 'LEGAL_VERIFICATION_PENDING' })
+            .eq('id', challengeId);
+          toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${challengeId}/legal`);
         } else {
           // Lightweight: complete_phase (Phase 2 → 3, auto-completes through)
@@ -398,7 +403,12 @@ export default function ChallengeWizardPage() {
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
 
         if (isEnterprise) {
-          toast.success('Challenge saved. Proceeding to Legal Review.');
+          // Enterprise: set phase_status to LEGAL_VERIFICATION_PENDING
+          await supabase
+            .from('challenges')
+            .update({ phase_status: 'LEGAL_VERIFICATION_PENDING' })
+            .eq('id', newId);
+          toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${newId}/legal`);
         } else {
           await submitMutation.mutateAsync({
