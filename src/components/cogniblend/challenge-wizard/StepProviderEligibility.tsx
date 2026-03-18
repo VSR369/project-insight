@@ -1,19 +1,25 @@
 /**
- * Step 5 — Provider Eligibility
+ * Step 5 — Provider Eligibility & Matchmaking
  *
- * Merged fields from old StepRequirements:
- *   - Solver Eligibility (checkboxes)
- *   - IP Model (dropdown)
- *   - Permitted Artifact Types (checkboxes)
- * Plus targeting filters for Enterprise.
+ * Sections:
+ *   1. Challenge Visibility & Solver Category (database-driven)
+ *   2. Solution Provider Eligibility Criteria (expertise, proficiencies, sub-domains, specialities)
+ *   3. IP Model
+ *   4. Permitted Artifact Types
+ *   5. Targeting Filters (Enterprise only)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
-import { Info } from 'lucide-react';
+import { Info, Star, Shield, UserCheck, Globe, Lock, ChevronRight, Eye, UserPlus, FileText, Plus, X, Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Select,
   SelectContent,
@@ -28,7 +34,12 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
+import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
+import { useExpertiseLevels } from '@/hooks/queries/useExpertiseLevels';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useProficiencyAreasBySegments } from '@/hooks/queries/useScopeTaxonomy';
 import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
+import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
 import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
@@ -63,22 +74,186 @@ const MATURITY_IP_DEFAULTS: Record<string, string> = {
   pilot: 'exclusive_assignment',
 };
 
+/* ─── Enterprise Publication Config ──────────────────── */
+
+const VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public', description: 'Visible to everyone on the platform and search engines' },
+  { value: 'registered_users', label: 'Registered Users', description: 'Visible only to authenticated platform users' },
+  { value: 'platform_members', label: 'Platform Members', description: 'Visible only to users with active memberships' },
+  { value: 'curated_experts', label: 'Curated Experts', description: 'Visible only to experts curated by the platform' },
+  { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
+] as const;
+
+const ENROLLMENT_OPTIONS = [
+  { value: 'open_auto', label: 'Open Enrollment (auto-approved)', description: 'Anyone eligible can enroll without approval' },
+  { value: 'curator_approved', label: 'Curator-Approved Enrollment', description: 'Curator reviews and approves enrollment requests' },
+  { value: 'direct_nda', label: 'Direct Registration (NDA required)', description: 'Enrollment requires signing an NDA first' },
+  { value: 'org_curated', label: 'Organization-Curated', description: 'The seeking organization selects who can enroll' },
+  { value: 'invitation_only', label: 'Invitation Only', description: 'Only specifically invited solvers can enroll' },
+] as const;
+
+const SUBMISSION_OPTIONS = [
+  { value: 'all_enrolled', label: 'All Enrolled', description: 'Any enrolled participant can submit solutions' },
+  { value: 'shortlisted_only', label: 'Shortlisted Only', description: 'Only shortlisted participants can submit' },
+  { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
+] as const;
+
+const VALID_ENROLLMENTS: Record<string, string[]> = {
+  public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  platform_members: ['curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
+  curated_experts: ['curator_approved', 'org_curated', 'invitation_only'],
+  invited_only: ['invitation_only'],
+};
+
+const VALID_SUBMISSIONS: Record<string, string[]> = {
+  open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  direct_nda: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  org_curated: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
+  invitation_only: ['invited_solvers'],
+};
+
+/* ─── Star Rating Badge ──────────────────────────────── */
+
+function StarBadge({ count }: { count: number }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span className="inline-flex items-center gap-0.5 text-amber-500">
+      {Array.from({ length: count }).map((_, i) => (
+        <Star key={i} className="h-3 w-3 fill-current" />
+      ))}
+    </span>
+  );
+}
+
+/* ─── Text Chip Input ────────────────────────────────── */
+
+function TextChipInput({
+  label,
+  value,
+  onChange,
+  placeholder,
+  helpText,
+}: {
+  label: string;
+  value: string[];
+  onChange: (val: string[]) => void;
+  placeholder?: string;
+  helpText?: string;
+}) {
+  const [inputValue, setInputValue] = useState('');
+
+  const addChip = () => {
+    const trimmed = inputValue.trim();
+    if (!trimmed || value.includes(trimmed)) return;
+    onChange([...value, trimmed]);
+    setInputValue('');
+  };
+
+  const removeChip = (chip: string) => {
+    onChange(value.filter((v) => v !== chip));
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label className="text-sm font-medium">{label}</Label>
+      {helpText && <p className="text-xs text-muted-foreground">{helpText}</p>}
+      <div className="flex gap-2">
+        <Input
+          type="text"
+          placeholder={placeholder}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addChip(); } }}
+          className="text-base flex-1"
+        />
+        <Button type="button" size="sm" onClick={addChip} disabled={!inputValue.trim()} className="shrink-0">
+          <Plus className="h-4 w-4 mr-1" /> Add
+        </Button>
+      </div>
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((chip) => (
+            <Badge key={chip} variant="secondary" className="flex items-center gap-1 text-xs py-1 px-2">
+              {chip}
+              <button type="button" onClick={() => removeChip(chip)} className="ml-0.5 hover:text-destructive">
+                <X className="h-3 w-3" />
+              </button>
+            </Badge>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Props ──────────────────────────────────────────── */
+
 interface StepProviderEligibilityProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
   isLightweight: boolean;
 }
 
+/* ─── Main Component ─────────────────────────────────── */
+
 export function StepProviderEligibility({ form, mandatoryFields, isLightweight }: StepProviderEligibilityProps) {
   const { formState: { errors }, control, watch, setValue } = form;
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
-  // ── Artifact types ──
+  // ── Data hooks ──
+  const { data: solverCategories = [], isLoading: loadingCategories } = useSolverEligibility();
+  const { data: expertiseLevels = [] } = useExpertiseLevels();
+  const { data: industrySegments = [] } = useIndustrySegmentOptions();
+
+  // ── Watch form values ──
   const maturityLevel = watch('maturity_level');
   const selectedArtifacts = watch('permitted_artifact_types') ?? [];
   const availableArtifacts = ARTIFACT_TIERS[maturityLevel] ?? [];
+  const ipModel = watch('ip_model');
+  const solverEligibilityId = watch('solver_eligibility_id') ?? '';
+  const industrySegmentId = watch('industry_segment_id') ?? '';
+  const experienceCountries = watch('experience_countries') ?? [];
+  const requiredProficiencies = watch('required_proficiencies') ?? [];
+  const requiredSubDomains = watch('required_sub_domains') ?? [];
+  const requiredSpecialities = watch('required_specialities') ?? [];
+  const challengeVisibility = watch('challenge_visibility') || '';
+  const challengeEnrollment = watch('challenge_enrollment') || '';
+  const challengeSubmission = watch('challenge_submission') || '';
 
+  // ── Sub-domains from taxonomy ──
+  const industryIds = useMemo(() => industrySegmentId ? [industrySegmentId] : [], [industrySegmentId]);
+  const { data: proficiencyAreas = [] } = useProficiencyAreasBySegments(industryIds);
+
+  // ── Group solver categories by model_category ──
+  const groupedCategories = useMemo(() => {
+    const groups: Record<string, typeof solverCategories> = {};
+    for (const cat of solverCategories) {
+      const key = (cat as any).model_category || 'Legacy';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(cat);
+    }
+    return groups;
+  }, [solverCategories]);
+
+  // ── Selected category details ──
+  const selectedCategory = useMemo(() => {
+    return solverCategories.find((c) => c.id === solverEligibilityId);
+  }, [solverCategories, solverEligibilityId]);
+
+  // ── Auto-fill publication config from selected category ──
+  useEffect(() => {
+    if (selectedCategory) {
+      const cat = selectedCategory as any;
+      if (cat.default_visibility) setValue('challenge_visibility', cat.default_visibility, { shouldDirty: true });
+      if (cat.default_enrollment) setValue('challenge_enrollment', cat.default_enrollment, { shouldDirty: true });
+      if (cat.default_submission) setValue('challenge_submission', cat.default_submission, { shouldDirty: true });
+    }
+  }, [selectedCategory, setValue]);
+
+  // ── Artifact types auto-populate ──
   useEffect(() => {
     if (maturityLevel && ARTIFACT_TIERS[maturityLevel] && selectedArtifacts.length === 0) {
       setValue('permitted_artifact_types', [...ARTIFACT_TIERS[maturityLevel]]);
@@ -94,7 +269,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   };
 
   // ── IP model default ──
-  const ipModel = watch('ip_model');
   useEffect(() => {
     if (isLightweight && maturityLevel && !ipModel) {
       const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
@@ -108,63 +282,319 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
     setValue('targeting_filters', filters, { shouldDirty: true });
   };
 
+  // ── Sub-domain toggle ──
+  const toggleSubDomain = (id: string) => {
+    if (requiredSubDomains.includes(id)) {
+      setValue('required_sub_domains', requiredSubDomains.filter((d: string) => d !== id), { shouldDirty: true });
+    } else {
+      setValue('required_sub_domains', [...requiredSubDomains, id], { shouldDirty: true });
+    }
+  };
+
+  // ── Enterprise publication config validation ──
+  const validEnrollments = VALID_ENROLLMENTS[challengeVisibility] ?? ENROLLMENT_OPTIONS.map((o) => o.value);
+  const validSubmissions = VALID_SUBMISSIONS[challengeEnrollment] ?? SUBMISSION_OPTIONS.map((o) => o.value);
+
+  useEffect(() => {
+    if (challengeVisibility && !validEnrollments.includes(challengeEnrollment)) {
+      setValue('challenge_enrollment', validEnrollments[0], { shouldDirty: true });
+    }
+  }, [challengeVisibility]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (challengeEnrollment && !validSubmissions.includes(challengeSubmission)) {
+      setValue('challenge_submission', validSubmissions[0], { shouldDirty: true });
+    }
+  }, [challengeEnrollment]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Resolve industry segment name ──
+  const industryName = useMemo(() => {
+    return industrySegments.find((s) => s.id === industrySegmentId)?.name ?? '';
+  }, [industrySegments, industrySegmentId]);
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div>
-        <h3 className="text-base font-bold text-foreground mb-1">Provider Eligibility & Targeting</h3>
+        <h3 className="text-base font-bold text-foreground mb-1">Provider Eligibility & Matchmaking</h3>
         <p className="text-sm text-muted-foreground">
-          Define which solution providers can discover, enroll in, and submit to this challenge.
+          Define who can discover, enroll in, and submit solutions to this challenge.
         </p>
       </div>
 
-      {/* ── Solver Eligibility ── */}
-      <Controller
-        name="solver_eligibility_types"
-        control={control}
-        render={({ field }) => {
-          const selected: string[] = field.value ?? [];
-          const toggle = (val: string) => {
-            if (selected.includes(val)) field.onChange(selected.filter((v: string) => v !== val));
-            else field.onChange([...selected, val]);
-          };
+      {/* ═══ SECTION 1: Challenge Visibility & Solver Category ═══ */}
+      <div className="space-y-4">
+        <div className="space-y-1">
+          <h4 className="text-sm font-bold text-foreground">
+            Solver Category <span className="text-destructive">*</span>
+          </h4>
+          <p className="text-xs text-muted-foreground">
+            Select which category of solvers can participate. This auto-configures visibility and enrollment settings.
+          </p>
+        </div>
 
-          const options = [
-            { value: 'individual', label: 'Individual Solvers', desc: 'Solo participants submitting solutions independently' },
-            { value: 'organization', label: 'Organization / Team', desc: 'Teams or companies submitting as a collective' },
-            { value: 'solution_cluster', label: 'Solution Cluster', desc: 'Coordinated multi-party submissions addressing sub-problems' },
-          ];
-
-          return (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Solver Eligibility <span className="text-destructive">*</span></Label>
-              <p className="text-xs text-muted-foreground">Who can submit solutions? Select at least one.</p>
-              <div className="space-y-2">
-                {options.map((opt) => {
-                  const checked = selected.includes(opt.value);
-                  return (
-                    <label key={opt.value} className={cn(
-                      'flex items-start gap-3 rounded-lg border px-3 py-3 cursor-pointer transition-colors',
-                      checked ? 'border-primary/30 bg-primary/5' : 'border-border bg-background hover:bg-muted/50',
-                    )}>
-                      <Checkbox checked={checked} onCheckedChange={() => toggle(opt.value)} className="mt-0.5" />
-                      <div>
-                        <span className="text-sm font-medium">{opt.label}</span>
-                        <p className="text-xs text-muted-foreground mt-0.5">{opt.desc}</p>
-                      </div>
-                    </label>
-                  );
-                })}
+        {loadingCategories ? (
+          <div className="rounded-lg border border-border bg-muted/30 p-6 text-center">
+            <p className="text-sm text-muted-foreground">Loading solver categories…</p>
+          </div>
+        ) : (
+          <Controller
+            name="solver_eligibility_id"
+            control={control}
+            render={({ field }) => (
+              <div className="space-y-4">
+                {Object.entries(groupedCategories).map(([groupLabel, categories]) => (
+                  <div key={groupLabel} className="space-y-2">
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                      {groupLabel === 'brd_5_7_1' ? 'BRD 5.7.1 Models' : groupLabel}
+                    </p>
+                    <RadioGroup value={field.value} onValueChange={field.onChange} className="space-y-2">
+                      {categories.map((cat) => {
+                        const isSelected = field.value === cat.id;
+                        return (
+                          <label
+                            key={cat.id}
+                            className={cn(
+                              'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
+                              isSelected
+                                ? 'border-primary/40 bg-primary/5 ring-1 ring-primary/20'
+                                : 'border-border bg-background hover:bg-muted/50',
+                            )}
+                          >
+                            <RadioGroupItem value={cat.id} className="mt-0.5" />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-semibold text-foreground">{cat.label}</span>
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0">{cat.code}</Badge>
+                                {cat.min_star_rating && cat.min_star_rating > 0 && (
+                                  <StarBadge count={cat.min_star_rating} />
+                                )}
+                              </div>
+                              {cat.description && (
+                                <p className="text-xs text-muted-foreground mt-0.5">{cat.description}</p>
+                              )}
+                              <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                {cat.requires_auth && (
+                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                                    <Shield className="h-3 w-3" /> Auth Required
+                                  </Badge>
+                                )}
+                                {cat.requires_certification && (
+                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                                    <UserCheck className="h-3 w-3" /> Certified
+                                  </Badge>
+                                )}
+                                {cat.requires_provider_record && (
+                                  <Badge variant="secondary" className="text-[10px] py-0 gap-1">
+                                    <UserCheck className="h-3 w-3" /> Provider Record
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+                          </label>
+                        );
+                      })}
+                    </RadioGroup>
+                  </div>
+                ))}
+                {errors.solver_eligibility_id && (
+                  <p className="text-xs text-destructive">{errors.solver_eligibility_id.message}</p>
+                )}
               </div>
-              {errors.solver_eligibility_types && (
-                <p className="text-xs text-destructive">{errors.solver_eligibility_types.message}</p>
-              )}
-            </div>
-          );
-        }}
-      />
+            )}
+          />
+        )}
 
-      {/* ── IP Model ── */}
-      <div className="space-y-1.5">
+        {/* ── Enterprise: Editable 3-Tier Publication Config ── */}
+        {!isLightweight && selectedCategory && (
+          <div className="space-y-3 border-t border-border pt-4">
+            <div className="space-y-1">
+              <h4 className="text-sm font-bold text-foreground">Publication Configuration</h4>
+              <p className="text-xs text-muted-foreground">
+                Auto-filled from selected category. You can override these settings.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
+              {[
+                { title: 'Visibility', subtitle: 'Who can SEE', icon: Eye, value: challengeVisibility, onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }), options: VISIBILITY_OPTIONS, isDisabled: () => false },
+                { title: 'Enrollment', subtitle: 'Who can ENROLL', icon: UserPlus, value: challengeEnrollment, onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }), options: ENROLLMENT_OPTIONS, isDisabled: (v: string) => !validEnrollments.includes(v) },
+                { title: 'Submission', subtitle: 'Who can SUBMIT', icon: FileText, value: challengeSubmission, onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }), options: SUBMISSION_OPTIONS, isDisabled: (v: string) => !validSubmissions.includes(v) },
+              ].map((tier, idx) => {
+                const Icon = tier.icon;
+                return (
+                  <div key={tier.title} className="relative flex">
+                    {idx > 0 && (
+                      <div className="hidden lg:flex absolute -left-[14px] top-1/2 -translate-y-1/2 z-10">
+                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <Card className="flex-1 flex flex-col">
+                      <CardHeader className="pb-2 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <Icon className="h-4 w-4 text-primary" />
+                          <CardTitle className="text-sm">{tier.title}</CardTitle>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">{tier.subtitle}</p>
+                      </CardHeader>
+                      <CardContent className="flex-1 pt-0 space-y-2">
+                        <Select value={tier.value} onValueChange={tier.onChange}>
+                          <SelectTrigger className="text-base w-full"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {tier.options.map((opt) => {
+                              const disabled = tier.isDisabled(opt.value);
+                              return (
+                                <SelectItem key={opt.value} value={opt.value} disabled={disabled}>
+                                  <span className={cn(disabled && 'opacity-50')}>{opt.label}</span>
+                                </SelectItem>
+                              );
+                            })}
+                          </SelectContent>
+                        </Select>
+                      </CardContent>
+                    </Card>
+                  </div>
+                );
+              })}
+            </div>
+            <AccessModelSummary visibility={challengeVisibility} enrollment={challengeEnrollment} submission={challengeSubmission} />
+          </div>
+        )}
+
+        {/* ── Lightweight: Summary note ── */}
+        {isLightweight && selectedCategory && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3 flex items-start gap-2.5">
+            <Info className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Visibility is auto-configured based on the selected solver category.
+              {(selectedCategory as any).default_visibility && (
+                <> Default: <strong>{(selectedCategory as any).default_visibility}</strong>.</>
+              )}
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* ═══ SECTION 2: Solution Provider Eligibility Criteria ═══ */}
+      <div className="space-y-4 border-t border-border pt-6">
+        <div className="flex items-center gap-2">
+          <h4 className="text-sm font-bold text-foreground">Solution Provider Eligibility Criteria</h4>
+          <Badge variant="outline" className="text-[10px] py-0">From Challenge Brief</Badge>
+        </div>
+
+        {/* Read-only Industry Segment */}
+        {industrySegmentId && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Industry Segment</Label>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-sm py-1 px-3">{industryName || industrySegmentId}</Badge>
+            </div>
+          </div>
+        )}
+
+        {/* Read-only Experience Countries */}
+        {experienceCountries.length > 0 && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Localization — Experience (Country)</Label>
+            <div className="flex flex-wrap gap-2">
+              {experienceCountries.map((country: string) => (
+                <Badge key={country} variant="secondary" className="text-xs py-0.5 px-2">{country}</Badge>
+              ))}
+            </div>
+            <p className="text-[11px] text-muted-foreground italic">
+              Solvers from these countries will be prioritized in matchmaking.
+            </p>
+          </div>
+        )}
+
+        {/* Required Expertise Level */}
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">Required Expertise Level</Label>
+          <Controller
+            name="required_expertise_level_id"
+            control={control}
+            render={({ field }) => (
+              <Select value={field.value ?? ''} onValueChange={field.onChange}>
+                <SelectTrigger className="text-base"><SelectValue placeholder="Select expertise level" /></SelectTrigger>
+                <SelectContent>
+                  {expertiseLevels.map((level) => (
+                    <SelectItem key={level.id} value={level.id}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{level.name}</span>
+                        {level.description && (
+                          <span className="text-xs text-muted-foreground">{level.description}</span>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+          />
+        </div>
+
+        {/* Required Proficiencies */}
+        <TextChipInput
+          label="Required Proficiencies"
+          value={requiredProficiencies}
+          onChange={(val) => setValue('required_proficiencies', val, { shouldDirty: true })}
+          placeholder="e.g. Python, Machine Learning, SAP HANA…"
+          helpText="Add key skills or technologies required for this challenge."
+        />
+
+        {/* Sub-Domains (from taxonomy) */}
+        {proficiencyAreas.length > 0 && (
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Sub-Domains</Label>
+            <p className="text-xs text-muted-foreground">Select relevant sub-domains based on the industry segment.</p>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto rounded-lg border border-border p-3">
+              {proficiencyAreas.map((area) => {
+                const checked = requiredSubDomains.includes(area.id);
+                return (
+                  <label
+                    key={area.id}
+                    className={cn(
+                      'flex items-center gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors',
+                      checked ? 'border-primary/30 bg-primary/5' : 'border-border bg-background hover:bg-muted/50',
+                    )}
+                  >
+                    <Checkbox checked={checked} onCheckedChange={() => toggleSubDomain(area.id)} />
+                    <span className="text-sm">{area.name}</span>
+                  </label>
+                );
+              })}
+            </div>
+            {requiredSubDomains.length > 0 && (
+              <div className="space-y-1">
+                <p className="text-xs font-medium text-muted-foreground">Selected Sub-Domains ({requiredSubDomains.length}):</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {requiredSubDomains.map((id: string) => {
+                    const area = proficiencyAreas.find((a) => a.id === id);
+                    return (
+                      <Badge key={id} variant="secondary" className="text-xs py-0.5 gap-1">
+                        {area?.name ?? id}
+                        <button type="button" onClick={() => toggleSubDomain(id)} className="hover:text-destructive">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Specialities */}
+        <TextChipInput
+          label="Specialities"
+          value={requiredSpecialities}
+          onChange={(val) => setValue('required_specialities', val, { shouldDirty: true })}
+          placeholder="e.g. Demand Forecasting, Supply Chain Analytics…"
+          helpText="Add specific specialities relevant to this challenge."
+        />
+      </div>
+
+      {/* ═══ SECTION 3: IP Model ═══ */}
+      <div className="space-y-1.5 border-t border-border pt-6">
         <Label className="text-sm font-medium">
           IP Model{' '}
           {!isLightweight && isRequired('ip_model') && <span className="text-destructive">*</span>}
@@ -197,7 +627,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         {errors.ip_model && <p className="text-xs text-destructive">{errors.ip_model.message}</p>}
       </div>
 
-      {/* ── Permitted Artifact Types ── */}
+      {/* ═══ SECTION 4: Permitted Artifact Types ═══ */}
       {maturityLevel && availableArtifacts.length > 0 && (
         <div className="space-y-2">
           <Label className="text-sm font-medium">Permitted Artifact Types</Label>
@@ -219,9 +649,11 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
         </div>
       )}
 
-      {/* ── Targeting Filters (Enterprise) ── */}
+      {/* ═══ SECTION 5: Targeting Filters (Enterprise) ═══ */}
       {!isLightweight && (
-        <TargetingFiltersSection value={currentFilters} onChange={handleFiltersChange} isLightweight={isLightweight} />
+        <div className="border-t border-border pt-6">
+          <TargetingFiltersSection value={currentFilters} onChange={handleFiltersChange} isLightweight={isLightweight} />
+        </div>
       )}
 
       {isLightweight && (

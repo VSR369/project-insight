@@ -677,7 +677,7 @@ function getStepFields(step: number): string[] {
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['solver_eligibility_types', 'ip_model', 'permitted_artifact_types', 'targeting_filters'];
+      return ['solver_eligibility_id', 'ip_model', 'permitted_artifact_types', 'targeting_filters', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'];
     case 6:
       return [];
     case 7:

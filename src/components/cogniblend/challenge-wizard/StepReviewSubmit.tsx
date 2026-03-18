@@ -73,8 +73,10 @@ export function StepReviewSubmit({ form, isLightweight }: StepReviewSubmitProps)
     {
       title: 'Provider Eligibility',
       fields: [
-        { label: 'Solver Types', value: v.solver_eligibility_types?.join(', ') ?? '', isValid: (v.solver_eligibility_types?.length ?? 0) > 0 },
+        { label: 'Solver Category', value: v.solver_eligibility_id ?? '', isValid: !!v.solver_eligibility_id },
         { label: 'IP Model', value: v.ip_model ?? '', isValid: true },
+        { label: 'Required Proficiencies', value: (v.required_proficiencies?.length ?? 0) > 0 ? v.required_proficiencies.join(', ') : '', isValid: true },
+        { label: 'Required Sub-Domains', value: `${v.required_sub_domains?.length ?? 0} selected`, isValid: true },
       ],
     },
   ];
