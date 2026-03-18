@@ -72,6 +72,28 @@ const TRIGGER_OPTIONS = [
   { value: 'on_ip_transfer', label: 'On IP Transfer' },
 ] as const;
 
+const IP_OPTIONS = [
+  { value: 'exclusive_assignment', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
+  { value: 'non_exclusive_license', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
+  { value: 'exclusive_license', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
+  { value: 'joint_ownership', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
+  { value: 'no_transfer', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
+] as const;
+
+const MATURITY_IP_DEFAULTS: Record<string, string> = {
+  blueprint: 'non_exclusive_license',
+  poc: 'non_exclusive_license',
+  prototype: 'exclusive_assignment',
+  pilot: 'exclusive_assignment',
+};
+
+const EFFORT_LEVELS = [
+  { value: 'low', label: 'Low', description: 'Minimal effort — straightforward problem', guidance: '< $5,000' },
+  { value: 'medium', label: 'Medium', description: 'Moderate effort — some complexity', guidance: '$5,000 – $25,000' },
+  { value: 'high', label: 'High', description: 'Significant effort — complex, multi-domain', guidance: '$25,000 – $100,000' },
+  { value: 'very_high', label: 'Very High', description: 'Extensive effort — cutting-edge research', guidance: '$100,000+' },
+] as const;
+
 interface StepRewardsProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
