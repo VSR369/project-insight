@@ -322,13 +322,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
     }
   };
 
-  // ── IP model default ──
-  useEffect(() => {
-    if (isLightweight && maturityLevel && !ipModel) {
-      const defaultIp = MATURITY_IP_DEFAULTS[maturityLevel];
-      if (defaultIp) setValue('ip_model', defaultIp);
-    }
-  }, [maturityLevel, isLightweight, ipModel, setValue]);
+  /* IP model auto-fill moved to StepRewards */
 
   // ── Targeting filters ──
   const currentFilters = (watch('targeting_filters') ?? EMPTY_TARGETING_FILTERS) as TargetingFilters;
