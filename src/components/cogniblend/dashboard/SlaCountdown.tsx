@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 interface SlaCountdownProps {
   /** ISO timestamp of the SLA deadline */
   deadlineAt: string | null;
+  /** ISO timestamp when the timer started (for percentage calculation) */
+  startedAt?: string | null;
 }
 
 interface TimeLeft {
