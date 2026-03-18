@@ -37,6 +37,7 @@ import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEva
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import {
+  createChallengeFormSchema,
   challengeFormSchema,
   DEFAULT_FORM_VALUES,
   type ChallengeFormValues,
