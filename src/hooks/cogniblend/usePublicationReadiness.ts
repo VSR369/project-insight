@@ -126,7 +126,7 @@ export function usePublicationReadiness(challengeId: string | undefined) {
       // Fetch legal docs
       const { data: legalDocs } = await supabase
         .from('challenge_legal_docs')
-        .select('id, tier, status, document_type')
+        .select('id, tier, status, document_type, lc_status')
         .eq('challenge_id', challengeId);
 
       // GAP-12: Real solver matchmaking based on complexity and certification tier
