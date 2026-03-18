@@ -99,6 +99,8 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   gold_award: 0,
   silver_award: undefined,
   rejection_fee_pct: 10,
+  reward_type: 'monetary',
+  reward_description: '',
   permitted_artifact_types: [],
   submission_guidelines: '',
   taxonomy_tags: '',
