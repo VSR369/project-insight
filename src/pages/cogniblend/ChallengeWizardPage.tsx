@@ -608,7 +608,7 @@ export default function ChallengeWizardPage() {
             <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 3 && (
-            <StepRequirements form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 4 && (
             <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
