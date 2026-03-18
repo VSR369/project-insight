@@ -87,6 +87,11 @@ export function ChallengeProgressBar({
                 >
                   {step.label}
                 </span>
+                {stepFieldCounts && stepFieldCounts[index] && (
+                  <span className="text-[10px] text-muted-foreground tabular-nums whitespace-nowrap mt-0.5">
+                    {stepFieldCounts[index].filled}/{stepFieldCounts[index].total} fields
+                  </span>
+                )}
               </div>
 
               {/* Connecting line */}
