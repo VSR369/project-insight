@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   ChevronDown,
@@ -113,6 +114,9 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const isRequired = (field: string) => mandatoryFields.includes(field);
 
+  // GAP-11: Auto-suggest taxonomy tags from problem statement
+  const problemStatement = watch('problem_statement') ?? '';
+  const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(problemStatement);
   return (
     <div className="space-y-6">
       {/* ── 1. Title ──────────────────────────────────── */}
@@ -240,6 +244,7 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
             value={field.value}
             onChange={field.onChange}
             error={errors.domain_tags?.message}
+            taxonomySuggestions={taxonomySuggestions}
           />
         )}
       />
@@ -268,9 +273,11 @@ interface DomainTagSelectProps {
   value: string[];
   onChange: (tags: string[]) => void;
   error?: string;
+  /** Auto-suggested tags from taxonomy matching (GAP-11) */
+  taxonomySuggestions?: Array<{ tag: string; source: string }>;
 }
 
-function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
+function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: DomainTagSelectProps) {
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -367,6 +374,30 @@ function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
           </div>
         )}
       </div>
+
+      {/* Taxonomy auto-suggestions (GAP-11) */}
+      {taxonomySuggestions.length > 0 && (
+        <div className="space-y-1">
+          <p className="text-[11px] text-muted-foreground font-medium">
+            Suggested from problem statement:
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {taxonomySuggestions
+              .filter((s) => !value.includes(s.tag))
+              .slice(0, 6)
+              .map((s) => (
+                <button
+                  key={s.tag}
+                  type="button"
+                  onClick={() => addTag(s.tag)}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border border-dashed border-primary/40 text-primary bg-primary/5 hover:bg-primary/10 transition-colors"
+                >
+                  + {s.tag}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
 
       {error && <p className="text-xs text-destructive">{error}</p>}
     </div>
