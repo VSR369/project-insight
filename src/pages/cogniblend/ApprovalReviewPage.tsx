@@ -73,6 +73,8 @@ interface ChallengeData {
   maturity_level: string | null;
   visibility: string | null;
   eligibility: string | null;
+  challenge_enrollment: string | null;
+  challenge_submission: string | null;
   description: string | null;
   operating_model: string | null;
   governance_profile: string | null;
