@@ -442,7 +442,7 @@ export default function SolutionSubmitPage() {
                     </FormControl>
                     <div className="flex justify-between items-center mt-1">
                       <FormMessage />
-                      <span className={`text-xs ${(abstractTextValue?.length ?? 0) < 200 ? 'text-muted-foreground' : 'text-primary'}`}>
+          <span className={`text-xs ${(abstractTextValue?.length ?? 0) >= 200 ? 'text-primary' : 'text-muted-foreground'}`}>
                         {abstractTextValue?.length ?? 0} / 200 min
                       </span>
                     </div>
