@@ -14,6 +14,7 @@ import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForS
 import { MyChallengesSection } from '@/components/cogniblend/dashboard/MyChallengesSection';
 import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenChallengesSection';
 import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
+import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { Zap } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -37,6 +38,9 @@ export default function CogniDashboardPage() {
 
   return (
     <>
+      {/* ── Action Items Widget (AM/RQ roles) ────────────── */}
+      <ActionItemsWidget />
+
       {/* ── AGG Phase 1 Bypass Banner ────────────────────── */}
       {showBypassBanner && (
         <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-5 flex items-center gap-3">

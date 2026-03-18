@@ -18,6 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   businessProblem: string;
   expectedOutcomes: string;
+  constraints?: string;
   currency: string;
   budgetMin: number;
   budgetMax: number;
@@ -25,6 +26,9 @@ interface SubmitPayload {
   domainTags: string[];
   urgency: string;
   architectId?: string;
+  industrySegmentId?: string;
+  subDomainIds?: string[];
+  specialtyTags?: string[];
 }
 
 interface SubmitResult {
@@ -73,6 +77,10 @@ export function useSubmitSolutionRequest() {
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
+            constraints: payload.constraints || undefined,
+            industry_segment_id: payload.industrySegmentId || undefined,
+            sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
+            specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
         } as any)
         .eq('id', challengeId);
@@ -143,6 +151,7 @@ interface DraftPayload {
   operatingModel: string;
   businessProblem: string;
   expectedOutcomes: string;
+  constraints?: string;
   currency: string;
   budgetMin: number;
   budgetMax: number;
@@ -150,6 +159,9 @@ interface DraftPayload {
   domainTags: string[];
   urgency: string;
   architectId?: string;
+  industrySegmentId?: string;
+  subDomainIds?: string[];
+  specialtyTags?: string[];
 }
 
 export function useSaveDraft() {
@@ -190,6 +202,10 @@ export function useSaveDraft() {
           eligibility: JSON.stringify({
             domain_tags: payload.domainTags,
             urgency: payload.urgency,
+            constraints: payload.constraints || undefined,
+            industry_segment_id: payload.industrySegmentId || undefined,
+            sub_domain_ids: payload.subDomainIds?.length ? payload.subDomainIds : undefined,
+            specialty_tags: payload.specialtyTags?.length ? payload.specialtyTags : undefined,
           }),
         } as any)
         .eq('id', challengeId);
