@@ -49,7 +49,7 @@ export function useAmendmentHistory(challengeId: string | undefined) {
 
       const { data, error } = await supabase
         .from('amendment_records')
-        .select('id, amendment_number, status, scope_of_change, reason, created_at, version_before, version_after')
+        .select('id, amendment_number, status, scope_of_change, reason, withdrawal_deadline, created_at, version_before, version_after')
         .eq('challenge_id', challengeId)
         .order('amendment_number', { ascending: true });
 
