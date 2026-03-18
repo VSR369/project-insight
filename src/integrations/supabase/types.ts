@@ -1147,11 +1147,13 @@ export type Database = {
           deleted_by: string | null
           deliverables: Json | null
           description: string | null
+          effort_level: string | null
           eligibility: string | null
           eligibility_model: string | null
           engagement_model_id: string | null
           evaluation_criteria: Json | null
           governance_profile: string | null
+          hook: string | null
           id: string
           ip_model: string | null
           is_active: boolean
@@ -1207,11 +1209,13 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          effort_level?: string | null
           eligibility?: string | null
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           governance_profile?: string | null
+          hook?: string | null
           id?: string
           ip_model?: string | null
           is_active?: boolean
@@ -1267,11 +1271,13 @@ export type Database = {
           deleted_by?: string | null
           deliverables?: Json | null
           description?: string | null
+          effort_level?: string | null
           eligibility?: string | null
           eligibility_model?: string | null
           engagement_model_id?: string | null
           evaluation_criteria?: Json | null
           governance_profile?: string | null
+          hook?: string | null
           id?: string
           ip_model?: string | null
           is_active?: boolean
