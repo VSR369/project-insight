@@ -96,12 +96,12 @@ export function SlaCountdown({ deadlineAt, startedAt }: SlaCountdownProps) {
         className={cn(
           'inline-block h-2 w-2 rounded-full shrink-0',
           isBreached
-            ? 'bg-[hsl(1,71%,52%)] animate-pulse'
-            : totalDays < 1
-              ? 'bg-[hsl(1,71%,52%)]'
+            ? 'bg-destructive animate-pulse'
+            : isWarning || totalDays < 1
+              ? 'bg-destructive'
               : totalDays <= 3
-                ? 'bg-[hsl(38,68%,41%)]'
-                : 'bg-[hsl(155,68%,37%)]',
+                ? 'bg-amber-500'
+                : 'bg-emerald-500',
         )}
       />
       {label}
