@@ -248,6 +248,7 @@ export default function SolutionSubmitPage() {
   const legalMutation = useRecordLegalAcceptance();
   const { data: withdrawalCtx } = useWithdrawalContext(challengeId, existingSolution?.id);
   const withdrawMutation = useWithdrawSolution();
+  const { data: reacceptStatus } = useLegalReacceptanceStatus(challengeId, userId);
 
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
@@ -261,6 +262,13 @@ export default function SolutionSubmitPage() {
       });
     }
   }, [existingSolution, form]);
+
+  // Auto-open re-acceptance modal
+  useEffect(() => {
+    if (reacceptStatus?.hasPending) {
+      setReacceptModalOpen(true);
+    }
+  }, [reacceptStatus?.hasPending]);
 
   // ═══ SECTION 6: Derived / Computed ═══
   const isLoading = enrollmentLoading || tier2Loading || solutionLoading || challengeLoading;
