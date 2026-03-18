@@ -84,8 +84,16 @@ export default function PublicChallengeDetailPage() {
   const { user } = useAuth();
   const { data, isLoading, error } = usePublicChallenge(id);
   const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
+  const { data: reacceptStatus } = useLegalReacceptanceStatus(id, user?.id);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
+
+  // Auto-open modal when solver has pending re-acceptance
+  useEffect(() => {
+    if (reacceptStatus?.hasPending && !legalModalOpen) {
+      setLegalModalOpen(true);
+    }
+  }, [reacceptStatus?.hasPending]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ── Loading ── */
   if (isLoading) {
