@@ -157,13 +157,38 @@ export default function ChallengeWizardPage() {
     }
   }, [challengeData, isEditMode, form]);
 
+  // ═══════ Hooks — tier limit gate (new challenges only) ═══════
+  useEffect(() => {
+    if (!isEditMode && tierLimit && !tierLimit.allowed) {
+      setShowTierLimit(true);
+    }
+  }, [isEditMode, tierLimit]);
+
   // ═══════ Conditional returns ═══════
-  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading) {
+  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading)) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <Skeleton className="h-8 w-60" />
         <Skeleton className="h-20 w-full" />
         <Skeleton className="h-96 w-full rounded-xl" />
+      </div>
+    );
+  }
+
+  // Hard gate: if tier limit reached for new challenges, block the wizard
+  if (!isEditMode && tierLimit && !tierLimit.allowed) {
+    return (
+      <div className="max-w-3xl mx-auto">
+        <TierLimitModal
+          isOpen={showTierLimit}
+          onClose={() => {
+            setShowTierLimit(false);
+            navigate('/cogni/dashboard');
+          }}
+          tierName={tierLimit.tier_name}
+          maxAllowed={tierLimit.max_allowed}
+          currentActive={tierLimit.current_active}
+        />
       </div>
     );
   }
