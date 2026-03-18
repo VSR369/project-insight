@@ -4,14 +4,16 @@
  * Requires new date (after current deadline) and reason (min 50 chars).
  */
 
-import { useState } from 'react';
-import { format } from 'date-fns';
+import { useState, useCallback } from 'react';
+import { format, addDays } from 'date-fns';
 import { CalendarIcon, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@/components/ui/dialog';
