@@ -10,6 +10,7 @@
  */
 
 import { useState, useCallback, useMemo } from 'react';
+import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   ChevronDown,
