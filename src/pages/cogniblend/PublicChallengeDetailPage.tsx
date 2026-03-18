@@ -224,6 +224,7 @@ export default function PublicChallengeDetailPage() {
                   enrollmentModel={enrollmentModel}
                   isEligible={data.isEligible}
                   eligibilityLabel={eligibilityLabel[data.eligibility ?? '']}
+                  isAggModel={data.operating_model === 'AGG'}
                 />
               </div>
             </div>
