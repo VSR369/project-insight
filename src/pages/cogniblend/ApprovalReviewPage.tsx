@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";

@@ -347,6 +347,10 @@ export default function CurationChecklistPanel({
       toast.error('Legal documents must be attached before curation can begin. Navigate to Legal Documents to complete this step.');
       return;
     }
+    if (hasOutstandingRequired) {
+      toast.error('All Required modification points must be Addressed or Waived before submitting to Innovation Director.');
+      return;
+    }
     if (!allComplete) {
       setShowIncompleteModal(true);
       return;
