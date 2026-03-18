@@ -97,3 +97,27 @@ export function useAllProficiencyAreas(enabled: boolean) {
     ...CACHE,
   });
 }
+
+/** Fetch ALL specialities (no sub-domain filter) */
+export function useAllSpecialities(enabled: boolean) {
+  return useQuery({
+    queryKey: ['specialities_all'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('specialities')
+        .select('id, name, sub_domain_id')
+        .eq('is_active', true)
+        .not('name', 'like', '__SMOKE_TEST_%')
+        .order('display_order', { ascending: true });
+      if (error) throw new Error(error.message);
+      // Deduplicate by name
+      const seen = new Map<string, typeof data[0]>();
+      for (const row of data) {
+        if (!seen.has(row.name)) seen.set(row.name, row);
+      }
+      return Array.from(seen.values());
+    },
+    enabled,
+    ...CACHE,
+  });
+}

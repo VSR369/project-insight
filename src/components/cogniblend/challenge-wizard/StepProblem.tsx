@@ -1,23 +1,23 @@
 /**
  * Step 1 — Challenge Brief
  *
- * Fields (expanded for 7-step wizard):
- *   1. Challenge Title — max 200 chars, live counter + "Valid" indicator
+ * Fields:
+ *   1. Challenge Title
  *   2. Industry Segment — dropdown from master data
- *   3. Experience Countries — multi-select tag chips
+ *   3. Experience Countries — multi-select from master data
  *   4. Context & Background — rich text
- *   5. Problem Statement — rich text, min chars
+ *   5. Problem Statement — rich text
  *   6. Detailed Description — rich text
  *   7. Root Causes — rich text
  *   8. Scope Definition — rich text
- *   9. Deliverables — numbered list with add/remove
+ *   9. Deliverables — numbered list
  *  10. Affected Stakeholders — rich text
  *  11. Current Deficiencies — rich text
  *  12. Expected Outcomes — rich text
  *  13. Preferred Approach — rich text
  *  14. Approaches NOT of Interest — rich text
  *  15. Submission Guidelines — textarea
- *  16. Domain Tags — multi-select with search + colored pills
+ *  16. Domain Tags — multi-select with search + custom entry
  *  17. Solution Maturity Level — 2×2 radio card grid
  */
 
@@ -37,6 +37,7 @@ import {
   Trash2,
   GripVertical,
   CheckCircle,
+  Check,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -44,7 +45,17 @@ import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useCountries } from '@/hooks/queries/useMasterData';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -90,10 +101,13 @@ interface StepProblemProps {
 
 export function StepProblem({ form, mandatoryFields, isLightweight }: StepProblemProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [countryInput, setCountryInput] = useState('');
   const [dragIndex, setDragIndex] = useState<number | null>(null);
 
   const { register, formState: { errors }, watch, control, setValue } = form;
+
+  // Master data hooks
+  const { data: industrySegments = [], isLoading: loadingSegments } = useIndustrySegmentOptions();
+  const { data: countriesList = [], isLoading: loadingCountries } = useCountries();
 
   const titleValue = watch('title') ?? '';
   const titleLen = titleValue.length;
@@ -128,17 +142,28 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
     setDragIndex(index);
   };
 
-  // Experience Countries
+  // Experience Countries — multi-select from master data
   const countries = watch('experience_countries') ?? [];
-  const addCountry = () => {
-    const c = countryInput.trim();
-    if (!c || countries.includes(c)) return;
-    setValue('experience_countries', [...countries, c]);
-    setCountryInput('');
+  const [countrySearch, setCountrySearch] = useState('');
+  const [showCountryDropdown, setShowCountryDropdown] = useState(false);
+
+  const filteredCountries = countriesList.filter(
+    (c) => c.name.toLowerCase().includes(countrySearch.toLowerCase()) && !countries.includes(c.id),
+  );
+
+  const addCountry = (countryId: string) => {
+    if (!countries.includes(countryId)) {
+      setValue('experience_countries', [...countries, countryId]);
+    }
+    setCountrySearch('');
+    setShowCountryDropdown(false);
   };
-  const removeCountry = (c: string) => {
-    setValue('experience_countries', countries.filter((x: string) => x !== c));
+
+  const removeCountry = (countryId: string) => {
+    setValue('experience_countries', countries.filter((x: string) => x !== countryId));
   };
+
+  const getCountryName = (id: string) => countriesList.find((c) => c.id === id)?.name ?? id;
 
   return (
     <div className="space-y-6">
@@ -172,45 +197,74 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         </div>
       </div>
 
-      {/* ── 2. Industry Segment ───────────────────────── */}
+      {/* ── 2. Industry Segment — Select from master data ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           Industry Segment <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
-        <Input
-          placeholder="e.g., Automotive, Healthcare, FinTech"
-          {...register('industry_segment_id')}
+        <Controller
+          name="industry_segment_id"
+          control={control}
+          render={({ field }) => (
+            <Select value={field.value ?? ''} onValueChange={field.onChange}>
+              <SelectTrigger className="text-base">
+                <SelectValue placeholder={loadingSegments ? 'Loading…' : 'Select industry segment'} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">None</SelectItem>
+                {industrySegments.map((seg) => (
+                  <SelectItem key={seg.id} value={seg.id}>
+                    {seg.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
         />
       </div>
 
-      {/* ── 3. Experience Countries ────────────────────── */}
+      {/* ── 3. Experience Countries — Searchable multi-select from master data ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
           Experience Countries <span className="text-xs text-muted-foreground ml-1">(optional)</span>
         </Label>
         {countries.length > 0 && (
           <div className="flex flex-wrap gap-1.5 mb-1">
-            {countries.map((c: string) => (
-              <Badge key={c} variant="outline" className="gap-1 pr-1 border bg-secondary text-secondary-foreground">
-                {c}
-                <button type="button" onClick={() => removeCountry(c)} className="ml-0.5 rounded-full hover:bg-black/10 p-0.5">
+            {countries.map((id: string) => (
+              <Badge key={id} variant="outline" className="gap-1 pr-1 border bg-secondary text-secondary-foreground">
+                {getCountryName(id)}
+                <button type="button" onClick={() => removeCountry(id)} className="ml-0.5 rounded-full hover:bg-black/10 p-0.5">
                   <X className="h-3 w-3" />
                 </button>
               </Badge>
             ))}
           </div>
         )}
-        <div className="flex gap-2">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            value={countryInput}
-            onChange={(e) => setCountryInput(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCountry(); } }}
-            placeholder="Type country and press Enter"
-            className="flex-1"
+            value={countrySearch}
+            onChange={(e) => { setCountrySearch(e.target.value); setShowCountryDropdown(true); }}
+            onFocus={() => setShowCountryDropdown(true)}
+            onBlur={() => setTimeout(() => setShowCountryDropdown(false), 200)}
+            placeholder={loadingCountries ? 'Loading countries…' : 'Search countries…'}
+            className="pl-9"
           />
-          <Button type="button" size="sm" onClick={addCountry} disabled={!countryInput.trim()} className="shrink-0">
-            <Plus className="h-4 w-4 mr-1" /> Add
-          </Button>
+          {showCountryDropdown && filteredCountries.length > 0 && (
+            <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
+              {filteredCountries.slice(0, 20).map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center justify-between"
+                  onClick={() => addCountry(c.id)}
+                >
+                  <span>{c.name}</span>
+                  <span className="text-xs text-muted-foreground">{c.code}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -476,7 +530,7 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         />
       </div>
 
-      {/* ── 16. Domain Tags ───────────────────────────── */}
+      {/* ── 16. Domain Tags — with custom entry ─────── */}
       <Controller
         name="domain_tags"
         control={control}
@@ -507,7 +561,7 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 }
 
 /* ═══════════════════════════════════════════════════════════
-   Domain Tag Multi-Select
+   Domain Tag Multi-Select — with custom tag entry
    ═══════════════════════════════════════════════════════════ */
 
 interface DomainTagSelectProps {
@@ -526,7 +580,9 @@ function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: D
   );
 
   const addTag = useCallback((tag: string) => {
-    onChange([...value, tag]);
+    if (!value.includes(tag)) {
+      onChange([...value, tag]);
+    }
     setSearch('');
     setShowDropdown(false);
   }, [value, onChange]);
@@ -534,6 +590,15 @@ function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: D
   const removeTag = useCallback((tag: string) => {
     onChange(value.filter((t) => t !== tag));
   }, [value, onChange]);
+
+  const handleAddCustomTag = () => {
+    const trimmed = search.trim();
+    if (trimmed && !value.includes(trimmed)) {
+      onChange([...value, trimmed]);
+      setSearch('');
+      setShowDropdown(false);
+    }
+  };
 
   return (
     <div className="space-y-1.5">
@@ -559,16 +624,32 @@ function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: D
           onChange={(e) => { setSearch(e.target.value); setShowDropdown(true); }}
           onFocus={() => setShowDropdown(true)}
           onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-          placeholder="Search domain tags..."
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleAddCustomTag();
+            }
+          }}
+          placeholder="Search or type custom tag and press Enter…"
           className={cn('pl-9', error && 'border-destructive focus-visible:ring-destructive')}
         />
-        {showDropdown && filtered.length > 0 && (
+        {showDropdown && (filtered.length > 0 || (search.trim() && !value.includes(search.trim()))) && (
           <div className="absolute z-10 w-full mt-1 bg-popover border rounded-md shadow-lg max-h-48 overflow-y-auto">
             {filtered.map((tag) => (
               <button key={tag} type="button" className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors" onClick={() => addTag(tag)}>
                 <Badge variant="outline" className={cn('text-xs border', TAG_COLORS[tag] || 'bg-secondary')}>{tag}</Badge>
               </button>
             ))}
+            {search.trim() && !value.includes(search.trim()) && !DOMAIN_TAGS.includes(search.trim() as any) && (
+              <button
+                type="button"
+                className="w-full px-3 py-2 text-left text-sm hover:bg-accent transition-colors flex items-center gap-2 border-t border-border"
+                onClick={handleAddCustomTag}
+              >
+                <Plus className="h-3.5 w-3.5 text-primary" />
+                <span className="text-primary font-medium">Add custom tag: "{search.trim()}"</span>
+              </button>
+            )}
           </div>
         )}
       </div>
