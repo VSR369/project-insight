@@ -151,6 +151,33 @@ export function useApproveAmendment() {
         }
       }
 
+      // 7. Create legal re-acceptance records when scope includes Legal Terms
+      if (scopeAreas.includes('Legal Terms') && solverIds.length > 0) {
+        const reacceptDeadline = new Date(
+          Date.now() + REACCEPTANCE_WINDOW_DAYS * 24 * 60 * 60 * 1000
+        ).toISOString();
+
+        const reacceptRows = solverIds.map((uid) => ({
+          challenge_id: challengeId,
+          amendment_id: amendmentId,
+          user_id: uid,
+          status: 'pending',
+          deadline_at: reacceptDeadline,
+          created_by: userId,
+        }));
+
+        for (let i = 0; i < reacceptRows.length; i += BATCH_SIZE) {
+          await supabase
+            .from('legal_reacceptance_records')
+            .insert(reacceptRows.slice(i, i + BATCH_SIZE));
+        }
+
+        logInfo(
+          `Created ${solverIds.length} legal re-acceptance records with ${REACCEPTANCE_WINDOW_DAYS}-day deadline`,
+          { operation: 'approve_amendment', component: 'useApproveAmendment' },
+        );
+      }
+
       logInfo(
         `Amendment #${amendment.amendment_number} approved. Version ${nextVersion}. Material: ${isMaterial}`,
         { operation: 'approve_amendment', component: 'useApproveAmendment' },
@@ -161,6 +188,7 @@ export function useApproveAmendment() {
       queryClient.invalidateQueries({ queryKey: ['amendments', variables.challengeId] });
       queryClient.invalidateQueries({ queryKey: ['manage-challenge', variables.challengeId] });
       queryClient.invalidateQueries({ queryKey: ['solver-amendment-status', variables.challengeId] });
+      queryClient.invalidateQueries({ queryKey: ['legal-reacceptance'] });
       queryClient.invalidateQueries({ queryKey: ['cogni-open-challenges'] });
       toast.success('Amendment approved and published');
     },
