@@ -529,6 +529,32 @@ export default function ApprovalPublicationConfigTab({
             )}
           </div>
 
+          {/* ── Eligibility Model (BRD §5.7.1) ─── */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Solver Eligibility Model</Label>
+            <p className="text-xs text-muted-foreground">
+              Defines the enrollment flow solvers must follow. Maps to BRD §5.7.1 codes.
+            </p>
+            <Select value={eligibilityModel} onValueChange={setEligibilityModel}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Select eligibility model" />
+              </SelectTrigger>
+              <SelectContent>
+                {ELIGIBILITY_MODELS.map((model) => (
+                  <SelectItem key={model.code} value={model.code}>
+                    <div className="py-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">{model.label}</p>
+                        <Badge variant="outline" className="text-[9px] px-1.5 py-0">{model.code}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{model.description}</p>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {/* ── Enrollment Tier (Enterprise only) ─── */}
           {isEnterprise && (
             <div className="space-y-2">
