@@ -185,7 +185,7 @@ async function insertNotifications(
   let inserted = 0;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const batch = rows.slice(i, i + BATCH_SIZE);
-    const { error } = await supabase.from('cogni_notifications').insert(batch);
+    const { error } = await supabase.from('cogni_notifications').insert(batch as any);
     if (error) {
       console.error('[sendRoutedNotification] insert batch failed:', error.message);
     } else {
