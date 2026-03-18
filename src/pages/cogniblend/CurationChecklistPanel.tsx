@@ -75,6 +75,7 @@ interface CurationChecklistPanelProps {
     operating_model: string | null;
     governance_profile: string | null;
     current_phase: number | null;
+    phase_status: string | null;
   };
   legalDocs: Array<{ tier: string; total: number; attached: number }>;
   onEditModeToggle?: (editing: boolean) => void;
