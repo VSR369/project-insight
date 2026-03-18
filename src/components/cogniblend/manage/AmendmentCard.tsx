@@ -22,34 +22,6 @@ interface AmendmentCardProps {
   canInitiate: boolean;
 }
 
-/* ─── Status badge styles ────────────────────────────────── */
-
-const STATUS_STYLE: Record<string, string> = {
-  INITIATED: 'bg-[hsl(38,60%,92%)] text-[hsl(38,68%,35%)]',
-  IMPLEMENTING: 'bg-[hsl(210,60%,95%)] text-[hsl(210,68%,40%)]',
-  UNDER_REVIEW: 'bg-[hsl(270,40%,93%)] text-[hsl(270,50%,40%)]',
-  APPROVED: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
-  REJECTED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
-};
-
-/* ─── Helpers ────────────────────────────────────────────── */
-
-function parseScopeAreas(scopeOfChange: string | null): string {
-  if (!scopeOfChange) return '—';
-  try {
-    const parsed = JSON.parse(scopeOfChange);
-    if (Array.isArray(parsed?.areas)) return parsed.areas.join(', ');
-  } catch {
-    // plain text fallback
-  }
-  return scopeOfChange;
-}
-
-function parseWithdrawalDeadline(scopeOfChange: string | null): string | null {
-  // withdrawal_deadline comes from the amendment record directly
-  return null;
-}
-
 /* ─── Component ──────────────────────────────────────────── */
 
 export function AmendmentCard({ challengeId, challengeTitle, userId, canInitiate }: AmendmentCardProps) {
