@@ -208,6 +208,9 @@ export default function ChallengeWizardPage() {
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
+      challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
+      challenge_enrollment: isLightweight ? null : (values.challenge_enrollment || 'open_auto'),
+      challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
       phase_schedule: {

@@ -590,9 +590,12 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         </div>
       </div>
 
-      {/* ═══ SECTION 2: Publication Settings (Lightweight Only) ═══ */}
+      {/* ═══ SECTION 2: Publication Settings ═══ */}
       {isLightweight && (
         <LightweightVisibilityToggle form={form} />
+      )}
+      {!isLightweight && (
+        <EnterprisePublicationConfig form={form} />
       )}
 
       {/* ═══ SECTION 3: Complexity Assessment ═══ */}
