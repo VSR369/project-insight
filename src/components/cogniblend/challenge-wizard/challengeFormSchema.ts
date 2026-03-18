@@ -69,6 +69,11 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     phase_notes: z.string().max(2000).optional().or(z.literal('')),
     phase_durations: z.record(z.string(), z.number().min(1).max(365)).optional(),
     complexity_params: z.record(z.string(), z.number().min(0).max(10)).optional(),
+
+    // Step 4 — Enterprise 3-tier publication config
+    challenge_visibility: z.string().optional().or(z.literal('')),
+    challenge_enrollment: z.string().optional().or(z.literal('')),
+    challenge_submission: z.string().optional().or(z.literal('')),
   });
 }
 
