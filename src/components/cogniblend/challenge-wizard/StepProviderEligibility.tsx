@@ -224,6 +224,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const challengeVisibility = watch('challenge_visibility') || '';
   const challengeEnrollment = watch('challenge_enrollment') || '';
   const challengeSubmission = watch('challenge_submission') || '';
+  const eligibleModes = watch('eligible_participation_modes') ?? [];
 
   // ── Sub-domains from taxonomy ──
   const industryIds = useMemo(() => industrySegmentId ? [industrySegmentId] : [], [industrySegmentId]);
