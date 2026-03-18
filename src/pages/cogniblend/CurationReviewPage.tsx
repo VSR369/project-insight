@@ -547,6 +547,8 @@ export default function CurationReviewPage() {
     );
   }
 
+  const isLegalPending = challenge.phase_status === 'LEGAL_VERIFICATION_PENDING';
+
   // ══════════════════════════════════════
   // SECTION 6: Render
   // ══════════════════════════════════════
