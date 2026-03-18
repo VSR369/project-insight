@@ -42,6 +42,7 @@ import {
   Send,
   AlertTriangle,
   CheckCircle,
+  LogOut,
 } from 'lucide-react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 
