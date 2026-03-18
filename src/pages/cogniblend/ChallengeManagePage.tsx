@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
+import { DuplicateReviewPanel } from '@/components/cogniblend/DuplicateReviewPanel';
 import { format } from 'date-fns';
 
 /* ─── Countdown helper ───────────────────────────────────── */
@@ -135,6 +136,9 @@ export default function ChallengeManagePage() {
           {data.masterStatus}
         </Badge>
       </div>
+
+      {/* ──────────────── Duplicate Review Panel ──────────────── */}
+      {id && <DuplicateReviewPanel challengeId={id} />}
 
       {/* ──────────────── CARD 1 — Submission Tracker ──────────────── */}
       <Card>
