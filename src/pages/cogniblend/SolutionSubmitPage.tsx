@@ -492,6 +492,30 @@ export default function SolutionSubmitPage() {
         </Card>
       )}
 
+      {/* Submission Template Download */}
+      {(challenge as any)?.submission_template_url && (
+        <Card className="border-border">
+          <CardContent className="p-4 flex items-center gap-3">
+            <FileText className="h-5 w-5 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Submission Template Available</p>
+              <p className="text-xs text-muted-foreground">Use this template to structure your submission.</p>
+            </div>
+            <Button size="sm" variant="outline" asChild>
+              <a
+                href={(challenge as any).submission_template_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+              >
+                <Download className="h-4 w-4 mr-1.5" />
+                Download Template
+              </a>
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Abstract Form */}
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
