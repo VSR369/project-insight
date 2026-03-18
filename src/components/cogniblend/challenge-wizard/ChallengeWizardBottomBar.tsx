@@ -1,10 +1,28 @@
 /**
  * ChallengeWizardBottomBar — Fixed actions at bottom of wizard card.
- * Left: Save Draft. Right: Back (hidden on Step 1) + Next/Submit.
+ * Left: Save Draft. Right: Back + Next/Submit with contextual labels.
  */
 
 import { Save, ArrowLeft, ArrowRight, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const STEP_NEXT_LABELS: Record<number, string> = {
+  1: 'Continue to Evaluation Criteria',
+  2: 'Next: Rewards & Payment',
+  3: 'Next: Timeline & Phase Schedule',
+  4: 'Next: Provider Eligibility',
+  5: 'Next: Templates',
+  6: 'Next: Review & Submit',
+};
+
+const STEP_BACK_LABELS: Record<number, string> = {
+  2: 'Back to Challenge Brief',
+  3: 'Back to Evaluation',
+  4: 'Back to Rewards',
+  5: 'Back to Timeline',
+  6: 'Back to Eligibility',
+  7: 'Back to Templates',
+};
 
 interface ChallengeWizardBottomBarProps {
   currentStep: number;
@@ -30,9 +48,9 @@ export function ChallengeWizardBottomBar({
   const isLastStep = currentStep === totalSteps;
   const isEnterprise = governanceProfile === 'ENTERPRISE';
 
-  const submitLabel = isEnterprise
-    ? 'Submit for Legal Review'
-    : 'Submit for Curation';
+  const submitLabel = isEnterprise ? 'Submit for Legal Review' : 'Submit for Curation';
+  const nextLabel = isLastStep ? submitLabel : (STEP_NEXT_LABELS[currentStep] ?? 'Next');
+  const backLabel = STEP_BACK_LABELS[currentStep] ?? 'Back';
 
   return (
     <div className="flex items-center justify-between pt-5 border-t border-border mt-6">
@@ -44,25 +62,16 @@ export function ChallengeWizardBottomBar({
         disabled={isSaving || isSubmitting}
         className="text-muted-foreground"
       >
-        {isSaving ? (
-          <Loader2 className="h-4 w-4 mr-1.5 animate-spin" />
-        ) : (
-          <Save className="h-4 w-4 mr-1.5" />
-        )}
+        {isSaving ? <Loader2 className="h-4 w-4 mr-1.5 animate-spin" /> : <Save className="h-4 w-4 mr-1.5" />}
         Save Draft
       </Button>
 
       {/* Right — Back + Next/Submit */}
       <div className="flex items-center gap-2">
         {currentStep > 1 && (
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onBack}
-            disabled={isSaving || isSubmitting}
-          >
+          <Button type="button" variant="outline" onClick={onBack} disabled={isSaving || isSubmitting}>
             <ArrowLeft className="h-4 w-4 mr-1" />
-            Back
+            {backLabel}
           </Button>
         )}
 
@@ -80,7 +89,7 @@ export function ChallengeWizardBottomBar({
           ) : (
             <ArrowRight className="h-4 w-4 mr-1.5" />
           )}
-          {isLastStep ? submitLabel : 'Next'}
+          {nextLabel}
         </Button>
       </div>
     </div>

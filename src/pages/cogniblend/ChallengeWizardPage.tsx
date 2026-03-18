@@ -30,18 +30,13 @@ import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
-import {
-  useChallengeDetail,
-  useMandatoryFields,
-  useSaveChallengeStep,
-  useSubmitChallengeForReview,
-} from '@/hooks/queries/useChallengeForm';
+import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
 import { StepProblem } from '@/components/cogniblend/challenge-wizard/StepProblem';
-import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepRequirements';
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
+import { StepRewards } from '@/components/cogniblend/challenge-wizard/StepRewards';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { StepProviderEligibility } from '@/components/cogniblend/challenge-wizard/StepProviderEligibility';
 import { StepTemplates } from '@/components/cogniblend/challenge-wizard/StepTemplates';
@@ -148,11 +143,15 @@ export default function ChallengeWizardPage() {
           ? (challengeData.evaluation_criteria as any).criteria.map((c: any) => ({
               name: c.name ?? c ?? '',
               weight: c.weight ?? 0,
+              description: c.description ?? '',
+              rubrics: c.rubrics ?? undefined,
             }))
           : [
-              { name: 'Technical Feasibility', weight: 30 },
-              { name: 'Innovation & Novelty', weight: 30 },
-              { name: 'Implementation Plan', weight: 40 },
+              { name: 'Technical Approach & Innovation', weight: 30, description: '' },
+              { name: 'SAP Integration Feasibility', weight: 20, description: '' },
+              { name: 'Accuracy & Performance', weight: 25, description: '' },
+              { name: 'Implementation Plan', weight: 15, description: '' },
+              { name: 'Team Experience', weight: 10, description: '' },
             ],
         currency_code: challengeData.currency_code ?? 'USD',
         platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
@@ -613,7 +612,7 @@ export default function ChallengeWizardPage() {
             <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 3 && (
-            <StepRequirements form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 4 && (
             <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
@@ -662,13 +661,13 @@ function getStepFields(step: number): string[] {
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level', 'deliverables_list'];
     case 2:
-      return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
+      return ['weighted_criteria'];
     case 3:
-      return ['permitted_artifact_types', 'ip_model', 'solver_eligibility_types'];
+      return ['currency_code', 'platinum_award', 'gold_award'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
     case 5:
-      return ['targeting_filters'];
+      return ['solver_eligibility_types', 'ip_model', 'permitted_artifact_types', 'targeting_filters'];
     case 6:
       return [];
     case 7:
