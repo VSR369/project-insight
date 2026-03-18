@@ -783,6 +783,11 @@ export default function LegalDocumentAttachmentPage() {
               </Button>
             )}
           </div>
+
+          {/* Version History */}
+          {attached && attached.version_history.length > 0 && (
+            <LegalVersionHistory history={attached.version_history} />
+          )}
         </CardContent>
       </Card>
     );
