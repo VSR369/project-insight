@@ -173,6 +173,12 @@ export function MyChallengesSection({
                     <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium', statusStyle)}>
                       {STATUS_LABEL[item.master_status] ?? item.master_status}
                     </span>
+                    {/* Awaiting Legal badge */}
+                    {item.phase_status === 'LEGAL_VERIFICATION_PENDING' && (
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-medium bg-[hsl(38,80%,93%)] text-[hsl(38,68%,35%)]">
+                        Awaiting Legal
+                      </span>
+                    )}
                     {/* Role */}
                     {roleStyle && (
                       <span
