@@ -115,7 +115,12 @@ export function useInitiateAmendment() {
         is_material: isMaterial,
       });
 
-      // 4. Insert amendment_record
+      // 4. Compute withdrawal deadline (7 days from now if material)
+      const withdrawalDeadline = isMaterial
+        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
+
+      // 5. Insert amendment_record
       const { error: insertErr } = await supabase.from('amendment_records').insert({
         challenge_id: challengeId,
         amendment_number: nextNumber,
@@ -124,6 +129,7 @@ export function useInitiateAmendment() {
         reason,
         initiated_by: userId,
         version_before: currentVersion,
+        withdrawal_deadline: withdrawalDeadline,
         created_by: userId,
       });
 
