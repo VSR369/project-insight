@@ -38,10 +38,10 @@ const SUB_LABELS: Record<string, string> = {
   invited_solvers: 'Invited Solvers Only',
 };
 
-export function AccessModelSummary({ visibility, enrollment, submission, className }: AccessModelSummaryProps) {
+export function AccessModelSummary({ visibility, enrollment, submission, eligibility, className }: AccessModelSummaryProps) {
   const visLabel = VIS_LABELS[visibility] || visibility;
-  const enrLabel = ENR_LABELS[enrollment] || enrollment;
-  const subLabel = SUB_LABELS[submission] || submission;
+  const enrLabel = ENR_LABELS[enrollment] || (eligibility ? `Eligibility: ${eligibility}` : enrollment);
+  const subLabel = SUB_LABELS[submission] || submission || 'Not configured';
 
   return (
     <div className={cn(
