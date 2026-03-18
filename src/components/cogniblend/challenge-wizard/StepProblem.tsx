@@ -149,42 +149,26 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         </div>
       </div>
 
-      {/* ── 2. Problem Statement ──────────────────────── */}
+      {/* ── 2. Problem Statement (Rich Text) ─────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="problem_statement" className="text-sm font-medium">
+        <Label className="text-sm font-medium">
           Problem Statement <span className="text-destructive">*</span>
         </Label>
-        <Textarea
-          id="problem_statement"
-          placeholder="Describe the problem in detail. What makes it challenging? What has been tried before?"
-          style={{ minHeight: 150 }}
-          className={cn(
-            'text-base resize-y',
-            errors.problem_statement &&
-              'border-destructive focus-visible:ring-destructive',
+        <Controller
+          name="problem_statement"
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder="Describe the problem in detail. What makes it challenging? What has been tried before?"
+              minLength={problemMin}
+              error={errors.problem_statement?.message}
+              storagePath="problem-statements"
+            />
           )}
-          {...register('problem_statement')}
         />
-        <div className="flex items-center justify-between">
-          {errors.problem_statement ? (
-            <p className="text-xs text-destructive">
-              {errors.problem_statement.message}
-            </p>
-          ) : (
-            <span />
-          )}
-          <span
-              className={cn(
-                'text-xs tabular-nums',
-                problemLen >= problemMin
-                  ? 'text-[#1D9E75] font-medium'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {problemLen} / {problemMin} min
-            </span>
-          </div>
-        </div>
+      </div>
 
         {/* ── 3. Scope ─────────────────────────────────── */}
         {!isLightweight ? (
