@@ -34,7 +34,7 @@ function computeTimeLeft(deadlineAt: string): TimeLeft {
   return { totalMs: diffMs, days, hours };
 }
 
-export function SlaCountdown({ deadlineAt }: SlaCountdownProps) {
+export function SlaCountdown({ deadlineAt, startedAt }: SlaCountdownProps) {
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
