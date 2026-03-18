@@ -92,13 +92,23 @@ export function ScrollToAcceptLegal({
 
       {/* Acceptance checkbox */}
       <div className="flex items-start gap-2.5">
-        <Checkbox
-          id="scroll-accept-terms"
-          checked={accepted}
-          onCheckedChange={(v) => onAcceptedChange(v === true)}
-          disabled={!scrolledToBottom}
-          className="mt-0.5"
-        />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="mt-0.5">
+              <Checkbox
+                id="scroll-accept-terms"
+                checked={accepted}
+                onCheckedChange={(v) => onAcceptedChange(v === true)}
+                disabled={!scrolledToBottom}
+              />
+            </span>
+          </TooltipTrigger>
+          {!scrolledToBottom && (
+            <TooltipContent side="right" className="text-xs max-w-[200px]">
+              Please read the entire document before accepting
+            </TooltipContent>
+          )}
+        </Tooltip>
         <label
           htmlFor="scroll-accept-terms"
           className={cn(
