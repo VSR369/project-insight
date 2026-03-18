@@ -204,6 +204,31 @@ export default function PublicationReadinessPage() {
         </CardContent>
       </Card>
 
+      {/* ═══ Solver Matchmaking (GAP-12) ═══ */}
+      {solverMatch && solverMatch.totalMatched > 0 && (
+        <Card className="border-border">
+          <CardContent className="py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-foreground">
+                  {solverMatch.totalMatched} Qualified Solver{solverMatch.totalMatched !== 1 ? 's' : ''} Matched
+                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Based on certification tier and challenge complexity
+                </p>
+              </div>
+              <div className="flex gap-2">
+                {solverMatch.byTier.map((t) => (
+                  <Badge key={t.tier} variant="secondary" className="text-xs">
+                    Tier {t.tier}: {t.count}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ═══ Escrow Section (Enterprise only) ═══ */}
       {!isLightweight && id && (
         <EscrowDepositSection challengeId={id} userId={user?.id} />
