@@ -278,7 +278,7 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
 }
 
 /** Overview Tab */
-function OverviewTab({ challenge, amendments }: { challenge: ChallengeData; amendments: AmendmentRecord[] }) {
+function OverviewTab({ challenge, amendments, challengeId }: { challenge: ChallengeData; amendments: AmendmentRecord[]; challengeId: string }) {
   // Checklist result bar
   const checklistLabels = [
     "Problem Statement", "Scope", "Deliverables", "Evaluation Weights = 100%",
