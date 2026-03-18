@@ -7,6 +7,8 @@
 import { Skeleton } from '@/components/ui/skeleton';
 import type { EnrichedWaitingChallenge } from '@/hooks/cogniblend/useCogniWaitingFor';
 import type { SlaStatus } from '@/hooks/cogniblend/useCogniDashboard';
+import { SlaCountdown } from './SlaCountdown';
+import { PhaseProgressBar } from './PhaseProgressBar';
 
 /* ── Phase badge mapping ───────────────────────────────────── */
 
