@@ -787,7 +787,7 @@ export default function ApprovalReviewPage() {
 
       {/* Tab Content */}
       <div className="min-h-[300px]">
-        {activeTab === "overview" && <OverviewTab challenge={challenge} amendments={amendments} />}
+        {activeTab === "overview" && <OverviewTab challenge={challenge} amendments={amendments} challengeId={challengeId!} />}
         {activeTab === "evaluation" && <EvaluationTab challenge={challenge} />}
         {activeTab === "legal" && <LegalTab challengeId={challengeId!} legalDocs={legalDocs} />}
         {activeTab === "publication" && (
