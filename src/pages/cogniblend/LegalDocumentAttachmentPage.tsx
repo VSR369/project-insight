@@ -43,8 +43,10 @@ import {
   X,
   Eye,
   Trash2,
+  History,
 } from "lucide-react";
 import type { Json } from "@/integrations/supabase/types";
+import { LegalVersionHistory } from "@/components/cogniblend/LegalVersionHistory";
 
 // ---------------------------------------------------------------------------
 // Types
