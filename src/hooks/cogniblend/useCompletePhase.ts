@@ -102,27 +102,60 @@ function showSequentialToasts(
       );
     } else if (
       result.stopped_reason === 'different_actor' &&
-      result.waiting_for_role_name
+      result.waiting_for_role
     ) {
-      toast(
-        createElement(
-          'div',
-          { className: 'flex items-center gap-2' },
-          createElement(AlertTriangle, {
-            className: 'h-4 w-4 shrink-0 text-[hsl(38,68%,41%)]',
-          }),
+      // Check if user holds the waiting role → smart "Next step" toast
+      const userHoldsRole = userRoleCodes?.has(result.waiting_for_role);
+      const navTarget = ROLE_NAV_MAP[result.waiting_for_role];
+
+      if (userHoldsRole && navTarget && navigateFn) {
+        toast(
           createElement(
-            'span',
-            { className: 'text-[13px]' },
-            `Waiting for: ${result.waiting_for_role_name} to take action on Phase ${result.new_phase}.`,
+            'div',
+            { className: 'flex items-center gap-2' },
+            createElement(ArrowRight, {
+              className: 'h-4 w-4 shrink-0 text-primary',
+            }),
+            createElement(
+              'span',
+              { className: 'text-[13px]' },
+              `Next: Act as ${navTarget.label} → Phase ${result.new_phase}`,
+            ),
           ),
-        ),
-        {
-          duration: 3000,
-          className:
-            'border-l-4 border-l-[hsl(38,68%,41%)] shadow-md w-[280px]',
-        },
-      );
+          {
+            duration: 5000,
+            className:
+              'border-l-4 border-l-primary shadow-md w-[320px] cursor-pointer',
+            action: {
+              label: 'Go →',
+              onClick: () => navigateFn(navTarget.path),
+            },
+          },
+        );
+
+        // Auto-navigate after a short delay
+        setTimeout(() => navigateFn(navTarget.path), 2000);
+      } else {
+        toast(
+          createElement(
+            'div',
+            { className: 'flex items-center gap-2' },
+            createElement(AlertTriangle, {
+              className: 'h-4 w-4 shrink-0 text-[hsl(38,68%,41%)]',
+            }),
+            createElement(
+              'span',
+              { className: 'text-[13px]' },
+              `Waiting for: ${result.waiting_for_role_name ?? result.waiting_for_role} to take action on Phase ${result.new_phase}.`,
+            ),
+          ),
+          {
+            duration: 3000,
+            className:
+              'border-l-4 border-l-[hsl(38,68%,41%)] shadow-md w-[280px]',
+          },
+        );
+      }
     }
 
     // Refresh after final toast
