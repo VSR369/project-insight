@@ -10,12 +10,12 @@ import { cn } from '@/lib/utils';
 
 const STEPS = [
   { number: 1, label: 'Challenge Brief' },
-  { number: 2, label: 'Evaluation' },
-  { number: 3, label: 'Rewards' },
-  { number: 4, label: 'Timeline' },
-  { number: 5, label: 'Eligibility' },
+  { number: 2, label: 'Evaluation Criteria' },
+  { number: 3, label: 'Rewards & Payment' },
+  { number: 4, label: 'Timeline & Phases' },
+  { number: 5, label: 'Provider Eligibility' },
   { number: 6, label: 'Templates' },
-  { number: 7, label: 'Review' },
+  { number: 7, label: 'Review & Submit' },
 ] as const;
 
 interface StepFieldCount {

@@ -1,50 +1,35 @@
 /**
- * Step 3 — Evaluation
+ * Step 2 — Evaluation Criteria
  *
- * Fields:
- *   1. Evaluation Criteria — weighted table, must sum to 100%
- *   2. Reward Structure — tiered awards (Platinum > Gold > Silver)
- *   3. Rejection Fee % — Enterprise only, slider 5–20%
+ * 4-column table: # | Criterion Name | Weight % | Description + trash
+ * Scoring Rubrics accordion below (5-level per criterion)
+ * Enterprise: full weighted table + rubrics
+ * Lightweight: simple checklist, auto-distributed weights, no rubrics
  */
 
-import { UseFormReturn, Controller } from 'react-hook-form';
+import { useState } from 'react';
+import { UseFormReturn } from 'react-hook-form';
 import {
   Plus,
   Trash2,
   Check,
   AlertTriangle,
-  Info,
-  DollarSign,
-  Award,
+  ChevronDown,
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
-/* ─── Constants ──────────────────────────────────────── */
+/* ─── Rubric labels ──────────────────────────────────── */
 
-const CURRENCY_OPTIONS = [
-  { value: 'USD', label: 'USD ($)', symbol: '$' },
-  { value: 'EUR', label: 'EUR (€)', symbol: '€' },
-  { value: 'GBP', label: 'GBP (£)', symbol: '£' },
-  { value: 'INR', label: 'INR (₹)', symbol: '₹' },
+const RUBRIC_LEVELS = [
+  { key: 'score_1', label: 'Score 1 — Poor' },
+  { key: 'score_2', label: 'Score 2 — Below Average' },
+  { key: 'score_3', label: 'Score 3 — Meets Expectations' },
+  { key: 'score_4', label: 'Score 4 — Exceeds Expectations' },
+  { key: 'score_5', label: 'Score 5 — Exceptional' },
 ] as const;
 
 /* ─── Props ──────────────────────────────────────────── */
@@ -57,19 +42,29 @@ interface StepEvaluationProps {
 
 /* ─── Component ──────────────────────────────────────── */
 
-export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEvaluationProps) {
-  const { register, formState: { errors }, control, watch, setValue } = form;
+export function StepEvaluation({ form, isLightweight }: StepEvaluationProps) {
+  const { formState: { errors }, watch, setValue } = form;
 
-  const isRequired = (field: string) => mandatoryFields.includes(field);
-
-  // ── Weighted criteria ──
   const weightedCriteria = watch('weighted_criteria') ?? [];
   const totalWeight = weightedCriteria.reduce((sum, c) => sum + (c.weight || 0), 0);
 
+  // Track which rubric accordions are open
+  const [openRubrics, setOpenRubrics] = useState<Set<number>>(new Set());
+
+  const toggleRubric = (index: number) => {
+    setOpenRubrics((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  };
+
+  /* ── CRUD helpers ── */
+
   const addCriterion = () => {
     if (isLightweight) {
-      // Auto-distribute weights equally
-      const newList = [...weightedCriteria, { name: '', weight: 0 }];
+      const newList = [...weightedCriteria, { name: '', weight: 0, description: '' }];
       const evenWeight = Math.floor(100 / newList.length);
       const distributed = newList.map((c, i) => ({
         ...c,
@@ -77,7 +72,7 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
       }));
       setValue('weighted_criteria', distributed);
     } else {
-      setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0 }]);
+      setValue('weighted_criteria', [...weightedCriteria, { name: '', weight: 0, description: '' }]);
     }
   };
 
@@ -94,443 +89,213 @@ export function StepEvaluation({ form, mandatoryFields, isLightweight }: StepEva
     } else {
       setValue('weighted_criteria', filtered);
     }
+    // Clean up rubric open state
+    setOpenRubrics((prev) => {
+      const next = new Set<number>();
+      prev.forEach((i) => { if (i < index) next.add(i); else if (i > index) next.add(i - 1); });
+      return next;
+    });
   };
 
-  const updateCriterionName = (index: number, name: string) => {
+  const updateField = (index: number, field: string, value: any) => {
     const updated = [...weightedCriteria];
-    updated[index] = { ...updated[index], name };
+    updated[index] = { ...updated[index], [field]: value };
     setValue('weighted_criteria', updated);
   };
 
-  const updateCriterionWeight = (index: number, weight: number) => {
+  const updateRubric = (criterionIndex: number, rubricKey: string, value: string) => {
     const updated = [...weightedCriteria];
-    updated[index] = { ...updated[index], weight };
+    const existing = updated[criterionIndex].rubrics ?? {};
+    updated[criterionIndex] = {
+      ...updated[criterionIndex],
+      rubrics: { ...existing, [rubricKey]: value } as any,
+    };
     setValue('weighted_criteria', updated);
   };
 
-  // ── Rewards ──
-  const platinumAward = watch('platinum_award') ?? 0;
-  const goldAward = watch('gold_award') ?? 0;
-  const silverAward = watch('silver_award');
-  const currencyCode = watch('currency_code') ?? 'USD';
-  const currencySymbol = CURRENCY_OPTIONS.find((c) => c.value === currencyCode)?.symbol ?? '$';
-  const rewardType = watch('reward_type') ?? 'monetary';
-
-  const rewardOrderValid =
-    platinumAward > goldAward &&
-    (silverAward === undefined || silverAward === 0 || goldAward > silverAward);
-  const hasRewardValues = platinumAward > 0 && goldAward > 0;
-
-  // ── Rejection fee ──
-  const rejectionFeePct = watch('rejection_fee_pct') ?? 10;
+  /* ── Named criteria for rubrics ── */
+  const namedCriteria = weightedCriteria
+    .map((c, i) => ({ ...c, originalIndex: i }))
+    .filter((c) => c.name.trim().length > 0);
 
   return (
     <div className="space-y-6">
-      {/* ── 1. Evaluation Criteria ── */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">
-          Evaluation Criteria <span className="text-destructive">*</span>
-        </Label>
-        <p className="text-xs text-muted-foreground">
+      {/* ── Section Header ── */}
+      <div>
+        <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
+        <p className="text-sm text-muted-foreground">
           {isLightweight
             ? 'Define criteria for evaluating submissions. All criteria are weighted equally.'
-            : 'Define criteria and assign weights that sum to 100%'}
+            : 'Define criteria and assign weights that sum to 100%.'}
         </p>
-
-        {isLightweight ? (
-          /* ─── Lightweight: simple checklist (no weight column) ─── */
-          <>
-            <div className="space-y-2">
-              {weightedCriteria.map((criterion, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    placeholder="e.g., Technical Feasibility"
-                    value={criterion.name}
-                    onChange={(e) => updateCriterionName(index, e.target.value)}
-                    className="text-base flex-1"
-                  />
-                  {weightedCriteria.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeCriterion(index)}
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <div className="h-9 w-9 shrink-0" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={addCriterion}
-              className="text-primary hover:text-primary/80"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Criterion
-            </Button>
-
-            <p className="text-xs italic text-muted-foreground">
-              All criteria are weighted equally in Lightweight mode. Enterprise mode allows custom weighting.
-            </p>
-          </>
-        ) : (
-          /* ─── Enterprise: full weighted table ─── */
-          <>
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr_100px_40px] gap-2 px-1">
-              <span className="text-xs font-medium text-muted-foreground">Criterion Name</span>
-              <span className="text-xs font-medium text-muted-foreground text-center">Weight %</span>
-              <span />
-            </div>
-
-            {/* Table rows */}
-            <div className="space-y-2">
-              {weightedCriteria.map((criterion, index) => (
-                <div key={index} className="grid grid-cols-[1fr_100px_40px] gap-2 items-center">
-                  <Input
-                    placeholder="e.g., Technical Feasibility"
-                    value={criterion.name}
-                    onChange={(e) => updateCriterionName(index, e.target.value)}
-                    className="text-base"
-                  />
-                  <Input
-                    type="number"
-                    min={0}
-                    max={100}
-                    value={criterion.weight}
-                    onChange={(e) => updateCriterionWeight(index, Number(e.target.value) || 0)}
-                    className="text-base text-center"
-                  />
-                  {weightedCriteria.length > 1 ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => removeCriterion(index)}
-                      className="h-9 w-9 text-muted-foreground hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  ) : (
-                    <div className="h-9 w-9" />
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={addCriterion}
-              className="text-primary hover:text-primary/80"
-            >
-              <Plus className="h-3.5 w-3.5 mr-1" /> Add Criterion
-            </Button>
-
-            {/* Weight total indicator */}
-            <div
-              className={cn(
-                'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
-                totalWeight === 100
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : totalWeight > 100
-                    ? 'border-destructive/30 bg-destructive/5 text-destructive'
-                    : 'border-amber-200 bg-amber-50 text-amber-700',
-              )}
-            >
-              {totalWeight === 100 ? (
-                <>
-                  <Check className="h-4 w-4" />
-                  Weights sum to 100%
-                </>
-              ) : totalWeight > 100 ? (
-                <>
-                  <AlertTriangle className="h-4 w-4" />
-                  Weights exceed 100% (currently {totalWeight}%)
-                </>
-              ) : (
-                <>
-                  <AlertTriangle className="h-4 w-4" />
-                  Weights must sum to 100% (currently {totalWeight}%)
-                </>
-              )}
-            </div>
-          </>
-        )}
-
-        {errors.weighted_criteria && (
-          <p className="text-xs text-destructive">{errors.weighted_criteria.message}</p>
-        )}
       </div>
 
-      {/* ── 2. Reward Structure ── */}
-      <div className="space-y-3">
-        <Label className="text-sm font-medium">
-          Reward Structure <span className="text-destructive">*</span>
-        </Label>
-
-        {isLightweight ? (
-          /* ─── Lightweight: monetary/non-monetary toggle ─── */
-          <>
-            <p className="text-xs text-muted-foreground">
-              Choose a reward type for this challenge.
-            </p>
-
-            {/* Radio toggle */}
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setValue('reward_type', 'monetary', { shouldDirty: true })}
-                className={cn(
-                  'flex-1 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
-                  rewardType === 'monetary'
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                    : 'border-border hover:bg-muted/50'
-                )}
-              >
-                <DollarSign className={cn('h-5 w-5 shrink-0', rewardType === 'monetary' ? 'text-primary' : 'text-muted-foreground')} />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Monetary Award</p>
-                  <p className="text-xs text-muted-foreground">Cash prize for winning solutions</p>
-                </div>
-              </button>
-              <button
-                type="button"
-                onClick={() => setValue('reward_type', 'non_monetary', { shouldDirty: true })}
-                className={cn(
-                  'flex-1 flex items-center gap-3 rounded-lg border p-4 text-left transition-colors',
-                  rewardType === 'non_monetary'
-                    ? 'border-primary bg-primary/5 ring-1 ring-primary'
-                    : 'border-border hover:bg-muted/50'
-                )}
-              >
-                <Award className={cn('h-5 w-5 shrink-0', rewardType === 'non_monetary' ? 'text-primary' : 'text-muted-foreground')} />
-                <div>
-                  <p className="text-sm font-medium text-foreground">Non-Monetary Recognition</p>
-                  <p className="text-xs text-muted-foreground">Publication credit, partnership, etc.</p>
-                </div>
-              </button>
-            </div>
-
-            {rewardType === 'monetary' ? (
-              <div className="flex items-end gap-3">
-                <div className="max-w-[140px] space-y-1">
-                  <Label className="text-xs text-muted-foreground">Currency</Label>
-                  <Controller
-                    name="currency_code"
-                    control={control}
-                    render={({ field }) => (
-                      <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
-                        <SelectTrigger className="text-base">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {CURRENCY_OPTIONS.map((c) => (
-                            <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label className="text-xs text-muted-foreground">
-                    Award Amount <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {currencySymbol}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      className="text-base pl-8"
-                      {...register('platinum_award', { valueAsNumber: true })}
-                    />
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">
-                  Describe the recognition <span className="text-destructive">*</span>
-                </Label>
-                <Textarea
-                  placeholder="e.g., Publication credit, partnership opportunity, mentorship program access..."
-                  className="resize-none text-base"
-                  rows={3}
-                  {...register('reward_description')}
+      {isLightweight ? (
+        /* ─── Lightweight: simple checklist ─── */
+        <>
+          <div className="space-y-2">
+            {weightedCriteria.map((criterion, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground w-6 text-center shrink-0">{index + 1}</span>
+                <Input
+                  placeholder="e.g., Technical Feasibility"
+                  value={criterion.name}
+                  onChange={(e) => updateField(index, 'name', e.target.value)}
+                  className="text-base flex-1"
                 />
+                {weightedCriteria.length > 1 ? (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(index)}
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive shrink-0">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : <div className="h-9 w-9 shrink-0" />}
               </div>
-            )}
-          </>
-        ) : (
-          /* ─── Enterprise: Platinum/Gold/Silver 3-tier ─── */
-          <>
-            <p className="text-xs text-muted-foreground">
-              Define tiered awards. Amounts must be in descending order.
-            </p>
-
-            {/* Currency selector */}
-            <div className="max-w-[180px]">
-              <Label className="text-xs text-muted-foreground">Currency</Label>
-              <Controller
-                name="currency_code"
-                control={control}
-                render={({ field }) => (
-                  <Select value={field.value ?? 'USD'} onValueChange={field.onChange}>
-                    <SelectTrigger className="text-base">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {CURRENCY_OPTIONS.map((c) => (
-                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-              />
-            </div>
-
-            {/* Award tiers */}
-            <div className="space-y-3">
-              {/* Platinum */}
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-slate-300 to-slate-500 text-white text-xs font-bold shrink-0">
-                  P
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label className="text-sm font-medium">
-                    Platinum Award <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {currencySymbol}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      className="text-base pl-8"
-                      {...register('platinum_award', { valueAsNumber: true })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Gold */}
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-amber-300 to-amber-500 text-white text-xs font-bold shrink-0">
-                  G
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label className="text-sm font-medium">
-                    Gold Award <span className="text-destructive">*</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {currencySymbol}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      className="text-base pl-8"
-                      {...register('gold_award', { valueAsNumber: true })}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Silver */}
-              <div className="flex items-center gap-3 rounded-lg border border-border bg-background p-3">
-                <div className="flex items-center justify-center h-8 w-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 text-white text-xs font-bold shrink-0">
-                  S
-                </div>
-                <div className="flex-1 space-y-1">
-                  <Label className="text-sm font-medium">
-                    Silver Award <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-                  </Label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">
-                      {currencySymbol}
-                    </span>
-                    <Input
-                      type="number"
-                      min={0}
-                      placeholder="0"
-                      className="text-base pl-8"
-                      {...register('silver_award', { valueAsNumber: true })}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Order validation */}
-            {hasRewardValues && !rewardOrderValid && (
-              <p className="text-xs text-destructive flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5" />
-                Awards must be in descending order: Platinum &gt; Gold &gt; Silver
-              </p>
-            )}
-          </>
-        )}
-      </div>
-
-      {/* ── 3. Rejection Fee (Enterprise only) ── */}
-      {!isLightweight && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Label className="text-sm font-medium">
-              Rejection Fee
-            </Label>
-            <TooltipProvider delayDuration={200}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-xs text-xs">
-                  The rejection fee is the percentage of the award that will be released to shortlisted
-                  solvers if all submitted solutions are ultimately rejected by the challenge owner.
-                  This protects solvers who invest time and resources in good-faith submissions.
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            ))}
           </div>
-          <p className="text-xs text-muted-foreground">
-            Percentage of award released to shortlisted solvers if all solutions are rejected.
+          <Button type="button" variant="ghost" size="sm" onClick={addCriterion} className="text-primary hover:text-primary/80">
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add Criterion
+          </Button>
+          <p className="text-xs italic text-muted-foreground">
+            All criteria are weighted equally in Lightweight mode.
           </p>
+        </>
+      ) : (
+        /* ─── Enterprise: 4-column weighted table ─── */
+        <>
+          {/* Table header */}
+          <div className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 px-1">
+            <span className="text-xs font-medium text-muted-foreground text-center">#</span>
+            <span className="text-xs font-medium text-muted-foreground">Criterion Name <span className="text-destructive">*</span></span>
+            <span className="text-xs font-medium text-muted-foreground text-center">Weight % <span className="text-destructive">*</span></span>
+            <span className="text-xs font-medium text-muted-foreground">Description</span>
+            <span />
+          </div>
+
+          {/* Table rows */}
+          <div className="space-y-2">
+            {weightedCriteria.map((criterion, index) => (
+              <div key={index} className="grid grid-cols-[32px_1fr_90px_1fr_40px] gap-2 items-center">
+                <span className="text-sm text-muted-foreground text-center font-medium">{index + 1}</span>
+                <Input
+                  placeholder="e.g., Technical Approach"
+                  value={criterion.name}
+                  onChange={(e) => updateField(index, 'name', e.target.value)}
+                  className="text-base"
+                />
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={criterion.weight}
+                  onChange={(e) => updateField(index, 'weight', Number(e.target.value) || 0)}
+                  className="text-base text-center"
+                />
+                <Input
+                  placeholder="Brief description..."
+                  value={criterion.description ?? ''}
+                  onChange={(e) => updateField(index, 'description', e.target.value)}
+                  className="text-base"
+                />
+                {weightedCriteria.length > 1 ? (
+                  <Button type="button" variant="ghost" size="icon" onClick={() => removeCriterion(index)}
+                    className="h-9 w-9 text-muted-foreground hover:text-destructive">
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                ) : <div className="h-9 w-9" />}
+              </div>
+            ))}
+          </div>
+
+          {/* Total Weight footer */}
+          <div
+            className={cn(
+              'flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium',
+              totalWeight === 100
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                : totalWeight > 100
+                  ? 'border-destructive/30 bg-destructive/5 text-destructive'
+                  : 'border-amber-200 bg-amber-50 text-amber-700',
+            )}
+          >
+            {totalWeight === 100 ? (
+              <><Check className="h-4 w-4" /> Total Weight: 100% ✓</>
+            ) : totalWeight > 100 ? (
+              <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — exceeds 100%</>
+            ) : (
+              <><AlertTriangle className="h-4 w-4" /> Total Weight: {totalWeight}% — must sum to 100%</>
+            )}
+          </div>
+
+          <Button type="button" variant="ghost" size="sm" onClick={addCriterion} className="text-primary hover:text-primary/80">
+            <Plus className="h-3.5 w-3.5 mr-1" /> + Add Criterion
+          </Button>
+        </>
+      )}
+
+      {errors.weighted_criteria && (
+        <p className="text-xs text-destructive">{errors.weighted_criteria.message}</p>
+      )}
+
+      {/* ── Scoring Rubrics (Enterprise only) ── */}
+      {!isLightweight && namedCriteria.length > 0 && (
+        <div className="space-y-3 pt-4 border-t border-border">
+          <div>
+            <h4 className="text-sm font-bold text-foreground mb-0.5">Scoring Rubrics</h4>
+            <p className="text-xs text-muted-foreground">
+              Define what constitutes each score level (1–5) for each criterion.
+            </p>
+          </div>
 
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">5%</span>
-              <span className="text-lg font-semibold text-foreground">{rejectionFeePct}%</span>
-              <span className="text-xs text-muted-foreground">20%</span>
-            </div>
-            <Controller
-              name="rejection_fee_pct"
-              control={control}
-              render={({ field }) => (
-                <Slider
-                  min={5}
-                  max={20}
-                  step={1}
-                  value={[field.value ?? 10]}
-                  onValueChange={([val]) => field.onChange(val)}
-                  className="w-full"
-                />
-              )}
-            />
+            {namedCriteria.map((criterion) => {
+              const isOpen = openRubrics.has(criterion.originalIndex);
+              const rubrics = criterion.rubrics ?? {};
+
+              return (
+                <div
+                  key={criterion.originalIndex}
+                  className="rounded-lg border border-border overflow-hidden"
+                  style={{ borderLeftWidth: '3px', borderLeftColor: 'hsl(38, 92%, 50%)' }}
+                >
+                  {/* Accordion header */}
+                  <button
+                    type="button"
+                    onClick={() => toggleRubric(criterion.originalIndex)}
+                    className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors text-left"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{criterion.name}</p>
+                      {criterion.description && (
+                        <p className="text-xs text-muted-foreground truncate mt-0.5">{criterion.description}</p>
+                      )}
+                    </div>
+                    <ChevronDown
+                      className={cn(
+                        'h-4 w-4 text-muted-foreground shrink-0 ml-2 transition-transform duration-200',
+                        isOpen && 'rotate-180',
+                      )}
+                    />
+                  </button>
+
+                  {/* Accordion content — 5 rubric levels */}
+                  {isOpen && (
+                    <div className="px-4 pb-4 space-y-3 border-t border-border bg-muted/10">
+                      {RUBRIC_LEVELS.map((level) => (
+                        <div key={level.key} className="space-y-1 pt-2">
+                          <Label className="text-xs font-medium text-muted-foreground">{level.label}</Label>
+                          <Input
+                            placeholder={`Describe what ${level.label.split('—')[1]?.trim().toLowerCase() ?? ''} looks like...`}
+                            value={(rubrics as any)?.[level.key] ?? ''}
+                            onChange={(e) => updateRubric(criterion.originalIndex, level.key, e.target.value)}
+                            className="text-sm"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
