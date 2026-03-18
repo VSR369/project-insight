@@ -54,21 +54,35 @@ export function SlaCountdown({ deadlineAt, startedAt }: SlaCountdownProps) {
   const isBreached = time.totalMs <= 0;
   const totalDays = time.days + time.hours / 24;
 
+  // Compute percentage elapsed for 80% warning (GAP-08)
+  let pctElapsed = 0;
+  if (startedAt && deadlineAt) {
+    const startMs = new Date(startedAt).getTime();
+    const deadlineMs = new Date(deadlineAt).getTime();
+    const totalDuration = deadlineMs - startMs;
+    if (totalDuration > 0) {
+      pctElapsed = (Date.now() - startMs) / totalDuration;
+    }
+  }
+  const isWarning = !isBreached && pctElapsed >= 0.8;
+
   // Color classes
   let colorClass: string;
   if (isBreached) {
-    colorClass = 'text-[hsl(1,71%,52%)] font-bold';
-  } else if (totalDays < 1) {
-    colorClass = 'text-[hsl(1,71%,52%)] font-semibold';
+    colorClass = 'text-destructive font-bold';
+  } else if (isWarning || totalDays < 1) {
+    colorClass = 'text-destructive font-semibold';
   } else if (totalDays <= 3) {
-    colorClass = 'text-[hsl(38,68%,41%)] font-semibold';
+    colorClass = 'text-amber-600 font-semibold';
   } else {
-    colorClass = 'text-[hsl(155,68%,30%)] font-medium';
+    colorClass = 'text-emerald-700 font-medium';
   }
 
   const label = isBreached
     ? `BREACHED — ${time.days}d ${time.hours}h overdue`
-    : `${time.days}d ${time.hours}h remaining`;
+    : isWarning
+      ? `⚠ ${time.days}d ${time.hours}h remaining (${Math.round(pctElapsed * 100)}%)`
+      : `${time.days}d ${time.hours}h remaining`;
 
   return (
     <span
