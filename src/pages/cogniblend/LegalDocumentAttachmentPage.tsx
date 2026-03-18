@@ -699,6 +699,9 @@ export default function LegalDocumentAttachmentPage() {
     showPhaseTrigger: boolean
   ) => {
     const status = getDocStatus(template, attachedDocs);
+    const attached = attachedDocs.find(
+      (d) => d.document_type === template.document_type && d.tier === template.tier
+    );
     const isUploading = uploadingDocType === template.document_type;
     const isCustom = status === "custom_uploaded";
     const isAttached = status !== "required";
