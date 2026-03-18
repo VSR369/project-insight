@@ -80,9 +80,13 @@ export function useSubmitQuestion() {
     mutationFn: async ({
       challengeId,
       questionText,
+      complianceFlagged,
+      complianceFlagReason,
     }: {
       challengeId: string;
       questionText: string;
+      complianceFlagged?: boolean;
+      complianceFlagReason?: string;
     }): Promise<string> => {
       if (!user?.id) throw new Error('Authentication required');
 
@@ -92,7 +96,21 @@ export function useSubmitQuestion() {
         p_question_text: questionText,
       });
       if (error) throw new Error(error.message);
-      return data as unknown as string;
+      const qaId = data as unknown as string;
+
+      // BR-COM-003: Flag for compliance review if contact info detected
+      if (complianceFlagged && qaId) {
+        await supabase
+          .from('challenge_qa' as any)
+          .update({
+            compliance_flagged: true,
+            compliance_flagged_at: new Date().toISOString(),
+            compliance_flag_reason: complianceFlagReason ?? null,
+          })
+          .eq('qa_id', qaId);
+      }
+
+      return qaId;
     },
     onSuccess: (_qaId, variables) => {
       queryClient.invalidateQueries({ queryKey: ['challenge_qa', 'published', variables.challengeId] });

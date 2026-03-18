@@ -60,6 +60,7 @@ export function useEnrollInChallenge() {
       enrollmentModel,
       autoApprove,
       legalAccepted,
+      adAccepted = false,
     }: {
       challengeId: string;
       solverId: string;
@@ -67,6 +68,7 @@ export function useEnrollInChallenge() {
       enrollmentModel: string;
       autoApprove: boolean;
       legalAccepted: boolean;
+      adAccepted?: boolean;
     }) => {
       const enrollment = await withCreatedBy({
         challenge_id: challengeId,
