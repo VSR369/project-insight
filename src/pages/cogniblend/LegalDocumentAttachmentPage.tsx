@@ -396,7 +396,13 @@ export default function LegalDocumentAttachmentPage() {
         }
       }
 
-      // Revert to default: upsert with default status
+      // Revert to default: upsert with version history
+      const revertHistory = buildVersionHistory(
+        attached?.version_history ?? [],
+        user?.id ?? 'system',
+        'reverted_to_default'
+      );
+
       const { error } = await supabase.from("challenge_legal_docs").upsert(
         {
           challenge_id: challengeId!,
@@ -405,6 +411,7 @@ export default function LegalDocumentAttachmentPage() {
           tier: template.tier,
           status: "default_applied",
           maturity_level: challenge?.maturity_level ?? null,
+          version_history: revertHistory as any,
         },
         { onConflict: "challenge_id,document_type,tier" as any }
       );
