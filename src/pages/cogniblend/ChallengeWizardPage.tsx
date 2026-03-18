@@ -157,6 +157,15 @@ export default function ChallengeWizardPage() {
         platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
         gold_award: (challengeData.reward_structure as any)?.gold ?? 0,
         silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
+        num_rewarded_solutions: (challengeData.reward_structure as any)?.num_rewarded ?? '3',
+        payment_mode: (challengeData.reward_structure as any)?.payment_mode ?? 'escrow',
+        payment_milestones: Array.isArray((challengeData.reward_structure as any)?.payment_milestones)
+          ? (challengeData.reward_structure as any).payment_milestones
+          : [
+              { name: 'Abstract Shortlisted', pct: 10, trigger: 'on_shortlisting' },
+              { name: 'Full Solution Submitted', pct: 30, trigger: 'on_full_submission' },
+              { name: 'Solution Selected', pct: 60, trigger: 'on_selection' },
+            ],
         rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
         submission_guidelines: deliverables?.submission_guidelines ?? '',
         submission_template_url: (challengeData as any)?.submission_template_url ?? '',
