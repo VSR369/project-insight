@@ -83,7 +83,7 @@ export function GovernanceProfileTab({ organizationId }: GovernanceProfileTabPro
         {/* Current profile badge — large */}
         <div className="flex flex-col items-start gap-3">
           <span className="text-sm font-medium text-muted-foreground">Current Profile</span>
-          <GovernanceProfileBadge profile={profile} className="text-sm px-4 py-1.5" />
+          <GovernanceProfileBadge profile={profile} />
         </div>
 
         {/* Enterprise active state */}
