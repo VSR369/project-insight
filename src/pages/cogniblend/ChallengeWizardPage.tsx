@@ -235,6 +235,7 @@ export default function ChallengeWizardPage() {
       complexity_parameters: values.complexity_params || null,
       complexity_score: complexityScore,
       complexity_level: complexityLevel,
+      targeting_filters: values.targeting_filters || {},
     };
   };
 
