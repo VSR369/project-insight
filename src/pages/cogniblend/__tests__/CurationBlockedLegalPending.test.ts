@@ -5,10 +5,10 @@
  * when a challenge has phase_status = 'LEGAL_VERIFICATION_PENDING'.
  */
 
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /* ── Mock toast ─────────────────────────────────────────── */
-const mockToastError = vi.fn();
+let mockToastError: ReturnType<typeof vi.fn>;
 
 describe('TW2-02 — Curation blocked while legal pending', () => {
   it('blocks submit and shows error toast when phase_status is LEGAL_VERIFICATION_PENDING', () => {
