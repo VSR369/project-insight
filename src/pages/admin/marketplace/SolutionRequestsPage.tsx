@@ -19,6 +19,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { ArrowRight, ArrowLeft, Clock, History } from "lucide-react";
+import { HoldResumeActions } from "@/components/cogniblend/HoldResumeActions";
 import { useSolutionRequests, useChallengeAssignments, computeTeamComposition } from "@/hooks/queries/useSolutionRequests";
 import { TeamCompletionReminder } from "@/components/admin/marketplace/TeamCompletionReminder";
 import { ChallengeAssignmentPanel } from "@/components/admin/marketplace/ChallengeAssignmentPanel";
