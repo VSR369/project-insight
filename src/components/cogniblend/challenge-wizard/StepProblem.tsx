@@ -272,7 +272,7 @@ interface DomainTagSelectProps {
   taxonomySuggestions?: Array<{ tag: string; source: string }>;
 }
 
-function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
+function DomainTagSelect({ value, onChange, error, taxonomySuggestions = [] }: DomainTagSelectProps) {
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
