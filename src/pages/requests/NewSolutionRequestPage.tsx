@@ -300,7 +300,25 @@ export default function NewSolutionRequestPage() {
   });
 
   const onSubmit = async (data: SolutionRequestFormValues) => {
-    await submitMutation.mutateAsync(buildPayload(data));
+    const result = await submitMutation.mutateAsync(buildPayload(data));
+
+    // Create duplicate review records for high-similarity matches (≥3 keyword hits ≈ >80%)
+    if (hasHighSimilarity && matches.length > 0) {
+      const highMatches = matches.filter(m => m.keywordHits >= 3);
+      for (const match of highMatches) {
+        const similarityPercent = Math.min(Math.round((match.keywordHits / 4) * 100), 100);
+        try {
+          await createDuplicateReview.mutateAsync({
+            challengeId: result.challengeId,
+            matchedChallengeId: match.id,
+            similarityPercent,
+          });
+        } catch {
+          // Non-blocking: review creation failure shouldn't block submission
+        }
+      }
+    }
+
     navigate('/dashboard');
   };
 
