@@ -4,10 +4,12 @@
  */
 
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { useCogniDashboard } from '@/hooks/cogniblend/useCogniDashboard';
 import { useCogniWaitingFor } from '@/hooks/cogniblend/useCogniWaitingFor';
 import { useMyChallenges } from '@/hooks/cogniblend/useMyChallenges';
 import { useCompletePhase } from '@/hooks/cogniblend/useCompletePhase';
+import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
 import { NeedsActionSection } from '@/components/cogniblend/dashboard/NeedsActionSection';
 import { WaitingForSection } from '@/components/cogniblend/dashboard/WaitingForSection';
