@@ -5,7 +5,8 @@
  *   1. Deliverables — dynamic sortable list, min 1 required
  *   2. Permitted Artifact Types — checkbox group based on maturity level
  *   3. Submission Guidelines — textarea (optional LW, required ENT)
- *   4. IP Model — dropdown with info tooltips
+ *   4. Solver Eligibility — checkboxes: Individual, Organization/Team, Solution Cluster
+ *   5. IP Model — dropdown with info tooltips
  */
 
 import { useState, useEffect } from 'react';
