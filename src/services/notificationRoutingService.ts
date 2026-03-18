@@ -143,7 +143,7 @@ async function resolveRoleUsers(
       .single();
 
     if (challenge?.organization_id) {
-      const { data: admins } = await supabase
+      const { data: admins } = await (supabase as any)
         .from('seeking_org_admins')
         .select('user_id')
         .eq('organization_id', challenge.organization_id)
