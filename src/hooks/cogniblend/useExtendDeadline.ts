@@ -19,6 +19,7 @@ interface ExtendDeadlinePayload {
   oldDeadline: string;
   newDeadline: string;
   reason: string;
+  notifySolvers: boolean;
 }
 
 /* ─── Constants ──────────────────────────────────────────── */
