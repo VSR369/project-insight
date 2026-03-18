@@ -66,14 +66,19 @@ function useCountdown(deadline: string | null) {
   return remaining;
 }
 
-/* ─── Status colour map ──────────────────────────────────── */
+/* ─── Submission status → SolutionDisplayStatus mapping ──── */
 
-const STATUS_STYLE: Record<string, string> = {
-  draft: 'bg-muted text-muted-foreground',
-  submitted: 'bg-[hsl(210,60%,95%)] text-[hsl(210,68%,40%)]',
-  under_review: 'bg-[hsl(38,60%,92%)] text-[hsl(38,68%,35%)]',
-  accepted: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
-  rejected: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
+import { type SolutionDisplayStatus } from '@/constants/solutionStatus.constants';
+
+const SUBMISSION_STATUS_MAP: Record<string, SolutionDisplayStatus> = {
+  draft: 'DRAFT',
+  submitted: 'SUBMITTED',
+  under_review: 'UNDER_SCREENING',
+  under_screening: 'UNDER_SCREENING',
+  shortlisted: 'SHORTLISTED',
+  accepted: 'SELECTED',
+  rejected: 'REJECTED',
+  withdrawn: 'WITHDRAWN',
 };
 
 /* ─── Page ───────────────────────────────────────────────── */
