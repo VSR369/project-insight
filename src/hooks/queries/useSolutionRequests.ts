@@ -31,6 +31,8 @@ export interface SolutionRequestRow {
   created_at: string;
   assignment_count: number;
   team: TeamComposition;
+  phase_status: string | null;
+  current_phase: number;
 }
 
 export interface ChallengeAssignmentRow {
