@@ -153,7 +153,7 @@ export default function SolutionRequestsPage() {
                   ))
                 ) : !requests?.length ? (
                   <TableRow>
-                    <TableCell colSpan={5}>
+                    <TableCell colSpan={6}>
                       <div className="flex flex-col items-center justify-center py-12 text-center">
                         <Clock className="h-8 w-8 text-muted-foreground mb-3" />
                         <p className="text-sm text-muted-foreground">
