@@ -216,15 +216,16 @@ export default function PublicChallengeDetailPage() {
                 </div>
               )}
 
-              {data.isEligible ? (
-                <Button size="lg" className="shrink-0">
-                  Submit Solution
-                </Button>
-              ) : (
-                <p className="text-xs text-muted-foreground italic max-w-[260px]">
-                  This challenge requires {eligibilityLabel[data.eligibility ?? ''] ?? 'specific eligibility'} to submit solutions.
-                </p>
-              )}
+              {/* Enrollment CTA */}
+              <div className="w-full sm:w-auto sm:min-w-[220px]">
+                <SolverEnrollmentCTA
+                  challengeId={data.id}
+                  tenantId={data.tenant_id}
+                  enrollmentModel={enrollmentModel}
+                  isEligible={data.isEligible}
+                  eligibilityLabel={eligibilityLabel[data.eligibility ?? '']}
+                />
+              </div>
             </div>
           </div>
         </div>
