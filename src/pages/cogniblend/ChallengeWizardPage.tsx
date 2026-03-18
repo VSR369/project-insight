@@ -56,6 +56,7 @@ export default function ChallengeWizardPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
+  const [showTierLimit, setShowTierLimit] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
