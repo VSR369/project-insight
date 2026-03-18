@@ -352,12 +352,23 @@ export default function CogniSubmitRequestPage() {
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
 
-  if (orgLoading || tierLoading) {
+  if (orgLoading || tierLoading || readinessGate.isLoading) {
     return (
       <div className="space-y-6">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-[600px] w-full rounded-xl" />
       </div>
+    );
+  }
+
+  // Role readiness gate — block if required downstream roles are missing
+  if (!readinessGate.isReady) {
+    return (
+      <SubmissionBlockedScreen
+        orgId={readinessGate.orgId}
+        model={readinessGate.model}
+        onBack={() => navigate('/cogni/dashboard')}
+      />
     );
   }
 
