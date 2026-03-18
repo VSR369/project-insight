@@ -1,31 +1,18 @@
 /**
  * CogniSidebarNav — Role-aware navigation for the CogniBlend sidebar.
- * Three sections: CHALLENGES, SOLUTIONS, SOLVER.
- * Items hidden entirely when user lacks the required role code.
- * Supports collapsed (icon-only) mode for tablet breakpoint.
+ * Uses CogniRoleContext to highlight items relevant to the active workspace role.
+ * Non-relevant items stay visible but dimmed (opacity-50).
  */
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  PlusCircle,
-  FileInput,
-  FilePlus,
-  Folder,
-  CheckSquare,
-  ShieldCheck,
-  FileText,
-  FileCheck,
-  Eye,
-  BarChart2,
-  Award,
-  Lock,
-  CreditCard,
-  Search,
-  Lightbulb,
-  User,
+  PlusCircle, FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
+  FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
+  Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { useCogniUserRoles } from '@/hooks/cogniblend/useCogniUserRoles';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { ROLE_NAV_RELEVANCE, SOLVER_PATHS } from '@/types/cogniRoles';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -89,11 +76,9 @@ const SECTIONS: NavSection[] = [
 function NavBadge({ count, collapsed }: { count: number; collapsed?: boolean }) {
   if (count <= 0) return null;
   if (collapsed) {
-    // Tiny dot indicator in collapsed mode
     return (
       <span
-        className="absolute top-1 right-1 h-2 w-2 rounded-full"
-        style={{ backgroundColor: '#378ADD' }}
+        className="absolute top-1 right-1 h-2 w-2 rounded-full bg-primary"
       />
     );
   }
@@ -105,8 +90,8 @@ function NavBadge({ count, collapsed }: { count: number; collapsed?: boolean }) 
         minWidth: 20,
         height: 20,
         padding: '0 6px',
-        backgroundColor: '#E6F1FB',
-        color: '#185FA5',
+        backgroundColor: 'hsl(212 68% 94%)',
+        color: 'hsl(212 70% 37%)',
       }}
     >
       {count > 99 ? '99+' : count}
@@ -120,19 +105,26 @@ function NavBadge({ count, collapsed }: { count: number; collapsed?: boolean }) 
 
 interface CogniSidebarNavProps {
   onNavigate?: () => void;
-  /** When true, show icons only (tablet collapsed mode). Hidden at lg via CSS. */
   collapsed?: boolean;
 }
 
 export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarNavProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { allRoleCodes, activeChallengeCount, curationQueueCount, approvalQueueCount } = useCogniUserRoles();
+  const {
+    activeRole,
+    availableRoles,
+    roleChallengeCount,
+  } = useCogniRoleContext();
 
+  // Derive allRoleCodes from availableRoles for visibility check
+  const allRoleCodes = new Set(availableRoles);
+
+  // Badge counts from roleChallengeCount (approximate)
   const badgeCounts: Record<string, number> = {
-    activeChallenges: activeChallengeCount,
-    curationQueue: curationQueueCount,
-    approvalQueue: approvalQueueCount,
+    activeChallenges: roleChallengeCount['CR'] ?? 0,
+    curationQueue: roleChallengeCount['CU'] ?? 0,
+    approvalQueue: roleChallengeCount['ID'] ?? 0,
   };
 
   const isVisible = (requiredRoles: string[]): boolean => {
@@ -140,35 +132,29 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
     return requiredRoles.some((r) => allRoleCodes.has(r));
   };
 
+  /** Check if a nav path is relevant to the active workspace role */
+  const isRelevant = (path: string): boolean => {
+    if (!activeRole) return true;
+    // Solver paths are always relevant
+    if (SOLVER_PATHS.includes(path)) return true;
+    const relevantPaths = ROLE_NAV_RELEVANCE[activeRole] ?? [];
+    return relevantPaths.some((rp) => path === rp || path.startsWith(rp + '/'));
+  };
+
   const handleNav = (path: string) => {
     navigate(path);
     onNavigate?.();
   };
 
-  const isSoloMode = allRoleCodes.size >= 6;
-
   return (
     <nav className="px-3 py-3 space-y-5">
-      {/* Solo Mode indicator */}
-      {isSoloMode && !collapsed && (
-        <div className="mx-3 mb-1 flex items-center gap-1.5 rounded-md bg-primary/5 border border-primary/15 px-2.5 py-1.5">
-          <span className="h-2 w-2 rounded-full bg-primary animate-pulse" />
-          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Solo Mode</span>
-          <span className="ml-auto text-[10px] text-muted-foreground">{allRoleCodes.size} roles</span>
-        </div>
-      )}
-      {isSoloMode && collapsed && (
-        <div className="flex justify-center mb-1" title={`Solo Mode — ${allRoleCodes.size} roles`}>
-          <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
-        </div>
-      )}
       {SECTIONS.map((section) => {
         const visibleItems = section.items.filter((item) => isVisible(item.requiredRoles));
         if (visibleItems.length === 0) return null;
 
         return (
           <div key={section.title}>
-            {/* Section header — hidden in collapsed tablet, visible on mobile & desktop */}
+            {/* Section header */}
             <div
               className={`
                 px-3 pb-2 font-semibold select-none whitespace-nowrap transition-opacity duration-200
@@ -177,7 +163,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
               `}
               style={{
                 fontSize: 10,
-                color: '#9CA3AF',
+                color: 'hsl(var(--muted-foreground))',
                 textTransform: 'uppercase',
                 letterSpacing: '0.5px',
               }}
@@ -191,6 +177,7 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
                 const active =
                   location.pathname === item.path ||
                   location.pathname.startsWith(item.path + '/');
+                const relevant = isRelevant(item.path);
 
                 return (
                   <button
@@ -199,24 +186,31 @@ export function CogniSidebarNav({ onNavigate, collapsed = false }: CogniSidebarN
                     title={collapsed ? item.label : undefined}
                     className={`
                       relative w-full flex items-center gap-3 rounded-lg text-left
-                      transition-colors text-sm font-medium overflow-hidden
+                      transition-all text-sm font-medium overflow-hidden
                       px-3 py-2
                       ${collapsed ? 'md:justify-center md:px-0' : ''}
                       lg:justify-start lg:px-3
+                      ${!active && !relevant ? 'opacity-50' : 'opacity-100'}
                     `}
                     style={{
-                      borderLeft: active ? '3px solid #378ADD' : '3px solid transparent',
-                      backgroundColor: active ? '#F0F7FF' : 'transparent',
-                      color: active ? '#378ADD' : '#666',
+                      borderLeft: active
+                        ? '3px solid hsl(var(--primary))'
+                        : relevant && !active
+                          ? '3px solid hsl(var(--primary) / 0.2)'
+                          : '3px solid transparent',
+                      backgroundColor: active ? 'hsl(212 68% 97%)' : 'transparent',
+                      color: active ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
                     }}
                     onMouseEnter={(e) => {
                       if (!active) {
-                        (e.currentTarget as HTMLElement).style.backgroundColor = '#F9FAFB';
+                        (e.currentTarget as HTMLElement).style.backgroundColor = 'hsl(var(--accent))';
+                        (e.currentTarget as HTMLElement).style.opacity = '1';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!active) {
                         (e.currentTarget as HTMLElement).style.backgroundColor = 'transparent';
+                        (e.currentTarget as HTMLElement).style.opacity = relevant ? '1' : '0.5';
                       }
                     }}
                   >

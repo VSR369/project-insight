@@ -1,11 +1,7 @@
 /**
  * CogniShell — Persistent layout shell for all authenticated CogniBlend pages.
  * Renders sidebar, top bar, and an <Outlet /> for page content.
- *
- * Responsive margins:
- *   Mobile (<768px): no left margin (sidebar overlay)
- *   Tablet (768–1024px): ml-16 (icon sidebar)
- *   Desktop (≥1024px): ml-64 (full sidebar)
+ * Wraps content with CogniRoleProvider for workspace-mode context.
  */
 
 import { Suspense, useState, useCallback } from 'react';
@@ -13,6 +9,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CogniSidebar } from './CogniSidebar';
 import { CogniTopBar } from './CogniTopBar';
+import { CogniRoleProvider } from '@/contexts/CogniRoleContext';
 
 /** Map pathname → display title */
 const ROUTE_TITLES: Record<string, string> = {
@@ -25,6 +22,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/cogni/my-challenges': 'My Challenges',
   '/cogni/approval': 'Approval Queue',
   '/cogni/legal': 'Legal Documents',
+  '/cogni/legal-review': 'Legal Review',
   '/cogni/review': 'Review Queue',
   '/cogni/evaluation': 'Evaluation Panel',
   '/cogni/selection': 'Selection & IP',
@@ -64,34 +62,36 @@ export function CogniShell() {
   const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   return (
-    <div className="min-h-screen">
-      {/* Sidebar */}
-      <CogniSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
+    <CogniRoleProvider>
+      <div className="min-h-screen">
+        {/* Sidebar */}
+        <CogniSidebar isOpen={sidebarOpen} onClose={closeSidebar} />
 
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 md:hidden"
-          onClick={closeSidebar}
-          aria-hidden
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/30 md:hidden"
+            onClick={closeSidebar}
+            aria-hidden
+          />
+        )}
+
+        {/* Top bar */}
+        <CogniTopBar
+          pageTitle={pageTitle}
+          onToggleSidebar={toggleSidebar}
         />
-      )}
 
-      {/* Top bar */}
-      <CogniTopBar
-        pageTitle={pageTitle}
-        onToggleSidebar={toggleSidebar}
-      />
-
-      {/* Main content — responsive left margin */}
-      <main
-        className="mt-14 min-h-[calc(100vh-56px)] md:ml-16 lg:ml-64 p-4 lg:p-6"
-        style={{ backgroundColor: '#F9FAFB' }}
-      >
-        <Suspense fallback={<ContentFallback />}>
-          <Outlet />
-        </Suspense>
-      </main>
-    </div>
+        {/* Main content — responsive left margin */}
+        <main
+          className="mt-14 min-h-[calc(100vh-56px)] md:ml-16 lg:ml-64 p-4 lg:p-6"
+          style={{ backgroundColor: 'hsl(var(--muted))' }}
+        >
+          <Suspense fallback={<ContentFallback />}>
+            <Outlet />
+          </Suspense>
+        </main>
+      </div>
+    </CogniRoleProvider>
   );
 }
