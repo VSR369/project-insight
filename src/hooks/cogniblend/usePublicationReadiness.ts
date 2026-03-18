@@ -46,6 +46,24 @@ function buildEnterpriseChecks(c: Record<string, unknown>, legalDocs: any[], sol
       : true
   );
 
+  // R-06 / BR-RV-004: Evaluation criteria weights must sum to 100%
+  let evalWeightSum = 0;
+  let evalWeightValid = false;
+  try {
+    const evalCriteria = c.evaluation_criteria;
+    const criteriaArray = evalCriteria && typeof evalCriteria === 'object' && 'criteria' in (evalCriteria as any)
+      ? ((evalCriteria as any).criteria as Array<{ weight_percentage?: number; weight?: number }>)
+      : Array.isArray(evalCriteria)
+        ? (evalCriteria as Array<{ weight_percentage?: number; weight?: number }>)
+        : null;
+    if (criteriaArray && criteriaArray.length > 0) {
+      evalWeightSum = criteriaArray.reduce((sum, cr) => sum + (cr.weight_percentage ?? cr.weight ?? 0), 0);
+      evalWeightValid = evalWeightSum === 100;
+    }
+  } catch {
+    evalWeightValid = false;
+  }
+
   return [
     { id: 'content', label: 'All content sections complete', detail: 'Title, problem statement, scope, description, deliverables, and evaluation criteria', passed: hasContent },
     { id: 'tier1_legal', label: 'Tier 1 legal docs attached & version-locked', detail: `${tier1Docs.length} Tier 1 doc(s) found`, passed: tier1Attached && tier1Locked },
@@ -56,6 +74,7 @@ function buildEnterpriseChecks(c: Record<string, unknown>, legalDocs: any[], sol
     { id: 'schedule', label: 'Phase schedule durations defined', detail: phaseScheduleDefined ? 'Schedule configured' : 'Not configured', passed: phaseScheduleDefined },
     { id: 'reward', label: 'Reward structure validated', detail: rewardValid ? 'Reward structure present' : 'Missing', passed: rewardValid },
     { id: 'maturity', label: 'Maturity level & artifact types defined', detail: maturitySet ? String(c.maturity_level) : 'Not set', passed: maturitySet && artifactsDefined },
+    { id: 'eval_weights', label: 'Evaluation criteria weights sum to 100%', detail: evalWeightValid ? `Sum: ${evalWeightSum}%` : `Sum: ${evalWeightSum}% (must be 100%)`, passed: evalWeightValid },
     { id: 'solver_match', label: 'At least 1 solver matches eligibility criteria', detail: `${solverMatchCount} solver(s) matched`, passed: solverMatchCount > 0 },
   ];
 }

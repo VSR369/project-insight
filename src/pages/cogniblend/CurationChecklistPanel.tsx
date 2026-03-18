@@ -285,7 +285,11 @@ export default function CurationChecklistPanel({
       /* 11 */ !!tier2Docs && tier2Docs.attached > 0 && tier2Docs.attached === tier2Docs.total,
       /* 12 */ challenge.complexity_score != null || !!challenge.complexity_parameters,
       /* 13 */ !!challenge.maturity_level,
-      /* 14 */ false, // Artifact types — derived from maturity config; placeholder
+      /* 14 */ (() => {
+        const del = parseJson<Record<string, unknown>>(challenge.deliverables);
+        const artifacts = del?.permitted_artifact_types;
+        return Array.isArray(artifacts) && artifacts.length > 0;
+      })(),
     ],
     [challenge, legalDocs, evalWeightSum, tier1Docs, tier2Docs]
   );

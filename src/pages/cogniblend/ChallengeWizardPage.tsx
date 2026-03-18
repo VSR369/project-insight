@@ -236,7 +236,14 @@ export default function ChallengeWizardPage() {
       description: values.description || null,
       problem_statement: values.problem_statement || null,
       scope: values.scope || null,
-      deliverables: deliverables.length ? { items: deliverables } : null,
+      deliverables: deliverables.length
+        ? {
+            items: deliverables,
+            permitted_artifact_types: values.permitted_artifact_types ?? [],
+          }
+        : values.permitted_artifact_types?.length
+          ? { items: [], permitted_artifact_types: values.permitted_artifact_types }
+          : null,
       evaluation_criteria: criteria.length ? { criteria } : null,
       reward_structure: isLightweight
         ? values.reward_type === 'non_monetary'
