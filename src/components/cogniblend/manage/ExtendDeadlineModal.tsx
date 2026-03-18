@@ -192,6 +192,19 @@ export function ExtendDeadlineModal({
           </div>
         </div>
 
+          {/* Notify checkbox */}
+          <div className="flex items-center space-x-2 pt-1">
+            <Checkbox
+              id="notify-solvers"
+              checked={notifySolvers}
+              onCheckedChange={(checked) => setNotifySolvers(checked === true)}
+            />
+            <Label htmlFor="notify-solvers" className="text-xs text-foreground cursor-pointer">
+              Notify all enrolled solvers
+            </Label>
+          </div>
+        </div>
+
         <DialogFooter className="shrink-0 gap-2">
           <Button
             variant="outline"
