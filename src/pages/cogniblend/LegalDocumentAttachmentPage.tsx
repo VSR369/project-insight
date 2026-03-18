@@ -198,7 +198,7 @@ export default function LegalDocumentAttachmentPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, maturity_level, governance_profile, organization_id, phase_status"
+          "id, title, maturity_level, governance_profile, organization_id, phase_status, lc_review_required"
         )
         .eq("id", challengeId)
         .single();
