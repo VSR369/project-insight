@@ -36,6 +36,8 @@ import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepR
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
+import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
+import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
 import {
   createChallengeFormSchema,
   challengeFormSchema,
