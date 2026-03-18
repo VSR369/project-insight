@@ -17,6 +17,8 @@ import {
   useSubmitSolution,
 } from '@/hooks/cogniblend/useSolutionSubmission';
 import { useRecordLegalAcceptance } from '@/hooks/cogniblend/useLegalAcceptance';
+import { useWithdrawalContext, useWithdrawSolution } from '@/hooks/cogniblend/useWithdrawSolution';
+import { WithdrawSolutionModal } from '@/components/cogniblend/solver/WithdrawSolutionModal';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { CACHE_STANDARD } from '@/config/queryCache';
@@ -40,6 +42,7 @@ import {
   Send,
   AlertTriangle,
   CheckCircle,
+  LogOut,
 } from 'lucide-react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 
@@ -195,6 +198,7 @@ export default function SolutionSubmitPage() {
   const [currentLegalIdx, setCurrentLegalIdx] = useState(0);
   const [legalAccepted, setLegalAccepted] = useState<Record<string, boolean>>({});
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
 
   // ═══ SECTION 2: Context and hooks ═══
   const { id: challengeId } = useParams<{ id: string }>();
@@ -238,6 +242,8 @@ export default function SolutionSubmitPage() {
   const saveDraftMutation = useSaveSolutionDraft();
   const submitMutation = useSubmitSolution();
   const legalMutation = useRecordLegalAcceptance();
+  const { data: withdrawalCtx } = useWithdrawalContext(challengeId, existingSolution?.id);
+  const withdrawMutation = useWithdrawSolution();
 
   // ═══ SECTION 5: useEffect ═══
   useEffect(() => {
@@ -256,6 +262,7 @@ export default function SolutionSubmitPage() {
   const isLoading = enrollmentLoading || tier2Loading || solutionLoading || challengeLoading;
   const isEnrolled = enrollment?.status === 'APPROVED';
   const isAlreadySubmitted = existingSolution?.phase_status === 'ACTIVE' && !!existingSolution?.submitted_at;
+  const isWithdrawn = existingSolution?.phase_status === 'TERMINAL' || existingSolution?.selection_status === 'WITHDRAWN';
   const isLightweight = challenge?.governance_profile === 'LIGHTWEIGHT';
   const isEnterprise = challenge?.governance_profile === 'ENTERPRISE';
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
@@ -300,7 +307,40 @@ export default function SolutionSubmitPage() {
     );
   }
 
+  if (isWithdrawn) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <Card className="border-destructive/30">
+          <CardContent className="p-8 text-center space-y-4">
+            <LogOut className="h-12 w-12 text-destructive mx-auto" />
+            <h2 className="text-xl font-semibold text-foreground">Solution Withdrawn</h2>
+            <Badge variant="destructive" className="text-sm">Withdrawn</Badge>
+            <p className="text-muted-foreground">
+              Your solution for this challenge has been withdrawn. This action is permanent.
+            </p>
+            <Button variant="outline" onClick={() => navigate(`/cogni/challenges/${challengeId}/view`)}>
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Challenge
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (isAlreadySubmitted) {
+    const handleWithdrawConfirm = (reason: string) => {
+      if (!existingSolution?.id || !challengeId || !userId || !withdrawalCtx) return;
+      withdrawMutation.mutate({
+        solutionId: existingSolution.id,
+        challengeId,
+        userId,
+        reason,
+        tier: withdrawalCtx.tier,
+        isMaterialAmendmentWindow: withdrawalCtx.isMaterialAmendmentWindow,
+      });
+      setWithdrawModalOpen(false);
+    };
+
     return (
       <div className="max-w-3xl mx-auto p-6">
         <Card className="border-primary/30">
@@ -320,11 +360,34 @@ export default function SolutionSubmitPage() {
                 If shortlisted, you will be notified to upload your full solution.
               </p>
             )}
-            <Button variant="outline" onClick={() => navigate(`/cogni/challenges/${challengeId}/view`)}>
-              <ArrowLeft className="h-4 w-4 mr-2" /> Back to Challenge
-            </Button>
+            <div className="flex flex-col lg:flex-row items-center justify-center gap-3 pt-2">
+              <Button variant="outline" onClick={() => navigate(`/cogni/challenges/${challengeId}/view`)}>
+                <ArrowLeft className="h-4 w-4 mr-2" /> Back to Challenge
+              </Button>
+              {withdrawalCtx?.canWithdraw && (
+                <Button
+                  variant="outline"
+                  className="border-destructive/50 text-destructive hover:bg-destructive/10"
+                  onClick={() => setWithdrawModalOpen(true)}
+                  disabled={withdrawMutation.isPending}
+                >
+                  <LogOut className="h-4 w-4 mr-1.5" />
+                  Withdraw
+                </Button>
+              )}
+            </div>
           </CardContent>
         </Card>
+
+        {withdrawalCtx && (
+          <WithdrawSolutionModal
+            open={withdrawModalOpen}
+            onOpenChange={setWithdrawModalOpen}
+            context={withdrawalCtx}
+            onConfirm={handleWithdrawConfirm}
+            isPending={withdrawMutation.isPending}
+          />
+        )}
       </div>
     );
   }
