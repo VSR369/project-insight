@@ -214,6 +214,7 @@ export default function ChallengeWizardPage() {
       ip_model: values.ip_model || null,
       visibility: values.visibility || 'public',
       eligibility: values.eligibility || null,
+      solver_eligibility_types: values.solver_eligibility_types ?? ['individual'],
       challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
       challenge_enrollment: isLightweight ? null : (values.challenge_enrollment || 'open_auto'),
       challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
