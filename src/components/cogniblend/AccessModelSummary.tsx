@@ -11,6 +11,8 @@ interface AccessModelSummaryProps {
   visibility: string;
   enrollment: string;
   submission: string;
+  /** Legacy eligibility field — shown as fallback if enrollment/submission are empty */
+  eligibility?: string;
   className?: string;
 }
 
