@@ -708,6 +708,8 @@ const App = () => (
               <Route path="interview/reviewer-availability" element={<PermissionGuard permissionKey="interview.view"><ReviewerAvailabilityPage /></PermissionGuard>} />
               <Route path="pulse-social-test" element={<PermissionGuard permissionKey="supervisor.configure_system"><PulseSocialTestPage /></PermissionGuard>} />
               <Route path="regression-test-kit" element={<PermissionGuard permissionKey="supervisor.configure_system"><RegressionTestKitPage /></PermissionGuard>} />
+              {/* Communications Governance */}
+              <Route path="communications" element={<PermissionGuard permissionKey="supervisor.configure_system"><CommunicationsPage /></PermissionGuard>} />
               {/* Seeker Config — permission: seeker_config.view */}
               <Route path="seeker-config/pricing-overview" element={<PermissionGuard permissionKey="seeker_config.view"><PricingOverviewPage /></PermissionGuard>} />
               <Route path="seeker-config/subscription-tiers" element={<PermissionGuard permissionKey="seeker_config.view"><SubscriptionTiersPage /></PermissionGuard>} />
