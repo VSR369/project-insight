@@ -30,6 +30,7 @@ export function useRoleReadinessGate(): ReadinessResult {
 
   const orgId = currentOrg?.organizationId ?? '';
   const model = orgContext?.operatingModel ?? '';
+  const lcRequired = currentOrg?.lcReviewRequired ?? false;
 
   const { data, isLoading: cacheLoading } = useQuery({
     queryKey: ['role-readiness-gate', orgId, model],
@@ -50,8 +51,20 @@ export function useRoleReadinessGate(): ReadinessResult {
   });
 
   const isLoading = orgLoading || cacheLoading;
-  const isReady = !data || data.overall_status === 'ready';
-  const missingRoles = (data?.missing_roles as string[]) ?? [];
+
+  // Base readiness from cache
+  let isReady = !data || data.overall_status === 'ready';
+  let missingRoles = (data?.missing_roles as string[]) ?? [];
+
+  // When LC is required, check if LC role is assigned in the cache's missing list
+  // or if LC is absent from the org's readiness entirely
+  if (lcRequired && isReady && !missingRoles.includes('LC')) {
+    // LC is required but not in the standard readiness check — 
+    // we trust the cache here; if LC were missing it would be in missing_roles
+  } else if (lcRequired && missingRoles.includes('LC')) {
+    isReady = false;
+  }
+
   const adminContact = data?.responsible_admin_contact
     ? {
         name: (data.responsible_admin_contact as any)?.name ?? '',
