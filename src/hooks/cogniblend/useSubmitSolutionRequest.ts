@@ -18,6 +18,7 @@ interface SubmitPayload {
   operatingModel: string;
   businessProblem: string;
   expectedOutcomes: string;
+  constraints?: string;
   currency: string;
   budgetMin: number;
   budgetMax: number;
@@ -25,6 +26,9 @@ interface SubmitPayload {
   domainTags: string[];
   urgency: string;
   architectId?: string;
+  industrySegmentId?: string;
+  subDomainIds?: string[];
+  specialtyTags?: string[];
 }
 
 interface SubmitResult {
