@@ -7,7 +7,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Menu, Settings, LogOut } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import NotificationBell from '@/components/cogniblend/NotificationBell';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 
 interface CogniTopBarProps {
   pageTitle: string;
@@ -45,6 +47,7 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
   // SECTION 2: Context and custom hooks
   // ═══════════════════════════════════════════
   const { user, signOut } = useAuth();
+  const { data: currentOrg } = useCurrentOrg();
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -72,7 +75,8 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
 
   // TODO: Replace with real org context data
   const userName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'User';
-  const orgName = 'Acme Innovation Labs';
+  const orgName = currentOrg?.orgName ?? 'Acme Innovation Labs';
+  const governanceProfile = currentOrg?.governanceProfile ?? null;
   const userRoles = ['CR', 'CU']; // placeholder
   const initials = getInitials(userName);
 
@@ -97,6 +101,11 @@ export function CogniTopBar({ pageTitle, onToggleSidebar }: CogniTopBarProps) {
       <h1 className="font-bold text-foreground text-sm lg:text-base truncate">
         {pageTitle}
       </h1>
+
+      {/* Governance Profile Badge */}
+      {governanceProfile && (
+        <GovernanceProfileBadge profile={governanceProfile} />
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />

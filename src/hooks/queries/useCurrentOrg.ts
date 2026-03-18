@@ -17,6 +17,7 @@ export interface CurrentOrg {
   isInternalDepartment: boolean;
   verificationStatus: string | null;
   tcVersionAccepted: string | null;
+  governanceProfile: string;
 }
 
 export function useCurrentOrg() {
@@ -39,6 +40,7 @@ export function useCurrentOrg() {
             hq_country_id,
             verification_status,
             tc_version_accepted,
+            governance_profile,
             seeker_subscriptions!seeker_subscriptions_organization_id_fkey (
               md_subscription_tiers!seeker_subscriptions_tier_id_fkey ( code )
             )
@@ -75,6 +77,7 @@ export function useCurrentOrg() {
         isInternalDepartment: !!saasData,
         verificationStatus: org?.verification_status ?? null,
         tcVersionAccepted: org?.tc_version_accepted ?? null,
+        governanceProfile: org?.governance_profile ?? 'LIGHTWEIGHT',
       };
     },
     enabled: !!user?.id,
