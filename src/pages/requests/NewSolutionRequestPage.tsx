@@ -130,13 +130,20 @@ interface DomainTagSelectProps {
   businessProblem?: string;
 }
 
-function DomainTagSelect({ value, onChange, error }: DomainTagSelectProps) {
+function DomainTagSelect({ value, onChange, error, businessProblem = '' }: DomainTagSelectProps) {
   const [search, setSearch] = useState('');
   const [showDropdown, setShowDropdown] = useState(false);
 
   const filtered = DEFAULT_DOMAIN_TAGS.filter(
     tag => tag.toLowerCase().includes(search.toLowerCase()) && !value.includes(tag)
   );
+
+  // Auto-suggest tags based on business problem keywords
+  const suggestedTags = useMemo(() => {
+    if (!businessProblem || businessProblem.length < 100) return [];
+    const keywords = extractKeywords(businessProblem, 5);
+    return matchTagsByKeywords(keywords, DEFAULT_DOMAIN_TAGS, value);
+  }, [businessProblem, value]);
 
   const addTag = useCallback((tag: string) => {
     onChange([...value, tag]);
