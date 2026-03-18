@@ -10033,12 +10033,15 @@ export type Database = {
       }
       sla_timers: {
         Row: {
+          auto_hold_on_breach: boolean
           breached_at: string | null
           challenge_id: string
           completed_at: string | null
           created_at: string
           created_by: string | null
           deadline_at: string
+          escalation_tier: number
+          last_escalated_at: string | null
           max_hold_days: number
           phase: number
           role_code: string
@@ -10049,12 +10052,15 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          auto_hold_on_breach?: boolean
           breached_at?: string | null
           challenge_id: string
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
           deadline_at: string
+          escalation_tier?: number
+          last_escalated_at?: string | null
           max_hold_days?: number
           phase: number
           role_code: string
@@ -10065,12 +10071,15 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          auto_hold_on_breach?: boolean
           breached_at?: string | null
           challenge_id?: string
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
           deadline_at?: string
+          escalation_tier?: number
+          last_escalated_at?: string | null
           max_hold_days?: number
           phase?: number
           role_code?: string
@@ -11808,6 +11817,18 @@ export type Database = {
         Args: { p_notification_id: string }
         Returns: undefined
       }
+      notify_escalation: {
+        Args: {
+          p_challenge_id: string
+          p_message: string
+          p_notification_type: string
+          p_phase: number
+          p_role_code: string
+          p_tier: number
+          p_title: string
+        }
+        Returns: undefined
+      }
       place_in_open_queue: {
         Args: {
           p_ip_address?: string
@@ -11819,6 +11840,13 @@ export type Database = {
       process_membership_expiry: { Args: never; Returns: undefined }
       process_pending_downgrades: { Args: never; Returns: undefined }
       process_sla_breaches: { Args: never; Returns: number }
+      process_sla_escalation: {
+        Args: never
+        Returns: {
+          auto_held_count: number
+          escalated_count: number
+        }[]
+      }
       pulse_award_xp: {
         Args: {
           p_action_type: string
