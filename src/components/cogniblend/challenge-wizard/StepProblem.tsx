@@ -197,6 +197,35 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         </div>
       </div>
 
+      {/* ── 1b. The Hook ─────────────────────────────── */}
+      <div className="space-y-1.5">
+        <Label htmlFor="hook" className="text-sm font-medium">
+          The Hook <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="hook"
+          maxLength={300}
+          placeholder="A compelling one-liner that captures the essence of this challenge"
+          className="text-base"
+          {...register('hook')}
+        />
+        <p className="text-xs text-muted-foreground">Short tagline to attract solvers (max 300 chars)</p>
+      </div>
+
+      {/* ── 1c. Challenge Description ─────────────────── */}
+      <div className="space-y-1.5">
+        <Label htmlFor="description" className="text-sm font-medium">
+          Challenge Description <span className="text-destructive">*</span>
+        </Label>
+        <Textarea
+          id="description"
+          placeholder="Provide a short summary description of the challenge"
+          rows={3}
+          className="text-base resize-none"
+          {...register('description')}
+        />
+      </div>
+
       {/* ── 2. Industry Segment — Select from master data ── */}
       <div className="space-y-1.5">
         <Label className="text-sm font-medium">
