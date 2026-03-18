@@ -6,10 +6,12 @@
  *   2. Number of Rewarded Solutions (Top 1/2/3)
  *   3. Reward Tiers (Platinum/Gold/Silver)
  *   4. Total Reward Pool
- *   5. Payment Mode (Escrow / Direct)
- *   6. Payment Schedule (milestone-based)
- *   7. Platform Provider Fee banner
- *   8. Rejection Fee slider (Enterprise only)
+ *   5. IP Model (moved from Step 5)
+ *   6. Effort Level + Reward Guidance
+ *   7. Payment Mode (Escrow / Direct)
+ *   8. Payment Schedule (milestone-based)
+ *   9. Platform Provider Fee banner
+ *  10. Rejection Fee slider (Enterprise only)
  */
 
 import { UseFormReturn, Controller, useFieldArray } from 'react-hook-form';
