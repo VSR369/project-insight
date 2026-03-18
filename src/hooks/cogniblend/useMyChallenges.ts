@@ -57,7 +57,7 @@ export function useMyChallenges(userId: string | undefined) {
           challenge_id: ch.id,
           title: ch.title,
           current_phase: ch.current_phase ?? 1,
-          master_status: ch.master_status ?? 'DRAFT',
+          master_status: ch.master_status ?? 'IN_PREPARATION',
           phase_status: ch.phase_status ?? 'ACTIVE',
           role_code: roleCode,
           governance_profile: ch.governance_profile ?? 'LIGHTWEIGHT',

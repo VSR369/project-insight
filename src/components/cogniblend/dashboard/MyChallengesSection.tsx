@@ -37,7 +37,8 @@ const PHASE_LABELS: Record<number, string> = {
 /* ── Status badge styling ────────────────────────────────── */
 
 const STATUS_STYLE: Record<string, string> = {
-  DRAFT: 'bg-muted text-muted-foreground',
+  IN_PREPARATION: 'bg-muted text-muted-foreground',
+  DRAFT: 'bg-muted text-muted-foreground', // legacy fallback
   ACTIVE: 'bg-[hsl(155,40%,93%)] text-[hsl(155,68%,30%)]',
   COMPLETED: 'bg-[hsl(210,60%,95%)] text-[hsl(210,60%,40%)]',
   CANCELLED: 'bg-[hsl(1,50%,93%)] text-[hsl(1,60%,45%)]',
@@ -49,6 +50,10 @@ const STATUS_STYLE: Record<string, string> = {
 
 /** Display label overrides for phase_status */
 const STATUS_LABEL: Record<string, string> = {
+  IN_PREPARATION: 'In Preparation',
+  DRAFT: 'In Preparation', // legacy fallback
+  CANCELLED: 'Cancelled',
+  TERMINATED: 'Terminated',
   LEGAL_VERIFICATION_PENDING: 'Awaiting Legal',
   ON_HOLD: 'On Hold',
   COMPLETED_BYPASSED: 'Bypassed',

@@ -127,13 +127,14 @@ export function useRejectChallenge() {
 
   return useMutation({
     mutationFn: async (params: RejectParams) => {
-      // 1. Set phase_status = 'TERMINAL' (M-08 trigger handles master_status → CANCELLED)
+      // 1. Set phase_status = 'TERMINAL' + termination_type for master_status rollup
       const { error: updateError } = await supabase
         .from('challenges')
         .update({
           phase_status: 'TERMINAL',
+          termination_type: 'USER_CANCELLED',
           updated_by: params.userId,
-        })
+        } as any)
         .eq('id', params.challengeId);
       if (updateError) throw new Error(updateError.message);
 
