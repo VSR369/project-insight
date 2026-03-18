@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
@@ -287,9 +288,7 @@ export default function PublicChallengeDetailPage() {
                 <CardTitle className="text-sm font-bold text-foreground">Problem Statement</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {data.problem_statement}
-                </p>
+                <SafeHtmlRenderer html={data.problem_statement} />
               </CardContent>
             </Card>
           )}
@@ -300,9 +299,7 @@ export default function PublicChallengeDetailPage() {
                 <CardTitle className="text-sm font-bold text-foreground">Scope & Expected Outcomes</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-                  {data.scope}
-                </p>
+                <SafeHtmlRenderer html={data.scope} />
               </CardContent>
             </Card>
           )}

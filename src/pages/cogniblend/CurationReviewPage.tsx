@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
 import {
   Accordion,
   AccordionContent,
@@ -134,9 +135,7 @@ const SECTIONS: SectionDef[] = [
     label: "Problem Statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
     render: (ch) => (
-      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-        {ch.problem_statement || "—"}
-      </p>
+      <SafeHtmlRenderer html={ch.problem_statement} />
     ),
   },
   {
@@ -144,9 +143,7 @@ const SECTIONS: SectionDef[] = [
     label: "Scope",
     isFilled: (ch) => !!ch.scope?.trim(),
     render: (ch) => (
-      <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">
-        {ch.scope || "—"}
-      </p>
+      <SafeHtmlRenderer html={ch.scope} />
     ),
   },
   {

@@ -9,7 +9,7 @@
  *   5. Solution Maturity Level — 2×2 radio card grid
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { UseFormReturn, Controller } from 'react-hook-form';
 import {
   ChevronDown,
@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/ui/RichTextEditor';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
@@ -105,11 +106,7 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
   } = form;
 
   const titleValue = watch('title') ?? '';
-  const problemValue = watch('problem_statement') ?? '';
-  const scopeValue = watch('scope') ?? '';
   const titleLen = titleValue.length;
-  const problemLen = problemValue.length;
-  const scopeLen = scopeValue.length;
 
   const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
   const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
@@ -152,123 +149,87 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
         </div>
       </div>
 
-      {/* ── 2. Problem Statement ──────────────────────── */}
+      {/* ── 2. Problem Statement (Rich Text) ─────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="problem_statement" className="text-sm font-medium">
+        <Label className="text-sm font-medium">
           Problem Statement <span className="text-destructive">*</span>
         </Label>
-        <Textarea
-          id="problem_statement"
-          placeholder="Describe the problem in detail. What makes it challenging? What has been tried before?"
-          style={{ minHeight: 150 }}
-          className={cn(
-            'text-base resize-y',
-            errors.problem_statement &&
-              'border-destructive focus-visible:ring-destructive',
-          )}
-          {...register('problem_statement')}
-        />
-        <div className="flex items-center justify-between">
-          {errors.problem_statement ? (
-            <p className="text-xs text-destructive">
-              {errors.problem_statement.message}
-            </p>
-          ) : (
-            <span />
-          )}
-          <span
-              className={cn(
-                'text-xs tabular-nums',
-                problemLen >= problemMin
-                  ? 'text-[#1D9E75] font-medium'
-                  : 'text-muted-foreground',
-              )}
-            >
-              {problemLen} / {problemMin} min
-            </span>
-          </div>
-        </div>
-
-        {/* ── 3. Scope ─────────────────────────────────── */}
-        {!isLightweight ? (
-          <div className="space-y-1.5">
-            <Label htmlFor="scope" className="text-sm font-medium">
-              Scope {isRequired('scope') && <span className="text-destructive">*</span>}
-            </Label>
-            <Textarea
-              id="scope"
-              placeholder="Define what is in scope and out of scope for solutions."
-              style={{ minHeight: 100 }}
-              className={cn(
-                'text-base resize-y',
-                errors.scope && 'border-destructive focus-visible:ring-destructive',
-              )}
-              {...register('scope')}
+        <Controller
+          name="problem_statement"
+          control={control}
+          render={({ field }) => (
+            <RichTextEditor
+              value={field.value ?? ''}
+              onChange={field.onChange}
+              placeholder="Describe the problem in detail. What makes it challenging? What has been tried before?"
+              minLength={problemMin}
+              error={errors.problem_statement?.message}
+              storagePath="problem-statements"
             />
-            <div className="flex items-center justify-between">
-              {errors.scope ? (
-                <p className="text-xs text-destructive">{errors.scope.message}</p>
-              ) : (
-                <span />
-              )}
-              <span
-                className={cn(
-                  'text-xs tabular-nums',
-                  scopeLen >= scopeMin
-                    ? 'text-[#1D9E75] font-medium'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {scopeLen} / {scopeMin} min
-              </span>
-            </div>
-          </div>
-        ) : (
-          <div className="pt-1">
-            <button
-              type="button"
-              onClick={() => setShowAdvanced(!showAdvanced)}
-              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showAdvanced ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-              Show Advanced Options
-            </button>
-            {showAdvanced && (
-              <div className="mt-3 pl-1 border-l-2 border-muted ml-1.5">
-                <div className="pl-4 space-y-1.5">
-                  <Label htmlFor="scope_adv" className="text-sm font-medium">
-                    Scope{' '}
-                    <span className="text-xs text-muted-foreground">(optional)</span>
-                  </Label>
-                  <Textarea
-                    id="scope_adv"
-                    placeholder="Define what is in scope and out of scope for solutions."
-                    style={{ minHeight: 100 }}
-                    className="text-base resize-y"
-                    {...register('scope')}
-                  />
-                  <div className="flex items-center justify-between">
-                    <span />
-                    <span
-                      className={cn(
-                        'text-xs tabular-nums',
-                        scopeLen >= scopeMin
-                          ? 'text-[#1D9E75] font-medium'
-                          : 'text-muted-foreground',
-                      )}
-                    >
-                      {scopeLen} / {scopeMin} min
-                    </span>
-                  </div>
-                </div>
-              </div>
+          )}
+        />
+      </div>
+
+      {/* ── 3. Scope (Rich Text) ──────────────────────── */}
+      {!isLightweight ? (
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Scope {isRequired('scope') && <span className="text-destructive">*</span>}
+          </Label>
+          <Controller
+            name="scope"
+            control={control}
+            render={({ field }) => (
+              <RichTextEditor
+                value={field.value ?? ''}
+                onChange={field.onChange}
+                placeholder="Define what is in scope and out of scope for solutions."
+                minLength={scopeMin}
+                error={errors.scope?.message}
+                storagePath="scope-content"
+              />
             )}
-          </div>
-        )}
+          />
+        </div>
+      ) : (
+        <div className="pt-1">
+          <button
+            type="button"
+            onClick={() => setShowAdvanced(!showAdvanced)}
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {showAdvanced ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+            Show Advanced Options
+          </button>
+          {showAdvanced && (
+            <div className="mt-3 pl-1 border-l-2 border-muted ml-1.5">
+              <div className="pl-4 space-y-1.5">
+                <Label className="text-sm font-medium">
+                  Scope{' '}
+                  <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <Controller
+                  name="scope"
+                  control={control}
+                  render={({ field }) => (
+                    <RichTextEditor
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      placeholder="Define what is in scope and out of scope for solutions."
+                      minLength={scopeMin}
+                      storagePath="scope-content"
+                    />
+                  )}
+                />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── 4. Domain Tags ────────────────────────────── */}
       <Controller
