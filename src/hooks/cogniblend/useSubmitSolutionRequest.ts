@@ -151,6 +151,7 @@ interface DraftPayload {
   operatingModel: string;
   businessProblem: string;
   expectedOutcomes: string;
+  constraints?: string;
   currency: string;
   budgetMin: number;
   budgetMax: number;
@@ -158,6 +159,9 @@ interface DraftPayload {
   domainTags: string[];
   urgency: string;
   architectId?: string;
+  industrySegmentId?: string;
+  subDomainIds?: string[];
+  specialtyTags?: string[];
 }
 
 export function useSaveDraft() {
