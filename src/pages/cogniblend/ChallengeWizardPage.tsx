@@ -143,11 +143,15 @@ export default function ChallengeWizardPage() {
           ? (challengeData.evaluation_criteria as any).criteria.map((c: any) => ({
               name: c.name ?? c ?? '',
               weight: c.weight ?? 0,
+              description: c.description ?? '',
+              rubrics: c.rubrics ?? undefined,
             }))
           : [
-              { name: 'Technical Feasibility', weight: 30 },
-              { name: 'Innovation & Novelty', weight: 30 },
-              { name: 'Implementation Plan', weight: 40 },
+              { name: 'Technical Approach & Innovation', weight: 30, description: '' },
+              { name: 'SAP Integration Feasibility', weight: 20, description: '' },
+              { name: 'Accuracy & Performance', weight: 25, description: '' },
+              { name: 'Implementation Plan', weight: 15, description: '' },
+              { name: 'Team Experience', weight: 10, description: '' },
             ],
         currency_code: challengeData.currency_code ?? 'USD',
         platinum_award: (challengeData.reward_structure as any)?.platinum ?? 0,
