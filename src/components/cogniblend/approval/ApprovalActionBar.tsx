@@ -127,8 +127,8 @@ export default function ApprovalActionBar({
     }
   };
 
-  /** Return for Modification */
-  const handleReturn = (reason: string) => {
+  /** Return for Modification — now with structured points */
+  const handleReturn = (reason: string, points: ModificationPointInput[]) => {
     if (!user?.id) return;
     returnMutation.mutate(
       {
@@ -138,7 +138,15 @@ export default function ApprovalActionBar({
         governanceProfile: challenge.governance_profile,
       },
       {
-        onSuccess: () => {
+        onSuccess: (amendmentId) => {
+          // Create modification points linked to the new amendment
+          if (amendmentId && points.length > 0) {
+            createPoints.mutate({
+              amendmentId,
+              challengeId,
+              points,
+            });
+          }
           setReturnOpen(false);
           setTimeout(() => navigate('/cogni/approval'), 1500);
         },
