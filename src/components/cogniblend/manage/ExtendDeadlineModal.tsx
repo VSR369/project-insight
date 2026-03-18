@@ -190,7 +190,6 @@ export function ExtendDeadlineModal({
               </p>
             </div>
           </div>
-        </div>
 
           {/* Notify checkbox */}
           <div className="flex items-center space-x-2 pt-1">
