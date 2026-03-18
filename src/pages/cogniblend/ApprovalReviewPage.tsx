@@ -419,6 +419,9 @@ function OverviewTab({ challenge, amendments, challengeId }: { challenge: Challe
           )}
         </CardContent>
       </Card>
+
+      {/* Modification Points — read-only for ID */}
+      <ModificationPointsTracker challengeId={challengeId} mode="readonly" />
     </div>
   );
 }
