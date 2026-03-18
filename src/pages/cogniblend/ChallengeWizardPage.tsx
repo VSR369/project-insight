@@ -57,19 +57,26 @@ export default function ChallengeWizardPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
 
-  // ═══════ Hooks — form ═══════
-  const form = useForm<ChallengeFormValues>({
-    resolver: zodResolver(challengeFormSchema),
-    defaultValues: DEFAULT_FORM_VALUES,
-  });
-
-  // ═══════ Hooks — queries ═══════
+  // ═══════ Hooks — queries (before form, for governance-aware schema) ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
 
   const governanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : currentOrg ? 'LIGHTWEIGHT' : null;
+
+  const isLightweight = governanceProfile !== 'ENTERPRISE';
+
+  const activeSchema = useMemo(
+    () => createChallengeFormSchema(isLightweight),
+    [isLightweight],
+  );
+
+  // ═══════ Hooks — form ═══════
+  const form = useForm<ChallengeFormValues>({
+    resolver: zodResolver(activeSchema),
+    defaultValues: DEFAULT_FORM_VALUES,
+  });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
 
