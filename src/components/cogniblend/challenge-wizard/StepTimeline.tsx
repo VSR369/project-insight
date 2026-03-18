@@ -7,7 +7,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { UseFormReturn } from 'react-hook-form';
 import { format, addDays } from 'date-fns';
-import { CalendarIcon, Info, Check, Plus, X, Globe, Lock } from 'lucide-react';
+import { CalendarIcon, Info, Check, Plus, X, Globe, Lock, ChevronRight, Eye, UserPlus, FileText } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,6 +16,7 @@ import { Calendar } from '@/components/ui/calendar';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
   SelectContent,
@@ -234,6 +235,183 @@ function LightweightVisibilityToggle({ form }: { form: UseFormReturn<ChallengeFo
   );
 }
 
+/* ─── Enterprise 3-Tier Publication Config ───────────────── */
+
+const VISIBILITY_OPTIONS = [
+  { value: 'public', label: 'Public', description: 'Visible to everyone on the platform and search engines' },
+  { value: 'registered_users', label: 'Registered Users', description: 'Visible only to authenticated platform users' },
+  { value: 'platform_members', label: 'Platform Members', description: 'Visible only to users with active memberships' },
+  { value: 'curated_experts', label: 'Curated Experts', description: 'Visible only to experts curated by the platform' },
+  { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
+] as const;
+
+const ENROLLMENT_OPTIONS = [
+  { value: 'open_auto', label: 'Open Enrollment (auto-approved)', description: 'Anyone eligible can enroll without approval' },
+  { value: 'curator_approved', label: 'Curator-Approved Enrollment', description: 'Curator reviews and approves enrollment requests' },
+  { value: 'direct_nda', label: 'Direct Registration (NDA required)', description: 'Enrollment requires signing an NDA first' },
+  { value: 'org_curated', label: 'Organization-Curated', description: 'The seeking organization selects who can enroll' },
+  { value: 'invitation_only', label: 'Invitation Only', description: 'Only specifically invited solvers can enroll' },
+] as const;
+
+const SUBMISSION_OPTIONS = [
+  { value: 'all_enrolled', label: 'All Enrolled', description: 'Any enrolled participant can submit solutions' },
+  { value: 'shortlisted_only', label: 'Shortlisted Only', description: 'Only shortlisted participants can submit' },
+  { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
+] as const;
+
+/** Scope ordering: higher index = narrower scope */
+const VISIBILITY_RANK: Record<string, number> = {
+  public: 0, registered_users: 1, platform_members: 2, curated_experts: 3, invited_only: 4,
+};
+const ENROLLMENT_RANK: Record<string, number> = {
+  open_auto: 0, curator_approved: 1, direct_nda: 2, org_curated: 3, invitation_only: 4,
+};
+const SUBMISSION_RANK: Record<string, number> = {
+  all_enrolled: 0, shortlisted_only: 1, invited_solvers: 2,
+};
+
+function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
+  const { setValue, watch } = form;
+  const vis = watch('challenge_visibility') || 'public';
+  const enr = watch('challenge_enrollment') || 'open_auto';
+  const sub = watch('challenge_submission') || 'all_enrolled';
+
+  const visRank = VISIBILITY_RANK[vis] ?? 0;
+  const enrRank = ENROLLMENT_RANK[enr] ?? 0;
+
+  /** Enrollment cannot exceed visibility scope */
+  const isEnrollmentDisabled = (value: string) => {
+    const rank = ENROLLMENT_RANK[value] ?? 0;
+    return rank < visRank; // broader than visibility → disabled
+  };
+
+  /** Submission cannot exceed enrollment scope */
+  const isSubmissionDisabled = (value: string) => {
+    const rank = SUBMISSION_RANK[value] ?? 0;
+    return rank < enrRank; // broader than enrollment → disabled
+  };
+
+  // Auto-correct if current selection becomes invalid
+  useEffect(() => {
+    if (isEnrollmentDisabled(enr)) {
+      // Set to the narrowest valid option that matches visibility rank
+      const validEnr = Object.entries(ENROLLMENT_RANK).find(([, r]) => r >= visRank);
+      if (validEnr) setValue('challenge_enrollment', validEnr[0], { shouldDirty: true });
+    }
+  }, [vis]);
+
+  useEffect(() => {
+    if (isSubmissionDisabled(sub)) {
+      const validSub = Object.entries(SUBMISSION_RANK).find(([, r]) => r >= enrRank);
+      if (validSub) setValue('challenge_submission', validSub[0], { shouldDirty: true });
+    }
+  }, [enr]);
+
+  const tierCards = [
+    {
+      title: 'Tier 1 — Visibility',
+      subtitle: 'Who can SEE the challenge',
+      icon: Eye,
+      value: vis,
+      onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }),
+      options: VISIBILITY_OPTIONS,
+      isDisabled: () => false,
+    },
+    {
+      title: 'Tier 2 — Enrollment',
+      subtitle: 'Who can REQUEST to participate',
+      icon: UserPlus,
+      value: enr,
+      onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }),
+      options: ENROLLMENT_OPTIONS,
+      isDisabled: isEnrollmentDisabled,
+    },
+    {
+      title: 'Tier 3 — Submission',
+      subtitle: 'Who can SUBMIT solutions',
+      icon: FileText,
+      value: sub,
+      onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }),
+      options: SUBMISSION_OPTIONS,
+      isDisabled: isSubmissionDisabled,
+    },
+  ];
+
+  return (
+    <div className="space-y-4 border-t border-border pt-6">
+      <div className="space-y-1">
+        <h3 className="text-base font-bold text-foreground">
+          Publication Configuration <span className="text-destructive">*</span>
+        </h3>
+        <p className="text-xs text-muted-foreground">
+          Configure who can see, enroll in, and submit solutions. Each tier narrows the funnel: Visibility ≥ Enrollment ≥ Submission.
+        </p>
+      </div>
+
+      {/* 3-tier cards in a row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
+        {tierCards.map((tier, idx) => {
+          const Icon = tier.icon;
+          const selectedOpt = tier.options.find((o) => o.value === tier.value);
+          return (
+            <div key={tier.title} className="relative flex">
+              {/* Arrow between cards */}
+              {idx > 0 && (
+                <div className="hidden lg:flex absolute -left-[14px] top-1/2 -translate-y-1/2 z-10">
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
+              )}
+              <Card className="flex-1 flex flex-col">
+                <CardHeader className="pb-2 space-y-1">
+                  <div className="flex items-center gap-2">
+                    <Icon className="h-4 w-4 text-primary" />
+                    <CardTitle className="text-sm">{tier.title}</CardTitle>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{tier.subtitle}</p>
+                </CardHeader>
+                <CardContent className="flex-1 pt-0 space-y-2">
+                  <Select value={tier.value} onValueChange={tier.onChange}>
+                    <SelectTrigger className="text-base w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tier.options.map((opt) => {
+                        const disabled = tier.isDisabled(opt.value);
+                        return (
+                          <SelectItem key={opt.value} value={opt.value} disabled={disabled}>
+                            <span className={cn(disabled && 'opacity-50')}>
+                              {opt.label}
+                            </span>
+                          </SelectItem>
+                        );
+                      })}
+                    </SelectContent>
+                  </Select>
+                  {selectedOpt && (
+                    <p className="text-[11px] text-muted-foreground leading-tight">
+                      {selectedOpt.description}
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Funnel summary */}
+      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-center gap-2 text-xs text-foreground flex-wrap">
+        <span className="font-semibold">Funnel:</span>
+        <Badge variant="outline" className="text-[11px]">{VISIBILITY_OPTIONS.find((o) => o.value === vis)?.label}</Badge>
+        <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+        <Badge variant="outline" className="text-[11px]">{ENROLLMENT_OPTIONS.find((o) => o.value === enr)?.label}</Badge>
+        <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
+        <Badge variant="outline" className="text-[11px]">{SUBMISSION_OPTIONS.find((o) => o.value === sub)?.label}</Badge>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Component ──────────────────────────────────────────── */
 
 export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimelineProps) {
@@ -412,9 +590,12 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         </div>
       </div>
 
-      {/* ═══ SECTION 2: Publication Settings (Lightweight Only) ═══ */}
+      {/* ═══ SECTION 2: Publication Settings ═══ */}
       {isLightweight && (
         <LightweightVisibilityToggle form={form} />
+      )}
+      {!isLightweight && (
+        <EnterprisePublicationConfig form={form} />
       )}
 
       {/* ═══ SECTION 3: Complexity Assessment ═══ */}
