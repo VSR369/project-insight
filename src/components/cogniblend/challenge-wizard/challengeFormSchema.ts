@@ -87,6 +87,15 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     reward_type: z.enum(['monetary', 'non_monetary']).default('monetary'),
     reward_description: z.string().max(2000).optional().or(z.literal('')),
 
+    // Step 3 — Reward extras
+    num_rewarded_solutions: z.enum(['1', '2', '3']).default('3'),
+    payment_mode: z.enum(['escrow', 'direct']).default('escrow'),
+    payment_milestones: z.array(z.object({
+      name: z.string().min(1, 'Milestone name is required').max(200),
+      pct: z.number().min(0).max(100),
+      trigger: z.string().max(200).optional().or(z.literal('')),
+    })).default([]),
+
     // Step 4 — Timeline
     submission_deadline: z.string().optional().or(z.literal('')),
     expected_timeline: z.string().max(200).optional().or(z.literal('')),
