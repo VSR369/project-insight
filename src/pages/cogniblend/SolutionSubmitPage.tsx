@@ -278,6 +278,7 @@ export default function SolutionSubmitPage() {
   const isLightweight = challenge?.governance_profile === 'LIGHTWEIGHT';
   const isEnterprise = challenge?.governance_profile === 'ENTERPRISE';
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
+  const needsReacceptance = reacceptStatus?.hasPending ?? false;
   const missingDocs = useMemo(
     () => TIER_2_DOCUMENTS.filter(d => tier2Status?.missing?.includes(d.type)),
     [tier2Status]
