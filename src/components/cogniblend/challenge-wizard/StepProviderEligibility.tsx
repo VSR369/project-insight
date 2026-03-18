@@ -37,9 +37,6 @@ export function StepProviderEligibility({ form, isLightweight }: StepProviderEli
           value={currentFilters}
           onChange={handleFiltersChange}
         />
-          filters={currentFilters}
-          onChange={handleFiltersChange}
-        />
       )}
 
       {isLightweight && (
