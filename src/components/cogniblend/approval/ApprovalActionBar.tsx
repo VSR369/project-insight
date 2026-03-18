@@ -107,6 +107,9 @@ export default function ApprovalActionBar({
         .update({
           visibility: pubConfigValues.visibility,
           eligibility: pubConfigValues.eligibility,
+          eligibility_model: pubConfigValues.eligibilityModel || null,
+          challenge_enrollment: pubConfigValues.enrollment || null,
+          challenge_submission: pubConfigValues.submission || null,
           updated_by: user.id,
         })
         .eq('id', challengeId);
