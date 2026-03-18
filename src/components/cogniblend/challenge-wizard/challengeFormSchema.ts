@@ -119,6 +119,9 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     challenge_submission: z.string().optional().or(z.literal('')),
 
     // Step 5 — Targeting filters (JSONB)
+    // Step 6 — Solution category
+    solution_category_description: z.string().max(2000).optional().or(z.literal('')),
+
     targeting_filters: z.object({
       industries: z.array(z.string()).default([]),
       geographies: z.array(z.string()).default([]),
