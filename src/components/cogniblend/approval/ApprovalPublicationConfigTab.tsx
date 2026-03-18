@@ -154,6 +154,10 @@ export default function ApprovalPublicationConfigTab({
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
   const [complexityFinalized, setComplexityFinalized] = useState(false);
+  const [targetingFilters, setTargetingFilters] = useState<TargetingFilters>(() => {
+    const existing = parseJson<TargetingFilters>(challenge.targeting_filters);
+    return existing ?? EMPTY_TARGETING_FILTERS;
+  });
 
   // Complexity slider values
   const existingParams = parseJson<Record<string, number>>(challenge.complexity_parameters) ?? {};
