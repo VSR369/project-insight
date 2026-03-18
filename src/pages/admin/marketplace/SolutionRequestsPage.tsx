@@ -187,6 +187,17 @@ export default function SolutionRequestsPage() {
                             {statusInfo.label}
                           </Badge>
                         </TableCell>
+                        <TableCell onClick={(e) => e.stopPropagation()}>
+                          {user?.id && (
+                            <HoldResumeActions
+                              challengeId={req.id}
+                              challengeTitle={req.title}
+                              currentPhase={req.current_phase}
+                              phaseStatus={req.phase_status}
+                              userId={user.id}
+                            />
+                          )}
+                        </TableCell>
                         <TableCell>
                           <ArrowRight className="h-4 w-4 text-muted-foreground" />
                         </TableCell>
