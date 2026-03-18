@@ -1,16 +1,15 @@
 /**
- * ChallengeWizardPage — 4-step Challenge Creation / Edit wizard.
+ * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard.
  * Route: /cogni/challenges/new  |  /cogni/challenges/:id/edit
  *
- * Governance-aware:
- *   LIGHTWEIGHT → 8 mandatory fields, advanced sections collapsed
- *   ENTERPRISE  → 16 mandatory fields, all fields visible
- *
- * Submission flow:
- *   - Save Draft: persists all fields, keeps phase_status ACTIVE
- *   - Submit: validates all steps, shows summary modal, then:
- *     Enterprise → saves + navigates to /challenges/:id/legal
- *     Lightweight → saves + complete_phase → /cogni/dashboard
+ * Steps:
+ *   1. Challenge Brief
+ *   2. Evaluation Criteria
+ *   3. Rewards & Payment
+ *   4. Timeline & Phase Schedule
+ *   5. Provider Eligibility
+ *   6. Templates
+ *   7. Review & Submit
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -19,8 +18,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { Clock, Save, PauseCircle, XCircle, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
@@ -41,17 +43,31 @@ import { StepProblem } from '@/components/cogniblend/challenge-wizard/StepProble
 import { StepRequirements } from '@/components/cogniblend/challenge-wizard/StepRequirements';
 import { StepEvaluation } from '@/components/cogniblend/challenge-wizard/StepEvaluation';
 import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimeline';
+import { StepProviderEligibility } from '@/components/cogniblend/challenge-wizard/StepProviderEligibility';
+import { StepTemplates } from '@/components/cogniblend/challenge-wizard/StepTemplates';
+import { StepReviewSubmit } from '@/components/cogniblend/challenge-wizard/StepReviewSubmit';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
 import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
 import {
   createChallengeFormSchema,
-  challengeFormSchema,
   DEFAULT_FORM_VALUES,
   type ChallengeFormValues,
 } from '@/components/cogniblend/challenge-wizard/challengeFormSchema';
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 7;
+
+const BUSINESS_RULES = [
+  'BR-CC-001: Challenge must have a minimum problem statement length',
+  'BR-CC-002: Evaluation criteria weights must sum to 100%',
+  'BR-CC-003: Reward structure requires Platinum > Gold > Silver ordering',
+  'BR-CC-004: Submission deadline must be in the future',
+  'BR-CC-005: At least one solver eligibility type required',
+  'BR-CC-006: Enterprise challenges require legal document attachment',
+  'BR-CC-007: Phase schedule durations must be within SLA bounds',
+  'BR-CC-008: Targeting filters must be compatible with visibility tier',
+  'BR-CC-009: Draft SLA is 10 business days from creation',
+];
 
 export default function ChallengeWizardPage() {
   // ═══════ Hooks — state ═══════
@@ -59,6 +75,7 @@ export default function ChallengeWizardPage() {
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
   const [showTierLimit, setShowTierLimit] = useState(false);
+  const [showBusinessRules, setShowBusinessRules] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -66,7 +83,7 @@ export default function ChallengeWizardPage() {
   const { id: challengeId } = useParams<{ id: string }>();
   const isEditMode = !!challengeId;
 
-  // ═══════ Hooks — queries (before form, for governance-aware schema) ═══════
+  // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
   const { data: orgContext } = useOrgModelContext();
   const { data: challengeData, isLoading: challengeLoading } = useChallengeDetail(challengeId);
@@ -93,8 +110,6 @@ export default function ChallengeWizardPage() {
   });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
-
-  // ═══════ Hooks — completion tracking ═══════
   const formCompletion = useFormCompletion(form, isLightweight);
 
   // ═══════ Hooks — mutations ═══════
@@ -105,20 +120,30 @@ export default function ChallengeWizardPage() {
   // ═══════ Hooks — effects ═══════
   useEffect(() => {
     if (challengeData && isEditMode) {
+      const deliverables = challengeData.deliverables as any;
       form.reset({
         title: challengeData.title ?? '',
         description: challengeData.description ?? '',
         problem_statement: challengeData.problem_statement ?? '',
         scope: challengeData.scope ?? '',
         domain_tags: [],
-        deliverables_list: Array.isArray(challengeData.deliverables)
-          ? (challengeData.deliverables as any).items ?? ['']
-          : [''],
+        deliverables_list: Array.isArray(deliverables?.items) ? deliverables.items : [''],
         maturity_level: (challengeData.maturity_level as ChallengeFormValues['maturity_level']) ?? undefined as unknown as 'blueprint',
         ip_model: challengeData.ip_model ?? '',
         visibility: challengeData.visibility ?? 'public',
         eligibility: challengeData.eligibility ?? '',
         complexity_notes: '',
+        // New Step 1 fields from JSONB
+        context_background: deliverables?.context_background ?? '',
+        detailed_description: deliverables?.detailed_description ?? '',
+        root_causes: deliverables?.root_causes ?? '',
+        affected_stakeholders: deliverables?.affected_stakeholders ?? '',
+        current_deficiencies: deliverables?.current_deficiencies ?? '',
+        expected_outcomes: deliverables?.expected_outcomes ?? '',
+        preferred_approach: deliverables?.preferred_approach ?? '',
+        approaches_not_of_interest: deliverables?.approaches_not_of_interest ?? '',
+        industry_segment_id: (challengeData.eligibility as any)?.industry_segment_id ?? '',
+        experience_countries: (challengeData.eligibility as any)?.experience_countries ?? [],
         weighted_criteria: Array.isArray((challengeData.evaluation_criteria as any)?.criteria)
           ? (challengeData.evaluation_criteria as any).criteria.map((c: any) => ({
               name: c.name ?? c ?? '',
@@ -134,7 +159,7 @@ export default function ChallengeWizardPage() {
         gold_award: (challengeData.reward_structure as any)?.gold ?? 0,
         silver_award: (challengeData.reward_structure as any)?.silver ?? undefined,
         rejection_fee_pct: (challengeData as any)?.rejection_fee_percentage ?? 10,
-        submission_guidelines: '',
+        submission_guidelines: deliverables?.submission_guidelines ?? '',
         submission_template_url: (challengeData as any)?.submission_template_url ?? '',
         taxonomy_tags: '',
         submission_deadline: challengeData.submission_deadline
@@ -146,7 +171,7 @@ export default function ChallengeWizardPage() {
         solver_eligibility_types: Array.isArray((challengeData as any)?.solver_eligibility_types)
           ? (challengeData as any).solver_eligibility_types
           : ['individual'],
-        permitted_artifact_types: [],
+        permitted_artifact_types: deliverables?.permitted_artifact_types ?? [],
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
         challenge_visibility: (challengeData as any)?.challenge_visibility ?? '',
@@ -160,7 +185,6 @@ export default function ChallengeWizardPage() {
     }
   }, [challengeData, isEditMode, form]);
 
-  // ═══════ Hooks — tier limit gate (new challenges only) ═══════
   useEffect(() => {
     if (!isEditMode && tierLimit && !tierLimit.allowed) {
       setShowTierLimit(true);
@@ -178,7 +202,6 @@ export default function ChallengeWizardPage() {
     );
   }
 
-  // Role readiness gate — block new challenges if downstream roles missing
   if (!isEditMode && !readinessGate.isReady) {
     return (
       <SubmissionBlockedScreen
@@ -189,16 +212,12 @@ export default function ChallengeWizardPage() {
     );
   }
 
-  // Hard gate: if tier limit reached for new challenges, block the wizard
   if (!isEditMode && tierLimit && !tierLimit.allowed) {
     return (
       <div className="max-w-3xl mx-auto">
         <TierLimitModal
           isOpen={showTierLimit}
-          onClose={() => {
-            setShowTierLimit(false);
-            navigate('/cogni/dashboard');
-          }}
+          onClose={() => { setShowTierLimit(false); navigate('/cogni/dashboard'); }}
           tierName={tierLimit.tier_name}
           maxAllowed={tierLimit.max_allowed}
           currentActive={tierLimit.current_active}
@@ -209,14 +228,21 @@ export default function ChallengeWizardPage() {
 
   // ═══════ Derived ═══════
   const isEnterprise = governanceProfile === 'ENTERPRISE';
-  const pageTitle = isEditMode ? 'Edit Challenge' : 'Create Challenge';
+  const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
+  const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
+
+  // Calculate draft SLA (10 business days)
+  const createdAt = challengeData?.created_at ? new Date(challengeData.created_at) : new Date();
+  const slaDays = 10;
+  const slaDeadline = new Date(createdAt);
+  slaDeadline.setDate(slaDeadline.getDate() + slaDays);
+  const daysRemaining = Math.max(0, Math.ceil((slaDeadline.getTime() - Date.now()) / (1000 * 60 * 60 * 24)));
 
   // ═══════ Helpers ═══════
   const buildFieldsFromForm = (values: ChallengeFormValues) => {
-    const deliverables = values.deliverables_list.filter(Boolean);
+    const deliverableItems = values.deliverables_list.filter(Boolean);
     const criteria = values.weighted_criteria.filter((c) => c.name);
 
-    // Calculate complexity score from params
     const weights = [0.20, 0.15, 0.15, 0.15, 0.15, 0.10, 0.10];
     const paramKeys = ['technical_novelty', 'solution_maturity', 'domain_breadth', 'evaluation_complexity', 'ip_sensitivity', 'timeline_urgency', 'budget_scale'];
     let complexityScore: number | null = null;
@@ -232,17 +258,13 @@ export default function ChallengeWizardPage() {
       else if (complexityScore < 8) complexityLevel = 'L4';
       else complexityLevel = 'L5';
     } else if (values.complexity_notes) {
-      // Lightweight dropdown — fixed level + score mapping
       const lwMap: Record<string, { level: string; score: number }> = {
         low: { level: 'L1', score: 2.0 },
         medium: { level: 'L3', score: 5.0 },
         high: { level: 'L5', score: 9.0 },
       };
       const mapped = lwMap[values.complexity_notes];
-      if (mapped) {
-        complexityLevel = mapped.level;
-        complexityScore = mapped.score;
-      }
+      if (mapped) { complexityLevel = mapped.level; complexityScore = mapped.score; }
     }
 
     return {
@@ -250,14 +272,20 @@ export default function ChallengeWizardPage() {
       description: values.description || null,
       problem_statement: values.problem_statement || null,
       scope: values.scope || null,
-      deliverables: deliverables.length
-        ? {
-            items: deliverables,
-            permitted_artifact_types: values.permitted_artifact_types ?? [],
-          }
-        : values.permitted_artifact_types?.length
-          ? { items: [], permitted_artifact_types: values.permitted_artifact_types }
-          : null,
+      deliverables: {
+        items: deliverableItems,
+        permitted_artifact_types: values.permitted_artifact_types ?? [],
+        // Store new rich-text fields in deliverables JSONB
+        context_background: values.context_background || null,
+        detailed_description: values.detailed_description || null,
+        root_causes: values.root_causes || null,
+        affected_stakeholders: values.affected_stakeholders || null,
+        current_deficiencies: values.current_deficiencies || null,
+        expected_outcomes: values.expected_outcomes || null,
+        preferred_approach: values.preferred_approach || null,
+        approaches_not_of_interest: values.approaches_not_of_interest || null,
+        submission_guidelines: values.submission_guidelines || null,
+      },
       evaluation_criteria: criteria.length ? { criteria } : null,
       reward_structure: isLightweight
         ? values.reward_type === 'non_monetary'
@@ -285,6 +313,7 @@ export default function ChallengeWizardPage() {
         review_duration: values.review_duration || null,
         notes: values.phase_notes || null,
         phase_durations: values.phase_durations || null,
+        source_request_context: sourceRequest || null,
       },
       complexity_parameters: values.complexity_params || null,
       complexity_score: complexityScore,
@@ -295,56 +324,39 @@ export default function ChallengeWizardPage() {
 
   // ═══════ Cross-step validation ═══════
   const validateAllSteps = async (): Promise<{ valid: boolean; firstErrorStep: number | null }> => {
-    // Validate all step fields together
-    const allFields = [
-      ...getStepFields(1),
-      ...getStepFields(2),
-      ...getStepFields(3),
-      ...getStepFields(4),
-    ];
-
+    const allFields = [];
+    for (let s = 1; s <= TOTAL_STEPS; s++) {
+      allFields.push(...getStepFields(s));
+    }
     const isValid = await form.trigger(allFields as any);
-
     if (!isValid) {
-      // Find first step with errors
       for (let step = 1; step <= TOTAL_STEPS; step++) {
         const stepFields = getStepFields(step);
+        if (stepFields.length === 0) continue;
         const stepValid = await form.trigger(stepFields as any);
-        if (!stepValid) {
-          return { valid: false, firstErrorStep: step };
-        }
+        if (!stepValid) return { valid: false, firstErrorStep: step };
       }
     }
-
-    // Check evaluation weights sum to 100%
     const criteria = form.getValues('weighted_criteria');
     const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
-    if (totalWeight !== 100) {
-      return { valid: false, firstErrorStep: 3 };
-    }
-
-    // Check reward order: Platinum > Gold > Silver
+    if (totalWeight !== 100) return { valid: false, firstErrorStep: 2 };
     const platinum = form.getValues('platinum_award');
     const gold = form.getValues('gold_award');
     const silver = form.getValues('silver_award');
-    if (platinum <= 0 || gold <= 0 || platinum <= gold) {
-      return { valid: false, firstErrorStep: 3 };
-    }
-    if (silver !== undefined && silver > 0 && gold <= silver) {
-      return { valid: false, firstErrorStep: 3 };
-    }
-
+    if (platinum <= 0 || gold <= 0 || platinum <= gold) return { valid: false, firstErrorStep: 3 };
+    if (silver !== undefined && silver > 0 && gold <= silver) return { valid: false, firstErrorStep: 3 };
     return { valid: true, firstErrorStep: null };
   };
 
   // ═══════ Handlers ═══════
   const handleNext = async () => {
     const stepFields = getStepFields(currentStep);
-    const isValid = await form.trigger(stepFields as any);
-    if (!isValid) return;
+    if (stepFields.length > 0) {
+      const isValid = await form.trigger(stepFields as any);
+      if (!isValid) return;
+    }
 
-    // Extra check: Step 3 weights must equal 100%
-    if (currentStep === 3) {
+    if (currentStep === 2) {
       const criteria = form.getValues('weighted_criteria');
       const totalWeight = criteria.reduce((sum, c) => sum + (c.weight || 0), 0);
       if (totalWeight !== 100) {
@@ -353,7 +365,6 @@ export default function ChallengeWizardPage() {
       }
     }
 
-    // Auto-save step if editing existing challenge
     if (isEditMode && challengeId) {
       const values = form.getValues();
       const fields = buildFieldsFromForm(values);
@@ -361,20 +372,13 @@ export default function ChallengeWizardPage() {
     }
 
     if (currentStep < TOTAL_STEPS) {
-      setCompletedSteps((prev) =>
-        prev.includes(currentStep) ? prev : [...prev, currentStep]
-      );
+      setCompletedSteps((prev) => prev.includes(currentStep) ? prev : [...prev, currentStep]);
       setCurrentStep((s) => s + 1);
     } else {
-      // Step 4 "Submit" → full validation then show summary modal
       const result = await validateAllSteps();
       if (!result.valid && result.firstErrorStep) {
         setCurrentStep(result.firstErrorStep);
-        if (result.firstErrorStep === 3) {
-          toast.error('Please fix evaluation criteria: weights must sum to 100%');
-        } else {
-          toast.error(`Please fix errors in Step ${result.firstErrorStep}`);
-        }
+        toast.error(`Please fix errors in Step ${result.firstErrorStep}`);
         return;
       }
       setShowSummary(true);
@@ -387,17 +391,10 @@ export default function ChallengeWizardPage() {
 
   const handleSaveDraft = async () => {
     const values = form.getValues();
-
     if (isEditMode && challengeId) {
       const fields = buildFieldsFromForm(values);
-      saveStepMutation.mutate(
-        { challengeId, fields },
-        {
-          onSuccess: () => toast.success('Draft saved'),
-        }
-      );
+      saveStepMutation.mutate({ challengeId, fields }, { onSuccess: () => toast.success('Draft saved') });
     } else {
-      // Create new draft via initialize_challenge
       if (!currentOrg || !user?.id) return;
       createChallengeMutation.mutate(
         {
@@ -415,17 +412,13 @@ export default function ChallengeWizardPage() {
         },
         {
           onSuccess: ({ challengeId: newId }) => {
-            // Now save all wizard fields to the newly created challenge
             const fields = buildFieldsFromForm(values);
-            saveStepMutation.mutate(
-              { challengeId: newId, fields },
-              {
-                onSuccess: () => {
-                  toast.success('Draft saved');
-                  navigate(`/cogni/challenges/${newId}/edit`);
-                },
-              }
-            );
+            saveStepMutation.mutate({ challengeId: newId, fields }, {
+              onSuccess: () => {
+                toast.success('Draft saved');
+                navigate(`/cogni/challenges/${newId}/edit`);
+              },
+            });
           },
         }
       );
@@ -434,39 +427,24 @@ export default function ChallengeWizardPage() {
 
   const handleConfirmSubmit = async () => {
     if (!user?.id) return;
-
     const values = form.getValues();
     const fields = buildFieldsFromForm(values);
 
     if (isEditMode && challengeId) {
       try {
-        // 1. Save all fields
         await saveStepMutation.mutateAsync({ challengeId, fields });
-
         if (isEnterprise) {
-          // Enterprise: set phase_status to LEGAL_VERIFICATION_PENDING
-          await supabase
-            .from('challenges')
-            .update({ phase_status: 'LEGAL_VERIFICATION_PENDING' })
-            .eq('id', challengeId);
+          await supabase.from('challenges').update({ phase_status: 'LEGAL_VERIFICATION_PENDING' }).eq('id', challengeId);
           toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${challengeId}/legal`);
         } else {
-          // Lightweight: complete_phase (Phase 2 → 3, auto-completes through)
-          await submitMutation.mutateAsync({
-            challengeId,
-            userId: user.id,
-          });
+          await submitMutation.mutateAsync({ challengeId, userId: user.id });
           toast.success('Challenge created successfully!');
           navigate('/cogni/dashboard');
         }
-      } catch {
-        // Error handled by mutation onError
-      }
+      } catch { /* Error handled by mutation onError */ }
     } else {
-      // New challenge: create then submit
       if (!currentOrg) return;
-
       try {
         const { challengeId: newId } = await createChallengeMutation.mutateAsync({
           orgId: currentOrg.organizationId,
@@ -482,62 +460,120 @@ export default function ChallengeWizardPage() {
           urgency: 'normal',
         });
 
-        // If AGG bypass, write Phase 1 bypassed audit entry
         if (isAggBypass) {
           await supabase.from('audit_trail').insert({
-            user_id: user.id,
-            challenge_id: newId,
-            action: 'PHASE_COMPLETED',
-            method: 'SYSTEM',
-            phase_from: 1,
-            phase_to: 2,
-            details: {
-              status: 'COMPLETED_BYPASSED',
-              reason: 'AGG_PHASE1_BYPASS',
-            },
+            user_id: user.id, challenge_id: newId, action: 'PHASE_COMPLETED', method: 'SYSTEM',
+            phase_from: 1, phase_to: 2,
+            details: { status: 'COMPLETED_BYPASSED', reason: 'AGG_PHASE1_BYPASS' },
             created_by: user.id,
           });
         }
 
-        // Save full wizard fields
         await saveStepMutation.mutateAsync({ challengeId: newId, fields });
-
         if (isEnterprise) {
-          // Enterprise: set phase_status to LEGAL_VERIFICATION_PENDING
-          await supabase
-            .from('challenges')
-            .update({ phase_status: 'LEGAL_VERIFICATION_PENDING' })
-            .eq('id', newId);
+          await supabase.from('challenges').update({ phase_status: 'LEGAL_VERIFICATION_PENDING' }).eq('id', newId);
           toast.success('Challenge content complete. Legal documents must be attached before curation submission.');
           navigate(`/cogni/challenges/${newId}/legal`);
         } else {
-          await submitMutation.mutateAsync({
-            challengeId: newId,
-            userId: user.id,
-          });
+          await submitMutation.mutateAsync({ challengeId: newId, userId: user.id });
           toast.success('Challenge created successfully!');
           navigate('/cogni/dashboard');
         }
-      } catch {
-        // Error handled by mutation onError
-      }
+      } catch { /* Error handled by mutation onError */ }
     }
-
     setShowSummary(false);
   };
 
   // ═══════ Render ═══════
   return (
     <div className="max-w-3xl mx-auto pb-8">
-      {/* Page Title */}
-      <h1 className="text-2xl font-bold text-foreground mb-2">{pageTitle}</h1>
-      <p className="text-sm text-muted-foreground mb-4">
-        {isLightweight
-          ? 'Lightweight governance — fewer required fields'
-          : 'Enterprise governance — all fields required'}
-      </p>
+      {/* ── Page Header ─────────────────────────────── */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+            {pageTitle}
+            <Badge variant="outline" className="text-xs font-normal">Draft</Badge>
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            {isLightweight ? 'Lightweight governance' : 'Enterprise governance'}
+          </p>
+        </div>
+        <div className="flex items-center gap-3 shrink-0">
+          {/* Draft SLA */}
+          <div className="flex items-center gap-1.5 text-sm">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <span className="text-muted-foreground">Draft SLA:</span>
+            <Badge variant={daysRemaining <= 3 ? 'destructive' : 'secondary'} className="text-xs">
+              {daysRemaining} days remaining
+            </Badge>
+          </div>
+          {/* Auto-saved indicator */}
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            <Save className="h-3 w-3 mr-1" />
+            Auto-saved
+          </Badge>
+        </div>
+      </div>
 
-      {/* AGG Phase 1 Bypass Banner */}
+      {/* ── Top Action Buttons ────────────────────────── */}
+      <div className="flex flex-wrap gap-2 mb-4">
+        <Button variant="outline" size="sm" className="gap-1.5" onClick={handleSaveDraft} disabled={saveStepMutation.isPending}>
+          <Save className="h-3.5 w-3.5" /> Save Draft
+        </Button>
+        {isEditMode && (
+          <>
+            <Button variant="outline" size="sm" className="gap-1.5 text-amber-600 border-amber-300 hover:bg-amber-50">
+              <PauseCircle className="h-3.5 w-3.5" /> Put on Hold
+            </Button>
+            <Button variant="outline" size="sm" className="gap-1.5 text-destructive border-destructive/30 hover:bg-destructive/5">
+              <XCircle className="h-3.5 w-3.5" /> Cancel Challenge
+            </Button>
+          </>
+        )}
+      </div>
+
+      {/* ── Business Rules Banner ─────────────────────── */}
+      <div className="rounded-lg border border-border bg-muted/30 mb-4">
+        <button
+          type="button"
+          onClick={() => setShowBusinessRules(!showBusinessRules)}
+          className="w-full flex items-center justify-between px-4 py-2.5 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium text-foreground">Business Rules</span>
+            <Badge variant="secondary" className="text-[10px]">9 rules</Badge>
+          </div>
+          {showBusinessRules ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+        </button>
+        {showBusinessRules && (
+          <div className="px-4 pb-3 space-y-1">
+            {BUSINESS_RULES.map((rule) => (
+              <p key={rule} className="text-xs text-muted-foreground">{rule}</p>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* ── Source Request Banner ──────────────────────── */}
+      {sourceRequest && (
+        <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
+          <FileText className="h-5 w-5 text-[hsl(210,68%,54%)] shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-[hsl(210,68%,30%)]">
+              Creating challenge from Solution Request {sourceRequest.source_sr_title ?? ''}
+            </p>
+            <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
+              by {sourceRequest.source_sr_creator_name ?? 'Unknown'} ({sourceRequest.source_sr_org_name ?? ''})
+            </p>
+          </div>
+          <Button variant="link" size="sm" className="text-xs shrink-0" onClick={() => navigate('/cogni/my-requests')}>
+            View Original Request
+          </Button>
+        </div>
+      )}
+
+      {/* ── AGG Phase 1 Bypass Banner ─────────────────── */}
       {isAggBypass && !isEditMode && (
         <div className="rounded-lg border border-[hsl(210,68%,70%)] bg-[hsl(210,68%,96%)] p-3 mb-4 flex items-start gap-3">
           <span className="shrink-0 mt-0.5 rounded-full bg-[hsl(210,68%,54%)] p-1">
@@ -546,9 +582,7 @@ export default function ChallengeWizardPage() {
             </svg>
           </span>
           <div>
-            <p className="text-sm font-semibold text-[hsl(210,68%,30%)]">
-              Phase 1 Bypass Active
-            </p>
+            <p className="text-sm font-semibold text-[hsl(210,68%,30%)]">Phase 1 Bypass Active</p>
             <p className="text-xs text-[hsl(210,40%,45%)] mt-0.5">
               Your organization has Aggregator model with direct creation enabled. Phase 1 (Solution Request) is automatically skipped.
             </p>
@@ -556,53 +590,42 @@ export default function ChallengeWizardPage() {
         </div>
       )}
 
-      {/* Progress Bar */}
+      {/* ── Progress Bar ──────────────────────────────── */}
       <ChallengeProgressBar
         currentStep={currentStep}
         completedSteps={completedSteps}
         stepFieldCounts={formCompletion.steps}
       />
 
-      {/* Overall Completion */}
+      {/* ── Overall Completion ────────────────────────── */}
       <FormCompletionBar
         filledCount={formCompletion.totalFilled}
         totalCount={formCompletion.totalRequired}
       />
 
-      {/* Form Card */}
-      <div
-        className="bg-white rounded-xl p-6"
-        style={{ border: '1px solid #E5E7EB' }}
-      >
+      {/* ── Form Card ─────────────────────────────────── */}
+      <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
-          {/* Step Content */}
           {currentStep === 1 && (
-            <StepProblem
-              form={form}
-              mandatoryFields={mandatoryFields}
-              isLightweight={isLightweight}
-            />
+            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 2 && (
-            <StepRequirements
-              form={form}
-              mandatoryFields={mandatoryFields}
-              isLightweight={isLightweight}
-            />
+            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 3 && (
-            <StepEvaluation
-              form={form}
-              mandatoryFields={mandatoryFields}
-              isLightweight={isLightweight}
-            />
+            <StepRequirements form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
           {currentStep === 4 && (
-            <StepTimeline
-              form={form}
-              mandatoryFields={mandatoryFields}
-              isLightweight={isLightweight}
-            />
+            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+          )}
+          {currentStep === 5 && (
+            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+          )}
+          {currentStep === 6 && (
+            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+          )}
+          {currentStep === 7 && (
+            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
           )}
 
           {/* Bottom Bar */}
@@ -619,7 +642,7 @@ export default function ChallengeWizardPage() {
         </form>
       </div>
 
-      {/* Submission Summary Modal */}
+      {/* ── Submission Summary Modal ──────────────────── */}
       <ChallengeSubmitSummaryModal
         open={showSummary}
         onOpenChange={setShowSummary}
@@ -637,13 +660,19 @@ export default function ChallengeWizardPage() {
 function getStepFields(step: number): string[] {
   switch (step) {
     case 1:
-      return ['title', 'problem_statement', 'domain_tags', 'maturity_level'];
+      return ['title', 'problem_statement', 'domain_tags', 'maturity_level', 'deliverables_list'];
     case 2:
-      return ['deliverables_list', 'permitted_artifact_types', 'submission_guidelines', 'ip_model', 'solver_eligibility_types'];
-    case 3:
       return ['weighted_criteria', 'currency_code', 'platinum_award', 'gold_award'];
+    case 3:
+      return ['permitted_artifact_types', 'ip_model', 'solver_eligibility_types'];
     case 4:
       return ['submission_deadline', 'phase_durations'];
+    case 5:
+      return ['targeting_filters'];
+    case 6:
+      return [];
+    case 7:
+      return [];
     default:
       return [];
   }
