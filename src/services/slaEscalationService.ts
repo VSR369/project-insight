@@ -152,7 +152,7 @@ export function useActiveEscalations(challengeId: string | undefined) {
       if (!challengeId) return [];
       const { data, error } = await supabase
         .from('sla_timers')
-        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at')
+        .select('timer_id, challenge_id, phase, role_code, status, deadline_at, breached_at, escalation_tier, auto_hold_on_breach, last_escalated_at, started_at, warning_sent_at, phase_duration_days')
         .eq('challenge_id', challengeId)
         .eq('status', 'BREACHED')
         .gt('escalation_tier', 0)
