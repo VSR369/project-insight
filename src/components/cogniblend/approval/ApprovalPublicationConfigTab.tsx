@@ -413,6 +413,17 @@ export default function ApprovalPublicationConfigTab({
         </CardContent>
       </Card>
 
+      {/* Targeting Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <TargetingFiltersSection
+            value={targetingFilters}
+            onChange={setTargetingFilters}
+            isLightweight={!isEnterprise}
+          />
+        </CardContent>
+      </Card>
+
       {/* Complexity Finalization */}
       <Card>
         <CardHeader className="pb-2">
