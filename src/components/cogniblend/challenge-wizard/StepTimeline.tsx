@@ -271,6 +271,15 @@ const SUBMISSION_RANK: Record<string, number> = {
   all_enrolled: 0, shortlisted_only: 1, invited_solvers: 2,
 };
 
+/** BRD §5.7.1 — 5 Solver Eligibility Model presets */
+const ELIGIBILITY_MODELS = [
+  { code: 'OPEN', label: 'Open', description: 'Anyone registered can participate', visibility: 'public', enrollment: 'open_auto', submission: 'all_enrolled' },
+  { code: 'DR', label: 'Direct Registration', description: 'Open with NDA requirement', visibility: 'registered_users', enrollment: 'direct_nda', submission: 'all_enrolled' },
+  { code: 'OC', label: 'Organization-Curated', description: 'Org-level pre-approved pool', visibility: 'platform_members', enrollment: 'org_curated', submission: 'all_enrolled' },
+  { code: 'CE', label: 'Curated Expert', description: 'Platform-verified experts only', visibility: 'curated_experts', enrollment: 'curator_approved', submission: 'shortlisted_only' },
+  { code: 'IO', label: 'Invitation Only', description: 'Seeker invites specific solvers', visibility: 'invited_only', enrollment: 'invitation_only', submission: 'invited_solvers' },
+] as const;
+
 function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFormValues> }) {
   const { setValue, watch } = form;
   const vis = watch('challenge_visibility') || 'public';
@@ -283,19 +292,18 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
   /** Enrollment cannot exceed visibility scope */
   const isEnrollmentDisabled = (value: string) => {
     const rank = ENROLLMENT_RANK[value] ?? 0;
-    return rank < visRank; // broader than visibility → disabled
+    return rank < visRank;
   };
 
   /** Submission cannot exceed enrollment scope */
   const isSubmissionDisabled = (value: string) => {
     const rank = SUBMISSION_RANK[value] ?? 0;
-    return rank < enrRank; // broader than enrollment → disabled
+    return rank < enrRank;
   };
 
   // Auto-correct if current selection becomes invalid
   useEffect(() => {
     if (isEnrollmentDisabled(enr)) {
-      // Set to the narrowest valid option that matches visibility rank
       const validEnr = Object.entries(ENROLLMENT_RANK).find(([, r]) => r >= visRank);
       if (validEnr) setValue('challenge_enrollment', validEnr[0], { shouldDirty: true });
     }
@@ -307,6 +315,18 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
       if (validSub) setValue('challenge_submission', validSub[0], { shouldDirty: true });
     }
   }, [enr]);
+
+  /** Apply an eligibility model preset */
+  const applyPreset = (model: typeof ELIGIBILITY_MODELS[number]) => {
+    setValue('challenge_visibility', model.visibility, { shouldDirty: true });
+    setValue('challenge_enrollment', model.enrollment, { shouldDirty: true });
+    setValue('challenge_submission', model.submission, { shouldDirty: true });
+  };
+
+  /** Detect which preset (if any) matches the current selection */
+  const activePreset = ELIGIBILITY_MODELS.find(
+    (m) => m.visibility === vis && m.enrollment === enr && m.submission === sub
+  );
 
   const tierCards = [
     {
@@ -345,18 +365,46 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
           Publication Configuration <span className="text-destructive">*</span>
         </h3>
         <p className="text-xs text-muted-foreground">
-          Configure who can see, enroll in, and submit solutions. Each tier narrows the funnel: Visibility ≥ Enrollment ≥ Submission.
+          Select an eligibility model or manually configure tiers. Funnel: Visibility ≥ Enrollment ≥ Submission.
         </p>
       </div>
 
-      {/* 3-tier cards in a row */}
+      {/* ─── Eligibility Model Presets ─── */}
+      <div className="space-y-2">
+        <Label className="text-[13px] font-semibold">Solver Eligibility Model</Label>
+        <div className="flex flex-wrap gap-2">
+          {ELIGIBILITY_MODELS.map((model) => (
+            <button
+              key={model.code}
+              type="button"
+              onClick={() => applyPreset(model)}
+              className={cn(
+                'rounded-lg border px-3 py-2 text-left transition-colors text-xs',
+                activePreset?.code === model.code
+                  ? 'border-primary bg-primary/10 text-primary font-semibold'
+                  : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-muted/50'
+              )}
+            >
+              <span className="font-bold">{model.code}</span>
+              <span className="ml-1.5">{model.label}</span>
+            </button>
+          ))}
+        </div>
+        {activePreset && (
+          <p className="text-xs text-muted-foreground italic">{activePreset.description}</p>
+        )}
+        {!activePreset && (
+          <p className="text-xs text-muted-foreground italic">Custom configuration — no preset matches.</p>
+        )}
+      </div>
+
+      {/* ─── 3-tier cards ─── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
         {tierCards.map((tier, idx) => {
           const Icon = tier.icon;
           const selectedOpt = tier.options.find((o) => o.value === tier.value);
           return (
             <div key={tier.title} className="relative flex">
-              {/* Arrow between cards */}
               {idx > 0 && (
                 <div className="hidden lg:flex absolute -left-[14px] top-1/2 -translate-y-1/2 z-10">
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
@@ -400,15 +448,12 @@ function EnterprisePublicationConfig({ form }: { form: UseFormReturn<ChallengeFo
         })}
       </div>
 
-      {/* Funnel summary */}
-      <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 flex items-center gap-2 text-xs text-foreground flex-wrap">
-        <span className="font-semibold">Funnel:</span>
-        <Badge variant="outline" className="text-[11px]">{VISIBILITY_OPTIONS.find((o) => o.value === vis)?.label}</Badge>
-        <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        <Badge variant="outline" className="text-[11px]">{ENROLLMENT_OPTIONS.find((o) => o.value === enr)?.label}</Badge>
-        <ChevronRight className="h-3 w-3 text-muted-foreground shrink-0" />
-        <Badge variant="outline" className="text-[11px]">{SUBMISSION_OPTIONS.find((o) => o.value === sub)?.label}</Badge>
-      </div>
+      {/* ─── Access Model Summary Card ─── */}
+      <AccessModelSummary
+        visibility={vis}
+        enrollment={enr}
+        submission={sub}
+      />
     </div>
   );
 }
