@@ -33,6 +33,24 @@ export interface SLATimerWithEscalation {
   auto_hold_on_breach: boolean;
   last_escalated_at: string | null;
   started_at: string;
+  warning_sent_at: string | null;
+  phase_duration_days: number | null;
+}
+
+/**
+ * Compute percentage elapsed for an SLA timer.
+ * Returns a value between 0 and 1+ (>1 means breached).
+ */
+export function computeSlaElapsedPercent(
+  startedAt: string,
+  deadlineAt: string,
+): number {
+  const startMs = new Date(startedAt).getTime();
+  const deadlineMs = new Date(deadlineAt).getTime();
+  const totalDuration = deadlineMs - startMs;
+  if (totalDuration <= 0) return 1;
+  const elapsed = Date.now() - startMs;
+  return elapsed / totalDuration;
 }
 
 const TIER_LABELS: Record<number, string> = {
