@@ -145,6 +145,10 @@ export default function ChallengeWizardPage() {
         challenge_visibility: (challengeData as any)?.challenge_visibility ?? '',
         challenge_enrollment: (challengeData as any)?.challenge_enrollment ?? '',
         challenge_submission: (challengeData as any)?.challenge_submission ?? '',
+        targeting_filters: (challengeData as any)?.targeting_filters ?? {
+          industries: [], geographies: [], expertise_domains: [], certifications: [],
+          languages: [], min_solver_rating: 'any', past_performance: 'any', solver_cluster: 'any',
+        },
       });
     }
   }, [challengeData, isEditMode, form]);
@@ -235,6 +239,7 @@ export default function ChallengeWizardPage() {
       complexity_parameters: values.complexity_params || null,
       complexity_score: complexityScore,
       complexity_level: complexityLevel,
+      targeting_filters: values.targeting_filters || {},
     };
   };
 

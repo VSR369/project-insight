@@ -77,6 +77,18 @@ export function createChallengeFormSchema(isLightweight: boolean) {
     challenge_visibility: z.string().optional().or(z.literal('')),
     challenge_enrollment: z.string().optional().or(z.literal('')),
     challenge_submission: z.string().optional().or(z.literal('')),
+
+    // Step 4 — Targeting filters (JSONB)
+    targeting_filters: z.object({
+      industries: z.array(z.string()).default([]),
+      geographies: z.array(z.string()).default([]),
+      expertise_domains: z.array(z.string()).default([]),
+      certifications: z.array(z.string()).default([]),
+      languages: z.array(z.string()).default([]),
+      min_solver_rating: z.string().default('any'),
+      past_performance: z.string().default('any'),
+      solver_cluster: z.string().default('any'),
+    }).default({}),
   });
 }
 
@@ -123,4 +135,14 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   challenge_visibility: '',
   challenge_enrollment: '',
   challenge_submission: '',
+  targeting_filters: {
+    industries: [],
+    geographies: [],
+    expertise_domains: [],
+    certifications: [],
+    languages: [],
+    min_solver_rating: 'any',
+    past_performance: 'any',
+    solver_cluster: 'any',
+  },
 };

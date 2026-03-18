@@ -11,6 +11,8 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from "react";
+import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from "@/components/cogniblend/publication/TargetingFiltersSection";
+import type { TargetingFilters } from "@/components/cogniblend/publication/TargetingFiltersSection";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,6 +49,7 @@ interface PublicationConfigTabProps {
     max_solutions: number | null;
     submission_deadline: string | null;
     ip_model: string | null;
+    targeting_filters: Json | null;
   };
   isApproved: boolean;
   onConfigChange?: (config: { visibility: string; eligibility: string; isReady: boolean }) => void;
@@ -151,6 +154,10 @@ export default function ApprovalPublicationConfigTab({
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
   const [complexityFinalized, setComplexityFinalized] = useState(false);
+  const [targetingFilters, setTargetingFilters] = useState<TargetingFilters>(() => {
+    const existing = parseJson<TargetingFilters>(challenge.targeting_filters);
+    return existing ?? EMPTY_TARGETING_FILTERS;
+  });
 
   // Complexity slider values
   const existingParams = parseJson<Record<string, number>>(challenge.complexity_parameters) ?? {};
@@ -403,6 +410,17 @@ export default function ApprovalPublicationConfigTab({
               </div>
             )}
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Targeting Filters */}
+      <Card>
+        <CardContent className="pt-6">
+          <TargetingFiltersSection
+            value={targetingFilters}
+            onChange={setTargetingFilters}
+            isLightweight={!isEnterprise}
+          />
         </CardContent>
       </Card>
 

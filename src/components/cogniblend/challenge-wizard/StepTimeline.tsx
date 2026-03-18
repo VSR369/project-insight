@@ -38,6 +38,8 @@ import {
 } from '@/components/ui/tooltip';
 import type { ChallengeFormValues } from './challengeFormSchema';
 import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
+import { TargetingFiltersSection, EMPTY_TARGETING_FILTERS } from '@/components/cogniblend/publication/TargetingFiltersSection';
+import type { TargetingFilters } from '@/components/cogniblend/publication/TargetingFiltersSection';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -665,7 +667,15 @@ export function StepTimeline({ form, mandatoryFields, isLightweight }: StepTimel
         <EnterprisePublicationConfig form={form} />
       )}
 
-      {/* ═══ SECTION 3: Complexity Assessment ═══ */}
+      {/* ═══ SECTION 2b: Targeting Filters ═══ */}
+      <div className="border-t border-border pt-6">
+        <TargetingFiltersSection
+          value={(watch('targeting_filters') as TargetingFilters) ?? EMPTY_TARGETING_FILTERS}
+          onChange={(filters) => setValue('targeting_filters', filters as any, { shouldDirty: true })}
+          isLightweight={isLightweight}
+        />
+      </div>
+
       <div className="space-y-4 border-t border-border pt-6">
         <div className="space-y-1">
           <h3 className="text-base font-bold text-foreground">Complexity Assessment</h3>
