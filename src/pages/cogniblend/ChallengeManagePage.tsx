@@ -204,7 +204,7 @@ export default function ChallengeManagePage() {
                 <tbody>
                   {data.submissions.map((s) => {
                     const statusKey = s.status.toLowerCase().replace(/\s+/g, '_');
-                    const style = STATUS_STYLE[statusKey] ?? STATUS_STYLE.draft;
+                    const mappedStatus = SUBMISSION_STATUS_MAP[statusKey] ?? 'DRAFT';
                     return (
                       <tr key={s.id} className="border-b border-border/50 last:border-0">
                         <td className="py-2 pr-4 font-medium text-foreground">
@@ -221,9 +221,11 @@ export default function ChallengeManagePage() {
                           {format(new Date(s.submittedAt), 'dd MMM yyyy')}
                         </td>
                         <td className="py-2">
-                          <span className={`rounded-full px-2.5 py-0.5 text-[10px] lg:text-xs font-medium capitalize ${style}`}>
-                            {s.status}
-                          </span>
+                          <SolutionStatusBadge
+                            currentPhase={null}
+                            phaseStatus={null}
+                            overrideStatus={mappedStatus}
+                          />
                         </td>
                       </tr>
                     );
