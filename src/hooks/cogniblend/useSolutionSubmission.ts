@@ -26,6 +26,8 @@ export interface SolutionRecord {
   ai_usage_declaration: string | null;
   current_phase: number | null;
   phase_status: string | null;
+  selection_status: string | null;
+  payment_status: string | null;
   submitted_at: string | null;
   created_at: string;
 }
