@@ -115,7 +115,7 @@ export function usePublicationReadiness(challengeId: string | undefined) {
           maturity_level, phase_schedule, complexity_parameters,
           complexity_score, complexity_level, ip_model,
           visibility, eligibility, governance_profile,
-          current_phase, master_status
+          current_phase, master_status, lc_review_required
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
