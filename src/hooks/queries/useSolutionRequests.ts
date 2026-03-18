@@ -105,7 +105,7 @@ export function useSolutionRequests(mpRoles: SlmRoleCode[] = []) {
         supabase
           .from("challenges")
           .select(`
-            id, title, status, organization_id, engagement_model_id, created_at,
+            id, title, status, organization_id, engagement_model_id, created_at, phase_status, current_phase,
             seeker_organizations!challenges_organization_id_fkey ( organization_name )
           `)
           .eq("is_active", true)
