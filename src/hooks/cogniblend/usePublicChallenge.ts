@@ -88,8 +88,9 @@ export function usePublicChallenge(challengeId: string | undefined) {
           id, title, problem_statement, scope, description,
           maturity_level, complexity_level, complexity_score,
           operating_model, visibility, eligibility, currency_code,
-          submission_deadline, published_at,
-          reward_structure, evaluation_criteria, deliverables, phase_schedule
+          submission_deadline, published_at, tenant_id,
+          reward_structure, evaluation_criteria, deliverables, phase_schedule,
+          challenge_enrollment
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
