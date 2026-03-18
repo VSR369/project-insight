@@ -340,7 +340,37 @@ export default function SolutionSubmitPage() {
     );
   }
 
-  if (isAlreadySubmitted) {
+  if (needsReacceptance && reacceptStatus?.record) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <Card className="border-[hsl(38,60%,70%)]/40">
+          <CardContent className="p-8 text-center space-y-4">
+            <FileText className="h-12 w-12 text-[hsl(38,68%,41%)] mx-auto" />
+            <h2 className="text-xl font-semibold text-foreground">Legal Re-Acceptance Required</h2>
+            <p className="text-muted-foreground">
+              The legal terms for this challenge have been updated. You must accept the updated terms before submitting.
+            </p>
+            <Badge variant="outline" className="text-sm border-[hsl(38,60%,70%)] text-[hsl(38,68%,41%)]">
+              {reacceptStatus.record.days_remaining} day{reacceptStatus.record.days_remaining !== 1 ? 's' : ''} remaining
+            </Badge>
+            <div className="pt-2">
+              <Button onClick={() => setReacceptModalOpen(true)}>
+                Review & Accept Terms
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+        <LegalReAcceptModal
+          open={reacceptModalOpen}
+          onOpenChange={setReacceptModalOpen}
+          challengeId={challengeId!}
+          userId={userId ?? ''}
+          record={reacceptStatus.record}
+        />
+      </div>
+    );
+  }
+
     const handleWithdrawConfirm = (reason: string) => {
       if (!existingSolution?.id || !challengeId || !userId || !withdrawalCtx) return;
       withdrawMutation.mutate({
