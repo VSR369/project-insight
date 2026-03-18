@@ -566,6 +566,7 @@ export default function NewSolutionRequestPage() {
                       value={field.value}
                       onChange={field.onChange}
                       error={errors.domain_tags?.message}
+                      businessProblem={businessProblem}
                     />
                   )}
                 />
