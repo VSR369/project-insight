@@ -103,7 +103,7 @@ export function AmendmentCard({ challengeId, challengeTitle, userId, canInitiate
                     reason={a.reason}
                     isMaterial={a.isMaterial}
                     createdAt={a.createdAt}
-                    withdrawalDeadline={(a as any).withdrawalDeadline ?? null}
+                    withdrawalDeadline={a.withdrawalDeadline}
                     canEdit={canInitiate}
                   />
                 ))}
