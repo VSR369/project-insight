@@ -85,6 +85,18 @@ export function usePublishChallenge() {
 
       if (lockErr) throw new Error(lockErr.message);
 
+      // 3b. Audit: CHALLENGE_PUBLISHED
+      await supabase.from('audit_trail').insert({
+        user_id: userId,
+        challenge_id: challengeId,
+        action: 'CHALLENGE_PUBLISHED',
+        method: 'USER',
+        details: {
+          package_version: 1,
+          title: challenge.title,
+        },
+      });
+
       // 4. Call complete_phase to move Phase 5 → Phase 7
       const { data: phaseResult, error: phaseErr } = await supabase.rpc('complete_phase', {
         p_challenge_id: challengeId,
