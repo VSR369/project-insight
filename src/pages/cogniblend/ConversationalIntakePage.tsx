@@ -219,6 +219,35 @@ export default function ConversationalIntakePage() {
         </Button>
       </div>
 
+      {/* AI Failure Fallback Banner (V-5) */}
+      {aiFailure && (
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-300">AI generation unavailable</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-400">
+            AI couldn't generate the specification right now. You can continue manually — your inputs will be carried over.
+          </AlertDescription>
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950"
+              onClick={() => {
+                const values = form.getValues();
+                const params = new URLSearchParams();
+                if (values.problem_statement) params.set('problem', values.problem_statement);
+                if (values.maturity_level) params.set('maturity', values.maturity_level);
+                if (selectedTemplate?.id) params.set('template', selectedTemplate.id);
+                navigate(`/cogni/challenges/new?${params.toString()}`);
+              }}
+            >
+              <ArrowRight className="h-4 w-4 mr-1.5" />
+              Continue in Advanced Editor
+            </Button>
+          </div>
+        </Alert>
+      )}
+
       {/* Step 1: Template Selector */}
       <TemplateSelector
         onSelect={handleTemplateSelect}
