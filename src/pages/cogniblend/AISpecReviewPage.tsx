@@ -1,29 +1,32 @@
 /**
- * AISpecReviewPage — Review AI-drafted challenge sections before creating.
+ * AISpecReviewPage — Governance-aware review of AI-drafted challenge spec.
  * Route: /cogni/challenges/:id/spec
  *
- * Displays AI-generated fields with sparkle badges indicating AI-drafted content.
- * User can accept, edit, or regenerate each section.
+ * QUICK mode: Read-only formatted doc + "Confirm & Submit" (1-click).
+ * STRUCTURED mode: Inline-editable sections + "Approve & Continue".
+ * CONTROLLED mode: Redirects to side-panel editor.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   Check,
   Pencil,
-  RefreshCw,
   ArrowRight,
   ArrowLeft,
   AlertTriangle,
+  ShieldCheck,
+  Settings2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -47,11 +50,11 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
 
-/* ─── Section Card ────────────────────────────────────── */
-
 type SectionStatus = 'pending' | 'accepted' | 'editing';
 
-function SpecSectionCard({
+/* ─── Section Card (STRUCTURED mode — editable) ───────── */
+
+function EditableSectionCard({
   section,
   value,
   status,
@@ -70,15 +73,12 @@ function SpecSectionCard({
 
   return (
     <div
-      className={`
-        rounded-xl border p-5 transition-all
-        ${status === 'accepted'
+      className={`rounded-xl border p-5 transition-all ${
+        status === 'accepted'
           ? 'border-primary/30 bg-primary/5'
           : 'border-border bg-card'
-        }
-      `}
+      }`}
     >
-      {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
@@ -89,14 +89,9 @@ function SpecSectionCard({
             </Badge>
           )}
         </div>
-
         <div className="flex items-center gap-1">
           {status === 'editing' ? (
-            <Button
-              size="sm"
-              variant="default"
-              onClick={() => onSave(editValue)}
-            >
+            <Button size="sm" variant="default" onClick={() => onSave(editValue)}>
               <Check className="h-3.5 w-3.5 mr-1" />
               Save
             </Button>
@@ -115,7 +110,6 @@ function SpecSectionCard({
         </div>
       </div>
 
-      {/* Content */}
       {status === 'editing' ? (
         <Textarea
           value={editValue}
@@ -128,6 +122,33 @@ function SpecSectionCard({
           {value || <span className="italic">No content yet</span>}
         </p>
       )}
+    </div>
+  );
+}
+
+/* ─── Read-only Section Card (QUICK mode) ─────────────── */
+
+function ReadOnlySectionCard({
+  section,
+  value,
+}: {
+  section: SpecSection;
+  value: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-sm font-semibold text-foreground">{section.label}</h3>
+        {section.isAiDrafted && (
+          <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+            <Sparkles className="h-3 w-3 mr-0.5 text-amber-500" />
+            AI
+          </Badge>
+        )}
+      </div>
+      <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
+        {value || <span className="italic">No content yet</span>}
+      </p>
     </div>
   );
 }
@@ -145,6 +166,17 @@ export default function AISpecReviewPage() {
 
   // ═══════ Hooks — queries ═══════
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
+  const { data: currentOrg } = useCurrentOrg();
+
+  // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
+  const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+
+  // ═══════ Effects — redirect CONTROLLED to side-panel ═══════
+  useEffect(() => {
+    if (!isLoading && challenge && govMode === 'CONTROLLED') {
+      navigate(`/cogni/challenges/${challengeId}/controlled-edit`, { replace: true });
+    }
+  }, [isLoading, challenge, govMode, challengeId, navigate]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (isLoading) {
@@ -204,11 +236,86 @@ export default function AISpecReviewPage() {
     (s) => (sectionStatuses[s.key] ?? 'pending') === 'accepted',
   );
 
-  const handleProceedToWizard = () => {
+  const handleConfirmSubmit = () => {
+    // QUICK mode: 1-click confirm — navigate to dashboard (phases auto-advance)
+    navigate('/cogni/dashboard');
+  };
+
+  const handleApproveAndContinue = () => {
+    // STRUCTURED mode: submit to curator queue — navigate to dashboard
+    navigate('/cogni/dashboard');
+  };
+
+  const handleOpenEditor = () => {
     navigate(`/cogni/challenges/${challengeId}/edit`);
   };
 
-  // ═══════ Render ═══════
+  // ═══════ QUICK mode: read-only with 1-click confirm ═══════
+  if (govMode === 'QUICK') {
+    return (
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h1 className="text-2xl font-bold text-foreground">
+                AI Specification — Quick Review
+              </h1>
+              <Badge variant="secondary" className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                QUICK
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Your challenge specification is ready. Review below and confirm with one click.
+            </p>
+            {challenge.maturity_level && (
+              <Badge variant="outline" className="mt-2 text-xs">
+                Maturity: {getMaturityLabel(challenge.maturity_level)}
+              </Badge>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/cogni/challenges/create')}
+          >
+            <ArrowLeft className="h-4 w-4 mr-1.5" />
+            Back
+          </Button>
+        </div>
+
+        {/* Read-only sections */}
+        <div className="space-y-4">
+          {SPEC_SECTIONS.map((section) => (
+            <ReadOnlySectionCard
+              key={section.key}
+              section={section}
+              value={getFieldValue(section.fieldKey)}
+            />
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-between pt-4 border-t border-border">
+          <p className="text-xs text-muted-foreground">
+            All fields auto-completed by AI. Legal auto-configured from maturity level.
+          </p>
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={handleOpenEditor}>
+              <Settings2 className="h-4 w-4 mr-2" />
+              Open Editor
+            </Button>
+            <Button onClick={handleConfirmSubmit} size="lg">
+              <Check className="h-4 w-4 mr-2" />
+              Confirm & Submit
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════ STRUCTURED mode: editable sections ═══════
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
       {/* Header */}
@@ -224,7 +331,7 @@ export default function AISpecReviewPage() {
             </Badge>
           </div>
           <p className="text-sm text-muted-foreground">
-            Review each section below. Accept or edit before proceeding to the full editor.
+            Review each section. Accept, edit, or regenerate before approving.
           </p>
           {challenge.maturity_level && (
             <Badge variant="outline" className="mt-2 text-xs">
@@ -242,10 +349,10 @@ export default function AISpecReviewPage() {
         </Button>
       </div>
 
-      {/* Sections */}
+      {/* Editable Sections */}
       <div className="space-y-4">
         {SPEC_SECTIONS.map((section) => (
-          <SpecSectionCard
+          <EditableSectionCard
             key={section.key}
             section={section}
             value={getFieldValue(section.fieldKey)}
@@ -263,14 +370,20 @@ export default function AISpecReviewPage() {
           {Object.values(sectionStatuses).filter((s) => s === 'accepted').length} of{' '}
           {SPEC_SECTIONS.length} sections accepted
         </p>
-        <Button
-          onClick={handleProceedToWizard}
-          disabled={!allAccepted}
-          size="lg"
-        >
-          <ArrowRight className="h-4 w-4 mr-2" />
-          Open in Advanced Editor
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" onClick={handleOpenEditor}>
+            <Settings2 className="h-4 w-4 mr-2" />
+            Advanced Editor
+          </Button>
+          <Button
+            onClick={handleApproveAndContinue}
+            disabled={!allAccepted}
+            size="lg"
+          >
+            <ArrowRight className="h-4 w-4 mr-2" />
+            Approve & Continue
+          </Button>
+        </div>
       </div>
     </div>
   );

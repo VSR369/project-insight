@@ -228,6 +228,7 @@ const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardP
 const ConversationalIntakePage = lazy(() => import("@/pages/cogniblend/ConversationalIntakePage"));
 const CogniChallengeCreatePage = lazy(() => import("@/pages/cogniblend/ChallengeCreatePage"));
 const AISpecReviewPage = lazy(() => import("@/pages/cogniblend/AISpecReviewPage"));
+const ControlledEditorPage = lazy(() => import("@/pages/cogniblend/ControlledEditorPage"));
 const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizardPage"));
 const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalDocumentAttachmentPage"));
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
@@ -336,6 +337,7 @@ const App = () => (
               <Route path="/cogni/challenges/create" element={<LazyRoute><CogniChallengeCreatePage /></LazyRoute>} />
               <Route path="/cogni/challenges/new" element={<Navigate to="/cogni/challenges/create?tab=editor" replace />} />
               <Route path="/cogni/challenges/:id/spec" element={<LazyRoute><AISpecReviewPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/:id/controlled-edit" element={<LazyRoute><ControlledEditorPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/edit" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/legal" element={<LazyRoute><LegalDocumentAttachmentPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/publish" element={<LazyRoute><PublicationReadinessPage /></LazyRoute>} />
