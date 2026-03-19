@@ -1,6 +1,7 @@
 /**
  * GovernanceProfileBadge — Reusable governance profile pill with tooltip.
- * LIGHTWEIGHT = green pill | ENTERPRISE = blue pill
+ * Supports 3-mode governance: QUICK (green) | STRUCTURED (blue) | CONTROLLED (purple)
+ * Backward-compatible with legacy LIGHTWEIGHT/ENTERPRISE values.
  */
 
 import {
@@ -9,6 +10,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 
 interface GovernanceProfileBadgeProps {
   profile: string | null | undefined;
@@ -16,24 +18,9 @@ interface GovernanceProfileBadgeProps {
   compact?: boolean;
 }
 
-const CONFIG = {
-  LIGHTWEIGHT: {
-    label: 'LIGHTWEIGHT',
-    bg: '#E1F5EE',
-    color: '#0F6E56',
-    tooltip: 'Lightweight: simplified workflow with auto-completion',
-  },
-  ENTERPRISE: {
-    label: 'ENTERPRISE',
-    bg: '#E6F1FB',
-    color: '#185FA5',
-    tooltip: 'Enterprise: full governance with all phases and approvals',
-  },
-} as const;
-
 export function GovernanceProfileBadge({ profile, compact = false }: GovernanceProfileBadgeProps) {
-  const key = profile === 'ENTERPRISE' ? 'ENTERPRISE' : 'LIGHTWEIGHT';
-  const cfg = CONFIG[key];
+  const mode = resolveGovernanceMode(profile);
+  const cfg = GOVERNANCE_MODE_CONFIG[mode];
 
   return (
     <TooltipProvider delayDuration={200}>
