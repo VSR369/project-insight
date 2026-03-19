@@ -43,6 +43,7 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import CurationChecklistPanel from "./CurationChecklistPanel";
+import { AICurationQualityPanel } from "@/components/cogniblend/curation/AICurationQualityPanel";
 import PaymentScheduleSection from "@/components/cogniblend/PaymentScheduleSection";
 import type { Json } from "@/integrations/supabase/types";
 
