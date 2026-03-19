@@ -1,374 +1,219 @@
-# Platform Admin Sub-Role Tiers — Implementation Complete
 
-## What Was Implemented
 
-### Database
-- Added `admin_tier` column to `platform_admin_profiles` (supervisor, senior_admin, admin)
-- Added `admin_tier` column to `admin_access_codes` (tier-specific codes)
-- Migrated existing `is_supervisor = true` → `admin_tier = 'supervisor'`
-- Added `fn_guard_tier_hierarchy` trigger (prevents demoting last supervisor)
-- Added index `idx_pap_admin_tier`
+# Complete Impact Analysis: CogniBlend Final UX Design Document
 
-### Edge Functions
-- `register-platform-admin`: Derives tier from `admin_access_codes.admin_tier`
-- `manage-platform-admin`: Enforces tier hierarchy (supervisor > senior_admin > admin)
+## Document Summary
 
-### Frontend
-- `useAdminTier` hook: Returns `tier`, `isSupervisor`, `isSeniorAdmin`
-- `AdminSidebar`: Tier-based visibility (Team Management, Seeker Config hidden for basic admin)
-- `PlatformAdminForm`: Admin tier dropdown with hierarchy-restricted options
-- `PlatformAdminListPage`: Tier column, tier-based CRUD buttons
-- `CreatePlatformAdminPage`: Supervisor + Senior Admin can create (with tier restrictions)
-- `EditPlatformAdminPage`: Supervisor only
-- `ViewPlatformAdminPage`: Shows tier badge, supervisor-only edit/deactivate
-- `Login.tsx`: Admin sub-tier selector (Supervisor | Senior Admin | Admin)
-
-## Tier Permission Matrix
-
-| Feature | Supervisor | Senior Admin | Admin |
-|---------|-----------|--------------|-------|
-| Dashboard | ✅ | ✅ | ✅ |
-| Master Data | ✅ | ✅ | ✅ |
-| Taxonomy | ✅ | ✅ | ✅ |
-| Interview Setup | ✅ | ✅ | ✅ |
-| Seeker Management | ✅ | ✅ | ✅ |
-| Team Management (list) | ✅ | ✅ (view-only) | ❌ |
-| Create Admin | ✅ (any tier) | ✅ (admin only) | ❌ |
-| Edit Admin | ✅ | ❌ | ❌ |
-| Deactivate Admin | ✅ | ❌ | ❌ |
-| Seeker Config | ✅ | ✅ | ❌ |
-| My Profile | ✅ | ✅ | ✅ |
-
-## Zero-Impact Areas
-- All 50+ RLS policies unchanged (still use `has_role(uid, 'platform_admin')`)
-- `AdminGuard` unchanged
-- `useUserRoles` unchanged
-- `RoleBasedRedirect` unchanged
-- All existing admin CRUD for master data, seekers, etc. untouched
+The document proposes 5 major changes to the existing CogniBlend system. It explicitly states: **keep all existing code, add a conversational "front door", rename the wizard to "Advanced Editor"**. Zero new DB tables. Zero altered columns.
 
 ---
 
-# MOD-02: Auto-Assignment Engine — Implementation Complete
+## CHANGE 1: Maturity Label Rename (4 strings)
 
-## What Was Implemented
+**What**: Rename user-facing labels only. DB values (blueprint/poc/prototype/pilot) unchanged.
+- Blueprint → "An idea or concept"
+- PoC → "Proof it can work"
+- Prototype → "A working demo"
+- Pilot → "A real-world test"
 
-### Database (Migration)
-- **`admin_notifications`** — In-app notifications with type-based filtering, RLS (own + supervisor access)
-- **`verification_assignments`** — Assignment records with scoring details, domain match scores
-- **`verification_assignment_log`** — Audit trail of all engine decisions (supervisor-only read)
-- **`open_queue_entries`** — Fallback queue for unassigned verifications with SLA deadlines
-- **`notification_audit_log`** — Email/SMS delivery tracking (supervisor-only read)
-- **`execute_auto_assignment` RPC** — 5-step algorithm: Affinity → Eligibility → Domain Scoring → Workload → Assign/Fallback
-- **`get_eligible_admins_ranked` RPC** — Read-only scoring preview for reassignment UI
-- **`md_mpa_config` seeded** — 9 new parameters (SLA thresholds, weights, queue timers)
-- All tables have RLS enabled with proper policies
+**Ripple Impact (LOW)**:
 
-### Edge Functions
-- **`assignment-engine`** — Orchestrator with 4.5s timeout guard, 2x retry on concurrent conflict, affinity routing
-- **`notify-admin-assignment`** — In-app notification insertion + audit log + email placeholder
+| File | What Changes |
+|------|-------------|
+| `StepProblem.tsx` line 85-90 | `MATURITY_OPTIONS` name/description strings |
+| `ChallengeSubmitSummaryModal.tsx` line 21-26 | `MATURITY_LABELS` record |
+| `CogniSubmitRequestPage.tsx` | Any maturity display labels |
+| `PublicChallengeDetailPage.tsx` | Maturity badge display |
+| `CurationReviewPage.tsx` | Maturity display in review |
+| `ApprovalReviewPage.tsx` line 262 | Maturity badge |
 
-### Frontend — SCR-02-01: Notification Panel (All Tiers)
-- **`NotificationBell.tsx`** — Bell icon with unread badge count (0, 1-9, 9+) in AdminHeader
-- **`NotificationDrawer.tsx`** — Right-side Sheet with notification list, mark all read, empty state
-- **`NotificationCard.tsx`** — 8 notification types with colored left borders and icons
-- **`useAdminNotifications.ts`** — React Query hooks + Supabase Realtime subscription
-- Integrated into `AdminHeader.tsx` for all admin tiers
-
-### Frontend — SCR-02-02: Engine Audit Log (Supervisor Only)
-- **`AssignmentAuditLogPage.tsx`** — Full audit log with filters (date range, outcome), table, CSV export
-- **`ScoringSnapshotPanel.tsx`** — Expandable row detail with L1/L2/L3 score breakdown + progress bars
-- **`useEngineAuditLog.ts`** — React Query hook with filtering support
-- Route: `/admin/assignment-audit-log` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Assignment Audit Log" under Team Management (Supervisor only)
-
-### MOD-02 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Notification Bell + Panel | Own notifications | Own notifications | Own + QUEUE_ESCALATION + EMAIL_FAIL |
-| Engine Audit Log | ❌ Hidden | ❌ Hidden | ✅ Full access + CSV export |
-| Claim from Open Queue | If Available/PA | If Available/PA | Always visible |
-| View scoring snapshots | ❌ | ❌ | ✅ Expandable rows |
+**Risk**: Near zero. Pure string replacement. DB enum untouched. All `z.enum(['blueprint','poc','prototype','pilot'])` stays.
 
 ---
 
-# MOD-02 Gap Fix Log (Latest)
+## CHANGE 2: Governance Model Rename (LIGHTWEIGHT → QUICK, ENTERPRISE split into STRUCTURED/CONTROLLED)
 
-## What Was Fixed
+**What**: The document redefines governance from the current binary (LIGHTWEIGHT / ENTERPRISE) to a 3-mode system (QUICK / STRUCTURED / CONTROLLED). User states: "I will ensure the quick, structured, controlled governance is configured by Supervisor in master data."
 
-### Database: `execute_auto_assignment` RPC Rewritten
-- **GAP-1 (Two-Pass):** Pass 1 scores Available-only admins; Pass 2 adds Partially Available only if Pass 1 yields no L1>0 candidate
-- **GAP-2 (Wildcard Scoring):** Empty `country_region_expertise` = half L2 points; empty `org_type_expertise` = half L3 points
-- **GAP-3 (Weight Keys):** Now reads `l1_weight`/`l2_weight`/`l3_weight` from `md_mpa_config` (defaults 50/30/20)
-- **GAP-4 (Round-Robin):** Final tiebreaker is `last_assignment_timestamp ASC NULLS FIRST` (not `random()`)
-- **GAP-5 (Selection Reason):** Derives `highest_domain_score`, `workload_tiebreaker`, `priority_tiebreaker`, or `round_robin` dynamically
-- **GAP-6 (Full Snapshot):** `scoring_snapshot.scoring_details` contains JSONB array of ALL candidates with L1/L2/L3 scores
-- **GAP-16 (Timestamp):** Updates `last_assignment_timestamp = NOW()` on assignment
-- **GAP-17 (Fallback Reasons):** Uses spec-defined enum values (`NO_ELIGIBLE_ADMIN`, etc.)
-- Correct column names: `current_active_verifications`, `max_concurrent_verifications`, `country_region_expertise`
-- Availability status values match actual data: `'Available'`, `'Partially Available'`
+**Ripple Impact (HIGH — deepest change)**:
 
-### Database: `get_eligible_admins_ranked` — Already Correct
-- Was already using correct column names, wildcard scoring, round-robin tiebreaker, and returning all required fields
+The current system uses `governance_profile` with two values: `LIGHTWEIGHT` and `ENTERPRISE`. The document maps:
+- QUICK = current LIGHTWEIGHT behavior (auto-complete, role merging)
+- STRUCTURED = current ENTERPRISE with STANDARD compliance
+- CONTROLLED = current ENTERPRISE with FULL compliance (adds mandatory escrow, formal modification cycles, all 8 roles distinct)
 
-### UI: Audit Log Org Name Column (GAP-15)
-- Added "Org Name" column between Date/Time and Outcome in the audit log table
-- Reads from `snapshot.org_name`
-- Already included in CSV export
+| Area | Files Affected | What Changes |
+|------|---------------|-------------|
+| **GovernanceProfileBadge.tsx** | 1 file | Currently only knows LIGHTWEIGHT/ENTERPRISE. Must support QUICK/STRUCTURED/CONTROLLED with 3 colors/labels |
+| **challengeFormSchema.ts** | 1 file | `createChallengeFormSchema(isLightweight)` boolean → needs 3-mode param. Min lengths differ per mode |
+| **ChallengeWizardPage.tsx** line 90-94 | 1 file | `isLightweight` boolean derived from `governance_profile`. Must become `governanceMode: 'QUICK' | 'STRUCTURED' | 'CONTROLLED'` |
+| **LegalDocumentAttachmentPage.tsx** line 456 | 1 file | `isLightweight` check for auto-attach. QUICK = auto-attach, STRUCTURED = LC reviews defaults, CONTROLLED = LC prepares custom |
+| **PublicationReadinessPage / usePublicationReadiness.ts** line 158 | 1 file | `isLightweight` check for gate validation. Must differentiate STRUCTURED vs CONTROLLED gates |
+| **CurationChecklistPanel.tsx** line 287 | 1 file | Checklist items differ by mode |
+| **ScreeningReviewPage.tsx** line 409 | 1 file | `isEnterprise` check for anonymity. STRUCTURED + CONTROLLED = enterprise-like anonymity |
+| **ChallengeManagePage.tsx** line 211 | 1 file | LIGHTWEIGHT check for anonymous display |
+| **ApprovalPublicationConfigTab.tsx** line 240 | 1 file | `isEnterprise` check for visibility options |
+| **ApprovalReviewPage.tsx** | 1 file | Governance badge display |
+| **Gate02LegalTransition test** | 1 file | Tests reference `governance_profile: 'ENTERPRISE'` |
+| **StepRewards.tsx** | 1 file | Escrow required in CONTROLLED, optional in STRUCTURED, hidden in QUICK |
+| **StepProviderEligibility.tsx** | 1 file | Visibility/enrollment fields: QUICK=simple toggle, STRUCTURED=3-tier, CONTROLLED=full |
 
-## Remaining Linter Warnings (Pre-existing)
-- Badge components use hardcoded colors (green-100, blue-100, etc.) — acceptable for status-specific styling
-- Security definer view and function search_path warnings are pre-existing across the project
+**DB Consideration**: The `governance_profile` column in `challenges` table currently stores 'LIGHTWEIGHT' or 'ENTERPRISE'. Per the document: "governance_profile in ('QUICK','LIGHTWEIGHT')" maps to QUICK. This means existing LIGHTWEIGHT rows are backward-compatible. New values QUICK/STRUCTURED/CONTROLLED need to be accepted. The document says "NO DB changes" — meaning the column already accepts free text or needs a mapping layer.
 
----
+**Migration Strategy**: Create a `GOVERNANCE_MODE_MAP` utility:
+```text
+LIGHTWEIGHT, QUICK → mode QUICK
+ENTERPRISE + compliance_level STANDARD → mode STRUCTURED  
+ENTERPRISE + compliance_level FULL → mode CONTROLLED
+```
 
-# MOD-05: Performance Metrics Dashboard — Implementation Complete
-
-## What Was Implemented
-
-### Database (Migration)
-- **Extended `admin_performance_metrics`** — Added `sla_compliant_count`, `sla_breached_count`, `open_queue_claims`, `reassignments_received`, `reassignments_sent`, `period_start`, `period_end`, `computed_at`
-- **RLS enabled** on `admin_performance_metrics` — Self-view (own metrics), Supervisor (all metrics), Insert (supervisor/senior_admin), Update (self + supervisor)
-- **`get_realtime_admin_metrics` RPC** — SECURITY DEFINER, returns live M1/M2/M4/M5, period-filtered (7/30/90 days), enforces BR-MPA-038
-- **`refresh_performance_metrics` RPC** — SECURITY DEFINER, supervisor-only permission guard, batch recalculates M1-M8 with 30-day rolling window
-- **Performance indexes** — `idx_pav_completed_by_status`, `idx_pav_assigned_status`, `idx_val_reassignment_to`, `idx_val_reassignment_from`
-
-### Frontend — SCR-05-01: All Admins Performance (Supervisor Only)
-- **`AllAdminsPerformancePage.tsx`** — Team KPI bar, Admin Performance Table with SLA gauge (●●●●○), period selector (7/30/90d), CSV export with period in filename
-- **`TeamSummaryKPIBar.tsx`** — 4 aggregated KPI cards (Green ≥95%, Amber 80-94%, Red <80%)
-- **`AdminPerformanceTable.tsx`** — Table with overflow wrapper, low-SLA red row highlight, drill-down action
-- **`PerformanceFilters.tsx`** — Period/Availability/Sort dropdowns (incl. At-Risk ↓, Avg Time ↓), secondary sort by name, CSV export
-- Route: `/admin/performance` with `TierGuard requiredTier='supervisor'`
-
-### Frontend — SCR-05-02: My Performance (All Admins)
-- **`MyPerformancePage.tsx`** — 6 personal KPI cards (M1-M6) + M7/M8 + workload bar, period selector, "(Updated daily)" on M3/M6/M7/M8
-- No peer comparison data (BR-MPA-038(a))
-- Route: `/admin/my-performance` — all admin tiers
-
-### Frontend — SCR-05-03: Admin Performance Detail (Supervisor Drill-Down)
-- **`AdminPerformanceDetailPage.tsx`** — Admin header card + 8-metric grid (M1-M8) + period selector + SLA Breach History (90 days)
-- **`AdminHeaderCard.tsx`** — Profile card with expertise tags, workload bar, Edit Profile / Reassign All / Adjust Availability buttons
-- **`SlaBreachHistory.tsx`** — Breach table with org name, industry chips, tier badges, completion time as "X.Xd (Y% of SLA)", reassignment count
-- Route: `/admin/performance/:adminId` with `TierGuard requiredTier='supervisor'`
-
-### Shared Components
-- **`MetricCard.tsx`** — Reusable metric card with icon, value, subtitle, trend coloring
-
-### Hooks
-- **`useAllAdminMetrics.ts`** — Parallel fetch of RPC + stored metrics, accepts `periodDays`, staleTime: 30s, refetchInterval: 60s
-- **`useMyMetrics.ts`** — Self-only fetch via RPC, accepts `periodDays`, staleTime: 30s
-- **`useAdminMetricsDetail.ts`** — Single admin metrics + 90-day SLA breach history with org name + industry segment join + reassignment counts
-
-### Navigation
-- Sidebar: "Team Performance" (supervisor only) + "My Performance" (all tiers) under Verification group
-- All routes lazy-loaded
-
-## MOD-05 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| My Performance | ✅ Own data only | ✅ Own data only | ✅ Own data |
-| Team Performance | ❌ Hidden | ❌ Hidden | ✅ All admins |
-| Admin Detail | ❌ Hidden | ❌ Hidden | ✅ Drill-down |
-| Refresh Metrics RPC | ❌ Blocked (DB guard) | ❌ Blocked | ✅ |
-| CSV Export | ❌ | ❌ | ✅ |
-
-## All 10 Gaps — Closed
-
-| Gap | Fix |
-|-----|-----|
-| GAP-1 | Period selectors (7/30/90d) on all 3 screens + hooks |
-| GAP-2 | M5 At-Risk uses `sla_breach_tier IN ('TIER1','TIER2','TIER3')` |
-| GAP-3 | SLA thresholds: Green ≥95%, Amber 80-94%, Red <80% |
-| GAP-4 | Sort: At-Risk ↓, Avg Time ↓ + secondary sort by name |
-| GAP-5 | SlaBreachHistory: industry chips, "X.Xd (Y% of SLA)", reassignment count |
-| GAP-6 | AdminHeaderCard: Edit Profile, Reassign All, Adjust Availability buttons |
-| GAP-7 | "(Updated daily)" labels on M3/M6/M7/M8 |
-| GAP-8 | Dropped overly broad `platform_admin_select_metrics` RLS policy |
-| GAP-9 | `refresh_performance_metrics` uses 30-day rolling window |
-| GAP-10 | Table overflow wrappers on AdminPerformanceTable + SlaBreachHistory |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `register-platform-admin` / `manage-platform-admin` edge functions unaffected (new columns have defaults)
-- No route conflicts with existing paths
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
+**New File**: `src/lib/governanceMode.ts` — centralized resolver function used everywhere instead of scattered `isLightweight` booleans.
 
 ---
 
-# MOD-06: Reassignment Workflow — Implementation Complete
+## CHANGE 3: 8 Challenge Templates (Solve blank-canvas problem)
 
-## What Was Implemented
+**What**: 8 pre-built templates that pre-fill problem statement + maturity level + domain tags when user starts a challenge: Product Innovation, Process Improvement, Research Question, Design Challenge, Technical Problem, Social Impact, Data Science, Start from Scratch.
 
-### Database (Migration)
-- **`reassignment_requests`** table — PENDING/APPROVED/DECLINED inbox with validation trigger (min 20 chars)
-- **RLS**: 4 policies (supervisor select, own select, own insert, supervisor update)
-- **Indexes**: `idx_rr_pending` (partial), `idx_rr_verification`, `idx_rr_requesting_admin`
-- **`reassign_verification` RPC** — Atomic single-verification reassignment with BR-MPA-040 (sla_start_at preserved), BR-MPA-043 (audit log), BR-MPA-045 (limit check bypassed for SUPERVISOR/SYSTEM)
-- **`bulk_reassign_admin` RPC** — Batch loop over Under_Verification only (BR-MPA-044), calls execute_auto_assignment per verification, supervisor permission guard
-- **Updated `request_reassignment` RPC** — Now INSERTs into `reassignment_requests` table + notifies all supervisors
+**Ripple Impact (LOW-MEDIUM)**:
 
-### Edge Functions
-- **`bulk-reassign`** — Orchestrates batch reassignment via service_role, sends REASSIGNMENT_OUT to departing admin, QUEUE_ESCALATION to supervisors if queue entries created
+| Area | Impact |
+|------|--------|
+| **New file**: `src/lib/challengeTemplates.ts` | Template data (8 objects with prefilled fields) |
+| **New component**: `src/components/cogniblend/TemplateSelector.tsx` | Card grid UI for template selection |
+| **CogniSubmitRequestPage.tsx** | Add template selector at top, pre-fill form on selection |
+| **ChallengeWizardPage.tsx** | Add template selector before Step 1, pre-fill form |
+| **Conversational Intake page** (new, Change 5) | Template selector is the entry point |
 
-### Frontend — SCR-06-01: Reassignment Requests Inbox (Supervisor Only)
-- **`ReassignmentInboxPage.tsx`** — Tabs (Pending/Approved/Declined), At-Risk filter, SLA urgency sort
-- **`ReassignmentRequestCard.tsx`** — Org name (clickable), tier badges (T1/T2/T3), compact SLA bar, reason with "Read more", near-limit warning, inline decline with min 20 chars
-- **`useReassignmentRequests.ts`** — Query + Supabase Realtime subscription + `usePendingReassignmentCount` for sidebar badge + `useDeclineReassignment` mutation
-- Route: `/admin/reassignments` with `TierGuard requiredTier='supervisor'`
-- Sidebar: "Reassignments" with pending count badge (supervisor only)
-
-### Frontend — MOD-M-04: Supervisor Reassign Modal
-- **`SupervisorReassignModal.tsx`** — 560px modal with org summary, admin's original reason (from inbox), reason textarea (min 20 chars), near-limit warning, "Place in Open Queue" checkbox, eligible admins table
-- **`EligibleAdminsTable.tsx`** — Ranked table with Name, Availability, Score, L1/L2/L3, Workload bar, Priority. Fully Loaded rows: radio disabled + red "Full" badge + tooltip
-- **`useEligibleAdmins.ts`** — Wrapper for `get_eligible_admins_ranked` RPC
-- **`useReassignVerification.ts`** — Mutation: calls `reassign_verification` RPC, marks request APPROVED if from inbox, fires `notify-admin-assignment`
-
-### Frontend — MOD-M-05: Bulk Reassign Confirmation Modal
-- **`BulkReassignConfirmModal.tsx`** — 520px modal with verification count, preview table (Org Name, SLA bar, Tier), blue info box, red SLA breach warning, leave dates, "Confirm & Go On Leave" button
-- **`useBulkReassignPreview.ts`** — Fetches Under_Verification verifications for departing admin
-
-### Frontend — SCR-06-02: Extensions
-- **`AssignedStateBanner`** — Added "Force Reassign" button (STATE 2), "Reassign to Me" with Fully Loaded guard (disabled + tooltip)
-- **`VerificationDetailPage`** — Integrated SupervisorReassignModal for Force Reassign
-
-## MOD-06 Role-Based Access Matrix
-
-| Feature | Admin (Basic) | Senior Admin | Supervisor |
-|---------|--------------|--------------|------------|
-| Request Reassignment | ✅ Own verifications | ✅ Own verifications | ✅ |
-| Reassignment Inbox | ❌ Hidden | ❌ Hidden | ✅ Full access |
-| Approve/Decline Requests | ❌ | ❌ | ✅ |
-| Force Reassign (STATE 2) | ❌ | ❌ | ✅ |
-| Bulk Reassign (On Leave) | ✅ Own | ✅ Own | ✅ |
-
-## Business Rules Cross-Reference
-
-| BR | Enforcement | Status |
-|----|------------|--------|
-| BR-MPA-040 | `reassign_verification` never touches `sla_start_at` | ✅ |
-| BR-MPA-041 | No data migration — SCR-03-03 tabs read by `verification_id` | ✅ |
-| BR-MPA-042 | `useReassignVerification` calls `notify-admin-assignment` | ✅ |
-| BR-MPA-043 | `reassign_verification` writes to `verification_assignment_log` | ✅ |
-| BR-MPA-044 | `bulk_reassign_admin` loops Under_Verification only + edge fn notifications | ✅ |
-| BR-MPA-045 | `reassign_verification` limit check blocks ADMIN, bypasses SUPERVISOR/SYSTEM | ✅ |
-
-## Zero-Impact Areas
-- All existing RLS policies unchanged
-- `AdminGuard`, `useUserRoles`, `RoleBasedRedirect` unchanged
-- Existing `RequestReassignmentModal` (MOD-M-03) unchanged — now creates PENDING record via updated RPC
-- `VerificationActionBar` unchanged (already has "Request Reassignment" button)
-- No route conflicts with existing paths
+**No DB changes**: Templates are client-side constants. No new table needed.
 
 ---
 
-# Master Data Consistency Fix — Implementation Complete
+## CHANGE 4: Auto-Onboarding (new signup → auto-create org → direct to creation)
 
-## What Was Fixed
+**What**: New users without an org get auto-created: QUICK governance, AGG model, BASIC tier. Then redirect straight to challenge creation.
 
-### Database Migration
-- **`org_type_expertise`** column on `platform_admin_profiles`: Converted from `TEXT[]` (hardcoded strings like "Corporation") to `UUID[]` (references to `organization_types` master data table)
-- **Data migration**: Mapped existing text values to `organization_types.id` UUIDs (e.g., "Corporation" → CORPORATE UUID)
-- **Cleaned up overloaded RPCs**: Dropped all duplicate `execute_auto_assignment` and `get_eligible_admins_ranked` function signatures; recreated each with a single clean signature using `p_org_type UUID`
+**Ripple Impact (MEDIUM)**:
 
-### Frontend
-- **`OrgTypeExpertisePicker.tsx`**: Rewritten from 7 hardcoded checkbox strings to a searchable Command popover querying `organization_types` master data via `useOrganizationTypes()` hook — same pattern as Industry and Country pickers
-- **`ExpertiseTags.tsx`**: Updated `org_type` branch to query `organization_types` table by UUID instead of returning raw strings
-- **`platformAdminForm.schema.ts`**: Changed `org_type_expertise` Zod validation from `z.array(z.string())` to `z.array(z.string().uuid())`
-- **`IndustryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useIndustrySegments()` hook from `useMasterData.ts`
-- **`CountryExpertisePicker.tsx`**: Replaced inline `useQuery` with shared `useCountries()` hook from `useMasterData.ts`
+| Area | Impact |
+|------|--------|
+| **Auth flow / post-login redirect** | Currently redirects to org registration if no org. Must auto-create instead |
+| `OrgContext.tsx` line 56-72 | "No Organization Found" screen — must trigger auto-creation instead of showing error |
+| **New RPC or edge function** | `auto_create_org` — creates seeker_org + org_member + sets defaults |
+| **Registration flow** | Must not break existing multi-step org registration for users who want it |
+| `CogniLoginPage.tsx` | Post-login redirect logic |
 
-## Scoring Engine Impact
-- L3 (Org Type) scoring in `execute_auto_assignment` and `get_eligible_admins_ranked` now correctly compares UUID-to-UUID, fixing the silent mismatch where text strings never matched seeker org type UUIDs
+**DB Impact**: No schema changes. Uses existing `seeker_organizations` + `organization_members` tables. New RPC function needed.
 
-## Future: `seeking_org_admins.domain_scope`
-- Currently `TEXT NOT NULL DEFAULT 'ALL'` — adequate for PRIMARY admin (full scope)
-- When Delegated Admin feature is built, MUST convert to JSONB with UUID references to existing master data tables: `industry_segments.id`, `proficiency_areas.id`, `specialities.id`
-- **No new lookup tables or JSON string lists** — reuse existing master data exclusively
+**Risk**: Medium. Must handle edge cases: user already has org, user from invite, SSO users.
 
 ---
 
-## Auto-Assignment Engine Wiring (Completed)
+## CHANGE 5: AI Integration (2 Edge Functions + 2 New Pages)
 
-### Rules (BRD Section 3.1 + user override)
-- **Trigger**: DB trigger fires on `verification_status` → `payment_submitted`
-- **Scoring**: L1 Industry (50pts, hard gate), L2 Country (30pts, wildcard=15), L3 Org Type (20pts, wildcard=10)
-- **2-pass system**: Pass 1 = Available only, Pass 2 = Available + Partially Available
-- **Tiebreakers**: Total score DESC → Workload ratio ASC → Assignment Priority ASC → Round-robin
-- **Fallback**: Open Queue if no candidate scores > 0 on L1
-- **Supervisor exclusion** (user override): `admin_tier != 'supervisor'` in all candidate queries
-- Senior Admins and Basic Admins compete equally (no tier priority)
+**What**:
+1. **Conversational Intake Page** (`/challenges/create`) — template selector + text area + maturity cards + "Generate with AI" button
+2. **AI Spec Review Page** (`/challenges/:id/spec`) — AI-drafted sections with sparkle badges, user reviews/edits
+3. **`generate-challenge-spec` Edge Function** — Claude API call, returns 9 AI-drafted fields as JSON
+4. **`check-challenge-quality` Edge Function** — Claude API for curation quality analysis (completeness score, gaps, solver readiness)
+5. **AI Curation Quality Panel** — Side panel on CurationReviewPage alongside existing 14-point checklist
 
-### Database Changes
-1. **`execute_auto_assignment` RPC**: Added `AND pap.admin_tier != 'supervisor'` to affinity check, both scoring passes, and fallback eligibility check
-2. **`get_eligible_admins_ranked` RPC**: Added `AND pap.admin_tier != 'supervisor'` filter
-3. **`fn_auto_assign_on_payment_submitted` trigger function**: Creates `platform_admin_verifications` record, collects org industries/country/type, calls `execute_auto_assignment`, updates verification on success
-4. **`trg_seeker_org_auto_assign` trigger**: AFTER UPDATE OF `verification_status` ON `seeker_organizations`
+**Ripple Impact (MEDIUM-HIGH)**:
 
-### Frontend Changes
-1. **`useSeekerOrgApprovals.ts`**: Added `useMyAssignedOrgIds` hook; `useSeekerOrgList` now accepts `assignedOrgIds` filter and `showUnassigned` flag
-2. **`SeekerOrgApprovalsPage.tsx`**: Uses `useCurrentAdminProfile` to detect tier; non-supervisors see only their assigned orgs; supervisors see all + "Unassigned" tab for open queue items
+| Area | Impact |
+|------|--------|
+| **New route** `/challenges/create` or `/cogni/challenges/create` | New page, add to App.tsx router |
+| **New route** `/cogni/challenges/:id/spec` | New page, add to App.tsx router |
+| **New edge function** `generate-challenge-spec` | Claude API integration. Needs ANTHROPIC_API_KEY secret |
+| **New edge function** `check-challenge-quality` | Claude API integration. Same secret |
+| `CurationReviewPage.tsx` | Add AI quality panel as collapsible side panel (additive) |
+| `CurationChecklistPanel.tsx` | Add amber dots on AI-flagged checklist items |
+| **Sidebar navigation** | Add "Create Challenge" link pointing to new conversational page |
+| **ChallengeWizardPage.tsx** | Add "Back to Simple View" link. Rename sidebar entry to "Advanced Editor" |
+| **Dashboard primary action** | "Create Challenge" button → points to conversational page |
+
+**DB Impact**: Zero new tables. AI writes to same `challenges` columns (title, problem_statement, scope, deliverables, evaluation_criteria, description, etc.)
+
+**Secret Required**: `ANTHROPIC_API_KEY` for Claude API calls in edge functions.
 
 ---
 
-# Business Rules Implementation Audit — CogniBlend Handbook 1
+## CHANGE 6: Solver Legal Timing (BR-LGL-007 adjustment)
 
-All 46 business rules (25 Workflow + 21 CLM cross-cutting) verified. **46/46 PASS.**
+**What**: Tier 2 legal docs (Evaluation Consent, AI Policy, Dispute Agreement, Withdrawal Terms) are still CONFIGURED during creation but PRESENTED to solver AFTER shortlisting instead of before abstract submission.
 
-## Workflow Engine (25/25 PASS)
+**Ripple Impact (LOW)**:
 
-| # | Rule ID | Description | Status |
-|---|---------|-------------|--------|
-| 1 | BR-ROLE-001 | `can_perform` enforces role+phase+status | PASS |
-| 2 | BR-ROLE-003 | Phase-role mapping (13 phases) | PASS |
-| 3 | BR-ROLE-004 | Audit trail for all role actions | PASS |
-| 4 | BR-ROLE-005 | HARD_BLOCK: ER + Solver | PASS |
-| 5 | BR-ROLE-006 | HARD_BLOCK: CR + Solver | PASS |
-| 6 | BR-ROLE-007 | SOFT_WARN: CR+CU Enterprise only | PASS |
-| 7 | BR-ROLE-008 | Auto-assign roles on creation | PASS |
-| 8 | BR-ROLE-009 | Reassignment revokes old user | PASS |
-| 9 | BR-ROLE-010 | Reassignment blocked for completed phase | PASS |
-| 10 | BR-ROLE-011 | AM=MP only | PASS |
-| 11 | BR-ROLE-012 | RQ=AGG only | PASS |
-| 12 | BR-ROLE-013 | Reassignment resets SLA timer | PASS |
-| 13 | BR-WF-001 | Recursive auto-completion | PASS |
-| 14 | BR-WF-002 | Stop at different actor | PASS |
-| 15 | BR-WF-003 | Phase 5→7 skip | PASS |
-| 16 | BR-WF-004 | Phase 7 solver-initiated | PASS |
-| 17 | BR-WF-005 | AGG Phase 1 bypass | PASS |
-| 18 | BR-WF-006 | SLA timer at handoff | PASS |
-| 19 | BR-WF-007 | Notification at handoff | PASS |
-| 20 | BR-WF-008 | HUMAN method logging | PASS |
-| 21 | BR-WF-009 | AUTO_COMPLETE method logging | PASS |
-| 22 | BR-WF-010 | Dashboard needs_action | PASS |
-| 23 | BR-WF-011 | Dashboard waiting_for | PASS |
-| 24 | BR-WF-012 | 8-role user sees all nav | PASS |
-| 25 | BR-WF-013 | No-role user sees Solver only | PASS |
+| Area | Impact |
+|------|--------|
+| `SolverLegalGateModal.tsx` | Trigger condition changes: Tier 2 docs shown post-shortlist, not pre-abstract |
+| `PublicChallengeDetailPage.tsx` | Tier 1 (NDA) still required before viewing. No change |
+| **Screening flow** | After shortlisting action, present Tier 2 legal modal |
+| `ScreeningReviewPage.tsx` | Shortlist action triggers Tier 2 legal presentation |
+| Edge function `record-legal-acceptance` | No change — still records acceptance the same way |
 
-## CLM Cross-Cutting (21/21 PASS)
+**DB Impact**: Zero. Same tables, same columns. Only the frontend trigger timing changes.
 
-| # | Rule ID | Description | Status |
-|---|---------|-------------|--------|
-| 1 | BR-GOV-001 | Governance from org | PASS |
-| 2 | BR-GOV-002 | LW role_relaxation=true | PASS |
-| 3 | BR-GOV-003 | ENT strict gates | PASS |
-| 4 | BR-GOV-004 | Immutable after Phase 1 | PASS |
-| 5 | BR-GOV-005 | LW 8 mandatory fields | PASS |
-| 6 | BR-GOV-006 | ENT 16 mandatory fields | PASS |
-| 7 | BR-GOV-007 | GATE-11-L 6 checks | PASS |
-| 8 | BR-GOV-008 | GATE-11 10+ checks | PASS |
-| 9 | BR-TIER-001 | Tier limit blocks creation | PASS |
-| 10 | BR-TIER-002 | Completion releases slot | PASS |
-| 11 | BR-TIER-003 | Tier usage bar UI | PASS |
-| 12 | BR-SM-001 | ACTIVE→COMPLETED valid | PASS |
-| 13 | BR-SM-002 | TERMINAL→anything invalid | PASS |
-| 14 | BR-SM-003 | Backward phase invalid | PASS |
-| 15 | BR-SM-004 | Master status auto-rollup | PASS |
-| 16 | BR-SM-005 | Status mapping rules | PASS |
-| 17 | BR-TRUST | Trust framework per profile | PASS |
-| 18 | BR-ESCROW | Escrow per profile | PASS |
-| 19 | BR-AI-001/002 | AI checks per profile | PASS |
-| 20 | BR-ANON | Blind eval per profile | PASS |
-| 21 | BR-COM-004 | SLA breach notifications | PASS |
+---
 
-T01-09 fix applied: `sla_timers.id` → `timer_id`.
+## IMPLEMENTATION PRIORITY ORDER (Recommended)
+
+| Priority | Change | Effort | Dependencies |
+|----------|--------|--------|-------------|
+| **P1** | Maturity Label Rename | 2h | None |
+| **P2** | Governance 3-Mode Engine (`governanceMode.ts` + GovernanceProfileBadge + schema refactor) | 2-3d | Supervisor configures master data |
+| **P3** | Challenge Templates (8 templates + selector component) | 1d | None |
+| **P4** | Conversational Intake Page + AI Spec Review Page | 3-4d | Templates (P3), Governance (P2) |
+| **P5** | AI Edge Functions (generate-challenge-spec, check-challenge-quality) | 2d | ANTHROPIC_API_KEY secret |
+| **P6** | AI Curation Quality Panel (additive to CurationReviewPage) | 1d | check-challenge-quality edge function |
+| **P7** | Auto-Onboarding (auto-create org on signup) | 1d | Governance defaults (P2) |
+| **P8** | Solver Legal Timing (Tier 2 post-shortlist) | 0.5d | None |
+| **P9** | Wizard → "Advanced Editor" rename + "Back to Simple View" link | 0.5d | Conversational page exists (P4) |
+
+---
+
+## WHAT IS NOT TOUCHED (Confirmed Safe)
+
+Per document Section 1.1, these have zero changes: Supabase schema, all RPC functions, all Edge Functions, RLS policies, role system, legal framework tables, notification system, SLA engine, audit trail, dashboard widgets, Approval Review page, Publication Readiness page, Challenge Management page, seed data.
+
+---
+
+## NEW FILES SUMMARY
+
+| File | Purpose |
+|------|---------|
+| `src/lib/governanceMode.ts` | Centralized QUICK/STRUCTURED/CONTROLLED resolver |
+| `src/lib/challengeTemplates.ts` | 8 template definitions |
+| `src/components/cogniblend/TemplateSelector.tsx` | Template card grid UI |
+| `src/pages/cogniblend/ConversationalIntakePage.tsx` | New primary creation page |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | AI-drafted spec review page |
+| `supabase/functions/generate-challenge-spec/index.ts` | Claude AI spec generation |
+| `supabase/functions/check-challenge-quality/index.ts` | Claude AI quality checker |
+
+## MODIFIED FILES SUMMARY (22 files)
+
+| File | Change Type |
+|------|------------|
+| `GovernanceProfileBadge.tsx` | 3-mode support |
+| `challengeFormSchema.ts` | 3-mode validation |
+| `ChallengeWizardPage.tsx` | Governance mode + "Advanced Editor" rename |
+| `StepProblem.tsx` | Maturity labels |
+| `StepRewards.tsx` | Escrow rules per mode |
+| `StepProviderEligibility.tsx` | Visibility rules per mode |
+| `ChallengeSubmitSummaryModal.tsx` | Maturity labels |
+| `CogniSubmitRequestPage.tsx` | Template selector + maturity labels |
+| `CurationReviewPage.tsx` | AI quality panel (additive) |
+| `CurationChecklistPanel.tsx` | AI amber dots + mode awareness |
+| `LegalDocumentAttachmentPage.tsx` | 3-mode auto-attach logic |
+| `PublicationReadinessPage / usePublicationReadiness.ts` | 3-mode gate checks |
+| `ScreeningReviewPage.tsx` | Mode-aware anonymity + Tier 2 trigger |
+| `ChallengeManagePage.tsx` | Mode-aware anonymity |
+| `ApprovalPublicationConfigTab.tsx` | Mode-aware visibility |
+| `ApprovalReviewPage.tsx` | Badge update |
+| `SolverLegalGateModal.tsx` | Tier 2 timing change |
+| `PublicChallengeDetailPage.tsx` | Maturity labels |
+| `App.tsx` | 2 new routes |
+| `CogniSidebarNav.tsx` | Navigation label + link updates |
+| `OrgContext.tsx` | Auto-onboarding trigger |
+| Dashboard action button components | Point to conversational page |
+
