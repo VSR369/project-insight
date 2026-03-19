@@ -124,7 +124,7 @@ serve(async (req) => {
       phase1_bypass: config.phase1Bypass,
       is_enterprise: config.isEnterprise,
       is_active: true,
-      verification_status: "approved",
+      verification_status: "verified",
       registration_step: 5,
     });
     if (orgErr) throw new Error(`Org creation failed: ${orgErr.message}`);
