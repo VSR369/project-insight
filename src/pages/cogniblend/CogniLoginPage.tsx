@@ -283,6 +283,16 @@ export default function CogniLoginPage() {
               Switch to Platform Login (Admin / Provider / Reviewer) →
             </Link>
           </div>
+
+          {/* Demo Login shortcut */}
+          <div className="text-center pt-1">
+            <Link
+              to="/cogni/demo-login"
+              className="text-muted-foreground hover:text-primary hover:underline text-xs"
+            >
+              🎯 Demo Quick-Login (New Horizon Company) →
+            </Link>
+          </div>
         </form>
 
         {/* Dev-only: Developer Tools */}

@@ -67,6 +67,24 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
       { email: "agg-light-admin@testsetup.dev", displayName: "AGG Light Admin", roles: ["AM", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
+  new_horizon_demo: {
+    orgName: "New Horizon Company",
+    operatingModel: "AGG",
+    governanceProfile: "ENTERPRISE",
+    phase1Bypass: false,
+    isEnterprise: true,
+    users: [
+      { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
+      { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
+      { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
+      { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
+      { email: "nh-er1@testsetup.dev", displayName: "Evelyn Rhodes", roles: ["ER"] },
+      { email: "nh-er2@testsetup.dev", displayName: "Ethan Russell", roles: ["ER"] },
+      { email: "nh-lc@testsetup.dev", displayName: "Leslie Chen", roles: ["LC"] },
+      { email: "nh-fc@testsetup.dev", displayName: "Frank Coleman", roles: ["FC"] },
+      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "CR", "CU", "ID", "ER", "FC"] },
+    ],
+  },
 };
 
 serve(async (req) => {

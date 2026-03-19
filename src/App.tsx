@@ -223,6 +223,7 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 
 // CogniBlend Pages (lazy loaded)
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
+const DemoLoginPage = lazy(() => import("@/pages/cogniblend/DemoLoginPage"));
 const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
 const ConversationalIntakePage = lazy(() => import("@/pages/cogniblend/ConversationalIntakePage"));
 const AISpecReviewPage = lazy(() => import("@/pages/cogniblend/AISpecReviewPage"));
@@ -324,6 +325,7 @@ const App = () => (
 
             {/* CogniBlend Routes */}
             <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
+            <Route path="/cogni/demo-login" element={<LazyRoute><DemoLoginPage /></LazyRoute>} />
             <Route element={
               <AuthGuard>
                 <CogniShell />
