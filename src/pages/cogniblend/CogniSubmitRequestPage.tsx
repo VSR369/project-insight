@@ -537,9 +537,16 @@ export default function CogniSubmitRequestPage() {
 
                   {/* Business Problem */}
                   <div className="space-y-2 mb-4">
-                    <Label htmlFor="business_problem" className="text-sm font-medium">
-                      Problem Statement <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="business_problem" className="text-sm font-medium">
+                        Problem Statement <span className="text-destructive">*</span>
+                      </Label>
+                      <AiDraftButton
+                        loading={aiDrafting}
+                        onClick={handleAiDraft}
+                        disabled={isBusy}
+                      />
+                    </div>
                     <Textarea
                       id="business_problem"
                       {...register('business_problem')}
