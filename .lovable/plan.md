@@ -1,27 +1,29 @@
 
 
-# Fix: "Invalid method: USER" Error Blocking AI Generation
+# Fix "Invalid method: USER" Error + Implement Remaining Plan Items
 
-## Root Cause
+## Root Cause (Confirmed)
 
-The `audit_trail` table has an enum column `method` that only accepts: `HUMAN`, `AUTO_COMPLETE`, or `SYSTEM`. But the code inserts `method: 'USER'` in multiple places, which the database rejects.
+The error originates from **database functions**, not application code. Two PostgreSQL functions insert `method: 'USER'` into `audit_trail`, which is rejected by the `trg_audit_trail_validate` trigger (only allows `HUMAN`, `AUTO_COMPLETE`, `SYSTEM`).
 
-The "AI generation unavailable" is a **cascading failure**: the AI spec generates successfully, but then `createChallenge.mutateAsync()` (which calls `useSubmitSolutionRequest`) fails at the audit trail insert (line 112) because of the invalid enum value. This throws an error, which is caught by the `catch` block in `handleGenerateWithAI` (line 388), setting `aiFailure = true` and showing the amber fallback banner.
+The previous fix only changed TypeScript files — but the actual error is in the **SQL functions** running server-side.
 
-So the AI **did** work — the challenge record creation after it is what fails.
+## Changes Required
 
-## Fix
+### 1. Database Migration: Fix `'USER'` → `'HUMAN'` in SQL Functions
 
-Replace all `method: 'USER'` with `method: 'HUMAN'` across 3 files (8 occurrences total):
+Two functions need updating:
 
-1. **`src/hooks/cogniblend/useSubmitSolutionRequest.ts`** (line 111)
-   - `method: 'USER'` → `method: 'HUMAN'`
+- **`initialize_challenge`** — line with `'CHALLENGE_CREATED', 'USER'` → `'HUMAN'`
+- **`submit_question`** — line with `'QA_QUESTION_SUBMITTED', 'USER'` → `'HUMAN'`
 
-2. **`src/hooks/cogniblend/usePublishChallenge.ts`** (line 96)
-   - `method: 'USER'` → `method: 'HUMAN'`
+Single migration that recreates both functions with the corrected enum value.
 
-3. **`src/hooks/cogniblend/useQAManagement.ts`** (lines 76, 107, 154, 205)
-   - All 4 instances: `method: 'USER'` → `method: 'HUMAN'`
+### 2. Verify TypeScript Files (Already Fixed)
 
-That's it. One enum value fix across 3 files resolves both errors.
+The application-side files (`useSubmitSolutionRequest.ts`, `usePublishChallenge.ts`, `useQAManagement.ts`) were already corrected in the previous round. No further TypeScript changes needed for the method fix.
+
+## Summary
+
+One database migration fixes both the "Invalid method: USER" error and the cascading "AI generation unavailable" banner. The `initialize_challenge` function is called during every challenge creation — fixing it unblocks the entire Create with AI flow.
 
