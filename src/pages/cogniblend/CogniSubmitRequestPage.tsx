@@ -329,7 +329,7 @@ export default function CogniSubmitRequestPage() {
   const buildPayload = (data: FormValues) => ({
     orgId: currentOrg?.organizationId ?? '',
     creatorId: user?.id ?? '',
-    operatingModel: orgContext?.operatingModel ?? 'AGG',
+    operatingModel: data.engagement_model,
     businessProblem: data.business_problem,
     expectedOutcomes: data.expected_outcomes,
     constraints: data.constraints || '',
