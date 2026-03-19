@@ -671,21 +671,21 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               ? 'Select relevant sub-domains based on the industry segment.'
               : 'Select relevant sub-domains (all industries shown).'}
           </p>
-          {proficiencyAreas.length > 0 ? (
+          {actualSubDomains.length > 0 ? (
             <>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 max-h-[300px] overflow-y-auto rounded-lg border border-border p-3">
-                {proficiencyAreas.map((area) => {
-                  const checked = requiredSubDomains.includes(area.id);
+                {actualSubDomains.map((sd) => {
+                  const checked = requiredSubDomains.includes(sd.id);
                   return (
                     <label
-                      key={area.id}
+                      key={sd.id}
                       className={cn(
                         'flex items-center gap-2.5 rounded-md border px-3 py-2 cursor-pointer transition-colors',
                         checked ? 'border-primary/30 bg-primary/5' : 'border-border bg-background hover:bg-muted/50',
                       )}
                     >
-                      <Checkbox checked={checked} onCheckedChange={() => toggleSubDomain(area.id)} />
-                      <span className="text-sm">{area.name}</span>
+                      <Checkbox checked={checked} onCheckedChange={() => toggleSubDomain(sd.id)} />
+                      <span className="text-sm">{sd.name}</span>
                     </label>
                   );
                 })}
@@ -695,10 +695,10 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
                   <p className="text-xs font-medium text-muted-foreground">Selected Sub-Domains ({requiredSubDomains.length}):</p>
                   <div className="flex flex-wrap gap-1.5">
                     {requiredSubDomains.map((id: string) => {
-                      const area = proficiencyAreas.find((a) => a.id === id);
+                      const sd = actualSubDomains.find((s) => s.id === id);
                       return (
                         <Badge key={id} variant="secondary" className="text-xs py-0.5 gap-1">
-                          {area?.name ?? id}
+                          {sd?.name ?? id}
                           <button type="button" onClick={() => toggleSubDomain(id)} className="hover:text-destructive">
                             <X className="h-3 w-3" />
                           </button>
@@ -710,7 +710,11 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               )}
             </>
           ) : (
-            <p className="text-xs text-muted-foreground italic">No sub-domains available.</p>
+            <p className="text-xs text-muted-foreground italic">
+              {industrySegmentId
+                ? 'No sub-domains available for this industry segment.'
+                : 'Select an industry segment to see sub-domains.'}
+            </p>
           )}
         </div>
 
