@@ -108,7 +108,7 @@ export function useSubmitSolutionRequest() {
           user_id: payload.creatorId,
           challenge_id: challengeId,
           action: 'ROLE_ASSIGNED',
-          method: 'USER',
+          method: 'HUMAN',
           details: {
             role_code: 'CR',
             assigned_to: payload.architectId,

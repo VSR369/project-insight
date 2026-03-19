@@ -93,7 +93,7 @@ export function usePublishChallenge() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'CHALLENGE_PUBLISHED',
-        method: 'USER',
+        method: 'HUMAN',
         details: {
           package_version: 1,
           title: challenge.title,

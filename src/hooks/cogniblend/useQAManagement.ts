@@ -202,7 +202,7 @@ export function useCloseQA() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_CLOSED',
-        method: 'USER',
+        method: 'HUMAN',
         details: {},
       });
     },
