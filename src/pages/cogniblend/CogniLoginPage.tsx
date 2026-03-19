@@ -275,12 +275,12 @@ export default function CogniLoginPage() {
           </div>
 
           {/* Switch to Platform login */}
-          <div className="text-center">
+          <div className="text-center pt-2">
             <Link
               to="/login"
-              className="text-muted-foreground hover:text-foreground hover:underline text-[13px]"
+              className="text-primary hover:underline text-sm font-medium"
             >
-              Looking for the Platform login? →
+              Switch to Platform Login (Admin / Provider / Reviewer) →
             </Link>
           </div>
         </form>
