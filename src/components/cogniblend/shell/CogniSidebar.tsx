@@ -85,7 +85,7 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
           ${isExpanded ? 'md:opacity-100' : 'md:opacity-0'}
           lg:opacity-100
         `}>
-          <GovernanceBadge profile={governanceProfile} />
+          <GovernanceProfileBadge profile={governanceProfile} compact />
         </div>
       </div>
 

@@ -47,7 +47,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "agg-ent-am@testsetup.dev", displayName: "AGG Account Mgr", roles: ["AM"] },
+      { email: "agg-ent-rq@testsetup.dev", displayName: "AGG Requestor", roles: ["RQ"] },
       { email: "agg-ent-cr@testsetup.dev", displayName: "AGG Creator", roles: ["CR"] },
       { email: "agg-ent-cu@testsetup.dev", displayName: "AGG Curator", roles: ["CU"] },
       { email: "agg-ent-id@testsetup.dev", displayName: "AGG Innov Director", roles: ["ID"] },
@@ -64,7 +64,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: true,
     isEnterprise: false,
     users: [
-      { email: "agg-light-admin@testsetup.dev", displayName: "AGG Light Admin", roles: ["AM", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "agg-light-admin@testsetup.dev", displayName: "AGG Light Admin", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
   new_horizon_demo: {
@@ -74,7 +74,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
     phase1Bypass: false,
     isEnterprise: true,
     users: [
-      { email: "nh-am@testsetup.dev", displayName: "Alex Morgan", roles: ["AM"] },
+      { email: "nh-rq@testsetup.dev", displayName: "Alex Morgan", roles: ["RQ"] },
       { email: "nh-cr@testsetup.dev", displayName: "Chris Rivera", roles: ["CR"] },
       { email: "nh-cu@testsetup.dev", displayName: "Casey Underwood", roles: ["CU"] },
       { email: "nh-id@testsetup.dev", displayName: "Dana Irving", roles: ["ID"] },
@@ -82,7 +82,7 @@ const SCENARIOS: Record<string, ScenarioConfig> = {
       { email: "nh-er2@testsetup.dev", displayName: "Ethan Russell", roles: ["ER"] },
       { email: "nh-lc@testsetup.dev", displayName: "Leslie Chen", roles: ["LC"] },
       { email: "nh-fc@testsetup.dev", displayName: "Frank Coleman", roles: ["FC"] },
-      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["AM", "CR", "CU", "ID", "ER", "FC"] },
+      { email: "nh-solo@testsetup.dev", displayName: "Sam Solo", roles: ["RQ", "CR", "CU", "ID", "ER", "FC"] },
     ],
   },
 };
