@@ -54,6 +54,7 @@ import {
   DEFAULT_FORM_VALUES,
   type ChallengeFormValues,
 } from '@/components/cogniblend/challenge-wizard/challengeFormSchema';
+import type { SharedIntakeState } from './ChallengeCreatePage';
 
 const TOTAL_STEPS = 7; // Steps 0–7 (8 total)
 
