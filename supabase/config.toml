@@ -166,3 +166,6 @@ verify_jwt = false
 
 [functions.auto-create-org]
 verify_jwt = false
+
+[functions.ai-field-assist]
+verify_jwt = false

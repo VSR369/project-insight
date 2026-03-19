@@ -71,7 +71,6 @@ function AiDraftButton({ loading, onClick, disabled }: { loading: boolean; onCli
     </button>
   );
 }
-import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 
 // ============================================================================
 // CONSTANTS
