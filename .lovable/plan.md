@@ -1,33 +1,39 @@
 
 
-# Fix "Organization not found" on Generate with AI
+# Fix: Default Challenge Creation Should Open AI Intake, Not Advanced Editor
 
-## Diagnosis
+## Problem
 
-The demo scenario was **successfully re-seeded** just now (I ran it via the edge function API). All 9 users, org_users links, user_roles, a demo challenge, and user_challenge_roles are now correctly in the database.
+Several navigation points across the app link to `/cogni/challenges/new` (the Advanced Editor / 8-step wizard) when they should link to `/cogni/challenges/create` (the Conversational AI Intake page). This means users bypass the simpler AI-powered flow.
 
-The previous seed run had silently failed, leaving the org record but no relational data (org_users, user_roles, etc.). This caused `useCurrentOrg()` to return `null`, triggering the "Organization not found" error.
+## Affected Locations (3 files, 3 changes)
 
-**However, there is still a bug**: The edge function sets `organization_name` but not `legal_entity_name`. The `useCurrentOrg` hook reads `legal_entity_name` for display, so the org name shows as "Organization" (the fallback) instead of "New Horizon Company".
+### 1. ActionItemsWidget — "Create Challenge" from active request
+**File**: `src/components/cogniblend/dashboard/ActionItemsWidget.tsx` (line 261)
 
-## Plan
+Change: `/cogni/challenges/new` → `/cogni/challenges/create`
 
-### Step 1: Fix edge function — set `legal_entity_name` alongside `organization_name`
+When a request is active and the user clicks "Create Challenge", it should open the AI intake flow.
 
-**File**: `supabase/functions/setup-test-scenario/index.ts` (line 152)
+### 2. Submit Request Page — "Create Challenge Directly" bypass button
+**File**: `src/pages/cogniblend/CogniSubmitRequestPage.tsx` (line 451)
 
-Add `legal_entity_name: config.orgName` to the org insert so that `useCurrentOrg` reads the correct name.
+Change: `/cogni/challenges/new` → `/cogni/challenges/create`
 
-### Step 2: Re-deploy and re-seed
+The bypass banner button should also go to the AI intake, not the advanced editor.
 
-The edge function will auto-deploy. The user should then:
-1. Go to `/cogni/demo-login`
-2. Click "Seed Demo Scenario" to re-seed with the fix
-3. Log in as any demo user
-4. "Generate with AI" should now work since `currentOrg` will resolve correctly
+### 3. New Solution Request Page — "Create Challenge Directly" bypass button
+**File**: `src/pages/requests/NewSolutionRequestPage.tsx` (line 433)
 
-### What was already fixed
-- The early validation in `handleGenerateWithAI` (org check before AI call) is already in place
-- The seed data is currently correct in the database from the re-seed I just ran
-- No database migrations needed
+Change: `/challenges/new` → `/cogni/challenges/create`
+
+Same bypass pattern, wrong route.
+
+## No other changes needed
+
+The sidebar navigation is already correct:
+- "Create Challenge" → `/cogni/challenges/create` (AI Intake) ✓
+- "Advanced Editor" → `/cogni/challenges/new` (Wizard) ✓
+
+The Conversational Intake page itself has correct links to the Advanced Editor as a fallback/alternative. Routes in `App.tsx` are correct.
 
