@@ -1,34 +1,46 @@
 
 
-# Completed: Step 0 + 3-Mode Governance in Challenge Wizard
+# Completed: Governance, AI Integration & Role Consistency Fixes
 
 ## Changes Made
 
-### 1. Added Step 0 — Mode & Model Selection
-- **New**: `StepModeSelection.tsx` — 3 governance mode cards (QUICK/STRUCTURED/CONTROLLED) + operating model selector (MP/AGG)
-- Subscription tier gating support (disabledModes prop)
-- Uses existing `GOVERNANCE_MODE_CONFIG` for consistent styling
+### 1. Fixed Sidebar Governance Badge
+- **CogniSidebar.tsx** — Replaced hardcoded `LIGHTWEIGHT` with `useCurrentOrg()` data and shared `GovernanceProfileBadge` component
+- Removed legacy inline `GovernanceBadge` function
 
-### 2. Updated Schema
-- `challengeFormSchema.ts` — Added `governance_mode` and `operating_model` fields to Zod schema and default values
+### 2. Fixed Seed Data — AGG Orgs Use RQ Instead of AM
+- **setup-test-scenario/index.ts** — Changed `AM` to `RQ` for all Aggregator org users:
+  - `agg_enterprise_8`: `agg-ent-am` → `agg-ent-rq` with role `["RQ"]`
+  - `agg_lightweight_bypass`: admin role set changed from `["AM", "CR", ...]` to `["RQ", "CR", ...]`
+  - `new_horizon_demo`: Alex Morgan changed from `["AM"]` to `["RQ"]`; Sam Solo from `["AM", ...]` to `["RQ", ...]`
 
-### 3. Updated Progress Bar (8 Steps)
-- `ChallengeProgressBar.tsx` — Now shows Steps 0–7 with slightly smaller circles to fit 8 steps
+### 3. Created `ai-field-assist` Edge Function
+- **supabase/functions/ai-field-assist/index.ts** — New edge function that:
+  - Accepts `field_name` and `context` (title, problem_statement, maturity_level, governance_mode)
+  - Uses Lovable AI Gateway (Gemini) with field-specific prompts
+  - Supports 8 field types: problem_statement, scope, hook, evaluation_criteria, eligibility, deliverables, expected_outcomes, description
+  - Handles 429/402 errors properly
 
-### 4. Updated Bottom Bar Navigation
-- `ChallengeWizardBottomBar.tsx` — Added Step 0 labels, back navigation starts from Step 0
+### 4. Created Reusable `AiFieldAssist` Component
+- **AiFieldAssist.tsx** — Wand2 icon button with loading/sparkle states
+  - Compact (icon-only) and full (with label) modes
+  - Calls `ai-field-assist` edge function and passes result to `onResult` callback
+  - Toast notifications for success, rate limits, and errors
 
-### 5. Refactored useFormCompletion to 3-Mode System
-- `useFormCompletion.ts` — Replaced `isLightweight: boolean` with `governanceMode: GovernanceMode`
-- 3-way required field definitions: QUICK (9 fields), STRUCTURED (14 fields), CONTROLLED (19 fields)
+### 5. Added AI Assist to Submit Request Page
+- **CogniSubmitRequestPage.tsx** — "Draft with AI" button on Problem Statement field
+  - Calls `ai-field-assist` edge function with `problem_statement` field
+  - Auto-fills the textarea with AI-generated content
 
-### 6. Updated Wizard Page
-- `ChallengeWizardPage.tsx` — Starts at Step 0, form-selected governance mode drives the wizard
-- Total steps updated from 7 to 8 (Steps 0–7)
-- Form defaults initialized from org context
+### 6. Added AI Assist to Advanced Editor Wizard Steps
+- **StepProblem.tsx** — AI assist on: Hook, Description, Problem Statement
+- **StepEvaluation.tsx** — AI assist generates evaluation criteria (parsed as JSON array)
+- **StepProviderEligibility.tsx** — AI suggest for eligibility text
 
-### 7. Updated Tests
-- All 10 tests pass with the new 3-mode system
+### 7. Updated config.toml
+- Added `[functions.ai-field-assist]` with `verify_jwt = false`
 
-## Still Using `isLightweight` Prop
-The 7 step components (StepProblem, StepEvaluation, etc.) still receive `isLightweight: boolean` derived from `isQuickMode(governanceMode)`. This is backward-compatible — the boolean correctly maps QUICK → true, STRUCTURED/CONTROLLED → false. A future PR can refactor these to accept `governanceMode: GovernanceMode` directly for CONTROLLED-specific behaviors.
+## Previous Changes (Step 0 + 3-Mode Governance)
+- StepModeSelection.tsx, ChallengeProgressBar.tsx, ChallengeWizardBottomBar.tsx
+- challengeFormSchema.ts, useFormCompletion.ts, ChallengeWizardPage.tsx
+- All 10 tests pass with the 3-mode system
