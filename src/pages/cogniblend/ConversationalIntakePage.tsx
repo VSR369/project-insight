@@ -2,6 +2,9 @@
  * ConversationalIntakePage — Simplified "front door" for challenge creation.
  * Presents: Template Selector → Problem text area → Maturity cards → "Generate with AI" button.
  * Route: /cogni/challenges/create
+ *
+ * Governance-aware: shows org governance mode badge and routes
+ * post-generation based on QUICK/STRUCTURED/CONTROLLED mode.
  */
 
 import { useState } from 'react';
@@ -16,6 +19,7 @@ import {
   Wand2,
   Settings2,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -30,6 +34,9 @@ import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRe
 import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { getPostGenerationRoute, shouldRequireAdvancedEditor, shouldSuggestAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
 
