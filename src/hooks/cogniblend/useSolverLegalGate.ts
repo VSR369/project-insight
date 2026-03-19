@@ -74,9 +74,9 @@ export function useSolverLegalGate(
         return { cleared: true, pendingDocs: [] };
       }
 
-      // R-04: Filter out Enterprise-only docs for Lightweight governance
-      const isLightweight = governanceProfile === 'LIGHTWEIGHT';
-      const filteredTemplates = isLightweight
+      // R-04: Filter out Enterprise-only docs for QUICK governance mode
+      const mode = resolveGovernanceMode(governanceProfile);
+      const filteredTemplates = isQuickMode(mode)
         ? (templates as any[]).filter(
             (t) => !ENTERPRISE_ONLY_DOC_TYPES.includes(t.document_type as any)
           )
