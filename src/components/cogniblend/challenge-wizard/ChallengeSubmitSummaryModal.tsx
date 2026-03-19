@@ -4,6 +4,7 @@
  */
 
 import { Check, AlertTriangle, Send } from 'lucide-react';
+import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
