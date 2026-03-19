@@ -104,7 +104,7 @@ export function usePublishAnswer() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_PUBLISHED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId },
       });
     },
