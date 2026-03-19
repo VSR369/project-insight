@@ -92,29 +92,31 @@ export default function ChallengeWizardPage() {
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  // Resolve governance: use form-selected mode (Step 0) or fallback to org/challenge
+  // Resolve governance fallback from org or existing challenge
   const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
-  const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
-  const governanceMode: GovernanceMode = formSelectedMode ?? resolveGovernanceMode(rawGovernanceProfile);
-  const isLightweight = isQuickMode(governanceMode);
+  const fallbackMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
+
+  // ═══════ Hooks — form (must be before watch) ═══════
+  const form = useForm<ChallengeFormValues>({
+    resolver: zodResolver(createChallengeFormSchema(fallbackMode)),
+    defaultValues: {
+      ...DEFAULT_FORM_VALUES,
+      governance_mode: fallbackMode,
+      operating_model: (orgContext?.operatingModel as 'MP' | 'AGG') ?? 'MP',
+    },
+  });
+
+  // Use form-selected mode (Step 0) or fallback
+  const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
+  const governanceMode: GovernanceMode = formSelectedMode ?? fallbackMode;
+  const isLightweight = isQuickMode(governanceMode);
 
   // Fetch DB-driven field rules for this governance mode
   const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
-
-  const activeSchema = useMemo(
-    () => createChallengeFormSchema(governanceMode, fieldRules ?? undefined),
-    [governanceMode, fieldRules],
-  );
-
-  // ═══════ Hooks — form ═══════
-  const form = useForm<ChallengeFormValues>({
-    resolver: zodResolver(activeSchema),
-    defaultValues: DEFAULT_FORM_VALUES,
-  });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
   const formCompletion = useFormCompletion(form, governanceMode);
