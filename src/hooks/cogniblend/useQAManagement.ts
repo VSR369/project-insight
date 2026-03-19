@@ -151,7 +151,7 @@ export function useRouteQuestion() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_ROUTED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId, target_role: targetRole },
       });
     },
