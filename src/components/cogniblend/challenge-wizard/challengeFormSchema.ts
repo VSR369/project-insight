@@ -48,7 +48,7 @@ export function createChallengeFormSchema(modeOrLightweight: GovernanceMode | bo
       .min(problemMin, `Problem statement must be at least ${problemMin} characters`)
       .max(5000, 'Max 5000 characters')
       .trim(),
-    scope: isLightweight
+    scope: mode === 'QUICK'
       ? z.string().max(3000).optional().or(z.literal(''))
       : z.string()
           .min(scopeMin, `Scope must be at least ${scopeMin} characters`)
