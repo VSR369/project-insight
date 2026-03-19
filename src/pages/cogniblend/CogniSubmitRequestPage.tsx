@@ -372,6 +372,29 @@ export default function CogniSubmitRequestPage() {
     navigate('/cogni/my-requests');
   };
 
+  const handleAiDraft = async () => {
+    const currentProblem = getValues('business_problem') || '';
+    setAiDrafting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-field-assist', {
+        body: {
+          field_name: 'problem_statement',
+          context: { problem_statement: currentProblem, governance_mode: currentOrg?.governanceProfile },
+        },
+      });
+      if (error || !data?.success) {
+        toast.error(data?.error?.message || 'AI draft failed. Try again.');
+        return;
+      }
+      setValue('business_problem', data.data.content, { shouldValidate: true, shouldDirty: true });
+      toast.success('AI draft applied — review and edit as needed.');
+    } catch {
+      toast.error('Failed to connect to AI.');
+    } finally {
+      setAiDrafting(false);
+    }
+  };
+
   const isSubmitting = submitMutation.isPending;
   const isSaving = draftMutation.isPending;
   const isBusy = isSubmitting || isSaving;
