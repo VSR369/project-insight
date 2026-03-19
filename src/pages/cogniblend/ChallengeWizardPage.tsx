@@ -241,7 +241,8 @@ export default function ChallengeWizardPage() {
   }
 
   // ═══════ Derived ═══════
-  const isEnterprise = governanceProfile === 'ENTERPRISE';
+  const isEnterprise = isEnterpriseGrade(governanceMode);
+  const modeConfig = GOVERNANCE_MODE_CONFIG[governanceMode];
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
   const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
 
