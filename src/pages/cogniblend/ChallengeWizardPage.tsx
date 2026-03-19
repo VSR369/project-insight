@@ -74,9 +74,11 @@ interface ChallengeWizardPageProps {
   embedded?: boolean;
   /** Switch back to AI intake tab (only used when embedded) */
   onSwitchToSimple?: () => void;
+  /** Shared state from AI intake (problem, maturity, template, generatedSpec) */
+  initialFromIntake?: SharedIntakeState;
 }
 
-export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple }: ChallengeWizardPageProps = {}) {
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
