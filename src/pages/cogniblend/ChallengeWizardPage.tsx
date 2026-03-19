@@ -702,6 +702,8 @@ export default function ChallengeWizardPage() {
 
 function getStepFields(step: number): string[] {
   switch (step) {
+    case 0:
+      return ['governance_mode'];
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level', 'deliverables_list'];
     case 2:
