@@ -69,7 +69,14 @@ const BUSINESS_RULES = [
   'BR-CC-009: Draft SLA is 10 business days from creation',
 ];
 
-export default function ChallengeWizardPage() {
+interface ChallengeWizardPageProps {
+  /** When true, rendered inside unified ChallengeCreatePage tabs */
+  embedded?: boolean;
+  /** Switch back to AI intake tab (only used when embedded) */
+  onSwitchToSimple?: () => void;
+}
+
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
