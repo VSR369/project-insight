@@ -34,8 +34,8 @@ export const ROLE_COLORS: Record<string, { label: string; bg: string; color: str
 
 /** Role code → primary action button config */
 export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string }> = {
-  CR: { label: 'Create Challenge', route: '/cogni/challenges/new' },
-  CA: { label: 'Create Challenge', route: '/cogni/challenges/new' },
+  CR: { label: 'Create Challenge', route: '/cogni/challenges/create' },
+  CA: { label: 'Create Challenge', route: '/cogni/challenges/create' },
   AM: { label: 'Submit Request', route: '/cogni/submit-request' },
   RQ: { label: 'Submit Request', route: '/cogni/submit-request' },
   CU: { label: 'Open Curation Queue', route: '/cogni/curation' },
