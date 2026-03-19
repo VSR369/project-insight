@@ -17,6 +17,7 @@ import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { usePublicChallengeLegal } from '@/hooks/cogniblend/usePublicChallengeLegal';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { useAuth } from '@/hooks/useAuth';
