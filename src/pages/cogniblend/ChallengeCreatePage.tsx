@@ -48,6 +48,30 @@ export default function ChallengeCreatePage() {
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
 
+  // ═══════ Handlers (hooks — must be before conditional returns) ═══════
+  const handleTabChange = useCallback((value: string) => {
+    const next = value as TabValue;
+    if (next === 'editor') {
+      setSearchParams({ tab: 'editor' }, { replace: true });
+    } else {
+      setSearchParams({}, { replace: true });
+    }
+  }, [setSearchParams]);
+
+  const switchToEditor = useCallback(() => handleTabChange('editor'), [handleTabChange]);
+  const switchToAI = useCallback(() => handleTabChange('ai'), [handleTabChange]);
+
+  /** Called by AI intake when spec is generated — auto-switch to editor */
+  const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
+    setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
+    switchToEditor();
+  }, [switchToEditor]);
+
+  /** Called by AI intake on field changes to keep shared state in sync */
+  const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
+    setSharedState((prev) => ({ ...prev, ...partial }));
+  }, []);
+
   // ═══════ Derived ═══════
   const activeTab: TabValue = searchParams.get('tab') === 'editor' ? 'editor' : 'ai';
   const hasAIDraft = !!sharedState.generatedSpec;
@@ -78,31 +102,6 @@ export default function ChallengeCreatePage() {
       </div>
     );
   }
-
-  // ═══════ Handlers ═══════
-  const handleTabChange = useCallback((value: string) => {
-    const next = value as TabValue;
-    if (next === 'editor') {
-      setSearchParams({ tab: 'editor' }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [setSearchParams]);
-
-  const switchToEditor = useCallback(() => handleTabChange('editor'), [handleTabChange]);
-  const switchToAI = useCallback(() => handleTabChange('ai'), [handleTabChange]);
-
-  /** Called by AI intake when spec is generated — auto-switch to editor */
-  const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
-    setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
-    // Auto-switch to editor so user can review/refine the AI draft
-    switchToEditor();
-  }, [switchToEditor]);
-
-  /** Called by AI intake on field changes to keep shared state in sync */
-  const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
-    setSharedState((prev) => ({ ...prev, ...partial }));
-  }, []);
 
   // ═══════ Render ═══════
   return (
