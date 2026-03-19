@@ -1,5 +1,5 @@
 /**
- * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard.
+ * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard (Advanced Editor).
  * Route: /cogni/challenges/new  |  /cogni/challenges/:id/edit
  *
  * Steps:
@@ -502,13 +502,26 @@ export default function ChallengeWizardPage() {
       {/* ── Page Header ─────────────────────────────── */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 mb-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-            {pageTitle}
-            <Badge variant="outline" className="text-xs font-normal">Draft</Badge>
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {isLightweight ? 'Lightweight governance' : 'Enterprise governance'}
-          </p>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              {pageTitle}
+              <Badge variant="outline" className="text-xs font-normal">Draft</Badge>
+            </h1>
+            <Badge variant="secondary" className="text-[10px] font-normal">Advanced Editor</Badge>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-sm text-muted-foreground">
+              {isLightweight ? 'Lightweight governance' : 'Enterprise governance'}
+            </p>
+            <span className="text-muted-foreground">·</span>
+            <button
+              type="button"
+              onClick={() => navigate('/cogni/challenges/create')}
+              className="text-xs text-primary hover:underline"
+            >
+              ← Back to Simple View
+            </button>
+          </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
           {/* Draft SLA */}

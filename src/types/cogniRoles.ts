@@ -34,8 +34,8 @@ export const ROLE_COLORS: Record<string, { label: string; bg: string; color: str
 
 /** Role code → primary action button config */
 export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string }> = {
-  CR: { label: 'Create Challenge', route: '/cogni/challenges/new' },
-  CA: { label: 'Create Challenge', route: '/cogni/challenges/new' },
+  CR: { label: 'Create Challenge', route: '/cogni/challenges/create' },
+  CA: { label: 'Create Challenge', route: '/cogni/challenges/create' },
   AM: { label: 'Submit Request', route: '/cogni/submit-request' },
   RQ: { label: 'Submit Request', route: '/cogni/submit-request' },
   CU: { label: 'Open Curation Queue', route: '/cogni/curation' },
@@ -49,8 +49,8 @@ export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string 
 export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
   AM: ['/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
   RQ: ['/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
-  CR: ['/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
-  CA: ['/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
+  CR: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
+  CA: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CU: ['/cogni/curation', '/cogni/dashboard'],
   ID: ['/cogni/approval', '/cogni/evaluation', '/cogni/selection', '/cogni/dashboard'],
   ER: ['/cogni/review', '/cogni/evaluation', '/cogni/dashboard'],

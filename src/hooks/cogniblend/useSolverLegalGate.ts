@@ -3,12 +3,17 @@
  * Checks if the solver has pending Tier 2 legal docs for the current
  * solution phase and blocks progression until all are accepted.
  *
- * R-04: Governance-aware — skips Enterprise-only doc types for Lightweight.
+ * BR-LGL-007: Tier 2 docs are CONFIGURED during challenge creation but
+ * PRESENTED to solver AFTER shortlisting (phase >= 9), not before abstract
+ * submission (old phase >= 7 trigger).
+ *
+ * R-04: Governance-aware — skips Enterprise-only doc types for QUICK mode.
  */
 
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
+import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 
 /* ─── Enterprise-only doc types (BRD BR-LGL-001-A Tier 2 matrix) ─── */
 
@@ -68,9 +73,9 @@ export function useSolverLegalGate(
         return { cleared: true, pendingDocs: [] };
       }
 
-      // R-04: Filter out Enterprise-only docs for Lightweight governance
-      const isLightweight = governanceProfile === 'LIGHTWEIGHT';
-      const filteredTemplates = isLightweight
+      // R-04: Filter out Enterprise-only docs for QUICK governance mode
+      const mode = resolveGovernanceMode(governanceProfile);
+      const filteredTemplates = isQuickMode(mode)
         ? (templates as any[]).filter(
             (t) => !ENTERPRISE_ONLY_DOC_TYPES.includes(t.document_type as any)
           )
@@ -109,7 +114,7 @@ export function useSolverLegalGate(
         pendingDocs: pending,
       };
     },
-    enabled: !!challengeId && !!userId && !!currentPhase && currentPhase >= 7,
+    enabled: !!challengeId && !!userId && !!currentPhase && currentPhase >= 9,
     ...CACHE_STANDARD,
   });
 
