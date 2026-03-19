@@ -28,7 +28,7 @@ Guidelines:
 - Evaluation Criteria: 3-6 weighted criteria (weights must sum to 100), each with name, weight, and description
 - Eligibility: Who should participate and minimum qualifications
 - Hook: A compelling 1-2 sentence hook to attract solvers
-- IP Model: Recommend one of: "FULL_TRANSFER", "LICENSE", "SHARED", "SOLVER_RETAINS" based on the challenge nature
+- IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
 
 Maturity level context:
 - blueprint: Early-stage concept exploration — focus on novel ideas and approaches
