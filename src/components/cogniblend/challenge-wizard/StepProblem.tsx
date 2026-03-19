@@ -120,6 +120,14 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
   const problemStatement = watch('problem_statement') ?? '';
   const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(problemStatement);
 
+  // AI context for field assist
+  const aiContext = {
+    title: watch('title') ?? '',
+    problem_statement: problemStatement,
+    maturity_level: watch('maturity_level') ?? '',
+    governance_mode: watch('governance_mode') ?? '',
+  };
+
   // Deliverables
   const deliverablesList = watch('deliverables_list') ?? [''];
   const addDeliverable = () => setValue('deliverables_list', [...deliverablesList, '']);
