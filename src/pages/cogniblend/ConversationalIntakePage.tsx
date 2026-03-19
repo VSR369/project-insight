@@ -213,16 +213,23 @@ export default function ConversationalIntakePage() {
     navigate('/cogni/challenges/new');
   };
 
+  // ═══════ Derived governance state ═══════
+  const govMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+  const isControlled = shouldRequireAdvancedEditor(govMode);
+
   // ═══════ Render ═══════
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Create a Challenge
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">
+              Create a Challenge
+            </h1>
+            <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
+          </div>
+          <p className="text-sm text-muted-foreground">
             Describe your problem, pick a maturity level, and let AI help draft the specification.
           </p>
         </div>
@@ -236,6 +243,17 @@ export default function ConversationalIntakePage() {
           Advanced Editor
         </Button>
       </div>
+
+      {/* Controlled mode notice */}
+      {isControlled && (
+        <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-700">
+          <ShieldCheck className="h-4 w-4 text-purple-600" />
+          <AlertTitle className="text-purple-800 dark:text-purple-300">Controlled Governance</AlertTitle>
+          <AlertDescription className="text-purple-700 dark:text-purple-400">
+            All AI-generated fields must be manually verified in the Advanced Editor before submission.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* AI Failure Fallback Banner (V-5) */}
       {aiFailure && (
