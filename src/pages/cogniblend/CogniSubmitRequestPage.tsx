@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Send, Save, X, Search, Info, ArrowRight, Loader2,
-  AlertCircle, Hash, Paperclip,
+  AlertCircle, Hash, Paperclip, Wand2,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
