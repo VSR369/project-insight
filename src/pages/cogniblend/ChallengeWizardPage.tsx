@@ -1,5 +1,5 @@
 /**
- * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard.
+ * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard (Advanced Editor).
  * Route: /cogni/challenges/new  |  /cogni/challenges/:id/edit
  *
  * Steps:
