@@ -27,6 +27,7 @@ export interface PublicChallengeData {
   reward_structure: Record<string, unknown> | null;
   evaluation_criteria: Record<string, unknown> | null;
   deliverables: Record<string, unknown> | null;
+  ip_model: string | null;
   phase_schedule: Record<string, unknown> | null;
   escrowFunded: boolean;
   isEligible: boolean;
