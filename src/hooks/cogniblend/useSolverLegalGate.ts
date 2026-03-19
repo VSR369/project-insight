@@ -3,7 +3,11 @@
  * Checks if the solver has pending Tier 2 legal docs for the current
  * solution phase and blocks progression until all are accepted.
  *
- * R-04: Governance-aware — skips Enterprise-only doc types for Lightweight.
+ * BR-LGL-007: Tier 2 docs are CONFIGURED during challenge creation but
+ * PRESENTED to solver AFTER shortlisting (phase >= 9), not before abstract
+ * submission (old phase >= 7 trigger).
+ *
+ * R-04: Governance-aware — skips Enterprise-only doc types for QUICK mode.
  */
 
 import { useQuery } from '@tanstack/react-query';
