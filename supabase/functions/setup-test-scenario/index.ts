@@ -10,8 +10,8 @@ const TEST_PASSWORD = "TestSetup2026!";
 
 interface ScenarioConfig {
   orgName: string;
-  operatingModel: string; // MP or AGG
-  governanceProfile: string; // LIGHTWEIGHT or ENTERPRISE
+  operatingModel: string;
+  governanceProfile: string;
   phase1Bypass: boolean;
   isEnterprise: boolean;
   users: { email: string; displayName: string; roles: string[] }[];
@@ -113,6 +113,37 @@ serve(async (req) => {
     const results: string[] = [];
     const credentials: { email: string; password: string; roles: string[] }[] = [];
 
+    // ─── Step 0: Cleanup previous runs for this scenario ───
+    // Find and delete old orgs with the same name
+    const { data: oldOrgs } = await supabaseAdmin
+      .from("seeker_organizations")
+      .select("id")
+      .eq("organization_name", config.orgName);
+
+    if (oldOrgs && oldOrgs.length > 0) {
+      const oldOrgIds = oldOrgs.map((o: { id: string }) => o.id);
+
+      // Delete user_challenge_roles for challenges in these orgs
+      const { data: oldChallenges } = await supabaseAdmin
+        .from("challenges")
+        .select("id")
+        .in("organization_id", oldOrgIds);
+
+      if (oldChallenges && oldChallenges.length > 0) {
+        const oldChallengeIds = oldChallenges.map((c: { id: string }) => c.id);
+        await supabaseAdmin.from("user_challenge_roles").delete().in("challenge_id", oldChallengeIds);
+        await supabaseAdmin.from("challenges").delete().in("id", oldChallengeIds);
+      }
+
+      // Delete org_users for these orgs
+      await supabaseAdmin.from("org_users").delete().in("organization_id", oldOrgIds);
+
+      // Delete the orgs themselves
+      await supabaseAdmin.from("seeker_organizations").delete().in("id", oldOrgIds);
+
+      results.push(`🧹 Cleaned up ${oldOrgs.length} previous "${config.orgName}" org(s)`);
+    }
+
     // ─── Step 1: Create org (self-referencing tenant_id) ───
     const orgId = crypto.randomUUID();
     const { error: orgErr } = await supabaseAdmin.from("seeker_organizations").insert({
@@ -130,9 +161,10 @@ serve(async (req) => {
     if (orgErr) throw new Error(`Org creation failed: ${orgErr.message}`);
     results.push(`✅ Created org: "${config.orgName}" (${orgId})`);
 
-    // ─── Step 2: Create users + assign roles ───
+    // ─── Step 2: Create users + link to org ───
+    const userIds: { userId: string; roles: string[]; displayName: string }[] = [];
+
     for (const userDef of config.users) {
-      // Check if user already exists
       const { data: existingUsers } = await supabaseAdmin.auth.admin.listUsers({ perPage: 1000 });
       const existing = existingUsers?.users?.find(u => u.email === userDef.email);
 
@@ -140,11 +172,9 @@ serve(async (req) => {
 
       if (existing) {
         userId = existing.id;
-        // Reset password
         await supabaseAdmin.auth.admin.updateUserById(userId, { password: TEST_PASSWORD });
         results.push(`🔄 Reset existing user: ${userDef.email}`);
       } else {
-        // Create new user
         const { data: newUser, error: userErr } = await supabaseAdmin.auth.admin.createUser({
           email: userDef.email,
           password: TEST_PASSWORD,
@@ -156,16 +186,87 @@ serve(async (req) => {
         results.push(`✅ Created user: ${userDef.email}`);
       }
 
-      // Create challenge role assignments for this user (org-level, not challenge-level)
-      // We use user_challenge_roles but these are org-level assignments
-      // For now, store in a simple pattern the page can display
+      userIds.push({ userId, roles: userDef.roles, displayName: userDef.displayName });
+
+      // ── Insert org_users (link user to org) ──
+      // Delete any stale org_users for this user first
+      await supabaseAdmin.from("org_users").delete().eq("user_id", userId);
+      const { error: orgUserErr } = await supabaseAdmin.from("org_users").insert({
+        tenant_id: orgId,
+        user_id: userId,
+        organization_id: orgId,
+        role: "member",
+        is_active: true,
+        invitation_status: "active",
+      });
+      if (orgUserErr) throw new Error(`org_users insert failed for ${userDef.email}: ${orgUserErr.message}`);
+
+      // ── Insert user_roles (seeker role) ──
+      // Delete old seeker roles for this user, then insert
+      await supabaseAdmin.from("user_roles").delete().eq("user_id", userId).eq("role", "seeker");
+      const { error: roleErr } = await supabaseAdmin.from("user_roles").insert({
+        user_id: userId,
+        role: "seeker",
+        tenant_id: orgId,
+      });
+      if (roleErr) throw new Error(`user_roles insert failed for ${userDef.email}: ${roleErr.message}`);
+
+      // ── Update profile with first/last name ──
+      const nameParts = userDef.displayName.split(" ");
+      const firstName = nameParts[0];
+      const lastName = nameParts.slice(1).join(" ") || "";
+      await supabaseAdmin.from("profiles").update({
+        first_name: firstName,
+        last_name: lastName,
+      }).eq("user_id", userId);
+
       credentials.push({
         email: userDef.email,
         password: TEST_PASSWORD,
         roles: userDef.roles,
       });
 
+      results.push(`   ✅ Linked to org + seeker role + profile updated`);
       results.push(`   Roles: ${userDef.roles.join(", ")}`);
+    }
+
+    // ─── Step 3: Create a demo challenge ───
+    const challengeId = crypto.randomUUID();
+    const isAgg = config.operatingModel === "AGG";
+    const { error: challengeErr } = await supabaseAdmin.from("challenges").insert({
+      id: challengeId,
+      tenant_id: orgId,
+      organization_id: orgId,
+      title: `${config.orgName} — Demo Challenge`,
+      status: "draft",
+      master_status: "IN_PREPARATION",
+      current_phase: 1,
+      operating_model: config.operatingModel,
+      governance_profile: config.governanceProfile,
+      challenge_model_is_agg: isAgg,
+      lc_review_required: config.governanceProfile === "ENTERPRISE",
+      is_active: true,
+      is_deleted: false,
+      is_qa_closed: false,
+      solutions_awarded: 0,
+      description: "This is a demo challenge created by the test scenario setup.",
+    });
+    if (challengeErr) throw new Error(`Challenge creation failed: ${challengeErr.message}`);
+    results.push(`✅ Created demo challenge: "${config.orgName} — Demo Challenge"`);
+
+    // ─── Step 4: Assign user_challenge_roles ───
+    for (const u of userIds) {
+      for (const roleCode of u.roles) {
+        const { error: ucrErr } = await supabaseAdmin.from("user_challenge_roles").insert({
+          user_id: u.userId,
+          challenge_id: challengeId,
+          role_code: roleCode,
+          is_active: true,
+          auto_assigned: false,
+        });
+        if (ucrErr) throw new Error(`user_challenge_roles insert failed for ${u.displayName}/${roleCode}: ${ucrErr.message}`);
+      }
+      results.push(`✅ Assigned challenge roles for ${u.displayName}: ${u.roles.join(", ")}`);
     }
 
     results.push("");
@@ -173,11 +274,12 @@ serve(async (req) => {
     results.push(`🎉 Scenario "${scenario}" setup complete!`);
     results.push(`   Org: ${config.orgName}`);
     results.push(`   Model: ${config.operatingModel} | Governance: ${config.governanceProfile}`);
+    results.push(`   Demo Challenge: ${challengeId}`);
     if (config.phase1Bypass) results.push("   ⚡ Phase 1 bypass enabled");
     results.push("═══════════════════════════════════════");
 
     return new Response(
-      JSON.stringify({ success: true, data: { results, credentials, orgId, orgName: config.orgName } }),
+      JSON.stringify({ success: true, data: { results, credentials, orgId, orgName: config.orgName, challengeId } }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
