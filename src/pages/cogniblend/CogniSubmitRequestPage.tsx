@@ -463,6 +463,20 @@ export default function CogniSubmitRequestPage() {
       {/* Page Title */}
       <h1 className="text-[22px] font-bold text-primary">New Solution Request</h1>
 
+      {/* AI Intake Banner */}
+      <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
+        <div className="flex items-start gap-2 flex-1">
+          <Wand2 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-medium text-foreground">Want a simpler start?</p>
+            <p className="text-xs text-muted-foreground">Use AI to draft your challenge — pick a template, describe the problem, and let AI generate the specification.</p>
+          </div>
+        </div>
+        <Button variant="outline" size="sm" className="border-primary/30 text-primary hover:bg-primary/10 shrink-0" onClick={() => navigate('/cogni/challenges/create')}>
+          Create with AI <ArrowRight className="h-4 w-4 ml-1" />
+        </Button>
+      </div>
+
       {/* Business Rules Banner */}
       <div className="rounded-lg border border-border bg-muted/40 p-3 flex items-start gap-3">
         <AlertCircle className="h-4 w-4 shrink-0 text-muted-foreground mt-0.5" />

@@ -8,7 +8,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   PlusCircle, FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
   FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
-  Search, Lightbulb, User,
+  Search, Lightbulb, User, Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
@@ -39,9 +39,9 @@ const SECTIONS: NavSection[] = [
   {
     title: 'CHALLENGES',
     items: [
+      { label: 'Create with AI', path: '/cogni/challenges/create', icon: Sparkles, requiredRoles: ['CR', 'AM', 'RQ'] },
       { label: 'Submit Request', path: '/cogni/submit-request', icon: PlusCircle, requiredRoles: ['AM', 'RQ'] },
       { label: 'My Requests', path: '/cogni/my-requests', icon: FileInput, requiredRoles: ['AM', 'RQ'] },
-      { label: 'Create Challenge', path: '/cogni/challenges/create', icon: FilePlus, requiredRoles: ['CR'] },
       { label: 'Advanced Editor', path: '/cogni/challenges/new', icon: FileText, requiredRoles: ['CR'] },
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR'], badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },

@@ -2,6 +2,9 @@
  * ConversationalIntakePage — Simplified "front door" for challenge creation.
  * Presents: Template Selector → Problem text area → Maturity cards → "Generate with AI" button.
  * Route: /cogni/challenges/create
+ *
+ * Governance-aware: shows org governance mode badge and routes
+ * post-generation based on QUICK/STRUCTURED/CONTROLLED mode.
  */
 
 import { useState } from 'react';
@@ -16,6 +19,7 @@ import {
   Wand2,
   Settings2,
   Loader2,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -30,6 +34,9 @@ import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRe
 import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { getPostGenerationRoute, shouldRequireAdvancedEditor, shouldSuggestAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
 
@@ -185,8 +192,17 @@ export default function ConversationalIntakePage() {
         },
       });
 
-      toast.success('AI specification generated!');
-      navigate(`/cogni/challenges/${challengeId}/spec`);
+      const govMode = resolveGovernanceMode(currentOrg.governanceProfile);
+      const route = getPostGenerationRoute(challengeId, govMode);
+
+      if (shouldRequireAdvancedEditor(govMode)) {
+        toast.success('AI draft generated — all fields require manual verification in Controlled mode.');
+      } else if (shouldSuggestAdvancedEditor(govMode)) {
+        toast.success('AI specification generated! Consider refining in the Advanced Editor.');
+      } else {
+        toast.success('AI specification generated!');
+      }
+      navigate(route);
     } catch {
       // Show amber fallback banner — user can continue manually
       setAiFailure(true);
@@ -197,16 +213,23 @@ export default function ConversationalIntakePage() {
     navigate('/cogni/challenges/new');
   };
 
+  // ═══════ Derived governance state ═══════
+  const govMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+  const isControlled = shouldRequireAdvancedEditor(govMode);
+
   // ═══════ Render ═══════
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
       {/* Header */}
       <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Create a Challenge
-          </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold text-foreground">
+              Create a Challenge
+            </h1>
+            <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
+          </div>
+          <p className="text-sm text-muted-foreground">
             Describe your problem, pick a maturity level, and let AI help draft the specification.
           </p>
         </div>
@@ -220,6 +243,17 @@ export default function ConversationalIntakePage() {
           Advanced Editor
         </Button>
       </div>
+
+      {/* Controlled mode notice */}
+      {isControlled && (
+        <Alert className="border-purple-300 bg-purple-50 dark:bg-purple-950/20 dark:border-purple-700">
+          <ShieldCheck className="h-4 w-4 text-purple-600" />
+          <AlertTitle className="text-purple-800 dark:text-purple-300">Controlled Governance</AlertTitle>
+          <AlertDescription className="text-purple-700 dark:text-purple-400">
+            All AI-generated fields must be manually verified in the Advanced Editor before submission.
+          </AlertDescription>
+        </Alert>
+      )}
 
       {/* AI Failure Fallback Banner (V-5) */}
       {aiFailure && (
