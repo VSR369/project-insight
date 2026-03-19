@@ -13,7 +13,7 @@
  *   7. Review & Submit
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -54,6 +54,7 @@ import {
   DEFAULT_FORM_VALUES,
   type ChallengeFormValues,
 } from '@/components/cogniblend/challenge-wizard/challengeFormSchema';
+import type { SharedIntakeState } from './ChallengeCreatePage';
 
 const TOTAL_STEPS = 7; // Steps 0–7 (8 total)
 
@@ -74,9 +75,11 @@ interface ChallengeWizardPageProps {
   embedded?: boolean;
   /** Switch back to AI intake tab (only used when embedded) */
   onSwitchToSimple?: () => void;
+  /** Shared state from AI intake (problem, maturity, template, generatedSpec) */
+  initialFromIntake?: SharedIntakeState;
 }
 
-export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple }: ChallengeWizardPageProps = {}) {
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple, initialFromIntake }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -210,6 +213,45 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
       });
     }
   }, [challengeData, isEditMode, form]);
+
+  // Track last applied spec to avoid re-applying on every render
+  const lastAppliedSpecRef = useRef<string | null>(null);
+
+  // Populate form from shared intake state (AI intake → Advanced Editor sync)
+  useEffect(() => {
+    if (!initialFromIntake || isEditMode) return;
+    const { problemStatement, maturityLevel, selectedTemplate, generatedSpec } = initialFromIntake;
+    if (generatedSpec) {
+      const specKey = generatedSpec.title + generatedSpec.problem_statement;
+      if (lastAppliedSpecRef.current === specKey) return;
+      lastAppliedSpecRef.current = specKey;
+      form.reset({
+        ...form.getValues(),
+        title: generatedSpec.title,
+        problem_statement: generatedSpec.problem_statement,
+        scope: generatedSpec.scope,
+        description: generatedSpec.description,
+        deliverables_list: generatedSpec.deliverables?.length ? generatedSpec.deliverables : [''],
+        weighted_criteria: generatedSpec.evaluation_criteria?.length
+          ? generatedSpec.evaluation_criteria.map((c) => ({ name: c.name, weight: c.weight, description: c.description, rubrics: undefined }))
+          : form.getValues('weighted_criteria'),
+        eligibility: generatedSpec.eligibility || '',
+        hook: generatedSpec.hook || '',
+        ip_model: generatedSpec.ip_model || '',
+        maturity_level: (maturityLevel as ChallengeFormValues['maturity_level']) || form.getValues('maturity_level'),
+        domain_tags: selectedTemplate?.prefill.domain_tags ?? form.getValues('domain_tags'),
+      });
+      return;
+    }
+    const current = form.getValues();
+    const updates: Partial<ChallengeFormValues> = {};
+    if (problemStatement && problemStatement !== current.problem_statement) updates.problem_statement = problemStatement;
+    if (maturityLevel && maturityLevel !== current.maturity_level) updates.maturity_level = maturityLevel as ChallengeFormValues['maturity_level'];
+    if (selectedTemplate?.prefill.domain_tags?.length && !current.domain_tags?.length) updates.domain_tags = selectedTemplate.prefill.domain_tags;
+    if (Object.keys(updates).length > 0) {
+      Object.entries(updates).forEach(([key, value]) => { form.setValue(key as any, value, { shouldDirty: true }); });
+    }
+  }, [initialFromIntake, isEditMode, form]);
 
   useEffect(() => {
     if (!isEditMode && tierLimit && !tierLimit.allowed) {

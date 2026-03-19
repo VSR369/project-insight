@@ -5,29 +5,51 @@
  * Default tab is "Create with AI" (conversational intake).
  * Users can toggle to "Advanced Editor" (8-step wizard) without navigating away.
  * URL param ?tab=editor allows deep-linking to the Advanced Editor tab.
+ *
+ * SHARED STATE: problemStatement, maturityLevel, selectedTemplate, and generatedSpec
+ * are lifted here and passed down so data flows seamlessly between both views.
  */
 
-import { useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Settings2 } from 'lucide-react';
+import { Sparkles, Settings2, Info } from 'lucide-react';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { ConversationalIntakeContent } from './ConversationalIntakePage';
 import ChallengeWizardPage from './ChallengeWizardPage';
+import type { ChallengeTemplate } from '@/lib/challengeTemplates';
+import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 
 type TabValue = 'ai' | 'editor';
+
+/** Shared state shape passed between AI intake and Advanced Editor */
+export interface SharedIntakeState {
+  problemStatement: string;
+  maturityLevel: string;
+  selectedTemplate: ChallengeTemplate | null;
+  generatedSpec: GeneratedSpec | null;
+}
 
 export default function ChallengeCreatePage() {
   // ═══════ Hooks — state ═══════
   const [searchParams, setSearchParams] = useSearchParams();
+
+  // Shared state lifted from both children
+  const [sharedState, setSharedState] = useState<SharedIntakeState>({
+    problemStatement: '',
+    maturityLevel: '',
+    selectedTemplate: null,
+    generatedSpec: null,
+  });
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg } = useCurrentOrg();
 
   // ═══════ Derived ═══════
   const activeTab: TabValue = searchParams.get('tab') === 'editor' ? 'editor' : 'ai';
+  const hasAIDraft = !!sharedState.generatedSpec;
 
   // ═══════ Handlers ═══════
   const handleTabChange = useCallback((value: string) => {
@@ -41,6 +63,18 @@ export default function ChallengeCreatePage() {
 
   const switchToEditor = useCallback(() => handleTabChange('editor'), [handleTabChange]);
   const switchToAI = useCallback(() => handleTabChange('ai'), [handleTabChange]);
+
+  /** Called by AI intake when spec is generated — auto-switch to editor */
+  const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
+    setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
+    // Auto-switch to editor so user can review/refine the AI draft
+    switchToEditor();
+  }, [switchToEditor]);
+
+  /** Called by AI intake on field changes to keep shared state in sync */
+  const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
+    setSharedState((prev) => ({ ...prev, ...partial }));
+  }, []);
 
   // ═══════ Render ═══════
   return (
@@ -60,14 +94,37 @@ export default function ChallengeCreatePage() {
         <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
       </div>
 
+      {/* Shared state indicator */}
+      <div className="flex items-center gap-2 px-6 pb-3 text-xs text-muted-foreground">
+        <Info className="h-3.5 w-3.5 shrink-0" />
+        {hasAIDraft ? (
+          <span className="text-primary font-medium">
+            AI draft loaded — review and refine in the Advanced Editor.
+          </span>
+        ) : (
+          <span>
+            Your problem statement and template selections carry over between views.
+          </span>
+        )}
+      </div>
+
       {/* AI Conversational Intake */}
       <TabsContent value="ai" className="mt-0">
-        <ConversationalIntakeContent onSwitchToEditor={switchToEditor} />
+        <ConversationalIntakeContent
+          onSwitchToEditor={switchToEditor}
+          sharedState={sharedState}
+          onStateChange={handleIntakeStateChange}
+          onSpecGenerated={handleSpecGenerated}
+        />
       </TabsContent>
 
       {/* 8-step Challenge Wizard */}
       <TabsContent value="editor" className="mt-0">
-        <ChallengeWizardPage embedded onSwitchToSimple={switchToAI} />
+        <ChallengeWizardPage
+          embedded
+          onSwitchToSimple={switchToAI}
+          initialFromIntake={sharedState}
+        />
       </TabsContent>
     </Tabs>
   );
