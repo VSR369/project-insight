@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AiFieldAssist } from './AiFieldAssist';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Rubric labels ──────────────────────────────────── */
