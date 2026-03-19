@@ -49,6 +49,28 @@ export function StepEvaluation({ form }: StepEvaluationProps) {
   const weightedCriteria = watch('weighted_criteria') ?? [];
   const totalWeight = weightedCriteria.reduce((sum, c) => sum + (c.weight || 0), 0);
 
+  const aiContext = {
+    title: watch('title') ?? '',
+    problem_statement: watch('problem_statement') ?? '',
+    maturity_level: watch('maturity_level') ?? '',
+    governance_mode: watch('governance_mode') ?? '',
+  };
+
+  const handleAiCriteria = (content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        setValue('weighted_criteria', parsed.map(c => ({
+          name: c.name || '',
+          weight: c.weight || 0,
+          description: c.description || '',
+        })));
+      }
+    } catch {
+      // If not JSON, ignore — the content might be plain text
+    }
+  };
+
   // Track which rubric accordions are open
   const [openRubrics, setOpenRubrics] = useState<Set<number>>(new Set());
 
