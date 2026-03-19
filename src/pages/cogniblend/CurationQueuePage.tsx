@@ -100,8 +100,8 @@ function modelBadge(model: string | null) {
 function maturityBadge(level: string | null) {
   if (!level) return null;
   return (
-    <Badge variant="secondary" className="text-[10px] capitalize">
-      {level}
+    <Badge variant="secondary" className="text-[10px]">
+      {MATURITY_LABEL_MAP[level] ?? level}
     </Badge>
   );
 }

@@ -259,7 +259,7 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
             </Badge>
           )}
           {challenge.maturity_level && (
-            <Badge variant="secondary" className="text-[10px] capitalize">{challenge.maturity_level}</Badge>
+            <Badge variant="secondary" className="text-[10px]">{MATURITY_LABEL_MAP[challenge.maturity_level] ?? challenge.maturity_level}</Badge>
           )}
           {challenge.governance_profile && (
             <Badge variant="outline" className="text-[10px] capitalize">{challenge.governance_profile}</Badge>
