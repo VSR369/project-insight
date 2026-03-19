@@ -73,7 +73,7 @@ export function useAnswerQuestion() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_ANSWERED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId },
       });
     },
@@ -104,7 +104,7 @@ export function usePublishAnswer() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_PUBLISHED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId },
       });
     },
@@ -151,7 +151,7 @@ export function useRouteQuestion() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_ROUTED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId, target_role: targetRole },
       });
     },
@@ -202,7 +202,7 @@ export function useCloseQA() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_CLOSED',
-        method: 'USER',
+        method: 'HUMAN',
         details: {},
       });
     },
