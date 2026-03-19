@@ -92,12 +92,13 @@ export default function ChallengeWizardPage() {
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  // Resolve governance from org or existing challenge — NOT hardcoded
+  // Resolve governance: use form-selected mode (Step 0) or fallback to org/challenge
   const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
-  const governanceMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
+  const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
+  const governanceMode: GovernanceMode = formSelectedMode ?? resolveGovernanceMode(rawGovernanceProfile);
   const isLightweight = isQuickMode(governanceMode);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
 
@@ -116,7 +117,7 @@ export default function ChallengeWizardPage() {
   });
 
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
-  const formCompletion = useFormCompletion(form, isLightweight);
+  const formCompletion = useFormCompletion(form, governanceMode);
 
   // ═══════ Hooks — mutations ═══════
   const createChallengeMutation = useSubmitSolutionRequest();
