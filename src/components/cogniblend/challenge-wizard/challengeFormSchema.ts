@@ -230,6 +230,8 @@ export const challengeFormSchema = createChallengeFormSchema(true);
 export type ChallengeFormValues = z.infer<typeof challengeFormSchema>;
 
 export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
+  governance_mode: 'STRUCTURED' as const,
+  operating_model: 'MP' as const,
   title: '',
   hook: '',
   description: '',
