@@ -234,16 +234,24 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
   const challengeSubmission = watch('challenge_submission') || '';
   const eligibleModes = watch('eligible_participation_modes') ?? [];
 
-  // ── Sub-domains from taxonomy — show all if no industry segment ──
+  // ── Taxonomy cascade — from industry segment through proficiency areas, sub-domains, specialities ──
   const industryIds = useMemo(() => industrySegmentId ? [industrySegmentId] : [], [industrySegmentId]);
-  const { data: proficiencyAreasBySegment = [] } = useProficiencyAreasBySegments(industryIds);
-  const { data: allProficiencyAreas = [] } = useAllProficiencyAreas(!industrySegmentId);
-  const proficiencyAreas = industrySegmentId ? proficiencyAreasBySegment : allProficiencyAreas;
+  const cascade = useTaxonomyCascade(industryIds);
 
-  // ── Specialities from taxonomy — cascade from selected sub-domains or show all ──
-  const { data: specialitiesBySubDomains = [] } = useSpecialitiesBySubDomains(requiredSubDomains);
-  const { data: allSpecialities = [] } = useAllSpecialities(requiredSubDomains.length === 0);
-  const specialities = requiredSubDomains.length > 0 ? specialitiesBySubDomains : allSpecialities;
+  // Proficiency areas for the "Required Proficiencies" multi-select
+  const proficiencyAreas = cascade.proficiencyAreas;
+
+  // Sub-domains filtered by selected proficiency areas (or all if none selected)
+  const actualSubDomains = useMemo(
+    () => cascade.getSubDomainsByProfAreas(requiredProficiencies),
+    [cascade.getSubDomainsByProfAreas, requiredProficiencies],
+  );
+
+  // Specialities filtered by selected sub-domains (or all if none selected)
+  const specialities = useMemo(
+    () => cascade.getSpecialitiesBySubDomains(requiredSubDomains),
+    [cascade.getSpecialitiesBySubDomains, requiredSubDomains],
+  );
 
   // ── Filter solver categories: legacy only (exclude BRD 5.7.1) ──
   const legacyCategories = useMemo(() => {
