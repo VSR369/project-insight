@@ -1,84 +1,64 @@
 
 
-# Fix: AI Intake Page Missing for Non-CR Roles + Clarify Simple vs Advanced Navigation
+# Unified Challenge Creation Page with Seamless AI ↔ Advanced Editor Toggle
 
-## Root Cause Analysis
-
-The Conversational Intake page (template cards + "Generate with AI" button) at `/cogni/challenges/create` is **only visible to users with the CR (Creator) role**. Users with AM or RQ roles only see "Submit Request" — a detailed manual form with no template cards and no AI generation flow.
-
-This means:
-- **AM users (Marketplace)** never see the AI intake with template cards
-- **RQ users (Aggregator)** never see the AI intake with template cards
-- Only CR users get the simple AI-powered experience
-- The "Submit Request" page is a completely separate, heavier form — not the AI-first experience
-
-### Current Navigation (broken):
-```text
-AM/RQ roles:  Submit Request (manual form) → no AI cards
-CR role:      Create Challenge (AI intake with templates) → Advanced Editor
-```
-
-### Target Navigation (fixed):
-```text
-ALL roles:    Create Challenge (AI intake with templates + Generate with AI)
-                ├── Quick mode: AI generates, minimal review → done
-                ├── Structured mode: AI assists → Advanced Editor for curation
-                └── Controlled mode: AI assists → Advanced Editor (all fields mandatory)
-              Submit Request stays as an alternative detailed form for AM/RQ
-              Advanced Editor is always available as a power-user option
-```
+## Problem
+Currently "Create with AI" and "Advanced Editor" are separate pages at different routes. The Submit Request page shows a dismissible banner linking to the AI view. The user wants:
+1. **AI view (Create with AI) as the default** — always open first
+2. **Seamless toggle** between AI intake and Advanced Editor on the **same page** — no page navigation, just a tab/toggle switch
 
 ## Plan
 
-### 1. Make AI Intake visible to AM and RQ roles (not just CR)
+### 1. Create a unified wrapper page: `ChallengeCreatePage.tsx`
 
-**File**: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+**New file**: `src/pages/cogniblend/ChallengeCreatePage.tsx`
 
-Change "Create Challenge" nav item from `requiredRoles: ['CR']` to `requiredRoles: ['CR', 'AM', 'RQ']`. This makes the template-card AI intake page accessible to all challenge-related roles.
+- Single page at route `/cogni/challenges/create`
+- Contains a **tab toggle** at the top: "Create with AI" (default) | "Advanced Editor"
+- Tab 1 renders the existing `ConversationalIntakePage` content (template cards, problem input, Generate with AI)
+- Tab 2 renders the existing `ChallengeWizardPage` content (8-step wizard)
+- Both share the same underlying challenge data so switching preserves state
+- Default tab is always "Create with AI"
 
-### 2. Add governance mode awareness to the Conversational Intake page
+### 2. Extract ConversationalIntakePage into an embeddable component
 
-**File**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+**Modify**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-- Read governance mode from `useCurrentOrg()` (org-level default)
-- Show a small governance mode indicator (Quick/Structured/Controlled) at the top
-- After AI generation:
-  - **QUICK mode**: Go directly to AI Spec Review page (current behavior)
-  - **STRUCTURED mode**: Go to AI Spec Review, then offer "Refine in Advanced Editor"
-  - **CONTROLLED mode**: Go to AI Spec Review with warning that all fields must be manually verified, then require Advanced Editor review
+- Extract the main JSX into a `ConversationalIntakeContent` component that accepts an `onSwitchToEditor` callback prop
+- The existing page becomes a thin wrapper that renders `ConversationalIntakeContent`
+- Add a visible "Switch to Advanced Editor" button within the AI view (replaces the separate sidebar nav item)
 
-### 3. Add "Simple View" link to Submit Request page
+### 3. Extract ChallengeWizardPage into an embeddable component
 
-**File**: `src/pages/cogniblend/CogniSubmitRequestPage.tsx`
+**Modify**: `src/pages/cogniblend/ChallengeWizardPage.tsx`
 
-Add a prominent banner at the top: "Want a simpler start? Use AI to draft your challenge" with a link to `/cogni/challenges/create`. This ensures AM/RQ users who land on Submit Request can discover the AI intake.
+- Extract the wizard body into a `ChallengeWizardContent` component that accepts an `onSwitchToSimple` callback
+- Add a "Back to AI View" link at the top of the wizard
 
-### 4. Rename sidebar items for clarity
+### 4. Update routing and sidebar
 
-**File**: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+**Modify**: `src/components/cogniblend/shell/CogniSidebarNav.tsx`
+- Remove the separate "Advanced Editor" nav item — it's now a tab inside "Create with AI"
+- Keep "Create with AI" as the single entry point with `requiredRoles: ['CR', 'AM', 'RQ']`
 
-- "Create Challenge" → "Create with AI" (icon: Sparkles) — the AI intake
-- "Submit Request" stays as-is for detailed manual submissions
-- "Advanced Editor" stays as-is for power users
-- Add a visual separator or grouping so the flow is: Create with AI → Submit Request → Advanced Editor
+**Modify**: Router config
+- `/cogni/challenges/create` → `ChallengeCreatePage` (unified)
+- `/cogni/challenges/new` can redirect to `/cogni/challenges/create?tab=editor` for backward compat
 
-### 5. Add governance-aware routing helper
+### 5. Toggle UX design
 
-**File**: `src/lib/challengeNavigation.ts` (new)
-
-Small utility that determines post-AI-generation routing based on governance mode:
-- `getPostGenerationRoute(mode)` → returns the appropriate next page
-- `shouldRequireAdvancedEditor(mode)` → true for CONTROLLED mode
-
-This centralizes the routing logic so both the Conversational Intake and Submit Request pages behave consistently.
+At the top of the unified page, a pill toggle:
+```text
+[ ✨ Create with AI ]  [ ⚙ Advanced Editor ]
+```
+- Uses the existing `Tabs` component from `@/components/ui/tabs`
+- Governance badge shown next to the toggle
+- When AI generates a spec, it auto-switches to the editor tab with fields pre-filled
 
 ## Technical Details
 
-**Sidebar nav change** — Single line: add `'AM', 'RQ'` to the `requiredRoles` array for the Create Challenge item. This uses the existing `isVisible()` function which checks if the user has any of the listed roles.
-
-**ConversationalIntakePage governance awareness** — Read `currentOrg.governanceProfile`, resolve via `resolveGovernanceMode()`, and conditionally:
-- Show a `GovernanceProfileBadge` near the header
-- After AI generation, route based on mode (QUICK → spec review, CONTROLLED → spec review with mandatory editor step)
-
-**Submit Request "Simple View" banner** — A styled info banner similar to the existing bypass banner, linking to `/cogni/challenges/create`.
+- State sharing: Both views read/write the same `useState` for `problemStatement`, `template`, `maturityLevel`. The wizard form can be initialized from AI intake state.
+- The toggle is a controlled `Tabs` component with `value` / `onValueChange`
+- URL param `?tab=editor` allows deep-linking to the Advanced Editor tab
+- Submit Request page (`/cogni/submit-request`) remains separate as the detailed manual form for AM/RQ power users
 
