@@ -41,7 +41,8 @@ import { DuplicateMatchesPanel, DuplicateWarningBanner } from '@/components/requ
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useCreateDuplicateReview } from '@/hooks/cogniblend/useDuplicateReview';
-import { useIndustrySegmentOptions, useSubDomainOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
 import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
