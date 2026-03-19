@@ -73,7 +73,7 @@ export function useAnswerQuestion() {
         user_id: userId,
         challenge_id: challengeId,
         action: 'QA_ANSWERED',
-        method: 'USER',
+        method: 'HUMAN',
         details: { qa_id: qaId },
       });
     },
