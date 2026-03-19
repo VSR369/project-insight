@@ -43,6 +43,8 @@ import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSu
 import { useCreateDuplicateReview } from '@/hooks/cogniblend/useDuplicateReview';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
+import { useEngagementModels } from '@/hooks/queries/useEngagementModels';
+import { EngagementModelSelector } from '@/components/org/EngagementModelSelector';
 import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
@@ -100,6 +102,7 @@ const ATTACHMENT_CONFIG = {
 
 function buildSchema(isMP: boolean) {
   const base = z.object({
+    engagement_model: z.enum(['MP', 'AGG']),
     business_problem: z.string()
       .min(MIN_PROBLEM_CHARS, `Business problem must be at least ${MIN_PROBLEM_CHARS} characters`)
       .max(5000, 'Business problem must be 5000 characters or less')
@@ -253,16 +256,15 @@ export default function CogniSubmitRequestPage() {
   const draftMutation = useSaveDraft();
   const createDuplicateReview = useCreateDuplicateReview();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
+  const { data: engagementModels = [], isLoading: engModelsLoading } = useEngagementModels();
 
-  const isMP = orgContext?.operatingModel === 'MP';
-  const isAGG = orgContext?.operatingModel === 'AGG';
-  const hasBypass = isAGG && orgContext?.phase1Bypass === true;
-
-  const schema = buildSchema(isMP);
+  // Derive default model from org context
+  const orgDefaultModel = orgContext?.operatingModel === 'MP' ? 'MP' : 'AGG';
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(buildSchema(orgDefaultModel === 'MP')),
     defaultValues: {
+      engagement_model: orgDefaultModel,
       business_problem: '',
       expected_outcomes: '',
       constraints: '',
@@ -280,7 +282,16 @@ export default function CogniSubmitRequestPage() {
     mode: 'onBlur',
   });
 
-  const { register, control, handleSubmit, watch, formState: { errors, isValid }, getValues } = form;
+  const { register, control, handleSubmit, watch, setValue, formState: { errors, isValid }, getValues } = form;
+
+  // Watch engagement model for reactive behavior
+  const watchedModel = watch('engagement_model');
+  const isMP = watchedModel === 'MP';
+  const isAGG = watchedModel === 'AGG';
+  const hasBypass = isAGG && orgContext?.phase1Bypass === true;
+
+  // Rebuild schema reactively when model changes
+  const schema = buildSchema(isMP);
 
   const businessProblem = watch('business_problem');
   const charCount = businessProblem?.length || 0;
@@ -318,7 +329,7 @@ export default function CogniSubmitRequestPage() {
   const buildPayload = (data: FormValues) => ({
     orgId: currentOrg?.organizationId ?? '',
     creatorId: user?.id ?? '',
-    operatingModel: orgContext?.operatingModel ?? 'AGG',
+    operatingModel: data.engagement_model,
     businessProblem: data.business_problem,
     expectedOutcomes: data.expected_outcomes,
     constraints: data.constraints || '',
@@ -449,18 +460,70 @@ export default function CogniSubmitRequestPage() {
 
           {/* Request Information Header */}
           <Card className="border-border">
-            <CardContent className="p-4 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-mono font-medium text-foreground">{requestId}</span>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-mono font-medium text-foreground">{requestId}</span>
+                </div>
+                <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">Draft</Badge>
+                <Badge variant="outline" className={cn(
+                  'text-[10px]',
+                  isMP ? 'bg-primary/10 text-primary border-primary/20' : 'bg-accent text-accent-foreground border-border'
+                )}>
+                  {isMP ? 'Marketplace' : 'Aggregator'}
+                </Badge>
               </div>
-              <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">Draft</Badge>
-              <Badge variant="outline" className={cn(
-                'text-[10px]',
-                isMP ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-sky-100 text-sky-700 border-sky-200'
-              )}>
-                {isMP ? 'Marketplace' : 'Aggregator'}
-              </Badge>
+
+              {/* Engagement Model Selector */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Engagement Model <span className="text-destructive">*</span></Label>
+                {engModelsLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : engagementModels.length > 0 ? (
+                  <EngagementModelSelector
+                    models={engagementModels.map(m => ({
+                      id: m.id,
+                      name: m.name,
+                      code: m.code ?? '',
+                      description: m.description,
+                    }))}
+                    selectedId={engagementModels.find(m => {
+                      const c = (m.code ?? '').toLowerCase();
+                      return (isMP && (c === 'marketplace' || c === 'mp')) || (isAGG && (c === 'aggregator' || c === 'agg'));
+                    })?.id ?? ''}
+                    onSelect={(selectedId) => {
+                      const selected = engagementModels.find(m => m.id === selectedId);
+                      if (selected) {
+                        const c = (selected.code ?? '').toLowerCase();
+                        const code = (c === 'marketplace' || c === 'mp') ? 'MP' : 'AGG';
+                        setValue('engagement_model', code, { shouldValidate: true });
+                        if (code === 'AGG') {
+                          setValue('architect_id', '', { shouldValidate: false });
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <RadioGroup
+                    value={watchedModel}
+                    onValueChange={(val) => {
+                      setValue('engagement_model', val as 'MP' | 'AGG', { shouldValidate: true });
+                      if (val === 'AGG') setValue('architect_id', '', { shouldValidate: false });
+                    }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="MP" id="model-mp" />
+                      <Label htmlFor="model-mp" className="text-sm cursor-pointer">Marketplace</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="AGG" id="model-agg" />
+                      <Label htmlFor="model-agg" className="text-sm cursor-pointer">Aggregator</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+              </div>
             </CardContent>
           </Card>
 
