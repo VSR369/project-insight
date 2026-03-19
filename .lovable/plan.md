@@ -1,39 +1,34 @@
 
 
-# Fix: Default Challenge Creation Should Open AI Intake, Not Advanced Editor
+# Completed: Step 0 + 3-Mode Governance in Challenge Wizard
 
-## Problem
+## Changes Made
 
-Several navigation points across the app link to `/cogni/challenges/new` (the Advanced Editor / 8-step wizard) when they should link to `/cogni/challenges/create` (the Conversational AI Intake page). This means users bypass the simpler AI-powered flow.
+### 1. Added Step 0 — Mode & Model Selection
+- **New**: `StepModeSelection.tsx` — 3 governance mode cards (QUICK/STRUCTURED/CONTROLLED) + operating model selector (MP/AGG)
+- Subscription tier gating support (disabledModes prop)
+- Uses existing `GOVERNANCE_MODE_CONFIG` for consistent styling
 
-## Affected Locations (3 files, 3 changes)
+### 2. Updated Schema
+- `challengeFormSchema.ts` — Added `governance_mode` and `operating_model` fields to Zod schema and default values
 
-### 1. ActionItemsWidget — "Create Challenge" from active request
-**File**: `src/components/cogniblend/dashboard/ActionItemsWidget.tsx` (line 261)
+### 3. Updated Progress Bar (8 Steps)
+- `ChallengeProgressBar.tsx` — Now shows Steps 0–7 with slightly smaller circles to fit 8 steps
 
-Change: `/cogni/challenges/new` → `/cogni/challenges/create`
+### 4. Updated Bottom Bar Navigation
+- `ChallengeWizardBottomBar.tsx` — Added Step 0 labels, back navigation starts from Step 0
 
-When a request is active and the user clicks "Create Challenge", it should open the AI intake flow.
+### 5. Refactored useFormCompletion to 3-Mode System
+- `useFormCompletion.ts` — Replaced `isLightweight: boolean` with `governanceMode: GovernanceMode`
+- 3-way required field definitions: QUICK (9 fields), STRUCTURED (14 fields), CONTROLLED (19 fields)
 
-### 2. Submit Request Page — "Create Challenge Directly" bypass button
-**File**: `src/pages/cogniblend/CogniSubmitRequestPage.tsx` (line 451)
+### 6. Updated Wizard Page
+- `ChallengeWizardPage.tsx` — Starts at Step 0, form-selected governance mode drives the wizard
+- Total steps updated from 7 to 8 (Steps 0–7)
+- Form defaults initialized from org context
 
-Change: `/cogni/challenges/new` → `/cogni/challenges/create`
+### 7. Updated Tests
+- All 10 tests pass with the new 3-mode system
 
-The bypass banner button should also go to the AI intake, not the advanced editor.
-
-### 3. New Solution Request Page — "Create Challenge Directly" bypass button
-**File**: `src/pages/requests/NewSolutionRequestPage.tsx` (line 433)
-
-Change: `/challenges/new` → `/cogni/challenges/create`
-
-Same bypass pattern, wrong route.
-
-## No other changes needed
-
-The sidebar navigation is already correct:
-- "Create Challenge" → `/cogni/challenges/create` (AI Intake) ✓
-- "Advanced Editor" → `/cogni/challenges/new` (Wizard) ✓
-
-The Conversational Intake page itself has correct links to the Advanced Editor as a fallback/alternative. Routes in `App.tsx` are correct.
-
+## Still Using `isLightweight` Prop
+The 7 step components (StepProblem, StepEvaluation, etc.) still receive `isLightweight: boolean` derived from `isQuickMode(governanceMode)`. This is backward-compatible — the boolean correctly maps QUICK → true, STRUCTURED/CONTROLLED → false. A future PR can refactor these to accept `governanceMode: GovernanceMode` directly for CONTROLLED-specific behaviors.
