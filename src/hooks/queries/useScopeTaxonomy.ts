@@ -34,7 +34,7 @@ export function useProficiencyAreasBySegments(industrySegmentIds: string[]) {
   });
 }
 
-/** Fetch sub-domains for given proficiency area IDs */
+/** Fetch sub-domains for given proficiency area IDs (deduplicated by name) */
 export function useSubDomainsByAreas(proficiencyAreaIds: string[]) {
   return useQuery({
     queryKey: ['sub_domains_by_areas', proficiencyAreaIds],
@@ -47,14 +47,19 @@ export function useSubDomainsByAreas(proficiencyAreaIds: string[]) {
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (error) throw new Error(error.message);
-      return data;
+      // Deduplicate by name — same sub-domain may appear under multiple proficiency areas
+      const seen = new Map<string, typeof data[0]>();
+      for (const row of data) {
+        if (!seen.has(row.name)) seen.set(row.name, row);
+      }
+      return Array.from(seen.values());
     },
     enabled: proficiencyAreaIds.length > 0,
     ...CACHE,
   });
 }
 
-/** Fetch specialities for given sub-domain IDs */
+/** Fetch specialities for given sub-domain IDs (deduplicated by name) */
 export function useSpecialitiesBySubDomains(subDomainIds: string[]) {
   return useQuery({
     queryKey: ['specialities_by_sub_domains', subDomainIds],
@@ -67,7 +72,12 @@ export function useSpecialitiesBySubDomains(subDomainIds: string[]) {
         .eq('is_active', true)
         .order('display_order', { ascending: true });
       if (error) throw new Error(error.message);
-      return data;
+      // Deduplicate by name — same speciality may appear under multiple sub-domains
+      const seen = new Map<string, typeof data[0]>();
+      for (const row of data) {
+        if (!seen.has(row.name)) seen.set(row.name, row);
+      }
+      return Array.from(seen.values());
     },
     enabled: subDomainIds.length > 0,
     ...CACHE,

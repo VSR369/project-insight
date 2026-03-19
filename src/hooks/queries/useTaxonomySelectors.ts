@@ -35,19 +35,27 @@ export function useIndustrySegmentOptions() {
   });
 }
 
+/**
+ * @deprecated Use `useTaxonomyCascade` instead — this hook queried the wrong table.
+ * Kept temporarily for backward compatibility.
+ */
 export function useSubDomainOptions() {
   return useQuery({
-    queryKey: ['taxonomy-sub-domains'],
+    queryKey: ['taxonomy-sub-domains-deprecated'],
     queryFn: async (): Promise<TaxonomySubDomain[]> => {
       const { data, error } = await supabase
-        .from('proficiency_areas')
+        .from('sub_domains')
         .select('id, name')
         .eq('is_active', true)
-        .not('name', 'like', '__SMOKE_TEST_%')
         .order('display_order', { ascending: true });
 
       if (error) throw new Error(error.message);
-      return (data ?? []) as TaxonomySubDomain[];
+      // Deduplicate by name
+      const seen = new Map<string, TaxonomySubDomain>();
+      for (const row of (data ?? [])) {
+        if (!seen.has(row.name)) seen.set(row.name, row as TaxonomySubDomain);
+      }
+      return Array.from(seen.values());
     },
     staleTime: 5 * 60 * 1000,
     gcTime: 30 * 60 * 1000,

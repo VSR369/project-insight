@@ -41,7 +41,8 @@ import { DuplicateMatchesPanel, DuplicateWarningBanner } from '@/components/requ
 import { useTierLimitCheck } from '@/hooks/queries/useTierLimitCheck';
 import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useCreateDuplicateReview } from '@/hooks/cogniblend/useDuplicateReview';
-import { useIndustrySegmentOptions, useSubDomainOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
+import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
 import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
@@ -252,7 +253,6 @@ export default function CogniSubmitRequestPage() {
   const draftMutation = useSaveDraft();
   const createDuplicateReview = useCreateDuplicateReview();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
-  const { data: subDomains = [] } = useSubDomainOptions();
 
   const isMP = orgContext?.operatingModel === 'MP';
   const isAGG = orgContext?.operatingModel === 'AGG';
@@ -285,6 +285,18 @@ export default function CogniSubmitRequestPage() {
   const businessProblem = watch('business_problem');
   const charCount = businessProblem?.length || 0;
   const isMinMet = charCount >= MIN_PROBLEM_CHARS;
+
+  // Taxonomy cascade: industry → proficiency areas → sub-domains → specialities
+  const watchedIndustryId = watch('industry_segment_id');
+  const watchedSubDomainIds = watch('sub_domain_ids') ?? [];
+  const cascadeIndustryIds = useMemo(() => watchedIndustryId ? [watchedIndustryId] : [], [watchedIndustryId]);
+  const cascade = useTaxonomyCascade(cascadeIndustryIds);
+  const cascadedSubDomains = cascade.subDomains;
+  const cascadedSpecialities = useMemo(
+    () => cascade.getSpecialitiesBySubDomains(watchedSubDomainIds),
+    [cascade.getSpecialitiesBySubDomains, watchedSubDomainIds],
+  );
+
 
   // Taxonomy suggestions
   const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(businessProblem);
@@ -407,7 +419,7 @@ export default function CogniSubmitRequestPage() {
       {/* Model-specific text */}
       {isMP && (
         <p className="text-sm text-muted-foreground">
-          As Account Manager, you are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
+          You are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
         </p>
       )}
       {isAGG && (
@@ -531,7 +543,7 @@ export default function CogniSubmitRequestPage() {
                       />
                     </div>
 
-                    {/* Sub-Domains */}
+                    {/* Sub-Domains (from cascade) */}
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Sub-Domains</Label>
                       <Controller
@@ -539,6 +551,7 @@ export default function CogniSubmitRequestPage() {
                         control={control}
                         render={({ field }) => {
                           const selected = field.value ?? [];
+                          const available = cascadedSubDomains.filter(d => !selected.includes(d.id));
                           return (
                             <div>
                               <Select
@@ -547,11 +560,17 @@ export default function CogniSubmitRequestPage() {
                                     field.onChange([...selected, val]);
                                   }
                                 }}
-                                disabled={isBusy}
+                                disabled={isBusy || cascadedSubDomains.length === 0}
                               >
-                                <SelectTrigger><SelectValue placeholder="Add sub-domains" /></SelectTrigger>
+                                <SelectTrigger>
+                                  <SelectValue placeholder={
+                                    !watchedIndustryId ? 'Select an industry first' :
+                                    cascadedSubDomains.length === 0 ? 'No sub-domains available' :
+                                    'Add sub-domains'
+                                  } />
+                                </SelectTrigger>
                                 <SelectContent>
-                                  {subDomains.filter(d => !selected.includes(d.id)).map(d => (
+                                  {available.map(d => (
                                     <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                                   ))}
                                 </SelectContent>
@@ -559,7 +578,7 @@ export default function CogniSubmitRequestPage() {
                               {selected.length > 0 && (
                                 <div className="flex flex-wrap gap-1.5 mt-2">
                                   {selected.map(id => {
-                                    const sd = subDomains.find(d => d.id === id);
+                                    const sd = cascadedSubDomains.find(d => d.id === id);
                                     return (
                                       <Badge key={id} variant="secondary" className="gap-1 pr-1 text-xs">
                                         {sd?.name ?? id}
@@ -578,30 +597,46 @@ export default function CogniSubmitRequestPage() {
                     </div>
                   </div>
 
-                  {/* Specialties (taxonomy suggestions) */}
+                  {/* Specialties (from cascade + taxonomy suggestions) */}
                   <Controller
                     name="specialty_tags"
                     control={control}
                     render={({ field }) => {
                       const tags = field.value ?? [];
+                      // Merge DB specialities with text-based suggestions
+                      const dbSpecialities = cascadedSpecialities.filter(s => !tags.includes(s.name));
+                      const textSuggestions = taxonomySuggestions.filter(s => !tags.includes(s.tag) && !cascadedSpecialities.some(cs => cs.name === s.tag));
                       return (
                         <div className="space-y-2">
                           <Label className="text-sm font-medium">Specialties</Label>
-                          {taxonomySuggestions.length > 0 && (
+                          {/* DB-driven specialities */}
+                          {dbSpecialities.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mb-1">
-                              {taxonomySuggestions
-                                .filter(s => !tags.includes(s.tag))
-                                .slice(0, 8)
-                                .map(s => (
-                                  <button
-                                    key={s.tag}
-                                    type="button"
-                                    onClick={() => field.onChange([...tags, s.tag])}
-                                    className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
-                                  >
-                                    + {s.tag}
-                                  </button>
-                                ))}
+                              {dbSpecialities.slice(0, 12).map(s => (
+                                <button
+                                  key={s.id}
+                                  type="button"
+                                  onClick={() => field.onChange([...tags, s.name])}
+                                  className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+                                >
+                                  + {s.name}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                          {/* Text-based suggestions */}
+                          {textSuggestions.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-1">
+                              {textSuggestions.slice(0, 8).map(s => (
+                                <button
+                                  key={s.tag}
+                                  type="button"
+                                  onClick={() => field.onChange([...tags, s.tag])}
+                                  className="inline-flex items-center rounded-full border border-accent/50 bg-accent/10 px-2.5 py-0.5 text-xs font-medium text-accent-foreground hover:bg-accent/20 transition-colors"
+                                >
+                                  + {s.tag}
+                                </button>
+                              ))}
                             </div>
                           )}
                           {tags.length > 0 && (
@@ -617,8 +652,10 @@ export default function CogniSubmitRequestPage() {
                             </div>
                           )}
                           <p className="text-xs text-muted-foreground">
-                            {tags.length === 0 && taxonomySuggestions.length === 0
-                              ? 'Type 100+ characters in Problem Statement to see suggestions'
+                            {tags.length === 0 && dbSpecialities.length === 0 && textSuggestions.length === 0
+                              ? watchedSubDomainIds.length === 0
+                                ? 'Select sub-domains to see specialties, or type 100+ characters for suggestions'
+                                : 'No specialties found for selected sub-domains'
                               : `${tags.length} specialties selected`}
                           </p>
                         </div>
