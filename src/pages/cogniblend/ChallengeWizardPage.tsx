@@ -206,7 +206,7 @@ export default function ChallengeWizardPage() {
   }, [isEditMode, tierLimit]);
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading) || (!isEditMode && readinessGate.isLoading)) {
+  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || fieldRulesLoading || (!isEditMode && tierLimitLoading) || (!isEditMode && readinessGate.isLoading)) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <Skeleton className="h-8 w-60" />
