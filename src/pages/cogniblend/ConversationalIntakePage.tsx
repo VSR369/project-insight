@@ -8,9 +8,12 @@
  *
  * Governance-aware: shows org governance mode badge and routes
  * post-generation based on QUICK/STRUCTURED/CONTROLLED mode.
+ *
+ * SHARED STATE: When embedded in ChallengeCreatePage, receives shared state props
+ * so data flows seamlessly to/from the Advanced Editor tab.
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -34,13 +37,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
 import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
-import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor, shouldSuggestAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
+import type { SharedIntakeState } from './ChallengeCreatePage';
 
 /* ─── Schema ──────────────────────────────────────────── */
 
@@ -98,11 +102,24 @@ function MaturityCard({
 interface ConversationalIntakeContentProps {
   /** Called when user wants to switch to the Advanced Editor tab */
   onSwitchToEditor?: () => void;
+  /** Shared state from parent (when embedded in ChallengeCreatePage) */
+  sharedState?: SharedIntakeState;
+  /** Callback to sync state changes to parent */
+  onStateChange?: (partial: Partial<SharedIntakeState>) => void;
+  /** Called when AI generates a spec — parent auto-switches to editor */
+  onSpecGenerated?: (spec: GeneratedSpec) => void;
 }
 
-export function ConversationalIntakeContent({ onSwitchToEditor }: ConversationalIntakeContentProps) {
+export function ConversationalIntakeContent({
+  onSwitchToEditor,
+  sharedState,
+  onStateChange,
+  onSpecGenerated,
+}: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
-  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(
+    sharedState?.selectedTemplate ?? null
+  );
   const [aiFailure, setAiFailure] = useState(false);
 
   // ═══════ Hooks — context ═══════
@@ -119,12 +136,43 @@ export function ConversationalIntakeContent({ onSwitchToEditor }: Conversational
   const form = useForm<IntakeFormValues>({
     resolver: zodResolver(intakeSchema),
     defaultValues: {
-      problem_statement: '',
-      maturity_level: undefined,
+      problem_statement: sharedState?.problemStatement ?? '',
+      maturity_level: (sharedState?.maturityLevel as IntakeFormValues['maturity_level']) || undefined,
     },
   });
 
   const watchedMaturity = form.watch('maturity_level');
+  const watchedProblem = form.watch('problem_statement');
+
+  // ═══════ Hooks — effects ═══════
+
+  // Sync form changes up to shared state
+  useEffect(() => {
+    if (onStateChange && watchedProblem !== sharedState?.problemStatement) {
+      onStateChange({ problemStatement: watchedProblem });
+    }
+  }, [watchedProblem]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (onStateChange && watchedMaturity && watchedMaturity !== sharedState?.maturityLevel) {
+      onStateChange({ maturityLevel: watchedMaturity });
+    }
+  }, [watchedMaturity]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync shared state down to form when parent updates (e.g. from editor tab)
+  useEffect(() => {
+    if (!sharedState) return;
+    const currentProblem = form.getValues('problem_statement');
+    if (sharedState.problemStatement && sharedState.problemStatement !== currentProblem) {
+      form.setValue('problem_statement', sharedState.problemStatement);
+    }
+    if (sharedState.maturityLevel && sharedState.maturityLevel !== form.getValues('maturity_level')) {
+      form.setValue('maturity_level', sharedState.maturityLevel as IntakeFormValues['maturity_level']);
+    }
+    if (sharedState.selectedTemplate && sharedState.selectedTemplate.id !== selectedTemplate?.id) {
+      setSelectedTemplate(sharedState.selectedTemplate);
+    }
+  }, [sharedState?.problemStatement, sharedState?.maturityLevel, sharedState?.selectedTemplate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (orgLoading) {
@@ -140,6 +188,7 @@ export function ConversationalIntakeContent({ onSwitchToEditor }: Conversational
 
   const handleTemplateSelect = (template: ChallengeTemplate) => {
     setSelectedTemplate(template);
+    onStateChange?.({ selectedTemplate: template });
     if (template.prefill.problem_statement !== undefined) {
       form.setValue('problem_statement', template.prefill.problem_statement);
     }
@@ -177,6 +226,14 @@ export function ConversationalIntakeContent({ onSwitchToEditor }: Conversational
         template_id: selectedTemplate?.id,
       });
 
+      // If embedded with shared state, store spec and auto-switch to editor
+      if (onSpecGenerated) {
+        onSpecGenerated(spec);
+        toast.success('AI specification generated! Review and refine in the Advanced Editor.');
+        return;
+      }
+
+      // Standalone mode — create challenge record and navigate
       const { challengeId } = await createChallenge.mutateAsync({
         orgId: currentOrg.organizationId,
         creatorId: user.id,
