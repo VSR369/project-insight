@@ -369,7 +369,7 @@ export function ConversationalIntakeContent({
           eligibility: spec.eligibility,
           hook: spec.hook,
           ip_model: spec.ip_model,
-          maturity_level: data.maturity_level,
+          maturity_level: data.maturity_level?.toUpperCase() ?? null,
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
         },

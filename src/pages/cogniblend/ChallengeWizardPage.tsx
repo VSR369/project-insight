@@ -369,7 +369,7 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
             payment_mode: values.payment_mode ?? 'escrow',
             payment_milestones: values.payment_milestones ?? [],
           },
-      maturity_level: values.maturity_level || null,
+      maturity_level: values.maturity_level?.toUpperCase() || null,
       ip_model: values.ip_model || null,
       hook: (values as any).hook || null,
       effort_level: (values as any).effort_level || null,
