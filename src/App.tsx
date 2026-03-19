@@ -228,6 +228,7 @@ const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardP
 const ConversationalIntakePage = lazy(() => import("@/pages/cogniblend/ConversationalIntakePage"));
 const CogniChallengeCreatePage = lazy(() => import("@/pages/cogniblend/ChallengeCreatePage"));
 const AISpecReviewPage = lazy(() => import("@/pages/cogniblend/AISpecReviewPage"));
+const ControlledEditorPage = lazy(() => import("@/pages/cogniblend/ControlledEditorPage"));
 const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizardPage"));
 const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalDocumentAttachmentPage"));
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
