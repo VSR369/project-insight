@@ -344,9 +344,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 5. Problem Statement ──────────────────────── */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Problem Statement <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            Problem Statement <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="problem_statement"
+            context={aiContext}
+            onResult={(content) => setValue('problem_statement', content)}
+            label="AI Draft"
+          />
+        </div>
         <Controller
           name="problem_statement"
           control={control}

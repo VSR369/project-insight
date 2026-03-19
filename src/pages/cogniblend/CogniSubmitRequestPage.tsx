@@ -50,6 +50,28 @@ import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+/* ── AI Draft Button ── */
+function AiDraftButton({ loading, onClick, disabled }: { loading: boolean; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+    >
+      {loading ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Wand2 className="h-3 w-3" />
+      )}
+      {loading ? 'Drafting…' : 'Draft with AI'}
+    </button>
+  );
+}
+import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 
 // ============================================================================
 // CONSTANTS

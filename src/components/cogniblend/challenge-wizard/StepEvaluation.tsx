@@ -125,11 +125,19 @@ export function StepEvaluation({ form }: StepEvaluationProps) {
   return (
     <div className="space-y-6">
       {/* ── Section Header ── */}
-      <div>
-        <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
-        <p className="text-sm text-muted-foreground">
-          Define criteria and assign weights that sum to 100%. All fields are editable.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
+          <p className="text-sm text-muted-foreground">
+            Define criteria and assign weights that sum to 100%. All fields are editable.
+          </p>
+        </div>
+        <AiFieldAssist
+          fieldName="evaluation_criteria"
+          context={aiContext}
+          onResult={handleAiCriteria}
+          label="AI Suggest Criteria"
+        />
       </div>
 
       {/* ─── Full 4-column weighted table (all modes) ─── */}
