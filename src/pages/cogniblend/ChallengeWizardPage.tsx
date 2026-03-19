@@ -642,25 +642,25 @@ export default function ChallengeWizardPage() {
       <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
           {currentStep === 1 && (
-            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 2 && (
-            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 3 && (
-            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 4 && (
-            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 5 && (
-            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 6 && (
-            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 7 && (
-            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} onNavigateToStep={(step) => setCurrentStep(step)} />
+            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} onNavigateToStep={(step) => setCurrentStep(step)} />
           )}
 
           {/* Bottom Bar */}
