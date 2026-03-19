@@ -460,18 +460,67 @@ export default function CogniSubmitRequestPage() {
 
           {/* Request Information Header */}
           <Card className="border-border">
-            <CardContent className="p-4 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Hash className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-mono font-medium text-foreground">{requestId}</span>
+            <CardContent className="p-4 space-y-4">
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Hash className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-mono font-medium text-foreground">{requestId}</span>
+                </div>
+                <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">Draft</Badge>
+                <Badge variant="outline" className={cn(
+                  'text-[10px]',
+                  isMP ? 'bg-primary/10 text-primary border-primary/20' : 'bg-accent text-accent-foreground border-border'
+                )}>
+                  {isMP ? 'Marketplace' : 'Aggregator'}
+                </Badge>
               </div>
-              <Badge variant="outline" className="bg-muted text-muted-foreground text-[10px]">Draft</Badge>
-              <Badge variant="outline" className={cn(
-                'text-[10px]',
-                isMP ? 'bg-violet-100 text-violet-700 border-violet-200' : 'bg-sky-100 text-sky-700 border-sky-200'
-              )}>
-                {isMP ? 'Marketplace' : 'Aggregator'}
-              </Badge>
+
+              {/* Engagement Model Selector */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Engagement Model <span className="text-destructive">*</span></Label>
+                {engModelsLoading ? (
+                  <Skeleton className="h-24 w-full" />
+                ) : engagementModels.length > 0 ? (
+                  <EngagementModelSelector
+                    models={engagementModels.map(m => ({
+                      id: m.id,
+                      name: m.name,
+                      code: m.code,
+                      description: m.description,
+                    }))}
+                    selectedId={engagementModels.find(m => m.code?.toLowerCase() === watchedModel.toLowerCase())?.id ?? ''}
+                    onSelect={(selectedId) => {
+                      const selected = engagementModels.find(m => m.id === selectedId);
+                      if (selected) {
+                        const code = selected.code?.toUpperCase() === 'MARKETPLACE' || selected.code?.toUpperCase() === 'MP' ? 'MP' : 'AGG';
+                        setValue('engagement_model', code as 'MP' | 'AGG', { shouldValidate: true });
+                        // Clear architect if switching to AGG
+                        if (code === 'AGG') {
+                          setValue('architect_id', '', { shouldValidate: false });
+                        }
+                      }
+                    }}
+                  />
+                ) : (
+                  <RadioGroup
+                    value={watchedModel}
+                    onValueChange={(val) => {
+                      setValue('engagement_model', val as 'MP' | 'AGG', { shouldValidate: true });
+                      if (val === 'AGG') setValue('architect_id', '', { shouldValidate: false });
+                    }}
+                    className="flex gap-4"
+                  >
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="MP" id="model-mp" />
+                      <Label htmlFor="model-mp" className="text-sm cursor-pointer">Marketplace</Label>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <RadioGroupItem value="AGG" id="model-agg" />
+                      <Label htmlFor="model-agg" className="text-sm cursor-pointer">Aggregator</Label>
+                    </div>
+                  </RadioGroup>
+                )}
+              </div>
             </CardContent>
           </Card>
 
