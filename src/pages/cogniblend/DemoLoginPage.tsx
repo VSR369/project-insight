@@ -24,10 +24,10 @@ interface DemoUser {
 
 const DEMO_USERS: DemoUser[] = [
   {
-    email: 'nh-am@testsetup.dev',
+    email: 'nh-rq@testsetup.dev',
     displayName: 'Alex Morgan',
-    roles: ['AM'],
-    description: 'Submits innovation requests, manages client relationship',
+    roles: ['RQ'],
+    description: 'Submits innovation requests (Requestor role in AGG model)',
   },
   {
     email: 'nh-cr@testsetup.dev',
@@ -74,7 +74,7 @@ const DEMO_USERS: DemoUser[] = [
   {
     email: 'nh-solo@testsetup.dev',
     displayName: 'Sam Solo',
-    roles: ['AM', 'CR', 'CU', 'ID', 'ER', 'FC'],
+    roles: ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
     description: 'Solo operator — holds all roles for lightweight demo',
   },
 ];
@@ -105,17 +105,38 @@ export default function DemoLoginPage() {
     }
   }, []);
 
-  const handleLogin = useCallback(async (user: DemoUser) => {
-    setLoadingEmail(user.email);
+  const handleLogin = useCallback(async (demoUser: DemoUser) => {
+    setLoadingEmail(demoUser.email);
     try {
       // Sign out first to clear any existing session
       await supabase.auth.signOut();
-      const { error } = await supabase.auth.signInWithPassword({
-        email: user.email,
+      const { data: signInData, error } = await supabase.auth.signInWithPassword({
+        email: demoUser.email,
         password: TEST_PASSWORD,
       });
       if (error) throw error;
-      toast.success(`Signed in as ${user.displayName} (${user.roles.join(', ')})`);
+
+      // Preflight: verify user has an active org_users row
+      const userId = signInData.user?.id;
+      if (userId) {
+        const { data: orgRow } = await supabase
+          .from('org_users')
+          .select('id')
+          .eq('user_id', userId)
+          .eq('is_active', true)
+          .limit(1)
+          .maybeSingle();
+
+        if (!orgRow) {
+          await supabase.auth.signOut();
+          toast.error(
+            'This account has no organization linked. Please seed the demo scenario first, then try again.',
+          );
+          return;
+        }
+      }
+
+      toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')})`);
       navigate('/cogni/dashboard');
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
