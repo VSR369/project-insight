@@ -418,7 +418,7 @@ export default function CogniSubmitRequestPage() {
       {/* Model-specific text */}
       {isMP && (
         <p className="text-sm text-muted-foreground">
-          As Account Manager, you are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
+          You are submitting this request on behalf of the Seeking Organization. After submission, it will be assigned to a Challenge Architect.
         </p>
       )}
       {isAGG && (
