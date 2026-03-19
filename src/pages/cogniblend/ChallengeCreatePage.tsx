@@ -61,11 +61,12 @@ export default function ChallengeCreatePage() {
   const switchToEditor = useCallback(() => handleTabChange('editor'), [handleTabChange]);
   const switchToAI = useCallback(() => handleTabChange('ai'), [handleTabChange]);
 
-  /** Called by AI intake when spec is generated — auto-switch to editor */
+  /** Called by AI intake when spec is generated — NO longer auto-switches to editor.
+   *  The intake page now navigates to the spec review or controlled editor route. */
   const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
     setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
-    switchToEditor();
-  }, [switchToEditor]);
+    // Navigation is now handled inside ConversationalIntakeContent
+  }, []);
 
   /** Called by AI intake on field changes to keep shared state in sync */
   const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
