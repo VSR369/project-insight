@@ -333,8 +333,8 @@ const App = () => (
               </AuthGuard>
             }>
               <Route path="/cogni/dashboard" element={<LazyRoute><CogniDashboardPage /></LazyRoute>} />
-              <Route path="/cogni/challenges/create" element={<LazyRoute><ConversationalIntakePage /></LazyRoute>} />
-              <Route path="/cogni/challenges/new" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/create" element={<LazyRoute><ChallengeCreatePage /></LazyRoute>} />
+              <Route path="/cogni/challenges/new" element={<Navigate to="/cogni/challenges/create?tab=editor" replace />} />
               <Route path="/cogni/challenges/:id/spec" element={<LazyRoute><AISpecReviewPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/edit" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/legal" element={<LazyRoute><LegalDocumentAttachmentPage /></LazyRoute>} />

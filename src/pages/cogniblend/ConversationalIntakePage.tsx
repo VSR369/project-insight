@@ -1,7 +1,10 @@
 /**
  * ConversationalIntakePage — Simplified "front door" for challenge creation.
  * Presents: Template Selector → Problem text area → Maturity cards → "Generate with AI" button.
- * Route: /cogni/challenges/create
+ *
+ * Exports:
+ *   - default: Standalone page (backward compat, currently unused after unification)
+ *   - ConversationalIntakeContent: Embeddable content component used by ChallengeCreatePage
  *
  * Governance-aware: shows org governance mode badge and routes
  * post-generation based on QUICK/STRUCTURED/CONTROLLED mode.
@@ -18,7 +21,6 @@ import {
   ArrowRight,
   Wand2,
   Settings2,
-  Loader2,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -91,9 +93,14 @@ function MaturityCard({
   );
 }
 
-/* ─── Main Component ──────────────────────────────────── */
+/* ─── Content Component (embeddable) ──────────────────── */
 
-export default function ConversationalIntakePage() {
+interface ConversationalIntakeContentProps {
+  /** Called when user wants to switch to the Advanced Editor tab */
+  onSwitchToEditor?: () => void;
+}
+
+export function ConversationalIntakeContent({ onSwitchToEditor }: ConversationalIntakeContentProps) {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
   const [aiFailure, setAiFailure] = useState(false);
@@ -133,7 +140,6 @@ export default function ConversationalIntakePage() {
 
   const handleTemplateSelect = (template: ChallengeTemplate) => {
     setSelectedTemplate(template);
-    // Pre-fill form from template
     if (template.prefill.problem_statement !== undefined) {
       form.setValue('problem_statement', template.prefill.problem_statement);
     }
@@ -144,10 +150,21 @@ export default function ConversationalIntakePage() {
 
   const isGenerating = generateSpec.isPending || createChallenge.isPending;
 
+  const handleGoToEditor = (data?: IntakeFormValues) => {
+    if (onSwitchToEditor) {
+      onSwitchToEditor();
+    } else {
+      const params = new URLSearchParams();
+      if (data?.problem_statement) params.set('problem', data.problem_statement);
+      if (data?.maturity_level) params.set('maturity', data.maturity_level);
+      if (selectedTemplate?.id) params.set('template', selectedTemplate.id);
+      navigate(`/cogni/challenges/new?${params.toString()}`);
+    }
+  };
+
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
     setAiFailure(false);
 
-    // Fail early if org/user context is missing
     if (!currentOrg || !user?.id) {
       toast.error('Organization not found. Please ensure your demo scenario is seeded or log in again.');
       return;
@@ -160,7 +177,6 @@ export default function ConversationalIntakePage() {
         template_id: selectedTemplate?.id,
       });
 
-      // Create challenge with AI-generated spec
       const { challengeId } = await createChallenge.mutateAsync({
         orgId: currentOrg.organizationId,
         creatorId: user.id,
@@ -175,7 +191,6 @@ export default function ConversationalIntakePage() {
         urgency: 'normal',
       });
 
-      // Save AI-generated fields
       await saveStep.mutateAsync({
         challengeId,
         fields: {
@@ -204,13 +219,8 @@ export default function ConversationalIntakePage() {
       }
       navigate(route);
     } catch {
-      // Show amber fallback banner — user can continue manually
       setAiFailure(true);
     }
-  };
-
-  const handleAdvancedEditor = () => {
-    navigate('/cogni/challenges/new');
   };
 
   // ═══════ Derived governance state ═══════
@@ -227,21 +237,25 @@ export default function ConversationalIntakePage() {
             <h1 className="text-2xl font-bold text-foreground">
               Create a Challenge
             </h1>
-            <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
+            {!onSwitchToEditor && (
+              <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
+            )}
           </div>
           <p className="text-sm text-muted-foreground">
             Describe your problem, pick a maturity level, and let AI help draft the specification.
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleAdvancedEditor}
-          className="shrink-0"
-        >
-          <Settings2 className="h-4 w-4 mr-1.5" />
-          Advanced Editor
-        </Button>
+        {!onSwitchToEditor && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleGoToEditor()}
+            className="shrink-0"
+          >
+            <Settings2 className="h-4 w-4 mr-1.5" />
+            Advanced Editor
+          </Button>
+        )}
       </div>
 
       {/* Controlled mode notice */}
@@ -255,7 +269,7 @@ export default function ConversationalIntakePage() {
         </Alert>
       )}
 
-      {/* AI Failure Fallback Banner (V-5) */}
+      {/* AI Failure Fallback Banner */}
       {aiFailure && (
         <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
           <AlertTriangle className="h-4 w-4 text-amber-600" />
@@ -268,14 +282,7 @@ export default function ConversationalIntakePage() {
               variant="outline"
               size="sm"
               className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950"
-              onClick={() => {
-                const values = form.getValues();
-                const params = new URLSearchParams();
-                if (values.problem_statement) params.set('problem', values.problem_statement);
-                if (values.maturity_level) params.set('maturity', values.maturity_level);
-                if (selectedTemplate?.id) params.set('template', selectedTemplate.id);
-                navigate(`/cogni/challenges/new?${params.toString()}`);
-              }}
+              onClick={() => handleGoToEditor(form.getValues())}
             >
               <ArrowRight className="h-4 w-4 mr-1.5" />
               Continue in Advanced Editor
@@ -363,13 +370,7 @@ export default function ConversationalIntakePage() {
 
         <Button
           variant="outline"
-          onClick={form.handleSubmit((data) => {
-            const params = new URLSearchParams({
-              problem: data.problem_statement,
-              maturity: data.maturity_level,
-            });
-            navigate(`/cogni/challenges/new?${params.toString()}`);
-          })}
+          onClick={form.handleSubmit((data) => handleGoToEditor(data))}
           size="lg"
         >
           <ArrowRight className="h-4 w-4 mr-2" />
@@ -389,4 +390,10 @@ export default function ConversationalIntakePage() {
       </div>
     </div>
   );
+}
+
+/* ─── Default Export (standalone page — backward compat) ──── */
+
+export default function ConversationalIntakePage() {
+  return <ConversationalIntakeContent />;
 }

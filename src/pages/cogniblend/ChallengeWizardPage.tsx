@@ -536,13 +536,15 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
               {modeConfig.label} governance
             </p>
             <span className="text-muted-foreground">·</span>
-            <button
-              type="button"
-              onClick={() => navigate('/cogni/challenges/create')}
-              className="text-xs text-primary hover:underline"
-            >
-              ← Back to Simple View
-            </button>
+            {!embedded && (
+              <button
+                type="button"
+                onClick={() => onSwitchToSimple ? onSwitchToSimple() : navigate('/cogni/challenges/create')}
+                className="text-xs text-primary hover:underline"
+              >
+                ← Back to Simple View
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
