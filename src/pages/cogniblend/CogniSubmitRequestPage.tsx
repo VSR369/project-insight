@@ -102,6 +102,7 @@ const ATTACHMENT_CONFIG = {
 
 function buildSchema(isMP: boolean) {
   const base = z.object({
+    engagement_model: z.enum(['MP', 'AGG']),
     business_problem: z.string()
       .min(MIN_PROBLEM_CHARS, `Business problem must be at least ${MIN_PROBLEM_CHARS} characters`)
       .max(5000, 'Business problem must be 5000 characters or less')
