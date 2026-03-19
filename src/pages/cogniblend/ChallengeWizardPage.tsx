@@ -1,8 +1,9 @@
 /**
- * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard (Advanced Editor).
+ * ChallengeWizardPage — 8-step Challenge Creation / Edit wizard (Advanced Editor).
  * Route: /cogni/challenges/new  |  /cogni/challenges/:id/edit
  *
  * Steps:
+ *   0. Mode & Model Selection
  *   1. Challenge Brief
  *   2. Evaluation Criteria
  *   3. Rewards & Payment
@@ -12,7 +13,7 @@
  *   7. Review & Submit
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,6 +45,7 @@ import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimel
 import { StepProviderEligibility } from '@/components/cogniblend/challenge-wizard/StepProviderEligibility';
 import { StepTemplates } from '@/components/cogniblend/challenge-wizard/StepTemplates';
 import { StepReviewSubmit } from '@/components/cogniblend/challenge-wizard/StepReviewSubmit';
+import { StepModeSelection } from '@/components/cogniblend/challenge-wizard/StepModeSelection';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
 import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
@@ -53,7 +55,7 @@ import {
   type ChallengeFormValues,
 } from '@/components/cogniblend/challenge-wizard/challengeFormSchema';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 7; // Steps 0–7 (8 total)
 
 const BUSINESS_RULES = [
   'BR-CC-001: Challenge must have a minimum problem statement length',
@@ -69,7 +71,7 @@ const BUSINESS_RULES = [
 
 export default function ChallengeWizardPage() {
   // ═══════ Hooks — state ═══════
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
   const [showTierLimit, setShowTierLimit] = useState(false);
@@ -90,31 +92,34 @@ export default function ChallengeWizardPage() {
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  // Resolve governance from org or existing challenge — NOT hardcoded
+  // Resolve governance fallback from org or existing challenge
   const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
     : (currentOrg as any)?.governanceProfile ?? null;
 
-  const governanceMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
-  const isLightweight = isQuickMode(governanceMode);
+  const fallbackMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
   const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
+
+  // ═══════ Hooks — form (must be before watch) ═══════
+  const form = useForm<ChallengeFormValues>({
+    resolver: zodResolver(createChallengeFormSchema(fallbackMode)),
+    defaultValues: {
+      ...DEFAULT_FORM_VALUES,
+      governance_mode: fallbackMode,
+      operating_model: (orgContext?.operatingModel as 'MP' | 'AGG') ?? 'MP',
+    },
+  });
+
+  // Use form-selected mode (Step 0) or fallback
+  const formSelectedMode = form.watch('governance_mode') as GovernanceMode | undefined;
+  const governanceMode: GovernanceMode = formSelectedMode ?? fallbackMode;
+  const isLightweight = isQuickMode(governanceMode);
 
   // Fetch DB-driven field rules for this governance mode
   const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
 
-  const activeSchema = useMemo(
-    () => createChallengeFormSchema(governanceMode, fieldRules ?? undefined),
-    [governanceMode, fieldRules],
-  );
-
-  // ═══════ Hooks — form ═══════
-  const form = useForm<ChallengeFormValues>({
-    resolver: zodResolver(activeSchema),
-    defaultValues: DEFAULT_FORM_VALUES,
-  });
-
   const { data: mandatoryFields = [], isLoading: fieldsLoading } = useMandatoryFields(governanceProfile);
-  const formCompletion = useFormCompletion(form, isLightweight);
+  const formCompletion = useFormCompletion(form, governanceMode);
 
   // ═══════ Hooks — mutations ═══════
   const createChallengeMutation = useSubmitSolutionRequest();
@@ -347,12 +352,12 @@ export default function ChallengeWizardPage() {
   // ═══════ Cross-step validation ═══════
   const validateAllSteps = async (): Promise<{ valid: boolean; firstErrorStep: number | null }> => {
     const allFields = [];
-    for (let s = 1; s <= TOTAL_STEPS; s++) {
+    for (let s = 0; s <= TOTAL_STEPS; s++) {
       allFields.push(...getStepFields(s));
     }
     const isValid = await form.trigger(allFields as any);
     if (!isValid) {
-      for (let step = 1; step <= TOTAL_STEPS; step++) {
+      for (let step = 0; step <= TOTAL_STEPS; step++) {
         const stepFields = getStepFields(step);
         if (stepFields.length === 0) continue;
         const stepValid = await form.trigger(stepFields as any);
@@ -408,7 +413,7 @@ export default function ChallengeWizardPage() {
   };
 
   const handleBack = () => {
-    if (currentStep > 1) setCurrentStep((s) => s - 1);
+    if (currentStep > 0) setCurrentStep((s) => s - 1);
   };
 
   const handleSaveDraft = async () => {
@@ -641,6 +646,9 @@ export default function ChallengeWizardPage() {
       {/* ── Form Card ─────────────────────────────────── */}
       <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
+          {currentStep === 0 && (
+            <StepModeSelection form={form} orgOperatingModel={orgContext?.operatingModel} tierName={(tierLimit as any)?.tier_name} />
+          )}
           {currentStep === 1 && (
             <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
@@ -694,6 +702,8 @@ export default function ChallengeWizardPage() {
 
 function getStepFields(step: number): string[] {
   switch (step) {
+    case 0:
+      return ['governance_mode'];
     case 1:
       return ['title', 'problem_statement', 'domain_tags', 'maturity_level', 'deliverables_list'];
     case 2:
