@@ -1,8 +1,9 @@
 /**
- * ChallengeWizardPage — 7-step Challenge Creation / Edit wizard (Advanced Editor).
+ * ChallengeWizardPage — 8-step Challenge Creation / Edit wizard (Advanced Editor).
  * Route: /cogni/challenges/new  |  /cogni/challenges/:id/edit
  *
  * Steps:
+ *   0. Mode & Model Selection
  *   1. Challenge Brief
  *   2. Evaluation Criteria
  *   3. Rewards & Payment
