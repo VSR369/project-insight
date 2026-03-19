@@ -24,10 +24,10 @@ interface DemoUser {
 
 const DEMO_USERS: DemoUser[] = [
   {
-    email: 'nh-am@testsetup.dev',
+    email: 'nh-rq@testsetup.dev',
     displayName: 'Alex Morgan',
-    roles: ['AM'],
-    description: 'Submits innovation requests, manages client relationship',
+    roles: ['RQ'],
+    description: 'Submits innovation requests (Requestor role in AGG model)',
   },
   {
     email: 'nh-cr@testsetup.dev',
@@ -74,7 +74,7 @@ const DEMO_USERS: DemoUser[] = [
   {
     email: 'nh-solo@testsetup.dev',
     displayName: 'Sam Solo',
-    roles: ['AM', 'CR', 'CU', 'ID', 'ER', 'FC'],
+    roles: ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
     description: 'Solo operator — holds all roles for lightweight demo',
   },
 ];
