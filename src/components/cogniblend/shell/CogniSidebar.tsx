@@ -9,39 +9,22 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, X } from 'lucide-react';
 import { CogniSidebarNav } from './CogniSidebarNav';
+import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 
 interface CogniSidebarProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
-/** Governance profile badge */
-function GovernanceBadge({ profile }: { profile: string }) {
-  const isEnterprise = profile === 'ENTERPRISE';
-  return (
-    <span
-      className="inline-block font-semibold uppercase whitespace-nowrap"
-      style={{
-        fontSize: 11,
-        padding: '2px 10px',
-        borderRadius: 12,
-        backgroundColor: isEnterprise ? '#E6F1FB' : '#E1F5EE',
-        color: isEnterprise ? '#185FA5' : '#0F6E56',
-      }}
-    >
-      {profile}
-    </span>
-  );
-}
-
 export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
+  const { data: currentOrg } = useCurrentOrg();
 
-  // TODO: Replace with real org context data
-  const orgName = 'Acme Innovation Labs';
-  const governanceProfile = 'LIGHTWEIGHT';
+  const orgName = currentOrg?.orgName ?? 'Organization';
+  const governanceProfile = currentOrg?.governanceProfile ?? 'STRUCTURED';
 
   const handleDashboardNav = () => {
     navigate('/cogni/dashboard');
@@ -102,7 +85,7 @@ export function CogniSidebar({ isOpen, onClose }: CogniSidebarProps) {
           ${isExpanded ? 'md:opacity-100' : 'md:opacity-0'}
           lg:opacity-100
         `}>
-          <GovernanceBadge profile={governanceProfile} />
+          <GovernanceProfileBadge profile={governanceProfile} compact />
         </div>
       </div>
 

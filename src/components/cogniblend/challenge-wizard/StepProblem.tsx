@@ -56,6 +56,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useCountries } from '@/hooks/queries/useMasterData';
+import { AiFieldAssist } from './AiFieldAssist';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Constants ──────────────────────────────────────────── */
@@ -118,6 +119,14 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
   const problemStatement = watch('problem_statement') ?? '';
   const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(problemStatement);
+
+  // AI context for field assist
+  const aiContext = {
+    title: watch('title') ?? '',
+    problem_statement: problemStatement,
+    maturity_level: watch('maturity_level') ?? '',
+    governance_mode: watch('governance_mode') ?? '',
+  };
 
   // Deliverables
   const deliverablesList = watch('deliverables_list') ?? [''];
@@ -200,9 +209,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 1b. The Hook ─────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="hook" className="text-sm font-medium">
-          The Hook <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="hook" className="text-sm font-medium">
+            The Hook <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="hook"
+            context={aiContext}
+            onResult={(content) => setValue('hook', content)}
+            compact
+          />
+        </div>
         <Input
           id="hook"
           maxLength={300}
@@ -215,9 +232,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 1c. Challenge Description ─────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="description" className="text-sm font-medium">
-          Challenge Description <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="description" className="text-sm font-medium">
+            Challenge Description <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="description"
+            context={aiContext}
+            onResult={(content) => setValue('description', content)}
+            compact
+          />
+        </div>
         <Textarea
           id="description"
           placeholder="Provide a short summary description of the challenge"
@@ -319,9 +344,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 5. Problem Statement ──────────────────────── */}
       <div className="space-y-1.5">
-        <Label className="text-sm font-medium">
-          Problem Statement <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label className="text-sm font-medium">
+            Problem Statement <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="problem_statement"
+            context={aiContext}
+            onResult={(content) => setValue('problem_statement', content)}
+            label="AI Draft"
+          />
+        </div>
         <Controller
           name="problem_statement"
           control={control}

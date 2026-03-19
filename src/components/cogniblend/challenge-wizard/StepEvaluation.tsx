@@ -19,6 +19,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { AiFieldAssist } from './AiFieldAssist';
 import type { ChallengeFormValues } from './challengeFormSchema';
 
 /* ─── Rubric labels ──────────────────────────────────── */
@@ -47,6 +48,28 @@ export function StepEvaluation({ form }: StepEvaluationProps) {
 
   const weightedCriteria = watch('weighted_criteria') ?? [];
   const totalWeight = weightedCriteria.reduce((sum, c) => sum + (c.weight || 0), 0);
+
+  const aiContext = {
+    title: watch('title') ?? '',
+    problem_statement: watch('problem_statement') ?? '',
+    maturity_level: watch('maturity_level') ?? '',
+    governance_mode: watch('governance_mode') ?? '',
+  };
+
+  const handleAiCriteria = (content: string) => {
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) {
+        setValue('weighted_criteria', parsed.map(c => ({
+          name: c.name || '',
+          weight: c.weight || 0,
+          description: c.description || '',
+        })));
+      }
+    } catch {
+      // If not JSON, ignore — the content might be plain text
+    }
+  };
 
   // Track which rubric accordions are open
   const [openRubrics, setOpenRubrics] = useState<Set<number>>(new Set());
@@ -102,11 +125,19 @@ export function StepEvaluation({ form }: StepEvaluationProps) {
   return (
     <div className="space-y-6">
       {/* ── Section Header ── */}
-      <div>
-        <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
-        <p className="text-sm text-muted-foreground">
-          Define criteria and assign weights that sum to 100%. All fields are editable.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Evaluation Criteria</h3>
+          <p className="text-sm text-muted-foreground">
+            Define criteria and assign weights that sum to 100%. All fields are editable.
+          </p>
+        </div>
+        <AiFieldAssist
+          fieldName="evaluation_criteria"
+          context={aiContext}
+          onResult={handleAiCriteria}
+          label="AI Suggest Criteria"
+        />
       </div>
 
       {/* ─── Full 4-column weighted table (all modes) ─── */}

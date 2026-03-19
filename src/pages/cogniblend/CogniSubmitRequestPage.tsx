@@ -13,7 +13,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Send, Save, X, Search, Info, ArrowRight, Loader2,
-  AlertCircle, Hash, Paperclip,
+  AlertCircle, Hash, Paperclip, Wand2,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +50,27 @@ import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
 import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
+
+/* ── AI Draft Button ── */
+function AiDraftButton({ loading, onClick, disabled }: { loading: boolean; onClick: () => void; disabled: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled || loading}
+      className="inline-flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 disabled:opacity-50 transition-colors"
+    >
+      {loading ? (
+        <Loader2 className="h-3 w-3 animate-spin" />
+      ) : (
+        <Wand2 className="h-3 w-3" />
+      )}
+      {loading ? 'Drafting…' : 'Draft with AI'}
+    </button>
+  );
+}
 
 // ============================================================================
 // CONSTANTS
@@ -247,6 +268,7 @@ export default function CogniSubmitRequestPage() {
 
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [aiDrafting, setAiDrafting] = useState(false);
 
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
@@ -369,6 +391,29 @@ export default function CogniSubmitRequestPage() {
     const data = getValues();
     await draftMutation.mutateAsync(buildPayload(data as FormValues));
     navigate('/cogni/my-requests');
+  };
+
+  const handleAiDraft = async () => {
+    const currentProblem = getValues('business_problem') || '';
+    setAiDrafting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('ai-field-assist', {
+        body: {
+          field_name: 'problem_statement',
+          context: { problem_statement: currentProblem, governance_mode: currentOrg?.governanceProfile },
+        },
+      });
+      if (error || !data?.success) {
+        toast.error(data?.error?.message || 'AI draft failed. Try again.');
+        return;
+      }
+      setValue('business_problem', data.data.content, { shouldValidate: true, shouldDirty: true });
+      toast.success('AI draft applied — review and edit as needed.');
+    } catch {
+      toast.error('Failed to connect to AI.');
+    } finally {
+      setAiDrafting(false);
+    }
   };
 
   const isSubmitting = submitMutation.isPending;
@@ -537,9 +582,16 @@ export default function CogniSubmitRequestPage() {
 
                   {/* Business Problem */}
                   <div className="space-y-2 mb-4">
-                    <Label htmlFor="business_problem" className="text-sm font-medium">
-                      Problem Statement <span className="text-destructive">*</span>
-                    </Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="business_problem" className="text-sm font-medium">
+                        Problem Statement <span className="text-destructive">*</span>
+                      </Label>
+                      <AiDraftButton
+                        loading={aiDrafting}
+                        onClick={handleAiDraft}
+                        disabled={isBusy}
+                      />
+                    </div>
                     <Textarea
                       id="business_problem"
                       {...register('business_problem')}
