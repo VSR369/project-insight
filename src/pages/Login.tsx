@@ -547,6 +547,11 @@ export default function Login() {
                     Registering an organization? Start here →
                   </Link>
                 </p>
+                <p className="text-sm text-center text-muted-foreground">
+                  <Link to="/cogni/login" className="text-primary hover:underline font-medium">
+                    Looking for CogniBlend login? →
+                  </Link>
+                </p>
               </CardFooter>
             </form>
           </Form>
