@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
