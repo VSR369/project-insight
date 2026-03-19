@@ -87,12 +87,16 @@ function MaturityCard({
 export default function ConversationalIntakePage() {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
+
+  // ═══════ Hooks — mutations ═══════
+  const generateSpec = useGenerateChallengeSpec();
+  const createChallenge = useSubmitSolutionRequest();
+  const saveStep = useSaveChallengeStep();
 
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
