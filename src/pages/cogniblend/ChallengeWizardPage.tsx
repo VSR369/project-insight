@@ -357,7 +357,7 @@ export default function ChallengeWizardPage() {
     }
     const isValid = await form.trigger(allFields as any);
     if (!isValid) {
-      for (let step = 1; step <= TOTAL_STEPS; step++) {
+      for (let step = 0; step <= TOTAL_STEPS; step++) {
         const stepFields = getStepFields(step);
         if (stepFields.length === 0) continue;
         const stepValid = await form.trigger(stepFields as any);
