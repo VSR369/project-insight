@@ -3,6 +3,7 @@
  * Solver abstract submission with enrollment gate, Tier 2 legal gate, and form.
  */
 
+import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade } from '@/lib/governanceMode';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
