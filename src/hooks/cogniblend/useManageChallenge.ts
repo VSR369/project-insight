@@ -84,7 +84,7 @@ export function useManageChallenge(challengeId: string | undefined, userId: stri
 
       if (sErr) throw new Error(sErr.message);
 
-      const isEnterprise = challenge.governance_profile !== 'LIGHTWEIGHT';
+      const isEnterprise = isEnterpriseGrade(resolveGovernanceMode(challenge.governance_profile));
 
       const submissions: ManagedSubmission[] = (subs ?? []).map((s, idx) => ({
         id: s.id,

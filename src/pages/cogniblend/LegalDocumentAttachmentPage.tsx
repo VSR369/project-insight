@@ -451,10 +451,13 @@ export default function LegalDocumentAttachmentPage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 6: Auto-attach defaults for Lightweight
+  // SECTION 6: Auto-attach defaults for Quick mode
   // ══════════════════════════════════════
-  const isLightweight =
-    (challenge?.governance_profile ?? "").toLowerCase() === "lightweight";
+  const { resolveGovernanceMode, isQuickMode } = await import('@/lib/governanceMode').catch(() => ({
+    resolveGovernanceMode: (p: string | null | undefined) => ((p ?? '').toUpperCase().trim() === 'LIGHTWEIGHT' || (p ?? '').toUpperCase().trim() === 'QUICK') ? 'QUICK' as const : 'STRUCTURED' as const,
+    isQuickMode: (m: string) => m === 'QUICK',
+  }));
+  const isLightweight = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
 
   useEffect(() => {
     if (!isLightweight || !requiredDocs || attachedDocs.length > 0) return;
