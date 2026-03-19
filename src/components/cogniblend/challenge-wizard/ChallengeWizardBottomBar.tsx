@@ -5,6 +5,7 @@
 
 import { Save, ArrowLeft, ArrowRight, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
 
 const STEP_NEXT_LABELS: Record<number, string> = {
   1: 'Continue to Evaluation Criteria',
