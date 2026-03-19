@@ -163,3 +163,6 @@ verify_jwt = false
 
 [functions.check-challenge-quality]
 verify_jwt = false
+
+[functions.auto-create-org]
+verify_jwt = false
