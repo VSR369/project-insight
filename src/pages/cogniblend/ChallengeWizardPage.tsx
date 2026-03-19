@@ -352,7 +352,7 @@ export default function ChallengeWizardPage() {
   // ═══════ Cross-step validation ═══════
   const validateAllSteps = async (): Promise<{ valid: boolean; firstErrorStep: number | null }> => {
     const allFields = [];
-    for (let s = 1; s <= TOTAL_STEPS; s++) {
+    for (let s = 0; s <= TOTAL_STEPS; s++) {
       allFields.push(...getStepFields(s));
     }
     const isValid = await form.trigger(allFields as any);
