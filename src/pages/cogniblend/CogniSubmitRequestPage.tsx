@@ -485,16 +485,19 @@ export default function CogniSubmitRequestPage() {
                     models={engagementModels.map(m => ({
                       id: m.id,
                       name: m.name,
-                      code: m.code,
+                      code: m.code ?? '',
                       description: m.description,
                     }))}
-                    selectedId={engagementModels.find(m => m.code?.toLowerCase() === watchedModel.toLowerCase())?.id ?? ''}
+                    selectedId={engagementModels.find(m => {
+                      const c = (m.code ?? '').toLowerCase();
+                      return (isMP && (c === 'marketplace' || c === 'mp')) || (isAGG && (c === 'aggregator' || c === 'agg'));
+                    })?.id ?? ''}
                     onSelect={(selectedId) => {
                       const selected = engagementModels.find(m => m.id === selectedId);
                       if (selected) {
-                        const code = selected.code?.toUpperCase() === 'MARKETPLACE' || selected.code?.toUpperCase() === 'MP' ? 'MP' : 'AGG';
-                        setValue('engagement_model', code as 'MP' | 'AGG', { shouldValidate: true });
-                        // Clear architect if switching to AGG
+                        const c = (selected.code ?? '').toLowerCase();
+                        const code = (c === 'marketplace' || c === 'mp') ? 'MP' : 'AGG';
+                        setValue('engagement_model', code, { shouldValidate: true });
                         if (code === 'AGG') {
                           setValue('architect_id', '', { shouldValidate: false });
                         }
