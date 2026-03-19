@@ -91,6 +91,16 @@ export function CogniShell() {
           <Suspense fallback={<ContentFallback />}>
             <Outlet />
           </Suspense>
+
+          {/* Floating Demo Switch Role FAB */}
+          <Link
+            to="/cogni/demo-login"
+            className="fixed bottom-6 right-6 z-50 flex items-center gap-2 rounded-full bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground shadow-lg hover:bg-primary/90 transition-colors"
+            title="Switch demo role"
+          >
+            <Users className="h-4 w-4" />
+            <span className="hidden lg:inline">Switch Role</span>
+          </Link>
         </main>
       </div>
     </CogniRoleProvider>
