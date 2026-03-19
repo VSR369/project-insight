@@ -6,12 +6,15 @@ import type { GovernanceMode } from '@/lib/governanceMode';
 
 /**
  * Returns the route to navigate to after AI spec generation, based on governance mode.
- * - QUICK: go to spec review (minimal review)
- * - STRUCTURED: go to spec review (user can optionally refine in Advanced Editor)
- * - CONTROLLED: go to spec review (mandatory Advanced Editor refinement)
+ * - QUICK: spec review page (1-click confirm)
+ * - STRUCTURED: spec review page (section-by-section edit)
+ * - CONTROLLED: side-panel editor (manual entry + AI advisor)
  */
-export function getPostGenerationRoute(challengeId: string, _mode: GovernanceMode): string {
-  // All modes go to spec review first; the spec review page handles mode-specific UX
+export function getPostGenerationRoute(challengeId: string, mode: GovernanceMode): string {
+  if (mode === 'CONTROLLED') {
+    return `/cogni/challenges/${challengeId}/controlled-edit`;
+  }
+  // Both QUICK and STRUCTURED go to spec review — the page renders mode-specific UX
   return `/cogni/challenges/${challengeId}/spec`;
 }
 
