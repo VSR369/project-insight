@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
-  Target, BarChart3, ListChecks, ArrowLeft,
+  Target, BarChart3, ListChecks, ArrowLeft, Scale, Lock, Briefcase,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
