@@ -413,7 +413,7 @@ export default function ChallengeWizardPage() {
   };
 
   const handleBack = () => {
-    if (currentStep > 1) setCurrentStep((s) => s - 1);
+    if (currentStep > 0) setCurrentStep((s) => s - 1);
   };
 
   const handleSaveDraft = async () => {
