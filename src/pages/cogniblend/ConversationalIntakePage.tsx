@@ -4,7 +4,7 @@
  * Route: /cogni/challenges/create
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -22,6 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
@@ -87,6 +89,7 @@ function MaturityCard({
 export default function ConversationalIntakePage() {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [aiFailure, setAiFailure] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
@@ -135,6 +138,7 @@ export default function ConversationalIntakePage() {
   const isGenerating = generateSpec.isPending || createChallenge.isPending;
 
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
+    setAiFailure(false);
     try {
       const spec = await generateSpec.mutateAsync({
         problem_statement: data.problem_statement,
@@ -182,7 +186,8 @@ export default function ConversationalIntakePage() {
       toast.success('AI specification generated!');
       navigate(`/cogni/challenges/${challengeId}/spec`);
     } catch {
-      // Errors handled by mutation onError callbacks
+      // Show amber fallback banner — user can continue manually
+      setAiFailure(true);
     }
   };
 
@@ -213,6 +218,35 @@ export default function ConversationalIntakePage() {
           Advanced Editor
         </Button>
       </div>
+
+      {/* AI Failure Fallback Banner (V-5) */}
+      {aiFailure && (
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-700">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-300">AI generation unavailable</AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-400">
+            AI couldn't generate the specification right now. You can continue manually — your inputs will be carried over.
+          </AlertDescription>
+          <div className="mt-3">
+            <Button
+              variant="outline"
+              size="sm"
+              className="border-amber-400 text-amber-800 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-950"
+              onClick={() => {
+                const values = form.getValues();
+                const params = new URLSearchParams();
+                if (values.problem_statement) params.set('problem', values.problem_statement);
+                if (values.maturity_level) params.set('maturity', values.maturity_level);
+                if (selectedTemplate?.id) params.set('template', selectedTemplate.id);
+                navigate(`/cogni/challenges/new?${params.toString()}`);
+              }}
+            >
+              <ArrowRight className="h-4 w-4 mr-1.5" />
+              Continue in Advanced Editor
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       {/* Step 1: Template Selector */}
       <TemplateSelector

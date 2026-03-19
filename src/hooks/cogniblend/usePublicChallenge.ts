@@ -27,6 +27,7 @@ export interface PublicChallengeData {
   reward_structure: Record<string, unknown> | null;
   evaluation_criteria: Record<string, unknown> | null;
   deliverables: Record<string, unknown> | null;
+  ip_model: string | null;
   phase_schedule: Record<string, unknown> | null;
   escrowFunded: boolean;
   isEligible: boolean;
@@ -88,7 +89,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           id, title, problem_statement, scope, description,
           maturity_level, complexity_level, complexity_score,
           operating_model, visibility, eligibility, currency_code,
-          submission_deadline, published_at, tenant_id,
+          submission_deadline, published_at, tenant_id, ip_model,
           reward_structure, evaluation_criteria, deliverables, phase_schedule,
           challenge_enrollment
         `)
@@ -157,6 +158,7 @@ function buildResult(c: Record<string, unknown>): Omit<PublicChallengeData, 'esc
     reward_structure: c.reward_structure as Record<string, unknown> | null,
     evaluation_criteria: c.evaluation_criteria as Record<string, unknown> | null,
     deliverables: c.deliverables as Record<string, unknown> | null,
+    ip_model: c.ip_model as string | null,
     phase_schedule: c.phase_schedule as Record<string, unknown> | null,
     challenge_enrollment: c.challenge_enrollment as string | null,
     tenant_id: c.tenant_id as string,

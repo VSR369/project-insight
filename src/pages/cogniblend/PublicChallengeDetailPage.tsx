@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Loader2, Calendar, ShieldCheck, Trophy, Clock, FileText,
-  Target, BarChart3, ListChecks, ArrowLeft,
+  Target, BarChart3, ListChecks, ArrowLeft, Scale, Lock, Briefcase,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -17,6 +17,7 @@ import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { usePublicChallenge } from '@/hooks/cogniblend/usePublicChallenge';
+import { usePublicChallengeLegal } from '@/hooks/cogniblend/usePublicChallengeLegal';
 import { useSolverAmendmentStatus } from '@/hooks/cogniblend/useSolverAmendmentStatus';
 import { useLegalReacceptanceStatus } from '@/hooks/cogniblend/useLegalReacceptance';
 import { useAuth } from '@/hooks/useAuth';
@@ -85,6 +86,7 @@ export default function PublicChallengeDetailPage() {
   const { data, isLoading, error } = usePublicChallenge(id);
   const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
   const { data: reacceptStatus } = useLegalReacceptanceStatus(id, user?.id);
+  const { data: legalSummary } = usePublicChallengeLegal(id);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
 
@@ -472,6 +474,46 @@ export default function PublicChallengeDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* ═══ LEGAL & IP PROTECTION SUMMARY (V-9) ═══ */}
+      {legalSummary && (legalSummary.hasNda || data.ip_model || data.escrowFunded || legalSummary.tier2DocCount > 0) && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              Legal & IP Protection
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {legalSummary.hasNda && (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  <Lock className="h-3 w-3 mr-1" />
+                  NDA Required
+                </Badge>
+              )}
+              {data.ip_model && (
+                <Badge variant="outline" className="text-xs font-semibold">
+                  <Briefcase className="h-3 w-3 mr-1" />
+                  IP: {data.ip_model.replace(/_/g, ' ')}
+                </Badge>
+              )}
+              {data.escrowFunded && (
+                <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  Escrow Funded
+                </Badge>
+              )}
+              {legalSummary.tier2DocCount > 0 && (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  <FileText className="h-3 w-3 mr-1" />
+                  {legalSummary.tier2DocCount} Tier 2 Doc{legalSummary.tier2DocCount !== 1 ? 's' : ''} Required
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ═══ Q&A SECTION ═══ */}
       <ChallengeQASection challengeId={id!} />
