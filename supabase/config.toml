@@ -157,3 +157,9 @@ verify_jwt = false
 
 [functions.setup-test-scenario]
 verify_jwt = false
+
+[functions.generate-challenge-spec]
+verify_jwt = false
+
+[functions.check-challenge-quality]
+verify_jwt = false

@@ -642,6 +642,7 @@ export default function CurationReviewPage() {
             challenge={challenge}
             legalDocs={legalDocs}
           />
+          <AICurationQualityPanel challengeId={challengeId!} />
           <PaymentScheduleSection
             challengeId={challengeId!}
             rewardStructure={challenge.reward_structure}
