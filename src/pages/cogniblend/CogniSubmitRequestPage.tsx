@@ -254,17 +254,6 @@ export default function CogniSubmitRequestPage() {
   const createDuplicateReview = useCreateDuplicateReview();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
 
-  // Taxonomy cascade: industry → proficiency areas → sub-domains → specialities
-  const watchedIndustryId = watch('industry_segment_id');
-  const watchedSubDomainIds = watch('sub_domain_ids') ?? [];
-  const cascadeIndustryIds = useMemo(() => watchedIndustryId ? [watchedIndustryId] : [], [watchedIndustryId]);
-  const cascade = useTaxonomyCascade(cascadeIndustryIds);
-  const cascadedSubDomains = cascade.subDomains;
-  const cascadedSpecialities = useMemo(
-    () => cascade.getSpecialitiesBySubDomains(watchedSubDomainIds),
-    [cascade.getSpecialitiesBySubDomains, watchedSubDomainIds],
-  );
-
   const isMP = orgContext?.operatingModel === 'MP';
   const isAGG = orgContext?.operatingModel === 'AGG';
   const hasBypass = isAGG && orgContext?.phase1Bypass === true;
@@ -296,6 +285,18 @@ export default function CogniSubmitRequestPage() {
   const businessProblem = watch('business_problem');
   const charCount = businessProblem?.length || 0;
   const isMinMet = charCount >= MIN_PROBLEM_CHARS;
+
+  // Taxonomy cascade: industry → proficiency areas → sub-domains → specialities
+  const watchedIndustryId = watch('industry_segment_id');
+  const watchedSubDomainIds = watch('sub_domain_ids') ?? [];
+  const cascadeIndustryIds = useMemo(() => watchedIndustryId ? [watchedIndustryId] : [], [watchedIndustryId]);
+  const cascade = useTaxonomyCascade(cascadeIndustryIds);
+  const cascadedSubDomains = cascade.subDomains;
+  const cascadedSpecialities = useMemo(
+    () => cascade.getSpecialitiesBySubDomains(watchedSubDomainIds),
+    [cascade.getSpecialitiesBySubDomains, watchedSubDomainIds],
+  );
+
 
   // Taxonomy suggestions
   const { suggestions: taxonomySuggestions } = useTaxonomySuggestions(businessProblem);
