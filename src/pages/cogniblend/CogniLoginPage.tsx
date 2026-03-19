@@ -274,15 +274,14 @@ export default function CogniLoginPage() {
             </button>
           </div>
 
-          {/* Back to main login */}
+          {/* Switch to Platform login */}
           <div className="text-center">
-            <button
-              type="button"
-              onClick={() => navigate('/login')}
+            <Link
+              to="/login"
               className="text-muted-foreground hover:text-foreground hover:underline text-[13px]"
             >
-              ← Back to main login
-            </button>
+              Looking for the Platform login? →
+            </Link>
           </div>
         </form>
 
