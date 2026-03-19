@@ -181,7 +181,7 @@ export default function AISpecReviewPage() {
 
   const getFieldValue = (fieldKey: string): string => {
     if (sectionValues[fieldKey] !== undefined) return sectionValues[fieldKey];
-    const raw = (challenge as Record<string, unknown>)[fieldKey];
+    const raw = (challenge as unknown as Record<string, unknown>)[fieldKey];
     if (typeof raw === 'string') return raw;
     if (raw && typeof raw === 'object') return JSON.stringify(raw, null, 2);
     return '';
