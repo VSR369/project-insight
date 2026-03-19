@@ -209,9 +209,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 1b. The Hook ─────────────────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="hook" className="text-sm font-medium">
-          The Hook <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="hook" className="text-sm font-medium">
+            The Hook <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="hook"
+            context={aiContext}
+            onResult={(content) => setValue('hook', content)}
+            compact
+          />
+        </div>
         <Input
           id="hook"
           maxLength={300}
@@ -224,9 +232,17 @@ export function StepProblem({ form, mandatoryFields, isLightweight }: StepProble
 
       {/* ── 1c. Challenge Description ─────────────────── */}
       <div className="space-y-1.5">
-        <Label htmlFor="description" className="text-sm font-medium">
-          Challenge Description <span className="text-destructive">*</span>
-        </Label>
+        <div className="flex items-center justify-between">
+          <Label htmlFor="description" className="text-sm font-medium">
+            Challenge Description <span className="text-destructive">*</span>
+          </Label>
+          <AiFieldAssist
+            fieldName="description"
+            context={aiContext}
+            onResult={(content) => setValue('description', content)}
+            compact
+          />
+        </div>
         <Textarea
           id="description"
           placeholder="Provide a short summary description of the challenge"
