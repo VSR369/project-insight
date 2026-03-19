@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
