@@ -256,16 +256,15 @@ export default function CogniSubmitRequestPage() {
   const draftMutation = useSaveDraft();
   const createDuplicateReview = useCreateDuplicateReview();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
+  const { data: engagementModels = [], isLoading: engModelsLoading } = useEngagementModels();
 
-  const isMP = orgContext?.operatingModel === 'MP';
-  const isAGG = orgContext?.operatingModel === 'AGG';
-  const hasBypass = isAGG && orgContext?.phase1Bypass === true;
-
-  const schema = buildSchema(isMP);
+  // Derive default model from org context
+  const orgDefaultModel = orgContext?.operatingModel === 'MP' ? 'MP' : 'AGG';
 
   const form = useForm<FormValues>({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(buildSchema(orgDefaultModel === 'MP')),
     defaultValues: {
+      engagement_model: orgDefaultModel,
       business_problem: '',
       expected_outcomes: '',
       constraints: '',
@@ -283,7 +282,16 @@ export default function CogniSubmitRequestPage() {
     mode: 'onBlur',
   });
 
-  const { register, control, handleSubmit, watch, formState: { errors, isValid }, getValues } = form;
+  const { register, control, handleSubmit, watch, setValue, formState: { errors, isValid }, getValues } = form;
+
+  // Watch engagement model for reactive behavior
+  const watchedModel = watch('engagement_model');
+  const isMP = watchedModel === 'MP';
+  const isAGG = watchedModel === 'AGG';
+  const hasBypass = isAGG && orgContext?.phase1Bypass === true;
+
+  // Rebuild schema reactively when model changes
+  const schema = buildSchema(isMP);
 
   const businessProblem = watch('business_problem');
   const charCount = businessProblem?.length || 0;
