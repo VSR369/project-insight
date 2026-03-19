@@ -138,7 +138,7 @@ export function ActionItemsWidget() {
   const orgName = currentOrg?.orgName ?? 'Your Organization';
 
   // Dynamic primary action based on active role
-  const primaryAction = ROLE_PRIMARY_ACTION[activeRole] ?? ROLE_PRIMARY_ACTION['CR'];
+  const primaryAction = ROLE_PRIMARY_ACTION[activeRole] ?? { label: 'Set Up Access', route: '/cogni/demo-login' };
 
   if (isLoading) {
     return (

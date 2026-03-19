@@ -215,7 +215,15 @@ export function ConversationalIntakeContent({
     setAiFailure(false);
 
     if (!currentOrg || !user?.id) {
-      toast.error('Organization not found. Please ensure your demo scenario is seeded or log in again.');
+      console.warn('[ConversationalIntake] Generate blocked — org missing', {
+        userId: user?.id ?? 'none',
+        email: user?.email ?? 'none',
+        orgNull: !currentOrg,
+      });
+      toast.error(
+        'Your account is not linked to an organization. Please go to Demo Login, seed the scenario, and log in with a seeded role.',
+        { duration: 8000 },
+      );
       return;
     }
 

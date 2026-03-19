@@ -11,10 +11,11 @@
  */
 
 import { useState, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Sparkles, Settings2, Info } from 'lucide-react';
+import { useSearchParams, Link } from 'react-router-dom';
+import { Sparkles, Settings2, Info, Building2, ArrowLeft } from 'lucide-react';
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { ConversationalIntakeContent } from './ConversationalIntakePage';
@@ -45,11 +46,38 @@ export default function ChallengeCreatePage() {
   });
 
   // ═══════ Hooks — queries ═══════
-  const { data: currentOrg } = useCurrentOrg();
+  const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
 
   // ═══════ Derived ═══════
   const activeTab: TabValue = searchParams.get('tab') === 'editor' ? 'editor' : 'ai';
   const hasAIDraft = !!sharedState.generatedSpec;
+
+  // ═══════ Hard guard: block if no org context ═══════
+  if (!orgLoading && !currentOrg) {
+    return (
+      <div className="flex h-[60vh] w-full items-center justify-center">
+        <div className="text-center space-y-4 max-w-md mx-auto">
+          <Building2 className="h-12 w-12 mx-auto text-muted-foreground opacity-40" />
+          <h2 className="text-lg font-semibold text-foreground">Organization Not Found</h2>
+          <p className="text-sm text-muted-foreground">
+            Your account isn't linked to an organization yet. If you're using the demo, please seed
+            the scenario first, then log in with a seeded role account.
+          </p>
+          <div className="flex gap-3 justify-center">
+            <Button asChild variant="outline" size="sm">
+              <Link to="/cogni/demo-login">
+                <ArrowLeft className="h-4 w-4 mr-1.5" />
+                Go to Demo Login
+              </Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link to="/cogni/login">Back to Login</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // ═══════ Handlers ═══════
   const handleTabChange = useCallback((value: string) => {
