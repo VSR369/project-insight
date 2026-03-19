@@ -86,6 +86,7 @@ export default function PublicChallengeDetailPage() {
   const { data, isLoading, error } = usePublicChallenge(id);
   const { data: amendStatus } = useSolverAmendmentStatus(id, user?.id);
   const { data: reacceptStatus } = useLegalReacceptanceStatus(id, user?.id);
+  const { data: legalSummary } = usePublicChallengeLegal(id);
 
   const [legalModalOpen, setLegalModalOpen] = useState(false);
 
