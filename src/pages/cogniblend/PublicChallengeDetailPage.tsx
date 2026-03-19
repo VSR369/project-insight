@@ -475,6 +475,46 @@ export default function PublicChallengeDetailPage() {
         </TabsContent>
       </Tabs>
 
+      {/* ═══ LEGAL & IP PROTECTION SUMMARY (V-9) ═══ */}
+      {legalSummary && (legalSummary.hasNda || data.ip_model || data.escrowFunded || legalSummary.tier2DocCount > 0) && (
+        <Card className="border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-bold text-foreground flex items-center gap-2">
+              <Scale className="h-4 w-4 text-primary" />
+              Legal & IP Protection
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {legalSummary.hasNda && (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  <Lock className="h-3 w-3 mr-1" />
+                  NDA Required
+                </Badge>
+              )}
+              {data.ip_model && (
+                <Badge variant="outline" className="text-xs font-semibold">
+                  <Briefcase className="h-3 w-3 mr-1" />
+                  IP: {data.ip_model.replace(/_/g, ' ')}
+                </Badge>
+              )}
+              {data.escrowFunded && (
+                <Badge className="bg-emerald-100 text-emerald-800 border border-emerald-300 text-xs font-semibold hover:bg-emerald-100">
+                  <ShieldCheck className="h-3 w-3 mr-1" />
+                  Escrow Funded
+                </Badge>
+              )}
+              {legalSummary.tier2DocCount > 0 && (
+                <Badge variant="secondary" className="text-xs font-semibold">
+                  <FileText className="h-3 w-3 mr-1" />
+                  {legalSummary.tier2DocCount} Tier 2 Doc{legalSummary.tier2DocCount !== 1 ? 's' : ''} Required
+                </Badge>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ═══ Q&A SECTION ═══ */}
       <ChallengeQASection challengeId={id!} />
 
