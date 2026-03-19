@@ -448,7 +448,7 @@ export default function CogniSubmitRequestPage() {
               Your organization has direct challenge creation enabled. You can skip this request.
             </p>
           </div>
-          <Button variant="outline" size="sm" className="border-primary/30 text-primary hover:bg-primary/10 shrink-0" onClick={() => navigate('/cogni/challenges/new')}>
+          <Button variant="outline" size="sm" className="border-primary/30 text-primary hover:bg-primary/10 shrink-0" onClick={() => navigate('/cogni/challenges/create')}>
             Create Challenge Directly <ArrowRight className="h-4 w-4 ml-1" />
           </Button>
         </div>

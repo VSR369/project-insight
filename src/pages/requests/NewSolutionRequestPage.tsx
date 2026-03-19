@@ -430,7 +430,7 @@ export default function NewSolutionRequestPage() {
               variant="outline"
               size="sm"
               className="border-blue-300 text-blue-700 hover:bg-blue-100 shrink-0"
-              onClick={() => navigate('/challenges/new')}
+              onClick={() => navigate('/cogni/challenges/create')}
             >
               Create Challenge Directly
               <ArrowRight className="h-4 w-4 ml-1" />
