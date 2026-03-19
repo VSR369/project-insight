@@ -253,7 +253,17 @@ export default function CogniSubmitRequestPage() {
   const draftMutation = useSaveDraft();
   const createDuplicateReview = useCreateDuplicateReview();
   const { data: industrySegments = [] } = useIndustrySegmentOptions();
-  const { data: subDomains = [] } = useSubDomainOptions();
+
+  // Taxonomy cascade: industry → proficiency areas → sub-domains → specialities
+  const watchedIndustryId = watch('industry_segment_id');
+  const watchedSubDomainIds = watch('sub_domain_ids') ?? [];
+  const cascadeIndustryIds = useMemo(() => watchedIndustryId ? [watchedIndustryId] : [], [watchedIndustryId]);
+  const cascade = useTaxonomyCascade(cascadeIndustryIds);
+  const cascadedSubDomains = cascade.subDomains;
+  const cascadedSpecialities = useMemo(
+    () => cascade.getSpecialitiesBySubDomains(watchedSubDomainIds),
+    [cascade.getSpecialitiesBySubDomains, watchedSubDomainIds],
+  );
 
   const isMP = orgContext?.operatingModel === 'MP';
   const isAGG = orgContext?.operatingModel === 'AGG';
