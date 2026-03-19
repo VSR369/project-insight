@@ -138,6 +138,7 @@ export default function ConversationalIntakePage() {
   const isGenerating = generateSpec.isPending || createChallenge.isPending;
 
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
+    setAiFailure(false);
     try {
       const spec = await generateSpec.mutateAsync({
         problem_statement: data.problem_statement,
