@@ -63,31 +63,31 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
 
 const IP_OPTIONS = [
   {
-    value: 'exclusive_assignment',
+    value: 'IP-EA',
     label: 'Exclusive Assignment',
     short: 'You acquire full IP ownership',
     tooltip: 'The solver transfers all intellectual property rights to you upon acceptance. They may not use, license, or sell the solution to anyone else.',
   },
   {
-    value: 'non_exclusive_license',
+    value: 'IP-NEL',
     label: 'Non-Exclusive License',
     short: 'Solver keeps IP, you get license',
     tooltip: 'The solver retains ownership but grants you a perpetual, non-exclusive license to use the solution. The solver may license it to others.',
   },
   {
-    value: 'exclusive_license',
+    value: 'IP-EL',
     label: 'Exclusive License',
     short: 'Solver keeps IP, exclusive use for you',
     tooltip: 'The solver retains ownership but grants you an exclusive license. No other party (including the solver) may use or license the solution.',
   },
   {
-    value: 'joint_ownership',
+    value: 'IP-JO',
     label: 'Joint Ownership',
     short: 'Both parties co-own',
     tooltip: 'Both you and the solver share ownership of the intellectual property. Either party may use or license it, subject to the agreement terms.',
   },
   {
-    value: 'no_transfer',
+    value: 'IP-NONE',
     label: 'No Transfer',
     short: 'Advisory only',
     tooltip: 'No intellectual property transfer occurs. The engagement is advisory in nature — the solver provides guidance, recommendations, or consulting only.',
@@ -95,10 +95,10 @@ const IP_OPTIONS = [
 ] as const;
 
 const MATURITY_IP_DEFAULTS: Record<string, string> = {
-  blueprint: 'non_exclusive_license',
-  poc: 'non_exclusive_license',
-  prototype: 'exclusive_assignment',
-  pilot: 'exclusive_assignment',
+  blueprint: 'IP-NEL',
+  poc: 'IP-NEL',
+  prototype: 'IP-EA',
+  pilot: 'IP-EA',
 };
 
 /* ─── Props ──────────────────────────────────────────── */

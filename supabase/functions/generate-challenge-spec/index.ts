@@ -28,7 +28,7 @@ Guidelines:
 - Evaluation Criteria: 3-6 weighted criteria (weights must sum to 100), each with name, weight, and description
 - Eligibility: Who should participate and minimum qualifications
 - Hook: A compelling 1-2 sentence hook to attract solvers
-- IP Model: Recommend one of: "FULL_TRANSFER", "LICENSE", "SHARED", "SOLVER_RETAINS" based on the challenge nature
+- IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
 
 Maturity level context:
 - blueprint: Early-stage concept exploration — focus on novel ideas and approaches
@@ -123,8 +123,8 @@ Generate a complete challenge specification.`;
                   hook: { type: "string", description: "1-2 sentence compelling hook" },
                   ip_model: {
                     type: "string",
-                    enum: ["FULL_TRANSFER", "LICENSE", "SHARED", "SOLVER_RETAINS"],
-                    description: "Recommended IP model",
+                    enum: ["IP-EA", "IP-NEL", "IP-EL", "IP-JO", "IP-NONE"],
+                    description: "Recommended IP model: IP-EA (Exclusive Assignment/Full Transfer), IP-NEL (Non-Exclusive License), IP-EL (Exclusive License), IP-JO (Joint Ownership/Shared), IP-NONE (No Transfer/Solver Retains)",
                   },
                 },
                 required: ["title", "problem_statement", "scope", "description", "deliverables", "evaluation_criteria", "eligibility", "hook", "ip_model"],

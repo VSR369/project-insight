@@ -73,18 +73,18 @@ const TRIGGER_OPTIONS = [
 ] as const;
 
 const IP_OPTIONS = [
-  { value: 'exclusive_assignment', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
-  { value: 'non_exclusive_license', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
-  { value: 'exclusive_license', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
-  { value: 'joint_ownership', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
-  { value: 'no_transfer', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
+  { value: 'IP-EA', label: 'Exclusive Assignment', short: 'Full IP ownership', tooltip: 'Solver transfers all IP rights to you upon acceptance.' },
+  { value: 'IP-NEL', label: 'Non-Exclusive License', short: 'Solver keeps IP, you get license', tooltip: 'Solver retains ownership; grants you a perpetual non-exclusive license.' },
+  { value: 'IP-EL', label: 'Exclusive License', short: 'Exclusive use for you', tooltip: 'Solver retains ownership; grants you an exclusive license.' },
+  { value: 'IP-JO', label: 'Joint Ownership', short: 'Both parties co-own', tooltip: 'Both parties share IP ownership.' },
+  { value: 'IP-NONE', label: 'No Transfer', short: 'Advisory only', tooltip: 'No IP transfer; advisory engagement only.' },
 ] as const;
 
 const MATURITY_IP_DEFAULTS: Record<string, string> = {
-  blueprint: 'non_exclusive_license',
-  poc: 'non_exclusive_license',
-  prototype: 'exclusive_assignment',
-  pilot: 'exclusive_assignment',
+  blueprint: 'IP-NEL',
+  poc: 'IP-NEL',
+  prototype: 'IP-EA',
+  pilot: 'IP-EA',
 };
 
 const EFFORT_LEVELS = [

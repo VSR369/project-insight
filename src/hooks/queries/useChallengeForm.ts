@@ -12,6 +12,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withUpdatedBy } from '@/lib/auditFields';
+import { normalizeChallengeFields } from '@/lib/cogniblend/challengeFieldNormalizer';
 import { CACHE_STABLE, CACHE_STANDARD } from '@/config/queryCache';
 
 /* ─── Types ──────────────────────────────────────────────── */
@@ -101,7 +102,8 @@ export function useSaveChallengeStep() {
       challengeId: string;
       fields: Record<string, unknown>;
     }) => {
-      const withAudit = await withUpdatedBy(fields);
+      const normalized = normalizeChallengeFields(fields);
+      const withAudit = await withUpdatedBy(normalized);
       const { error } = await supabase
         .from('challenges')
         .update(withAudit as any)
