@@ -1,76 +1,73 @@
 
+Goal: eliminate the recurring “Organization not found…” error on Generate with AI by fixing the real upstream causes (not just the toast).
 
-# Analysis: Data Isolation Between AI Intake and Advanced Editor Tabs
+1) 5-Why Analysis (with evidence)
 
-## Problem Found
+Problem: User clicks “Generate with AI” and always gets “Organization not found...”.
 
-The two tabs maintain **completely independent state**. They are separate React components, each with their own `useForm` instance:
+Why 1: The client blocks before calling AI when `currentOrg` is null.  
+- Evidence: `src/pages/cogniblend/ConversationalIntakePage.tsx` lines 217-220.
 
-- **AI Intake** (`ConversationalIntakeContent`): owns `intakeSchema` with 2 fields (`problem_statement`, `maturity_level`) plus `selectedTemplate` state
-- **Advanced Editor** (`ChallengeWizardPage`): owns `ChallengeFormValues` with 50+ fields via a separate `useForm`
+Why 2: `currentOrg` is null because `org_users` has no active row for current user.  
+- Evidence: network call `/rest/v1/org_users?...user_id=eq.5c83...` returned `[]`.
 
-When a user toggles between tabs:
-- Data typed in AI intake does **not** appear in the Advanced Editor
-- Data filled in the Advanced Editor does **not** appear back in AI intake
-- If AI generates a spec, it creates a new challenge record and navigates away — it never populates the editor tab
-- The user sees two blank, disconnected forms that feel like separate products
+Why 3: Current session user is `nh-am@testsetup.dev` (id `5c83...`), and that user has no org or challenge-role records.  
+- Evidence: DB query shows no rows in `org_users` / `user_challenge_roles` for this user.
 
-This is confusing. A user who types a problem statement in "Create with AI", then clicks "Advanced Editor", expects to see that text carried over. Instead they see an empty wizard.
+Why 4: Demo login UI is out of sync with the seeded scenario users.  
+- Evidence: `DemoLoginPage` shows `nh-am` + role `AM`, but `setup-test-scenario` (`new_horizon_demo`) seeds `nh-rq` (RQ) and does not seed `nh-am`.
 
-## Fix Plan
+Why 5: Credentials/roles are duplicated in two places (frontend hardcoded + edge function scenario) with no consistency guard or access gate.  
+- Result: stale demo account can still login and reach create page, then fails late.
 
-### 1. Lift shared state into `ChallengeCreatePage`
+2) Root Causes to Close
 
-**File**: `src/pages/cogniblend/ChallengeCreatePage.tsx`
+RC-A: Demo user/source-of-truth drift (hardcoded frontend list mismatches seeded backend scenario).  
+RC-B: Missing preflight guard for create workflow (route accessible even when org context is missing).  
+RC-C: Dashboard fallback routes users with no active role to “Create” (default CR action), amplifying bad path.  
+RC-D: Error handling is late + generic (user gets a dead-end toast instead of remediation).
 
-Create shared state at the parent level and pass it down to both tabs:
+3) Implementation Plan
 
-```text
-ChallengeCreatePage (shared state owner)
-  ├── problemStatement, selectedTemplate, maturityLevel
-  ├── ConversationalIntakeContent (reads/writes shared state)
-  └── ChallengeWizardPage (initializes form from shared state)
-```
+Step 1 — Fix demo credential drift at source  
+Files:  
+- `src/pages/cogniblend/DemoLoginPage.tsx`  
+- (optional) `supabase/functions/setup-test-scenario/index.ts`  
+Changes:  
+- Remove stale hardcoded `nh-am` card from New Horizon flow.  
+- Drive login cards from seeded response credentials (or align static list exactly to scenario users).  
+- Ensure AGG demo shows RQ (not AM) for Alex.
 
-Shared state: `problemStatement`, `maturityLevel`, `selectedTemplate`, `generatedSpec` (AI output).
+Step 2 — Add login/session preflight validation  
+File: `src/pages/cogniblend/DemoLoginPage.tsx`  
+Changes:  
+- After sign-in, validate user has `org_users` active row + at least one challenge role.  
+- If invalid: immediate sign-out + clear message: “This account is not part of seeded New Horizon scenario. Use seeded role cards.”
 
-### 2. Update ConversationalIntakeContent to use lifted state
+Step 3 — Add hard guard on Create page (fail-fast UX)  
+File: `src/pages/cogniblend/ChallengeCreatePage.tsx` (or route wrapper in `App.tsx`)  
+Changes:  
+- If `useCurrentOrg()` is null, show blocking state (not the editor/intake) with actions:  
+  - “Go to Demo Login”  
+  - “Re-seed scenario” guidance  
+- Prevent rendering “Generate with AI” in invalid org state.
 
-**File**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+Step 4 — Remove misleading fallback action for no-role users  
+File: `src/components/cogniblend/dashboard/ActionItemsWidget.tsx`  
+Changes:  
+- Replace `ROLE_PRIMARY_ACTION['CR']` fallback when `activeRole` is empty.  
+- Show safe fallback CTA (e.g., “Set up Demo Access” -> `/cogni/demo-login`) instead of sending no-role users to create flow.
 
-- Accept props: `sharedProblem`, `sharedMaturity`, `sharedTemplate`, `onStateChange`
-- Sync its internal form with the shared state on change
-- When AI generates a spec, store it in shared state AND auto-switch to editor tab
+Step 5 — Improve error copy and observability  
+File: `src/pages/cogniblend/ConversationalIntakePage.tsx`  
+Changes:  
+- Replace generic toast with context-aware message + remediation action when org missing.  
+- Add lightweight warning log metadata (userId/email + route + org-null) for easier triage.
 
-### 3. Update ChallengeWizardPage to accept initial values from shared state
+4) Closure Criteria (done means root cause closed)
 
-**File**: `src/pages/cogniblend/ChallengeWizardPage.tsx`
-
-- Accept new prop: `initialFromIntake?: { problemStatement, maturityLevel, template, generatedSpec }`
-- When `initialFromIntake` changes, populate the wizard form fields (title, problem_statement, scope, maturity_level, domain_tags, etc.)
-- When user edits wizard fields, sync key fields back to shared state via `onStateChange` callback
-
-### 4. Auto-switch to editor after AI generation
-
-**File**: `src/pages/cogniblend/ChallengeCreatePage.tsx`
-
-- When the AI intake generates a spec successfully, store the full spec in shared state
-- Auto-switch to the "Advanced Editor" tab
-- The wizard picks up the generated spec and pre-fills all fields
-- This replaces the current behavior of navigating to a separate spec review page
-
-### 5. Visual continuity indicator
-
-**File**: `src/pages/cogniblend/ChallengeCreatePage.tsx`
-
-- Show a small status line below the tabs: "Problem statement and template selections are shared between views"
-- When AI has generated a draft, show: "AI draft loaded — review and refine below"
-
-## Technical Details
-
-- Shared state is a simple `useState` in `ChallengeCreatePage` — no context provider needed since both consumers are direct children
-- The wizard's `useForm` will use `form.reset()` when `initialFromIntake` changes via a `useEffect`
-- The AI intake's internal form syncs to shared state via `onChange` handlers on the problem textarea and maturity cards
-- The `generatedSpec` object matches the existing `generate-challenge-spec` response shape, so the wizard can map it directly to `ChallengeFormValues`
-- Standalone page usage (backward compat) still works — when props aren't provided, components fall back to internal state
-
+- Seeding New Horizon shows login cards that exactly match seeded users/roles.  
+- Logging in with valid seeded user (e.g., `nh-rq`) allows Generate with AI and creates an actual `generate-challenge-spec` network call.  
+- Logging in with stale/unseeded account cannot proceed into create workflow; user gets guided recovery.  
+- No user with missing org context can trigger the “Generate with AI” dead-end toast anymore.  
+- Dashboard no longer routes no-role users into create workflow.
