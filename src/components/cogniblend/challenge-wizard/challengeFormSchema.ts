@@ -111,6 +111,10 @@ export function createChallengeFormSchema(
     : mode === 'QUICK';
 
   return z.object({
+    // Step 0 — Mode & Model Selection
+    governance_mode: z.enum(['QUICK', 'STRUCTURED', 'CONTROLLED']).default('STRUCTURED'),
+    operating_model: z.enum(['MP', 'AGG']).default('MP'),
+
     // Step 1 — Challenge Brief
     title: z.string().min(1, 'Title is required').max(titleMax, `Title cannot exceed ${titleMax} characters`).trim(),
     hook: z.string().max(resolveMaxLength(fieldRules, 'hook', 300)).optional().or(z.literal('')),
