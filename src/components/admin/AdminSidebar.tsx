@@ -107,6 +107,7 @@ const seekerConfigItems = [
   { title: 'Postal Formats', icon: Globe, path: '/admin/seeker-config/postal-formats' },
   { title: 'Billing Cycles', icon: CreditCard, path: '/admin/seeker-config/billing-cycles' },
   { title: 'Payment Methods', icon: CreditCard, path: '/admin/seeker-config/payment-methods' },
+  { title: 'Governance Rules', icon: Shield, path: '/admin/seeker-config/governance-rules' },
 ];
 
 const complianceConfigItems = [
