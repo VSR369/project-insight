@@ -224,6 +224,8 @@ const OrgShadowPricingPage = lazy(() => import("@/pages/org/OrgShadowPricingPage
 // CogniBlend Pages (lazy loaded)
 const CogniLoginPage = lazy(() => import("@/pages/cogniblend/CogniLoginPage"));
 const CogniDashboardPage = lazy(() => import("@/pages/cogniblend/CogniDashboardPage"));
+const ConversationalIntakePage = lazy(() => import("@/pages/cogniblend/ConversationalIntakePage"));
+const AISpecReviewPage = lazy(() => import("@/pages/cogniblend/AISpecReviewPage"));
 const ChallengeWizardPage = lazy(() => import("@/pages/cogniblend/ChallengeWizardPage"));
 const LegalDocumentAttachmentPage = lazy(() => import("@/pages/cogniblend/LegalDocumentAttachmentPage"));
 const CurationQueuePage = lazy(() => import("@/pages/cogniblend/CurationQueuePage"));
