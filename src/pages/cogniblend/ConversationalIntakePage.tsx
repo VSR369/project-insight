@@ -89,6 +89,7 @@ function MaturityCard({
 export default function ConversationalIntakePage() {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
+  const [aiFailure, setAiFailure] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
