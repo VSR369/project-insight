@@ -55,7 +55,7 @@ import {
   type ChallengeFormValues,
 } from '@/components/cogniblend/challenge-wizard/challengeFormSchema';
 
-const TOTAL_STEPS = 7;
+const TOTAL_STEPS = 7; // Steps 0–7 (8 total)
 
 const BUSINESS_RULES = [
   'BR-CC-001: Challenge must have a minimum problem statement length',
