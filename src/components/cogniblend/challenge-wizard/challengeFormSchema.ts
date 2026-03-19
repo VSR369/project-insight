@@ -1,24 +1,43 @@
 /**
  * Zod schema for the Challenge Creation wizard form.
- * Covers all 7 steps. Validation severity depends on governance_profile.
+ * Covers all 7 steps. Validation severity depends on governance mode.
  */
 
 import { z } from 'zod';
+import type { GovernanceMode } from '@/lib/governanceMode';
 
 /* ── Governance-aware min lengths ──────────────────────── */
-export const PROBLEM_MIN_ENTERPRISE = 500;
-export const PROBLEM_MIN_LIGHTWEIGHT = 200;
-export const SCOPE_MIN_ENTERPRISE = 200;
-export const SCOPE_MIN_LIGHTWEIGHT = 100;
+export const PROBLEM_MIN_CONTROLLED = 500;
+export const PROBLEM_MIN_STRUCTURED = 300;
+export const PROBLEM_MIN_QUICK = 200;
+export const SCOPE_MIN_CONTROLLED = 200;
+export const SCOPE_MIN_STRUCTURED = 150;
+export const SCOPE_MIN_QUICK = 100;
 export const TITLE_MAX = 200;
+
+/** Legacy aliases for backward compatibility */
+export const PROBLEM_MIN_ENTERPRISE = PROBLEM_MIN_CONTROLLED;
+export const PROBLEM_MIN_LIGHTWEIGHT = PROBLEM_MIN_QUICK;
+export const SCOPE_MIN_ENTERPRISE = SCOPE_MIN_CONTROLLED;
+export const SCOPE_MIN_LIGHTWEIGHT = SCOPE_MIN_QUICK;
 
 /**
  * Creates a governance-aware challenge form schema.
- * Enterprise has stricter minimum lengths for problem_statement and scope.
+ * Accepts a GovernanceMode or legacy boolean (isLightweight) for backward compat.
  */
-export function createChallengeFormSchema(isLightweight: boolean) {
-  const problemMin = isLightweight ? PROBLEM_MIN_LIGHTWEIGHT : PROBLEM_MIN_ENTERPRISE;
-  const scopeMin = isLightweight ? SCOPE_MIN_LIGHTWEIGHT : SCOPE_MIN_ENTERPRISE;
+export function createChallengeFormSchema(modeOrLightweight: GovernanceMode | boolean) {
+  const mode: GovernanceMode =
+    typeof modeOrLightweight === 'boolean'
+      ? (modeOrLightweight ? 'QUICK' : 'STRUCTURED')
+      : modeOrLightweight;
+
+  const problemMin = mode === 'QUICK' ? PROBLEM_MIN_QUICK
+    : mode === 'STRUCTURED' ? PROBLEM_MIN_STRUCTURED
+    : PROBLEM_MIN_CONTROLLED;
+
+  const scopeMin = mode === 'QUICK' ? SCOPE_MIN_QUICK
+    : mode === 'STRUCTURED' ? SCOPE_MIN_STRUCTURED
+    : SCOPE_MIN_CONTROLLED;
 
   return z.object({
     // Step 1 — Challenge Brief
