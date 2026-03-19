@@ -380,11 +380,24 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
 
   return (
     <div className="space-y-8">
-      <div>
-        <h3 className="text-base font-bold text-foreground mb-1">Provider Eligibility & Matchmaking</h3>
-        <p className="text-sm text-muted-foreground">
-          Define who can discover, enroll in, and submit solutions to this challenge.
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-base font-bold text-foreground mb-1">Provider Eligibility & Matchmaking</h3>
+          <p className="text-sm text-muted-foreground">
+            Define who can discover, enroll in, and submit solutions to this challenge.
+          </p>
+        </div>
+        <AiFieldAssist
+          fieldName="eligibility"
+          context={{
+            title: watch('title') ?? '',
+            problem_statement: watch('problem_statement') ?? '',
+            maturity_level: watch('maturity_level') ?? '',
+            governance_mode: watch('governance_mode') ?? '',
+          }}
+          onResult={(content) => setValue('eligibility', content, { shouldDirty: true })}
+          label="AI Suggest"
+        />
       </div>
 
       {/* ═══ SECTION 1A: Provider Category (Layer 1) — Always show all checkboxes ═══ */}
