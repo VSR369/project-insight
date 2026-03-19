@@ -1,54 +1,85 @@
 
 
-# Confirmation: Role-Aware Workspace Mode — Complete Audit
+# Plan: Fix Taxonomy Cascade & Create Reusable Taxonomy Hook
 
-## IMPLEMENTED (No Gaps Found)
+## Issues Identified
 
-Every layer of the role-aware workspace system is wired end-to-end. Here is the confirmed status across all scenarios:
+### 1. Role label wrong for Aggregator
+Line 410 of `CogniSubmitRequestPage.tsx` says "As Account Manager" — Aggregator mode has no Account Manager. The submit request role in AGG is Challenge Requestor (RQ).
 
-### Scenario 1: One User, ALL Roles (Solo Mode)
+### 2. Sub-domains showing duplicates (wrong table queried)
+`useSubDomainOptions()` in `useTaxonomySelectors.ts` queries the **`proficiency_areas`** table (line 44), NOT the actual `sub_domains` table. This means:
+- It returns proficiency areas labeled as "sub-domains"
+- Since proficiency areas exist per expertise level, the same name repeats across levels
+- No deduplication is applied in this hook
 
-| Layer | Status | How It Works |
-|-------|--------|-------------|
-| **Context** | DONE | `CogniRoleContext` computes `isSoloMode = availableRoles.length >= 6`, auto-selects highest-priority role via `getPrimaryRole()` |
-| **Role Switcher** | DONE | `RoleSwitcher` shows dropdown with all 9 roles, "Solo Mode" banner at top, challenge counts per role |
-| **Sidebar** | DONE | All 13 nav items visible (user holds all roles). Active role's items highlighted, others dimmed to `opacity-50`. Solver paths always full opacity |
-| **Dashboard: ActionItems** | DONE | Filtered by `challengeRoleMap` + `activeRole`. Dynamic primary action button changes per role. "See all tasks across roles" link when filtered count < total |
-| **Dashboard: NeedsAction** | DONE | Filtered via `PHASE_ROLE_MAP[current_phase] === activeRole`. Role-specific empty state: "No challenges need your action as [Curator] right now" |
-| **Dashboard: WaitingFor** | DONE | Filtered by next-phase role match or current-phase owner match |
-| **Dashboard: MyChallenges** | DONE | Dynamic tabs built from `availableRoles`. Auto-selects tab matching `activeRole` on workspace switch |
-| **Persistence** | DONE | `localStorage` with cross-tab sync via `storage` event listener |
+### 3. Specialities not cascading from sub-domains
+`CogniSubmitRequestPage` doesn't use cascading hooks at all — it fetches a flat list via `useSubDomainOptions()` and has no speciality fetching from the `specialities` table. Specialties are only populated via text-based taxonomy suggestions.
 
-### Scenario 2: One User, Many Roles (e.g., CR + CU + ID)
+### 4. No reusable taxonomy component
+The taxonomy cascade logic (Industry → Proficiency Areas → Sub-domains → Specialities, with deduplication across expertise levels) is implemented separately in:
+- `ScopeMultiSelect.tsx` (pool member scope)
+- `StepProviderEligibility.tsx` (challenge wizard)
+- `CogniSubmitRequestPage.tsx` (solution request — broken)
+- `DomainScopeDisplay.tsx` (read-only display)
 
-| Layer | Status | How It Works |
-|-------|--------|-------------|
-| **Sidebar** | DONE | Shows only items for roles user holds (CR, CU, ID items visible; LC, FC hidden). Active role items highlighted |
-| **Role Switcher** | DONE | Shows 3 roles in dropdown, no Solo Mode banner |
-| **Dashboard filtering** | DONE | All sections filter by the selected workspace role |
-| **Tab sync** | DONE | Switching workspace auto-updates MyChallenges tab |
+## Taxonomy Tree (for reference)
+```text
+Industry Segment
+  └─ Expertise Level 1
+  │   └─ Proficiency Area A
+  │       └─ Sub-domain X → Speciality 1, 2
+  │       └─ Sub-domain Y → Speciality 3
+  └─ Expertise Level 2
+      └─ Proficiency Area A (same name, different row)
+          └─ Sub-domain X (same name) → Speciality 1 (same)
+```
+When selecting an Industry Segment, ALL expertise levels' proficiency areas, sub-domains, and specialities should appear — deduplicated by name.
 
-### Scenario 3: One User, One Role
+## Solution
 
-| Layer | Status | How It Works |
-|-------|--------|-------------|
-| **Role Switcher** | DONE | Renders as static badge (no dropdown) — line 51-63 of `RoleSwitcher.tsx` |
-| **Sidebar** | DONE | Only that role's items + Solver section visible. All at full opacity (everything is relevant) |
-| **Dashboard** | DONE | No filtering needed — all items belong to the single role |
+### File 1: NEW — `src/hooks/queries/useTaxonomyCascade.ts` (Reusable hook)
+Single hook that provides the full cascade from industry segment IDs down to specialities, with built-in deduplication by name at every level.
 
-### Validation & Edge Cases
+- `useTaxonomyCascade(industrySegmentIds: string[])` returns:
+  - `proficiencyAreas`: deduplicated by name, all IDs for each name collected
+  - `subDomains`: fetched from `sub_domains` table using ALL proficiency area IDs for the selected segments (not just the deduplicated ones), deduplicated by name
+  - `specialities`: fetched from `specialities` table using ALL sub-domain IDs, deduplicated by name
+- Each level collects all underlying IDs so that child queries work correctly even after dedup
+- Accepts optional `selectedProficiencyAreaNames` and `selectedSubDomainNames` to filter children (for cascading selection UX)
 
-| Check | Status |
-|-------|--------|
-| `setActiveRole` validates against `availableRoles` | DONE (line 101-102, CogniRoleContext) |
-| Cross-tab sync via `storage` event | DONE (line 87-95, CogniRoleContext) |
-| Drafts always shown regardless of active role | DONE (line 80, ActionItemsWidget) |
-| Skeleton loading while roles fetch (no flash of empty) | DONE (ActionItemsWidget returns skeleton when `isRolesLoading`) |
-| Role-specific empty states | DONE (NeedsAction, MyChallenges, ActionItems all have contextual messages) |
-| Primary action button adapts per role | DONE (`ROLE_PRIMARY_ACTION` map drives button label + route) |
-| Dashboard page uses context (not direct hook) | DONE (`useCogniRoleContext()` on line 12/28 of CogniDashboardPage) |
+### File 2: MODIFY — `src/hooks/queries/useScopeTaxonomy.ts`
+- Add deduplication by name to `useSubDomainsByAreas` (currently missing)
+- Add deduplication by name to `useSpecialitiesBySubDomains` (currently missing)
+- These hooks are used by `ScopeMultiSelect` and `DomainScopeDisplay`
 
-## Verdict
+### File 3: MODIFY — `src/pages/cogniblend/CogniSubmitRequestPage.tsx`
+- Remove `useSubDomainOptions` import — replace with `useTaxonomyCascade`
+- Watch `industry_segment_id` and pass as `[id]` to the cascade hook
+- Watch `sub_domain_ids` to drive speciality options from the cascade
+- Wire sub-domain dropdown to use cascaded, deduplicated sub-domains
+- Wire speciality section to show selectable specialities (from DB, not just text suggestions)
+- Fix AGG mode text: remove "Account Manager" reference, use "Challenge Requestor" or neutral phrasing
+- Add `specialty_ids` (UUID array) alongside existing `specialty_tags` (text) for DB-linked specialities
 
-There are **no gaps** in the current implementation. The workspace mode system is fully wired across context, navigation, dashboard sections, and persistence for all three user-role scenarios: solo (all roles), multi-role, and single-role.
+### File 4: MODIFY — `src/hooks/queries/useTaxonomySelectors.ts`
+- Remove or deprecate `useSubDomainOptions()` — it queries the wrong table and is only used in one place (now replaced by cascade hook)
+- Keep `useIndustrySegmentOptions()` as-is (correct)
+
+### File 5: MODIFY — `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx`
+- Replace direct `useProficiencyAreasBySegments` + `useSpecialitiesBySubDomains` calls with `useTaxonomyCascade` for consistency and correct deduplication
+- Ensures sub-domains shown are from the actual `sub_domains` table, deduplicated
+
+### File 6: MODIFY — `src/components/org/ScopeMultiSelect.tsx`
+- No structural change needed — already uses the correct cascade pattern
+- Add deduplication to sub-domain display (will be handled by the fix in `useScopeTaxonomy.ts`)
+
+## Key Design Decisions
+
+1. **Deduplicate by name, collect all IDs**: When "Sub-domain X" appears under multiple proficiency areas/expertise levels, show it once but use ALL its IDs to fetch child specialities
+2. **Reusable hook, not component**: The cascade is data logic — UI varies per screen (select vs chips vs badges). A hook is the right abstraction
+3. **Backward compatible**: Existing `useScopeTaxonomy` hooks get dedup fixes; new `useTaxonomyCascade` is additive
+
+## No Database Changes Required
+All tables (`proficiency_areas`, `sub_domains`, `specialities`) already exist with correct foreign keys.
 
