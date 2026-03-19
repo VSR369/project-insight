@@ -45,6 +45,7 @@ import { StepTimeline } from '@/components/cogniblend/challenge-wizard/StepTimel
 import { StepProviderEligibility } from '@/components/cogniblend/challenge-wizard/StepProviderEligibility';
 import { StepTemplates } from '@/components/cogniblend/challenge-wizard/StepTemplates';
 import { StepReviewSubmit } from '@/components/cogniblend/challenge-wizard/StepReviewSubmit';
+import { StepModeSelection } from '@/components/cogniblend/challenge-wizard/StepModeSelection';
 import { ChallengeSubmitSummaryModal } from '@/components/cogniblend/challenge-wizard/ChallengeSubmitSummaryModal';
 import { FormCompletionBar } from '@/components/cogniblend/challenge-wizard/FormCompletionBar';
 import { useFormCompletion } from '@/components/cogniblend/challenge-wizard/useFormCompletion';
