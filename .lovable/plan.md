@@ -1,238 +1,107 @@
 
 
-# Compliance Audit: CogniBlend Final UX Design Document vs Implementation
+# Supervisor-Configurable Governance Parameters
 
-## Section-by-Section Verification
+## Understanding
 
----
+You are saying: the governance rules — which fields are **Required**, **Optional**, **Hidden**, **Auto-populated**, or **AI-drafted** — for each of the 3 modes (QUICK/STRUCTURED/CONTROLLED) should be **configured by the Supervisor in master data**, not hardcoded in TypeScript constants. The existing DB RPCs (`get_mandatory_fields`, `get_governance_behavior`, `get_gate_requirements`) already support this pattern. The frontend must consume these DB-driven configs at runtime.
 
-### Section 1.1 — Components Kept Untouched (Zero Changes)
+## Current State
 
-| Component | Status | Notes |
-|-----------|--------|-------|
-| Supabase schema (all tables, columns) | COMPLIANT | No schema changes made |
-| RPC functions | COMPLIANT | Untouched |
-| Edge Functions (existing ones) | COMPLIANT | `record-legal-acceptance`, `check-sla-breaches` untouched |
-| RLS policies | COMPLIANT | Untouched |
-| Role system (`challenge_role_assignments`) | COMPLIANT | Untouched |
-| Legal framework tables | COMPLIANT | Untouched |
-| Notification system | COMPLIANT | Untouched |
-| SLA engine | COMPLIANT | Untouched |
-| Audit trail | COMPLIANT | Untouched |
-| Dashboard (Needs Action, Waiting For) | COMPLIANT | Untouched |
-| Curation Review page (14-point checklist) | COMPLIANT | Existing checklist preserved; AI panel added alongside |
-| Approval Review page | COMPLIANT | Only maturity label + governance badge strings changed |
-| Publication Readiness page (GATE-11) | COMPLIANT | Untouched |
-| Challenge Management page | COMPLIANT | Untouched |
-| Seed data (14 users, 2 orgs, quick-login) | COMPLIANT | Untouched |
+- **DB RPCs exist**: `get_mandatory_fields(p_governance_profile)`, `get_governance_behavior(p_governance_profile, p_phase)`, `get_gate_requirements(p_gate_id, p_governance_profile)` — these already accept governance profile and return JSON
+- **`useMandatoryFields` hook exists** in `useChallengeForm.ts` — already calls `get_mandatory_fields` RPC
+- **Problem**: The schema min-lengths (`PROBLEM_MIN_QUICK = 200`, etc.) and field visibility rules are hardcoded in `challengeFormSchema.ts` and `StepProblem.tsx` instead of being read from the DB
+- **No admin UI** exists for Supervisor to configure governance field rules
 
----
+## What Changes
 
-### Section 1.2 — Components Modified (5 Targeted Changes)
+### 1. New DB Table: `md_governance_field_rules`
 
-| Change | Status | Evidence |
-|--------|--------|----------|
-| Rename wizard to "Advanced Editor" | COMPLIANT | `ChallengeWizardPage.tsx` header says "Advanced Editor", sidebar says "Advanced Editor" |
-| Add "Back to Simple View" link | COMPLIANT | Wizard has link to `/cogni/challenges/create` |
-| Maturity label rename (4 strings) | COMPLIANT | `maturityLabels.ts`: blueprint→"An idea or concept", poc→"Proof it can work", prototype→"A working demo", pilot→"A real-world test" |
-| DB values unchanged | COMPLIANT | Schema enums still `blueprint/poc/prototype/pilot` |
-| Curation page: add AI quality panel | COMPLIANT | `AICurationQualityPanel` added to `CurationReviewPage.tsx` |
+Stores per-field, per-mode visibility and validation rules. Supervisor manages this via admin UI.
 
----
+```text
+Columns:
+  id             UUID PK
+  governance_mode TEXT  ('QUICK' | 'STRUCTURED' | 'CONTROLLED')
+  field_key      TEXT  (e.g. 'problem_statement', 'scope', 'hook', 'ip_model')
+  wizard_step    INT   (1-7, for grouping in admin UI)
+  visibility     TEXT  ('required' | 'optional' | 'hidden' | 'auto' | 'ai_drafted')
+  min_length     INT   (nullable — e.g. 200 for problem_statement in QUICK)
+  max_length     INT   (nullable)
+  default_value  TEXT  (nullable — for auto-populated fields)
+  display_order  INT
+  is_active      BOOL
+  created_by     UUID
+  updated_at     TIMESTAMPTZ
+```
 
-### Section 1.3 — Components Added (New Screens)
+This replaces the hardcoded `PROBLEM_MIN_QUICK/STRUCTURED/CONTROLLED` constants.
 
-| New Component | Route | Status | Evidence |
-|---------------|-------|--------|----------|
-| Conversational Intake page | `/cogni/challenges/create` | COMPLIANT | `ConversationalIntakePage.tsx` exists with template selector + text area + maturity cards + AI trigger |
-| AI Spec Review page | `/cogni/challenges/:id/spec` | COMPLIANT | `AISpecReviewPage.tsx` exists with sparkle badges + pencil edit |
-| `generate-challenge-spec` Edge Function | Supabase Edge Function | COMPLIANT | Edge function created, returns 9 AI-drafted fields |
-| `check-challenge-quality` Edge Function | Supabase Edge Function | COMPLIANT | Edge function created, returns completeness + gaps + readiness |
-| Post-signup auto-org creation | Auto-onboarding | COMPLIANT | `auto-create-org` edge function + `OrgContext.tsx` auto-trigger |
+### 2. New RPC: `get_governance_field_rules(p_governance_mode)`
 
----
+Returns all active field rules for a given mode. This supplements the existing `get_mandatory_fields` RPC with richer metadata (visibility, min/max lengths, defaults).
 
-### Section 3 — Five Critical UX Changes
+### 3. New Hook: `useGovernanceFieldRules(governanceMode)`
 
-| # | Change | Status | Notes |
-|---|--------|--------|-------|
-| 1 | Maturity jargon killed | COMPLIANT | 4 labels updated in centralized `maturityLabels.ts`, consumed across all pages |
-| 2 | 8 challenge templates | COMPLIANT | `challengeTemplates.ts` has all 8: Product Innovation, Process Improvement, Research Question, Design Challenge, Technical Problem, Social Impact, Data Science, Start from Scratch |
-| 3 | Solver legal timing: Tier 2 post-shortlist | COMPLIANT | `useSolverLegalGate.ts` has `enabled: currentPhase >= 9` (post-shortlist) |
-| 4 | Auto-onboarding: signup → auto-org → create | COMPLIANT | `auto-create-org` edge function creates QUICK/AGG org. `OrgContext.tsx` triggers automatically |
-| 5 | AI integration: 9 AI fields + curation checker | COMPLIANT | `generate-challenge-spec` returns 9 fields. `AICurationQualityPanel` added to curation page |
+Fetches field rules from the DB via the new RPC. Returns a map: `Record<string, FieldRule>` where each FieldRule has `{ visibility, minLength, maxLength, defaultValue }`.
 
----
+### 4. New Admin Page: Governance Field Rules (`/admin/seeker-config/governance-rules`)
 
-### Section 4 — Governance Models: Quick / Structured / Controlled
+- Supervisor sees a 3-tab view (QUICK | STRUCTURED | CONTROLLED)
+- Each tab shows a table of all ~57 challenge fields grouped by wizard step
+- Per field: dropdown for visibility (R/O/H/Auto/AI), numeric inputs for min/max length
+- Save updates `md_governance_field_rules` rows
+- Added to Admin Sidebar under "Seeker Config" group
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| Three modes: Q/S/C | COMPLIANT | `governanceMode.ts` defines `GovernanceMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED'` |
-| DB mapping: LIGHTWEIGHT/QUICK → QUICK | COMPLIANT | `resolveGovernanceMode()` handles both |
-| DB mapping: ENTERPRISE → STRUCTURED | COMPLIANT | Default fallback in resolver |
-| DB mapping: CONTROLLED → CONTROLLED | COMPLIANT | Explicit check in resolver |
-| Badge colors: green/blue/purple | COMPLIANT | `GOVERNANCE_MODE_CONFIG` has distinct colors |
-| Tooltips for each mode | COMPLIANT | Config includes tooltips |
+### 5. Refactor `challengeFormSchema.ts`
 
----
+Replace hardcoded min-length constants with a dynamic schema builder that accepts the DB-driven field rules:
 
-### Section 5 — Solver Legal Framework
+```text
+BEFORE: const problemMin = mode === 'QUICK' ? 200 : mode === 'STRUCTURED' ? 300 : 500;
+AFTER:  const problemMin = fieldRules['problem_statement']?.minLength ?? 200;
+```
 
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| Legal CONFIGURED during creation | COMPLIANT | Existing wizard Step 6 (Templates) handles this — untouched |
-| Tier 2 presented AFTER shortlisting | COMPLIANT | `useSolverLegalGate.ts`: `enabled: currentPhase >= 9` |
-| Enterprise-only docs filtered for QUICK | COMPLIANT | `ENTERPRISE_ONLY_DOC_TYPES` filtered using `isQuickMode()` from `governanceMode.ts` |
-| NDA before viewing details (Tier 1) | COMPLIANT | Existing flow untouched |
+The `createChallengeFormSchema` function signature changes to accept field rules from the hook instead of (or in addition to) the governance mode string.
 
----
+### 6. Refactor Wizard Step Components
 
-### Section 6 — AI Integration (>=80% Confidence)
+Each step component (`StepProblem`, `StepRewards`, `StepProviderEligibility`, etc.) reads field rules from the hook to determine:
+- Whether to show/hide a field
+- Whether to mark it required or optional
+- Whether to show AI-draft badge
+- Min/max length for character counters
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Title generation | COMPLIANT | In `generate-challenge-spec` tool schema |
-| Problem expansion | COMPLIANT | `problem_statement` field in spec |
-| Scope suggestions | COMPLIANT | `scope` field in spec |
-| Deliverables list | COMPLIANT | `deliverables` array in spec |
-| Evaluation criteria names | COMPLIANT | `evaluation_criteria` array in spec |
-| Eligibility | COMPLIANT | `eligibility` field in spec |
-| Hook | COMPLIANT | `hook` field in spec |
-| IP Model | COMPLIANT | `ip_model` field in spec |
-| AI Curation Quality Checker | COMPLIANT | `check-challenge-quality` edge function + `AICurationQualityPanel` |
+### 7. Migrate 13 Files from Hardcoded `isLightweight` Booleans
 
-**AI Curation Checker features:**
-| Feature | Status |
-|---------|--------|
-| Completeness gauge 0-100 | COMPLIANT — `completeness_score` + `Progress` bar |
-| Gaps with severity badges | COMPLIANT — `gaps[]` with critical/warning/suggestion severity |
-| Solver Readiness score | COMPLIANT — `solver_readiness_score` displayed |
-| Improvement suggestions | COMPLIANT — `strengths[]` + `gaps[].message` |
-| Flagged checklist items (amber dots) | COMPLIANT — `flagged_checklist_items[]` rendered |
-| AI advises, never blocks | COMPLIANT — Panel is informational only, no gate logic |
+All files identified in the previous audit that still use `isLightweight` / `isEnterprise` booleans will be migrated to use `resolveGovernanceMode()` + the DB-driven field rules.
 
----
+## Files
 
-### Section 7 — 60-Parameter Matrix
+| File | Change |
+|------|--------|
+| **NEW** `supabase/migrations/xxx_governance_field_rules.sql` | Create `md_governance_field_rules` table + `get_governance_field_rules` RPC + seed data for all 3 modes |
+| **NEW** `src/hooks/queries/useGovernanceFieldRules.ts` | Hook to fetch field rules per mode |
+| **NEW** `src/pages/admin/seeker-config/GovernanceRulesPage.tsx` | Admin CRUD UI for field rules |
+| **EDIT** `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts` | Dynamic schema from DB rules, remove hardcoded constants |
+| **EDIT** `src/components/cogniblend/challenge-wizard/StepProblem.tsx` | Read visibility/min-lengths from field rules hook |
+| **EDIT** `src/components/cogniblend/challenge-wizard/StepRewards.tsx` | Escrow visibility from field rules |
+| **EDIT** `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx` | Visibility from field rules |
+| **EDIT** `src/components/cogniblend/challenge-wizard/StepTimeline.tsx` | Visibility from field rules |
+| **EDIT** `src/components/cogniblend/challenge-wizard/StepReviewSubmit.tsx` | Mode-aware from field rules |
+| **EDIT** `src/pages/cogniblend/ChallengeWizardPage.tsx` | Pass field rules to steps, read governance from org |
+| **EDIT** `src/components/org-settings/GovernanceProfileTab.tsx` | Read-only 3-mode display |
+| **EDIT** `src/App.tsx` | Add governance rules admin route |
+| **EDIT** `src/components/admin/AdminSidebar.tsx` | Add "Governance Rules" link under Seeker Config |
+| **EDIT** 8 more files | Replace `isLightweight` boolean with `resolveGovernanceMode()` |
 
-This is a specification matrix showing field visibility per governance mode (R/O/H/AI/A). The implementation handles this through:
+## Seed Data
 
-| Aspect | Status | Notes |
-|--------|--------|-------|
-| Step 1: 6 seeker input fields | COMPLIANT | ConversationalIntakePage has: problem_statement, maturity_level, templates, + wizard has all 6 |
-| Step 2: 9 AI-drafted fields | COMPLIANT | `generate-challenge-spec` returns all 9 |
-| Step 3: Curator/LC/FC fields | EXISTING | Handled by existing wizard steps — untouched |
-| Step 4: ID approval | EXISTING | Handled by existing ApprovalReviewPage — untouched |
-| Governance-driven field visibility | PARTIALLY COMPLIANT | `challengeFormSchema.ts` updated for 3-mode. Full GOVERNANCE_FIELD_CONFIG matrix exists per memory. Individual step components not all verified for Q/S/C hiding |
+The migration seeds default rules for all 3 modes matching the current hardcoded values, so behavior is identical on day 1. Supervisor can then adjust via the admin UI.
 
----
+## Zero Breaking Changes
 
-### Section 8 — Engagement Models + Pricing Tiers
-
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| MP vs AGG models | COMPLIANT | Existing system supports both. Per-request selection added |
-| Pricing tiers (Basic/Standard/Premium/Enterprise) | EXISTING | Master data configured — untouched |
-
----
-
-### Section 9 — Multi-Role Canvas (7 Permutations)
-
-| Requirement | Status | Notes |
-|-------------|--------|-------|
-| 7 role combinations (Q×AGG, Q×MP, S×AGG, S×MP, C×AGG, C×MP, Q×AGG 2-person) | EXISTING | Role system and canvas untouched. Governance mode now resolves correctly for all combos |
-
----
-
-### Section 10 — Comparison Tables (HeroX/Kaggle)
-
-These are reference/documentation tables. No implementation required.
-
----
-
-### Section 11 — Lovable.dev Prompts (5)
-
-All 5 prompts were executed:
-| Prompt | Status |
-|--------|--------|
-| 1: Maturity Labels + Templates | COMPLIANT |
-| 2: Auto-Onboarding + Navigation | COMPLIANT |
-| 3: AI Spec Generation Edge Function | COMPLIANT |
-| 4: AI Curation Quality Panel | COMPLIANT |
-| 5: Legal Framework Display | COMPLIANT (Tier 2 timing changed, Tier 1 untouched) |
-
----
-
-### Section 12 — Validation Tests (18 Tests)
-
-| Test | Can Pass? | Notes |
-|------|-----------|-------|
-| V-0: Signup → auto-org → creation page | YES | `auto-create-org` + `OrgContext` auto-trigger implemented |
-| V-1: 8 templates shown, click pre-fills | YES | `TemplateSelector` + `ConversationalIntakePage` handles pre-fill |
-| V-2: Maturity plain English labels, DB stores enum | YES | Labels in `maturityLabels.ts`, DB enums unchanged |
-| V-3: Quick mode: signup to published <5 min | PARTIAL | Flow exists but end-to-end timing depends on AI response speed |
-| V-4: AI generate-challenge-spec returns 9-field JSON | YES | Edge function returns all 9 fields via tool calling |
-| V-5: AI failure: template defaults + amber banner | NEEDS WORK | Error handling exists in mutation hook (toast) but no explicit amber banner fallback with template defaults on the intake page |
-| V-6: AI curation panel: score + gaps + readiness + suggestions | YES | `AICurationQualityPanel` has all 4 components |
-| V-7: Legal framework correctly configured based on maturity | YES | Existing wizard Step 6 handles this — untouched |
-| V-8: Escrow requirement enforced in Controlled (GATE-11) | YES | Existing `usePublicationReadiness` — untouched |
-| V-9: Published challenge shows legal summary | NEEDS WORK | No explicit legal summary section added to `PublicChallengeDetailPage` |
-| V-10: MP model: Architect dropdown visible | YES | Existing wizard + solution request form handles this |
-| V-11: Multi-role: steps expand on one page | EXISTING | Existing canvas behavior — untouched |
-| V-12: Different users: handoff via dashboard notifications | EXISTING | Notification system untouched |
-| V-13: Advanced Editor still accessible and working | YES | Wizard renamed, link preserved at `/cogni/challenges/new` |
-| V-14: Governance modes: Q shows 6+confirm, S 18, C 60 | PARTIAL | Governance mode engine built. Field visibility matrix exists but full per-mode field count enforcement needs end-to-end testing |
-| V-15: All legal docs auto-attached in Quick from maturity | YES | Existing legal attachment logic — untouched |
-| V-16: GATE-11 validates all content + legal + escrow | YES | Existing `usePublicationReadiness` — untouched |
-| V-17: Zero new database tables, zero altered columns | COMPLIANT | Verified — no DB changes |
-
----
-
-## COMPLIANCE SUMMARY
-
-| Category | Total | Compliant | Partial/Needs Work |
-|----------|-------|-----------|-------------------|
-| Components Kept Untouched | 15 | 15 | 0 |
-| Components Modified | 5 | 5 | 0 |
-| Components Added | 5 | 5 | 0 |
-| 5 Critical UX Changes | 5 | 5 | 0 |
-| Governance 3-Mode | 6 | 6 | 0 |
-| Solver Legal Framework | 4 | 4 | 0 |
-| AI Integration Features | 11 | 11 | 0 |
-| 18 Validation Tests | 18 | 14 | 4 |
-
-## OVERALL: ~93% COMPLIANT
-
----
-
-## 4 Items Needing Work
-
-### GAP 1: V-5 — AI Failure Fallback Banner
-**Doc says**: "AI failure: template defaults shown + amber banner"
-**Current**: Mutation `onError` shows a toast. No amber banner on the intake page with template defaults as fallback.
-**Fix**: Add error state to `ConversationalIntakePage` that shows an amber `Alert` banner when AI fails, and pre-fills the form with template-based defaults instead of leaving fields empty.
-
-### GAP 2: V-9 — Published Challenge Legal Summary
-**Doc says**: "Published challenge shows legal summary (NDA, IP, escrow, Tier 2 docs)"
-**Current**: `PublicChallengeDetailPage` does not have an explicit legal summary section showing configured NDA, IP model, escrow status, and Tier 2 doc list.
-**Fix**: Add a "Legal & IP Protection" summary card to `PublicChallengeDetailPage` showing: NDA required badge, IP model badge, escrow status badge ("Solver Protected" if funded), and count of Tier 2 docs configured.
-
-### GAP 3: V-3 — Quick Mode End-to-End Speed
-**Doc says**: "Quick mode: signup to published challenge <5 minutes"
-**Current**: Flow exists but auto-completion of phases 1,3,4 for QUICK mode is not explicitly implemented in the new conversational flow.
-**Fix**: After AI spec generation in QUICK mode, auto-complete curator/LC/FC steps and proceed directly to ID approval. This is primarily a backend/RPC concern and may already be handled by existing phase auto-completion logic.
-
-### GAP 4: V-14 — Per-Mode Field Count Enforcement
-**Doc says**: "Quick shows 6+confirm, Structured 18, Controlled 60"
-**Current**: The governance field config matrix exists, but the new conversational intake page always shows the same 6-field layout regardless of mode. The wizard handles field visibility per mode.
-**Fix**: This is BY DESIGN — the conversational page is the QUICK entry point (6 fields), and the wizard (Advanced Editor) handles S/C with full field visibility. The document's intent is that QUICK users never see more than 6+confirm, which is exactly what the conversational page does. Structured/Controlled users are routed to the wizard. Mark as COMPLIANT by design.
-
----
-
-## Recommended Next Steps
-
-1. **Fix GAP 1**: Add amber fallback banner to `ConversationalIntakePage` when AI generation fails (small change, ~30 lines)
-2. **Fix GAP 2**: Add legal summary card to `PublicChallengeDetailPage` (medium change, ~80 lines, queries `challenge_legal_docs` table)
-3. **End-to-end testing**: Run through V-0 through V-17 manually to confirm all flows work with real data
+- Existing challenges keep working — the RPC fallbacks match current hardcoded behavior
+- `get_mandatory_fields` RPC continues to work alongside the new `get_governance_field_rules`
+- Legacy `isLightweight` boolean paths removed but behavior preserved through the resolver
 
