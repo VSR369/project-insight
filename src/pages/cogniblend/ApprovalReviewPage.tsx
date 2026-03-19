@@ -8,6 +8,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import ModificationPointsTracker from "@/components/cogniblend/ModificationPointsTracker";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -259,7 +260,7 @@ function ChallengeSummaryCard({ challenge }: { challenge: ChallengeData }) {
             </Badge>
           )}
           {challenge.maturity_level && (
-            <Badge variant="secondary" className="text-[10px] capitalize">{challenge.maturity_level}</Badge>
+            <Badge variant="secondary" className="text-[10px]">{MATURITY_LABEL_MAP[challenge.maturity_level] ?? challenge.maturity_level}</Badge>
           )}
           {challenge.governance_profile && (
             <Badge variant="outline" className="text-[10px] capitalize">{challenge.governance_profile}</Badge>

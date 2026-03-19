@@ -83,10 +83,10 @@ const TAG_COLORS: Record<string, string> = {
 };
 
 const MATURITY_OPTIONS = [
-  { value: 'blueprint' as const, name: 'Blueprint', description: 'Concept, architecture, or design document', Icon: FileText },
-  { value: 'poc' as const, name: 'PoC', description: 'Feasibility demonstration with evidence', Icon: FlaskConical },
-  { value: 'prototype' as const, name: 'Prototype', description: 'Working demo, code, or hardware model', Icon: Code },
-  { value: 'pilot' as const, name: 'Pilot', description: 'Real-world deployment test with metrics', Icon: Rocket },
+  { value: 'blueprint' as const, name: 'An idea or concept', description: 'You have a concept, architecture, or design you want explored', Icon: FileText },
+  { value: 'poc' as const, name: 'Proof it can work', description: 'You need feasibility demonstrated with working evidence', Icon: FlaskConical },
+  { value: 'prototype' as const, name: 'A working demo', description: 'You want a functional demo that proves the approach end-to-end', Icon: Code },
+  { value: 'pilot' as const, name: 'A real-world test', description: 'You need a real-world deployment test with measurable outcomes', Icon: Rocket },
 ] as const;
 
 /* ─── Props ──────────────────────────────────────────────── */

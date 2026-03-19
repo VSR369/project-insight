@@ -1,0 +1,76 @@
+/**
+ * Centralized Governance Mode Engine.
+ *
+ * Maps the DB column `governance_profile` (which stores LIGHTWEIGHT, ENTERPRISE,
+ * QUICK, STRUCTURED, CONTROLLED) into the 3-mode system.
+ *
+ * Backward-compatible:
+ *   LIGHTWEIGHT / QUICK → QUICK
+ *   ENTERPRISE (default) → STRUCTURED
+ *   CONTROLLED → CONTROLLED
+ *
+ * The `compliance_level` field on the org/challenge can further differentiate
+ * ENTERPRISE into STRUCTURED vs CONTROLLED, but that is supervisor-configured
+ * in master data and stored directly as the governance_profile value.
+ */
+
+export type GovernanceMode = 'QUICK' | 'STRUCTURED' | 'CONTROLLED';
+
+/**
+ * Resolve a raw governance_profile DB value into the canonical 3-mode value.
+ */
+export function resolveGovernanceMode(
+  governanceProfile: string | null | undefined,
+): GovernanceMode {
+  const raw = (governanceProfile ?? '').toUpperCase().trim();
+
+  if (raw === 'LIGHTWEIGHT' || raw === 'QUICK') return 'QUICK';
+  if (raw === 'CONTROLLED') return 'CONTROLLED';
+  // ENTERPRISE or STRUCTURED or anything else → STRUCTURED
+  return 'STRUCTURED';
+}
+
+/** True when the mode behaves like the old LIGHTWEIGHT (auto-complete, merged roles) */
+export function isQuickMode(mode: GovernanceMode): boolean {
+  return mode === 'QUICK';
+}
+
+/** True when enterprise-grade anonymity and review rigor apply */
+export function isEnterpriseGrade(mode: GovernanceMode): boolean {
+  return mode === 'STRUCTURED' || mode === 'CONTROLLED';
+}
+
+/** True only for the strictest governance tier */
+export function isControlledMode(mode: GovernanceMode): boolean {
+  return mode === 'CONTROLLED';
+}
+
+/* ── UI config for badges ────────────────────────────── */
+
+export interface GovernanceModeConfig {
+  label: string;
+  bg: string;
+  color: string;
+  tooltip: string;
+}
+
+export const GOVERNANCE_MODE_CONFIG: Record<GovernanceMode, GovernanceModeConfig> = {
+  QUICK: {
+    label: 'QUICK',
+    bg: '#E1F5EE',
+    color: '#0F6E56',
+    tooltip: 'Quick: simplified workflow with auto-completion and merged roles',
+  },
+  STRUCTURED: {
+    label: 'STRUCTURED',
+    bg: '#E6F1FB',
+    color: '#185FA5',
+    tooltip: 'Structured: balanced governance with manual curation and optional add-ons',
+  },
+  CONTROLLED: {
+    label: 'CONTROLLED',
+    bg: '#F3E8FF',
+    color: '#6D28D9',
+    tooltip: 'Controlled: full compliance with mandatory escrow, formal gates, and distinct roles',
+  },
+};

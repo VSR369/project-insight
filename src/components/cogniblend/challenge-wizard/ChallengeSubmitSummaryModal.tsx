@@ -19,10 +19,10 @@ import type { ChallengeFormValues } from './challengeFormSchema';
 /* ─── Constants ──────────────────────────────────────── */
 
 const MATURITY_LABELS: Record<string, string> = {
-  blueprint: 'Blueprint',
-  poc: 'Proof of Concept',
-  prototype: 'Prototype',
-  pilot: 'Pilot',
+  blueprint: 'An idea or concept',
+  poc: 'Proof it can work',
+  prototype: 'A working demo',
+  pilot: 'A real-world test',
 };
 
 const CURRENCY_SYMBOLS: Record<string, string> = {

@@ -7,6 +7,7 @@
  */
 
 import { useMemo, useState } from "react";
+import { MATURITY_LABELS as MATURITY_LABEL_MAP } from "@/lib/maturityLabels";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -99,8 +100,8 @@ function modelBadge(model: string | null) {
 function maturityBadge(level: string | null) {
   if (!level) return null;
   return (
-    <Badge variant="secondary" className="text-[10px] capitalize">
-      {level}
+    <Badge variant="secondary" className="text-[10px]">
+      {MATURITY_LABEL_MAP[level] ?? level}
     </Badge>
   );
 }
