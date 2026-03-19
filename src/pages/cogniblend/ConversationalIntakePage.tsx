@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Wand2,
   Settings2,
+  Loader2,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -23,6 +24,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
+import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
@@ -83,12 +87,16 @@ function MaturityCard({
 export default function ConversationalIntakePage() {
   // ═══════ Hooks — state ═══════
   const [selectedTemplate, setSelectedTemplate] = useState<ChallengeTemplate | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
+
+  // ═══════ Hooks — mutations ═══════
+  const generateSpec = useGenerateChallengeSpec();
+  const createChallenge = useSubmitSolutionRequest();
+  const saveStep = useSaveChallengeStep();
 
   // ═══════ Hooks — form ═══════
   const form = useForm<IntakeFormValues>({
@@ -124,22 +132,57 @@ export default function ConversationalIntakePage() {
     }
   };
 
+  const isGenerating = generateSpec.isPending || createChallenge.isPending;
+
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
-    setIsGenerating(true);
     try {
-      // For now, navigate to wizard with prefilled data via query params
-      // AI spec generation edge function will be added in P5
-      const params = new URLSearchParams({
-        problem: data.problem_statement,
-        maturity: data.maturity_level,
-        ...(selectedTemplate ? { template: selectedTemplate.id } : {}),
+      const spec = await generateSpec.mutateAsync({
+        problem_statement: data.problem_statement,
+        maturity_level: data.maturity_level,
+        template_id: selectedTemplate?.id,
       });
-      toast.success('Navigating to challenge editor...');
-      navigate(`/cogni/challenges/new?${params.toString()}`);
+
+      if (!currentOrg || !user?.id) {
+        toast.error('Organization not found. Please refresh.');
+        return;
+      }
+
+      // Create challenge with AI-generated spec
+      const { challengeId } = await createChallenge.mutateAsync({
+        orgId: currentOrg.organizationId,
+        creatorId: user.id,
+        operatingModel: 'AGG',
+        businessProblem: spec.problem_statement,
+        expectedOutcomes: spec.scope,
+        currency: 'USD',
+        budgetMin: 0,
+        budgetMax: 0,
+        expectedTimeline: '',
+        domainTags: selectedTemplate?.prefill.domain_tags ?? [],
+        urgency: 'normal',
+      });
+
+      // Save AI-generated fields
+      await saveStep.mutateAsync({
+        challengeId,
+        fields: {
+          title: spec.title,
+          problem_statement: spec.problem_statement,
+          scope: spec.scope,
+          description: spec.description,
+          deliverables: { items: spec.deliverables },
+          evaluation_criteria: { criteria: spec.evaluation_criteria },
+          eligibility: spec.eligibility,
+          hook: spec.hook,
+          ip_model: spec.ip_model,
+          maturity_level: data.maturity_level,
+        },
+      });
+
+      toast.success('AI specification generated!');
+      navigate(`/cogni/challenges/${challengeId}/spec`);
     } catch {
-      toast.error('Failed to generate. Please try again.');
-    } finally {
-      setIsGenerating(false);
+      // Errors handled by mutation onError callbacks
     }
   };
 
