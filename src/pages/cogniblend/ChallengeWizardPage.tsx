@@ -646,6 +646,9 @@ export default function ChallengeWizardPage() {
       {/* ── Form Card ─────────────────────────────────── */}
       <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
+          {currentStep === 0 && (
+            <StepModeSelection form={form} orgOperatingModel={orgContext?.operatingModel} tierName={(tierLimit as any)?.tier_name} />
+          )}
           {currentStep === 1 && (
             <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
