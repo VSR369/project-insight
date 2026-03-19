@@ -14,7 +14,6 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
-import { CACHE_STANDARD } from '@/config/queryCache';
 
 /* ─── Enterprise-only doc types (BRD BR-LGL-001-A Tier 2 matrix) ─── */
 
