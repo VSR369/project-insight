@@ -521,7 +521,7 @@ export default function ChallengeWizardPage() {
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-sm text-muted-foreground">
-              {isLightweight ? 'Lightweight governance' : 'Enterprise governance'}
+              {modeConfig.label} governance
             </p>
             <span className="text-muted-foreground">·</span>
             <button
