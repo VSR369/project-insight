@@ -325,6 +325,7 @@ const App = () => (
 
             {/* CogniBlend Routes */}
             <Route path="/cogni/login" element={<LazyRoute><CogniLoginPage /></LazyRoute>} />
+            <Route path="/cogni/demo-login" element={<LazyRoute><DemoLoginPage /></LazyRoute>} />
             <Route element={
               <AuthGuard>
                 <CogniShell />
