@@ -102,7 +102,8 @@ export function useSaveChallengeStep() {
       challengeId: string;
       fields: Record<string, unknown>;
     }) => {
-      const withAudit = await withUpdatedBy(fields);
+      const normalized = normalizeChallengeFields(fields);
+      const withAudit = await withUpdatedBy(normalized);
       const { error } = await supabase
         .from('challenges')
         .update(withAudit as any)
