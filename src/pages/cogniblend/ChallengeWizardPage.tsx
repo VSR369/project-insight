@@ -69,7 +69,14 @@ const BUSINESS_RULES = [
   'BR-CC-009: Draft SLA is 10 business days from creation',
 ];
 
-export default function ChallengeWizardPage() {
+interface ChallengeWizardPageProps {
+  /** When true, rendered inside unified ChallengeCreatePage tabs */
+  embedded?: boolean;
+  /** Switch back to AI intake tab (only used when embedded) */
+  onSwitchToSimple?: () => void;
+}
+
+export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple }: ChallengeWizardPageProps = {}) {
   // ═══════ Hooks — state ═══════
   const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
@@ -529,13 +536,15 @@ export default function ChallengeWizardPage() {
               {modeConfig.label} governance
             </p>
             <span className="text-muted-foreground">·</span>
-            <button
-              type="button"
-              onClick={() => navigate('/cogni/challenges/create')}
-              className="text-xs text-primary hover:underline"
-            >
-              ← Back to Simple View
-            </button>
+            {!embedded && (
+              <button
+                type="button"
+                onClick={() => onSwitchToSimple ? onSwitchToSimple() : navigate('/cogni/challenges/create')}
+                className="text-xs text-primary hover:underline"
+              >
+                ← Back to Simple View
+              </button>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-3 shrink-0">
