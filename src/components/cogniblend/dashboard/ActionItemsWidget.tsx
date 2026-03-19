@@ -258,7 +258,7 @@ export function ActionItemsWidget() {
                   } else if (item.type === 'request' && item.status === 'ACTIVE') {
                     ActionIcon = ArrowRight;
                     actionLabel = 'Create Challenge';
-                    actionRoute = `/cogni/challenges/new`;
+                    actionRoute = `/cogni/challenges/create`;
                   }
 
                   if (isPublished) {
