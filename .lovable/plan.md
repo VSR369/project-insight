@@ -1,29 +1,26 @@
 
 
-# Fix "Invalid method: USER" Error + Implement Remaining Plan Items
+# Fix: "column tenant_id of relation sla_timers does not exist"
 
-## Root Cause (Confirmed)
+## Root Cause
 
-The error originates from **database functions**, not application code. Two PostgreSQL functions insert `method: 'USER'` into `audit_trail`, which is rejected by the `trg_audit_trail_validate` trigger (only allows `HUMAN`, `AUTO_COMPLETE`, `SYSTEM`).
+The `initialize_challenge` database function inserts into `sla_timers` with a `tenant_id` column, but that column doesn't exist on the table. The exception handler only catches `undefined_table`, not `undefined_column` (postgres error 42703), so the error propagates up and kills the entire challenge creation.
 
-The previous fix only changed TypeScript files — but the actual error is in the **SQL functions** running server-side.
+The AI spec generation succeeds (200 OK), but the subsequent `initialize_challenge` RPC call fails at the `sla_timers` INSERT, producing the "Failed to submit_solution_request" error.
 
-## Changes Required
+## Fix
 
-### 1. Database Migration: Fix `'USER'` → `'HUMAN'` in SQL Functions
+**Single database migration** that recreates `initialize_challenge` with the `tenant_id` removed from the `sla_timers` INSERT statement:
 
-Two functions need updating:
+```sql
+INSERT INTO public.sla_timers (
+  challenge_id, phase, started_at, created_by  -- removed tenant_id
+) VALUES (
+  v_challenge_id, v_start_phase, NOW(), p_creator_id  -- removed v_tenant_id
+);
+```
 
-- **`initialize_challenge`** — line with `'CHALLENGE_CREATED', 'USER'` → `'HUMAN'`
-- **`submit_question`** — line with `'QA_QUESTION_SUBMITTED', 'USER'` → `'HUMAN'`
+Also widen the exception handler from `undefined_table` to `OTHERS` so any future schema drift in `sla_timers` doesn't block challenge creation.
 
-Single migration that recreates both functions with the corrected enum value.
-
-### 2. Verify TypeScript Files (Already Fixed)
-
-The application-side files (`useSubmitSolutionRequest.ts`, `usePublishChallenge.ts`, `useQAManagement.ts`) were already corrected in the previous round. No further TypeScript changes needed for the method fix.
-
-## Summary
-
-One database migration fixes both the "Invalid method: USER" error and the cascading "AI generation unavailable" banner. The `initialize_challenge` function is called during every challenge creation — fixing it unblocks the entire Create with AI flow.
+No application code changes needed — this is purely a DB function fix.
 
