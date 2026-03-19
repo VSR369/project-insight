@@ -5,6 +5,7 @@
 
 import { Save, ArrowLeft, ArrowRight, Loader2, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
 
 const STEP_NEXT_LABELS: Record<number, string> = {
   1: 'Continue to Evaluation Criteria',
@@ -46,7 +47,7 @@ export function ChallengeWizardBottomBar({
   isSubmitting,
 }: ChallengeWizardBottomBarProps) {
   const isLastStep = currentStep === totalSteps;
-  const isEnterprise = governanceProfile === 'ENTERPRISE';
+  const isEnterprise = isEnterpriseGrade(resolveGovernanceMode(governanceProfile));
 
   const submitLabel = isEnterprise ? 'Submit for Legal Review' : 'Submit for Curation';
   const nextLabel = isLastStep ? submitLabel : (STEP_NEXT_LABELS[currentStep] ?? 'Next');

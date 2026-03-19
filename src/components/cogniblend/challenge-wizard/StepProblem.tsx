@@ -95,6 +95,7 @@ interface StepProblemProps {
   form: UseFormReturn<ChallengeFormValues>;
   mandatoryFields: string[];
   isLightweight: boolean;
+  fieldRules?: Record<string, { visibility: string; minLength: number | null; maxLength: number | null; defaultValue: string | null }>;
 }
 
 /* ─── Component ──────────────────────────────────────────── */

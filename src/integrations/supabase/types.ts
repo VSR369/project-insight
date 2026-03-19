@@ -3636,6 +3636,57 @@ export type Database = {
           },
         ]
       }
+      md_governance_field_rules: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          default_value: string | null
+          display_order: number
+          field_key: string
+          governance_mode: string
+          id: string
+          is_active: boolean
+          max_length: number | null
+          min_length: number | null
+          updated_at: string | null
+          updated_by: string | null
+          visibility: string
+          wizard_step: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          default_value?: string | null
+          display_order?: number
+          field_key: string
+          governance_mode: string
+          id?: string
+          is_active?: boolean
+          max_length?: number | null
+          min_length?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          visibility?: string
+          wizard_step: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          default_value?: string | null
+          display_order?: number
+          field_key?: string
+          governance_mode?: string
+          id?: string
+          is_active?: boolean
+          max_length?: number | null
+          min_length?: number | null
+          updated_at?: string | null
+          updated_by?: string | null
+          visibility?: string
+          wizard_step?: number
+        }
+        Relationships: []
+      }
       md_industries: {
         Row: {
           code: string
@@ -12002,6 +12053,10 @@ export type Database = {
       }
       get_governance_behavior: {
         Args: { p_governance_profile: string; p_phase: number }
+        Returns: Json
+      }
+      get_governance_field_rules: {
+        Args: { p_governance_mode: string }
         Returns: Json
       }
       get_mandatory_fields: {

@@ -3,6 +3,7 @@
  * Solver abstract submission with enrollment gate, Tier 2 legal gate, and form.
  */
 
+import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade } from '@/lib/governanceMode';
 import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -276,8 +277,9 @@ export default function SolutionSubmitPage() {
   const isEnrolled = enrollment?.status === 'APPROVED';
   const isAlreadySubmitted = existingSolution?.phase_status === 'ACTIVE' && !!existingSolution?.submitted_at;
   const isWithdrawn = existingSolution?.phase_status === 'TERMINAL' || existingSolution?.selection_status === 'WITHDRAWN';
-  const isLightweight = challenge?.governance_profile === 'LIGHTWEIGHT';
-  const isEnterprise = challenge?.governance_profile === 'ENTERPRISE';
+  const _govMode = resolveGovernanceMode(challenge?.governance_profile);
+  const isLightweight = isQuickMode(_govMode);
+  const isEnterprise = isEnterpriseGrade(_govMode);
   const needsLegalAcceptance = tier2Status && !tier2Status.allAccepted;
   const needsReacceptance = reacceptStatus?.hasPending ?? false;
   const missingDocs = useMemo(

@@ -1,12 +1,18 @@
 /**
  * Zod schema for the Challenge Creation wizard form.
- * Covers all 7 steps. Validation severity depends on governance mode.
+ * Covers all 7 steps. Validation rules are driven by DB-configured governance field rules.
+ *
+ * The schema builder accepts either:
+ *   1. A FieldRulesMap from useGovernanceFieldRules (preferred, DB-driven)
+ *   2. A GovernanceMode string (fallback with hardcoded defaults)
+ *   3. A legacy boolean (backward compat)
  */
 
 import { z } from 'zod';
 import type { GovernanceMode } from '@/lib/governanceMode';
+import type { FieldRulesMap } from '@/hooks/queries/useGovernanceFieldRules';
 
-/* ── Governance-aware min lengths ──────────────────────── */
+/* ── Fallback min lengths (used when no DB rules available) ── */
 export const PROBLEM_MIN_CONTROLLED = 500;
 export const PROBLEM_MIN_STRUCTURED = 300;
 export const PROBLEM_MIN_QUICK = 200;
@@ -21,38 +27,103 @@ export const PROBLEM_MIN_LIGHTWEIGHT = PROBLEM_MIN_QUICK;
 export const SCOPE_MIN_ENTERPRISE = SCOPE_MIN_CONTROLLED;
 export const SCOPE_MIN_LIGHTWEIGHT = SCOPE_MIN_QUICK;
 
+/* ── Helpers to resolve min/max from rules or fallback ── */
+
+function resolveMinLength(
+  fieldRules: FieldRulesMap | null,
+  fieldKey: string,
+  mode: GovernanceMode,
+  fallbacks: Record<GovernanceMode, number>,
+): number {
+  if (fieldRules?.[fieldKey]?.minLength != null) {
+    return fieldRules[fieldKey].minLength!;
+  }
+  return fallbacks[mode];
+}
+
+function resolveMaxLength(
+  fieldRules: FieldRulesMap | null,
+  fieldKey: string,
+  fallback: number,
+): number {
+  if (fieldRules?.[fieldKey]?.maxLength != null) {
+    return fieldRules[fieldKey].maxLength!;
+  }
+  return fallback;
+}
+
+function isRequired(fieldRules: FieldRulesMap | null, fieldKey: string): boolean {
+  if (!fieldRules) return false;
+  return fieldRules[fieldKey]?.visibility === 'required';
+}
+
+function isHidden(fieldRules: FieldRulesMap | null, fieldKey: string): boolean {
+  if (!fieldRules) return false;
+  return fieldRules[fieldKey]?.visibility === 'hidden';
+}
+
 /**
  * Creates a governance-aware challenge form schema.
- * Accepts a GovernanceMode or legacy boolean (isLightweight) for backward compat.
+ * Accepts:
+ *   - FieldRulesMap (DB-driven, preferred)
+ *   - GovernanceMode string
+ *   - boolean (legacy isLightweight)
  */
-export function createChallengeFormSchema(modeOrLightweight: GovernanceMode | boolean) {
-  const mode: GovernanceMode =
-    typeof modeOrLightweight === 'boolean'
-      ? (modeOrLightweight ? 'QUICK' : 'STRUCTURED')
-      : modeOrLightweight;
+export function createChallengeFormSchema(
+  modeOrLightweightOrRules: GovernanceMode | boolean | FieldRulesMap,
+  fieldRulesFromDb?: FieldRulesMap,
+) {
+  let mode: GovernanceMode;
+  let fieldRules: FieldRulesMap | null = null;
 
-  const problemMin = mode === 'QUICK' ? PROBLEM_MIN_QUICK
-    : mode === 'STRUCTURED' ? PROBLEM_MIN_STRUCTURED
-    : PROBLEM_MIN_CONTROLLED;
+  if (typeof modeOrLightweightOrRules === 'boolean') {
+    mode = modeOrLightweightOrRules ? 'QUICK' : 'STRUCTURED';
+    fieldRules = fieldRulesFromDb ?? null;
+  } else if (typeof modeOrLightweightOrRules === 'string') {
+    mode = modeOrLightweightOrRules;
+    fieldRules = fieldRulesFromDb ?? null;
+  } else {
+    // FieldRulesMap passed directly — infer mode from rules content
+    fieldRules = modeOrLightweightOrRules;
+    mode = 'STRUCTURED'; // default, but rules override everything
+  }
 
-  const scopeMin = mode === 'QUICK' ? SCOPE_MIN_QUICK
-    : mode === 'STRUCTURED' ? SCOPE_MIN_STRUCTURED
-    : SCOPE_MIN_CONTROLLED;
+  const problemMin = resolveMinLength(fieldRules, 'problem_statement', mode, {
+    QUICK: PROBLEM_MIN_QUICK,
+    STRUCTURED: PROBLEM_MIN_STRUCTURED,
+    CONTROLLED: PROBLEM_MIN_CONTROLLED,
+  });
+
+  const problemMax = resolveMaxLength(fieldRules, 'problem_statement', 5000);
+
+  const scopeMin = resolveMinLength(fieldRules, 'scope', mode, {
+    QUICK: SCOPE_MIN_QUICK,
+    STRUCTURED: SCOPE_MIN_STRUCTURED,
+    CONTROLLED: SCOPE_MIN_CONTROLLED,
+  });
+
+  const scopeMax = resolveMaxLength(fieldRules, 'scope', 3000);
+  const titleMax = resolveMaxLength(fieldRules, 'title', TITLE_MAX);
+
+  // Scope: required in STRUCTURED/CONTROLLED, optional in QUICK (unless DB overrides)
+  const scopeIsOptional = fieldRules
+    ? !isRequired(fieldRules, 'scope')
+    : mode === 'QUICK';
 
   return z.object({
     // Step 1 — Challenge Brief
-    title: z.string().min(1, 'Title is required').max(TITLE_MAX, `Title cannot exceed ${TITLE_MAX} characters`).trim(),
-    hook: z.string().max(300, 'Hook cannot exceed 300 characters').optional().or(z.literal('')),
-    description: z.string().max(2000).optional().or(z.literal('')),
+    title: z.string().min(1, 'Title is required').max(titleMax, `Title cannot exceed ${titleMax} characters`).trim(),
+    hook: z.string().max(resolveMaxLength(fieldRules, 'hook', 300)).optional().or(z.literal('')),
+    description: z.string().max(resolveMaxLength(fieldRules, 'description', 2000)).optional().or(z.literal('')),
     problem_statement: z.string()
       .min(problemMin, `Problem statement must be at least ${problemMin} characters`)
-      .max(5000, 'Max 5000 characters')
+      .max(problemMax, `Max ${problemMax} characters`)
       .trim(),
-    scope: mode === 'QUICK'
-      ? z.string().max(3000).optional().or(z.literal(''))
+    scope: scopeIsOptional
+      ? z.string().max(scopeMax).optional().or(z.literal(''))
       : z.string()
           .min(scopeMin, `Scope must be at least ${scopeMin} characters`)
-          .max(3000, 'Max 3000 characters')
+          .max(scopeMax, `Max ${scopeMax} characters`)
           .trim(),
     domain_tags: z.array(z.string()).min(1, 'At least one domain tag is required'),
     taxonomy_tags: z.string().max(500).optional().or(z.literal('')),

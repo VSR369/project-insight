@@ -6,6 +6,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { CACHE_STANDARD } from '@/config/queryCache';
+import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 
 /* ─── Types ──────────────────────────────────────────────── */
 
@@ -155,7 +156,7 @@ export function usePublicationReadiness(challengeId: string | undefined) {
       }
 
       const c = challenge as Record<string, unknown>;
-      const isLightweight = c.governance_profile === 'LIGHTWEIGHT';
+      const isLightweight = isQuickMode(resolveGovernanceMode(c.governance_profile as string | null));
       const docs = legalDocs ?? [];
       const lcRequired = !!(c.lc_review_required);
 

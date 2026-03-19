@@ -32,6 +32,9 @@ import { useRoleReadinessGate } from '@/hooks/cogniblend/useRoleReadinessGate';
 import { SubmissionBlockedScreen } from '@/components/rbac/SubmissionBlockedScreen';
 import { useChallengeDetail, useMandatoryFields, useSaveChallengeStep, useSubmitChallengeForReview } from '@/hooks/queries/useChallengeForm';
 import { useSubmitSolutionRequest } from '@/hooks/cogniblend/useSubmitSolutionRequest';
+import { useGovernanceFieldRules } from '@/hooks/queries/useGovernanceFieldRules';
+import { resolveGovernanceMode, isQuickMode, isEnterpriseGrade, type GovernanceMode } from '@/lib/governanceMode';
+import { GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ChallengeProgressBar } from '@/components/cogniblend/challenge-wizard/ChallengeProgressBar';
 import { ChallengeWizardBottomBar } from '@/components/cogniblend/challenge-wizard/ChallengeWizardBottomBar';
 import { StepProblem } from '@/components/cogniblend/challenge-wizard/StepProblem';
@@ -87,15 +90,21 @@ export default function ChallengeWizardPage() {
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  const governanceProfile = isEditMode
+  // Resolve governance from org or existing challenge — NOT hardcoded
+  const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
-    : currentOrg ? 'LIGHTWEIGHT' : null;
+    : (currentOrg as any)?.governanceProfile ?? null;
 
-  const isLightweight = governanceProfile !== 'ENTERPRISE';
+  const governanceMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
+  const isLightweight = isQuickMode(governanceMode);
+  const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
+
+  // Fetch DB-driven field rules for this governance mode
+  const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
 
   const activeSchema = useMemo(
-    () => createChallengeFormSchema(isLightweight),
-    [isLightweight],
+    () => createChallengeFormSchema(governanceMode, fieldRules ?? undefined),
+    [governanceMode, fieldRules],
   );
 
   // ═══════ Hooks — form ═══════
@@ -197,7 +206,7 @@ export default function ChallengeWizardPage() {
   }, [isEditMode, tierLimit]);
 
   // ═══════ Conditional returns ═══════
-  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || (!isEditMode && tierLimitLoading) || (!isEditMode && readinessGate.isLoading)) {
+  if (orgLoading || (isEditMode && challengeLoading) || fieldsLoading || fieldRulesLoading || (!isEditMode && tierLimitLoading) || (!isEditMode && readinessGate.isLoading)) {
     return (
       <div className="max-w-3xl mx-auto space-y-6">
         <Skeleton className="h-8 w-60" />
@@ -232,7 +241,8 @@ export default function ChallengeWizardPage() {
   }
 
   // ═══════ Derived ═══════
-  const isEnterprise = governanceProfile === 'ENTERPRISE';
+  const isEnterprise = isEnterpriseGrade(governanceMode);
+  const modeConfig = GOVERNANCE_MODE_CONFIG[governanceMode];
   const pageTitle = isEditMode ? 'Edit Challenge' : 'Creating New Challenge';
   const sourceRequest = (challengeData?.phase_schedule as any)?.source_request_context;
 
@@ -511,7 +521,7 @@ export default function ChallengeWizardPage() {
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-sm text-muted-foreground">
-              {isLightweight ? 'Lightweight governance' : 'Enterprise governance'}
+              {modeConfig.label} governance
             </p>
             <span className="text-muted-foreground">·</span>
             <button
@@ -632,25 +642,25 @@ export default function ChallengeWizardPage() {
       <div className="bg-white rounded-xl p-6" style={{ border: '1px solid #E5E7EB' }}>
         <form onSubmit={(e) => e.preventDefault()}>
           {currentStep === 1 && (
-            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepProblem form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 2 && (
-            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepEvaluation form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 3 && (
-            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepRewards form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 4 && (
-            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepTimeline form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 5 && (
-            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepProviderEligibility form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 6 && (
-            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} />
+            <StepTemplates form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} />
           )}
           {currentStep === 7 && (
-            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} onNavigateToStep={(step) => setCurrentStep(step)} />
+            <StepReviewSubmit form={form} mandatoryFields={mandatoryFields} isLightweight={isLightweight} fieldRules={fieldRules} onNavigateToStep={(step) => setCurrentStep(step)} />
           )}
 
           {/* Bottom Bar */}

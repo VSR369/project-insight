@@ -12,6 +12,7 @@
  *  - GATE-02 validation on submit → complete_phase (Phase 2 → 3)
  */
 
+import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -451,10 +452,9 @@ export default function LegalDocumentAttachmentPage() {
   });
 
   // ══════════════════════════════════════
-  // SECTION 6: Auto-attach defaults for Lightweight
+  // SECTION 6: Auto-attach defaults for Quick mode
   // ══════════════════════════════════════
-  const isLightweight =
-    (challenge?.governance_profile ?? "").toLowerCase() === "lightweight";
+  const isLightweight = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
 
   useEffect(() => {
     if (!isLightweight || !requiredDocs || attachedDocs.length > 0) return;
