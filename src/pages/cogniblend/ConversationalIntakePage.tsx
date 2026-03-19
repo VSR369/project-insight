@@ -186,7 +186,8 @@ export default function ConversationalIntakePage() {
       toast.success('AI specification generated!');
       navigate(`/cogni/challenges/${challengeId}/spec`);
     } catch {
-      // Errors handled by mutation onError callbacks
+      // Show amber fallback banner — user can continue manually
+      setAiFailure(true);
     }
   };
 
