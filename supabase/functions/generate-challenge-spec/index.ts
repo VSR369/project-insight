@@ -123,8 +123,8 @@ Generate a complete challenge specification.`;
                   hook: { type: "string", description: "1-2 sentence compelling hook" },
                   ip_model: {
                     type: "string",
-                    enum: ["FULL_TRANSFER", "LICENSE", "SHARED", "SOLVER_RETAINS"],
-                    description: "Recommended IP model",
+                    enum: ["IP-EA", "IP-NEL", "IP-EL", "IP-JO", "IP-NONE"],
+                    description: "Recommended IP model: IP-EA (Exclusive Assignment/Full Transfer), IP-NEL (Non-Exclusive License), IP-EL (Exclusive License), IP-JO (Joint Ownership/Shared), IP-NONE (No Transfer/Solver Retains)",
                   },
                 },
                 required: ["title", "problem_statement", "scope", "description", "deliverables", "evaluation_criteria", "eligibility", "hook", "ip_model"],
