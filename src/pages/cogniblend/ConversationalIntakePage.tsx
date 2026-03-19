@@ -192,8 +192,17 @@ export default function ConversationalIntakePage() {
         },
       });
 
-      toast.success('AI specification generated!');
-      navigate(`/cogni/challenges/${challengeId}/spec`);
+      const govMode = resolveGovernanceMode(currentOrg.governanceProfile);
+      const route = getPostGenerationRoute(challengeId, govMode);
+
+      if (shouldRequireAdvancedEditor(govMode)) {
+        toast.success('AI draft generated — all fields require manual verification in Controlled mode.');
+      } else if (shouldSuggestAdvancedEditor(govMode)) {
+        toast.success('AI specification generated! Consider refining in the Advanced Editor.');
+      } else {
+        toast.success('AI specification generated!');
+      }
+      navigate(route);
     } catch {
       // Show amber fallback banner — user can continue manually
       setAiFailure(true);
