@@ -5,7 +5,8 @@
  */
 
 import { Suspense, useState, useCallback } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import { Outlet, useLocation, Link } from 'react-router-dom';
+import { Users } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CogniSidebar } from './CogniSidebar';
 import { CogniTopBar } from './CogniTopBar';
