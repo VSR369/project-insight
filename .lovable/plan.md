@@ -1,47 +1,30 @@
 
 
-# Why the "AI generation unavailable" banner appears
+# Fix: Maturity Level Case Mismatch
 
 ## Root Cause
 
-The banner is **misleading** — the AI generation itself is NOT failing. The error comes from the **challenge creation step** that runs AFTER successful AI generation.
+The database validation trigger on the `challenges` table rejects lowercase maturity values:
 
-The flow in `handleGenerateWithAI` (ConversationalIntakePage.tsx, lines 315-391) is:
-
-```text
-1. generateSpec.mutateAsync()    ← AI edge function (this WORKS)
-2. createChallenge.mutateAsync() ← initialize_challenge RPC (this FAILS)
-3. saveStep.mutateAsync()        ← never reached
+```sql
+IF NEW.maturity_level NOT IN ('BLUEPRINT','POC','PROTOTYPE','PILOT') THEN
+  RAISE EXCEPTION 'Invalid maturity_level: %', NEW.maturity_level;
+END IF;
 ```
 
-The entire sequence is wrapped in a single `try/catch` (line 388):
+But the Conversational Intake form sends lowercase values (`blueprint`, `poc`, etc.) via `saveStep` on line 372 of `ConversationalIntakePage.tsx`.
+
+## Fix
+
+**Single change in `ConversationalIntakePage.tsx`** — uppercase the maturity_level before saving:
+
 ```tsx
-} catch {
-  setAiFailure(true);  // Shows "AI generation unavailable" banner
-}
+maturity_level: data.maturity_level.toUpperCase(),
 ```
 
-So when `initialize_challenge` fails (the `tenant_id` column error we just fixed), the catch block sets `aiFailure = true`, displaying the misleading "AI generation unavailable" banner.
+Line 372: change `maturity_level: data.maturity_level` → `maturity_level: data.maturity_level.toUpperCase()`.
 
-## Current Status
+Also apply the same fix in `ChallengeWizardPage.tsx` wherever `maturity_level` is written to DB via `buildFieldsFromForm`, to ensure consistency across both creation paths.
 
-The database migration fixing `initialize_challenge` (removing `tenant_id` from `sla_timers` INSERT) was **just applied**. I confirmed:
-- The DB function now has the correct code (verified via `pg_proc`)
-- The edge function `generate-challenge-spec` IS deployed and responding
-- No error logs from the edge function
-
-## What to do
-
-### 1. Try again
-The fix was just applied. Please **reload the page** and try "Generate with AI" again. The `initialize_challenge` function should now succeed.
-
-### 2. Fix misleading error handling (code change)
-If the challenge creation step fails, the user should see a specific error — not "AI generation unavailable." The fix:
-
-- In `ConversationalIntakePage.tsx`, update the catch block to distinguish between AI generation failures and challenge creation failures
-- Show "AI generation unavailable" only when `generateSpec` fails
-- Show "Challenge creation failed" when `createChallenge` or `saveStep` fails
-- In the challenge creation failure case, offer a retry that skips the AI step (since the spec was already generated)
-
-This is a small change to the `handleGenerateWithAI` function — splitting the single try/catch into separate error handling for each step.
+No database changes needed — the trigger validation is correct; the application code just needs to send the right case.
 
