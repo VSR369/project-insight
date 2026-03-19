@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import { handleMutationError } from '@/lib/errorHandler';
 import { withCreatedBy, withUpdatedBy } from '@/lib/auditFields';
 import { CACHE_STANDARD } from '@/config/queryCache';
+import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
 
 /* ─── Types ──────────────────────────────────────────────── */
 

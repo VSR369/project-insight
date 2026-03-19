@@ -453,10 +453,6 @@ export default function LegalDocumentAttachmentPage() {
   // ══════════════════════════════════════
   // SECTION 6: Auto-attach defaults for Quick mode
   // ══════════════════════════════════════
-  const { resolveGovernanceMode, isQuickMode } = await import('@/lib/governanceMode').catch(() => ({
-    resolveGovernanceMode: (p: string | null | undefined) => ((p ?? '').toUpperCase().trim() === 'LIGHTWEIGHT' || (p ?? '').toUpperCase().trim() === 'QUICK') ? 'QUICK' as const : 'STRUCTURED' as const,
-    isQuickMode: (m: string) => m === 'QUICK',
-  }));
   const isLightweight = isQuickMode(resolveGovernanceMode(challenge?.governance_profile));
 
   useEffect(() => {
