@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { resolveGovernanceMode, isEnterpriseGrade } from '@/lib/governanceMode';
 
 const STEP_NEXT_LABELS: Record<number, string> = {
+  0: 'Continue to Challenge Brief',
   1: 'Continue to Evaluation Criteria',
   2: 'Next: Rewards & Payment',
   3: 'Next: Timeline & Phase Schedule',
@@ -17,6 +18,7 @@ const STEP_NEXT_LABELS: Record<number, string> = {
 };
 
 const STEP_BACK_LABELS: Record<number, string> = {
+  1: 'Back to Mode & Model',
   2: 'Back to Challenge Brief',
   3: 'Back to Evaluation',
   4: 'Back to Rewards',
@@ -69,7 +71,7 @@ export function ChallengeWizardBottomBar({
 
       {/* Right — Back + Next/Submit */}
       <div className="flex items-center gap-2">
-        {currentStep > 1 && (
+        {currentStep > 0 && (
           <Button type="button" variant="outline" onClick={onBack} disabled={isSaving || isSubmitting}>
             <ArrowLeft className="h-4 w-4 mr-1" />
             {backLabel}

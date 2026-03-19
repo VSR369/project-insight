@@ -6,10 +6,10 @@
  * Plus operating model selector (MP / AGG).
  */
 
-import { UseFormReturn, Controller } from 'react-hook-form';
+import { Controller } from 'react-hook-form';
+import type { UseFormReturn } from 'react-hook-form';
 import { Info, Zap, Settings2, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
@@ -84,7 +84,7 @@ export function StepModeSelection({
   disabledModes = [],
   tierName,
 }: StepModeSelectionProps) {
-  const selectedMode = form.watch('governance_mode') ?? 'STRUCTURED';
+  const selectedMode = (form.watch('governance_mode') ?? 'STRUCTURED') as GovernanceMode;
   const selectedModel = form.watch('operating_model') ?? orgOperatingModel ?? 'MP';
 
   return (
