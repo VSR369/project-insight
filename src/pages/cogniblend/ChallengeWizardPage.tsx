@@ -71,7 +71,7 @@ const BUSINESS_RULES = [
 
 export default function ChallengeWizardPage() {
   // ═══════ Hooks — state ═══════
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(0);
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
   const [showSummary, setShowSummary] = useState(false);
   const [showTierLimit, setShowTierLimit] = useState(false);
