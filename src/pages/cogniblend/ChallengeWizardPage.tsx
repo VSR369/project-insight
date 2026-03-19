@@ -90,15 +90,21 @@ export default function ChallengeWizardPage() {
 
   const isAggBypass = orgContext?.operatingModel === 'AGG' && orgContext?.phase1Bypass;
 
-  const governanceProfile = isEditMode
+  // Resolve governance from org or existing challenge — NOT hardcoded
+  const rawGovernanceProfile = isEditMode
     ? challengeData?.governance_profile ?? null
-    : currentOrg ? 'LIGHTWEIGHT' : null;
+    : (currentOrg as any)?.governanceProfile ?? null;
 
-  const isLightweight = governanceProfile !== 'ENTERPRISE';
+  const governanceMode: GovernanceMode = resolveGovernanceMode(rawGovernanceProfile);
+  const isLightweight = isQuickMode(governanceMode);
+  const governanceProfile = rawGovernanceProfile; // keep for legacy prop passing
+
+  // Fetch DB-driven field rules for this governance mode
+  const { data: fieldRules, isLoading: fieldRulesLoading } = useGovernanceFieldRules(governanceMode);
 
   const activeSchema = useMemo(
-    () => createChallengeFormSchema(isLightweight),
-    [isLightweight],
+    () => createChallengeFormSchema(governanceMode, fieldRules ?? undefined),
+    [governanceMode, fieldRules],
   );
 
   // ═══════ Hooks — form ═══════
