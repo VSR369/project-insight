@@ -43,6 +43,8 @@ import { useSubmitSolutionRequest, useSaveDraft } from '@/hooks/cogniblend/useSu
 import { useCreateDuplicateReview } from '@/hooks/cogniblend/useDuplicateReview';
 import { useIndustrySegmentOptions } from '@/hooks/queries/useTaxonomySelectors';
 import { useTaxonomyCascade } from '@/hooks/queries/useTaxonomyCascade';
+import { useEngagementModels } from '@/hooks/queries/useEngagementModels';
+import { EngagementModelSelector } from '@/components/org/EngagementModelSelector';
 import { useTaxonomySuggestions } from '@/hooks/cogniblend/useTaxonomySuggestions';
 import { FileUploadZone } from '@/components/shared/FileUploadZone';
 import TierLimitModal from '@/components/cogniblend/TierLimitModal';
