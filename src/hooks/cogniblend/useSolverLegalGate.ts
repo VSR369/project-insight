@@ -115,7 +115,7 @@ export function useSolverLegalGate(
         pendingDocs: pending,
       };
     },
-    enabled: !!challengeId && !!userId && !!currentPhase && currentPhase >= 7,
+    enabled: !!challengeId && !!userId && !!currentPhase && currentPhase >= 9,
     ...CACHE_STANDARD,
   });
 
