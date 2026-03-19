@@ -150,6 +150,7 @@ serve(async (req) => {
       id: orgId,
       tenant_id: orgId,
       organization_name: config.orgName,
+      legal_entity_name: config.orgName,
       operating_model: config.operatingModel,
       governance_profile: config.governanceProfile,
       phase1_bypass: config.phase1Bypass,
