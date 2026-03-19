@@ -139,17 +139,19 @@ export default function ConversationalIntakePage() {
 
   const handleGenerateWithAI = async (data: IntakeFormValues) => {
     setAiFailure(false);
+
+    // Fail early if org/user context is missing
+    if (!currentOrg || !user?.id) {
+      toast.error('Organization not found. Please ensure your demo scenario is seeded or log in again.');
+      return;
+    }
+
     try {
       const spec = await generateSpec.mutateAsync({
         problem_statement: data.problem_statement,
         maturity_level: data.maturity_level,
         template_id: selectedTemplate?.id,
       });
-
-      if (!currentOrg || !user?.id) {
-        toast.error('Organization not found. Please refresh.');
-        return;
-      }
 
       // Create challenge with AI-generated spec
       const { challengeId } = await createChallenge.mutateAsync({
