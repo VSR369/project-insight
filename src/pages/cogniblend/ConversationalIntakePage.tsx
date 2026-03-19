@@ -328,14 +328,21 @@ export function ConversationalIntakeContent({
       return;
     }
 
+    // Step 1: AI spec generation
+    let spec;
     try {
-      const spec = await generateSpec.mutateAsync({
+      spec = await generateSpec.mutateAsync({
         problem_statement: data.problem_statement,
         maturity_level: data.maturity_level,
         template_id: selectedTemplate?.id,
       });
+    } catch {
+      setAiFailure(true);
+      return;
+    }
 
-      // Create challenge record with intake fields
+    // Step 2: Challenge creation + save (DB operations — NOT an AI failure)
+    try {
       const { challengeId } = await createChallenge.mutateAsync({
         orgId: currentOrg.organizationId,
         creatorId: user.id,
@@ -385,8 +392,9 @@ export function ConversationalIntakeContent({
         toast.success('AI specification generated! Confirm to submit.');
       }
       navigate(route);
-    } catch {
-      setAiFailure(true);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      toast.error(`Failed to create challenge: ${message}`, { duration: 8000 });
     }
   };
 
