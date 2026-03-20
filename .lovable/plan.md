@@ -1,47 +1,51 @@
 
 
-## Plan: Fix AI Spec Review Page Data Loading
+## Plan: Auto-Generate AI Spec on Page Load for Incomplete Challenges
 
-### Problems Identified
+### Problem
 
-**1. `profiles.display_name` column does not exist (400 errors)**
-Two files query `profiles.display_name`, but the actual column names are `first_name` and `last_name`. This causes 400 errors on the dashboard and CR assignment lookups.
+The "New Horizon Company — Demo Challenge" (a7962f69) was created by the test setup script with:
+- `description`: "This is a demo challenge created by the test scenario setup." (non-null)
+- `problem_statement`: null
+- `scope`: null
+- `hook`: null
+- `ip_model`: null
+- `deliverables.items`: empty array
+- `evaluation_criteria`: has criterion names but all descriptions are empty strings
 
-- `src/hooks/queries/useMyRequests.ts` (line 84)
-- `src/pages/requests/SolutionRequestsListPage.tsx` (line 166)
+Because `description` is non-null, the current `hasAiData` guard on line 820 passes (it checks `challenge.description`), so the page renders — but every section shows "No content yet" because the actual AI-generated fields are missing.
 
-**2. WhatsNextCard shows ALL org challenges, not just the user's**
-The query fetches challenges in phases 1-4 regardless of user involvement. This led the user to click into a **demo challenge** (phase 1, no AI data) thinking it was their AI-generated challenge.
+### Solution
 
-**3. Demo challenge at phase 1 shows empty fields on spec review**
-The challenge `a7962f69` was created by the test setup script with null `problem_statement`, `scope`, `hook`, `ip_model`, and empty `deliverables`. The spec review page shows "No content yet" for all these fields because no AI generation was ever run for it.
+When the spec review page detects that key AI fields are missing (even if `description` exists), automatically invoke the `generate-challenge-spec` edge function to populate ALL sections, save the result to the database, and refresh the page.
 
-**4. `check_sla_status` RPC error: `"record "v_timer" has no field "duration_days"`**
-A minor DB function bug causing 400 errors on the dashboard.
+### Change: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-### Changes
+**1. Fix the `hasAiData` check (line 820-830)**
+- Remove `challenge.description` from the check — a generic description from a seed script does not count as AI data
+- The check becomes: `problem_statement` OR `hook` OR `scope` OR non-empty deliverables items
 
-**File 1: `src/hooks/queries/useMyRequests.ts`**
-- Change `select('id, display_name, email')` to `select('id, first_name, last_name, email')`
-- Update the profile name resolution to use `first_name + last_name` or fall back to email
+**2. Replace the static "No AI Specification Available" guard (lines 832-858) with auto-generation logic**
 
-**File 2: `src/pages/requests/SolutionRequestsListPage.tsx`**
-- Same fix as above: replace `display_name` with `first_name, last_name`
+Add:
+- Import `useGenerateChallengeSpec` from `@/hooks/mutations/useGenerateChallengeSpec`
+- A `useRef` flag (`autoGenTriggered`) to prevent double-firing in StrictMode
+- A `useEffect` that runs when `hasAiData` is false and challenge data is loaded:
+  1. Calls `generateSpec.mutateAsync()` with `problem_statement` set to `challenge.description || challenge.title` and `maturity_level` set to `challenge.maturity_level || 'blueprint'`
+  2. On success, maps the returned `GeneratedSpec` to challenge fields and calls `saveStep.mutateAsync()` to persist ALL fields: `title`, `problem_statement`, `scope`, `description`, `deliverables` (as `{items: [...]}` format), `evaluation_criteria` (as `{criteria: [...]}` format), `hook`, `ip_model`, `maturity_level`, `solver_eligibility_types`, `solver_visibility_types`, `challenge_visibility`
+  3. Query invalidation happens automatically via `useSaveChallengeStep.onSuccess`
+  4. Shows a success toast
+  5. On error, sets an error state with retry option
 
-**File 3: `src/components/cogniblend/dashboard/WhatsNextCard.tsx`**
-- Filter challenges to only show those where the current user has an active `user_challenge_roles` entry
-- Join or sub-query `user_challenge_roles` filtered by `user_id`
+- While generating, render a loading UI: Sparkles icon with "Generating AI Specification..." text and skeleton placeholders for each section
+- On error, render an error state with "Retry" button and fallback link to Advanced Editor
 
-**File 4: `src/pages/cogniblend/AISpecReviewPage.tsx`**
-- Add a guard: if the challenge has no AI-generated data (null `problem_statement`, empty deliverables, null hook), show an info banner explaining "This challenge was not created with AI. Use the AI creation flow to generate a specification." with a link to create or to the Advanced Editor.
-
-**File 5: DB migration to fix `check_sla_status` function**
-- Fix the `duration_days` column reference in the `check_sla_status` RPC to use the correct column name from `sla_timers`.
+**No other files need changes.** The edge function, save mutation, and query invalidation all exist already.
 
 ### Technical Details
 
-- The `profiles` table has columns: `id, user_id, first_name, last_name, email, phone, avatar_url, created_at, updated_at`
-- Profile display name should be constructed as `[first_name last_name].trim() || email`
-- The WhatsNextCard should use `user_challenge_roles` to filter: query the user's active challenge roles first, then filter challenges by those IDs
-- The spec review "no data" guard checks: if `problem_statement` is null AND `hook` is null AND deliverables items are empty, show the info state
+- `useGenerateChallengeSpec` calls the `generate-challenge-spec` edge function (already deployed and working — it successfully generated challenge 3c9839ae)
+- The `GeneratedSpec` response includes: `title`, `problem_statement`, `scope`, `description`, `deliverables[]`, `evaluation_criteria[]`, `hook`, `ip_model`, `solver_eligibility_codes`, `solver_eligibility_details`, `visible_solver_codes`, `solver_visibility_details`, `eligibility_notes`, `challenge_visibility`
+- `useSaveChallengeStep` normalizes fields and updates the `challenges` table, then invalidates `['challenge-detail', challengeId]` causing re-render with populated data
+- The `useRef` guard prevents the effect from firing twice in React StrictMode
 
