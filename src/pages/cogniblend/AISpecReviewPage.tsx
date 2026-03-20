@@ -409,6 +409,7 @@ function EditableSectionCard({
   onAccept,
   onEdit,
   onSave,
+  solverEditor,
 }: {
   section: SpecSection;
   value: string;
@@ -418,6 +419,7 @@ function EditableSectionCard({
   onAccept: () => void;
   onEdit: () => void;
   onSave: (val: string) => void;
+  solverEditor?: React.ReactNode;
 }) {
   const [editValue, setEditValue] = useState(value);
   const isStructured = section.renderer && section.renderer !== 'text';
@@ -471,7 +473,7 @@ function EditableSectionCard({
           className="text-sm resize-none"
         />
       ) : (
-        <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} />
+        <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} solverEditor={solverEditor} />
       )}
     </div>
   );
