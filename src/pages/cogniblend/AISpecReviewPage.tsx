@@ -52,7 +52,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
+
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
@@ -78,7 +78,7 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'description', label: 'Detailed Description', fieldKey: 'description', isAiDrafted: true },
   { key: 'deliverables', label: 'Deliverables', fieldKey: 'deliverables', isAiDrafted: true, renderer: 'deliverables' },
   { key: 'evaluation_criteria', label: 'Evaluation Criteria', fieldKey: 'evaluation_criteria', isAiDrafted: true, renderer: 'evaluation_criteria' },
-  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_codes', isAiDrafted: true, renderer: 'solver_eligibility' },
+  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
   { key: 'hook', label: 'Challenge Hook', fieldKey: 'hook', isAiDrafted: true },
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
@@ -88,7 +88,12 @@ type SectionStatus = 'pending' | 'accepted' | 'editing';
 /* ─── Deliverables Renderer ───────────────────────────── */
 
 function DeliverablesDisplay({ data }: { data: unknown }) {
-  const items: string[] = Array.isArray(data) ? data : [];
+  // Handle both raw array and wrapped { items: [...] } format
+  const items: string[] = Array.isArray(data)
+    ? data
+    : (data && typeof data === 'object' && 'items' in (data as Record<string, unknown>) && Array.isArray((data as Record<string, unknown>).items))
+      ? (data as Record<string, unknown>).items as string[]
+      : [];
   if (items.length === 0) return <p className="text-sm text-muted-foreground italic">No deliverables defined</p>;
 
   return (
@@ -108,8 +113,13 @@ function DeliverablesDisplay({ data }: { data: unknown }) {
 /* ─── Evaluation Criteria Renderer ────────────────────── */
 
 function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
+  // Handle both raw array and wrapped { criteria: [...] } format
   const criteria: Array<{ name: string; weight: number; description: string }> =
-    Array.isArray(data) ? data : [];
+    Array.isArray(data)
+      ? data
+      : (data && typeof data === 'object' && 'criteria' in (data as Record<string, unknown>) && Array.isArray((data as Record<string, unknown>).criteria))
+        ? (data as Record<string, unknown>).criteria as Array<{ name: string; weight: number; description: string }>
+        : [];
   if (criteria.length === 0) return <p className="text-sm text-muted-foreground italic">No criteria defined</p>;
 
   const totalWeight = criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0);
@@ -287,11 +297,6 @@ function SolverEligibilityEditor({
         </Select>
       </div>
 
-      {/* Access Model Summary */}
-      <AccessModelSummary
-        visibility={visibility}
-        eligibleSolverLabels={selectedCategories.map((c) => c.label)}
-      />
 
       {/* Free-text eligibility notes */}
       {eligNotes && (
@@ -307,10 +312,12 @@ function SolverEligibilityEditor({
 /* ─── Read-Only Solver Display (for QUICK mode) ─────── */
 
 function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, unknown> }) {
-  const details: SolverEligibilityDetail[] = Array.isArray(challenge.solver_eligibility_details)
-    ? challenge.solver_eligibility_details as SolverEligibilityDetail[]
+  // Read from solver_eligibility_types (DB column) — array of { code, label } objects
+  const rawTypes = challenge.solver_eligibility_types;
+  const details: SolverEligibilityDetail[] = Array.isArray(rawTypes)
+    ? rawTypes as SolverEligibilityDetail[]
     : [];
-  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
+  const eligNotes = (challenge.eligibility as string) || '';
   const visibility = (challenge.challenge_visibility as string) || 'public';
 
   return (
@@ -347,10 +354,6 @@ function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, un
         <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
       )}
 
-      <AccessModelSummary
-        visibility={visibility}
-        eligibleSolverLabels={details.map((d) => d.label)}
-      />
 
       {eligNotes && (
         <div className="rounded-lg border border-border bg-card p-3.5">
@@ -530,8 +533,10 @@ export default function AISpecReviewPage() {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
 
     const challengeRecord = challenge as unknown as Record<string, unknown>;
-    const aiCodes: string[] = Array.isArray(challengeRecord.solver_eligibility_codes)
-      ? challengeRecord.solver_eligibility_codes as string[]
+    // Read from solver_eligibility_types (DB column) — array of { code, label }
+    const rawTypes = challengeRecord.solver_eligibility_types;
+    const aiCodes: string[] = Array.isArray(rawTypes)
+      ? (rawTypes as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
       : [];
 
     // Map AI-selected codes to IDs
