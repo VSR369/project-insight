@@ -346,6 +346,7 @@ const App = () => (
               <Route path="/cogni/challenges/:id/submit" element={<LazyRoute><SolutionSubmitPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/solutions/:solId/upload" element={<LazyRoute><FullSolutionUploadPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/screen" element={<LazyRoute><ScreeningReviewPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/:id" element={<LazyRoute><ChallengeManagePage /></LazyRoute>} />
               <Route path="/cogni/curation" element={<LazyRoute><CurationQueuePage /></LazyRoute>} />
               <Route path="/cogni/curation/:id" element={<LazyRoute><CurationReviewPage /></LazyRoute>} />
 
