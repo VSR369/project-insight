@@ -1,91 +1,102 @@
 
 
-## Plan: Two-Tab Demo Login with Explicit AI vs Manual Paths
+## Plan: Fix Legal Coordinator Workflow + Enhance FC Escrow Details
 
-### Problem
-The demo login page mixes all roles into a single flat grid, making it unclear which workflow path to follow. The AI-Assisted path is incomplete — it lacks screens for Legal Coordinator, Curator, and Innovation Director. Meanwhile the Manual Editor path (8-step wizard) is fully functional. Users need two clearly separated demo experiences.
+### Current Issues Identified
 
-### Design
+1. **Legal Document Ownership is Wrong in Concept**: The current `LegalDocumentAttachmentPage` is used by the Creator (CR) to attach legal docs before submitting to curation. The user's correction: **Legal Coordinator (LC)** should be the one who creates/attaches legal documents — they receive the challenge from CR, AI suggests required documents, LC reviews/modifies/uploads, then submits to Curator.
 
-**DemoLoginPage** gets two tabs:
-- **Tab 1: "AI-Assisted Path"** — Each role card shows the AI-path-specific action and description. On login, navigates to the appropriate AI workflow screen for that role. Each role card includes a step indicator (e.g., "Step 2: Spec Review", "Step 3: Legal Docs", "Step 4: Curation").
-- **Tab 2: "Manual Editor Path"** — Same roles but descriptions reference the 8-step wizard. On login, navigates to the manual editor entry point.
+2. **FC Escrow Page is a Placeholder**: `/cogni/escrow` renders a `CogniPlaceholderPage` with no real functionality. The `EscrowDepositSection` exists only on the Publication Readiness page. FC needs a dedicated page to enter bank details (bank name, branch, address, currency, amount, date/time).
 
-After login, a `demoPath` value (`ai` or `manual`) is stored in `sessionStorage` so downstream pages can optionally show path-aware hints.
-
-**Role-specific login destinations:**
-
-| Role | AI Path Destination | Manual Path Destination |
-|------|-------------------|----------------------|
-| RQ (Requestor) | `/cogni/challenges/create?tab=ai` | `/cogni/challenges/create?tab=editor` |
-| CR (Creator) | `/cogni/challenges/create?tab=ai` | `/cogni/challenges/create?tab=editor` |
-| LC (Legal) | `/cogni/legal-review` | `/cogni/legal-review` |
-| CU (Curator) | `/cogni/curation` | `/cogni/curation` |
-| ID (Director) | `/cogni/approval` | `/cogni/approval` |
-| ER (Reviewer) | `/cogni/review` | `/cogni/review` |
-| FC (Finance) | `/cogni/escrow` | `/cogni/escrow` |
-| Solo | `/cogni/dashboard` | `/cogni/dashboard` |
-
-For downstream roles (LC, CU, ID), both paths use the same screens since those screens already show AI-generated content in read-only mode with AI review panels. The difference is that in the AI path, the challenge arrives pre-populated by AI; in the manual path, it arrives from the 8-step wizard.
+3. **`escrow_records` table is too thin**: It only has `deposit_amount`, `escrow_status`, `remaining_amount` — no bank details, currency, branch, etc.
 
 ### Changes
 
-**File 1: `src/pages/cogniblend/DemoLoginPage.tsx`** (major rewrite)
+**File 1: DB Migration — Extend `escrow_records` with banking details**
 
-- Import `Tabs, TabsList, TabsTrigger, TabsContent` from `@/components/ui/tabs`
-- Add `Sparkles` and `Settings2` icons for tab headers
-- Split `DEMO_USERS` into a single array but add path-specific descriptions and destinations:
-  ```ts
-  interface DemoUser {
-    email: string;
-    displayName: string;
-    roles: string[];
-    aiDescription: string;      // Description shown in AI tab
-    manualDescription: string;   // Description shown in Manual tab
-    aiDestination: string;       // Route after login in AI path
-    manualDestination: string;   // Route after login in Manual path
-    stepLabel?: string;          // e.g. "Step 2" for workflow context
-  }
-  ```
-- Wrap the role cards grid inside `<Tabs defaultValue="ai">` with two `TabsContent` panels
-- Each panel renders the same users but with path-specific description and a colored path indicator badge
-- `handleLogin` accepts a `path: 'ai' | 'manual'` parameter:
-  - Stores `sessionStorage.setItem('cogni_demo_path', path)` 
-  - Navigates to the path-specific destination instead of always `/cogni/dashboard`
-- Add a workflow visualization at top of each tab showing the 6-step flow with role assignments, highlighting which steps are AI-driven vs manual
-- Tab 1 header: "AI-Assisted Path" with Sparkles icon and subtitle "AI generates, roles review"
-- Tab 2 header: "Manual Editor Path" with Settings2 icon and subtitle "8-step wizard, full control"
-- Solo user (Sam Solo) appears in both tabs — AI tab navigates to `/cogni/challenges/create?tab=ai`, Manual tab to `/cogni/challenges/create?tab=editor`
+Add columns to `escrow_records`:
+- `bank_name` (text, nullable)
+- `bank_branch` (text, nullable)  
+- `bank_address` (text, nullable)
+- `currency` (text, default 'USD')
+- `deposit_date` (timestamptz, nullable)
+- `deposit_reference` (text, nullable — bank transaction reference)
+- `fc_notes` (text, nullable)
 
-**Visual layout per tab:**
+**File 2: New Edge Function `suggest-legal-documents`**
+
+An AI function that analyzes the challenge spec (maturity level, IP model, scope, solver eligibility) and suggests:
+- Which legal document types are needed and why
+- Draft content summaries for each document
+- Priority order for the LC to review
+
+Uses the same Lovable AI Gateway pattern as `check-challenge-quality`.
+
+**File 3: New Page `src/pages/cogniblend/LcLegalWorkspacePage.tsx`**
+
+Route: `/cogni/challenges/:id/lc-legal` (LC's dedicated workspace)
+
+This replaces the LC's entry point in the AI path. Layout:
+- Left panel: Read-only challenge summary (title, problem, scope, IP model, deliverables) — showing what CR created
+- Right panel: AI-suggested legal documents list with "Review AI Suggestion" expandable cards
+- Each card shows: document type, AI-suggested content preview, Accept/Modify/Upload Custom buttons
+- LC can accept AI suggestion (auto-attaches default), modify content, or upload custom document
+- Submit button triggers GATE-02 validation and advances to Curation (Phase 3)
+
+**File 4: New Page `src/pages/cogniblend/EscrowManagementPage.tsx`**
+
+Route: `/cogni/escrow` (replaces placeholder)
+
+FC sees challenges assigned to them that require escrow. For each:
+- Challenge title, reward structure summary, escrow applicability status
+- Form to enter: Bank Name, Branch, Address, Currency (dropdown), Deposited Amount, Deposit Date, Deposit Reference
+- "Confirm Escrow Deposit" button saves to `escrow_records` with status `FUNDED`
+- Read-only view if already funded
+
+**File 5: Update `src/pages/cogniblend/LegalDocumentAttachmentPage.tsx`**
+
+Add path-awareness:
+- If `sessionStorage.getItem('cogni_demo_path') === 'ai'` AND user has LC role: redirect to `/cogni/challenges/:id/lc-legal` (the new AI-assisted legal workspace)
+- If manual path or CR role: keep existing behavior (CR attaches docs manually)
+
+**File 6: Update `src/hooks/cogniblend/useEscrowDeposit.ts`**
+
+- Extend `EscrowRecord` interface with new banking fields
+- Update `useVerifyEscrow` mutation to save banking details alongside status change
+
+**File 7: Update `src/App.tsx`**
+
+- Add route: `/cogni/challenges/:id/lc-legal` → `LcLegalWorkspacePage`
+- Replace `/cogni/escrow` placeholder with `EscrowManagementPage`
+
+**File 8: Update `src/pages/cogniblend/DemoLoginPage.tsx`**
+
+- LC's `aiDestination` changes to `/cogni/challenges/a7962f69-.../lc-legal` (the demo challenge)
+- FC's `aiDestination` changes to `/cogni/escrow` (now a real page)
+
+**File 9: Update `src/components/cogniblend/demo/DemoWorkflowSteps.tsx`**
+
+- Step 3 note for AI path: "AI suggests docs, LC reviews" (not "Upload & AI review")
+
+### Workflow Correction Summary
+
 ```text
-┌─────────────────────────────────────────────────┐
-│  Workflow:  Create → Review → Legal → Curation  │
-│             → Approval → Publication            │
-│  [Step 1]   [Step 2]  [Step 3]  [Step 4]  ...   │
-└─────────────────────────────────────────────────┘
+AI Path:
+  CR creates with AI → CR reviews spec → LC receives challenge
+  → AI suggests legal docs → LC reviews/modifies/uploads → Submit to Curation
+  → CU reviews full package (spec + legal) with AI quality check
+  → ID approves → FC confirms escrow (parallel) → Publication
 
-┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-│ Chris Rivera │ │ Leslie Chen  │ │ Casey Underw │
-│ CR           │ │ LC           │ │ CU           │
-│ Step 1-2     │ │ Step 3       │ │ Step 4       │
-│ Creates &    │ │ Reviews      │ │ AI quality   │
-│ reviews AI   │ │ legal docs   │ │ assessment   │
-│ spec         │ │ attached by  │ │ + checklist   │
-│              │ │ creator      │ │              │
-└──────────────┘ └──────────────┘ └──────────────┘
+Manual Path:
+  CR creates via 8-step wizard → CR attaches legal docs
+  → LC reviews (if mandatory) → Submit to Curation
+  → CU reviews → ID approves → FC confirms escrow → Publication
 ```
 
-### What This Does NOT Change
-- No changes to any workflow pages (AISpecReviewPage, CurationReviewPage, ApprovalReviewPage, LegalDocumentAttachmentPage)
-- No changes to routing in App.tsx
-- No changes to edge functions
-- No new database tables or migrations
-- The `sessionStorage` value is purely informational — existing pages continue to work identically regardless of path
-
 ### Technical Details
-- `sessionStorage` (not `localStorage`) ensures path context clears when the browser tab closes, preventing stale state
-- The Seed Data card remains above the tabs (shared for both paths)
-- Tab selection persists via React state only (no URL param needed for demo login itself)
-- Role cards remain clickable with the same login logic; only the post-login destination changes
+
+- The `suggest-legal-documents` edge function queries `md_legal_doc_templates` and the challenge's maturity/IP model to determine required docs, then asks AI to explain relevance and suggest content
+- `LcLegalWorkspacePage` uses `useUserChallengeRoles` to verify LC role access
+- Escrow applicability is determined by `challenge.reward_structure.payment_mode === 'escrow'` and governance profile (Enterprise only, per existing rules)
+- No changes to `complete_phase`, `validate_phase_transition`, or RLS policies
 
