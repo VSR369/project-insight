@@ -76,8 +76,6 @@ interface ChallengeData {
   visibility: string | null;
   eligibility: string | null;
   eligibility_model: string | null;
-  challenge_enrollment: string | null;
-  challenge_submission: string | null;
   description: string | null;
   operating_model: string | null;
   governance_profile: string | null;
