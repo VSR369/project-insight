@@ -11,12 +11,14 @@
  * Shows only AI-finalized solver types with option to add/remove.
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
   Check,
   Pencil,
+  Plus,
+  X,
   ArrowRight,
   ArrowLeft,
   AlertTriangle,
@@ -26,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -179,7 +182,167 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Editable Solver Type Cards (STRUCTURED mode) ───── */
+/* ─── Deliverables Editor (STRUCTURED mode) ──────────── */
+
+function DeliverablesEditor({
+  items,
+  onChange,
+}: {
+  items: string[];
+  onChange: (items: string[]) => void;
+}) {
+  const handleItemChange = (index: number, value: string) => {
+    const updated = [...items];
+    updated[index] = value;
+    onChange(updated);
+  };
+
+  const handleAdd = () => onChange([...items, '']);
+
+  const handleRemove = (index: number) => {
+    onChange(items.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-2">
+      {items.map((item, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
+            {i + 1}
+          </span>
+          <Input
+            value={item}
+            onChange={(e) => handleItemChange(i, e.target.value)}
+            placeholder={`Deliverable ${i + 1}`}
+            className="text-sm flex-1"
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={() => handleRemove(i)}
+          >
+            <X className="h-3.5 w-3.5" />
+          </Button>
+        </div>
+      ))}
+      <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs mt-1" onClick={handleAdd}>
+        <Plus className="h-3.5 w-3.5" />
+        Add Deliverable
+      </Button>
+    </div>
+  );
+}
+
+/* ─── Evaluation Criteria Editor (STRUCTURED mode) ───── */
+
+function EvaluationCriteriaEditor({
+  criteria,
+  onChange,
+}: {
+  criteria: Array<{ name: string; weight: number; description: string }>;
+  onChange: (criteria: Array<{ name: string; weight: number; description: string }>) => void;
+}) {
+  const totalWeight = criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0);
+
+  const handleFieldChange = (index: number, field: 'name' | 'weight' | 'description', value: string | number) => {
+    const updated = criteria.map((c, i) =>
+      i === index ? { ...c, [field]: field === 'weight' ? Number(value) || 0 : value } : c,
+    );
+    onChange(updated);
+  };
+
+  const handleAdd = () => onChange([...criteria, { name: '', weight: 0, description: '' }]);
+
+  const handleRemove = (index: number) => {
+    onChange(criteria.filter((_, i) => i !== index));
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="relative w-full overflow-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-10">#</TableHead>
+              <TableHead>Criterion</TableHead>
+              <TableHead className="w-24">Weight %</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="w-10" />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {criteria.map((c, i) => (
+              <TableRow key={i}>
+                <TableCell className="text-muted-foreground font-medium">{i + 1}</TableCell>
+                <TableCell>
+                  <Input
+                    value={c.name}
+                    onChange={(e) => handleFieldChange(i, 'name', e.target.value)}
+                    placeholder="Criterion name"
+                    className="text-sm h-8"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    type="number"
+                    value={c.weight}
+                    onChange={(e) => handleFieldChange(i, 'weight', e.target.value)}
+                    min={0}
+                    max={100}
+                    className="text-sm h-8 font-mono w-20"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Input
+                    value={c.description}
+                    onChange={(e) => handleFieldChange(i, 'description', e.target.value)}
+                    placeholder="Description"
+                    className="text-sm h-8"
+                  />
+                </TableCell>
+                <TableCell>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-7 w-7 text-muted-foreground hover:text-destructive"
+                    onClick={() => handleRemove(i)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+          <TableFooter>
+            <TableRow>
+              <TableCell colSpan={2} className="font-semibold text-foreground">Total</TableCell>
+              <TableCell>
+                <Badge
+                  variant={totalWeight === 100 ? 'default' : 'destructive'}
+                  className="font-mono text-xs"
+                >
+                  {totalWeight}%
+                </Badge>
+              </TableCell>
+              <TableCell colSpan={2} className="text-xs text-muted-foreground">
+                {totalWeight === 100 ? 'Weights balanced' : `Must sum to 100% — currently ${totalWeight}%`}
+              </TableCell>
+            </TableRow>
+          </TableFooter>
+        </Table>
+      </div>
+      <Button type="button" variant="outline" size="sm" className="gap-1.5 text-xs" onClick={handleAdd}>
+        <Plus className="h-3.5 w-3.5" />
+        Add Criterion
+      </Button>
+    </div>
+  );
+}
+
+
 
 interface SolverTypeEditorProps {
   challenge: Record<string, unknown>;
@@ -340,6 +503,7 @@ function EditableSectionCard({
   onAccept,
   onEdit,
   onSave,
+  onSaveStructured,
   solverEditor,
 }: {
   section: SpecSection;
@@ -350,10 +514,46 @@ function EditableSectionCard({
   onAccept: () => void;
   onEdit: () => void;
   onSave: (val: string) => void;
+  onSaveStructured?: (data: unknown) => void;
   solverEditor?: React.ReactNode;
 }) {
   const [editValue, setEditValue] = useState(value);
-  const isStructured = section.renderer && section.renderer !== 'text';
+  const isSolverSection = section.renderer === 'solver_eligibility' || section.renderer === 'solver_visibility';
+  const isEditableStructured = section.renderer === 'deliverables' || section.renderer === 'evaluation_criteria';
+
+  // Parse raw data for structured editors
+  const [editDeliverables, setEditDeliverables] = useState<string[]>([]);
+  const [editCriteria, setEditCriteria] = useState<Array<{ name: string; weight: number; description: string }>>([]);
+
+  // Initialize structured edit data when entering edit mode
+  useEffect(() => {
+    if (status === 'editing' && section.renderer === 'deliverables') {
+      const items: string[] = Array.isArray(rawData)
+        ? rawData
+        : (rawData && typeof rawData === 'object' && 'items' in (rawData as Record<string, unknown>) && Array.isArray((rawData as Record<string, unknown>).items))
+          ? (rawData as Record<string, unknown>).items as string[]
+          : [];
+      setEditDeliverables(items.length > 0 ? [...items] : ['']);
+    }
+    if (status === 'editing' && section.renderer === 'evaluation_criteria') {
+      const criteria: Array<{ name: string; weight: number; description: string }> =
+        Array.isArray(rawData)
+          ? rawData
+          : (rawData && typeof rawData === 'object' && 'criteria' in (rawData as Record<string, unknown>) && Array.isArray((rawData as Record<string, unknown>).criteria))
+            ? (rawData as Record<string, unknown>).criteria as Array<{ name: string; weight: number; description: string }>
+            : [];
+      setEditCriteria(criteria.length > 0 ? criteria.map((c) => ({ ...c })) : [{ name: '', weight: 100, description: '' }]);
+    }
+  }, [status, section.renderer]);
+
+  const handleSaveStructured = () => {
+    if (section.renderer === 'deliverables') {
+      const filtered = editDeliverables.filter((d) => d.trim() !== '');
+      onSaveStructured?.(filtered);
+    } else if (section.renderer === 'evaluation_criteria') {
+      onSaveStructured?.(editCriteria);
+    }
+  };
 
   return (
     <div
@@ -374,14 +574,14 @@ function EditableSectionCard({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {status === 'editing' && !isStructured ? (
-            <Button size="sm" variant="default" onClick={() => onSave(editValue)}>
+          {status === 'editing' ? (
+            <Button size="sm" variant="default" onClick={isEditableStructured ? handleSaveStructured : () => onSave(editValue)}>
               <Check className="h-3.5 w-3.5 mr-1" />
               Save
             </Button>
           ) : (
             <>
-              {!isStructured && (
+              {!isSolverSection && (
                 <Button size="sm" variant="ghost" onClick={onEdit}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -396,13 +596,17 @@ function EditableSectionCard({
         </div>
       </div>
 
-      {status === 'editing' && !isStructured ? (
+      {status === 'editing' && !isEditableStructured && !isSolverSection ? (
         <Textarea
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           rows={4}
           className="text-sm resize-none"
         />
+      ) : status === 'editing' && section.renderer === 'deliverables' ? (
+        <DeliverablesEditor items={editDeliverables} onChange={setEditDeliverables} />
+      ) : status === 'editing' && section.renderer === 'evaluation_criteria' ? (
+        <EvaluationCriteriaEditor criteria={editCriteria} onChange={setEditCriteria} />
       ) : (
         <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} solverEditor={solverEditor} />
       )}
@@ -482,6 +686,7 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — state ═══════
   const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>({});
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
+  const [rawSectionData, setRawSectionData] = useState<Record<string, unknown>>({});
   const [selectedEligibleTierIds, setSelectedEligibleTierIds] = useState<string[]>([]);
   const [selectedVisibleTierIds, setSelectedVisibleTierIds] = useState<string[]>([]);
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
@@ -621,6 +826,7 @@ export default function AISpecReviewPage() {
   };
 
   const getRawData = (fieldKey: string): unknown => {
+    if (rawSectionData[fieldKey] !== undefined) return rawSectionData[fieldKey];
     return challengeRecord[fieldKey];
   };
 
@@ -635,6 +841,16 @@ export default function AISpecReviewPage() {
   const handleSave = (key: string, val: string) => {
     setSectionValues((prev) => ({ ...prev, [key]: val }));
     setSectionStatuses((prev) => ({ ...prev, [key]: 'accepted' }));
+  };
+
+  const handleSaveStructured = (fieldKey: string, data: unknown) => {
+    setRawSectionData((prev) => ({ ...prev, [fieldKey]: data }));
+    setSectionValues((prev) => ({ ...prev, [fieldKey]: JSON.stringify(data) }));
+    // Find section key from fieldKey
+    const section = SPEC_SECTIONS.find((s) => s.fieldKey === fieldKey);
+    if (section) {
+      setSectionStatuses((prev) => ({ ...prev, [section.key]: 'accepted' }));
+    }
   };
 
   const allAccepted = SPEC_SECTIONS.every(
@@ -758,6 +974,7 @@ export default function AISpecReviewPage() {
             onAccept={() => handleAccept(section.key)}
             onEdit={() => handleEdit(section.key)}
             onSave={(val) => handleSave(section.key, val)}
+            onSaveStructured={(data) => handleSaveStructured(section.fieldKey, data)}
             solverEditor={
               section.renderer === 'solver_eligibility' ? (
                 <SolverTypeEditor
