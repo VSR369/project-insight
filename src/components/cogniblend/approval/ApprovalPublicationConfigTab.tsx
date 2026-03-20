@@ -53,7 +53,7 @@ interface PublicationConfigTabProps {
     targeting_filters: Json | null;
   };
   isApproved: boolean;
-  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }) => void;
+  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; isReady: boolean }) => void;
 }
 
 interface TierOption {
