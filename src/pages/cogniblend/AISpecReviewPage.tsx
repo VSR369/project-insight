@@ -297,11 +297,6 @@ function SolverEligibilityEditor({
         </Select>
       </div>
 
-      {/* Access Model Summary */}
-      <AccessModelSummary
-        visibility={visibility}
-        eligibleSolverLabels={selectedCategories.map((c) => c.label)}
-      />
 
       {/* Free-text eligibility notes */}
       {eligNotes && (
