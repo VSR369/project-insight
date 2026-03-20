@@ -1,38 +1,20 @@
 
 
-## Plan: Add Edit Capability for Deliverables, Evaluation Criteria, and Solver Type Sections
+## Fix: 404 on "View" Click from Dashboard
 
 ### Problem
-The `EditableSectionCard` hides the pencil (edit) button for any section with a structured renderer (`renderer !== 'text'`). This means:
-- **Deliverables**: No edit option — display only
-- **Evaluation Criteria**: No edit option — display only
-- **Solver Eligibility/Visibility**: Already editable inline (checkboxes), but the edit button is hidden
+Three dashboard components navigate to `/cogni/challenges/{id}` (no suffix), but no route is defined for that bare path — only suffixed routes like `/spec`, `/edit`, `/view`, `/manage` exist.
 
-### Changes — Single File: `src/pages/cogniblend/AISpecReviewPage.tsx`
+### Solution
+Add a route for `/cogni/challenges/:id` that redirects intelligently based on challenge status, or simply map it to the existing detail/manage page.
 
-**1. Deliverables — Add inline editor**
-- Create `DeliverablesEditor` component: editable list where each item is a text input, with add/remove buttons
-- When user clicks pencil on Deliverables section, switch to edit mode showing the editor
-- On save, convert back to array format and persist via `sectionValues`
+**Option chosen**: Add a new route entry in `src/App.tsx` that points `/cogni/challenges/:id` to `ChallengeManagePage` (the post-creation management view), since "View" from the dashboard is the most common use case for existing challenges.
 
-**2. Evaluation Criteria — Add inline editor**
-- Create `EvaluationCriteriaEditor` component: editable table rows with inputs for name, weight (number), and description
-- Add/remove row buttons; show live weight total with validation (must sum to 100%)
-- On save, convert back to criteria array format
+### Files to Change
 
-**3. Solver Eligibility & Visibility — Already editable**
-- These already render `SolverTypeEditor` with checkboxes in STRUCTURED mode
-- Just need to show the pencil/accept buttons for consistency (remove the `!isStructured` guard for these sections)
+**1. `src/App.tsx`**
+- Add route: `<Route path="/cogni/challenges/:id" element={<LazyRoute><ChallengeManagePage /></LazyRoute>} />`
+- Place it after the more specific `/cogni/challenges/:id/*` routes so those match first.
 
-**4. Update `EditableSectionCard` logic**
-- Remove the blanket `!isStructured` guard that hides the edit button
-- Instead, allow edit mode for deliverables and evaluation_criteria renderers
-- For solver sections, keep current always-visible editor behavior but add accept button
-
-### Technical Details
-
-- `DeliverablesEditor`: State is `string[]`, renders indexed `Input` fields + "Add Deliverable" button + per-item remove button
-- `EvaluationCriteriaEditor`: State is `Array<{name, weight, description}>`, renders editable table rows + "Add Criterion" + per-row remove
-- Save handler serializes structured data back to JSON string for `sectionValues`, and also stores raw data for display
-- Need to add a `rawSectionData` state alongside `sectionValues` to handle structured data separately from plain text
+That's it — one line fix.
 
