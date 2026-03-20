@@ -101,32 +101,7 @@ const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
 
-/* ── Enrollment Options ─────────────────────────────────── */
 
-const ENROLLMENT_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
-  { value: "org_curated", label: "Organization-Curated", description: "Enrollment requires org approval", rank: 2 },
-  { value: "curator_approved", label: "Curator-Approved", description: "Curator reviews enrollment requests", rank: 3 },
-  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
-];
-
-const ENROLLMENT_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
-  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
-];
-
-/* ── Submission Options ─────────────────────────────────── */
-
-const SUBMISSION_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "invited_solvers", label: "Invited Solvers Only", description: "Only specifically invited solvers can submit", rank: 1 },
-  { value: "shortlisted_only", label: "Shortlisted Only", description: "Only shortlisted participants can submit", rank: 2 },
-  { value: "all_enrolled", label: "All Enrolled Participants", description: "Any enrolled solver can submit", rank: 3 },
-];
-
-const SUBMISSION_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "invited_solvers", label: "Invited Only", description: "Only specifically invited solvers can submit", rank: 1 },
-  { value: "all_enrolled", label: "All Enrolled", description: "Any enrolled solver can submit", rank: 3 },
-];
 
 /* ── Legacy Eligibility Options (backward compatibility) ── */
 
