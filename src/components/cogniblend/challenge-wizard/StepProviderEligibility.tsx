@@ -66,25 +66,7 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
 
 import {
   VISIBILITY_OPTIONS,
-  ENROLLMENT_OPTIONS,
-  SUBMISSION_OPTIONS,
 } from '@/constants/challengeOptions.constants';
-
-const VALID_ENROLLMENTS: Record<string, string[]> = {
-  public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  registered_users: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  platform_members: ['curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],
-  curated_experts: ['curator_approved', 'org_curated', 'invitation_only'],
-  invited_only: ['invitation_only'],
-};
-
-const VALID_SUBMISSIONS: Record<string, string[]> = {
-  open_auto: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  curator_approved: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  direct_nda: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  org_curated: ['all_enrolled', 'shortlisted_only', 'invited_solvers'],
-  invitation_only: ['invited_solvers'],
-};
 
 /* ─── Star Rating Badge ──────────────────────────────── */
 
