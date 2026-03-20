@@ -24,6 +24,10 @@ export interface GeneratedSpec {
   eligibility: string;
   hook: string;
   ip_model: string;
+  challenge_visibility: string;
+  challenge_enrollment: string;
+  challenge_submission: string;
+  eligibility_model: string;
 }
 
 export function useGenerateChallengeSpec() {

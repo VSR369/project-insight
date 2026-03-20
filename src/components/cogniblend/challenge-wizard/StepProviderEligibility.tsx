@@ -64,27 +64,11 @@ const ARTIFACT_TIERS: Record<string, string[]> = {
 
 /* ─── Enterprise Publication Config ──────────────────── */
 
-const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Public', description: 'Visible to everyone on the platform and search engines' },
-  { value: 'registered_users', label: 'Registered Users', description: 'Visible only to authenticated platform users' },
-  { value: 'platform_members', label: 'Platform Members', description: 'Visible only to users with active memberships' },
-  { value: 'curated_experts', label: 'Curated Experts', description: 'Visible only to experts curated by the platform' },
-  { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
-] as const;
-
-const ENROLLMENT_OPTIONS = [
-  { value: 'open_auto', label: 'Open Enrollment (auto-approved)', description: 'Anyone eligible can enroll without approval' },
-  { value: 'curator_approved', label: 'Curator-Approved Enrollment', description: 'Curator reviews and approves enrollment requests' },
-  { value: 'direct_nda', label: 'Direct Registration (NDA required)', description: 'Enrollment requires signing an NDA first' },
-  { value: 'org_curated', label: 'Organization-Curated', description: 'The seeking organization selects who can enroll' },
-  { value: 'invitation_only', label: 'Invitation Only', description: 'Only specifically invited solvers can enroll' },
-] as const;
-
-const SUBMISSION_OPTIONS = [
-  { value: 'all_enrolled', label: 'All Enrolled', description: 'Any enrolled participant can submit solutions' },
-  { value: 'shortlisted_only', label: 'Shortlisted Only', description: 'Only shortlisted participants can submit' },
-  { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
-] as const;
+import {
+  VISIBILITY_OPTIONS,
+  ENROLLMENT_OPTIONS,
+  SUBMISSION_OPTIONS,
+} from '@/constants/challengeOptions.constants';
 
 const VALID_ENROLLMENTS: Record<string, string[]> = {
   public: ['open_auto', 'curator_approved', 'direct_nda', 'org_curated', 'invitation_only'],

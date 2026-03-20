@@ -1,6 +1,6 @@
 /**
  * generate-challenge-spec — AI edge function that drafts challenge fields.
- * Uses Lovable AI Gateway (Google Gemini) to generate 9 structured fields
+ * Uses Lovable AI Gateway (Google Gemini) to generate structured fields
  * from a problem statement + maturity level + optional template context.
  */
 
@@ -24,11 +24,37 @@ Guidelines:
 - Problem Statement: Refine the user's input into a professional challenge brief (200-500 words)
 - Scope: Define boundaries, constraints, and what's in/out of scope
 - Description: Detailed context including background, current state, and desired outcomes
-- Deliverables: 3-7 specific, measurable deliverables as a JSON array of strings
-- Evaluation Criteria: 3-6 weighted criteria (weights must sum to 100), each with name, weight, and description
-- Eligibility: Who should participate and minimum qualifications
+- Deliverables: 3-7 specific, measurable deliverables as a JSON array of strings. Each deliverable should be a clear, actionable item (e.g., "Working prototype with API documentation", "Technical feasibility report with cost analysis")
+- Evaluation Criteria: 3-6 weighted criteria (weights must sum to 100), each with name, weight, and description. Distribute weights based on relative importance.
+- Eligibility: Additional notes on who should participate and minimum qualifications (free text)
 - Hook: A compelling 1-2 sentence hook to attract solvers
 - IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
+
+For the access control fields, select from these exact values based on the challenge nature:
+
+- challenge_visibility: Choose from "public", "registered_users", "platform_members", "curated_experts", "invited_only"
+  - Use "public" for broad open innovation challenges
+  - Use "registered_users" or "platform_members" for standard challenges
+  - Use "curated_experts" for complex domain-specific challenges
+  - Use "invited_only" for sensitive/confidential challenges
+
+- challenge_enrollment: Choose from "open_auto", "curator_approved", "direct_nda", "org_curated", "invitation_only"
+  - Use "open_auto" for open challenges
+  - Use "curator_approved" for quality-controlled challenges
+  - Use "direct_nda" for IP-sensitive challenges
+  - Use "org_curated" or "invitation_only" for restricted challenges
+
+- challenge_submission: Choose from "all_enrolled", "shortlisted_only", "invited_solvers"
+  - Use "all_enrolled" for open submission
+  - Use "shortlisted_only" for multi-phase challenges
+  - Use "invited_solvers" for highly restricted challenges
+
+- eligibility_model: Choose from "OC" (Open Challenge), "DR" (Direct Registered), "CE" (Curated Expert), "IO" (Invite Only), "HY" (Hybrid)
+  - Use "OC" for broad innovation challenges
+  - Use "DR" for challenges requiring NDA/registration
+  - Use "CE" for expert-level domain challenges
+  - Use "IO" for invitation-only challenges
+  - Use "HY" for multi-model combinations
 
 Maturity level context:
 - blueprint: Early-stage concept exploration — focus on novel ideas and approaches
@@ -104,7 +130,7 @@ Generate a complete challenge specification.`;
                   deliverables: {
                     type: "array",
                     items: { type: "string" },
-                    description: "3-7 specific deliverables",
+                    description: "3-7 specific deliverables, each a clear actionable item",
                   },
                   evaluation_criteria: {
                     type: "array",
@@ -119,15 +145,39 @@ Generate a complete challenge specification.`;
                     },
                     description: "3-6 weighted criteria summing to 100",
                   },
-                  eligibility: { type: "string", description: "Eligibility requirements" },
+                  eligibility: { type: "string", description: "Free-text eligibility notes and qualifications" },
                   hook: { type: "string", description: "1-2 sentence compelling hook" },
                   ip_model: {
                     type: "string",
                     enum: ["IP-EA", "IP-NEL", "IP-EL", "IP-JO", "IP-NONE"],
-                    description: "Recommended IP model: IP-EA (Exclusive Assignment/Full Transfer), IP-NEL (Non-Exclusive License), IP-EL (Exclusive License), IP-JO (Joint Ownership/Shared), IP-NONE (No Transfer/Solver Retains)",
+                    description: "Recommended IP model",
+                  },
+                  challenge_visibility: {
+                    type: "string",
+                    enum: ["public", "registered_users", "platform_members", "curated_experts", "invited_only"],
+                    description: "Who can see the challenge",
+                  },
+                  challenge_enrollment: {
+                    type: "string",
+                    enum: ["open_auto", "curator_approved", "direct_nda", "org_curated", "invitation_only"],
+                    description: "How solvers enroll",
+                  },
+                  challenge_submission: {
+                    type: "string",
+                    enum: ["all_enrolled", "shortlisted_only", "invited_solvers"],
+                    description: "Who can submit solutions",
+                  },
+                  eligibility_model: {
+                    type: "string",
+                    enum: ["OC", "DR", "CE", "IO", "HY"],
+                    description: "Eligibility model code",
                   },
                 },
-                required: ["title", "problem_statement", "scope", "description", "deliverables", "evaluation_criteria", "eligibility", "hook", "ip_model"],
+                required: [
+                  "title", "problem_statement", "scope", "description",
+                  "deliverables", "evaluation_criteria", "eligibility", "hook", "ip_model",
+                  "challenge_visibility", "challenge_enrollment", "challenge_submission", "eligibility_model",
+                ],
                 additionalProperties: false,
               },
             },
@@ -163,6 +213,12 @@ Generate a complete challenge specification.`;
     }
 
     const spec = JSON.parse(toolCall.function.arguments);
+
+    // Fallback defaults for access control fields if AI omits them
+    spec.challenge_visibility = spec.challenge_visibility ?? 'public';
+    spec.challenge_enrollment = spec.challenge_enrollment ?? 'open_auto';
+    spec.challenge_submission = spec.challenge_submission ?? 'all_enrolled';
+    spec.eligibility_model = spec.eligibility_model ?? 'OC';
 
     return new Response(
       JSON.stringify({ success: true, data: spec }),
