@@ -1,6 +1,7 @@
 /**
- * DemoLoginPage — Quick-login page for CogniBlend 360° Demo.
- * Provides one-click role switching for the "New Horizon Company" demo scenario.
+ * DemoLoginPage — Two-tab quick-login for CogniBlend 360° Demo.
+ * Tab 1: AI-Assisted Path (AI generates, roles review)
+ * Tab 2: Manual Editor Path (8-step wizard, full control)
  * Route: /cogni/demo-login
  */
 
@@ -9,17 +10,27 @@ import { useNavigate, Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Users, Zap, ArrowLeft, Play, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Loader2, Users, Zap, ArrowLeft, Play, CheckCircle2, AlertCircle, Sparkles, Settings2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { ROLE_DISPLAY, ROLE_COLORS } from '@/types/cogniRoles';
+import { DemoWorkflowSteps } from '@/components/cogniblend/demo/DemoWorkflowSteps';
+import { DemoUserCard } from '@/components/cogniblend/demo/DemoUserCard';
+import { DemoSeedCard } from '@/components/cogniblend/demo/DemoSeedCard';
 
 const TEST_PASSWORD = 'TestSetup2026!';
 
-interface DemoUser {
+export type DemoPath = 'ai' | 'manual';
+
+export interface DemoUser {
   email: string;
   displayName: string;
   roles: string[];
-  description: string;
+  aiDescription: string;
+  manualDescription: string;
+  aiDestination: string;
+  manualDestination: string;
+  stepLabel?: string;
 }
 
 const DEMO_USERS: DemoUser[] = [
@@ -27,88 +38,101 @@ const DEMO_USERS: DemoUser[] = [
     email: 'nh-rq@testsetup.dev',
     displayName: 'Alex Morgan',
     roles: ['RQ'],
-    description: 'Submits innovation requests (Requestor role in AGG model)',
+    aiDescription: 'Submits problem details for AI-driven challenge generation',
+    manualDescription: 'Submits innovation requests via the 8-step editor wizard',
+    aiDestination: '/cogni/challenges/create?tab=ai',
+    manualDestination: '/cogni/challenges/create?tab=editor',
+    stepLabel: 'Step 1',
   },
   {
     email: 'nh-cr@testsetup.dev',
     displayName: 'Chris Rivera',
     roles: ['CR'],
-    description: 'Transforms requests into challenge specs via AI',
-  },
-  {
-    email: 'nh-cu@testsetup.dev',
-    displayName: 'Casey Underwood',
-    roles: ['CU'],
-    description: 'Reviews challenge quality, triggers AI curation panel',
-  },
-  {
-    email: 'nh-id@testsetup.dev',
-    displayName: 'Dana Irving',
-    roles: ['ID'],
-    description: 'Approves challenges, oversees evaluation & selection',
-  },
-  {
-    email: 'nh-er1@testsetup.dev',
-    displayName: 'Evelyn Rhodes',
-    roles: ['ER'],
-    description: 'Evaluates submitted solutions against criteria',
-  },
-  {
-    email: 'nh-er2@testsetup.dev',
-    displayName: 'Ethan Russell',
-    roles: ['ER'],
-    description: 'Second reviewer for dual-review governance',
+    aiDescription: 'Triggers AI to generate full challenge spec, then reviews each section',
+    manualDescription: 'Builds challenge spec manually using the 8-step wizard',
+    aiDestination: '/cogni/challenges/create?tab=ai',
+    manualDestination: '/cogni/challenges/create?tab=editor',
+    stepLabel: 'Step 1–2',
   },
   {
     email: 'nh-lc@testsetup.dev',
     displayName: 'Leslie Chen',
     roles: ['LC'],
-    description: 'Reviews NDA/IP documents, legal compliance',
+    aiDescription: 'Reviews AI-generated spec + uploads NDA/IP legal documents',
+    manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
+    aiDestination: '/cogni/legal-review',
+    manualDestination: '/cogni/legal-review',
+    stepLabel: 'Step 3',
+  },
+  {
+    email: 'nh-cu@testsetup.dev',
+    displayName: 'Casey Underwood',
+    roles: ['CU'],
+    aiDescription: 'AI reviews spec + legal docs as a package; Curator accepts/declines findings',
+    manualDescription: 'Reviews challenge quality via 14-point checklist',
+    aiDestination: '/cogni/curation',
+    manualDestination: '/cogni/curation',
+    stepLabel: 'Step 4',
+  },
+  {
+    email: 'nh-id@testsetup.dev',
+    displayName: 'Dana Irving',
+    roles: ['ID'],
+    aiDescription: 'Final approval of AI-curated challenge package before publication',
+    manualDescription: 'Final approval of challenge before publication',
+    aiDestination: '/cogni/approval',
+    manualDestination: '/cogni/approval',
+    stepLabel: 'Step 5',
+  },
+  {
+    email: 'nh-er1@testsetup.dev',
+    displayName: 'Evelyn Rhodes',
+    roles: ['ER'],
+    aiDescription: 'Evaluates submitted solutions with AI-assisted scoring',
+    manualDescription: 'Evaluates submitted solutions against criteria',
+    aiDestination: '/cogni/review',
+    manualDestination: '/cogni/review',
+    stepLabel: 'Step 6',
+  },
+  {
+    email: 'nh-er2@testsetup.dev',
+    displayName: 'Ethan Russell',
+    roles: ['ER'],
+    aiDescription: 'Second reviewer for dual-review governance (AI-assisted)',
+    manualDescription: 'Second reviewer for dual-review governance',
+    aiDestination: '/cogni/review',
+    manualDestination: '/cogni/review',
+    stepLabel: 'Step 6',
   },
   {
     email: 'nh-fc@testsetup.dev',
     displayName: 'Frank Coleman',
     roles: ['FC'],
-    description: 'Manages escrow funding and prize disbursement',
+    aiDescription: 'Confirms escrow creation & prize disbursement per business rules',
+    manualDescription: 'Manages escrow funding and prize disbursement',
+    aiDestination: '/cogni/escrow',
+    manualDestination: '/cogni/escrow',
+    stepLabel: 'Finance',
   },
   {
     email: 'nh-solo@testsetup.dev',
     displayName: 'Sam Solo',
     roles: ['RQ', 'CR', 'CU', 'ID', 'ER', 'FC'],
-    description: 'Solo operator — holds all roles for lightweight demo',
+    aiDescription: 'Solo operator — walks through all AI-assisted steps sequentially',
+    manualDescription: 'Solo operator — holds all roles for full wizard walkthrough',
+    aiDestination: '/cogni/challenges/create?tab=ai',
+    manualDestination: '/cogni/challenges/create?tab=editor',
+    stepLabel: 'All Steps',
   },
 ];
 
 export default function DemoLoginPage() {
   const navigate = useNavigate();
   const [loadingEmail, setLoadingEmail] = useState<string | null>(null);
-  const [seedStatus, setSeedStatus] = useState<'idle' | 'seeding' | 'done' | 'error'>('idle');
-  const [seedLog, setSeedLog] = useState<string[]>([]);
 
-  const handleSeedScenario = useCallback(async () => {
-    setSeedStatus('seeding');
-    setSeedLog(['⏳ Setting up New Horizon Company demo scenario...']);
-    try {
-      const { data, error } = await supabase.functions.invoke('setup-test-scenario', {
-        body: { scenario: 'new_horizon_demo' },
-      });
-      if (error) throw error;
-      if (!data?.success) throw new Error(data?.error?.message ?? 'Unknown error');
-      setSeedLog(data.data.results);
-      setSeedStatus('done');
-      toast.success('Demo scenario seeded successfully!');
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Seed failed';
-      setSeedLog((prev) => [...prev, `❌ ${message}`]);
-      setSeedStatus('error');
-      toast.error(`Seed failed: ${message}`);
-    }
-  }, []);
-
-  const handleLogin = useCallback(async (demoUser: DemoUser) => {
+  const handleLogin = useCallback(async (demoUser: DemoUser, path: DemoPath) => {
     setLoadingEmail(demoUser.email);
     try {
-      // Sign out first to clear any existing session
       await supabase.auth.signOut();
       const { data: signInData, error } = await supabase.auth.signInWithPassword({
         email: demoUser.email,
@@ -116,7 +140,6 @@ export default function DemoLoginPage() {
       });
       if (error) throw error;
 
-      // Preflight: verify user has an active org_users row
       const userId = signInData.user?.id;
       if (userId) {
         const { data: orgRow } = await supabase
@@ -129,15 +152,15 @@ export default function DemoLoginPage() {
 
         if (!orgRow) {
           await supabase.auth.signOut();
-          toast.error(
-            'This account has no organization linked. Please seed the demo scenario first, then try again.',
-          );
+          toast.error('No organization linked. Seed the demo scenario first.');
           return;
         }
       }
 
-      toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')})`);
-      navigate('/cogni/dashboard');
+      sessionStorage.setItem('cogni_demo_path', path);
+      const destination = path === 'ai' ? demoUser.aiDestination : demoUser.manualDestination;
+      toast.success(`Signed in as ${demoUser.displayName} (${demoUser.roles.join(', ')}) — ${path === 'ai' ? 'AI-Assisted' : 'Manual Editor'}`);
+      navigate(destination);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Login failed';
       toast.error(`Login failed: ${message}. Have you seeded the demo data first?`);
@@ -162,7 +185,7 @@ export default function DemoLoginPage() {
 
   return (
     <div className="min-h-screen bg-muted p-4 lg:p-8">
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Link to="/cogni/login" className="text-muted-foreground hover:text-foreground">
@@ -171,74 +194,75 @@ export default function DemoLoginPage() {
           <div>
             <h1 className="text-2xl font-bold text-foreground">CogniBlend 360° Demo</h1>
             <p className="text-sm text-muted-foreground">
-              New Horizon Company — Enterprise AGG model with 8-role governance
+              New Horizon Company — Choose your workflow path, then pick a role
             </p>
           </div>
         </div>
 
         {/* Seed Data Card */}
-        <Card className="border-primary/20">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Zap className="h-4 w-4 text-primary" />
-              Step 1: Seed Demo Data
-            </CardTitle>
-            <CardDescription>
-              Creates the "New Horizon Company" org, 9 test users, and assigns challenge roles.
-              Run this once — it's safe to re-run (resets existing users).
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button
-              onClick={handleSeedScenario}
-              disabled={seedStatus === 'seeding'}
-              variant={seedStatus === 'done' ? 'secondary' : 'default'}
-              className="w-full lg:w-auto"
-            >
-              {seedStatus === 'seeding' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {seedStatus === 'done' && <CheckCircle2 className="mr-2 h-4 w-4" />}
-              {seedStatus === 'error' && <AlertCircle className="mr-2 h-4 w-4" />}
-              {seedStatus === 'idle' && <Play className="mr-2 h-4 w-4" />}
-              {seedStatus === 'seeding' ? 'Seeding...' : seedStatus === 'done' ? 'Seeded ✓ (Re-run)' : 'Seed Demo Scenario'}
-            </Button>
-            {seedLog.length > 0 && (
-              <div className="mt-3 rounded-md bg-muted p-3 text-xs font-mono max-h-48 overflow-y-auto border">
-                {seedLog.map((line, i) => (
-                  <div key={i} className="whitespace-pre-wrap">{line}</div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <DemoSeedCard />
 
-        {/* Quick Login Grid */}
-        <div>
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2 mb-4">
-            <Users className="h-5 w-5" />
-            Step 2: Pick a Role to Login
-          </h2>
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
-            {DEMO_USERS.map((user) => (
-              <Card
-                key={user.email}
-                className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition-shadow"
-                onClick={() => !loadingEmail && handleLogin(user)}
-              >
-                <CardContent className="p-4 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold text-sm text-foreground">{user.displayName}</span>
-                    {loadingEmail === user.email && <Loader2 className="h-4 w-4 animate-spin text-primary" />}
-                  </div>
-                  <div className="flex flex-wrap gap-1">
-                    {user.roles.map((r) => getRoleBadge(r))}
-                  </div>
-                  <p className="text-xs text-muted-foreground">{user.description}</p>
-                  <p className="text-[11px] text-muted-foreground/60 font-mono">{user.email}</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Tabbed Login */}
+        <Tabs defaultValue="ai" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 h-auto">
+            <TabsTrigger value="ai" className="flex items-center gap-2 py-3 data-[state=active]:bg-primary/10">
+              <Sparkles className="h-4 w-4" />
+              <div className="text-left">
+                <div className="text-sm font-semibold">AI-Assisted Path</div>
+                <div className="text-[10px] text-muted-foreground font-normal">AI generates, roles review</div>
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="manual" className="flex items-center gap-2 py-3 data-[state=active]:bg-primary/10">
+              <Settings2 className="h-4 w-4" />
+              <div className="text-left">
+                <div className="text-sm font-semibold">Manual Editor Path</div>
+                <div className="text-[10px] text-muted-foreground font-normal">8-step wizard, full control</div>
+              </div>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="ai" className="mt-4 space-y-4">
+            <DemoWorkflowSteps variant="ai" />
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Pick a Role to Login
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+              {DEMO_USERS.map((user) => (
+                <DemoUserCard
+                  key={user.email}
+                  user={user}
+                  path="ai"
+                  isLoading={loadingEmail === user.email}
+                  disabled={!!loadingEmail}
+                  onLogin={() => handleLogin(user, 'ai')}
+                  getRoleBadge={getRoleBadge}
+                />
+              ))}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="manual" className="mt-4 space-y-4">
+            <DemoWorkflowSteps variant="manual" />
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              Pick a Role to Login
+            </h2>
+            <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-3">
+              {DEMO_USERS.map((user) => (
+                <DemoUserCard
+                  key={user.email}
+                  user={user}
+                  path="manual"
+                  isLoading={loadingEmail === user.email}
+                  disabled={!!loadingEmail}
+                  onLogin={() => handleLogin(user, 'manual')}
+                  getRoleBadge={getRoleBadge}
+                />
+              ))}
+            </div>
+          </TabsContent>
+        </Tabs>
 
         {/* Footer hint */}
         <p className="text-center text-xs text-muted-foreground pt-4">
