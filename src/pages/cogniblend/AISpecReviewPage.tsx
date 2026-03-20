@@ -793,6 +793,74 @@ export default function AISpecReviewPage() {
     }
   }, [isLoading, challenge, govMode, challengeId, navigate]);
 
+  // ═══════ Derived — hasAiData check (excludes generic seed descriptions) ═══════
+  const hasAiData = !!(
+    challenge &&
+    (
+      challenge.problem_statement ||
+      challenge.hook ||
+      challenge.scope ||
+      (challenge.deliverables && (
+        Array.isArray(challenge.deliverables)
+          ? (challenge.deliverables as unknown[]).length > 0
+          : typeof challenge.deliverables === 'object' && 'items' in (challenge.deliverables as Record<string, unknown>) && Array.isArray((challenge.deliverables as Record<string, unknown>).items) && ((challenge.deliverables as Record<string, unknown>).items as unknown[]).length > 0
+      ))
+    )
+  );
+
+  // ═══════ Effect — auto-generate spec for challenges with missing AI data ═══════
+  useEffect(() => {
+    if (autoGenTriggered.current) return;
+    if (isLoading || !challenge || !challengeId) return;
+    if (hasAiData) return;
+
+    autoGenTriggered.current = true;
+    setIsAutoGenerating(true);
+    setAutoGenError(null);
+
+    const problemInput = (challenge.description as string) || challenge.title || 'General innovation challenge';
+    const maturityInput = (challenge.maturity_level as string) || 'blueprint';
+
+    generateSpec.mutateAsync({
+      problem_statement: problemInput,
+      maturity_level: maturityInput,
+    }).then(async (spec: GeneratedSpec) => {
+      // Map generated spec to challenge fields
+      const fieldsToSave: Record<string, unknown> = {
+        title: spec.title,
+        problem_statement: spec.problem_statement,
+        scope: spec.scope,
+        description: spec.description,
+        deliverables: { items: spec.deliverables },
+        evaluation_criteria: { criteria: spec.evaluation_criteria },
+        hook: spec.hook,
+        ip_model: spec.ip_model,
+        challenge_visibility: spec.challenge_visibility,
+      };
+
+      // Map solver eligibility details to the expected format
+      if (spec.solver_eligibility_details && spec.solver_eligibility_details.length > 0) {
+        fieldsToSave.solver_eligibility_types = spec.solver_eligibility_details.map((d) => ({
+          code: d.code,
+          label: d.label,
+        }));
+      }
+      if (spec.solver_visibility_details && spec.solver_visibility_details.length > 0) {
+        fieldsToSave.solver_visibility_types = spec.solver_visibility_details.map((d) => ({
+          code: d.code,
+          label: d.label,
+        }));
+      }
+
+      await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
+      setIsAutoGenerating(false);
+      toast.success('AI specification generated successfully');
+    }).catch((err: Error) => {
+      setIsAutoGenerating(false);
+      setAutoGenError(err.message || 'Failed to generate AI specification');
+    });
+  }, [isLoading, challenge, challengeId, hasAiData]);
+
   // ═══════ Conditional returns (after all hooks) ═══════
   if (isLoading) {
     return (
@@ -824,28 +892,36 @@ export default function AISpecReviewPage() {
     );
   }
 
-  // ═══════ No AI data guard ═══════
-  const hasAiData = !!(
-    challenge.problem_statement ||
-    challenge.hook ||
-    challenge.description ||
-    challenge.scope ||
-    (challenge.deliverables && (
-      Array.isArray(challenge.deliverables)
-        ? (challenge.deliverables as unknown[]).length > 0
-        : typeof challenge.deliverables === 'object' && 'items' in (challenge.deliverables as Record<string, unknown>) && Array.isArray((challenge.deliverables as Record<string, unknown>).items) && ((challenge.deliverables as Record<string, unknown>).items as unknown[]).length > 0
-    ))
-  );
+  // ═══════ Auto-generating state ═══════
+  if (isAutoGenerating) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 space-y-6">
+        <div className="flex items-center gap-3 mb-2">
+          <Sparkles className="h-6 w-6 text-primary animate-pulse" />
+          <h2 className="text-lg font-semibold text-foreground">Generating AI Specification…</h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Our AI is drafting a complete challenge specification based on your challenge details. This may take a moment.
+        </p>
+        <div className="space-y-4">
+          {SPEC_SECTIONS.map((s) => (
+            <div key={s.key} className="rounded-xl border border-border bg-card p-5 space-y-3">
+              <Skeleton className="h-4 w-40" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
 
-  if (!hasAiData) {
+  if (autoGenError) {
     return (
       <div className="max-w-4xl mx-auto p-6 text-center py-16">
-        <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-        <h2 className="text-lg font-semibold text-foreground">No AI Specification Available</h2>
+        <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground">AI Generation Failed</h2>
         <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
-          This challenge was not created through the AI creation flow, so there is no
-          AI-generated specification to review. You can create a new challenge with AI
-          or use the Advanced Editor to add content manually.
+          {autoGenError}
         </p>
         <div className="flex items-center justify-center gap-3 mt-5">
           <Button
@@ -855,12 +931,65 @@ export default function AISpecReviewPage() {
             Open Advanced Editor
           </Button>
           <Button
-            onClick={() => navigate('/cogni/challenges/create')}
+            onClick={() => {
+              autoGenTriggered.current = false;
+              setAutoGenError(null);
+              setIsAutoGenerating(true);
+              const problemInput = (challenge.description as string) || challenge.title || 'General innovation challenge';
+              const maturityInput = (challenge.maturity_level as string) || 'blueprint';
+              generateSpec.mutateAsync({
+                problem_statement: problemInput,
+                maturity_level: maturityInput,
+              }).then(async (spec: GeneratedSpec) => {
+                const fieldsToSave: Record<string, unknown> = {
+                  title: spec.title,
+                  problem_statement: spec.problem_statement,
+                  scope: spec.scope,
+                  description: spec.description,
+                  deliverables: { items: spec.deliverables },
+                  evaluation_criteria: { criteria: spec.evaluation_criteria },
+                  hook: spec.hook,
+                  ip_model: spec.ip_model,
+                  challenge_visibility: spec.challenge_visibility,
+                };
+                if (spec.solver_eligibility_details?.length > 0) {
+                  fieldsToSave.solver_eligibility_types = spec.solver_eligibility_details.map((d) => ({ code: d.code, label: d.label }));
+                }
+                if (spec.solver_visibility_details?.length > 0) {
+                  fieldsToSave.solver_visibility_types = spec.solver_visibility_details.map((d) => ({ code: d.code, label: d.label }));
+                }
+                await saveStep.mutateAsync({ challengeId: challengeId!, fields: fieldsToSave });
+                setIsAutoGenerating(false);
+                toast.success('AI specification generated successfully');
+              }).catch((err: Error) => {
+                setIsAutoGenerating(false);
+                setAutoGenError(err.message || 'Failed to generate AI specification');
+              });
+            }}
           >
             <Sparkles className="h-4 w-4 mr-1.5" />
-            Create with AI
+            Retry Generation
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  if (!hasAiData) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center py-16">
+        <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground">No AI Specification Available</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          This challenge was not created through the AI creation flow. Use the Advanced Editor to add content manually.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-4"
+          onClick={() => navigate(`/cogni/challenges/${challengeId}/manage`)}
+        >
+          Open Advanced Editor
+        </Button>
       </div>
     );
   }
