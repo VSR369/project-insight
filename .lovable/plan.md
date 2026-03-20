@@ -1,96 +1,47 @@
 
 
-## Current State Assessment
+## Plan: Fix AI Spec Review Page Data Loading
 
-### The Problem
-After "Create with AI" → AI Spec Review, both the "Confirm & Submit" (QUICK) and "Approve & Continue" (STRUCTURED) buttons simply `navigate('/cogni/dashboard')` — they do **nothing**. No phase transition, no database update, no routing to the next step. The user lands on the dashboard with no indication of what happened or what to do next.
+### Problems Identified
 
-### Answer 1: Where to Set Up Pricing Tiers, Governance Models, Engagement Models
+**1. `profiles.display_name` column does not exist (400 errors)**
+Two files query `profiles.display_name`, but the actual column names are `first_name` and `last_name`. This causes 400 errors on the dashboard and CR assignment lookups.
 
-These are all configured in the **Admin Portal** (not the Org portal):
+- `src/hooks/queries/useMyRequests.ts` (line 84)
+- `src/pages/requests/SolutionRequestsListPage.tsx` (line 166)
 
-| Config | Admin Route | Sidebar Location |
-|--------|------------|-----------------|
-| Subscription Tiers | `/admin/seeker-config/subscription-tiers` | Admin → Seeker Config → Subscription Tiers |
-| Engagement Models | `/admin/seeker-config/engagement-models` | Admin → Seeker Config → Engagement Models |
-| Governance Rules | `/admin/seeker-config/governance-rules` | Admin → Seeker Config → Governance Rules |
-| Challenge Complexity | `/admin/seeker-config/challenge-complexity` | Admin → Seeker Config → Challenge Complexity |
-| Pricing Overview | `/admin/seeker-config/pricing-overview` | Admin → Seeker Config → Pricing Overview |
+**2. WhatsNextCard shows ALL org challenges, not just the user's**
+The query fetches challenges in phases 1-4 regardless of user involvement. This led the user to click into a **demo challenge** (phase 1, no AI data) thinking it was their AI-generated challenge.
 
-Login as a **Platform Admin** (Supervisor tier) to access these.
+**3. Demo challenge at phase 1 shows empty fields on spec review**
+The challenge `a7962f69` was created by the test setup script with null `problem_statement`, `scope`, `hook`, `ip_model`, and empty `deliverables`. The spec review page shows "No content yet" for all these fields because no AI generation was ever run for it.
 
-### Answer 2: The Intended Flow (Currently Broken Navigation)
+**4. `check_sla_status` RPC error: `"record "v_timer" has no field "duration_days"`**
+A minor DB function bug causing 400 errors on the dashboard.
 
-The full challenge lifecycle has 13 phases. The expected sequence from creation to Innovation Director:
+### Changes
 
-```text
-STEP 1: Create with AI (/cogni/challenges/create)
-  → Role: Challenge Requestor (RQ) or Challenge Creator (CR)
-  → Fills 6-field intake, AI generates spec
+**File 1: `src/hooks/queries/useMyRequests.ts`**
+- Change `select('id, display_name, email')` to `select('id, first_name, last_name, email')`
+- Update the profile name resolution to use `first_name + last_name` or fall back to email
 
-STEP 2: AI Spec Review (/cogni/challenges/:id/spec)
-  → Role: CR or RQ
-  → Reviews AI output, edits sections
-  → "Approve" should save edits + advance to Phase 2
+**File 2: `src/pages/requests/SolutionRequestsListPage.tsx`**
+- Same fix as above: replace `display_name` with `first_name, last_name`
 
-STEP 3: Legal Document Attachment (/cogni/challenges/:id/legal)
-  → Role: CR
-  → Attaches Tier 1/2 legal documents
-  → GATE-02 validates → advances to Phase 3
+**File 3: `src/components/cogniblend/dashboard/WhatsNextCard.tsx`**
+- Filter challenges to only show those where the current user has an active `user_challenge_roles` entry
+- Join or sub-query `user_challenge_roles` filtered by `user_id`
 
-STEP 4: Curation Queue (/cogni/curation)
-  → Role: Curator (CU)
-  → 14-point checklist review
-  → "Submit to Innovation Director" → Phase 4
+**File 4: `src/pages/cogniblend/AISpecReviewPage.tsx`**
+- Add a guard: if the challenge has no AI-generated data (null `problem_statement`, empty deliverables, null hook), show an info banner explaining "This challenge was not created with AI. Use the AI creation flow to generate a specification." with a link to create or to the Advanced Editor.
 
-STEP 5: Innovation Director Approval (/cogni/curation/:id)
-  → Role: Innovation Director (ID)
-  → Approve/Return/Reject
-  → Approve → Phase 5 → Publication Readiness
-
-STEP 6: Publication (/cogni/challenges/:id/publish)
-  → Final checks → Published
-```
-
----
-
-## Plan: Fix Navigation Flow + Add Contextual Instructions
-
-### Change 1: Fix Spec Review Submit Handlers
-**File: `src/pages/cogniblend/AISpecReviewPage.tsx`**
-
-- `handleConfirmSubmit` (QUICK) and `handleApproveAndContinue` (STRUCTURED): Instead of just navigating to dashboard, navigate to the **Legal Document Attachment** page: `/cogni/challenges/${challengeId}/legal`
-- Show a success toast: "Specification approved. Proceeding to legal document attachment."
-- Save any edited section values to the database before navigating (upsert to `challenges` table)
-
-### Change 2: Add Workflow Progress Banner to Each Screen
-**New component: `src/components/cogniblend/WorkflowProgressBanner.tsx`**
-
-A small, reusable banner showing:
-- Current step name and number (e.g., "Step 2 of 6: Spec Review")
-- Next step preview (e.g., "Next: Legal Document Attachment")
-- Required role for the next step (e.g., "Role: Curator")
-- Visual step indicator (dots or mini progress bar)
-
-### Change 3: Add Banner to Key Pages
-Add `WorkflowProgressBanner` to:
-- **AISpecReviewPage** — "Step 2: Spec Review → Next: Legal Documents (Role: CR)"
-- **LegalDocumentAttachmentPage** — "Step 3: Legal Docs → Next: Curation Queue (Role: Curator)"
-- **CurationChecklistPanel** — "Step 4: Curation → Next: ID Approval (Role: Innovation Director)"
-- **ChallengeManagePage** — Show current phase status
-
-### Change 4: Add "What's Next" Card to Dashboard
-**File: `src/pages/cogniblend/CogniDashboardPage.tsx`**
-
-Add a prominent card/alert at the top when a user has challenges in intermediate phases, showing:
-- Challenge title and current phase
-- What action is needed and which role should take it
-- Direct link to the correct page
+**File 5: DB migration to fix `check_sla_status` function**
+- Fix the `duration_days` column reference in the `check_sla_status` RPC to use the correct column name from `sla_timers`.
 
 ### Technical Details
 
-- The `WorkflowProgressBanner` takes `challengeId`, `currentPhase`, and `governanceMode` as props
-- It uses a static step map to render labels and role hints
-- The spec review save logic will use the existing `supabase.from('challenges').update()` pattern
-- Navigation after save: `/cogni/challenges/${challengeId}/legal`
+- The `profiles` table has columns: `id, user_id, first_name, last_name, email, phone, avatar_url, created_at, updated_at`
+- Profile display name should be constructed as `[first_name last_name].trim() || email`
+- The WhatsNextCard should use `user_challenge_roles` to filter: query the user's active challenge roles first, then filter challenges by those IDs
+- The spec review "no data" guard checks: if `problem_statement` is null AND `hook` is null AND deliverables items are empty, show the info state
 
