@@ -704,13 +704,22 @@ export default function AISpecReviewPage() {
             onSave={(val) => handleSave(section.key, val)}
             solverEditor={
               section.renderer === 'solver_eligibility' ? (
-                <SolverEligibilityEditor
+                <SolverTypeEditor
                   challenge={challengeRecord}
-                  selectedTierIds={selectedTierIds}
-                  onTierIdsChange={setSelectedTierIds}
-                  visibility={visibility}
-                  onVisibilityChange={setVisibility}
+                  selectedTierIds={selectedEligibleTierIds}
+                  onTierIdsChange={setSelectedEligibleTierIds}
                   solverCategories={solverCategories}
+                  typeLabel="Eligible Solver Types"
+                  typeDescription="These solver types can view AND submit solutions to this challenge."
+                />
+              ) : section.renderer === 'solver_visibility' ? (
+                <SolverTypeEditor
+                  challenge={challengeRecord}
+                  selectedTierIds={selectedVisibleTierIds}
+                  onTierIdsChange={setSelectedVisibleTierIds}
+                  solverCategories={solverCategories}
+                  typeLabel="Visible Solver Types"
+                  typeDescription="These solver types can discover and view this challenge but cannot submit solutions."
                 />
               ) : undefined
             }
