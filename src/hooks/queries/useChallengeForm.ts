@@ -40,6 +40,7 @@ export interface ChallengeDetail {
   max_solutions: number | null;
   currency_code: string | null;
   solver_eligibility_types: unknown;
+  solver_visibility_types: unknown;
   solver_eligibility_id: string | null;
   challenge_visibility: string | null;
   hook: string | null;
