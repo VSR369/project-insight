@@ -241,12 +241,16 @@ Generate a complete challenge specification.`;
                   solver_eligibility_codes: {
                     type: "array",
                     items: { type: "string" },
-                    description: `1-3 solver category codes for solvers who can VIEW AND SUBMIT. From: ${validCodes.join(", ")}`,
+                    minItems: 1,
+                    maxItems: 1,
+                    description: `Exactly 1 solver category code for who can VIEW AND SUBMIT. From: ${validCodes.join(", ")}`,
                   },
                   visible_solver_codes: {
                     type: "array",
                     items: { type: "string" },
-                    description: `1-3 solver category codes for solvers who can only DISCOVER/VIEW (not submit). Should be equal to or broader than solver_eligibility_codes. From: ${validCodes.join(", ")}`,
+                    minItems: 1,
+                    maxItems: 1,
+                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy IO<CE<OC<DR<OPEN. From: ${validCodes.join(", ")}`,
                   },
                   eligibility_notes: {
                     type: "string",
