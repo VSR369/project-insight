@@ -31,13 +31,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+// Select removed — no longer needed after visibility dropdown removal
 import {
   Table,
   TableHeader,
@@ -58,8 +52,7 @@ import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
-import { VISIBILITY_OPTIONS } from '@/constants/challengeOptions.constants';
-import type { SolverEligibilityDetail } from '@/hooks/mutations/useGenerateChallengeSpec';
+
 
 /* ─── Types ──────────────────────────────────────────── */
 
@@ -68,7 +61,7 @@ interface SpecSection {
   label: string;
   fieldKey: string;
   isAiDrafted: boolean;
-  renderer?: 'text' | 'deliverables' | 'evaluation_criteria' | 'solver_eligibility';
+  renderer?: 'text' | 'deliverables' | 'evaluation_criteria' | 'solver_eligibility' | 'solver_visibility';
 }
 
 const SPEC_SECTIONS: SpecSection[] = [
@@ -78,7 +71,8 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'description', label: 'Detailed Description', fieldKey: 'description', isAiDrafted: true },
   { key: 'deliverables', label: 'Deliverables', fieldKey: 'deliverables', isAiDrafted: true, renderer: 'deliverables' },
   { key: 'evaluation_criteria', label: 'Evaluation Criteria', fieldKey: 'evaluation_criteria', isAiDrafted: true, renderer: 'evaluation_criteria' },
-  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
+  { key: 'solver_eligibility', label: 'Eligible Solver Types (Can Submit)', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
+  { key: 'solver_visibility', label: 'Visible Solver Types (View Only)', fieldKey: 'solver_visibility_types', isAiDrafted: true, renderer: 'solver_visibility' },
   { key: 'hook', label: 'Challenge Hook', fieldKey: 'hook', isAiDrafted: true },
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
@@ -170,14 +164,12 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Editable Solver Eligibility (STRUCTURED mode) ──── */
+/* ─── Editable Solver Type Cards (STRUCTURED mode) ───── */
 
-interface SolverEligibilityEditorProps {
+interface SolverTypeEditorProps {
   challenge: Record<string, unknown>;
   selectedTierIds: string[];
   onTierIdsChange: (ids: string[]) => void;
-  visibility: string;
-  onVisibilityChange: (v: string) => void;
   solverCategories: Array<{
     id: string;
     code: string;
@@ -188,18 +180,19 @@ interface SolverEligibilityEditorProps {
     requires_certification: boolean;
     default_visibility: string | null;
   }>;
+  typeLabel: string;
+  typeDescription: string;
 }
 
-function SolverEligibilityEditor({
+function SolverTypeEditor({
   challenge,
   selectedTierIds,
   onTierIdsChange,
-  visibility,
-  onVisibilityChange,
   solverCategories,
-}: SolverEligibilityEditorProps) {
+  typeLabel,
+  typeDescription,
+}: SolverTypeEditorProps) {
   const [showMore, setShowMore] = useState(false);
-  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
 
   const selectedCategories = solverCategories.filter((c) => selectedTierIds.includes(c.id));
   const unselectedCategories = solverCategories.filter((c) => !selectedTierIds.includes(c.id));
@@ -247,11 +240,13 @@ function SolverEligibilityEditor({
   );
 
   return (
-    <div className="space-y-5">
-      {/* AI-Selected Solver Types */}
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{typeDescription}</p>
+
+      {/* AI-Selected */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          AI-Selected Solver Types ({selectedCategories.length})
+          AI-Selected ({selectedCategories.length})
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {selectedCategories.map((cat) => renderCategoryCard(cat, true))}
@@ -261,13 +256,13 @@ function SolverEligibilityEditor({
         )}
       </div>
 
-      {/* Add More Solver Types (collapsed) */}
+      {/* Add More */}
       {unselectedCategories.length > 0 && (
         <Collapsible open={showMore} onOpenChange={setShowMore}>
           <CollapsibleTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
-              {showMore ? 'Hide' : 'Add more solver types'} ({unselectedCategories.length} available)
+              {showMore ? 'Hide' : 'Add more'} ({unselectedCategories.length} available)
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-3">
@@ -277,89 +272,43 @@ function SolverEligibilityEditor({
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {/* Visibility Dropdown */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Challenge Visibility
-        </p>
-        <Select value={visibility} onValueChange={onVisibilityChange}>
-          <SelectTrigger className="text-sm max-w-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VISIBILITY_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-
-      {/* Free-text eligibility notes */}
-      {eligNotes && (
-        <div className="rounded-lg border border-border bg-card p-3.5">
-          <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{eligNotes}</p>
-        </div>
-      )}
     </div>
   );
 }
 
 /* ─── Read-Only Solver Display (for QUICK mode) ─────── */
 
-function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, unknown> }) {
-  // Read from solver_eligibility_types (DB column) — array of { code, label } objects
-  const rawTypes = challenge.solver_eligibility_types;
-  const details: SolverEligibilityDetail[] = Array.isArray(rawTypes)
-    ? rawTypes as SolverEligibilityDetail[]
-    : [];
-  const eligNotes = (challenge.eligibility as string) || '';
-  const visibility = (challenge.challenge_visibility as string) || 'public';
+function SolverTypeReadOnly({ typesData, label }: { typesData: unknown; label: string }) {
+  const details: Array<{ code: string; label: string; description?: string | null; requires_auth?: boolean; requires_certification?: boolean; requires_provider_record?: boolean }> =
+    Array.isArray(typesData) ? typesData : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {details.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            AI-Selected Solver Types
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {details.map((cat) => (
-              <div key={cat.code} className="rounded-lg border border-border bg-muted/30 p-3.5">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Users className="h-4 w-4 text-primary shrink-0" />
-                  <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
-                  <span className="text-sm font-medium text-foreground">{cat.label}</span>
-                </div>
-                {cat.description && (
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
-                )}
-                <div className="flex flex-wrap gap-1.5">
-                  {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
-                  {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
-                  {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
-                  {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
-                    <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {details.map((cat) => (
+            <div key={cat.code} className="rounded-lg border border-border bg-muted/30 p-3.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Users className="h-4 w-4 text-primary shrink-0" />
+                <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
+                <span className="text-sm font-medium text-foreground">{cat.label}</span>
               </div>
-            ))}
-          </div>
+              {cat.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
+                {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
+                {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
+                {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
+                  <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
-      )}
-
-
-      {eligNotes && (
-        <div className="rounded-lg border border-border bg-card p-3.5">
-          <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{eligNotes}</p>
-        </div>
       )}
     </div>
   );
@@ -496,7 +445,8 @@ function SectionContent({
     case 'evaluation_criteria':
       return <EvaluationCriteriaDisplay data={rawData} />;
     case 'solver_eligibility':
-      return solverEditor ?? <SolverEligibilityReadOnly challenge={challenge} />;
+    case 'solver_visibility':
+      return solverEditor ?? <SolverTypeReadOnly typesData={rawData} label={section.label} />;
     default:
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
@@ -512,8 +462,8 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — state ═══════
   const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>({});
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
-  const [selectedTierIds, setSelectedTierIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState('public');
+  const [selectedEligibleTierIds, setSelectedEligibleTierIds] = useState<string[]>([]);
+  const [selectedVisibleTierIds, setSelectedVisibleTierIds] = useState<string[]>([]);
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
 
   // ═══════ Hooks — context ═══════
@@ -533,32 +483,21 @@ export default function AISpecReviewPage() {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
 
     const challengeRecord = challenge as unknown as Record<string, unknown>;
-    // Read from solver_eligibility_types (DB column) — array of { code, label }
-    const rawTypes = challengeRecord.solver_eligibility_types;
-    const aiCodes: string[] = Array.isArray(rawTypes)
-      ? (rawTypes as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
-      : [];
 
-    // Map AI-selected codes to IDs
-    const matchedIds = solverCategories
-      .filter((cat) => aiCodes.includes(cat.code))
-      .map((cat) => cat.id);
-    setSelectedTierIds(matchedIds);
+    // Helper to map { code, label } arrays to category IDs
+    const mapCodesToIds = (raw: unknown): string[] => {
+      const codes: string[] = Array.isArray(raw)
+        ? (raw as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
+        : [];
+      return solverCategories
+        .filter((cat) => codes.includes(cat.code))
+        .map((cat) => cat.id);
+    };
 
-    // Set visibility from challenge
-    const vis = (challengeRecord.challenge_visibility as string) || 'public';
-    setVisibility(vis);
+    setSelectedEligibleTierIds(mapCodesToIds(challengeRecord.solver_eligibility_types));
+    setSelectedVisibleTierIds(mapCodesToIds(challengeRecord.solver_visibility_types));
     setSolverStateInitialized(true);
   }, [challenge, solverCategories, solverStateInitialized]);
-
-  // ═══════ Effects — auto-derive visibility when primary tier changes ═══════
-  useEffect(() => {
-    if (!solverStateInitialized || selectedTierIds.length === 0) return;
-    const primaryTier = solverCategories.find((c) => c.id === selectedTierIds[0]);
-    if (primaryTier && primaryTier.default_visibility) {
-      setVisibility(primaryTier.default_visibility);
-    }
-  }, [selectedTierIds, solverCategories, solverStateInitialized]);
 
   // ═══════ Effects — redirect CONTROLLED to side-panel ═══════
   useEffect(() => {
@@ -758,13 +697,22 @@ export default function AISpecReviewPage() {
             onSave={(val) => handleSave(section.key, val)}
             solverEditor={
               section.renderer === 'solver_eligibility' ? (
-                <SolverEligibilityEditor
+                <SolverTypeEditor
                   challenge={challengeRecord}
-                  selectedTierIds={selectedTierIds}
-                  onTierIdsChange={setSelectedTierIds}
-                  visibility={visibility}
-                  onVisibilityChange={setVisibility}
+                  selectedTierIds={selectedEligibleTierIds}
+                  onTierIdsChange={setSelectedEligibleTierIds}
                   solverCategories={solverCategories}
+                  typeLabel="Eligible Solver Types"
+                  typeDescription="These solver types can view AND submit solutions to this challenge."
+                />
+              ) : section.renderer === 'solver_visibility' ? (
+                <SolverTypeEditor
+                  challenge={challengeRecord}
+                  selectedTierIds={selectedVisibleTierIds}
+                  onTierIdsChange={setSelectedVisibleTierIds}
+                  solverCategories={solverCategories}
+                  typeLabel="Visible Solver Types"
+                  typeDescription="These solver types can discover and view this challenge but cannot submit solutions."
                 />
               ) : undefined
             }

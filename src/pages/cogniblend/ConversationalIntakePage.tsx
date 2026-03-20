@@ -376,6 +376,9 @@ export function ConversationalIntakeContent({
           solver_eligibility_types: Array.isArray(spec.solver_eligibility_details)
             ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))
             : [],
+          solver_visibility_types: Array.isArray(spec.solver_visibility_details)
+            ? spec.solver_visibility_details.map((d: any) => ({ code: d.code, label: d.label }))
+            : [],
         },
       });
 

@@ -40,6 +40,7 @@ export interface ChallengeDetail {
   max_solutions: number | null;
   currency_code: string | null;
   solver_eligibility_types: unknown;
+  solver_visibility_types: unknown;
   solver_eligibility_id: string | null;
   challenge_visibility: string | null;
   hook: string | null;
@@ -63,7 +64,8 @@ export function useChallengeDetail(challengeId: string | undefined) {
           ip_model, visibility, eligibility, submission_deadline,
           governance_profile, operating_model, current_phase,
           master_status, max_solutions, currency_code,
-          solver_eligibility_types, solver_eligibility_id,
+          solver_eligibility_types, solver_visibility_types,
+          solver_eligibility_id,
           challenge_visibility, hook, effort_level
         `)
         .eq('id', challengeId)

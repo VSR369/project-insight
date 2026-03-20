@@ -6,8 +6,9 @@
  * Fetches solver eligibility categories from md_solver_eligibility at runtime
  * so the AI selects real master-data codes instead of free-text eligibility.
  *
- * Simplified access model: No enrollment/submission fields.
- * Eligible solvers can submit, visible solvers can only view.
+ * Outputs TWO solver type arrays:
+ *   - solver_eligibility_codes: who can submit solutions
+ *   - visible_solver_codes: who can discover/view but NOT submit
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -79,15 +80,23 @@ EVALUATION CRITERIA (CRITICAL — must be structured, weighted, and problem-spec
 - Hook: A compelling 1-2 sentence hook to attract solvers
 - IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
 
-For solver eligibility, select 1-3 solver category codes from the platform's master data that best match the challenge requirements. The available solver categories are:
+SOLVER TYPES — TWO SEPARATE SELECTIONS (CRITICAL):
+
+You must select solver types for TWO distinct access levels from the same master data:
+
+1. **solver_eligibility_codes** — Solvers who can VIEW AND SUBMIT solutions. Select 1-3 codes based on challenge complexity, IP sensitivity, and required expertise.
+
+2. **visible_solver_codes** — Solvers who can only DISCOVER and VIEW the challenge but CANNOT submit. This should be EQUAL TO OR BROADER than eligible solvers. For example, if eligible solvers are Certified experts, visible solvers might include Registered users too so more people discover the challenge.
+
+Rules for selection:
+- visible_solver_codes should always be >= solver_eligibility_codes in breadth
+- If the challenge is highly specialized (IP-EA, prototype/pilot), keep eligible narrow but visible broader
+- If the challenge is open innovation (blueprint, IP-NONE), both can be broad
+- Never make visible_solver_codes narrower than solver_eligibility_codes
+
+Available solver categories:
 
 ${solverList}
-
-Select categories based on:
-- Challenge complexity and domain expertise needed
-- IP sensitivity and confidentiality requirements
-- Maturity level (blueprint/poc → broader categories; prototype/pilot → more specialized)
-- Whether certification or authentication is needed
 
 Also provide free-text eligibility_notes with any additional qualification details.
 
@@ -215,7 +224,12 @@ Generate a complete challenge specification.`;
                   solver_eligibility_codes: {
                     type: "array",
                     items: { type: "string" },
-                    description: `1-3 solver category codes from: ${validCodes.join(", ")}`,
+                    description: `1-3 solver category codes for solvers who can VIEW AND SUBMIT. From: ${validCodes.join(", ")}`,
+                  },
+                  visible_solver_codes: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: `1-3 solver category codes for solvers who can only DISCOVER/VIEW (not submit). Should be equal to or broader than solver_eligibility_codes. From: ${validCodes.join(", ")}`,
                   },
                   eligibility_notes: {
                     type: "string",
@@ -231,7 +245,7 @@ Generate a complete challenge specification.`;
                 required: [
                   "title", "problem_statement", "scope", "description",
                   "deliverables", "evaluation_criteria", "solver_eligibility_codes",
-                  "eligibility_notes", "hook", "ip_model",
+                  "visible_solver_codes", "eligibility_notes", "hook", "ip_model",
                 ],
                 additionalProperties: false,
               },
@@ -269,37 +283,52 @@ Generate a complete challenge specification.`;
 
     const spec = JSON.parse(toolCall.function.arguments);
 
-    // Validate and filter solver codes against master data
-    const selectedCodes: string[] = Array.isArray(spec.solver_eligibility_codes)
+    // Validate and filter eligible solver codes against master data
+    const selectedEligibleCodes: string[] = Array.isArray(spec.solver_eligibility_codes)
       ? spec.solver_eligibility_codes.filter((c: string) => validCodes.includes(c))
       : [];
 
-    // Fallback: if no valid codes selected, use the first (most open) category
-    if (selectedCodes.length === 0 && categories.length > 0) {
-      selectedCodes.push(categories[0].code);
+    // Validate and filter visible solver codes against master data
+    const selectedVisibleCodes: string[] = Array.isArray(spec.visible_solver_codes)
+      ? spec.visible_solver_codes.filter((c: string) => validCodes.includes(c))
+      : [];
+
+    // Fallback: if no valid eligible codes, use the first (most open) category
+    if (selectedEligibleCodes.length === 0 && categories.length > 0) {
+      selectedEligibleCodes.push(categories[0].code);
     }
 
-    spec.solver_eligibility_codes = selectedCodes;
+    // Fallback: if no visible codes, default to eligible codes (same breadth)
+    if (selectedVisibleCodes.length === 0) {
+      selectedVisibleCodes.push(...selectedEligibleCodes);
+    }
+
+    spec.solver_eligibility_codes = selectedEligibleCodes;
+    spec.visible_solver_codes = selectedVisibleCodes;
     spec.eligibility_notes = spec.eligibility_notes ?? "";
 
-    // Derive visibility from the first selected category's defaults
-    const primaryCategory = categories.find((c) => c.code === selectedCodes[0]);
-    spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
+    // Build hydrated details for eligible solvers
+    const buildDetails = (codes: string[]) =>
+      codes.map((code: string) => {
+        const cat = categories.find((c) => c.code === code);
+        return cat
+          ? {
+              code: cat.code,
+              label: cat.label,
+              description: cat.description,
+              requires_auth: cat.requires_auth,
+              requires_provider_record: cat.requires_provider_record,
+              requires_certification: cat.requires_certification,
+            }
+          : { code, label: code, description: null, requires_auth: false, requires_provider_record: false, requires_certification: false };
+      });
 
-    // Include the full solver category details for the frontend to render
-    spec.solver_eligibility_details = selectedCodes.map((code: string) => {
-      const cat = categories.find((c) => c.code === code);
-      return cat
-        ? {
-            code: cat.code,
-            label: cat.label,
-            description: cat.description,
-            requires_auth: cat.requires_auth,
-            requires_provider_record: cat.requires_provider_record,
-            requires_certification: cat.requires_certification,
-          }
-        : { code, label: code, description: null, requires_auth: false, requires_provider_record: false, requires_certification: false };
-    });
+    spec.solver_eligibility_details = buildDetails(selectedEligibleCodes);
+    spec.solver_visibility_details = buildDetails(selectedVisibleCodes);
+
+    // Derive visibility from the first eligible category's defaults
+    const primaryCategory = categories.find((c) => c.code === selectedEligibleCodes[0]);
+    spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
 
     // Keep legacy eligibility field mapped from notes
     spec.eligibility = spec.eligibility_notes;
