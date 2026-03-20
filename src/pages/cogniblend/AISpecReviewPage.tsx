@@ -55,6 +55,7 @@ import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
