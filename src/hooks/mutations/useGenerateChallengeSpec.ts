@@ -33,10 +33,14 @@ export interface GeneratedSpec {
   eligibility: string;
   hook: string;
   ip_model: string;
-  /** AI-selected solver category codes from md_solver_eligibility */
+  /** AI-selected solver category codes for submission eligibility */
   solver_eligibility_codes: string[];
-  /** Full details of selected solver categories (hydrated by edge function) */
+  /** Full details of eligible solver categories (hydrated by edge function) */
   solver_eligibility_details: SolverEligibilityDetail[];
+  /** AI-selected solver category codes for view-only visibility */
+  visible_solver_codes: string[];
+  /** Full details of visible solver categories (hydrated by edge function) */
+  solver_visibility_details: SolverEligibilityDetail[];
   /** Free-text eligibility notes */
   eligibility_notes: string;
   /** Derived from primary solver category's defaults */
