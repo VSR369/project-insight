@@ -204,8 +204,6 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         phase_durations: (challengeData.phase_schedule as any)?.phase_durations ?? undefined,
         complexity_params: (challengeData.complexity_parameters as any) ?? undefined,
         challenge_visibility: (challengeData as any)?.challenge_visibility ?? '',
-        challenge_enrollment: (challengeData as any)?.challenge_enrollment ?? '',
-        challenge_submission: (challengeData as any)?.challenge_submission ?? '',
         targeting_filters: (challengeData as any)?.targeting_filters ?? {
           industries: [], geographies: [], expertise_domains: [], certifications: [],
           languages: [], min_solver_rating: 'any', past_performance: 'any', solver_cluster: 'any',
