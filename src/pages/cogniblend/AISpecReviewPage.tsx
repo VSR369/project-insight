@@ -113,8 +113,13 @@ function DeliverablesDisplay({ data }: { data: unknown }) {
 /* ─── Evaluation Criteria Renderer ────────────────────── */
 
 function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
+  // Handle both raw array and wrapped { criteria: [...] } format
   const criteria: Array<{ name: string; weight: number; description: string }> =
-    Array.isArray(data) ? data : [];
+    Array.isArray(data)
+      ? data
+      : (data && typeof data === 'object' && 'criteria' in (data as Record<string, unknown>) && Array.isArray((data as Record<string, unknown>).criteria))
+        ? (data as Record<string, unknown>).criteria as Array<{ name: string; weight: number; description: string }>
+        : [];
   if (criteria.length === 0) return <p className="text-sm text-muted-foreground italic">No criteria defined</p>;
 
   const totalWeight = criteria.reduce((sum, c) => sum + (c.weight ?? 0), 0);
