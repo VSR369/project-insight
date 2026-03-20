@@ -91,7 +91,7 @@ export function usePublicChallenge(challengeId: string | undefined) {
           operating_model, visibility, eligibility, currency_code,
           submission_deadline, published_at, tenant_id, ip_model,
           reward_structure, evaluation_criteria, deliverables, phase_schedule,
-          challenge_enrollment
+          challenge_visibility
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)

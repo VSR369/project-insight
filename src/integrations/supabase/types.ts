@@ -1129,9 +1129,7 @@ export type Database = {
       }
       challenges: {
         Row: {
-          challenge_enrollment: string | null
           challenge_model_is_agg: boolean
-          challenge_submission: string | null
           challenge_visibility: string | null
           completed_at: string | null
           complexity_id: string | null
@@ -1191,9 +1189,7 @@ export type Database = {
           visibility: string | null
         }
         Insert: {
-          challenge_enrollment?: string | null
           challenge_model_is_agg?: boolean
-          challenge_submission?: string | null
           challenge_visibility?: string | null
           completed_at?: string | null
           complexity_id?: string | null
@@ -1253,9 +1249,7 @@ export type Database = {
           visibility?: string | null
         }
         Update: {
-          challenge_enrollment?: string | null
           challenge_model_is_agg?: boolean
-          challenge_submission?: string | null
           challenge_visibility?: string | null
           completed_at?: string | null
           complexity_id?: string | null

@@ -60,7 +60,7 @@ function getRequiredFieldsByStep(mode: GovernanceMode): Array<Array<keyof Challe
       // Step 4 — Timeline
       ['submission_deadline', 'expected_timeline', 'review_duration'],
       // Step 5 — Eligibility
-      ['eligibility', 'challenge_visibility', 'challenge_enrollment', 'challenge_submission'],
+      ['eligibility', 'challenge_visibility'],
       // Step 6 — Templates
       [],
       // Step 7 — Review

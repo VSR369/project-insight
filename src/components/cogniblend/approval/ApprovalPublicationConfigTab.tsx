@@ -43,8 +43,6 @@ interface PublicationConfigTabProps {
     visibility: string | null;
     eligibility: string | null;
     eligibility_model: string | null;
-    challenge_enrollment: string | null;
-    challenge_submission: string | null;
     governance_profile: string | null;
     complexity_score: number | null;
     complexity_level: string | null;
@@ -55,7 +53,7 @@ interface PublicationConfigTabProps {
     targeting_filters: Json | null;
   };
   isApproved: boolean;
-  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; enrollment: string; submission: string; isReady: boolean }) => void;
+  onConfigChange?: (config: { visibility: string; eligibility: string; eligibilityModel: string; isReady: boolean }) => void;
 }
 
 interface TierOption {

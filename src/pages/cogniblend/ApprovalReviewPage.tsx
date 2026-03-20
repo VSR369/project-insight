@@ -76,8 +76,6 @@ interface ChallengeData {
   visibility: string | null;
   eligibility: string | null;
   eligibility_model: string | null;
-  challenge_enrollment: string | null;
-  challenge_submission: string | null;
   description: string | null;
   operating_model: string | null;
   governance_profile: string | null;
@@ -669,7 +667,7 @@ export default function ApprovalReviewPage() {
       const { data, error } = await supabase
         .from("challenges")
         .select(
-          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, eligibility_model, challenge_enrollment, challenge_submission, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, master_status, targeting_filters"
+          "id, title, problem_statement, scope, deliverables, evaluation_criteria, reward_structure, phase_schedule, complexity_score, complexity_level, complexity_parameters, ip_model, maturity_level, visibility, eligibility, eligibility_model, description, operating_model, governance_profile, current_phase, max_solutions, submission_deadline, phase_status, master_status, targeting_filters"
         )
         .eq("id", challengeId!)
         .single();

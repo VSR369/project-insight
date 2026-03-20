@@ -8,6 +8,7 @@
  *
  * Renders deliverables as numbered lists, evaluation criteria as weighted tables,
  * and solver eligibility as editable checkbox cards driven by md_solver_eligibility master data.
+ * Shows only AI-finalized solver types with option to add/remove.
  */
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,6 +23,7 @@ import {
   ShieldCheck,
   Settings2,
   Users,
+  ChevronDown,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -45,17 +47,18 @@ import {
   TableCell,
   TableFooter,
 } from '@/components/ui/table';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
-import {
-  VISIBILITY_OPTIONS,
-  ENROLLMENT_OPTIONS,
-  SUBMISSION_OPTIONS,
-} from '@/constants/challengeOptions.constants';
+import { VISIBILITY_OPTIONS } from '@/constants/challengeOptions.constants';
 import type { SolverEligibilityDetail } from '@/hooks/mutations/useGenerateChallengeSpec';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -157,18 +160,14 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Editable Solver Eligibility & Access Model ─────── */
+/* ─── Editable Solver Eligibility (STRUCTURED mode) ──── */
 
 interface SolverEligibilityEditorProps {
   challenge: Record<string, unknown>;
   selectedTierIds: string[];
   onTierIdsChange: (ids: string[]) => void;
   visibility: string;
-  enrollment: string;
-  submission: string;
   onVisibilityChange: (v: string) => void;
-  onEnrollmentChange: (v: string) => void;
-  onSubmissionChange: (v: string) => void;
   solverCategories: Array<{
     id: string;
     code: string;
@@ -178,8 +177,6 @@ interface SolverEligibilityEditorProps {
     requires_provider_record: boolean;
     requires_certification: boolean;
     default_visibility: string | null;
-    default_enrollment: string | null;
-    default_submission: string | null;
   }>;
 }
 
@@ -188,14 +185,14 @@ function SolverEligibilityEditor({
   selectedTierIds,
   onTierIdsChange,
   visibility,
-  enrollment,
-  submission,
   onVisibilityChange,
-  onEnrollmentChange,
-  onSubmissionChange,
   solverCategories,
 }: SolverEligibilityEditorProps) {
+  const [showMore, setShowMore] = useState(false);
   const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
+
+  const selectedCategories = solverCategories.filter((c) => selectedTierIds.includes(c.id));
+  const unselectedCategories = solverCategories.filter((c) => !selectedTierIds.includes(c.id));
 
   const handleToggle = (tierId: string, checked: boolean) => {
     if (checked) {
@@ -205,124 +202,95 @@ function SolverEligibilityEditor({
     }
   };
 
+  const renderCategoryCard = (cat: typeof solverCategories[0], isSelected: boolean) => (
+    <label
+      key={cat.id}
+      className={`flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors ${
+        isSelected
+          ? 'border-primary bg-primary/5'
+          : 'border-border bg-muted/30 hover:border-muted-foreground/30'
+      }`}
+    >
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={(checked) => handleToggle(cat.id, !!checked)}
+        className="mt-0.5"
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
+          <span className="text-sm font-medium text-foreground">{cat.label}</span>
+        </div>
+        {cat.description && (
+          <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{cat.description}</p>
+        )}
+        <div className="flex flex-wrap gap-1.5">
+          {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
+          {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
+          {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
+          {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
+            <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
+          )}
+        </div>
+      </div>
+    </label>
+  );
+
   return (
     <div className="space-y-5">
-      {/* Solver Tier Checkboxes */}
+      {/* AI-Selected Solver Types */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Solver Eligibility Categories
+          AI-Selected Solver Types ({selectedCategories.length})
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          {solverCategories.map((cat) => {
-            const isSelected = selectedTierIds.includes(cat.id);
-            return (
-              <label
-                key={cat.id}
-                className={`flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors ${
-                  isSelected
-                    ? 'border-primary bg-primary/5'
-                    : 'border-border bg-muted/30 hover:border-muted-foreground/30'
-                }`}
-              >
-                <Checkbox
-                  checked={isSelected}
-                  onCheckedChange={(checked) => handleToggle(cat.id, !!checked)}
-                  className="mt-0.5"
-                />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
-                    <span className="text-sm font-medium text-foreground">{cat.label}</span>
-                  </div>
-                  {cat.description && (
-                    <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{cat.description}</p>
-                  )}
-                  <div className="flex flex-wrap gap-1.5">
-                    {cat.requires_auth && (
-                      <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>
-                    )}
-                    {cat.requires_certification && (
-                      <Badge variant="secondary" className="text-[10px]">Certified</Badge>
-                    )}
-                    {cat.requires_provider_record && (
-                      <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>
-                    )}
-                    {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
-                      <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
-                    )}
-                  </div>
-                </div>
-              </label>
-            );
-          })}
+          {selectedCategories.map((cat) => renderCategoryCard(cat, true))}
         </div>
+        {selectedCategories.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">No solver types selected — add from below</p>
+        )}
       </div>
 
-      {/* Publication Configuration Dropdowns */}
+      {/* Add More Solver Types (collapsed) */}
+      {unselectedCategories.length > 0 && (
+        <Collapsible open={showMore} onOpenChange={setShowMore}>
+          <CollapsibleTrigger asChild>
+            <Button variant="outline" size="sm" className="gap-1.5 text-xs">
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
+              {showMore ? 'Hide' : 'Add more solver types'} ({unselectedCategories.length} available)
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+              {unselectedCategories.map((cat) => renderCategoryCard(cat, false))}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+      )}
+
+      {/* Visibility Dropdown */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Publication Configuration
+          Challenge Visibility
         </p>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Visibility */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Visibility</label>
-            <Select value={visibility} onValueChange={onVisibilityChange}>
-              <SelectTrigger className="text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {VISIBILITY_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Enrollment */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Enrollment</label>
-            <Select value={enrollment} onValueChange={onEnrollmentChange}>
-              <SelectTrigger className="text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {ENROLLMENT_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Submission */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-foreground">Submission</label>
-            <Select value={submission} onValueChange={onSubmissionChange}>
-              <SelectTrigger className="text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SUBMISSION_OPTIONS.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
+        <Select value={visibility} onValueChange={onVisibilityChange}>
+          <SelectTrigger className="text-sm max-w-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {VISIBILITY_OPTIONS.map((opt) => (
+              <SelectItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* Live Access Model Summary */}
+      {/* Access Model Summary */}
       <AccessModelSummary
         visibility={visibility}
-        enrollment={enrollment}
-        submission={submission}
-        eligibility={eligNotes}
+        eligibleSolverLabels={selectedCategories.map((c) => c.label)}
       />
 
       {/* Free-text eligibility notes */}
@@ -344,8 +312,6 @@ function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, un
     : [];
   const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
   const visibility = (challenge.challenge_visibility as string) || 'public';
-  const enrollment = (challenge.challenge_enrollment as string) || 'open_auto';
-  const submission = (challenge.challenge_submission as string) || 'all_enrolled';
 
   return (
     <div className="space-y-4">
@@ -383,9 +349,7 @@ function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, un
 
       <AccessModelSummary
         visibility={visibility}
-        enrollment={enrollment}
-        submission={submission}
-        eligibility={eligNotes}
+        eligibleSolverLabels={details.map((d) => d.label)}
       />
 
       {eligNotes && (
@@ -547,8 +511,6 @@ export default function AISpecReviewPage() {
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
   const [selectedTierIds, setSelectedTierIds] = useState<string[]>([]);
   const [visibility, setVisibility] = useState('public');
-  const [enrollment, setEnrollment] = useState('open_auto');
-  const [submission, setSubmission] = useState('all_enrolled');
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
 
   // ═══════ Hooks — context ═══════
@@ -578,24 +540,18 @@ export default function AISpecReviewPage() {
       .map((cat) => cat.id);
     setSelectedTierIds(matchedIds);
 
-    // Set access fields from challenge or derive from primary category
+    // Set visibility from challenge
     const vis = (challengeRecord.challenge_visibility as string) || 'public';
-    const enr = (challengeRecord.challenge_enrollment as string) || 'open_auto';
-    const sub = (challengeRecord.challenge_submission as string) || 'all_enrolled';
     setVisibility(vis);
-    setEnrollment(enr);
-    setSubmission(sub);
     setSolverStateInitialized(true);
   }, [challenge, solverCategories, solverStateInitialized]);
 
-  // ═══════ Effects — auto-derive access fields when primary tier changes ═══════
+  // ═══════ Effects — auto-derive visibility when primary tier changes ═══════
   useEffect(() => {
     if (!solverStateInitialized || selectedTierIds.length === 0) return;
     const primaryTier = solverCategories.find((c) => c.id === selectedTierIds[0]);
-    if (primaryTier) {
-      if (primaryTier.default_visibility) setVisibility(primaryTier.default_visibility);
-      if (primaryTier.default_enrollment) setEnrollment(primaryTier.default_enrollment);
-      if (primaryTier.default_submission) setSubmission(primaryTier.default_submission);
+    if (primaryTier && primaryTier.default_visibility) {
+      setVisibility(primaryTier.default_visibility);
     }
   }, [selectedTierIds, solverCategories, solverStateInitialized]);
 
@@ -802,11 +758,7 @@ export default function AISpecReviewPage() {
                   selectedTierIds={selectedTierIds}
                   onTierIdsChange={setSelectedTierIds}
                   visibility={visibility}
-                  enrollment={enrollment}
-                  submission={submission}
                   onVisibilityChange={setVisibility}
-                  onEnrollmentChange={setEnrollment}
-                  onSubmissionChange={setSubmission}
                   solverCategories={solverCategories}
                 />
               ) : undefined
