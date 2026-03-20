@@ -25,6 +25,7 @@ import {
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
 import { DuplicateReviewPanel } from '@/components/cogniblend/DuplicateReviewPanel';
