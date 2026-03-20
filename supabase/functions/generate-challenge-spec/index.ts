@@ -82,17 +82,34 @@ EVALUATION CRITERIA (CRITICAL — must be structured, weighted, and problem-spec
 
 SOLVER TYPES — TWO SEPARATE SELECTIONS (CRITICAL):
 
-You must select solver types for TWO distinct access levels from the same master data:
+You must select solver types for TWO distinct access levels from the same master data.
+IMPORTANT: Select EXACTLY ONE code for each — do NOT select multiple.
 
-1. **solver_eligibility_codes** — Solvers who can VIEW AND SUBMIT solutions. Select 1-3 codes based on challenge complexity, IP sensitivity, and required expertise.
+1. **solver_eligibility_codes** — Who can VIEW AND SUBMIT solutions. Select exactly 1 code.
+2. **visible_solver_codes** — Who can DISCOVER and VIEW the challenge but CANNOT submit. Select exactly 1 code that is BROADER than eligible.
 
-2. **visible_solver_codes** — Solvers who can only DISCOVER and VIEW the challenge but CANNOT submit. This should be EQUAL TO OR BROADER than eligible solvers. For example, if eligible solvers are Certified experts, visible solvers might include Registered users too so more people discover the challenge.
+DETERMINISTIC SELECTION RULES (apply in order):
 
-Rules for selection:
-- visible_solver_codes should always be >= solver_eligibility_codes in breadth
-- If the challenge is highly specialized (IP-EA, prototype/pilot), keep eligible narrow but visible broader
-- If the challenge is open innovation (blueprint, IP-NONE), both can be broad
-- Never make visible_solver_codes narrower than solver_eligibility_codes
+Rule 1 — IP-sensitive challenges (ip_model is IP-EA or IP-EL) OR advanced maturity (pilot, prototype):
+  - Eligible: "CE" (Curated Expert) or "IO" (Invitation Only)
+  - Visible: "DR" (Direct Registration) or "OC" (Organization-Curated)
+
+Rule 2 — Domain-expert challenges (poc maturity, technical/specialized problems):
+  - Eligible: "DR" (Direct Registration with NDA)
+  - Visible: "OPEN"
+
+Rule 3 — Open innovation / ideation (blueprint maturity, ip_model is IP-NONE or IP-NEL):
+  - Eligible: "OPEN"
+  - Visible: "OPEN"
+
+Rule 4 — DEFAULT (when no other rule matches):
+  - Eligible: "DR"
+  - Visible: "OPEN"
+
+CONSTRAINT: visible_solver_codes MUST be strictly BROADER than solver_eligibility_codes.
+Broadness hierarchy (narrowest to broadest): IO < CE < OC < DR < OPEN
+The ONLY exception is when both are "OPEN" (Rule 3).
+NEVER select the same code for both eligible and visible unless both are "OPEN".
 
 Available solver categories:
 
