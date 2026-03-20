@@ -22,6 +22,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/cogni/my-requests': 'My Requests',
   '/cogni/my-challenges': 'My Challenges',
   '/cogni/approval': 'Approval Queue',
+  '/cogni/lc-queue': 'Legal Workspace',
   '/cogni/legal': 'Legal Documents',
   '/cogni/legal-review': 'Legal Review',
   '/cogni/review': 'Review Queue',
