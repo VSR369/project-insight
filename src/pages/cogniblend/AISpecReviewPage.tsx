@@ -48,6 +48,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { toast } from 'sonner';
 
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
