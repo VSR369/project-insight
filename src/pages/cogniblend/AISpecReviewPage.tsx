@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   AlertTriangle,
   ShieldCheck,
-  Settings2,
   Users,
   ChevronDown,
 } from 'lucide-react';
