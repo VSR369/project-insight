@@ -295,8 +295,6 @@ export const DEFAULT_FORM_VALUES: ChallengeFormValues = {
   solver_eligibility_id: '',
   solver_eligibility_ids: [],
   challenge_visibility: '',
-  challenge_enrollment: '',
-  challenge_submission: '',
   required_expertise_level_id: '',
   required_proficiencies: [],
   required_sub_domains: [],

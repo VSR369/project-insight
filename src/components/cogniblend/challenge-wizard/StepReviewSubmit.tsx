@@ -132,8 +132,6 @@ export function StepReviewSubmit({ form, isLightweight, onNavigateToStep }: Step
         { label: 'Eligible Participation Modes', value: (v.eligible_participation_modes?.length ?? 0) > 0 ? `${v.eligible_participation_modes.length} selected` : 'All Categories', isValid: true },
         { label: 'Solver Tiers', value: (v.solver_eligibility_ids?.length ?? 0) > 0 ? `${v.solver_eligibility_ids.length} selected` : 'All (no restriction)', isValid: true },
         { label: 'Challenge Visibility', value: v.challenge_visibility ?? '', isValid: true },
-        { label: 'Challenge Enrollment', value: v.challenge_enrollment ?? '', isValid: true },
-        { label: 'Challenge Submission', value: v.challenge_submission ?? '', isValid: true },
         { label: 'Required Expertise Level', value: v.required_expertise_level_id ?? '', isValid: true },
         { label: 'Required Proficiencies', value: v.required_proficiencies?.length ? `${v.required_proficiencies.length} selected` : '', isValid: true },
         { label: 'Required Sub-Domains', value: v.required_sub_domains?.length ? `${v.required_sub_domains.length} selected` : '', isValid: true },

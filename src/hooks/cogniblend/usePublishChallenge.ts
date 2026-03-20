@@ -38,7 +38,7 @@ export function usePublishChallenge() {
           maturity_level, phase_schedule, complexity_parameters,
           complexity_score, complexity_level, ip_model,
           visibility, eligibility, eligibility_model,
-          challenge_visibility, challenge_enrollment, challenge_submission,
+          challenge_visibility,
           governance_profile, operating_model, currency_code,
           max_solutions, submission_deadline, rejection_fee_percentage,
           solver_eligibility_types, targeting_filters,

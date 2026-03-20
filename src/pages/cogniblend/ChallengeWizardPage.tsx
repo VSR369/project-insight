@@ -377,8 +377,6 @@ export default function ChallengeWizardPage({ embedded = false, onSwitchToSimple
         ? values.eligible_participation_modes
         : null,
       challenge_visibility: isLightweight ? null : (values.challenge_visibility || 'public'),
-      challenge_enrollment: isLightweight ? null : (values.challenge_enrollment || 'open_auto'),
-      challenge_submission: isLightweight ? null : (values.challenge_submission || 'all_enrolled'),
       rejection_fee_percentage: values.rejection_fee_pct,
       submission_deadline: values.submission_deadline || null,
       submission_template_url: values.submission_template_url || null,

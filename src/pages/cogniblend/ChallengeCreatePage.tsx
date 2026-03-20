@@ -141,8 +141,6 @@ export default function ChallengeCreatePage() {
         solver_eligibility_details: spec.solver_eligibility_details ?? [],
         eligibility_notes: spec.eligibility_notes ?? '',
         challenge_visibility: spec.challenge_visibility ?? 'public',
-        challenge_enrollment: spec.challenge_enrollment ?? 'open_auto',
-        challenge_submission: spec.challenge_submission ?? 'all_enrolled',
       },
     }));
   }, []);
