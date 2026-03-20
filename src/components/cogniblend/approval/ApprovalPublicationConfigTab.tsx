@@ -85,18 +85,7 @@ const ELIGIBILITY_MODELS: EligibilityModelOption[] = [
   { code: 'HY', label: 'Hybrid (HY)', description: 'Combines multiple models — e.g., CE for evaluation, OC for submission. Contact admin to configure.' },
 ];
 
-interface TierOption {
-  value: string;
-  label: string;
-  description: string;
-  rank: number; // higher = broader
-}
 
-interface ComplexityParam {
-  key: string;
-  label: string;
-  weight: number;
-}
 
 /* ── Visibility Options ─────────────────────────────────── */
 
@@ -112,32 +101,7 @@ const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
   { value: "public", label: "Public", description: "Anyone on the internet can view this challenge", rank: 4 },
 ];
 
-/* ── Enrollment Options ─────────────────────────────────── */
 
-const ENROLLMENT_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
-  { value: "org_curated", label: "Organization-Curated", description: "Enrollment requires org approval", rank: 2 },
-  { value: "curator_approved", label: "Curator-Approved", description: "Curator reviews enrollment requests", rank: 3 },
-  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
-];
-
-const ENROLLMENT_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "invitation_only", label: "Invitation Only", description: "Only invited solvers can enroll", rank: 1 },
-  { value: "open_auto", label: "Open Enrollment", description: "Anyone eligible can auto-enroll", rank: 4 },
-];
-
-/* ── Submission Options ─────────────────────────────────── */
-
-const SUBMISSION_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "invited_solvers", label: "Invited Solvers Only", description: "Only specifically invited solvers can submit", rank: 1 },
-  { value: "shortlisted_only", label: "Shortlisted Only", description: "Only shortlisted participants can submit", rank: 2 },
-  { value: "all_enrolled", label: "All Enrolled Participants", description: "Any enrolled solver can submit", rank: 3 },
-];
-
-const SUBMISSION_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "invited_solvers", label: "Invited Only", description: "Only specifically invited solvers can submit", rank: 1 },
-  { value: "all_enrolled", label: "All Enrolled", description: "Any enrolled solver can submit", rank: 3 },
-];
 
 /* ── Legacy Eligibility Options (backward compatibility) ── */
 
@@ -208,8 +172,8 @@ export default function ApprovalPublicationConfigTab({
   const [visibility, setVisibility] = useState(challenge.visibility || "");
   const [eligibility, setEligibility] = useState(challenge.eligibility || "");
   const [eligibilityModel, setEligibilityModel] = useState(challenge.eligibility_model || "");
-  const [enrollment, setEnrollment] = useState(challenge.challenge_enrollment || "");
-  const [submission, setSubmission] = useState(challenge.challenge_submission || "");
+
+
   const [complexityFinalized, setComplexityFinalized] = useState(false);
   const [targetingFilters, setTargetingFilters] = useState<TargetingFilters>(() => {
     const existing = parseJson<TargetingFilters>(challenge.targeting_filters);
@@ -239,22 +203,12 @@ export default function ApprovalPublicationConfigTab({
 
   const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_LIGHTWEIGHT;
   const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_LIGHTWEIGHT;
-  const enrollmentOptions = isEnterprise ? ENROLLMENT_OPTIONS_ENTERPRISE : ENROLLMENT_OPTIONS_LIGHTWEIGHT;
-  const submissionOptions = isEnterprise ? SUBMISSION_OPTIONS_ENTERPRISE : SUBMISSION_OPTIONS_LIGHTWEIGHT;
+
+
 
   const maxEligRank = useMemo(
     () => getMaxTierRank(visibility, visibilityOptions),
     [visibility, visibilityOptions]
-  );
-
-  const maxEnrollRank = useMemo(
-    () => getMaxTierRank(visibility, visibilityOptions),
-    [visibility, visibilityOptions]
-  );
-
-  const maxSubmissionRank = useMemo(
-    () => getMaxTierRank(enrollment, enrollmentOptions),
-    [enrollment, enrollmentOptions]
   );
 
   const validationError = useMemo(() => {
@@ -266,24 +220,6 @@ export default function ApprovalPublicationConfigTab({
     return null;
   }, [visibility, eligibility, maxEligRank, eligibilityOptions]);
 
-  const enrollmentError = useMemo(() => {
-    if (!isEnterprise || !visibility || !enrollment) return null;
-    const enrOpt = enrollmentOptions.find((e) => e.value === enrollment);
-    if (enrOpt && enrOpt.rank > maxEnrollRank) {
-      return "Enrollment cannot be broader than visibility.";
-    }
-    return null;
-  }, [isEnterprise, visibility, enrollment, maxEnrollRank, enrollmentOptions]);
-
-  const submissionError = useMemo(() => {
-    if (!isEnterprise || !enrollment || !submission) return null;
-    const subOpt = submissionOptions.find((s) => s.value === submission);
-    if (subOpt && subOpt.rank > maxSubmissionRank) {
-      return "Submission tier cannot be broader than enrollment tier.";
-    }
-    return null;
-  }, [isEnterprise, enrollment, submission, maxSubmissionRank, submissionOptions]);
-
   const complexityScore = useMemo(
     () => COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0),
     [paramValues]
@@ -292,11 +228,11 @@ export default function ApprovalPublicationConfigTab({
   const complexityInfo = useMemo(() => getComplexityLevel(complexityScore), [complexityScore]);
 
   // Notify parent of configuration readiness
-  const hasAccessErrors = !!validationError || !!enrollmentError || !!submissionError;
+  const hasAccessErrors = !!validationError;
   const isConfigReady = !!visibility && !!eligibility && !!eligibilityModel && !hasAccessErrors && complexityFinalized;
   useEffect(() => {
-    onConfigChange?.({ visibility, eligibility, eligibilityModel, enrollment, submission, isReady: isConfigReady });
-  }, [visibility, eligibility, eligibilityModel, enrollment, submission, isConfigReady, onConfigChange]);
+    onConfigChange?.({ visibility, eligibility, eligibilityModel, isReady: isConfigReady });
+  }, [visibility, eligibility, eligibilityModel, isConfigReady, onConfigChange]);
 
   // ══════════════════════════════════════
   // SECTION 4: Mutation — finalize complexity
@@ -365,17 +301,7 @@ export default function ApprovalPublicationConfigTab({
   const handleVisibilityChange = useCallback((val: string) => {
     setVisibility(val);
     autoCorrectChildTier(val, visibilityOptions, eligibility, eligibilityOptions, setEligibility);
-    if (isEnterprise) {
-      autoCorrectChildTier(val, visibilityOptions, enrollment, enrollmentOptions, setEnrollment);
-    }
-  }, [eligibility, eligibilityOptions, visibilityOptions, enrollment, enrollmentOptions, isEnterprise]);
-
-  const handleEnrollmentChange = useCallback((val: string) => {
-    setEnrollment(val);
-    if (isEnterprise) {
-      autoCorrectChildTier(val, enrollmentOptions, submission, submissionOptions, setSubmission);
-    }
-  }, [enrollmentOptions, submission, submissionOptions, isEnterprise]);
+  }, [eligibility, eligibilityOptions, visibilityOptions]);
   // ══════════════════════════════════════
   // SECTION 6: Render — not approved yet
   // ══════════════════════════════════════
@@ -400,18 +326,8 @@ export default function ApprovalPublicationConfigTab({
                 <p className="text-xs text-muted-foreground">Eligibility</p>
                 <p className="text-sm font-medium text-foreground capitalize">{challenge.eligibility || "Not set"}</p>
               </div>
-              {isEnterprise && (
-                <>
-                  <div className="border border-border rounded-lg p-4 space-y-1">
-                    <p className="text-xs text-muted-foreground">Enrollment Model</p>
-                    <p className="text-sm font-medium text-foreground capitalize">{challenge.challenge_enrollment || "Not set"}</p>
-                  </div>
-                  <div className="border border-border rounded-lg p-4 space-y-1">
-                    <p className="text-xs text-muted-foreground">Submission Tier</p>
-                    <p className="text-sm font-medium text-foreground capitalize">{challenge.challenge_submission || "Not set"}</p>
-                  </div>
-                </>
-              )}
+
+
               <div className="border border-border rounded-lg p-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Max Solutions</p>
                 <p className="text-sm font-medium text-foreground">{challenge.max_solutions ?? "Unlimited"}</p>
@@ -553,87 +469,8 @@ export default function ApprovalPublicationConfigTab({
             </Select>
           </div>
 
-          {/* ── Enrollment Tier (Enterprise only) ─── */}
-          {isEnterprise && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">How can solvers enroll?</Label>
-              <Select value={enrollment} onValueChange={handleEnrollmentChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select enrollment model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enrollmentOptions.map((opt) => {
-                    const isDisabled = opt.rank > maxEnrollRank;
-                    return (
-                      <SelectItem key={opt.value} value={opt.value} disabled={isDisabled}>
-                        <div className="py-1">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-sm font-medium ${isDisabled ? "text-muted-foreground/50" : ""}`}>{opt.label}</p>
-                            {isDisabled && <span className="text-[10px] text-destructive font-medium">Restricted</span>}
-                          </div>
-                          <p className={`text-xs ${isDisabled ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{opt.description}</p>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {enrollmentError && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive font-medium">{enrollmentError}</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* ── Submission Tier (Enterprise only) ─── */}
-          {isEnterprise && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Who can submit solutions?</Label>
-              <Select value={submission} onValueChange={setSubmission}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select submission tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {submissionOptions.map((opt) => {
-                    const isDisabled = opt.rank > maxSubmissionRank;
-                    return (
-                      <SelectItem key={opt.value} value={opt.value} disabled={isDisabled}>
-                        <div className="py-1">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-sm font-medium ${isDisabled ? "text-muted-foreground/50" : ""}`}>{opt.label}</p>
-                            {isDisabled && <span className="text-[10px] text-destructive font-medium">Restricted</span>}
-                          </div>
-                          <p className={`text-xs ${isDisabled ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{opt.description}</p>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {submissionError && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive font-medium">{submissionError}</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* ── 3-Tier Hierarchy Indicator (Enterprise) ─── */}
-          {isEnterprise && visibility && enrollment && submission && !hasAccessErrors && (
-            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1">
-              <p className="text-[11px] font-semibold text-foreground">Access Model Hierarchy</p>
-              <p className="text-[11px] text-muted-foreground">
-                Visibility ({visibilityOptions.find(v => v.value === visibility)?.label})
-                {' → '}
-                Enrollment ({enrollmentOptions.find(e => e.value === enrollment)?.label})
-                {' → '}
-                Submission ({submissionOptions.find(s => s.value === submission)?.label})
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
