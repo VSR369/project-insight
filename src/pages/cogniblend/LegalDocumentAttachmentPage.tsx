@@ -13,6 +13,7 @@
  */
 
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -817,7 +818,7 @@ export default function LegalDocumentAttachmentPage() {
 
   return (
     <div ref={pageTopRef} className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
+      <WorkflowProgressBanner step={3} />
       <div>
         <h1 className="text-xl font-bold text-foreground">
           Legal Document Attachment

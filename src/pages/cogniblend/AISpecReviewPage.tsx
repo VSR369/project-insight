@@ -48,6 +48,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
+import { toast } from 'sonner';
 
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
@@ -55,6 +56,7 @@ import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
@@ -857,12 +859,78 @@ export default function AISpecReviewPage() {
     (s) => (sectionStatuses[s.key] ?? 'pending') === 'accepted',
   );
 
-  const handleConfirmSubmit = () => {
-    navigate('/cogni/dashboard');
+  const handleConfirmSubmit = async () => {
+    // Save any edited values to the database
+    const fieldsToSave: Record<string, unknown> = {};
+    for (const section of SPEC_SECTIONS) {
+      if (sectionValues[section.fieldKey] !== undefined) {
+        const raw = rawSectionData[section.fieldKey];
+        fieldsToSave[section.fieldKey] = raw !== undefined ? raw : sectionValues[section.fieldKey];
+      }
+    }
+
+    // Also save solver type selections
+    if (selectedEligibleTierIds.length > 0) {
+      const eligiblePayload = solverCategories
+        .filter((c) => selectedEligibleTierIds.includes(c.id))
+        .map((c) => ({ code: c.code, label: c.label }));
+      fieldsToSave.solver_eligibility_types = eligiblePayload;
+    }
+    if (selectedVisibleTierIds.length > 0) {
+      const visiblePayload = solverCategories
+        .filter((c) => selectedVisibleTierIds.includes(c.id))
+        .map((c) => ({ code: c.code, label: c.label }));
+      fieldsToSave.solver_visibility_types = visiblePayload;
+    }
+
+    if (Object.keys(fieldsToSave).length > 0 && challengeId) {
+      try {
+        await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
+      } catch {
+        toast.error('Failed to save specification. Please try again.');
+        return;
+      }
+    }
+
+    toast.success('Specification approved. Proceeding to legal document attachment.');
+    navigate(`/cogni/challenges/${challengeId}/legal`);
   };
 
-  const handleApproveAndContinue = () => {
-    navigate('/cogni/dashboard');
+  const handleApproveAndContinue = async () => {
+    // Save edited section values
+    const fieldsToSave: Record<string, unknown> = {};
+    for (const section of SPEC_SECTIONS) {
+      if (sectionValues[section.fieldKey] !== undefined) {
+        const raw = rawSectionData[section.fieldKey];
+        fieldsToSave[section.fieldKey] = raw !== undefined ? raw : sectionValues[section.fieldKey];
+      }
+    }
+
+    // Save solver type selections
+    if (selectedEligibleTierIds.length > 0) {
+      const eligiblePayload = solverCategories
+        .filter((c) => selectedEligibleTierIds.includes(c.id))
+        .map((c) => ({ code: c.code, label: c.label }));
+      fieldsToSave.solver_eligibility_types = eligiblePayload;
+    }
+    if (selectedVisibleTierIds.length > 0) {
+      const visiblePayload = solverCategories
+        .filter((c) => selectedVisibleTierIds.includes(c.id))
+        .map((c) => ({ code: c.code, label: c.label }));
+      fieldsToSave.solver_visibility_types = visiblePayload;
+    }
+
+    if (Object.keys(fieldsToSave).length > 0 && challengeId) {
+      try {
+        await saveStep.mutateAsync({ challengeId, fields: fieldsToSave });
+      } catch {
+        toast.error('Failed to save specification. Please try again.');
+        return;
+      }
+    }
+
+    toast.success('Specification approved. Proceeding to legal document attachment.');
+    navigate(`/cogni/challenges/${challengeId}/legal`);
   };
 
 
@@ -870,7 +938,7 @@ export default function AISpecReviewPage() {
   if (govMode === 'QUICK') {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
+        <WorkflowProgressBanner step={2} />
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
@@ -930,7 +998,7 @@ export default function AISpecReviewPage() {
   // ═══════ STRUCTURED mode: editable sections ═══════
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
-      {/* Header */}
+      <WorkflowProgressBanner step={2} />
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">

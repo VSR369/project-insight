@@ -18,6 +18,7 @@ import { OpenChallengesSection } from '@/components/cogniblend/dashboard/OpenCha
 import { RecentActivitySection } from '@/components/cogniblend/dashboard/RecentActivitySection';
 import { ActionItemsWidget } from '@/components/cogniblend/dashboard/ActionItemsWidget';
 import { RecentNotificationsWidget } from '@/components/cogniblend/dashboard/RecentNotificationsWidget';
+import { WhatsNextCard } from '@/components/cogniblend/dashboard/WhatsNextCard';
 import { Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { useMemo } from 'react';
@@ -45,6 +46,9 @@ export default function CogniDashboardPage() {
 
   return (
     <>
+      {/* ── What's Next Card ─────────────────────────── */}
+      <WhatsNextCard />
+
       {/* ── Action Items Widget (all roles) ────────────── */}
       <ActionItemsWidget />
 

@@ -25,6 +25,7 @@ import {
 import { useManageChallenge, PackageVersion } from '@/hooks/cogniblend/useManageChallenge';
 import { useAuth } from '@/hooks/useAuth';
 import { ExtendDeadlineModal } from '@/components/cogniblend/manage/ExtendDeadlineModal';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { AmendmentCard } from '@/components/cogniblend/manage/AmendmentCard';
 import { QAManagementCard } from '@/components/cogniblend/manage/QAManagementCard';
 import { DuplicateReviewPanel } from '@/components/cogniblend/DuplicateReviewPanel';
@@ -129,6 +130,9 @@ export default function ChallengeManagePage() {
   /* ── Render ── */
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 lg:py-8 space-y-6">
+      {/* Workflow Progress */}
+      <WorkflowProgressBanner step={6} />
+
       {/* Back */}
       <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/portfolio')} className="gap-1.5">
         <ArrowLeft className="h-4 w-4" /> Portfolio
