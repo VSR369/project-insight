@@ -60,6 +60,8 @@ import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/sol
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
