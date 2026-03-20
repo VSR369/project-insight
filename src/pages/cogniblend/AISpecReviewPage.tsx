@@ -706,16 +706,10 @@ export default function AISpecReviewPage() {
           <p className="text-xs text-muted-foreground">
             All fields auto-completed by AI. Legal auto-configured from maturity level.
           </p>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleOpenEditor}>
-              <Settings2 className="h-4 w-4 mr-2" />
-              Open Editor
-            </Button>
-            <Button onClick={handleConfirmSubmit} size="lg">
-              <Check className="h-4 w-4 mr-2" />
-              Confirm & Submit
-            </Button>
-          </div>
+           <Button onClick={handleConfirmSubmit} size="lg">
+             <Check className="h-4 w-4 mr-2" />
+             Confirm & Submit
+           </Button>
         </div>
       </div>
     );
