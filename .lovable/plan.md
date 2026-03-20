@@ -1,105 +1,67 @@
 
 
-# Plan: Simplify Access Model — Solver-Type Only + Better AI Deliverables/Criteria
+# Plan: Fix AI Failing to Populate Deliverables, Criteria, and Solver Types
 
-## Problem
+## Root Cause Analysis
 
-1. **Enrollment and Submission fields are redundant** — the logic is simple: eligible solvers can submit, visible solvers can only view. These fields add confusion without value.
-2. **AI is not generating proper deliverables** — they should be concrete, measurable outputs derived from the problem statement.
-3. **AI is not generating proper evaluation criteria** — needs structured Name/Weight/Description with weights summing to 100%.
-4. **AI should show only its finalized solver type selections** (not all types), but allow the user to add/remove.
+Three distinct bugs prevent AI-generated data from appearing on the review page:
 
-## Simplified Access Logic
-
-```text
-Solver Types (from md_solver_eligibility):
-  ├── Eligible Solvers: Can view AND submit solutions
-  └── Visible Solvers: Can only view/discover the challenge (not submit)
-
-No separate Enrollment or Submission tiers needed.
+### Bug 1: Deliverables & Evaluation Criteria — Wrong Column Format
+**Where**: `ConversationalIntakePage.tsx` line 367-368
+```typescript
+deliverables: { items: spec.deliverables },        // wraps in { items: [...] }
+evaluation_criteria: { criteria: spec.evaluation_criteria }, // wraps in { criteria: [...] }
 ```
+**But** the `AISpecReviewPage` reads `challengeRecord.deliverables` and `challengeRecord.evaluation_criteria` directly, expecting raw arrays. When stored as `{ items: [...] }` and `{ criteria: [...] }`, the `Array.isArray()` check fails and shows "No deliverables defined" / "No criteria defined".
+
+### Bug 2: Solver Eligibility Codes — Never Saved to DB
+**Where**: `ConversationalIntakePage.tsx` lines 360-376 — the `saveStep` call saves `eligibility` (free text) but never saves `solver_eligibility_codes`, `solver_eligibility_details`, or `solver_eligibility_types` (the actual DB column). The challenges table has `solver_eligibility_types` (Json) and `solver_eligibility_id` (FK) columns, but neither is written.
+
+### Bug 3: `useChallengeDetail` Doesn't Fetch Solver Fields
+**Where**: `useChallengeForm.ts` lines 54-60 — the select query fetches `eligibility` and `visibility` but NOT `solver_eligibility_types`, `solver_eligibility_id`, `challenge_visibility`, or `hook`. So even if saved, they'd never load on the review page.
+
+### Bug 4 (Minor): AccessModelSummary is Unnecessary
+User confirmed "Access model summary is not required." It can be removed from the review page.
 
 ## Changes
 
-### 1. Remove Enrollment & Submission from DB
-**Migration SQL** — Drop `challenge_enrollment` and `challenge_submission` columns from `challenges` table. Keep `challenge_visibility` as it maps to the "visible solver types" concept.
+### 1. Fix `saveStep` Call — Save All AI Fields Properly
+**File**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-### 2. Remove from Constants & Shared Code
-**Files:** `src/constants/challengeOptions.constants.ts`, `src/components/cogniblend/AccessModelSummary.tsx`
+Update the `saveStep.mutateAsync` call (lines 360-376) to:
+- Save `deliverables` as the raw array (not wrapped in `{ items: ... }`)
+- Save `evaluation_criteria` as the raw array (not wrapped in `{ criteria: ... }`)
+- Save `solver_eligibility_types` as JSON array of `{ code, label }` objects from `spec.solver_eligibility_details`
+- Save `challenge_visibility` from `spec.challenge_visibility`
+- Save `hook` from `spec.hook`
 
-- Remove `ENROLLMENT_OPTIONS`, `SUBMISSION_OPTIONS`, `findEnrollmentOption`, `findSubmissionOption`
-- Simplify `AccessModelSummary` to show only two tiers: "Eligible Solvers" (can submit) and "Visible Solvers" (can view only)
+### 2. Fix `useChallengeDetail` — Fetch Missing Columns
+**File**: `src/hooks/queries/useChallengeForm.ts`
 
-### 3. Remove from Manual Editor (StepProviderEligibility)
-**File:** `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx`
+Add to the select query and `ChallengeDetail` interface:
+- `solver_eligibility_types`
+- `solver_eligibility_id`  
+- `challenge_visibility`
+- `hook`
+- `effort_level`
 
-- Remove the 3-column Publication Configuration grid (Visibility/Enrollment/Submission dropdowns)
-- Remove `VALID_ENROLLMENTS`, `VALID_SUBMISSIONS` cascade logic
-- Remove the useEffect hooks that cascade enrollment/submission values
-- Keep solver tier checkboxes as-is — they define eligible solvers
-- Add a simple "Visibility" concept: the selected solver tiers define who is eligible; visibility remains as a separate dropdown (public vs restricted)
+### 3. Fix AISpecReviewPage — Read Data From Correct Shape
+**File**: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-### 4. Remove from Form Schema
-**File:** `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts`
+Update `getRawData` to unwrap both formats: if `deliverables` is `{ items: [...] }`, extract the array; if it's already an array, use directly. Same for `evaluation_criteria` with `{ criteria: [...] }`. This handles both old and new data.
 
-- Remove `challenge_enrollment` and `challenge_submission` from the Zod schema and defaults
+For solver eligibility: read from `solver_eligibility_types` (DB column) instead of non-existent `solver_eligibility_codes`, and map codes to the master data for the checkbox editor.
 
-### 5. Remove from Review/Submit Step
-**File:** `src/components/cogniblend/challenge-wizard/StepReviewSubmit.tsx`
+### 4. Remove AccessModelSummary from Review Page
+**File**: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-- Remove enrollment/submission from the review summary
-
-### 6. Update Edge Function — Better Deliverables & Criteria
-**File:** `supabase/functions/generate-challenge-spec/index.ts`
-
-- Remove `challenge_enrollment` and `challenge_submission` from the response
-- Enhance the deliverables prompt: "Analyze the problem statement and derive 3-7 specific deliverables that directly address each aspect of the stated problem. Each must be a tangible work product."
-- Enhance evaluation criteria prompt: "Create 3-6 evaluation criteria with structured Name (2-4 words), Weight (integer %, must sum to exactly 100), and Description (1-2 sentences on scoring methodology). Weight distribution should reflect the relative importance to solving the specific problem."
-- Remove `default_enrollment` and `default_submission` from the solver category query
-
-### 7. Update AI Spec Review — Show Only AI-Selected + Allow Edit
-**File:** `src/pages/cogniblend/AISpecReviewPage.tsx`
-
-- Remove enrollment/submission state, dropdowns, and props
-- **STRUCTURED mode**: Show AI-selected solver types as pre-checked cards (only the selected ones shown prominently). Below, show remaining available types in a collapsed "Add more solver types" section.
-- **QUICK mode**: Show AI-selected solver types as read-only cards (finalized)
-- Simplify `AccessModelSummary` usage to just show Eligible vs Visible
-- Remove `ENROLLMENT_OPTIONS` and `SUBMISSION_OPTIONS` imports
-
-### 8. Update State Sync
-**File:** `src/pages/cogniblend/ChallengeCreatePage.tsx`
-
-- Remove `challenge_enrollment` and `challenge_submission` from `handleSpecGenerated`
-
-### 9. Update Hook Types
-**File:** `src/hooks/mutations/useGenerateChallengeSpec.ts`
-
-- Remove `challenge_enrollment` and `challenge_submission` from `GeneratedSpec`
-
-### 10. Clean Up Tests
-**File:** `src/components/cogniblend/challenge-wizard/__tests__/Wave5PublicationConfig.test.ts`, `useFormCompletion.test.ts`
-
-- Remove enrollment/submission test cases
-
-### 11. Clean Up Approval Tab
-**File:** `src/components/cogniblend/approval/ApprovalPublicationConfigTab.tsx`
-
-- Remove enrollment/submission references
+Remove `AccessModelSummary` from both QUICK and STRUCTURED modes, and from the `SolverEligibilityEditor` component. Keep the component file itself (used elsewhere).
 
 ## Files Summary
 
 | File | Action |
 |------|--------|
-| Migration SQL | Drop `challenge_enrollment`, `challenge_submission` columns |
-| `src/constants/challengeOptions.constants.ts` | Remove enrollment/submission options |
-| `src/components/cogniblend/AccessModelSummary.tsx` | Simplify to 2-tier (Eligible + Visible) |
-| `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx` | Remove 3-tier publication config |
-| `src/components/cogniblend/challenge-wizard/challengeFormSchema.ts` | Remove enrollment/submission fields |
-| `src/components/cogniblend/challenge-wizard/StepReviewSubmit.tsx` | Remove enrollment/submission from review |
-| `supabase/functions/generate-challenge-spec/index.ts` | Better deliverables/criteria prompts, remove enrollment/submission |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Show only AI-finalized types + edit, remove enrollment/submission |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Remove enrollment/submission from state sync |
-| `src/hooks/mutations/useGenerateChallengeSpec.ts` | Remove enrollment/submission from types |
-| `src/components/cogniblend/approval/ApprovalPublicationConfigTab.tsx` | Remove enrollment/submission |
-| Test files | Update to remove enrollment/submission references |
+| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Fix saveStep to save raw arrays + solver types |
+| `src/hooks/queries/useChallengeForm.ts` | Add missing columns to select + interface |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Fix data reading + remove AccessModelSummary |
 
