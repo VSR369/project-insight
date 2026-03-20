@@ -172,8 +172,6 @@ export default function LcLegalWorkspacePage() {
       await completePhase.mutateAsync({
         challengeId,
         userId: user.id,
-        currentPhase: 2,
-        targetStatus: 'COMPLETED',
       });
 
       toast.success('Legal review complete — challenge advanced to Curation');

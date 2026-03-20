@@ -169,3 +169,6 @@ verify_jwt = false
 
 [functions.ai-field-assist]
 verify_jwt = false
+
+[functions.suggest-legal-documents]
+verify_jwt = false

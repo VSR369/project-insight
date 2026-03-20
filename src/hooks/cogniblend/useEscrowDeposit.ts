@@ -18,6 +18,13 @@ export interface EscrowRecord {
   deposit_amount: number;
   remaining_amount: number;
   rejection_fee_percentage: number;
+  bank_name?: string | null;
+  bank_branch?: string | null;
+  bank_address?: string | null;
+  currency?: string;
+  deposit_date?: string | null;
+  deposit_reference?: string | null;
+  fc_notes?: string | null;
 }
 
 export interface EscrowData {
