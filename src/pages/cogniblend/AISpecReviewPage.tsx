@@ -938,7 +938,7 @@ export default function AISpecReviewPage() {
   if (govMode === 'QUICK') {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
-        {/* Header */}
+        <WorkflowProgressBanner step={2} />
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-2 mb-1">
