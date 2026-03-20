@@ -821,6 +821,7 @@ export default function AISpecReviewPage() {
     if (autoGenTriggered.current) return;
     if (isLoading || !challenge || !challengeId) return;
     if (hasAiData) return;
+    if (!isCR) return; // Only Challenge Creator role can trigger AI generation
 
     autoGenTriggered.current = true;
     setIsAutoGenerating(true);
