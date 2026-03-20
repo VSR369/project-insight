@@ -199,8 +199,6 @@ export function createChallengeFormSchema(
     solver_eligibility_id: z.string().optional().or(z.literal('')),
     solver_eligibility_ids: z.array(z.string()).default([]),
     challenge_visibility: z.string().optional().or(z.literal('')),
-    challenge_enrollment: z.string().optional().or(z.literal('')),
-    challenge_submission: z.string().optional().or(z.literal('')),
     required_expertise_level_id: z.string().optional().or(z.literal('')),
     required_proficiencies: z.array(z.string()).default([]),
     required_sub_domains: z.array(z.string()).default([]),
