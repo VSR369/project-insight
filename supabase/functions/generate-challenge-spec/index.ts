@@ -310,18 +310,41 @@ Generate a complete challenge specification.`;
       ? spec.visible_solver_codes.filter((c: string) => validCodes.includes(c))
       : [];
 
-    // Fallback: if no valid eligible codes, use the first (most open) category
-    if (selectedEligibleCodes.length === 0 && categories.length > 0) {
-      selectedEligibleCodes.push(categories[0].code);
+    // Broadness hierarchy for post-processing: narrowest → broadest
+    const BREADTH_ORDER = ["IO", "CE", "OC", "DR", "OPEN"];
+
+    // Fallback: if no valid eligible codes, default to DR
+    if (selectedEligibleCodes.length === 0) {
+      selectedEligibleCodes.push("DR");
     }
 
-    // Fallback: if no visible codes, default to eligible codes (same breadth)
+    // Fallback: if no visible codes, default to OPEN
     if (selectedVisibleCodes.length === 0) {
-      selectedVisibleCodes.push(...selectedEligibleCodes);
+      selectedVisibleCodes.push("OPEN");
     }
 
-    spec.solver_eligibility_codes = selectedEligibleCodes;
-    spec.visible_solver_codes = selectedVisibleCodes;
+    // Keep only 1 code each (take the broadest selected)
+    const getBroadest = (codes: string[]) => {
+      let best = codes[0];
+      for (const c of codes) {
+        if (BREADTH_ORDER.indexOf(c) > BREADTH_ORDER.indexOf(best)) best = c;
+      }
+      return best;
+    };
+    const eligibleCode = getBroadest(selectedEligibleCodes);
+    let visibleCode = getBroadest(selectedVisibleCodes);
+
+    // Post-processing: visible must be strictly broader than eligible (unless both OPEN)
+    const eligibleRank = BREADTH_ORDER.indexOf(eligibleCode);
+    const visibleRank = BREADTH_ORDER.indexOf(visibleCode);
+    if (eligibleCode !== "OPEN" && visibleRank <= eligibleRank) {
+      // Bump visible to the next broader tier
+      const nextBroaderIndex = Math.min(eligibleRank + 1, BREADTH_ORDER.length - 1);
+      visibleCode = BREADTH_ORDER[nextBroaderIndex];
+    }
+
+    spec.solver_eligibility_codes = [eligibleCode];
+    spec.visible_solver_codes = [visibleCode];
     spec.eligibility_notes = spec.eligibility_notes ?? "";
 
     // Build hydrated details for eligible solvers
