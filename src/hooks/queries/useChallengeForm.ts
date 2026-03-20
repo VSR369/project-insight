@@ -23,8 +23,8 @@ export interface ChallengeDetail {
   description: string | null;
   problem_statement: string | null;
   scope: string | null;
-  deliverables: Record<string, unknown> | null;
-  evaluation_criteria: Record<string, unknown> | null;
+  deliverables: unknown;
+  evaluation_criteria: unknown;
   reward_structure: Record<string, unknown> | null;
   maturity_level: string | null;
   phase_schedule: Record<string, unknown> | null;
@@ -39,6 +39,11 @@ export interface ChallengeDetail {
   master_status: string | null;
   max_solutions: number | null;
   currency_code: string | null;
+  solver_eligibility_types: unknown;
+  solver_eligibility_id: string | null;
+  challenge_visibility: string | null;
+  hook: string | null;
+  effort_level: string | null;
 }
 
 /* ─── useChallengeDetail ─────────────────────────────────── */
