@@ -203,8 +203,8 @@ export default function ApprovalPublicationConfigTab({
 
   const visibilityOptions = isEnterprise ? VISIBILITY_OPTIONS_ENTERPRISE : VISIBILITY_OPTIONS_LIGHTWEIGHT;
   const eligibilityOptions = isEnterprise ? ELIGIBILITY_OPTIONS_ENTERPRISE : ELIGIBILITY_OPTIONS_LIGHTWEIGHT;
-  const enrollmentOptions = isEnterprise ? ENROLLMENT_OPTIONS_ENTERPRISE : ENROLLMENT_OPTIONS_LIGHTWEIGHT;
-  const submissionOptions = isEnterprise ? SUBMISSION_OPTIONS_ENTERPRISE : SUBMISSION_OPTIONS_LIGHTWEIGHT;
+
+
 
   const maxEligRank = useMemo(
     () => getMaxTierRank(visibility, visibilityOptions),
