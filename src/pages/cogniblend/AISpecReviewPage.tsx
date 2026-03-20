@@ -317,10 +317,12 @@ function SolverEligibilityEditor({
 /* ─── Read-Only Solver Display (for QUICK mode) ─────── */
 
 function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, unknown> }) {
-  const details: SolverEligibilityDetail[] = Array.isArray(challenge.solver_eligibility_details)
-    ? challenge.solver_eligibility_details as SolverEligibilityDetail[]
+  // Read from solver_eligibility_types (DB column) — array of { code, label } objects
+  const rawTypes = challenge.solver_eligibility_types;
+  const details: SolverEligibilityDetail[] = Array.isArray(rawTypes)
+    ? rawTypes as SolverEligibilityDetail[]
     : [];
-  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
+  const eligNotes = (challenge.eligibility as string) || '';
   const visibility = (challenge.challenge_visibility as string) || 'public';
 
   return (
