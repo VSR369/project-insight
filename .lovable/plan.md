@@ -1,78 +1,64 @@
 
 
-# Plan: Fix AI Autonomous Solver Type Selection for Eligibility & Visibility
+# Plan: Remove Duplicate Solver Categories & Fix AI Selection
 
-## Root Cause (from DB inspection)
+## Problem
 
-For challenge `3c9839ae`, the actual DB state is:
-- `solver_eligibility_types`: `[]` (empty — never saved)
-- `challenge_visibility`: `null` (never saved)
-- `deliverables`: `{ items: [...] }` (wrapped format — old bug, already handled by display)
-- `evaluation_criteria`: `{ criteria: [...] }` (wrapped format — already handled)
+The `md_solver_eligibility` table contains **two overlapping sets** of solver categories:
 
-**Why solver types are empty**: The edge function returns `solver_eligibility_details` in the spec, but `ConversationalIntakePage` maps `spec.solver_eligibility_details` — if the AI tool call doesn't return this field or returns it differently, it becomes `[]`. Additionally, the current model only outputs ONE set of solver codes for eligibility. There's NO separate set for visibility — `challenge_visibility` is just a string like "public", not solver types.
+| Set | Codes | Display Order | Purpose |
+|-----|-------|---------------|---------|
+| Old granular | `certified_basic`, `certified_competent`, `certified_expert`, `registered`, `expert_invitee`, `signed_in`, `open_community`, `hybrid` | 10–80 | Legacy, fine-grained tiers |
+| New model | `CE`, `IO`, `DR`, `OC`, `OPEN` | 100–140 | Current 5-code model (matches your screenshot) |
 
-## What Needs to Change
+Both sets are `is_active = true`, so both appear in the UI and the AI picks from all 13 codes — producing redundant/confusing selections.
 
-The user wants TWO solver-type-based lists from the SAME `md_solver_eligibility` master data:
-1. **Eligible solver types** — can view AND submit solutions
-2. **Visible solver types** — can only discover/view the challenge, NOT submit
-
-Both selected autonomously by AI. Both editable by user.
+The user's screenshot confirms only the 5-code model set (`CE`, `IO`, `DR`, `OC`, `OPEN`) should be used.
 
 ## Changes
 
-### 1. Add DB Column for Visible Solver Types
-**Migration**: Add `solver_visibility_types` (JSONB, default `[]`) to `challenges` table. This mirrors `solver_eligibility_types` but for view-only access.
+### 1. Deactivate Old Solver Categories (Migration)
 
-### 2. Update Edge Function — Two Solver Type Outputs
+SQL migration to set `is_active = false` on the 8 old codes (`certified_basic`, `certified_competent`, `certified_expert`, `registered`, `expert_invitee`, `signed_in`, `open_community`, `hybrid`). This removes them from:
+- The AI prompt (edge function fetches `is_active = true`)
+- The review page checkboxes (`useSolverEligibility` fetches `is_active = true`)
+- The manual wizard
+
+No data loss — existing challenges referencing these codes keep their stored JSON intact.
+
+### 2. Improve AI Prompt — Context-Aware Selection Logic
+
 **File**: `supabase/functions/generate-challenge-spec/index.ts`
 
-Add to the tool schema:
-- `visible_solver_codes`: array of codes for view-only solver types
-- Update prompt to explain the distinction: "Select 1-3 codes for eligible solvers (can submit). Then select 1-3 broader codes for visible solvers (can discover but not submit). Visible should be equal or broader than eligible."
+Enhance the system prompt's solver selection instructions to be more prescriptive based on problem characteristics:
 
-Post-process: Build both `solver_eligibility_details` and `solver_visibility_details` arrays from master data, include both in response.
+```
+Selection rules (apply in order):
+1. IP-sensitive challenges (IP-EA, IP-EL, pilot/prototype maturity):
+   - Eligible: CE or IO (narrow, vetted solvers)
+   - Visible: DR or OC (broader discovery, still controlled)
+2. Domain-expert challenges (poc maturity, technical problems):
+   - Eligible: DR (registered with NDA)
+   - Visible: OPEN or DR
+3. Open innovation / ideation (blueprint maturity, IP-NONE):
+   - Eligible: OPEN
+   - Visible: OPEN
+4. Visible MUST always be equal to or broader than Eligible
+5. Never select the SAME codes for both — visible should be strictly broader unless both are OPEN
+```
 
-### 3. Update GeneratedSpec Type
-**File**: `src/hooks/mutations/useGenerateChallengeSpec.ts`
+This gives the AI deterministic decision criteria rather than vague "select 1-3 codes."
 
-Add `visible_solver_codes`, `solver_visibility_details`, `visible_solver_types` to `GeneratedSpec`.
+### 3. Ensure No Overlap Between Eligible and Visible Selections
 
-### 4. Update ConversationalIntakePage — Save Both Arrays
-**File**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
+**File**: `supabase/functions/generate-challenge-spec/index.ts`
 
-Save `solver_visibility_types` alongside `solver_eligibility_types` in the `saveStep` call.
-
-### 5. Update useChallengeDetail — Fetch New Column
-**File**: `src/hooks/queries/useChallengeForm.ts`
-
-Add `solver_visibility_types` to select query and `ChallengeDetail` interface.
-
-### 6. Update AISpecReviewPage — Show Both Sections
-**File**: `src/pages/cogniblend/AISpecReviewPage.tsx`
-
-Replace the single "Solver Eligibility & Access" section with two sub-sections:
-- **Eligible Solver Types** (can submit) — AI-selected, editable checkboxes
-- **Visible Solver Types** (can view only) — AI-selected, editable checkboxes
-- Remove the `challenge_visibility` dropdown (replaced by solver-type-based visibility)
-
-Initialize both from their respective DB columns. Both use the same `md_solver_eligibility` master data checkboxes.
-
-### 7. Update Manual Editor (StepProviderEligibility) — Match
-**File**: `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx`
-
-Add "Visible Solver Types" checkboxes alongside existing eligibility checkboxes.
+Add post-processing after AI returns codes: if `visible_solver_codes` and `solver_eligibility_codes` are identical, expand visible to include the next broader category. For example, if both are `[DR]`, expand visible to `[DR, OPEN]`.
 
 ## Files Summary
 
 | File | Action |
 |------|--------|
-| Migration SQL | Add `solver_visibility_types` JSONB column |
-| `supabase/functions/generate-challenge-spec/index.ts` | Add `visible_solver_codes` to tool schema + prompt |
-| `src/hooks/mutations/useGenerateChallengeSpec.ts` | Add visibility types to `GeneratedSpec` |
-| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Save both solver type arrays |
-| `src/hooks/queries/useChallengeForm.ts` | Fetch `solver_visibility_types` |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Show two solver type sections, remove visibility dropdown |
-| `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx` | Add visible solver types |
+| Migration SQL | Deactivate 8 old solver category codes |
+| `supabase/functions/generate-challenge-spec/index.ts` | Better selection rules in prompt + post-processing to prevent identical sets |
 
