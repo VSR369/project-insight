@@ -974,6 +974,7 @@ export default function AISpecReviewPage() {
             onAccept={() => handleAccept(section.key)}
             onEdit={() => handleEdit(section.key)}
             onSave={(val) => handleSave(section.key, val)}
+            onSaveStructured={(data) => handleSaveStructured(section.fieldKey, data)}
             solverEditor={
               section.renderer === 'solver_eligibility' ? (
                 <SolverTypeEditor
