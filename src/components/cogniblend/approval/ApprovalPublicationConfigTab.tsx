@@ -106,19 +106,23 @@ const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
 
 
 
-/* ── Eligibility Options — Canonical 5-code model (CE, IO, DR, OC, OPEN) ── */
+/* ── Eligibility Options — Original 8-code model ── */
 
 const ELIGIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "IO", label: "Invite Only (IO)", description: "Only explicitly invited solvers can participate", rank: 1 },
-  { value: "CE", label: "Curated Expert (CE)", description: "Verified experts at L2+ expertise", rank: 2 },
-  { value: "OC", label: "Open Challenge (OC)", description: "Any solver can enroll — no restrictions", rank: 3 },
-  { value: "DR", label: "Direct Registered (DR)", description: "Registered platform members with NDA", rank: 4 },
-  { value: "OPEN", label: "Open (OPEN)", description: "Open to all — broadest access", rank: 5 },
+  { value: "certified_expert", label: "Certified Expert", description: "Top-tier certified experts only", rank: 1 },
+  { value: "certified_competent", label: "Certified Competent", description: "Mid-level certified solvers", rank: 2 },
+  { value: "certified_basic", label: "Certified Basic", description: "Entry-level certified solvers", rank: 3 },
+  { value: "expert_invitee", label: "Expert (Invitee)", description: "Specifically invited experts", rank: 4 },
+  { value: "registered", label: "Registered", description: "Registered platform members", rank: 5 },
+  { value: "signed_in", label: "Signed In", description: "Any authenticated user", rank: 6 },
+  { value: "open_community", label: "Open Community", description: "Open to the broader community", rank: 7 },
+  { value: "hybrid", label: "Hybrid", description: "Certified experts + open community", rank: 8 },
 ];
 
 const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "IO", label: "Invite Only (IO)", description: "Only explicitly invited solvers", rank: 1 },
-  { value: "OPEN", label: "Open (OPEN)", description: "Open to all — no restrictions", rank: 5 },
+  { value: "certified_expert", label: "Certified Expert", description: "Top-tier certified experts only", rank: 1 },
+  { value: "registered", label: "Registered", description: "Registered platform members", rank: 5 },
+  { value: "open_community", label: "Open Community", description: "Open to the broader community", rank: 7 },
 ];
 
 const COMPLEXITY_PARAMS: ComplexityParam[] = [

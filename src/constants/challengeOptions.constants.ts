@@ -34,11 +34,14 @@ export const VISIBILITY_OPTIONS: readonly TierOption[] = [
 /* ─── Eligibility Models ─────────────────────────────── */
 
 export const ELIGIBILITY_MODELS: readonly EligibilityModelOption[] = [
-  { code: 'IO', label: 'Invite Only (IO)', description: 'Only explicitly invited solvers can participate. Maximum control over solver pool.' },
-  { code: 'CE', label: 'Curated Expert (CE)', description: 'Verified experts at L2+ expertise. For complex, domain-specific challenges.' },
-  { code: 'OC', label: 'Open Challenge (OC)', description: 'Any solver can enroll — no restrictions. Ideal for broad innovation challenges.' },
-  { code: 'DR', label: 'Direct Registered (DR)', description: 'Registered platform members with NDA acceptance. Standard for IP-sensitive challenges.' },
-  { code: 'OPEN', label: 'Open (OPEN)', description: 'Broadest access — any user on the platform can discover and participate.' },
+  { code: 'certified_basic', label: 'Certified Basic', description: 'Entry-level certified solvers. Minimum verified competency.' },
+  { code: 'certified_competent', label: 'Certified Competent', description: 'Mid-level certified solvers with demonstrated domain expertise.' },
+  { code: 'certified_expert', label: 'Certified Expert', description: 'Top-tier certified experts. For complex, IP-sensitive challenges.' },
+  { code: 'registered', label: 'Registered', description: 'Registered platform members with identity verification. Standard eligibility.' },
+  { code: 'expert_invitee', label: 'Expert (Invitee)', description: 'Experts specifically invited by the challenge creator or platform.' },
+  { code: 'signed_in', label: 'Signed In', description: 'Any authenticated user on the platform can participate.' },
+  { code: 'open_community', label: 'Open Community', description: 'Open to the broader community — minimal barriers to entry.' },
+  { code: 'hybrid', label: 'Hybrid', description: 'Broadest access — certified experts get priority + open community can also submit.' },
 ] as const;
 
 /* ─── Lookup helpers ─────────────────────────────────── */

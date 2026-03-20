@@ -5,10 +5,20 @@
  * Used both for auto-repair of existing challenges and as a fallback
  * when AI returns empty/invalid solver arrays.
  *
- * Hierarchy (narrowest → broadest): IO < CE < OC < DR < OPEN
+ * Hierarchy (narrowest → broadest):
+ * certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid
  */
 
-const BREADTH_ORDER = ['IO', 'CE', 'OC', 'DR', 'OPEN'] as const;
+const BREADTH_ORDER = [
+  'certified_expert',
+  'certified_competent',
+  'certified_basic',
+  'expert_invitee',
+  'registered',
+  'signed_in',
+  'open_community',
+  'hybrid',
+] as const;
 
 export interface SolverAssignment {
   eligibleCode: string;
@@ -25,23 +35,23 @@ export function computeSolverAssignment(signals: {
   const maturity = (signals.maturityLevel ?? '').toUpperCase();
   const ip = (signals.ipModel ?? '').toUpperCase();
 
-  // Rule 1: IP-sensitive or advanced maturity
+  // Rule 1: IP-sensitive or advanced maturity → tightest eligible, moderate visible
   if (['IP-EA', 'IP-EL'].includes(ip) || ['PILOT', 'PROTOTYPE'].includes(maturity)) {
-    return { eligibleCode: 'CE', visibleCode: 'DR' };
+    return { eligibleCode: 'certified_expert', visibleCode: 'registered' };
   }
 
   // Rule 2: Domain-expert / PoC
   if (maturity === 'POC') {
-    return { eligibleCode: 'DR', visibleCode: 'OPEN' };
+    return { eligibleCode: 'registered', visibleCode: 'open_community' };
   }
 
   // Rule 3: Open innovation / ideation
   if (maturity === 'BLUEPRINT' && ['IP-NONE', 'IP-NEL', ''].includes(ip)) {
-    return { eligibleCode: 'OPEN', visibleCode: 'OPEN' };
+    return { eligibleCode: 'open_community', visibleCode: 'open_community' };
   }
 
   // Rule 4: Default
-  return { eligibleCode: 'DR', visibleCode: 'OPEN' };
+  return { eligibleCode: 'registered', visibleCode: 'open_community' };
 }
 
 /**
@@ -51,10 +61,11 @@ export function enforceHierarchy(eligible: string, visible: string): SolverAssig
   const eligibleRank = BREADTH_ORDER.indexOf(eligible as any);
   const visibleRank = BREADTH_ORDER.indexOf(visible as any);
 
-  if (eligibleRank < 0) return { eligibleCode: 'DR', visibleCode: 'OPEN' };
-  if (visibleRank < 0) return { eligibleCode: eligible, visibleCode: 'OPEN' };
+  if (eligibleRank < 0) return { eligibleCode: 'registered', visibleCode: 'open_community' };
+  if (visibleRank < 0) return { eligibleCode: eligible, visibleCode: 'open_community' };
 
-  if (eligible === 'OPEN' && visible === 'OPEN') {
+  // Both same code is allowed if both are open_community or hybrid
+  if (eligible === visible && (eligible === 'open_community' || eligible === 'hybrid')) {
     return { eligibleCode: eligible, visibleCode: visible };
   }
 
