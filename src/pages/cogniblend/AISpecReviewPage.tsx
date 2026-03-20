@@ -55,6 +55,21 @@ import { getMaturityLabel } from '@/lib/maturityLabels';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
 
 
+/* ─── IP Model Labels ────────────────────────────────── */
+
+const IP_MODEL_LABELS: Record<string, string> = {
+  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
+  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
+  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
+  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+};
+
+function getIpModelLabel(code: string | null | undefined): string {
+  if (!code) return 'Not yet assigned';
+  return IP_MODEL_LABELS[code.toUpperCase()] ?? code;
+}
+
 /* ─── Types ──────────────────────────────────────────── */
 
 interface SpecSection {
