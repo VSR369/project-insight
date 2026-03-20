@@ -21,7 +21,6 @@ import {
   ArrowLeft,
   AlertTriangle,
   ShieldCheck,
-  Settings2,
   Users,
   ChevronDown,
 } from 'lucide-react';
@@ -54,6 +53,21 @@ import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode
 import { getMaturityLabel } from '@/lib/maturityLabels';
 import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/solverAutoAssign';
 
+
+/* ─── IP Model Labels ────────────────────────────────── */
+
+const IP_MODEL_LABELS: Record<string, string> = {
+  'IP-EA': 'Exclusive Assignment — Full IP transfer to seeker',
+  'IP-NEL': 'Non-Exclusive License — Solver retains rights, seeker gets license',
+  'IP-EL': 'Exclusive License — Seeker gets exclusive usage rights',
+  'IP-JO': 'Joint Ownership — Shared IP between solver and seeker',
+  'IP-NONE': 'No Transfer — Solver retains all IP rights',
+};
+
+function getIpModelLabel(code: string | null | undefined): string {
+  if (!code) return 'Not yet assigned';
+  return IP_MODEL_LABELS[code.toUpperCase()] ?? code;
+}
 
 /* ─── Types ──────────────────────────────────────────── */
 
@@ -448,12 +462,17 @@ function SectionContent({
     case 'solver_eligibility':
     case 'solver_visibility':
       return solverEditor ?? <SolverTypeReadOnly typesData={rawData} label={section.label} />;
-    default:
+    default: {
+      // For ip_model, display human-readable label
+      const displayValue = section.fieldKey === 'ip_model'
+        ? getIpModelLabel(value || null)
+        : value;
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-          {value || <span className="italic">No content yet</span>}
+          {displayValue || <span className="italic">No content yet</span>}
         </p>
       );
+    }
   }
 }
 
@@ -630,9 +649,6 @@ export default function AISpecReviewPage() {
     navigate('/cogni/dashboard');
   };
 
-  const handleOpenEditor = () => {
-    navigate(`/cogni/challenges/${challengeId}/edit`);
-  };
 
   // ═══════ QUICK mode: read-only with 1-click confirm ═══════
   if (govMode === 'QUICK') {
@@ -686,16 +702,10 @@ export default function AISpecReviewPage() {
           <p className="text-xs text-muted-foreground">
             All fields auto-completed by AI. Legal auto-configured from maturity level.
           </p>
-          <div className="flex gap-3">
-            <Button variant="outline" onClick={handleOpenEditor}>
-              <Settings2 className="h-4 w-4 mr-2" />
-              Open Editor
-            </Button>
-            <Button onClick={handleConfirmSubmit} size="lg">
-              <Check className="h-4 w-4 mr-2" />
-              Confirm & Submit
-            </Button>
-          </div>
+           <Button onClick={handleConfirmSubmit} size="lg">
+             <Check className="h-4 w-4 mr-2" />
+             Confirm & Submit
+           </Button>
         </div>
       </div>
     );
@@ -779,20 +789,13 @@ export default function AISpecReviewPage() {
           {Object.values(sectionStatuses).filter((s) => s === 'accepted').length} of{' '}
           {SPEC_SECTIONS.length} sections accepted
         </p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleOpenEditor}>
-            <Settings2 className="h-4 w-4 mr-2" />
-            Advanced Editor
-          </Button>
-          <Button
-            onClick={handleApproveAndContinue}
-            disabled={!allAccepted}
-            size="lg"
-          >
-            <ArrowRight className="h-4 w-4 mr-2" />
-            Approve & Continue
-          </Button>
-        </div>
+        <Button
+           onClick={handleApproveAndContinue}
+           size="lg"
+         >
+           <ArrowRight className="h-4 w-4 mr-2" />
+           Approve & Continue
+         </Button>
       </div>
     </div>
   );
