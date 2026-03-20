@@ -826,6 +826,7 @@ export default function AISpecReviewPage() {
   };
 
   const getRawData = (fieldKey: string): unknown => {
+    if (rawSectionData[fieldKey] !== undefined) return rawSectionData[fieldKey];
     return challengeRecord[fieldKey];
   };
 
@@ -840,6 +841,16 @@ export default function AISpecReviewPage() {
   const handleSave = (key: string, val: string) => {
     setSectionValues((prev) => ({ ...prev, [key]: val }));
     setSectionStatuses((prev) => ({ ...prev, [key]: 'accepted' }));
+  };
+
+  const handleSaveStructured = (fieldKey: string, data: unknown) => {
+    setRawSectionData((prev) => ({ ...prev, [fieldKey]: data }));
+    setSectionValues((prev) => ({ ...prev, [fieldKey]: JSON.stringify(data) }));
+    // Find section key from fieldKey
+    const section = SPEC_SECTIONS.find((s) => s.fieldKey === fieldKey);
+    if (section) {
+      setSectionStatuses((prev) => ({ ...prev, [section.key]: 'accepted' }));
+    }
   };
 
   const allAccepted = SPEC_SECTIONS.every(
