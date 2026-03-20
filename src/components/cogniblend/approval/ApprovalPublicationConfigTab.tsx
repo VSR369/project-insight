@@ -43,8 +43,6 @@ interface PublicationConfigTabProps {
     visibility: string | null;
     eligibility: string | null;
     eligibility_model: string | null;
-    challenge_enrollment: string | null;
-    challenge_submission: string | null;
     governance_profile: string | null;
     complexity_score: number | null;
     complexity_level: string | null;
