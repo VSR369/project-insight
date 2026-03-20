@@ -171,14 +171,12 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Editable Solver Eligibility (STRUCTURED mode) ──── */
+/* ─── Editable Solver Type Cards (STRUCTURED mode) ───── */
 
-interface SolverEligibilityEditorProps {
+interface SolverTypeEditorProps {
   challenge: Record<string, unknown>;
   selectedTierIds: string[];
   onTierIdsChange: (ids: string[]) => void;
-  visibility: string;
-  onVisibilityChange: (v: string) => void;
   solverCategories: Array<{
     id: string;
     code: string;
@@ -189,18 +187,19 @@ interface SolverEligibilityEditorProps {
     requires_certification: boolean;
     default_visibility: string | null;
   }>;
+  typeLabel: string;
+  typeDescription: string;
 }
 
-function SolverEligibilityEditor({
+function SolverTypeEditor({
   challenge,
   selectedTierIds,
   onTierIdsChange,
-  visibility,
-  onVisibilityChange,
   solverCategories,
-}: SolverEligibilityEditorProps) {
+  typeLabel,
+  typeDescription,
+}: SolverTypeEditorProps) {
   const [showMore, setShowMore] = useState(false);
-  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
 
   const selectedCategories = solverCategories.filter((c) => selectedTierIds.includes(c.id));
   const unselectedCategories = solverCategories.filter((c) => !selectedTierIds.includes(c.id));
@@ -248,11 +247,13 @@ function SolverEligibilityEditor({
   );
 
   return (
-    <div className="space-y-5">
-      {/* AI-Selected Solver Types */}
+    <div className="space-y-4">
+      <p className="text-xs text-muted-foreground">{typeDescription}</p>
+
+      {/* AI-Selected */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          AI-Selected Solver Types ({selectedCategories.length})
+          AI-Selected ({selectedCategories.length})
         </p>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {selectedCategories.map((cat) => renderCategoryCard(cat, true))}
@@ -262,13 +263,13 @@ function SolverEligibilityEditor({
         )}
       </div>
 
-      {/* Add More Solver Types (collapsed) */}
+      {/* Add More */}
       {unselectedCategories.length > 0 && (
         <Collapsible open={showMore} onOpenChange={setShowMore}>
           <CollapsibleTrigger asChild>
             <Button variant="outline" size="sm" className="gap-1.5 text-xs">
               <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showMore ? 'rotate-180' : ''}`} />
-              {showMore ? 'Hide' : 'Add more solver types'} ({unselectedCategories.length} available)
+              {showMore ? 'Hide' : 'Add more'} ({unselectedCategories.length} available)
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-3">
@@ -278,89 +279,43 @@ function SolverEligibilityEditor({
           </CollapsibleContent>
         </Collapsible>
       )}
-
-      {/* Visibility Dropdown */}
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
-          Challenge Visibility
-        </p>
-        <Select value={visibility} onValueChange={onVisibilityChange}>
-          <SelectTrigger className="text-sm max-w-sm">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {VISIBILITY_OPTIONS.map((opt) => (
-              <SelectItem key={opt.value} value={opt.value}>
-                {opt.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
-
-      {/* Free-text eligibility notes */}
-      {eligNotes && (
-        <div className="rounded-lg border border-border bg-card p-3.5">
-          <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{eligNotes}</p>
-        </div>
-      )}
     </div>
   );
 }
 
 /* ─── Read-Only Solver Display (for QUICK mode) ─────── */
 
-function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, unknown> }) {
-  // Read from solver_eligibility_types (DB column) — array of { code, label } objects
-  const rawTypes = challenge.solver_eligibility_types;
-  const details: SolverEligibilityDetail[] = Array.isArray(rawTypes)
-    ? rawTypes as SolverEligibilityDetail[]
-    : [];
-  const eligNotes = (challenge.eligibility as string) || '';
-  const visibility = (challenge.challenge_visibility as string) || 'public';
+function SolverTypeReadOnly({ typesData, label }: { typesData: unknown; label: string }) {
+  const details: Array<{ code: string; label: string; description?: string | null; requires_auth?: boolean; requires_certification?: boolean; requires_provider_record?: boolean }> =
+    Array.isArray(typesData) ? typesData : [];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {details.length > 0 ? (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-            AI-Selected Solver Types
-          </p>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            {details.map((cat) => (
-              <div key={cat.code} className="rounded-lg border border-border bg-muted/30 p-3.5">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Users className="h-4 w-4 text-primary shrink-0" />
-                  <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
-                  <span className="text-sm font-medium text-foreground">{cat.label}</span>
-                </div>
-                {cat.description && (
-                  <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
-                )}
-                <div className="flex flex-wrap gap-1.5">
-                  {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
-                  {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
-                  {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
-                  {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
-                    <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
-                  )}
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {details.map((cat) => (
+            <div key={cat.code} className="rounded-lg border border-border bg-muted/30 p-3.5">
+              <div className="flex items-center gap-2 mb-1.5">
+                <Users className="h-4 w-4 text-primary shrink-0" />
+                <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
+                <span className="text-sm font-medium text-foreground">{cat.label}</span>
               </div>
-            ))}
-          </div>
+              {cat.description && (
+                <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
+              )}
+              <div className="flex flex-wrap gap-1.5">
+                {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
+                {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
+                {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
+                {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
+                  <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
+                )}
+              </div>
+            </div>
+          ))}
         </div>
       ) : (
         <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
-      )}
-
-
-      {eligNotes && (
-        <div className="rounded-lg border border-border bg-card p-3.5">
-          <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>
-          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{eligNotes}</p>
-        </div>
       )}
     </div>
   );
