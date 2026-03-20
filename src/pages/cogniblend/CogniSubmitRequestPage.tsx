@@ -356,6 +356,20 @@ export default function CogniSubmitRequestPage() {
     return `SR-${year}-NEW`;
   }, []);
 
+  // Governance mode: available modes based on tier, default from org
+  const availableGovModes = useMemo(
+    () => getAvailableGovernanceModes(currentOrg?.tierCode),
+    [currentOrg?.tierCode],
+  );
+  const resolvedGovMode = selectedGovMode ?? resolveGovernanceMode(currentOrg?.governanceProfile);
+
+  // Initialize gov mode from org default once loaded
+  useEffect(() => {
+    if (currentOrg && !selectedGovMode) {
+      setSelectedGovMode(resolveGovernanceMode(currentOrg.governanceProfile));
+    }
+  }, [currentOrg, selectedGovMode]);
+
   const buildPayload = (data: FormValues) => ({
     orgId: currentOrg?.organizationId ?? '',
     creatorId: user?.id ?? '',
@@ -373,6 +387,7 @@ export default function CogniSubmitRequestPage() {
     industrySegmentId: data.industry_segment_id || undefined,
     subDomainIds: data.sub_domain_ids || [],
     specialtyTags: data.specialty_tags || [],
+    governanceMode: resolvedGovMode,
   });
 
   const onSubmit = async (data: FormValues) => {
