@@ -15,7 +15,7 @@ interface Step {
 const STEPS: Step[] = [
   { label: 'Create', role: 'RQ / CR', aiNote: 'AI generates spec', manualNote: '8-step wizard' },
   { label: 'Spec Review', role: 'CR', aiNote: 'Review AI output', manualNote: 'Review wizard data' },
-  { label: 'Legal Docs', role: 'LC', aiNote: 'Upload & AI review', manualNote: 'Upload documents' },
+  { label: 'Legal Docs', role: 'LC', aiNote: 'AI suggests docs, LC reviews', manualNote: 'Upload documents' },
   { label: 'Curation', role: 'CU', aiNote: 'AI quality check', manualNote: '14-point checklist' },
   { label: 'Approval', role: 'ID', aiNote: 'Approve package', manualNote: 'Approve package' },
   { label: 'Publication', role: 'System', aiNote: 'Go live', manualNote: 'Go live' },

@@ -58,7 +58,7 @@ const DEMO_USERS: DemoUser[] = [
     email: 'nh-lc@testsetup.dev',
     displayName: 'Leslie Chen',
     roles: ['LC'],
-    aiDescription: 'Reviews AI-generated spec + uploads NDA/IP legal documents',
+    aiDescription: 'Receives challenge from Creator; AI suggests legal docs to review, modify, and attach',
     manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
     aiDestination: '/cogni/legal-review',
     manualDestination: '/cogni/legal-review',

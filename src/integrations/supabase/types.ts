@@ -1957,11 +1957,18 @@ export type Database = {
       }
       escrow_records: {
         Row: {
+          bank_address: string | null
+          bank_branch: string | null
+          bank_name: string | null
           challenge_id: string
           created_at: string
           created_by: string | null
+          currency: string
           deposit_amount: number
+          deposit_date: string | null
+          deposit_reference: string | null
           escrow_status: string
+          fc_notes: string | null
           id: string
           rejection_fee_percentage: number
           released_amount: number
@@ -1971,11 +1978,18 @@ export type Database = {
           updated_by: string | null
         }
         Insert: {
+          bank_address?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           challenge_id: string
           created_at?: string
           created_by?: string | null
+          currency?: string
           deposit_amount?: number
+          deposit_date?: string | null
+          deposit_reference?: string | null
           escrow_status?: string
+          fc_notes?: string | null
           id?: string
           rejection_fee_percentage?: number
           released_amount?: number
@@ -1985,11 +1999,18 @@ export type Database = {
           updated_by?: string | null
         }
         Update: {
+          bank_address?: string | null
+          bank_branch?: string | null
+          bank_name?: string | null
           challenge_id?: string
           created_at?: string
           created_by?: string | null
+          currency?: string
           deposit_amount?: number
+          deposit_date?: string | null
+          deposit_reference?: string | null
           escrow_status?: string
+          fc_notes?: string | null
           id?: string
           rejection_fee_percentage?: number
           released_amount?: number
