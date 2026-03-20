@@ -868,7 +868,7 @@ export default function AISpecReviewPage() {
       setIsAutoGenerating(false);
       setAutoGenError(err.message || 'Failed to generate AI specification');
     });
-  }, [isLoading, challenge, challengeId, hasAiData]);
+  }, [isLoading, challenge, challengeId, hasAiData, isCR]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (isLoading) {
