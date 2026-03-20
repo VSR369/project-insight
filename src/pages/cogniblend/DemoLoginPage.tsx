@@ -60,8 +60,8 @@ const DEMO_USERS: DemoUser[] = [
     roles: ['LC'],
     aiDescription: 'Receives challenge from Creator; AI suggests legal docs to review, modify, and attach',
     manualDescription: 'Reviews challenge spec + uploads NDA/IP legal documents',
-    aiDestination: '/cogni/legal-review',
-    manualDestination: '/cogni/legal-review',
+    aiDestination: '/cogni/lc-queue',
+    manualDestination: '/cogni/lc-queue',
     stepLabel: 'Step 3',
   },
   {

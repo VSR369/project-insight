@@ -44,7 +44,7 @@ const SECTIONS: NavSection[] = [
       { label: 'My Challenges', path: '/cogni/my-challenges', icon: Folder, requiredRoles: ['CR'], badgeKey: 'activeChallenges' },
       { label: 'Curation Queue', path: '/cogni/curation', icon: CheckSquare, requiredRoles: ['CU'], badgeKey: 'curationQueue' },
       { label: 'Approval Queue', path: '/cogni/approval', icon: ShieldCheck, requiredRoles: ['ID'], badgeKey: 'approvalQueue' },
-      { label: 'Legal Documents', path: '/cogni/legal', icon: FileText, requiredRoles: ['LC'] },
+      { label: 'Legal Workspace', path: '/cogni/lc-queue', icon: FileText, requiredRoles: ['LC'] },
       { label: 'Legal Review', path: '/cogni/legal-review', icon: FileCheck, requiredRoles: ['LC'] },
     ],
   },
