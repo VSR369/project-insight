@@ -703,6 +703,7 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // ═══════ Hooks — refs ═══════
   const autoGenTriggered = useRef(false);
@@ -711,8 +712,12 @@ export default function AISpecReviewPage() {
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
   const { data: currentOrg } = useCurrentOrg();
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
+  const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const saveStep = useSaveChallengeStep();
   const generateSpec = useGenerateChallengeSpec();
+
+  // ═══════ Derived — role checks ═══════
+  const isCR = userRoles.includes('CR');
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
