@@ -363,11 +363,11 @@ Generate a complete challenge specification.`;
           : { code, label: code, description: null, requires_auth: false, requires_provider_record: false, requires_certification: false };
       });
 
-    spec.solver_eligibility_details = buildDetails(selectedEligibleCodes);
-    spec.solver_visibility_details = buildDetails(selectedVisibleCodes);
+    spec.solver_eligibility_details = buildDetails([eligibleCode]);
+    spec.solver_visibility_details = buildDetails([visibleCode]);
 
-    // Derive visibility from the first eligible category's defaults
-    const primaryCategory = categories.find((c) => c.code === selectedEligibleCodes[0]);
+    // Derive visibility from the eligible category's defaults
+    const primaryCategory = categories.find((c) => c.code === eligibleCode);
     spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
 
     // Keep legacy eligibility field mapped from notes
