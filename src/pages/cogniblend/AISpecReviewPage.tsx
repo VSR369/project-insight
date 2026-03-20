@@ -793,20 +793,13 @@ export default function AISpecReviewPage() {
           {Object.values(sectionStatuses).filter((s) => s === 'accepted').length} of{' '}
           {SPEC_SECTIONS.length} sections accepted
         </p>
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={handleOpenEditor}>
-            <Settings2 className="h-4 w-4 mr-2" />
-            Advanced Editor
-          </Button>
-          <Button
-            onClick={handleApproveAndContinue}
-            disabled={!allAccepted}
-            size="lg"
-          >
-            <ArrowRight className="h-4 w-4 mr-2" />
-            Approve & Continue
-          </Button>
-        </div>
+        <Button
+           onClick={handleApproveAndContinue}
+           size="lg"
+         >
+           <ArrowRight className="h-4 w-4 mr-2" />
+           Approve & Continue
+         </Button>
       </div>
     </div>
   );
