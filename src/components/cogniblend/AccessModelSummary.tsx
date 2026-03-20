@@ -1,18 +1,19 @@
 /**
- * AccessModelSummary — Reusable card showing the 3-tier access model.
- * Used in the wizard (Step 4) and on the published challenge view.
+ * AccessModelSummary — Simplified 2-tier access model display.
+ *
+ * Shows:
+ *   - Eligible Solvers: Can view AND submit solutions
+ *   - Visible Solvers: Can only view/discover the challenge
  */
 
-import { Eye, UserPlus, FileText, ChevronRight } from 'lucide-react';
+import { Eye, Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 
 interface AccessModelSummaryProps {
   visibility: string;
-  enrollment: string;
-  submission: string;
-  /** Legacy eligibility field — shown as fallback if enrollment/submission are empty */
-  eligibility?: string;
+  /** Labels for eligible solver types (from selected solver tiers) */
+  eligibleSolverLabels?: string[];
   className?: string;
 }
 
@@ -24,24 +25,8 @@ const VIS_LABELS: Record<string, string> = {
   invited_only: 'Invited Only',
 };
 
-const ENR_LABELS: Record<string, string> = {
-  open_auto: 'Open Enrollment (auto-approved)',
-  curator_approved: 'Curator-Approved',
-  direct_nda: 'Direct Registration (NDA)',
-  org_curated: 'Organization-Curated',
-  invitation_only: 'Invitation Only',
-};
-
-const SUB_LABELS: Record<string, string> = {
-  all_enrolled: 'All Enrolled Participants',
-  shortlisted_only: 'Shortlisted Only',
-  invited_solvers: 'Invited Solvers Only',
-};
-
-export function AccessModelSummary({ visibility, enrollment, submission, eligibility, className }: AccessModelSummaryProps) {
+export function AccessModelSummary({ visibility, eligibleSolverLabels = [], className }: AccessModelSummaryProps) {
   const visLabel = VIS_LABELS[visibility] || visibility;
-  const enrLabel = ENR_LABELS[enrollment] || (eligibility ? `Eligibility: ${eligibility}` : enrollment);
-  const subLabel = SUB_LABELS[submission] || submission || 'Not configured';
 
   return (
     <div className={cn(
@@ -51,30 +36,25 @@ export function AccessModelSummary({ visibility, enrollment, submission, eligibi
       <p className="text-sm font-bold text-foreground">Access Model Summary</p>
       <div className="flex flex-col gap-2 text-[13px]">
         <div className="flex items-start gap-2">
-          <Eye className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+          <Users className="h-4 w-4 mt-0.5 text-primary shrink-0" />
           <span>
-            <span className="text-muted-foreground">Visible to </span>
-            <Badge variant="secondary" className="text-[11px] ml-1">{visLabel}</Badge>
+            <span className="text-muted-foreground">Eligible Solvers (can view & submit): </span>
+            {eligibleSolverLabels.length > 0 ? (
+              <span className="flex flex-wrap gap-1 mt-0.5">
+                {eligibleSolverLabels.map((label) => (
+                  <Badge key={label} variant="secondary" className="text-[11px]">{label}</Badge>
+                ))}
+              </span>
+            ) : (
+              <Badge variant="secondary" className="text-[11px] ml-1">All Solver Types</Badge>
+            )}
           </span>
         </div>
-        <div className="flex items-center justify-center">
-          <ChevronRight className="h-3 w-3 text-muted-foreground rotate-90" />
-        </div>
         <div className="flex items-start gap-2">
-          <UserPlus className="h-4 w-4 mt-0.5 text-primary shrink-0" />
+          <Eye className="h-4 w-4 mt-0.5 text-muted-foreground shrink-0" />
           <span>
-            <span className="text-muted-foreground">Enrollment via </span>
-            <Badge variant="secondary" className="text-[11px] ml-1">{enrLabel}</Badge>
-          </span>
-        </div>
-        <div className="flex items-center justify-center">
-          <ChevronRight className="h-3 w-3 text-muted-foreground rotate-90" />
-        </div>
-        <div className="flex items-start gap-2">
-          <FileText className="h-4 w-4 mt-0.5 text-primary shrink-0" />
-          <span>
-            <span className="text-muted-foreground">Submission allowed for </span>
-            <Badge variant="secondary" className="text-[11px] ml-1">{subLabel}</Badge>
+            <span className="text-muted-foreground">Visible to: </span>
+            <Badge variant="outline" className="text-[11px] ml-1">{visLabel}</Badge>
           </span>
         </div>
       </div>

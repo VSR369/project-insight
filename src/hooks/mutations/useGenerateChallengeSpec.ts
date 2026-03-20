@@ -41,8 +41,6 @@ export interface GeneratedSpec {
   eligibility_notes: string;
   /** Derived from primary solver category's defaults */
   challenge_visibility: string;
-  challenge_enrollment: string;
-  challenge_submission: string;
 }
 
 export function useGenerateChallengeSpec() {

@@ -5,6 +5,9 @@
  *
  * Fetches solver eligibility categories from md_solver_eligibility at runtime
  * so the AI selects real master-data codes instead of free-text eligibility.
+ *
+ * Simplified access model: No enrollment/submission fields.
+ * Eligible solvers can submit, visible solvers can only view.
  */
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
@@ -41,18 +44,37 @@ Guidelines:
 - Description: Detailed context including background, current state, and desired outcomes
 
 DELIVERABLES (CRITICAL — derive directly from the problem statement):
-- Generate 3-7 specific, concrete, measurable deliverables that a solver would produce as outputs
-- Each deliverable MUST be a tangible work product, NOT a vague goal
-- Examples of GOOD deliverables: "Working API prototype with integration documentation", "Cost-benefit analysis report comparing 3+ approaches", "Test results dataset with statistical analysis", "Deployment-ready container image with CI/CD pipeline config"
-- Examples of BAD deliverables (DO NOT USE): "Innovative solution", "High-quality output", "Comprehensive analysis"
-- Tie each deliverable to a specific aspect of the problem statement
+- Carefully analyze the problem statement to identify EACH distinct aspect or requirement
+- For EACH identified aspect, create a specific, concrete, measurable deliverable
+- Generate 3-7 deliverables total — each must be a tangible work product that a solver would produce
+- Each deliverable MUST directly address a specific part of the stated problem
+- Format each deliverable as: "[Type of artifact/output] that [specific purpose tied to problem]"
+- Examples of GOOD deliverables:
+  * "Working API prototype with integration documentation demonstrating real-time data sync"
+  * "Cost-benefit analysis report comparing at least 3 alternative approaches with quantified ROI"
+  * "Test results dataset with statistical analysis proving 95%+ accuracy on benchmark cases"
+  * "Technical architecture diagram showing component interactions, data flows, and failure modes"
+  * "Deployment-ready container image with CI/CD pipeline configuration and monitoring setup"
+- Examples of BAD deliverables (DO NOT USE): "Innovative solution", "High-quality output", "Comprehensive analysis", "Best practices document"
+- The deliverables should collectively form a complete solution to the stated problem
 
-EVALUATION CRITERIA (CRITICAL — must be structured and weighted):
+EVALUATION CRITERIA (CRITICAL — must be structured, weighted, and problem-specific):
+- Analyze the problem statement to determine what factors matter most for selecting the best solution
 - Generate 3-6 criteria, each with:
-  - name: Short label (2-4 words), e.g., "Technical Feasibility", "Innovation Quality", "Cost Efficiency"
-  - weight: Integer percentage. ALL weights MUST sum to EXACTLY 100. Distribute based on relative importance to the challenge goals.
-  - description: 1-2 sentences explaining how this criterion will be scored and what constitutes high vs low performance
-- Example distribution for a technical challenge: Technical Feasibility (30%), Innovation (25%), Scalability (20%), Documentation Quality (15%), Cost Efficiency (10%)
+  - name: Short descriptive label (2-4 words) that clearly identifies the assessment dimension
+  - weight: Integer percentage reflecting relative importance. ALL weights MUST sum to EXACTLY 100.
+  - description: 1-2 sentences explaining EXACTLY how this criterion will be scored — what constitutes excellent (high score) vs poor (low score) performance
+- Weight distribution MUST reflect the specific problem's priorities:
+  * For technical challenges: emphasize feasibility, accuracy, scalability
+  * For business challenges: emphasize ROI, implementation cost, time-to-value
+  * For research challenges: emphasize novelty, rigor, reproducibility
+  * For design challenges: emphasize usability, aesthetics, accessibility
+- Example for a data pipeline challenge:
+  * Data Quality & Accuracy (30%) — "Solutions scoring high demonstrate <1% error rate on test data with comprehensive validation. Low scores show >5% errors or missing validation."
+  * Scalability & Performance (25%) — "Solutions must handle 10x current volume. High scores show linear scaling, low scores show degradation beyond 2x."
+  * Implementation Feasibility (20%) — "Evaluated on realistic resource requirements and timeline. High scores use proven tech stacks, low scores require unproven dependencies."
+  * Documentation & Maintainability (15%) — "Code documentation, architecture diagrams, and runbooks. High scores enable team onboarding in <1 week."
+  * Cost Efficiency (10%) — "Total cost of ownership over 3 years. High scores show <50% of current costs, low scores show marginal improvement."
 
 - Hook: A compelling 1-2 sentence hook to attract solvers
 - IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
@@ -84,8 +106,6 @@ interface SolverCategory {
   requires_provider_record: boolean;
   requires_certification: boolean;
   default_visibility: string | null;
-  default_enrollment: string | null;
-  default_submission: string | null;
 }
 
 serve(async (req) => {
@@ -120,7 +140,7 @@ serve(async (req) => {
     );
     const { data: solverCategories, error: solverError } = await serviceClient
       .from("md_solver_eligibility")
-      .select("code, label, description, requires_auth, requires_provider_record, requires_certification, default_visibility, default_enrollment, default_submission")
+      .select("code, label, description, requires_auth, requires_provider_record, requires_certification, default_visibility")
       .eq("is_active", true)
       .order("display_order");
 
@@ -177,20 +197,20 @@ Generate a complete challenge specification.`;
                   deliverables: {
                     type: "array",
                     items: { type: "string" },
-                    description: "3-7 specific deliverables, each a clear actionable item",
+                    description: "3-7 specific deliverables derived from the problem statement. Each must be a tangible work product.",
                   },
                   evaluation_criteria: {
                     type: "array",
                     items: {
                       type: "object",
                       properties: {
-                        name: { type: "string" },
-                        weight: { type: "number" },
-                        description: { type: "string" },
+                        name: { type: "string", description: "Short descriptive label (2-4 words)" },
+                        weight: { type: "number", description: "Integer percentage, all must sum to exactly 100" },
+                        description: { type: "string", description: "1-2 sentences explaining scoring methodology — what constitutes high vs low performance" },
                       },
                       required: ["name", "weight", "description"],
                     },
-                    description: "3-6 weighted criteria summing to 100",
+                    description: "3-6 weighted evaluation criteria summing to exactly 100%. Weights must reflect relative importance to the specific problem.",
                   },
                   solver_eligibility_codes: {
                     type: "array",
@@ -262,13 +282,11 @@ Generate a complete challenge specification.`;
     spec.solver_eligibility_codes = selectedCodes;
     spec.eligibility_notes = spec.eligibility_notes ?? "";
 
-    // Derive access control fields from the first selected category's defaults
+    // Derive visibility from the first selected category's defaults
     const primaryCategory = categories.find((c) => c.code === selectedCodes[0]);
     spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
-    spec.challenge_enrollment = primaryCategory?.default_enrollment ?? "open_auto";
-    spec.challenge_submission = primaryCategory?.default_submission ?? "all_enrolled";
 
-    // Also include the full solver category details for the frontend to render
+    // Include the full solver category details for the frontend to render
     spec.solver_eligibility_details = selectedCodes.map((code: string) => {
       const cat = categories.find((c) => c.code === code);
       return cat

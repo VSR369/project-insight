@@ -1,9 +1,12 @@
 /**
  * challengeOptions.constants.ts
  *
- * Shared master-data options for Visibility, Enrollment, Submission,
- * and Eligibility Models. Used by both the Manual Editor (wizard) and
- * AI Spec Review to ensure consistent option sets.
+ * Shared master-data options for Visibility and Eligibility Models.
+ * Used by both the Manual Editor (wizard) and AI Spec Review.
+ *
+ * Simplified access model:
+ *   - Eligible Solvers: Can view AND submit solutions (defined by solver_eligibility_ids)
+ *   - Visible Solvers: Can only view/discover the challenge (defined by challenge_visibility)
  */
 
 export interface TierOption {
@@ -28,24 +31,6 @@ export const VISIBILITY_OPTIONS: readonly TierOption[] = [
   { value: 'invited_only', label: 'Invited Only', description: 'Visible only to specifically invited participants' },
 ] as const;
 
-/* ─── Enrollment ─────────────────────────────────────── */
-
-export const ENROLLMENT_OPTIONS: readonly TierOption[] = [
-  { value: 'open_auto', label: 'Open Enrollment (auto-approved)', description: 'Anyone eligible can enroll without approval' },
-  { value: 'curator_approved', label: 'Curator-Approved Enrollment', description: 'Curator reviews and approves enrollment requests' },
-  { value: 'direct_nda', label: 'Direct Registration (NDA required)', description: 'Enrollment requires signing an NDA first' },
-  { value: 'org_curated', label: 'Organization-Curated', description: 'The seeking organization selects who can enroll' },
-  { value: 'invitation_only', label: 'Invitation Only', description: 'Only specifically invited solvers can enroll' },
-] as const;
-
-/* ─── Submission ─────────────────────────────────────── */
-
-export const SUBMISSION_OPTIONS: readonly TierOption[] = [
-  { value: 'all_enrolled', label: 'All Enrolled', description: 'Any enrolled participant can submit solutions' },
-  { value: 'shortlisted_only', label: 'Shortlisted Only', description: 'Only shortlisted participants can submit' },
-  { value: 'invited_solvers', label: 'Invited Solvers Only', description: 'Only specifically invited solvers can submit' },
-] as const;
-
 /* ─── Eligibility Models ─────────────────────────────── */
 
 export const ELIGIBILITY_MODELS: readonly EligibilityModelOption[] = [
@@ -60,14 +45,6 @@ export const ELIGIBILITY_MODELS: readonly EligibilityModelOption[] = [
 
 export function findVisibilityOption(value: string | null | undefined) {
   return VISIBILITY_OPTIONS.find((o) => o.value === value) ?? null;
-}
-
-export function findEnrollmentOption(value: string | null | undefined) {
-  return ENROLLMENT_OPTIONS.find((o) => o.value === value) ?? null;
-}
-
-export function findSubmissionOption(value: string | null | undefined) {
-  return SUBMISSION_OPTIONS.find((o) => o.value === value) ?? null;
 }
 
 export function findEligibilityModel(code: string | null | undefined) {
