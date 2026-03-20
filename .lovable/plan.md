@@ -1,67 +1,78 @@
 
 
-# Plan: Fix AI Failing to Populate Deliverables, Criteria, and Solver Types
+# Plan: Fix AI Autonomous Solver Type Selection for Eligibility & Visibility
 
-## Root Cause Analysis
+## Root Cause (from DB inspection)
 
-Three distinct bugs prevent AI-generated data from appearing on the review page:
+For challenge `3c9839ae`, the actual DB state is:
+- `solver_eligibility_types`: `[]` (empty — never saved)
+- `challenge_visibility`: `null` (never saved)
+- `deliverables`: `{ items: [...] }` (wrapped format — old bug, already handled by display)
+- `evaluation_criteria`: `{ criteria: [...] }` (wrapped format — already handled)
 
-### Bug 1: Deliverables & Evaluation Criteria — Wrong Column Format
-**Where**: `ConversationalIntakePage.tsx` line 367-368
-```typescript
-deliverables: { items: spec.deliverables },        // wraps in { items: [...] }
-evaluation_criteria: { criteria: spec.evaluation_criteria }, // wraps in { criteria: [...] }
-```
-**But** the `AISpecReviewPage` reads `challengeRecord.deliverables` and `challengeRecord.evaluation_criteria` directly, expecting raw arrays. When stored as `{ items: [...] }` and `{ criteria: [...] }`, the `Array.isArray()` check fails and shows "No deliverables defined" / "No criteria defined".
+**Why solver types are empty**: The edge function returns `solver_eligibility_details` in the spec, but `ConversationalIntakePage` maps `spec.solver_eligibility_details` — if the AI tool call doesn't return this field or returns it differently, it becomes `[]`. Additionally, the current model only outputs ONE set of solver codes for eligibility. There's NO separate set for visibility — `challenge_visibility` is just a string like "public", not solver types.
 
-### Bug 2: Solver Eligibility Codes — Never Saved to DB
-**Where**: `ConversationalIntakePage.tsx` lines 360-376 — the `saveStep` call saves `eligibility` (free text) but never saves `solver_eligibility_codes`, `solver_eligibility_details`, or `solver_eligibility_types` (the actual DB column). The challenges table has `solver_eligibility_types` (Json) and `solver_eligibility_id` (FK) columns, but neither is written.
+## What Needs to Change
 
-### Bug 3: `useChallengeDetail` Doesn't Fetch Solver Fields
-**Where**: `useChallengeForm.ts` lines 54-60 — the select query fetches `eligibility` and `visibility` but NOT `solver_eligibility_types`, `solver_eligibility_id`, `challenge_visibility`, or `hook`. So even if saved, they'd never load on the review page.
+The user wants TWO solver-type-based lists from the SAME `md_solver_eligibility` master data:
+1. **Eligible solver types** — can view AND submit solutions
+2. **Visible solver types** — can only discover/view the challenge, NOT submit
 
-### Bug 4 (Minor): AccessModelSummary is Unnecessary
-User confirmed "Access model summary is not required." It can be removed from the review page.
+Both selected autonomously by AI. Both editable by user.
 
 ## Changes
 
-### 1. Fix `saveStep` Call — Save All AI Fields Properly
+### 1. Add DB Column for Visible Solver Types
+**Migration**: Add `solver_visibility_types` (JSONB, default `[]`) to `challenges` table. This mirrors `solver_eligibility_types` but for view-only access.
+
+### 2. Update Edge Function — Two Solver Type Outputs
+**File**: `supabase/functions/generate-challenge-spec/index.ts`
+
+Add to the tool schema:
+- `visible_solver_codes`: array of codes for view-only solver types
+- Update prompt to explain the distinction: "Select 1-3 codes for eligible solvers (can submit). Then select 1-3 broader codes for visible solvers (can discover but not submit). Visible should be equal or broader than eligible."
+
+Post-process: Build both `solver_eligibility_details` and `solver_visibility_details` arrays from master data, include both in response.
+
+### 3. Update GeneratedSpec Type
+**File**: `src/hooks/mutations/useGenerateChallengeSpec.ts`
+
+Add `visible_solver_codes`, `solver_visibility_details`, `visible_solver_types` to `GeneratedSpec`.
+
+### 4. Update ConversationalIntakePage — Save Both Arrays
 **File**: `src/pages/cogniblend/ConversationalIntakePage.tsx`
 
-Update the `saveStep.mutateAsync` call (lines 360-376) to:
-- Save `deliverables` as the raw array (not wrapped in `{ items: ... }`)
-- Save `evaluation_criteria` as the raw array (not wrapped in `{ criteria: ... }`)
-- Save `solver_eligibility_types` as JSON array of `{ code, label }` objects from `spec.solver_eligibility_details`
-- Save `challenge_visibility` from `spec.challenge_visibility`
-- Save `hook` from `spec.hook`
+Save `solver_visibility_types` alongside `solver_eligibility_types` in the `saveStep` call.
 
-### 2. Fix `useChallengeDetail` — Fetch Missing Columns
+### 5. Update useChallengeDetail — Fetch New Column
 **File**: `src/hooks/queries/useChallengeForm.ts`
 
-Add to the select query and `ChallengeDetail` interface:
-- `solver_eligibility_types`
-- `solver_eligibility_id`  
-- `challenge_visibility`
-- `hook`
-- `effort_level`
+Add `solver_visibility_types` to select query and `ChallengeDetail` interface.
 
-### 3. Fix AISpecReviewPage — Read Data From Correct Shape
+### 6. Update AISpecReviewPage — Show Both Sections
 **File**: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-Update `getRawData` to unwrap both formats: if `deliverables` is `{ items: [...] }`, extract the array; if it's already an array, use directly. Same for `evaluation_criteria` with `{ criteria: [...] }`. This handles both old and new data.
+Replace the single "Solver Eligibility & Access" section with two sub-sections:
+- **Eligible Solver Types** (can submit) — AI-selected, editable checkboxes
+- **Visible Solver Types** (can view only) — AI-selected, editable checkboxes
+- Remove the `challenge_visibility` dropdown (replaced by solver-type-based visibility)
 
-For solver eligibility: read from `solver_eligibility_types` (DB column) instead of non-existent `solver_eligibility_codes`, and map codes to the master data for the checkbox editor.
+Initialize both from their respective DB columns. Both use the same `md_solver_eligibility` master data checkboxes.
 
-### 4. Remove AccessModelSummary from Review Page
-**File**: `src/pages/cogniblend/AISpecReviewPage.tsx`
+### 7. Update Manual Editor (StepProviderEligibility) — Match
+**File**: `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx`
 
-Remove `AccessModelSummary` from both QUICK and STRUCTURED modes, and from the `SolverEligibilityEditor` component. Keep the component file itself (used elsewhere).
+Add "Visible Solver Types" checkboxes alongside existing eligibility checkboxes.
 
 ## Files Summary
 
 | File | Action |
 |------|--------|
-| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Fix saveStep to save raw arrays + solver types |
-| `src/hooks/queries/useChallengeForm.ts` | Add missing columns to select + interface |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Fix data reading + remove AccessModelSummary |
+| Migration SQL | Add `solver_visibility_types` JSONB column |
+| `supabase/functions/generate-challenge-spec/index.ts` | Add `visible_solver_codes` to tool schema + prompt |
+| `src/hooks/mutations/useGenerateChallengeSpec.ts` | Add visibility types to `GeneratedSpec` |
+| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Save both solver type arrays |
+| `src/hooks/queries/useChallengeForm.ts` | Fetch `solver_visibility_types` |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Show two solver type sections, remove visibility dropdown |
+| `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx` | Add visible solver types |
 
