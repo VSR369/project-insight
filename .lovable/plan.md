@@ -1,111 +1,70 @@
 
 
-# Unified Challenge Creation UX — Implementation Plan
+# Plan: Structured Display for Deliverables, Evaluation Criteria, Eligibility & Visibility in AI Spec Review
 
-## Summary
+## Problem
 
-Replace the current tabbed "Create with AI / Advanced Editor" layout with a role-aware landing page that routes users to the correct track based on their role and engagement model. Add governance mode awareness to the Solution Request form, and consolidate sidebar navigation.
+The `AISpecReviewPage` currently renders **all fields as plain text** via `whitespace-pre-line` paragraphs — including deliverables (array), evaluation criteria (array of objects with name/weight/description), eligibility, and visibility. This makes structured data look cluttered and inconsistent with the Manual Editor's structured UX.
 
-## Two Tracks (Not Three)
-
-- **Track 1: Challenge Creation** — produces a full challenge spec via AI-Assisted or Manual Editor (for CR, CA, and RQ with bypass)
-- **Track 2: Solution Request** — lightweight intake form, architect converts later (for AM in MP, RQ in AGG without bypass)
+Additionally, eligibility and visibility are currently free-text AI outputs instead of being selected from the **same master data options** used in the Manual Editor (Step 5 — `StepProviderEligibility.tsx`).
 
 ## Changes
 
-### 1. New Component: `CreationContextBar.tsx`
-**File:** `src/components/cogniblend/CreationContextBar.tsx`
+### 1. Update Edge Function to Return Structured Eligibility & Visibility
+**File:** `supabase/functions/generate-challenge-spec/index.ts`
 
-Horizontal bar showing 4 badges: Org name, Governance Mode (colored per `GOVERNANCE_MODE_CONFIG`), Engagement Model (MP/AGG), Tier code. Data from `useCurrentOrg` + `useOrgModelContext`.
+Expand the tool schema to include structured eligibility/visibility fields that match the Manual Editor's master data options:
 
-### 2. Rewrite Landing Page: `ChallengeCreatePage.tsx`
+- `challenge_visibility`: enum from `VISIBILITY_OPTIONS` (public, registered_users, platform_members, curated_experts, invited_only)
+- `challenge_enrollment`: enum from `ENROLLMENT_OPTIONS` (open_auto, curator_approved, direct_nda, org_curated, invitation_only)
+- `challenge_submission`: enum from `SUBMISSION_OPTIONS` (all_enrolled, shortlisted_only, invited_solvers)
+- `eligibility_model`: enum from `ELIGIBILITY_MODELS` (OC, DR, CE, IO, HY)
+- Keep `eligibility` as free-text for additional notes
+
+Update the system prompt to instruct AI to select from these exact option values based on the problem context and maturity level.
+
+### 2. Update Hook Types
+**File:** `src/hooks/mutations/useGenerateChallengeSpec.ts`
+
+Add new fields to `GeneratedSpec` interface:
+- `challenge_visibility`, `challenge_enrollment`, `challenge_submission`, `eligibility_model`
+
+### 3. Rewrite Section Rendering in AISpecReviewPage
+**File:** `src/pages/cogniblend/AISpecReviewPage.tsx`
+
+Replace the generic `ReadOnlySectionCard` and `EditableSectionCard` with field-type-aware renderers:
+
+**Deliverables** — Render as a numbered list with bullet items (matching the Manual Editor's list UI), not a JSON dump.
+
+**Evaluation Criteria** — Render as a 4-column table (#, Name, Weight%, Description) with a total weight footer bar — same layout as `StepEvaluation.tsx`.
+
+**Eligibility & Visibility** — Render as a structured card grid showing:
+- Visibility tier (from `VISIBILITY_OPTIONS` with label + description)
+- Enrollment tier (from `ENROLLMENT_OPTIONS`)
+- Submission tier (from `SUBMISSION_OPTIONS`)
+- Eligibility Model (from `ELIGIBILITY_MODELS` with code + description)
+- Free-text eligibility notes below
+
+For STRUCTURED mode's editable cards, deliverables get an editable list UI, criteria get an editable table, and eligibility/visibility get dropdown selectors matching the Manual Editor.
+
+### 4. Wire Structured Data to Manual Editor Sync
 **File:** `src/pages/cogniblend/ChallengeCreatePage.tsx`
 
-Replace current `Tabs` with a smart landing that shows role-appropriate path cards:
+When AI spec populates the shared state, also map the new structured fields (`challenge_visibility`, `challenge_enrollment`, `challenge_submission`, `eligibility_model`) so they flow into the wizard form when switching to Manual Editor.
 
-- **CR/CA roles**: Show two cards — "AI-Assisted" (primary, recommended) and "Manual Editor" (secondary). No Solution Request card.
-- **AM role (MP model)**: Show single full-width "Solution Request" card labeled "Mandatory". No creation cards.
-- **RQ role (AGG, bypass OFF)**: Show "Solution Request" card (labeled "Optional") + both creation cards.
-- **RQ role (AGG, bypass ON)**: Show creation cards only + blue bypass banner. No Solution Request card.
+## Technical Details
 
-Clicking a card either:
-- Shows the existing `ConversationalIntakeContent` or `ChallengeWizardPage` inline (same as current tabs)
-- Navigates to `/cogni/submit-request` for Solution Request
-
-Add `CreationContextBar` at top. Add governance mode explanation footer showing what happens after AI generation per mode.
-
-Uses `useCogniRoleContext` for active role and `useOrgModelContext` for model/bypass.
-
-### 3. Add Governance Mode to Submit Request
-**File:** `src/pages/cogniblend/CogniSubmitRequestPage.tsx`
-
-- Add `CreationContextBar` at top
-- Add governance mode selector (3 card-style options) between the Request Info header and the form
-- Tier-gating logic: disable modes the org's tier doesn't support, show "Upgrade" badge on locked modes
-- Pre-select the org's current governance profile as default
-- Adjust field requirements based on selected mode:
-  - **QUICK**: Only Problem + Outcomes required; budget, timeline, constraints, categorization become optional with sensible defaults
-  - **STRUCTURED**: Current full form (no change)
-  - **CONTROLLED**: All fields mandatory including constraints and full categorization
-- Store `governance_mode` in the submitted payload via `buildPayload`
-
-### 4. Add Tier-to-Governance Mapping
-**File:** `src/lib/governanceMode.ts`
-
-Add:
-```typescript
-export const TIER_GOVERNANCE_MODES: Record<string, GovernanceMode[]> = {
-  basic:      ['QUICK'],
-  standard:   ['QUICK', 'STRUCTURED'],
-  premium:    ['QUICK', 'STRUCTURED', 'CONTROLLED'],
-  enterprise: ['QUICK', 'STRUCTURED', 'CONTROLLED'],
-};
-
-export function getAvailableGovernanceModes(tierCode: string | null): GovernanceMode[] {
-  return TIER_GOVERNANCE_MODES[(tierCode ?? 'basic').toLowerCase()] ?? ['QUICK'];
-}
-```
-
-### 5. Merge Sidebar Navigation Entries
-**File:** `src/components/cogniblend/shell/CogniSidebarNav.tsx`
-
-Replace:
-```
-├── Create with AI  (CR, AM, RQ)
-├── Submit Request   (AM, RQ)
-```
-With:
-```
-├── New Challenge    (CR, CA, AM, RQ)
-```
-
-Single entry pointing to `/cogni/challenges/create`. The landing page handles routing. Use `FilePlus` icon.
-
-### 6. Update Role Config
-**File:** `src/types/cogniRoles.ts`
-
-- `ROLE_PRIMARY_ACTION.AM` → route changes to `/cogni/challenges/create`, label stays "Submit Request"
-- `ROLE_PRIMARY_ACTION.RQ` → route changes to `/cogni/challenges/create`, label stays "Submit Request"
-- `ROLE_NAV_RELEVANCE.AM` → add `/cogni/challenges/create`, keep `/cogni/my-requests`
-- `ROLE_NAV_RELEVANCE.RQ` → add `/cogni/challenges/create`, keep `/cogni/my-requests`
-
-### 7. Update Breadcrumbs
-**File:** `src/components/cogniblend/shell/CogniShell.tsx`
-
-- Change `'/cogni/challenges/create': 'Create Challenge'` to `'New Challenge'`
-- Keep `'/cogni/submit-request': 'Submit Request'` (still accessible via direct navigation)
+- The visibility/enrollment/submission options are already defined as constants in `StepProviderEligibility.tsx` — extract them to a shared constants file or import directly
+- The eligibility models are defined in `ApprovalPublicationConfigTab.tsx` — similarly extract for reuse
+- The AI prompt will list the exact option values so the model selects valid codes, not free-text descriptions
+- Fallback: if AI returns an unrecognized value, default to the most open option (public/open_auto/all_enrolled/OC)
 
 ## Files Summary
 
 | File | Action |
 |------|--------|
-| `src/components/cogniblend/CreationContextBar.tsx` | Create |
-| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Rewrite |
-| `src/pages/cogniblend/CogniSubmitRequestPage.tsx` | Modify (add context bar + governance selector) |
-| `src/lib/governanceMode.ts` | Modify (add tier mapping) |
-| `src/components/cogniblend/shell/CogniSidebarNav.tsx` | Modify (merge entries) |
-| `src/types/cogniRoles.ts` | Modify (update actions/relevance) |
-| `src/components/cogniblend/shell/CogniShell.tsx` | Modify (breadcrumb label) |
-
-No database changes required.
+| `supabase/functions/generate-challenge-spec/index.ts` | Modify — add structured eligibility/visibility to tool schema + prompt |
+| `src/hooks/mutations/useGenerateChallengeSpec.ts` | Modify — extend `GeneratedSpec` type |
+| `src/pages/cogniblend/AISpecReviewPage.tsx` | Rewrite — structured renderers for deliverables, criteria, eligibility/visibility |
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Modify — sync new fields to shared state |
 
