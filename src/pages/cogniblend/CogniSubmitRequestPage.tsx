@@ -483,8 +483,61 @@ export default function CogniSubmitRequestPage() {
 
   return (
     <div className="space-y-5 max-w-[1100px]">
+      {/* Context Bar */}
+      <CreationContextBar />
+
       {/* Page Title */}
       <h1 className="text-[22px] font-bold text-primary">New Solution Request</h1>
+
+      {/* Governance Mode Selector */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Governance Mode</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(['QUICK', 'STRUCTURED', 'CONTROLLED'] as GovernanceMode[]).map((mode) => {
+            const config = GOVERNANCE_MODE_CONFIG[mode];
+            const isAvailable = availableGovModes.includes(mode);
+            const isSelected = resolvedGovMode === mode;
+            const icons = { QUICK: Zap, STRUCTURED: Shield, CONTROLLED: Lock };
+            const ModeIcon = icons[mode];
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => isAvailable && setSelectedGovMode(mode)}
+                className={cn(
+                  'relative flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-all',
+                  isSelected
+                    ? 'ring-2 ring-offset-1'
+                    : isAvailable
+                      ? 'hover:border-border/80 hover:shadow-sm'
+                      : 'opacity-50 cursor-not-allowed',
+                )}
+                style={{
+                  borderColor: isSelected ? config.color : 'hsl(var(--border))',
+                  backgroundColor: isSelected ? config.bg : 'transparent',
+                  // @ts-ignore
+                  '--tw-ring-color': config.color,
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <ModeIcon className="h-4 w-4" style={{ color: config.color }} />
+                  <span className="text-sm font-semibold" style={{ color: isSelected ? config.color : 'hsl(var(--foreground))' }}>
+                    {config.label}
+                  </span>
+                  {!isAvailable && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                      Upgrade
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">{config.tooltip}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* AI Intake Banner */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
