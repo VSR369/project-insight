@@ -494,58 +494,33 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
           </div>
         )}
 
-        {/* ── Enterprise: Editable 3-Tier Publication Config ── */}
+        {/* ── Enterprise: Visibility Dropdown ── */}
         {!isLightweight && (solverEligibilityIds.length > 0 || isAllTiers) && (
           <div className="space-y-3 border-t border-border pt-4">
             <div className="space-y-1">
-              <h4 className="text-sm font-bold text-foreground">Publication Configuration</h4>
+              <h4 className="text-sm font-bold text-foreground">Challenge Visibility</h4>
               <p className="text-xs text-muted-foreground">
-                Auto-filled from selected category. You can override these settings.
+                Who can discover this challenge? Eligible solvers (selected above) can view and submit.
               </p>
             </div>
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 items-stretch">
-              {[
-                { title: 'Visibility', subtitle: 'Who can SEE', icon: Eye, value: challengeVisibility, onChange: (v: string) => setValue('challenge_visibility', v, { shouldDirty: true }), options: VISIBILITY_OPTIONS, isDisabled: () => false },
-                { title: 'Enrollment', subtitle: 'Who can ENROLL', icon: UserPlus, value: challengeEnrollment, onChange: (v: string) => setValue('challenge_enrollment', v, { shouldDirty: true }), options: ENROLLMENT_OPTIONS, isDisabled: (v: string) => !validEnrollments.includes(v) },
-                { title: 'Submission', subtitle: 'Who can SUBMIT', icon: FileText, value: challengeSubmission, onChange: (v: string) => setValue('challenge_submission', v, { shouldDirty: true }), options: SUBMISSION_OPTIONS, isDisabled: (v: string) => !validSubmissions.includes(v) },
-              ].map((tier, idx) => {
-                const Icon = tier.icon;
-                return (
-                  <div key={tier.title} className="relative flex">
-                    {idx > 0 && (
-                      <div className="hidden lg:flex absolute -left-[14px] top-1/2 -translate-y-1/2 z-10">
-                        <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                      </div>
-                    )}
-                    <Card className="flex-1 flex flex-col">
-                      <CardHeader className="pb-2 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <Icon className="h-4 w-4 text-primary" />
-                          <CardTitle className="text-sm">{tier.title}</CardTitle>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground">{tier.subtitle}</p>
-                      </CardHeader>
-                      <CardContent className="flex-1 pt-0 space-y-2">
-                        <Select value={tier.value} onValueChange={tier.onChange}>
-                          <SelectTrigger className="text-base w-full"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            {tier.options.map((opt) => {
-                              const disabled = tier.isDisabled(opt.value);
-                              return (
-                                <SelectItem key={opt.value} value={opt.value} disabled={disabled}>
-                                  <span className={cn(disabled && 'opacity-50')}>{opt.label}</span>
-                                </SelectItem>
-                              );
-                            })}
-                          </SelectContent>
-                        </Select>
-                      </CardContent>
-                    </Card>
-                  </div>
-                );
-              })}
-            </div>
-            <AccessModelSummary visibility={challengeVisibility} enrollment={challengeEnrollment} submission={challengeSubmission} />
+            <Select value={challengeVisibility} onValueChange={(v: string) => setValue('challenge_visibility', v, { shouldDirty: true })}>
+              <SelectTrigger className="text-base w-full max-w-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {VISIBILITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <AccessModelSummary
+              visibility={challengeVisibility}
+              eligibleSolverLabels={
+                solverEligibilityIds.length > 0
+                  ? legacyCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
+                  : []
+              }
+            />
           </div>
         )}
 
