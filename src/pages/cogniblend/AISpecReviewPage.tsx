@@ -649,9 +649,6 @@ export default function AISpecReviewPage() {
     navigate('/cogni/dashboard');
   };
 
-  const handleOpenEditor = () => {
-    navigate(`/cogni/challenges/${challengeId}/edit`);
-  };
 
   // ═══════ QUICK mode: read-only with 1-click confirm ═══════
   if (govMode === 'QUICK') {
