@@ -816,6 +816,47 @@ export default function AISpecReviewPage() {
     );
   }
 
+  // ═══════ No AI data guard ═══════
+  const hasAiData = !!(
+    challenge.problem_statement ||
+    challenge.hook ||
+    challenge.description ||
+    challenge.scope ||
+    (challenge.deliverables && (
+      Array.isArray(challenge.deliverables)
+        ? (challenge.deliverables as unknown[]).length > 0
+        : typeof challenge.deliverables === 'object' && 'items' in (challenge.deliverables as Record<string, unknown>) && Array.isArray((challenge.deliverables as Record<string, unknown>).items) && ((challenge.deliverables as Record<string, unknown>).items as unknown[]).length > 0
+    ))
+  );
+
+  if (!hasAiData) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center py-16">
+        <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground">No AI Specification Available</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          This challenge was not created through the AI creation flow, so there is no
+          AI-generated specification to review. You can create a new challenge with AI
+          or use the Advanced Editor to add content manually.
+        </p>
+        <div className="flex items-center justify-center gap-3 mt-5">
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/cogni/challenges/${challengeId}/manage`)}
+          >
+            Open Advanced Editor
+          </Button>
+          <Button
+            onClick={() => navigate('/cogni/challenges/create')}
+          >
+            <Sparkles className="h-4 w-4 mr-1.5" />
+            Create with AI
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   // ═══════ Helpers ═══════
   const challengeRecord = challenge as unknown as Record<string, unknown>;
 

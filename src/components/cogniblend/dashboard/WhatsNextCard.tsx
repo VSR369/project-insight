@@ -1,6 +1,7 @@
 /**
  * WhatsNextCard — Prominent card on the CogniBlend dashboard showing
  * challenges in intermediate phases with direct action links and role hints.
+ * Only shows challenges where the current user has an active role.
  */
 
 import { useAuth } from '@/hooks/useAuth';
@@ -60,15 +61,30 @@ export function WhatsNextCard() {
     queryKey: ['whats-next-challenges', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
+
+      // 1. Get challenge IDs where user has an active role
+      const { data: roleRows, error: roleError } = await supabase
+        .from('user_challenge_roles')
+        .select('challenge_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true);
+
+      if (roleError || !roleRows || roleRows.length === 0) return [];
+
+      const userChallengeIds = [...new Set(roleRows.map((r) => r.challenge_id))];
+
+      // 2. Fetch only those challenges that are in actionable phases
       const { data, error } = await supabase
         .from('challenges')
         .select('id, title, current_phase')
+        .in('id', userChallengeIds)
         .lte('current_phase', 4)
         .gte('current_phase', 1)
         .eq('is_deleted', false)
         .eq('is_active', true)
         .order('updated_at', { ascending: false })
         .limit(3);
+
       if (error) return [];
       return (data ?? []) as InProgressChallenge[];
     },
