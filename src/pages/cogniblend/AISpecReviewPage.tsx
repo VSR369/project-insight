@@ -795,6 +795,22 @@ export default function AISpecReviewPage() {
             onAccept={() => handleAccept(section.key)}
             onEdit={() => handleEdit(section.key)}
             onSave={(val) => handleSave(section.key, val)}
+            solverEditor={
+              section.renderer === 'solver_eligibility' ? (
+                <SolverEligibilityEditor
+                  challenge={challengeRecord}
+                  selectedTierIds={selectedTierIds}
+                  onTierIdsChange={setSelectedTierIds}
+                  visibility={visibility}
+                  enrollment={enrollment}
+                  submission={submission}
+                  onVisibilityChange={setVisibility}
+                  onEnrollmentChange={setEnrollment}
+                  onSubmissionChange={setSubmission}
+                  solverCategories={solverCategories}
+                />
+              ) : undefined
+            }
           />
         ))}
       </div>
