@@ -17,6 +17,8 @@ import {
   Sparkles,
   Check,
   Pencil,
+  Plus,
+  X,
   ArrowRight,
   ArrowLeft,
   AlertTriangle,
