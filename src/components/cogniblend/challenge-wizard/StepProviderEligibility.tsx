@@ -260,8 +260,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
       setValue('solver_eligibility_ids', [], { shouldDirty: true });
       // Set most open defaults
       setValue('challenge_visibility', 'public', { shouldDirty: true });
-      setValue('challenge_enrollment', 'open_auto', { shouldDirty: true });
-      setValue('challenge_submission', 'all_enrolled', { shouldDirty: true });
     }
   };
 
