@@ -7,7 +7,7 @@
  * CONTROLLED mode: Redirects to side-panel editor.
  *
  * Renders deliverables as numbered lists, evaluation criteria as weighted tables,
- * and eligibility/visibility as structured cards from master data options.
+ * and solver eligibility as category cards driven by md_solver_eligibility master data.
  */
 
 import { useState, useEffect } from 'react';
@@ -21,9 +21,6 @@ import {
   AlertTriangle,
   ShieldCheck,
   Settings2,
-  Eye,
-  UserPlus,
-  FileText,
   Users,
 } from 'lucide-react';
 
@@ -40,20 +37,12 @@ import {
   TableCell,
   TableFooter,
 } from '@/components/ui/table';
+import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
-import {
-  findVisibilityOption,
-  findEnrollmentOption,
-  findSubmissionOption,
-  findEligibilityModel,
-  VISIBILITY_OPTIONS,
-  ENROLLMENT_OPTIONS,
-  SUBMISSION_OPTIONS,
-  ELIGIBILITY_MODELS,
-} from '@/constants/challengeOptions.constants';
+import type { SolverEligibilityDetail } from '@/hooks/mutations/useGenerateChallengeSpec';
 
 /* ─── Types ──────────────────────────────────────────── */
 
@@ -62,7 +51,7 @@ interface SpecSection {
   label: string;
   fieldKey: string;
   isAiDrafted: boolean;
-  renderer?: 'text' | 'deliverables' | 'evaluation_criteria' | 'eligibility_visibility';
+  renderer?: 'text' | 'deliverables' | 'evaluation_criteria' | 'solver_eligibility';
 }
 
 const SPEC_SECTIONS: SpecSection[] = [
@@ -72,7 +61,7 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'description', label: 'Detailed Description', fieldKey: 'description', isAiDrafted: true },
   { key: 'deliverables', label: 'Deliverables', fieldKey: 'deliverables', isAiDrafted: true, renderer: 'deliverables' },
   { key: 'evaluation_criteria', label: 'Evaluation Criteria', fieldKey: 'evaluation_criteria', isAiDrafted: true, renderer: 'evaluation_criteria' },
-  { key: 'eligibility_visibility', label: 'Eligibility & Visibility', fieldKey: 'eligibility', isAiDrafted: true, renderer: 'eligibility_visibility' },
+  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_codes', isAiDrafted: true, renderer: 'solver_eligibility' },
   { key: 'hook', label: 'Challenge Hook', fieldKey: 'hook', isAiDrafted: true },
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
@@ -154,65 +143,68 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Eligibility & Visibility Renderer ───────────────── */
+/* ─── Solver Eligibility & Access Renderer ─────────────── */
 
-function EligibilityVisibilityDisplay({ challenge }: { challenge: Record<string, unknown> }) {
-  const vis = findVisibilityOption(challenge.challenge_visibility as string);
-  const enr = findEnrollmentOption(challenge.challenge_enrollment as string);
-  const sub = findSubmissionOption(challenge.challenge_submission as string);
-  const elig = findEligibilityModel(challenge.eligibility_model as string);
-  const eligNotes = (challenge.eligibility as string) || '';
-
-  const tiers = [
-    { icon: Eye, title: 'Visibility', subtitle: 'Who can SEE', option: vis, raw: challenge.challenge_visibility },
-    { icon: UserPlus, title: 'Enrollment', subtitle: 'Who can ENROLL', option: enr, raw: challenge.challenge_enrollment },
-    { icon: FileText, title: 'Submission', subtitle: 'Who can SUBMIT', option: sub, raw: challenge.challenge_submission },
-  ];
+function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unknown> }) {
+  const details: SolverEligibilityDetail[] = Array.isArray(challenge.solver_eligibility_details)
+    ? challenge.solver_eligibility_details as SolverEligibilityDetail[]
+    : [];
+  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
+  const visibility = (challenge.challenge_visibility as string) || 'public';
+  const enrollment = (challenge.challenge_enrollment as string) || 'open_auto';
+  const submission = (challenge.challenge_submission as string) || 'all_enrolled';
 
   return (
     <div className="space-y-4">
-      {/* Tier cards */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {tiers.map(({ icon: Icon, title, subtitle, option, raw }) => (
-          <div key={title} className="rounded-lg border border-border bg-muted/30 p-3.5">
-            <div className="flex items-center gap-2 mb-2">
-              <Icon className="h-4 w-4 text-primary" />
-              <div>
-                <p className="text-xs font-semibold text-foreground">{title}</p>
-                <p className="text-[10px] text-muted-foreground">{subtitle}</p>
+      {/* Solver Category Cards */}
+      {details.length > 0 ? (
+        <div className="space-y-2">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            AI-Selected Solver Types
+          </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+            {details.map((cat) => (
+              <div
+                key={cat.code}
+                className="rounded-lg border border-border bg-muted/30 p-3.5"
+              >
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Users className="h-4 w-4 text-primary shrink-0" />
+                  <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
+                  <span className="text-sm font-medium text-foreground">{cat.label}</span>
+                </div>
+                {cat.description && (
+                  <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
+                )}
+                <div className="flex flex-wrap gap-1.5">
+                  {cat.requires_auth && (
+                    <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>
+                  )}
+                  {cat.requires_certification && (
+                    <Badge variant="secondary" className="text-[10px]">Certified</Badge>
+                  )}
+                  {cat.requires_provider_record && (
+                    <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>
+                  )}
+                  {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
+                    <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
+                  )}
+                </div>
               </div>
-            </div>
-            {option ? (
-              <>
-                <p className="text-sm font-medium text-foreground">{option.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{option.description}</p>
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground italic">{String(raw || 'Not set')}</p>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {/* Eligibility Model */}
-      <div className="rounded-lg border border-border bg-muted/30 p-3.5">
-        <div className="flex items-center gap-2 mb-2">
-          <Users className="h-4 w-4 text-primary" />
-          <div>
-            <p className="text-xs font-semibold text-foreground">Eligibility Model</p>
-            <p className="text-[10px] text-muted-foreground">Solver qualification tier</p>
+            ))}
           </div>
         </div>
-        {elig ? (
-          <>
-            <Badge variant="outline" className="font-mono text-xs mb-1">{elig.code}</Badge>
-            <p className="text-sm font-medium text-foreground">{elig.label}</p>
-            <p className="text-xs text-muted-foreground mt-0.5">{elig.description}</p>
-          </>
-        ) : (
-          <p className="text-sm text-muted-foreground italic">Not set</p>
-        )}
-      </div>
+      ) : (
+        <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
+      )}
+
+      {/* Derived Access Model */}
+      <AccessModelSummary
+        visibility={visibility}
+        enrollment={enrollment}
+        submission={submission}
+        eligibility={eligNotes}
+      />
 
       {/* Free-text eligibility notes */}
       {eligNotes && (
@@ -351,8 +343,8 @@ function SectionContent({
       return <DeliverablesDisplay data={rawData} />;
     case 'evaluation_criteria':
       return <EvaluationCriteriaDisplay data={rawData} />;
-    case 'eligibility_visibility':
-      return <EligibilityVisibilityDisplay challenge={challenge} />;
+    case 'solver_eligibility':
+      return <SolverEligibilityDisplay challenge={challenge} />;
     default:
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">

@@ -14,6 +14,15 @@ export interface GenerateSpecRequest {
   template_id?: string;
 }
 
+export interface SolverEligibilityDetail {
+  code: string;
+  label: string;
+  description: string | null;
+  requires_auth: boolean;
+  requires_provider_record: boolean;
+  requires_certification: boolean;
+}
+
 export interface GeneratedSpec {
   title: string;
   problem_statement: string;
@@ -24,10 +33,16 @@ export interface GeneratedSpec {
   eligibility: string;
   hook: string;
   ip_model: string;
+  /** AI-selected solver category codes from md_solver_eligibility */
+  solver_eligibility_codes: string[];
+  /** Full details of selected solver categories (hydrated by edge function) */
+  solver_eligibility_details: SolverEligibilityDetail[];
+  /** Free-text eligibility notes */
+  eligibility_notes: string;
+  /** Derived from primary solver category's defaults */
   challenge_visibility: string;
   challenge_enrollment: string;
   challenge_submission: string;
-  eligibility_model: string;
 }
 
 export function useGenerateChallengeSpec() {
