@@ -246,6 +246,8 @@ const LcReviewQueuePage = lazy(() => import("@/pages/cogniblend/LcReviewQueuePag
 const LcReviewPanel = lazy(() => import("@/pages/cogniblend/LcReviewPanel"));
 const CogniSubmitRequestPage = lazy(() => import("@/pages/cogniblend/CogniSubmitRequestPage"));
 const CogniMyRequestsPage = lazy(() => import("@/pages/cogniblend/CogniMyRequestsPage"));
+const LcLegalWorkspacePage = lazy(() => import("@/pages/cogniblend/LcLegalWorkspacePage"));
+const EscrowManagementPage = lazy(() => import("@/pages/cogniblend/EscrowManagementPage"));
 
 // Solution Request Pages (lazy loaded — backward-compatible standalone routes)
 const NewSolutionRequestPage = lazy(() => import("@/pages/requests/NewSolutionRequestPage"));
