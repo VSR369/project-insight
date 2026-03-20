@@ -163,12 +163,13 @@ function useMyRequests(statusFilter: string, searchTerm: string) {
           const userIds = [...new Set(roles.map((r: any) => r.user_id))];
           const { data: profiles } = await supabase
             .from('profiles')
-            .select('id, display_name, email')
+            .select('id, first_name, last_name, email')
             .in('id', userIds);
 
           const profileMap: Record<string, string> = {};
           (profiles ?? []).forEach((p: any) => {
-            profileMap[p.id] = p.display_name || p.email || 'Unknown';
+            const fullName = [p.first_name, p.last_name].filter(Boolean).join(' ').trim();
+            profileMap[p.id] = fullName || p.email || 'Unknown';
           });
 
           roles.forEach((r: any) => {
