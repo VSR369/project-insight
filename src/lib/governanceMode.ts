@@ -74,3 +74,19 @@ export const GOVERNANCE_MODE_CONFIG: Record<GovernanceMode, GovernanceModeConfig
     tooltip: 'Controlled: full compliance with mandatory escrow, formal gates, and distinct roles',
   },
 };
+
+/* ── Tier → available governance modes ────────────────── */
+
+export const TIER_GOVERNANCE_MODES: Record<string, GovernanceMode[]> = {
+  basic:      ['QUICK'],
+  standard:   ['QUICK', 'STRUCTURED'],
+  premium:    ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+  enterprise: ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+};
+
+/**
+ * Returns the governance modes available for a given subscription tier.
+ */
+export function getAvailableGovernanceModes(tierCode: string | null | undefined): GovernanceMode[] {
+  return TIER_GOVERNANCE_MODES[(tierCode ?? 'basic').toLowerCase()] ?? ['QUICK'];
+}

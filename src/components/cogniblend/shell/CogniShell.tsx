@@ -17,7 +17,7 @@ const ROUTE_TITLES: Record<string, string> = {
   '/cogni/dashboard': 'Dashboard',
   '/cogni/curation': 'Curation Queue',
   '/cogni/challenges': 'Challenges',
-  '/cogni/challenges/create': 'Create Challenge',
+  '/cogni/challenges/create': 'New Challenge',
   '/cogni/submit-request': 'Submit Request',
   '/cogni/my-requests': 'My Requests',
   '/cogni/my-challenges': 'My Challenges',

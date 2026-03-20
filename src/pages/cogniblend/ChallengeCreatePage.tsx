@@ -1,29 +1,33 @@
 /**
- * ChallengeCreatePage — Unified challenge creation with seamless AI ↔ Advanced Editor toggle.
+ * ChallengeCreatePage — Role-aware landing page for challenge creation.
  * Route: /cogni/challenges/create
  *
- * Default tab is "Create with AI" (conversational intake).
- * Users can toggle to "Advanced Editor" (8-step wizard) without navigating away.
- * URL param ?tab=editor allows deep-linking to the Advanced Editor tab.
- *
- * SHARED STATE: problemStatement, maturityLevel, selectedTemplate, and generatedSpec
- * are lifted here and passed down so data flows seamlessly between both views.
+ * Shows role-appropriate track cards:
+ * - Track 1 (CR/CA): AI-Assisted + Manual Editor
+ * - Track 2 (AM/RQ): Solution Request
+ * - RQ (AGG, no bypass): Both tracks
  */
 
-import { useState, useCallback } from 'react';
-import { useSearchParams, Link } from 'react-router-dom';
-import { Sparkles, Settings2, Info, Building2, ArrowLeft } from 'lucide-react';
+import { useState, useCallback, useMemo } from 'react';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import {
+  Sparkles, Settings2, FileText, ArrowRight, ArrowLeft,
+  Building2, Info, ChevronLeft, Zap, Shield, Lock,
+} from 'lucide-react';
 
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
+import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useOrgModelContext } from '@/hooks/queries/useSolutionRequestContext';
+import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
+import { resolveGovernanceMode, GOVERNANCE_MODE_CONFIG } from '@/lib/governanceMode';
 import { ConversationalIntakeContent } from './ConversationalIntakePage';
 import ChallengeWizardPage from './ChallengeWizardPage';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
 import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type TabValue = 'ai' | 'editor';
+type ActiveView = 'landing' | 'ai' | 'editor';
 
 /** Shared state shape passed between AI intake and Advanced Editor */
 export interface SharedIntakeState {
@@ -33,11 +37,88 @@ export interface SharedIntakeState {
   generatedSpec: GeneratedSpec | null;
 }
 
+/* ── Track Card ── */
+interface TrackCardProps {
+  icon: React.ReactNode;
+  title: string;
+  description: string;
+  badge?: string;
+  badgeVariant?: 'recommended' | 'mandatory' | 'optional';
+  onClick: () => void;
+  fullWidth?: boolean;
+}
+
+function TrackCard({ icon, title, description, badge, badgeVariant, onClick, fullWidth }: TrackCardProps) {
+  const badgeColors = {
+    recommended: 'bg-primary/10 text-primary border-primary/20',
+    mandatory: 'bg-destructive/10 text-destructive border-destructive/20',
+    optional: 'bg-muted text-muted-foreground border-border',
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`
+        group relative flex flex-col items-start gap-3 rounded-xl border border-border
+        bg-card p-6 text-left transition-all hover:border-primary/40
+        hover:shadow-[0_2px_12px_-4px_hsl(var(--primary)/0.12)]
+        active:scale-[0.98]
+        ${fullWidth ? 'col-span-full' : ''}
+      `}
+    >
+      {badge && (
+        <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${badgeColors[badgeVariant ?? 'optional']}`}>
+          {badge}
+        </span>
+      )}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/8 text-primary">
+          {icon}
+        </div>
+        <h3 className="text-base font-semibold text-foreground">{title}</h3>
+      </div>
+      <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
+      <span className="inline-flex items-center gap-1 text-sm font-medium text-primary mt-1 group-hover:gap-2 transition-all">
+        Get started <ArrowRight className="h-4 w-4" />
+      </span>
+    </button>
+  );
+}
+
+/* ── Governance Footer ── */
+function GovernanceFooter({ mode }: { mode: string }) {
+  const govMode = resolveGovernanceMode(mode);
+  const config = GOVERNANCE_MODE_CONFIG[govMode];
+  const icons = { QUICK: Zap, STRUCTURED: Shield, CONTROLLED: Lock };
+  const Icon = icons[govMode];
+
+  const descriptions: Record<string, string> = {
+    QUICK: 'After AI generation, you'll see a read-only spec review for 1-click confirmation.',
+    STRUCTURED: 'After AI generation, you'll review each section with Accept/Edit controls.',
+    CONTROLLED: 'After AI generation, you'll use a side-panel editor to manually apply or skip each AI suggestion.',
+  };
+
+  return (
+    <div
+      className="flex items-start gap-3 rounded-lg border px-4 py-3"
+      style={{ borderColor: `${config.color}33`, backgroundColor: `${config.bg}80` }}
+    >
+      <Icon className="h-4 w-4 shrink-0 mt-0.5" style={{ color: config.color }} />
+      <div className="text-xs" style={{ color: config.color }}>
+        <span className="font-semibold">{config.label} mode:</span>{' '}
+        {descriptions[govMode]}
+      </div>
+    </div>
+  );
+}
+
+/* ── Main Page ── */
 export default function ChallengeCreatePage() {
   // ═══════ Hooks — state ═══════
   const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
 
-  // Shared state lifted from both children
   const [sharedState, setSharedState] = useState<SharedIntakeState>({
     problemStatement: '',
     maturityLevel: '',
@@ -47,38 +128,72 @@ export default function ChallengeCreatePage() {
 
   // ═══════ Hooks — queries ═══════
   const { data: currentOrg, isLoading: orgLoading } = useCurrentOrg();
+  const { data: orgContext, isLoading: modelLoading } = useOrgModelContext();
+  const { activeRole } = useCogniRoleContext();
 
-  // ═══════ Handlers (hooks — must be before conditional returns) ═══════
-  const handleTabChange = useCallback((value: string) => {
-    const next = value as TabValue;
-    if (next === 'editor') {
-      setSearchParams({ tab: 'editor' }, { replace: true });
-    } else {
-      setSearchParams({}, { replace: true });
-    }
-  }, [setSearchParams]);
-
-  const switchToEditor = useCallback(() => handleTabChange('editor'), [handleTabChange]);
-  const switchToAI = useCallback(() => handleTabChange('ai'), [handleTabChange]);
-
-  /** Called by AI intake when spec is generated — NO longer auto-switches to editor.
-   *  The intake page now navigates to the spec review or controlled editor route. */
+  // ═══════ Handlers ═══════
   const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
     setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
-    // Navigation is now handled inside ConversationalIntakeContent
   }, []);
 
-  /** Called by AI intake on field changes to keep shared state in sync */
   const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
     setSharedState((prev) => ({ ...prev, ...partial }));
   }, []);
 
   // ═══════ Derived ═══════
-  const activeTab: TabValue = searchParams.get('tab') === 'editor' ? 'editor' : 'ai';
-  const hasAIDraft = !!sharedState.generatedSpec;
+  const paramTab = searchParams.get('tab');
+  const activeView: ActiveView = paramTab === 'editor' ? 'editor' : paramTab === 'ai' ? 'ai' : 'landing';
 
-  // ═══════ Hard guard: block if no org context ═══════
-  if (!orgLoading && !currentOrg) {
+  const setView = useCallback((view: ActiveView) => {
+    if (view === 'landing') {
+      setSearchParams({}, { replace: true });
+    } else {
+      setSearchParams({ tab: view }, { replace: true });
+    }
+  }, [setSearchParams]);
+
+  const switchToEditor = useCallback(() => setView('editor'), [setView]);
+  const switchToAI = useCallback(() => setView('ai'), [setView]);
+  const backToLanding = useCallback(() => setView('landing'), [setView]);
+
+  // Role-based visibility
+  const isCreatorRole = ['CR', 'CA'].includes(activeRole);
+  const isAM = activeRole === 'AM';
+  const isRQ = activeRole === 'RQ';
+  const isAGGModel = orgContext?.operatingModel === 'AGG';
+  const hasBypass = isAGGModel && orgContext?.phase1Bypass === true;
+
+  const showCreationCards = useMemo(() => {
+    if (isCreatorRole) return true;
+    if (isRQ && hasBypass) return true;
+    if (isRQ && isAGGModel) return true; // RQ sees both tracks
+    return false;
+  }, [isCreatorRole, isRQ, hasBypass, isAGGModel]);
+
+  const showRequestCard = useMemo(() => {
+    if (isAM) return true;
+    if (isRQ && isAGGModel && !hasBypass) return true;
+    return false;
+  }, [isAM, isRQ, isAGGModel, hasBypass]);
+
+  const requestLabel = isAM ? 'Mandatory' : 'Optional';
+  const requestBadgeVariant = isAM ? 'mandatory' as const : 'optional' as const;
+
+  // ═══════ Loading ═══════
+  if (orgLoading || modelLoading) {
+    return (
+      <div className="space-y-6 px-6 pt-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-44 rounded-xl" />
+          <Skeleton className="h-44 rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  // ═══════ Hard guard: no org ═══════
+  if (!currentOrg) {
     return (
       <div className="flex h-[60vh] w-full items-center justify-center">
         <div className="text-center space-y-4 max-w-md mx-auto">
@@ -104,56 +219,106 @@ export default function ChallengeCreatePage() {
     );
   }
 
-  // ═══════ Render ═══════
-  return (
-    <Tabs value={activeTab} onValueChange={handleTabChange} className="w-full">
-      {/* Tab toggle header */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-3 px-6 pt-2 pb-4">
-        <TabsList className="self-start">
-          <TabsTrigger value="ai" className="gap-1.5">
-            <Sparkles className="h-4 w-4" />
-            Create with AI
-          </TabsTrigger>
-          <TabsTrigger value="editor" className="gap-1.5">
-            <Settings2 className="h-4 w-4" />
-            Advanced Editor
-          </TabsTrigger>
-        </TabsList>
-        <GovernanceProfileBadge profile={currentOrg?.governanceProfile} compact />
-      </div>
-
-      {/* Shared state indicator */}
-      <div className="flex items-center gap-2 px-6 pb-3 text-xs text-muted-foreground">
-        <Info className="h-3.5 w-3.5 shrink-0" />
-        {hasAIDraft ? (
-          <span className="text-primary font-medium">
-            AI draft loaded — review and refine in the Advanced Editor.
-          </span>
-        ) : (
-          <span>
-            Your problem statement and template selections carry over between views.
-          </span>
-        )}
-      </div>
-
-      {/* AI Conversational Intake */}
-      <TabsContent value="ai" className="mt-0">
+  // ═══════ Inline views (AI / Editor) ═══════
+  if (activeView === 'ai') {
+    return (
+      <div className="w-full">
+        <div className="px-6 pt-2 pb-4 space-y-3">
+          <Button variant="ghost" size="sm" onClick={backToLanding} className="gap-1.5 -ml-2 text-muted-foreground">
+            <ChevronLeft className="h-4 w-4" /> Back
+          </Button>
+          <CreationContextBar />
+        </div>
         <ConversationalIntakeContent
           onSwitchToEditor={switchToEditor}
           sharedState={sharedState}
           onStateChange={handleIntakeStateChange}
           onSpecGenerated={handleSpecGenerated}
         />
-      </TabsContent>
+      </div>
+    );
+  }
 
-      {/* 8-step Challenge Wizard */}
-      <TabsContent value="editor" className="mt-0">
+  if (activeView === 'editor') {
+    return (
+      <div className="w-full">
+        <div className="px-6 pt-2 pb-4 space-y-3">
+          <Button variant="ghost" size="sm" onClick={backToLanding} className="gap-1.5 -ml-2 text-muted-foreground">
+            <ChevronLeft className="h-4 w-4" /> Back
+          </Button>
+          <CreationContextBar />
+        </div>
         <ChallengeWizardPage
           embedded
           onSwitchToSimple={switchToAI}
           initialFromIntake={sharedState}
         />
-      </TabsContent>
-    </Tabs>
+      </div>
+    );
+  }
+
+  // ═══════ Landing View ═══════
+  return (
+    <div className="w-full max-w-[960px] px-6 pt-2 space-y-6">
+      {/* Context Bar */}
+      <CreationContextBar />
+
+      {/* Page Header */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground">New Challenge</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Choose how you'd like to get started.
+        </p>
+      </div>
+
+      {/* Bypass Banner */}
+      {isRQ && hasBypass && (
+        <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">
+          <Info className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+          <p className="text-sm text-foreground">
+            Phase 1 bypassed — create challenges directly without submitting a request first.
+          </p>
+        </div>
+      )}
+
+      {/* Track Cards */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Track 1: Challenge Creation */}
+        {showCreationCards && (
+          <>
+            <TrackCard
+              icon={<Sparkles className="h-5 w-5" />}
+              title="AI-Assisted"
+              description="Describe your challenge and AI generates a full specification. Review and refine based on your governance mode."
+              badge="Recommended"
+              badgeVariant="recommended"
+              onClick={() => setView('ai')}
+            />
+            <TrackCard
+              icon={<Settings2 className="h-5 w-5" />}
+              title="Manual Editor"
+              description="Build your challenge step-by-step using the 8-step wizard. Full control over every field and configuration."
+              onClick={() => setView('editor')}
+            />
+          </>
+        )}
+
+        {/* Track 2: Solution Request */}
+        {showRequestCard && (
+          <TrackCard
+            icon={<FileText className="h-5 w-5" />}
+            title="Solution Request"
+            description="Describe your business need. A Challenge Architect will convert it into a full challenge specification."
+            badge={requestLabel}
+            badgeVariant={requestBadgeVariant}
+            onClick={() => navigate('/cogni/submit-request')}
+            fullWidth={!showCreationCards}
+          />
+        )}
+      </div>
+
+      {/* Governance Mode Explanation */}
+      <GovernanceFooter mode={currentOrg.governanceProfile} />
+    </div>
   );
 }

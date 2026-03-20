@@ -6,9 +6,9 @@
 
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  PlusCircle, FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
+  FileInput, FilePlus, Folder, CheckSquare, ShieldCheck,
   FileText, FileCheck, Eye, BarChart2, Award, Lock, CreditCard,
-  Search, Lightbulb, User, Sparkles,
+  Search, Lightbulb, User,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useCogniRoleContext } from '@/contexts/CogniRoleContext';
