@@ -517,7 +517,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               visibility={challengeVisibility}
               eligibleSolverLabels={
                 solverEligibilityIds.length > 0
-                  ? legacyCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
+                  ? activeCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
                   : []
               }
             />
