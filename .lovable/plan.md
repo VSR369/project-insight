@@ -1,62 +1,111 @@
 
-Goal: stop the repeated “Invalid …” save failures by validating/normalizing all constrained challenge fields in one pass before DB update, so AI → create challenge → next step always works.
 
-1) Root-cause audit (single source of truth = DB trigger)
-- I’ll align all outbound values to `trg_challenges_validate_cogniblend` constraints:
-  - `maturity_level`: `BLUEPRINT | POC | PROTOTYPE | PILOT`
-  - `ip_model`: `IP-EA | IP-NEL | IP-EL | IP-JO | IP-NONE`
-  - `complexity_level`: `L1..L5`
-  - `rejection_fee_percentage`: `5..20`
-- Current mismatch confirmed:
-  - AI function returns `FULL_TRANSFER | LICENSE | SHARED | SOLVER_RETAINS`
-  - Wizard UI sends `exclusive_assignment | non_exclusive_license | ...`
-  - DB rejects these.
+# Unified Challenge Creation UX — Implementation Plan
 
-2) Add a centralized normalization layer (fix-all-at-once)
-- Create a shared utility (e.g. `src/lib/cogniblend/challengeFieldNormalizer.ts`) that:
-  - normalizes case/format (`blueprint` → `BLUEPRINT`, etc.)
-  - maps all known IP aliases to DB codes:
+## Summary
 
-```text
-FULL_TRANSFER / exclusive_assignment -> IP-EA
-LICENSE / non_exclusive_license      -> IP-NEL
-EXCLUSIVE_LICENSE / exclusive_license-> IP-EL
-SHARED / joint_ownership             -> IP-JO
-SOLVER_RETAINS / no_transfer         -> IP-NONE
+Replace the current tabbed "Create with AI / Advanced Editor" layout with a role-aware landing page that routes users to the correct track based on their role and engagement model. Add governance mode awareness to the Solution Request form, and consolidate sidebar navigation.
+
+## Two Tracks (Not Three)
+
+- **Track 1: Challenge Creation** — produces a full challenge spec via AI-Assisted or Manual Editor (for CR, CA, and RQ with bypass)
+- **Track 2: Solution Request** — lightweight intake form, architect converts later (for AM in MP, RQ in AGG without bypass)
+
+## Changes
+
+### 1. New Component: `CreationContextBar.tsx`
+**File:** `src/components/cogniblend/CreationContextBar.tsx`
+
+Horizontal bar showing 4 badges: Org name, Governance Mode (colored per `GOVERNANCE_MODE_CONFIG`), Engagement Model (MP/AGG), Tier code. Data from `useCurrentOrg` + `useOrgModelContext`.
+
+### 2. Rewrite Landing Page: `ChallengeCreatePage.tsx`
+**File:** `src/pages/cogniblend/ChallengeCreatePage.tsx`
+
+Replace current `Tabs` with a smart landing that shows role-appropriate path cards:
+
+- **CR/CA roles**: Show two cards — "AI-Assisted" (primary, recommended) and "Manual Editor" (secondary). No Solution Request card.
+- **AM role (MP model)**: Show single full-width "Solution Request" card labeled "Mandatory". No creation cards.
+- **RQ role (AGG, bypass OFF)**: Show "Solution Request" card (labeled "Optional") + both creation cards.
+- **RQ role (AGG, bypass ON)**: Show creation cards only + blue bypass banner. No Solution Request card.
+
+Clicking a card either:
+- Shows the existing `ConversationalIntakeContent` or `ChallengeWizardPage` inline (same as current tabs)
+- Navigates to `/cogni/submit-request` for Solution Request
+
+Add `CreationContextBar` at top. Add governance mode explanation footer showing what happens after AI generation per mode.
+
+Uses `useCogniRoleContext` for active role and `useOrgModelContext` for model/bypass.
+
+### 3. Add Governance Mode to Submit Request
+**File:** `src/pages/cogniblend/CogniSubmitRequestPage.tsx`
+
+- Add `CreationContextBar` at top
+- Add governance mode selector (3 card-style options) between the Request Info header and the form
+- Tier-gating logic: disable modes the org's tier doesn't support, show "Upgrade" badge on locked modes
+- Pre-select the org's current governance profile as default
+- Adjust field requirements based on selected mode:
+  - **QUICK**: Only Problem + Outcomes required; budget, timeline, constraints, categorization become optional with sensible defaults
+  - **STRUCTURED**: Current full form (no change)
+  - **CONTROLLED**: All fields mandatory including constraints and full categorization
+- Store `governance_mode` in the submitted payload via `buildPayload`
+
+### 4. Add Tier-to-Governance Mapping
+**File:** `src/lib/governanceMode.ts`
+
+Add:
+```typescript
+export const TIER_GOVERNANCE_MODES: Record<string, GovernanceMode[]> = {
+  basic:      ['QUICK'],
+  standard:   ['QUICK', 'STRUCTURED'],
+  premium:    ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+  enterprise: ['QUICK', 'STRUCTURED', 'CONTROLLED'],
+};
+
+export function getAvailableGovernanceModes(tierCode: string | null): GovernanceMode[] {
+  return TIER_GOVERNANCE_MODES[(tierCode ?? 'basic').toLowerCase()] ?? ['QUICK'];
+}
 ```
 
-  - clamps `rejection_fee_percentage` to 5–20
-  - validates constrained fields together and returns one aggregated error message if anything remains invalid.
+### 5. Merge Sidebar Navigation Entries
+**File:** `src/components/cogniblend/shell/CogniSidebarNav.tsx`
 
-3) Enforce normalization at every write path
-- Apply normalizer inside `useSaveChallengeStep` (most important, covers AI + wizard saves).
-- Apply before AI intake save in `ConversationalIntakePage.tsx`.
-- Apply in `ChallengeWizardPage.tsx` (`buildFieldsFromForm`) so form state and payload stay consistent.
+Replace:
+```
+├── Create with AI  (CR, AM, RQ)
+├── Submit Request   (AM, RQ)
+```
+With:
+```
+├── New Challenge    (CR, CA, AM, RQ)
+```
 
-4) Align AI output + form options to DB contract
-- Update `supabase/functions/generate-challenge-spec/index.ts` prompt/tool enum to return DB IP codes directly.
-- Update wizard IP select option values (StepRewards, and StepRequirements if retained) to store DB codes while keeping user-friendly labels.
-- Keep display labels mapped from DB codes so users don’t see raw codes.
+Single entry pointing to `/cogni/challenges/create`. The landing page handles routing. Use `FilePlus` icon.
 
-5) Backend safety net (optional but recommended for “once-for-all”)
-- Add a migration to harden `trg_challenges_validate_cogniblend`:
-  - normalize common legacy aliases in-trigger before validation.
-  - still raise clear errors for truly unknown values.
-- This protects old clients/seeders and prevents future regressions.
+### 6. Update Role Config
+**File:** `src/types/cogniRoles.ts`
 
-6) Regression tests
-- Unit tests for normalizer:
-  - all IP aliases map correctly
-  - maturity normalization
-  - fee clamping
-  - invalid aggregate error path
-- AI flow test: generated `LICENSE`-style input no longer blocks save.
-- Wizard flow test: selecting each IP option persists without DB error.
+- `ROLE_PRIMARY_ACTION.AM` → route changes to `/cogni/challenges/create`, label stays "Submit Request"
+- `ROLE_PRIMARY_ACTION.RQ` → route changes to `/cogni/challenges/create`, label stays "Submit Request"
+- `ROLE_NAV_RELEVANCE.AM` → add `/cogni/challenges/create`, keep `/cogni/my-requests`
+- `ROLE_NAV_RELEVANCE.RQ` → add `/cogni/challenges/create`, keep `/cogni/my-requests`
 
-7) Validation checklist after implementation
-- Generate with AI from `/cogni/challenges/create`:
-  - challenge is created
-  - save step succeeds
-  - navigation proceeds to next page
-- Edit and save in Advanced Editor with all IP options.
-- Confirm no `Invalid ip_model` (or similar constrained-field) errors in console/network.
+### 7. Update Breadcrumbs
+**File:** `src/components/cogniblend/shell/CogniShell.tsx`
+
+- Change `'/cogni/challenges/create': 'Create Challenge'` to `'New Challenge'`
+- Keep `'/cogni/submit-request': 'Submit Request'` (still accessible via direct navigation)
+
+## Files Summary
+
+| File | Action |
+|------|--------|
+| `src/components/cogniblend/CreationContextBar.tsx` | Create |
+| `src/pages/cogniblend/ChallengeCreatePage.tsx` | Rewrite |
+| `src/pages/cogniblend/CogniSubmitRequestPage.tsx` | Modify (add context bar + governance selector) |
+| `src/lib/governanceMode.ts` | Modify (add tier mapping) |
+| `src/components/cogniblend/shell/CogniSidebarNav.tsx` | Modify (merge entries) |
+| `src/types/cogniRoles.ts` | Modify (update actions/relevance) |
+| `src/components/cogniblend/shell/CogniShell.tsx` | Modify (breadcrumb label) |
+
+No database changes required.
+
