@@ -364,14 +364,18 @@ export function ConversationalIntakeContent({
           problem_statement: spec.problem_statement,
           scope: spec.scope,
           description: spec.description,
-          deliverables: { items: spec.deliverables },
-          evaluation_criteria: { criteria: spec.evaluation_criteria },
+          deliverables: Array.isArray(spec.deliverables) ? spec.deliverables : [],
+          evaluation_criteria: Array.isArray(spec.evaluation_criteria) ? spec.evaluation_criteria : [],
           eligibility: spec.eligibility,
           hook: spec.hook,
           ip_model: spec.ip_model,
           maturity_level: data.maturity_level?.toUpperCase() ?? null,
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
+          challenge_visibility: spec.challenge_visibility ?? 'public',
+          solver_eligibility_types: Array.isArray(spec.solver_eligibility_details)
+            ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))
+            : [],
         },
       });
 

@@ -62,7 +62,9 @@ export function useChallengeDetail(challengeId: string | undefined) {
           maturity_level, phase_schedule, complexity_parameters,
           ip_model, visibility, eligibility, submission_deadline,
           governance_profile, operating_model, current_phase,
-          master_status, max_solutions, currency_code
+          master_status, max_solutions, currency_code,
+          solver_eligibility_types, solver_eligibility_id,
+          challenge_visibility, hook, effort_level
         `)
         .eq('id', challengeId)
         .eq('is_deleted', false)
