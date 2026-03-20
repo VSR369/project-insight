@@ -1,45 +1,37 @@
 
 
-# Plan: Autonomous Solver Type Assignment (5-Why Fix) — COMPLETED
+# Plan: Restore Original 8 Solver Types — COMPLETED
 
-## Root Cause (5-Why)
-1. Wrong/redundant solver types showing → UI paths used legacy static options + `model_category` filter
-2. AI not selecting reliably → Edge function relied on model output with weak post-correction
-3. Empty solver arrays persisted → No auto-repair on page load
-4. Not caught → No validation gate before persist
-5. Persisted in production → No end-to-end regression coverage
+## Summary
+Restored the original 8 solver types (display_order 10-80) as the canonical set for both eligibility and visibility. Deactivated the 5 redundant codes (CE, IO, DR, OC, OPEN).
 
 ## Changes Implemented
 
-### A. Canonical 5-Code Model in UI ✅
-- `StepProviderEligibility.tsx`: Removed `model_category` legacy filter — now uses all active `md_solver_eligibility` rows directly
-- `ApprovalPublicationConfigTab.tsx`: Replaced legacy eligibility options (invited_experts, curated_experts, registered_users, anyone) with canonical codes (IO, CE, OC, DR, OPEN)
-- `challengeOptions.constants.ts`: Replaced HY (Hybrid) with OPEN; reordered by hierarchy
+### A. Database ✅
+- Set `is_active = true` for: certified_basic, certified_competent, certified_expert, registered, expert_invitee, signed_in, open_community, hybrid
+- Set `is_active = false` for: CE, IO, DR, OC, OPEN
 
-### B. Deterministic Edge Function ✅
-- `generate-challenge-spec/index.ts`: Tool schema now enforces exactly 1 code per array (minItems/maxItems: 1)
-- Post-processing ensures visible is strictly broader than eligible via hierarchy enforcement
-- Deployed successfully
+### B. Auto-Assignment (`solverAutoAssign.ts`) ✅
+- Updated `BREADTH_ORDER` to 8-code hierarchy
+- Updated `computeSolverAssignment` rules to use original codes
+- Updated `enforceHierarchy` defaults to registered/open_community
 
-### C. Auto-Repair on Spec Load ✅
-- `AISpecReviewPage.tsx`: Added `useEffect` that detects empty/malformed solver arrays and auto-assigns + persists via `useSaveChallengeStep` — no user intervention required
-- `solverAutoAssign.ts`: New deterministic assignment utility with hierarchy: IO < CE < OC < DR < OPEN
+### C. Constants (`challengeOptions.constants.ts`) ✅
+- Replaced `ELIGIBILITY_MODELS` with 8 original codes
 
-### D. Persistence Hardening ✅
-- `ConversationalIntakePage.tsx`: Added fallback — if AI returns empty solver arrays, deterministic assignment kicks in before save
-- Migration already deactivated 8 legacy codes in previous step
+### D. Approval Tab (`ApprovalPublicationConfigTab.tsx`) ✅
+- Updated `ELIGIBILITY_MODELS`, `ELIGIBILITY_OPTIONS_ENTERPRISE`, and `ELIGIBILITY_OPTIONS_LIGHTWEIGHT`
 
-### E. Data Backfill
-- 12 existing challenges have empty solver arrays
-- Auto-repair effect in AISpecReviewPage self-heals these on first page visit
+### E. Edge Function (`generate-challenge-spec/index.ts`) ✅
+- Updated system prompt selection rules to use original 8 codes
+- Updated BREADTH_ORDER and fallback defaults
+- Updated post-processing hierarchy enforcement
+- Redeployed
 
-## Files Changed
-| File | Action |
-|------|--------|
-| `src/lib/cogniblend/solverAutoAssign.ts` | **New** — deterministic solver assignment + hierarchy enforcement |
-| `src/components/cogniblend/challenge-wizard/StepProviderEligibility.tsx` | Removed legacy `model_category` filter |
-| `src/components/cogniblend/approval/ApprovalPublicationConfigTab.tsx` | Canonical 5-code eligibility options |
-| `src/constants/challengeOptions.constants.ts` | Removed HY, added OPEN, reordered |
-| `src/pages/cogniblend/AISpecReviewPage.tsx` | Auto-repair effect for empty solver arrays |
-| `src/pages/cogniblend/ConversationalIntakePage.tsx` | Fallback deterministic assignment |
-| `supabase/functions/generate-challenge-spec/index.ts` | Enforced single-code selection in tool schema |
+### F. No changes needed
+- `StepProviderEligibility.tsx` — dynamically reads from `useSolverEligibility` (auto picks up DB change)
+- `AISpecReviewPage.tsx` — auto-repair flows through updated `computeSolverAssignment`
+- `ConversationalIntakePage.tsx` — fallback flows through updated `computeSolverAssignment`
+
+## Hierarchy
+certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid
