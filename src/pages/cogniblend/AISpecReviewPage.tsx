@@ -78,7 +78,7 @@ const SPEC_SECTIONS: SpecSection[] = [
   { key: 'description', label: 'Detailed Description', fieldKey: 'description', isAiDrafted: true },
   { key: 'deliverables', label: 'Deliverables', fieldKey: 'deliverables', isAiDrafted: true, renderer: 'deliverables' },
   { key: 'evaluation_criteria', label: 'Evaluation Criteria', fieldKey: 'evaluation_criteria', isAiDrafted: true, renderer: 'evaluation_criteria' },
-  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_codes', isAiDrafted: true, renderer: 'solver_eligibility' },
+  { key: 'solver_eligibility', label: 'Solver Eligibility & Access', fieldKey: 'solver_eligibility_types', isAiDrafted: true, renderer: 'solver_eligibility' },
   { key: 'hook', label: 'Challenge Hook', fieldKey: 'hook', isAiDrafted: true },
   { key: 'ip_model', label: 'IP Model', fieldKey: 'ip_model', isAiDrafted: true },
 ];
