@@ -91,25 +91,25 @@ IMPORTANT: Select EXACTLY ONE code for each — do NOT select multiple.
 DETERMINISTIC SELECTION RULES (apply in order):
 
 Rule 1 — IP-sensitive challenges (ip_model is IP-EA or IP-EL) OR advanced maturity (pilot, prototype):
-  - Eligible: "CE" (Curated Expert) or "IO" (Invitation Only)
-  - Visible: "DR" (Direct Registration) or "OC" (Organization-Curated)
+  - Eligible: "certified_expert"
+  - Visible: "registered"
 
 Rule 2 — Domain-expert challenges (poc maturity, technical/specialized problems):
-  - Eligible: "DR" (Direct Registration with NDA)
-  - Visible: "OPEN"
+  - Eligible: "registered"
+  - Visible: "open_community"
 
 Rule 3 — Open innovation / ideation (blueprint maturity, ip_model is IP-NONE or IP-NEL):
-  - Eligible: "OPEN"
-  - Visible: "OPEN"
+  - Eligible: "open_community"
+  - Visible: "open_community"
 
 Rule 4 — DEFAULT (when no other rule matches):
-  - Eligible: "DR"
-  - Visible: "OPEN"
+  - Eligible: "registered"
+  - Visible: "open_community"
 
 CONSTRAINT: visible_solver_codes MUST be strictly BROADER than solver_eligibility_codes.
-Broadness hierarchy (narrowest to broadest): IO < CE < OC < DR < OPEN
-The ONLY exception is when both are "OPEN" (Rule 3).
-NEVER select the same code for both eligible and visible unless both are "OPEN".
+Broadness hierarchy (narrowest to broadest): certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid
+The ONLY exception is when both are "open_community" (Rule 3).
+NEVER select the same code for both eligible and visible unless both are "open_community".
 
 Available solver categories:
 
