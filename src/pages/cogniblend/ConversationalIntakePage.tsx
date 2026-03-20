@@ -52,6 +52,7 @@ import { useGenerateChallengeSpec, type GeneratedSpec } from '@/hooks/mutations/
 import { TemplateSelector } from '@/components/cogniblend/TemplateSelector';
 import { GovernanceProfileBadge } from '@/components/cogniblend/GovernanceProfileBadge';
 import { resolveGovernanceMode } from '@/lib/governanceMode';
+import { computeSolverAssignment } from '@/lib/cogniblend/solverAutoAssign';
 import { getPostGenerationRoute, shouldRequireAdvancedEditor } from '@/lib/challengeNavigation';
 import { MATURITY_LABELS, MATURITY_DESCRIPTIONS } from '@/lib/maturityLabels';
 import type { ChallengeTemplate } from '@/lib/challengeTemplates';
@@ -373,12 +374,33 @@ export function ConversationalIntakeContent({
           currency_code: data.currency_code,
           submission_deadline: data.deadline ? data.deadline.toISOString() : null,
           challenge_visibility: spec.challenge_visibility ?? 'public',
-          solver_eligibility_types: Array.isArray(spec.solver_eligibility_details)
-            ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))
-            : [],
-          solver_visibility_types: Array.isArray(spec.solver_visibility_details)
-            ? spec.solver_visibility_details.map((d: any) => ({ code: d.code, label: d.label }))
-            : [],
+          solver_eligibility_types: (() => {
+            const details = Array.isArray(spec.solver_eligibility_details)
+              ? spec.solver_eligibility_details.map((d: any) => ({ code: d.code, label: d.label }))
+              : [];
+            if (details.length === 0) {
+              // Fallback: deterministic assignment if AI returned empty
+              const assignment = computeSolverAssignment({
+                maturityLevel: data.maturity_level,
+                ipModel: spec.ip_model,
+              });
+              return [{ code: assignment.eligibleCode, label: assignment.eligibleCode }];
+            }
+            return details;
+          })(),
+          solver_visibility_types: (() => {
+            const details = Array.isArray(spec.solver_visibility_details)
+              ? spec.solver_visibility_details.map((d: any) => ({ code: d.code, label: d.label }))
+              : [];
+            if (details.length === 0) {
+              const assignment = computeSolverAssignment({
+                maturityLevel: data.maturity_level,
+                ipModel: spec.ip_model,
+              });
+              return [{ code: assignment.visibleCode, label: assignment.visibleCode }];
+            }
+            return details;
+          })(),
         },
       });
 

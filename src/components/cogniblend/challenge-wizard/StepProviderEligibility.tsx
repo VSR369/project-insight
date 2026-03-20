@@ -219,9 +219,9 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
     [cascade.getSpecialitiesBySubDomains, requiredSubDomains],
   );
 
-  // ── Filter solver categories: legacy only (exclude BRD 5.7.1) ──
-  const legacyCategories = useMemo(() => {
-    return solverCategories.filter((cat) => (cat as any).model_category !== 'brd_5_7_1');
+  // ── Canonical 5-code solver model (CE, IO, DR, OC, OPEN) — filter by active master data ──
+  const activeCategories = useMemo(() => {
+    return solverCategories;
   }, [solverCategories]);
 
   // ── Provider Category: "All" is a select-all toggle, checkboxes always visible ──
@@ -442,7 +442,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
             </label>
 
             {/* Individual tiers as checkboxes */}
-            {legacyCategories.map((cat) => {
+            {activeCategories.map((cat) => {
               const isSelected = solverEligibilityIds.includes(cat.id);
               return (
                 <label
@@ -517,7 +517,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
               visibility={challengeVisibility}
               eligibleSolverLabels={
                 solverEligibilityIds.length > 0
-                  ? legacyCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
+                  ? activeCategories.filter((c) => solverEligibilityIds.includes(c.id)).map((c) => c.label)
                   : []
               }
             />
