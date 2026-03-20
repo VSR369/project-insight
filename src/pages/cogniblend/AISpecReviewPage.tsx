@@ -475,7 +475,7 @@ export default function AISpecReviewPage() {
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
   const { data: currentOrg } = useCurrentOrg();
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
-
+  const saveStep = useSaveChallengeStep();
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
