@@ -276,6 +276,7 @@ export default function CogniSubmitRequestPage() {
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [aiDrafting, setAiDrafting] = useState(false);
+  const [selectedGovMode, setSelectedGovMode] = useState<GovernanceMode | null>(null);
 
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
