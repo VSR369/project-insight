@@ -469,87 +469,8 @@ export default function ApprovalPublicationConfigTab({
             </Select>
           </div>
 
-          {/* ── Enrollment Tier (Enterprise only) ─── */}
-          {isEnterprise && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">How can solvers enroll?</Label>
-              <Select value={enrollment} onValueChange={handleEnrollmentChange}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select enrollment model" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enrollmentOptions.map((opt) => {
-                    const isDisabled = opt.rank > maxEnrollRank;
-                    return (
-                      <SelectItem key={opt.value} value={opt.value} disabled={isDisabled}>
-                        <div className="py-1">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-sm font-medium ${isDisabled ? "text-muted-foreground/50" : ""}`}>{opt.label}</p>
-                            {isDisabled && <span className="text-[10px] text-destructive font-medium">Restricted</span>}
-                          </div>
-                          <p className={`text-xs ${isDisabled ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{opt.description}</p>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {enrollmentError && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive font-medium">{enrollmentError}</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* ── Submission Tier (Enterprise only) ─── */}
-          {isEnterprise && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Who can submit solutions?</Label>
-              <Select value={submission} onValueChange={setSubmission}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select submission tier" />
-                </SelectTrigger>
-                <SelectContent>
-                  {submissionOptions.map((opt) => {
-                    const isDisabled = opt.rank > maxSubmissionRank;
-                    return (
-                      <SelectItem key={opt.value} value={opt.value} disabled={isDisabled}>
-                        <div className="py-1">
-                          <div className="flex items-center gap-2">
-                            <p className={`text-sm font-medium ${isDisabled ? "text-muted-foreground/50" : ""}`}>{opt.label}</p>
-                            {isDisabled && <span className="text-[10px] text-destructive font-medium">Restricted</span>}
-                          </div>
-                          <p className={`text-xs ${isDisabled ? "text-muted-foreground/40" : "text-muted-foreground"}`}>{opt.description}</p>
-                        </div>
-                      </SelectItem>
-                    );
-                  })}
-                </SelectContent>
-              </Select>
-              {submissionError && (
-                <div className="flex items-start gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-                  <p className="text-xs text-destructive font-medium">{submissionError}</p>
-                </div>
-              )}
-            </div>
-          )}
 
-          {/* ── 3-Tier Hierarchy Indicator (Enterprise) ─── */}
-          {isEnterprise && visibility && enrollment && submission && !hasAccessErrors && (
-            <div className="p-3 rounded-lg border border-primary/20 bg-primary/5 space-y-1">
-              <p className="text-[11px] font-semibold text-foreground">Access Model Hierarchy</p>
-              <p className="text-[11px] text-muted-foreground">
-                Visibility ({visibilityOptions.find(v => v.value === visibility)?.label})
-                {' → '}
-                Enrollment ({enrollmentOptions.find(e => e.value === enrollment)?.label})
-                {' → '}
-                Submission ({submissionOptions.find(s => s.value === submission)?.label})
-              </p>
-            </div>
-          )}
         </CardContent>
       </Card>
 
