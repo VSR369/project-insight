@@ -32,6 +32,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
+import {
+  resolveGovernanceMode,
+  getAvailableGovernanceModes,
+  GOVERNANCE_MODE_CONFIG,
+  type GovernanceMode,
+} from '@/lib/governanceMode';
 import { extractKeywords, matchTagsByKeywords } from '@/lib/keywordExtractor';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
