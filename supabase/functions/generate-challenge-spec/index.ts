@@ -250,7 +250,7 @@ Generate a complete challenge specification.`;
                     items: { type: "string" },
                     minItems: 1,
                     maxItems: 1,
-                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy IO<CE<OC<DR<OPEN. From: ${validCodes.join(", ")}`,
+                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy: certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid. From: ${validCodes.join(", ")}`,
                   },
                   eligibility_notes: {
                     type: "string",
