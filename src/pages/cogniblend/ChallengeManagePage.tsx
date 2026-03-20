@@ -130,6 +130,9 @@ export default function ChallengeManagePage() {
   /* ── Render ── */
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 lg:py-8 space-y-6">
+      {/* Workflow Progress */}
+      <WorkflowProgressBanner currentPhase={data.currentPhase ?? null} />
+
       {/* Back */}
       <Button variant="ghost" size="sm" onClick={() => navigate('/cogni/portfolio')} className="gap-1.5">
         <ArrowLeft className="h-4 w-4" /> Portfolio

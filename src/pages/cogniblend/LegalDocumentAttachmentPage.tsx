@@ -818,7 +818,7 @@ export default function LegalDocumentAttachmentPage() {
 
   return (
     <div ref={pageTopRef} className="p-4 lg:p-6 max-w-7xl mx-auto space-y-6">
-      {/* Page Header */}
+      <WorkflowProgressBanner step={3} />
       <div>
         <h1 className="text-xl font-bold text-foreground">
           Legal Document Attachment
