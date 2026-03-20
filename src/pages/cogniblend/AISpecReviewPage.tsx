@@ -463,12 +463,17 @@ function SectionContent({
     case 'solver_eligibility':
     case 'solver_visibility':
       return solverEditor ?? <SolverTypeReadOnly typesData={rawData} label={section.label} />;
-    default:
+    default: {
+      // For ip_model, display human-readable label
+      const displayValue = section.fieldKey === 'ip_model'
+        ? getIpModelLabel(value || null)
+        : value;
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-          {value || <span className="italic">No content yet</span>}
+          {displayValue || <span className="italic">No content yet</span>}
         </p>
       );
+    }
   }
 }
 
