@@ -317,21 +317,6 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
     }
   };
 
-  // ── Enterprise publication config validation ──
-  const validEnrollments = VALID_ENROLLMENTS[challengeVisibility] ?? ENROLLMENT_OPTIONS.map((o) => o.value);
-  const validSubmissions = VALID_SUBMISSIONS[challengeEnrollment] ?? SUBMISSION_OPTIONS.map((o) => o.value);
-
-  useEffect(() => {
-    if (challengeVisibility && !validEnrollments.includes(challengeEnrollment)) {
-      setValue('challenge_enrollment', validEnrollments[0], { shouldDirty: true });
-    }
-  }, [challengeVisibility]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (challengeEnrollment && !validSubmissions.includes(challengeSubmission)) {
-      setValue('challenge_submission', validSubmissions[0], { shouldDirty: true });
-    }
-  }, [challengeEnrollment]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Resolve industry segment name ──
   const industryName = useMemo(() => {
