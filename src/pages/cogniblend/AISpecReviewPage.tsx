@@ -503,6 +503,7 @@ function EditableSectionCard({
   onAccept,
   onEdit,
   onSave,
+  onSaveStructured,
   solverEditor,
 }: {
   section: SpecSection;
@@ -513,10 +514,46 @@ function EditableSectionCard({
   onAccept: () => void;
   onEdit: () => void;
   onSave: (val: string) => void;
+  onSaveStructured?: (data: unknown) => void;
   solverEditor?: React.ReactNode;
 }) {
   const [editValue, setEditValue] = useState(value);
-  const isStructured = section.renderer && section.renderer !== 'text';
+  const isSolverSection = section.renderer === 'solver_eligibility' || section.renderer === 'solver_visibility';
+  const isEditableStructured = section.renderer === 'deliverables' || section.renderer === 'evaluation_criteria';
+
+  // Parse raw data for structured editors
+  const [editDeliverables, setEditDeliverables] = useState<string[]>([]);
+  const [editCriteria, setEditCriteria] = useState<Array<{ name: string; weight: number; description: string }>>([]);
+
+  // Initialize structured edit data when entering edit mode
+  useEffect(() => {
+    if (status === 'editing' && section.renderer === 'deliverables') {
+      const items: string[] = Array.isArray(rawData)
+        ? rawData
+        : (rawData && typeof rawData === 'object' && 'items' in (rawData as Record<string, unknown>) && Array.isArray((rawData as Record<string, unknown>).items))
+          ? (rawData as Record<string, unknown>).items as string[]
+          : [];
+      setEditDeliverables(items.length > 0 ? [...items] : ['']);
+    }
+    if (status === 'editing' && section.renderer === 'evaluation_criteria') {
+      const criteria: Array<{ name: string; weight: number; description: string }> =
+        Array.isArray(rawData)
+          ? rawData
+          : (rawData && typeof rawData === 'object' && 'criteria' in (rawData as Record<string, unknown>) && Array.isArray((rawData as Record<string, unknown>).criteria))
+            ? (rawData as Record<string, unknown>).criteria as Array<{ name: string; weight: number; description: string }>
+            : [];
+      setEditCriteria(criteria.length > 0 ? criteria.map((c) => ({ ...c })) : [{ name: '', weight: 100, description: '' }]);
+    }
+  }, [status, section.renderer]);
+
+  const handleSaveStructured = () => {
+    if (section.renderer === 'deliverables') {
+      const filtered = editDeliverables.filter((d) => d.trim() !== '');
+      onSaveStructured?.(filtered);
+    } else if (section.renderer === 'evaluation_criteria') {
+      onSaveStructured?.(editCriteria);
+    }
+  };
 
   return (
     <div
@@ -537,14 +574,14 @@ function EditableSectionCard({
           )}
         </div>
         <div className="flex items-center gap-1">
-          {status === 'editing' && !isStructured ? (
-            <Button size="sm" variant="default" onClick={() => onSave(editValue)}>
+          {status === 'editing' ? (
+            <Button size="sm" variant="default" onClick={isEditableStructured ? handleSaveStructured : () => onSave(editValue)}>
               <Check className="h-3.5 w-3.5 mr-1" />
               Save
             </Button>
           ) : (
             <>
-              {!isStructured && (
+              {!isSolverSection && (
                 <Button size="sm" variant="ghost" onClick={onEdit}>
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -559,13 +596,17 @@ function EditableSectionCard({
         </div>
       </div>
 
-      {status === 'editing' && !isStructured ? (
+      {status === 'editing' && !isEditableStructured && !isSolverSection ? (
         <Textarea
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           rows={4}
           className="text-sm resize-none"
         />
+      ) : status === 'editing' && section.renderer === 'deliverables' ? (
+        <DeliverablesEditor items={editDeliverables} onChange={setEditDeliverables} />
+      ) : status === 'editing' && section.renderer === 'evaluation_criteria' ? (
+        <EvaluationCriteriaEditor criteria={editCriteria} onChange={setEditCriteria} />
       ) : (
         <SectionContent section={section} value={value} rawData={rawData} challenge={challenge} solverEditor={solverEditor} />
       )}
