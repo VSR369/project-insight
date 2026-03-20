@@ -542,8 +542,10 @@ export default function AISpecReviewPage() {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
 
     const challengeRecord = challenge as unknown as Record<string, unknown>;
-    const aiCodes: string[] = Array.isArray(challengeRecord.solver_eligibility_codes)
-      ? challengeRecord.solver_eligibility_codes as string[]
+    // Read from solver_eligibility_types (DB column) — array of { code, label }
+    const rawTypes = challengeRecord.solver_eligibility_types;
+    const aiCodes: string[] = Array.isArray(rawTypes)
+      ? (rawTypes as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
       : [];
 
     // Map AI-selected codes to IDs
