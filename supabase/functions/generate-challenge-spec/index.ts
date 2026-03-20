@@ -82,17 +82,34 @@ EVALUATION CRITERIA (CRITICAL — must be structured, weighted, and problem-spec
 
 SOLVER TYPES — TWO SEPARATE SELECTIONS (CRITICAL):
 
-You must select solver types for TWO distinct access levels from the same master data:
+You must select solver types for TWO distinct access levels from the same master data.
+IMPORTANT: Select EXACTLY ONE code for each — do NOT select multiple.
 
-1. **solver_eligibility_codes** — Solvers who can VIEW AND SUBMIT solutions. Select 1-3 codes based on challenge complexity, IP sensitivity, and required expertise.
+1. **solver_eligibility_codes** — Who can VIEW AND SUBMIT solutions. Select exactly 1 code.
+2. **visible_solver_codes** — Who can DISCOVER and VIEW the challenge but CANNOT submit. Select exactly 1 code that is BROADER than eligible.
 
-2. **visible_solver_codes** — Solvers who can only DISCOVER and VIEW the challenge but CANNOT submit. This should be EQUAL TO OR BROADER than eligible solvers. For example, if eligible solvers are Certified experts, visible solvers might include Registered users too so more people discover the challenge.
+DETERMINISTIC SELECTION RULES (apply in order):
 
-Rules for selection:
-- visible_solver_codes should always be >= solver_eligibility_codes in breadth
-- If the challenge is highly specialized (IP-EA, prototype/pilot), keep eligible narrow but visible broader
-- If the challenge is open innovation (blueprint, IP-NONE), both can be broad
-- Never make visible_solver_codes narrower than solver_eligibility_codes
+Rule 1 — IP-sensitive challenges (ip_model is IP-EA or IP-EL) OR advanced maturity (pilot, prototype):
+  - Eligible: "CE" (Curated Expert) or "IO" (Invitation Only)
+  - Visible: "DR" (Direct Registration) or "OC" (Organization-Curated)
+
+Rule 2 — Domain-expert challenges (poc maturity, technical/specialized problems):
+  - Eligible: "DR" (Direct Registration with NDA)
+  - Visible: "OPEN"
+
+Rule 3 — Open innovation / ideation (blueprint maturity, ip_model is IP-NONE or IP-NEL):
+  - Eligible: "OPEN"
+  - Visible: "OPEN"
+
+Rule 4 — DEFAULT (when no other rule matches):
+  - Eligible: "DR"
+  - Visible: "OPEN"
+
+CONSTRAINT: visible_solver_codes MUST be strictly BROADER than solver_eligibility_codes.
+Broadness hierarchy (narrowest to broadest): IO < CE < OC < DR < OPEN
+The ONLY exception is when both are "OPEN" (Rule 3).
+NEVER select the same code for both eligible and visible unless both are "OPEN".
 
 Available solver categories:
 
@@ -293,18 +310,41 @@ Generate a complete challenge specification.`;
       ? spec.visible_solver_codes.filter((c: string) => validCodes.includes(c))
       : [];
 
-    // Fallback: if no valid eligible codes, use the first (most open) category
-    if (selectedEligibleCodes.length === 0 && categories.length > 0) {
-      selectedEligibleCodes.push(categories[0].code);
+    // Broadness hierarchy for post-processing: narrowest → broadest
+    const BREADTH_ORDER = ["IO", "CE", "OC", "DR", "OPEN"];
+
+    // Fallback: if no valid eligible codes, default to DR
+    if (selectedEligibleCodes.length === 0) {
+      selectedEligibleCodes.push("DR");
     }
 
-    // Fallback: if no visible codes, default to eligible codes (same breadth)
+    // Fallback: if no visible codes, default to OPEN
     if (selectedVisibleCodes.length === 0) {
-      selectedVisibleCodes.push(...selectedEligibleCodes);
+      selectedVisibleCodes.push("OPEN");
     }
 
-    spec.solver_eligibility_codes = selectedEligibleCodes;
-    spec.visible_solver_codes = selectedVisibleCodes;
+    // Keep only 1 code each (take the broadest selected)
+    const getBroadest = (codes: string[]) => {
+      let best = codes[0];
+      for (const c of codes) {
+        if (BREADTH_ORDER.indexOf(c) > BREADTH_ORDER.indexOf(best)) best = c;
+      }
+      return best;
+    };
+    const eligibleCode = getBroadest(selectedEligibleCodes);
+    let visibleCode = getBroadest(selectedVisibleCodes);
+
+    // Post-processing: visible must be strictly broader than eligible (unless both OPEN)
+    const eligibleRank = BREADTH_ORDER.indexOf(eligibleCode);
+    const visibleRank = BREADTH_ORDER.indexOf(visibleCode);
+    if (eligibleCode !== "OPEN" && visibleRank <= eligibleRank) {
+      // Bump visible to the next broader tier
+      const nextBroaderIndex = Math.min(eligibleRank + 1, BREADTH_ORDER.length - 1);
+      visibleCode = BREADTH_ORDER[nextBroaderIndex];
+    }
+
+    spec.solver_eligibility_codes = [eligibleCode];
+    spec.visible_solver_codes = [visibleCode];
     spec.eligibility_notes = spec.eligibility_notes ?? "";
 
     // Build hydrated details for eligible solvers
@@ -323,11 +363,11 @@ Generate a complete challenge specification.`;
           : { code, label: code, description: null, requires_auth: false, requires_provider_record: false, requires_certification: false };
       });
 
-    spec.solver_eligibility_details = buildDetails(selectedEligibleCodes);
-    spec.solver_visibility_details = buildDetails(selectedVisibleCodes);
+    spec.solver_eligibility_details = buildDetails([eligibleCode]);
+    spec.solver_visibility_details = buildDetails([visibleCode]);
 
-    // Derive visibility from the first eligible category's defaults
-    const primaryCategory = categories.find((c) => c.code === selectedEligibleCodes[0]);
+    // Derive visibility from the eligible category's defaults
+    const primaryCategory = categories.find((c) => c.code === eligibleCode);
     spec.challenge_visibility = primaryCategory?.default_visibility ?? "public";
 
     // Keep legacy eligibility field mapped from notes
