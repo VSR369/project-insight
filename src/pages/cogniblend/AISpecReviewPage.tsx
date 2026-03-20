@@ -500,7 +500,59 @@ export default function AISpecReviewPage() {
     setSolverStateInitialized(true);
   }, [challenge, solverCategories, solverStateInitialized]);
 
-  // ═══════ Effects — redirect CONTROLLED to side-panel ═══════
+  // ═══════ Effects — auto-repair empty solver arrays ═══════
+  useEffect(() => {
+    if (autoRepairDone || !challenge || !challengeId || solverCategories.length === 0 || saveStep.isPending) return;
+
+    const challengeRecord = challenge as unknown as Record<string, unknown>;
+    if (!needsSolverRepair(challengeRecord.solver_eligibility_types, challengeRecord.solver_visibility_types)) {
+      setAutoRepairDone(true);
+      return;
+    }
+
+    // Compute deterministic assignment from challenge signals
+    const assignment = computeSolverAssignment({
+      maturityLevel: challenge.maturity_level,
+      ipModel: challenge.ip_model,
+    });
+
+    // Build hydrated payloads
+    const eligibleCat = solverCategories.find((c) => c.code === assignment.eligibleCode);
+    const visibleCat = solverCategories.find((c) => c.code === assignment.visibleCode);
+
+    const eligiblePayload = eligibleCat
+      ? [{ code: eligibleCat.code, label: eligibleCat.label }]
+      : [{ code: assignment.eligibleCode, label: assignment.eligibleCode }];
+    const visiblePayload = visibleCat
+      ? [{ code: visibleCat.code, label: visibleCat.label }]
+      : [{ code: assignment.visibleCode, label: assignment.visibleCode }];
+
+    // Persist and update local state
+    saveStep.mutate(
+      {
+        challengeId,
+        fields: {
+          solver_eligibility_types: eligiblePayload,
+          solver_visibility_types: visiblePayload,
+        },
+      },
+      {
+        onSuccess: () => {
+          // Update local tier IDs so the UI reflects the repair
+          const eligibleIds = solverCategories
+            .filter((c) => c.code === assignment.eligibleCode)
+            .map((c) => c.id);
+          const visibleIds = solverCategories
+            .filter((c) => c.code === assignment.visibleCode)
+            .map((c) => c.id);
+          setSelectedEligibleTierIds(eligibleIds);
+          setSelectedVisibleTierIds(visibleIds);
+          setAutoRepairDone(true);
+        },
+      },
+    );
+  }, [challenge, challengeId, solverCategories, autoRepairDone, saveStep.isPending]);
+
   useEffect(() => {
     if (!isLoading && challenge && govMode === 'CONTROLLED') {
       navigate(`/cogni/challenges/${challengeId}/controlled-edit`, { replace: true });
