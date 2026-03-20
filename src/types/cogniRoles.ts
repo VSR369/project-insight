@@ -41,7 +41,7 @@ export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string 
   CU: { label: 'Open Curation Queue', route: '/cogni/curation' },
   ID: { label: 'Review Approvals', route: '/cogni/approval' },
   ER: { label: 'Open Review Queue', route: '/cogni/review' },
-  LC: { label: 'Legal Documents', route: '/cogni/legal' },
+  LC: { label: 'Legal Workspace', route: '/cogni/lc-queue' },
   FC: { label: 'Manage Escrow', route: '/cogni/escrow' },
 };
 
