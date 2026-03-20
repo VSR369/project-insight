@@ -133,7 +133,16 @@ export default function ChallengeCreatePage() {
 
   // ═══════ Handlers ═══════
   const handleSpecGenerated = useCallback((spec: GeneratedSpec) => {
-    setSharedState((prev) => ({ ...prev, generatedSpec: spec }));
+    setSharedState((prev) => ({
+      ...prev,
+      generatedSpec: {
+        ...spec,
+        challenge_visibility: spec.challenge_visibility ?? 'public',
+        challenge_enrollment: spec.challenge_enrollment ?? 'open_auto',
+        challenge_submission: spec.challenge_submission ?? 'all_enrolled',
+        eligibility_model: spec.eligibility_model ?? 'OC',
+      },
+    }));
   }, []);
 
   const handleIntakeStateChange = useCallback((partial: Partial<SharedIntakeState>) => {
