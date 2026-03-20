@@ -354,10 +354,6 @@ function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, un
         <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
       )}
 
-      <AccessModelSummary
-        visibility={visibility}
-        eligibleSolverLabels={details.map((d) => d.label)}
-      />
 
       {eligNotes && (
         <div className="rounded-lg border border-border bg-card p-3.5">
