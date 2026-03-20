@@ -315,16 +315,16 @@ Generate a complete challenge specification.`;
       : [];
 
     // Broadness hierarchy for post-processing: narrowest → broadest
-    const BREADTH_ORDER = ["IO", "CE", "OC", "DR", "OPEN"];
+    const BREADTH_ORDER = ["certified_expert", "certified_competent", "certified_basic", "expert_invitee", "registered", "signed_in", "open_community", "hybrid"];
 
-    // Fallback: if no valid eligible codes, default to DR
+    // Fallback: if no valid eligible codes, default to registered
     if (selectedEligibleCodes.length === 0) {
-      selectedEligibleCodes.push("DR");
+      selectedEligibleCodes.push("registered");
     }
 
-    // Fallback: if no visible codes, default to OPEN
+    // Fallback: if no visible codes, default to open_community
     if (selectedVisibleCodes.length === 0) {
-      selectedVisibleCodes.push("OPEN");
+      selectedVisibleCodes.push("open_community");
     }
 
     // Keep only 1 code each (take the broadest selected)
@@ -338,10 +338,10 @@ Generate a complete challenge specification.`;
     const eligibleCode = getBroadest(selectedEligibleCodes);
     let visibleCode = getBroadest(selectedVisibleCodes);
 
-    // Post-processing: visible must be strictly broader than eligible (unless both OPEN)
+    // Post-processing: visible must be strictly broader than eligible (unless both open_community)
     const eligibleRank = BREADTH_ORDER.indexOf(eligibleCode);
     const visibleRank = BREADTH_ORDER.indexOf(visibleCode);
-    if (eligibleCode !== "OPEN" && visibleRank <= eligibleRank) {
+    if (eligibleCode !== "open_community" && visibleRank <= eligibleRank) {
       // Bump visible to the next broader tier
       const nextBroaderIndex = Math.min(eligibleRank + 1, BREADTH_ORDER.length - 1);
       visibleCode = BREADTH_ORDER[nextBroaderIndex];
