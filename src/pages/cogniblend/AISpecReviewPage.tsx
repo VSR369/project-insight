@@ -7,10 +7,10 @@
  * CONTROLLED mode: Redirects to side-panel editor.
  *
  * Renders deliverables as numbered lists, evaluation criteria as weighted tables,
- * and solver eligibility as category cards driven by md_solver_eligibility master data.
+ * and solver eligibility as editable checkbox cards driven by md_solver_eligibility master data.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -28,6 +28,14 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Table,
   TableHeader,
@@ -40,8 +48,14 @@ import {
 import { AccessModelSummary } from '@/components/cogniblend/AccessModelSummary';
 import { useChallengeDetail } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
+import { useSolverEligibility } from '@/hooks/queries/useChallengeData';
 import { resolveGovernanceMode, type GovernanceMode } from '@/lib/governanceMode';
 import { getMaturityLabel } from '@/lib/maturityLabels';
+import {
+  VISIBILITY_OPTIONS,
+  ENROLLMENT_OPTIONS,
+  SUBMISSION_OPTIONS,
+} from '@/constants/challengeOptions.constants';
 import type { SolverEligibilityDetail } from '@/hooks/mutations/useGenerateChallengeSpec';
 
 /* ─── Types ──────────────────────────────────────────── */
@@ -143,9 +157,188 @@ function EvaluationCriteriaDisplay({ data }: { data: unknown }) {
   );
 }
 
-/* ─── Solver Eligibility & Access Renderer ─────────────── */
+/* ─── Editable Solver Eligibility & Access Model ─────── */
 
-function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unknown> }) {
+interface SolverEligibilityEditorProps {
+  challenge: Record<string, unknown>;
+  selectedTierIds: string[];
+  onTierIdsChange: (ids: string[]) => void;
+  visibility: string;
+  enrollment: string;
+  submission: string;
+  onVisibilityChange: (v: string) => void;
+  onEnrollmentChange: (v: string) => void;
+  onSubmissionChange: (v: string) => void;
+  solverCategories: Array<{
+    id: string;
+    code: string;
+    label: string;
+    description: string | null;
+    requires_auth: boolean;
+    requires_provider_record: boolean;
+    requires_certification: boolean;
+    default_visibility: string | null;
+    default_enrollment: string | null;
+    default_submission: string | null;
+  }>;
+}
+
+function SolverEligibilityEditor({
+  challenge,
+  selectedTierIds,
+  onTierIdsChange,
+  visibility,
+  enrollment,
+  submission,
+  onVisibilityChange,
+  onEnrollmentChange,
+  onSubmissionChange,
+  solverCategories,
+}: SolverEligibilityEditorProps) {
+  const eligNotes = (challenge.eligibility_notes as string) || (challenge.eligibility as string) || '';
+
+  const handleToggle = (tierId: string, checked: boolean) => {
+    if (checked) {
+      onTierIdsChange([...selectedTierIds, tierId]);
+    } else {
+      onTierIdsChange(selectedTierIds.filter((id) => id !== tierId));
+    }
+  };
+
+  return (
+    <div className="space-y-5">
+      {/* Solver Tier Checkboxes */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Solver Eligibility Categories
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {solverCategories.map((cat) => {
+            const isSelected = selectedTierIds.includes(cat.id);
+            return (
+              <label
+                key={cat.id}
+                className={`flex items-start gap-3 rounded-lg border p-3.5 cursor-pointer transition-colors ${
+                  isSelected
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border bg-muted/30 hover:border-muted-foreground/30'
+                }`}
+              >
+                <Checkbox
+                  checked={isSelected}
+                  onCheckedChange={(checked) => handleToggle(cat.id, !!checked)}
+                  className="mt-0.5"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
+                    <span className="text-sm font-medium text-foreground">{cat.label}</span>
+                  </div>
+                  {cat.description && (
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-1.5">{cat.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {cat.requires_auth && (
+                      <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>
+                    )}
+                    {cat.requires_certification && (
+                      <Badge variant="secondary" className="text-[10px]">Certified</Badge>
+                    )}
+                    {cat.requires_provider_record && (
+                      <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>
+                    )}
+                    {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
+                      <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
+                    )}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Publication Configuration Dropdowns */}
+      <div>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          Publication Configuration
+        </p>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Visibility */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Visibility</label>
+            <Select value={visibility} onValueChange={onVisibilityChange}>
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {VISIBILITY_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Enrollment */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Enrollment</label>
+            <Select value={enrollment} onValueChange={onEnrollmentChange}>
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {ENROLLMENT_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Submission */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-foreground">Submission</label>
+            <Select value={submission} onValueChange={onSubmissionChange}>
+              <SelectTrigger className="text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SUBMISSION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Live Access Model Summary */}
+      <AccessModelSummary
+        visibility={visibility}
+        enrollment={enrollment}
+        submission={submission}
+        eligibility={eligNotes}
+      />
+
+      {/* Free-text eligibility notes */}
+      {eligNotes && (
+        <div className="rounded-lg border border-border bg-card p-3.5">
+          <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>
+          <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{eligNotes}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── Read-Only Solver Display (for QUICK mode) ─────── */
+
+function SolverEligibilityReadOnly({ challenge }: { challenge: Record<string, unknown> }) {
   const details: SolverEligibilityDetail[] = Array.isArray(challenge.solver_eligibility_details)
     ? challenge.solver_eligibility_details as SolverEligibilityDetail[]
     : [];
@@ -156,7 +349,6 @@ function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unk
 
   return (
     <div className="space-y-4">
-      {/* Solver Category Cards */}
       {details.length > 0 ? (
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
@@ -164,10 +356,7 @@ function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unk
           </p>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
             {details.map((cat) => (
-              <div
-                key={cat.code}
-                className="rounded-lg border border-border bg-muted/30 p-3.5"
-              >
+              <div key={cat.code} className="rounded-lg border border-border bg-muted/30 p-3.5">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Users className="h-4 w-4 text-primary shrink-0" />
                   <Badge variant="outline" className="font-mono text-[10px]">{cat.code}</Badge>
@@ -177,15 +366,9 @@ function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unk
                   <p className="text-xs text-muted-foreground leading-relaxed mb-2">{cat.description}</p>
                 )}
                 <div className="flex flex-wrap gap-1.5">
-                  {cat.requires_auth && (
-                    <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>
-                  )}
-                  {cat.requires_certification && (
-                    <Badge variant="secondary" className="text-[10px]">Certified</Badge>
-                  )}
-                  {cat.requires_provider_record && (
-                    <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>
-                  )}
+                  {cat.requires_auth && <Badge variant="secondary" className="text-[10px]">Auth Required</Badge>}
+                  {cat.requires_certification && <Badge variant="secondary" className="text-[10px]">Certified</Badge>}
+                  {cat.requires_provider_record && <Badge variant="secondary" className="text-[10px]">Provider Record</Badge>}
                   {!cat.requires_auth && !cat.requires_certification && !cat.requires_provider_record && (
                     <Badge variant="secondary" className="text-[10px]">Open Access</Badge>
                   )}
@@ -198,7 +381,6 @@ function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unk
         <p className="text-sm text-muted-foreground italic">No solver categories selected</p>
       )}
 
-      {/* Derived Access Model */}
       <AccessModelSummary
         visibility={visibility}
         enrollment={enrollment}
@@ -206,7 +388,6 @@ function SolverEligibilityDisplay({ challenge }: { challenge: Record<string, unk
         eligibility={eligNotes}
       />
 
-      {/* Free-text eligibility notes */}
       {eligNotes && (
         <div className="rounded-lg border border-border bg-card p-3.5">
           <p className="text-xs font-semibold text-foreground mb-1">Additional Eligibility Notes</p>

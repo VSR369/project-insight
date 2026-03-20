@@ -39,8 +39,21 @@ Guidelines:
 - Problem Statement: Refine the user's input into a professional challenge brief (200-500 words)
 - Scope: Define boundaries, constraints, and what's in/out of scope
 - Description: Detailed context including background, current state, and desired outcomes
-- Deliverables: 3-7 specific, measurable deliverables as a JSON array of strings. Each deliverable should be a clear, actionable item (e.g., "Working prototype with API documentation", "Technical feasibility report with cost analysis")
-- Evaluation Criteria: 3-6 weighted criteria (weights must sum to 100), each with name, weight, and description. Distribute weights based on relative importance.
+
+DELIVERABLES (CRITICAL — derive directly from the problem statement):
+- Generate 3-7 specific, concrete, measurable deliverables that a solver would produce as outputs
+- Each deliverable MUST be a tangible work product, NOT a vague goal
+- Examples of GOOD deliverables: "Working API prototype with integration documentation", "Cost-benefit analysis report comparing 3+ approaches", "Test results dataset with statistical analysis", "Deployment-ready container image with CI/CD pipeline config"
+- Examples of BAD deliverables (DO NOT USE): "Innovative solution", "High-quality output", "Comprehensive analysis"
+- Tie each deliverable to a specific aspect of the problem statement
+
+EVALUATION CRITERIA (CRITICAL — must be structured and weighted):
+- Generate 3-6 criteria, each with:
+  - name: Short label (2-4 words), e.g., "Technical Feasibility", "Innovation Quality", "Cost Efficiency"
+  - weight: Integer percentage. ALL weights MUST sum to EXACTLY 100. Distribute based on relative importance to the challenge goals.
+  - description: 1-2 sentences explaining how this criterion will be scored and what constitutes high vs low performance
+- Example distribution for a technical challenge: Technical Feasibility (30%), Innovation (25%), Scalability (20%), Documentation Quality (15%), Cost Efficiency (10%)
+
 - Hook: A compelling 1-2 sentence hook to attract solvers
 - IP Model: Recommend one of: "IP-EA" (Exclusive Assignment), "IP-NEL" (Non-Exclusive License), "IP-EL" (Exclusive License), "IP-JO" (Joint Ownership), "IP-NONE" (No Transfer) based on the challenge nature
 
