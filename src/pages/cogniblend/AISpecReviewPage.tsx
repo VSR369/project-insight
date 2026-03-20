@@ -452,7 +452,8 @@ function SectionContent({
     case 'evaluation_criteria':
       return <EvaluationCriteriaDisplay data={rawData} />;
     case 'solver_eligibility':
-      return solverEditor ?? <SolverEligibilityReadOnly challenge={challenge} />;
+    case 'solver_visibility':
+      return solverEditor ?? <SolverTypeReadOnly typesData={rawData} label={section.label} />;
     default:
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
