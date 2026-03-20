@@ -695,15 +695,21 @@ export default function AISpecReviewPage() {
   const [selectedVisibleTierIds, setSelectedVisibleTierIds] = useState<string[]>([]);
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
   const [autoRepairDone, setAutoRepairDone] = useState(false);
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [autoGenError, setAutoGenError] = useState<string | null>(null);
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
+  // ═══════ Hooks — refs ═══════
+  const autoGenTriggered = useRef(false);
 
   // ═══════ Hooks — queries ═══════
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
   const { data: currentOrg } = useCurrentOrg();
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
   const saveStep = useSaveChallengeStep();
+  const generateSpec = useGenerateChallengeSpec();
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
