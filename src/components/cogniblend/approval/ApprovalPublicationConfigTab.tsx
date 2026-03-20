@@ -211,16 +211,6 @@ export default function ApprovalPublicationConfigTab({
     [visibility, visibilityOptions]
   );
 
-  const maxEnrollRank = useMemo(
-    () => getMaxTierRank(visibility, visibilityOptions),
-    [visibility, visibilityOptions]
-  );
-
-  const maxSubmissionRank = useMemo(
-    () => getMaxTierRank(enrollment, enrollmentOptions),
-    [enrollment, enrollmentOptions]
-  );
-
   const validationError = useMemo(() => {
     if (!visibility || !eligibility) return null;
     const eligOpt = eligibilityOptions.find((e) => e.value === eligibility);
@@ -229,24 +219,6 @@ export default function ApprovalPublicationConfigTab({
     }
     return null;
   }, [visibility, eligibility, maxEligRank, eligibilityOptions]);
-
-  const enrollmentError = useMemo(() => {
-    if (!isEnterprise || !visibility || !enrollment) return null;
-    const enrOpt = enrollmentOptions.find((e) => e.value === enrollment);
-    if (enrOpt && enrOpt.rank > maxEnrollRank) {
-      return "Enrollment cannot be broader than visibility.";
-    }
-    return null;
-  }, [isEnterprise, visibility, enrollment, maxEnrollRank, enrollmentOptions]);
-
-  const submissionError = useMemo(() => {
-    if (!isEnterprise || !enrollment || !submission) return null;
-    const subOpt = submissionOptions.find((s) => s.value === submission);
-    if (subOpt && subOpt.rank > maxSubmissionRank) {
-      return "Submission tier cannot be broader than enrollment tier.";
-    }
-    return null;
-  }, [isEnterprise, enrollment, submission, maxSubmissionRank, submissionOptions]);
 
   const complexityScore = useMemo(
     () => COMPLEXITY_PARAMS.reduce((sum, p) => sum + (paramValues[p.key] ?? 5) * p.weight, 0),
