@@ -13,6 +13,7 @@
  */
 
 import { resolveGovernanceMode, isQuickMode } from '@/lib/governanceMode';
+import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
