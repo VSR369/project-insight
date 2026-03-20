@@ -94,9 +94,9 @@ function GovernanceFooter({ mode }: { mode: string }) {
   const Icon = icons[govMode];
 
   const descriptions: Record<string, string> = {
-    QUICK: 'After AI generation, you'll see a read-only spec review for 1-click confirmation.',
-    STRUCTURED: 'After AI generation, you'll review each section with Accept/Edit controls.',
-    CONTROLLED: 'After AI generation, you'll use a side-panel editor to manually apply or skip each AI suggestion.',
+    QUICK: "After AI generation, you\u2019ll see a read-only spec review for 1-click confirmation.",
+    STRUCTURED: "After AI generation, you\u2019ll review each section with Accept/Edit controls.",
+    CONTROLLED: "After AI generation, you\u2019ll use a side-panel editor to manually apply or skip each AI suggestion.",
   };
 
   return (
