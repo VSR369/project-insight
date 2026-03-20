@@ -543,6 +543,11 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — state ═══════
   const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>({});
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
+  const [selectedTierIds, setSelectedTierIds] = useState<string[]>([]);
+  const [visibility, setVisibility] = useState('public');
+  const [enrollment, setEnrollment] = useState('open_auto');
+  const [submission, setSubmission] = useState('all_enrolled');
+  const [solverStateInitialized, setSolverStateInitialized] = useState(false);
 
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
@@ -551,9 +556,46 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — queries ═══════
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
   const { data: currentOrg } = useCurrentOrg();
+  const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
 
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
+
+  // ═══════ Effects — initialize solver state from AI spec ═══════
+  useEffect(() => {
+    if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
+
+    const challengeRecord = challenge as unknown as Record<string, unknown>;
+    const aiCodes: string[] = Array.isArray(challengeRecord.solver_eligibility_codes)
+      ? challengeRecord.solver_eligibility_codes as string[]
+      : [];
+
+    // Map AI-selected codes to IDs
+    const matchedIds = solverCategories
+      .filter((cat) => aiCodes.includes(cat.code))
+      .map((cat) => cat.id);
+    setSelectedTierIds(matchedIds);
+
+    // Set access fields from challenge or derive from primary category
+    const vis = (challengeRecord.challenge_visibility as string) || 'public';
+    const enr = (challengeRecord.challenge_enrollment as string) || 'open_auto';
+    const sub = (challengeRecord.challenge_submission as string) || 'all_enrolled';
+    setVisibility(vis);
+    setEnrollment(enr);
+    setSubmission(sub);
+    setSolverStateInitialized(true);
+  }, [challenge, solverCategories, solverStateInitialized]);
+
+  // ═══════ Effects — auto-derive access fields when primary tier changes ═══════
+  useEffect(() => {
+    if (!solverStateInitialized || selectedTierIds.length === 0) return;
+    const primaryTier = solverCategories.find((c) => c.id === selectedTierIds[0]);
+    if (primaryTier) {
+      if (primaryTier.default_visibility) setVisibility(primaryTier.default_visibility);
+      if (primaryTier.default_enrollment) setEnrollment(primaryTier.default_enrollment);
+      if (primaryTier.default_submission) setSubmission(primaryTier.default_submission);
+    }
+  }, [selectedTierIds, solverCategories, solverStateInitialized]);
 
   // ═══════ Effects — redirect CONTROLLED to side-panel ═══════
   useEffect(() => {
