@@ -78,11 +78,11 @@ interface EligibilityModelOption {
 }
 
 const ELIGIBILITY_MODELS: EligibilityModelOption[] = [
+  { code: 'IO', label: 'Invite Only (IO)', description: 'Only explicitly invited solvers can participate. Maximum control over solver pool.' },
+  { code: 'CE', label: 'Curated Expert (CE)', description: 'Verified experts at L2+ expertise. For complex, domain-specific challenges.' },
   { code: 'OC', label: 'Open Challenge (OC)', description: 'Any solver can enroll — no restrictions. Ideal for broad innovation challenges.' },
   { code: 'DR', label: 'Direct Registered (DR)', description: 'Registered platform members with NDA acceptance. Standard for IP-sensitive challenges.' },
-  { code: 'CE', label: 'Curated Expert (CE)', description: 'Verified experts at L2+ expertise. For complex, domain-specific challenges.' },
-  { code: 'IO', label: 'Invite Only (IO)', description: 'Only explicitly invited solvers can participate. Maximum control over solver pool.' },
-  { code: 'HY', label: 'Hybrid (HY)', description: 'Combines multiple models — e.g., CE for evaluation, OC for submission. Contact admin to configure.' },
+  { code: 'OPEN', label: 'Open (OPEN)', description: 'Broadest access — any user on the platform can discover and participate.' },
 ];
 
 

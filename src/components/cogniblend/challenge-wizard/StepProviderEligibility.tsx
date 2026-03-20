@@ -442,7 +442,7 @@ export function StepProviderEligibility({ form, mandatoryFields, isLightweight }
             </label>
 
             {/* Individual tiers as checkboxes */}
-            {legacyCategories.map((cat) => {
+            {activeCategories.map((cat) => {
               const isSelected = solverEligibilityIds.includes(cat.id);
               return (
                 <label
