@@ -6,14 +6,14 @@
  * Business Rules banner, and Attachments support.
  */
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   Send, Save, X, Search, Info, ArrowRight, Loader2,
-  AlertCircle, Hash, Paperclip, Wand2,
+  AlertCircle, Hash, Paperclip, Wand2, Zap, Shield, Lock,
 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +32,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
+import { CreationContextBar } from '@/components/cogniblend/CreationContextBar';
+import {
+  resolveGovernanceMode,
+  getAvailableGovernanceModes,
+  GOVERNANCE_MODE_CONFIG,
+  type GovernanceMode,
+} from '@/lib/governanceMode';
 import { extractKeywords, matchTagsByKeywords } from '@/lib/keywordExtractor';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
@@ -269,6 +276,7 @@ export default function CogniSubmitRequestPage() {
   const [warningDismissed, setWarningDismissed] = useState(false);
   const [attachments, setAttachments] = useState<File[]>([]);
   const [aiDrafting, setAiDrafting] = useState(false);
+  const [selectedGovMode, setSelectedGovMode] = useState<GovernanceMode | null>(null);
 
   const { data: orgContext, isLoading: orgLoading } = useOrgModelContext();
   const { data: tierLimit, isLoading: tierLoading } = useTierLimitCheck();
@@ -348,6 +356,20 @@ export default function CogniSubmitRequestPage() {
     return `SR-${year}-NEW`;
   }, []);
 
+  // Governance mode: available modes based on tier, default from org
+  const availableGovModes = useMemo(
+    () => getAvailableGovernanceModes(currentOrg?.tierCode),
+    [currentOrg?.tierCode],
+  );
+  const resolvedGovMode = selectedGovMode ?? resolveGovernanceMode(currentOrg?.governanceProfile);
+
+  // Initialize gov mode from org default once loaded
+  useEffect(() => {
+    if (currentOrg && !selectedGovMode) {
+      setSelectedGovMode(resolveGovernanceMode(currentOrg.governanceProfile));
+    }
+  }, [currentOrg, selectedGovMode]);
+
   const buildPayload = (data: FormValues) => ({
     orgId: currentOrg?.organizationId ?? '',
     creatorId: user?.id ?? '',
@@ -365,6 +387,7 @@ export default function CogniSubmitRequestPage() {
     industrySegmentId: data.industry_segment_id || undefined,
     subDomainIds: data.sub_domain_ids || [],
     specialtyTags: data.specialty_tags || [],
+    governanceMode: resolvedGovMode,
   });
 
   const onSubmit = async (data: FormValues) => {
@@ -460,8 +483,61 @@ export default function CogniSubmitRequestPage() {
 
   return (
     <div className="space-y-5 max-w-[1100px]">
+      {/* Context Bar */}
+      <CreationContextBar />
+
       {/* Page Title */}
       <h1 className="text-[22px] font-bold text-primary">New Solution Request</h1>
+
+      {/* Governance Mode Selector */}
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Governance Mode</Label>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {(['QUICK', 'STRUCTURED', 'CONTROLLED'] as GovernanceMode[]).map((mode) => {
+            const config = GOVERNANCE_MODE_CONFIG[mode];
+            const isAvailable = availableGovModes.includes(mode);
+            const isSelected = resolvedGovMode === mode;
+            const icons = { QUICK: Zap, STRUCTURED: Shield, CONTROLLED: Lock };
+            const ModeIcon = icons[mode];
+
+            return (
+              <button
+                key={mode}
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => isAvailable && setSelectedGovMode(mode)}
+                className={cn(
+                  'relative flex flex-col items-start gap-1.5 rounded-lg border p-3 text-left transition-all',
+                  isSelected
+                    ? 'ring-2 ring-offset-1'
+                    : isAvailable
+                      ? 'hover:border-border/80 hover:shadow-sm'
+                      : 'opacity-50 cursor-not-allowed',
+                )}
+                style={{
+                  borderColor: isSelected ? config.color : 'hsl(var(--border))',
+                  backgroundColor: isSelected ? config.bg : 'transparent',
+                  // @ts-ignore
+                  '--tw-ring-color': config.color,
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <ModeIcon className="h-4 w-4" style={{ color: config.color }} />
+                  <span className="text-sm font-semibold" style={{ color: isSelected ? config.color : 'hsl(var(--foreground))' }}>
+                    {config.label}
+                  </span>
+                  {!isAvailable && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase text-muted-foreground">
+                      Upgrade
+                    </span>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-snug">{config.tooltip}</p>
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       {/* AI Intake Banner */}
       <div className="flex flex-col lg:flex-row items-start lg:items-center gap-3 rounded-lg bg-primary/5 border border-primary/20 px-4 py-3">

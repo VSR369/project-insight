@@ -36,8 +36,8 @@ export const ROLE_COLORS: Record<string, { label: string; bg: string; color: str
 export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string }> = {
   CR: { label: 'Create Challenge', route: '/cogni/challenges/create' },
   CA: { label: 'Create Challenge', route: '/cogni/challenges/create' },
-  AM: { label: 'Submit Request', route: '/cogni/submit-request' },
-  RQ: { label: 'Submit Request', route: '/cogni/submit-request' },
+  AM: { label: 'Submit Request', route: '/cogni/challenges/create' },
+  RQ: { label: 'Submit Request', route: '/cogni/challenges/create' },
   CU: { label: 'Open Curation Queue', route: '/cogni/curation' },
   ID: { label: 'Review Approvals', route: '/cogni/approval' },
   ER: { label: 'Open Review Queue', route: '/cogni/review' },
@@ -47,8 +47,8 @@ export const ROLE_PRIMARY_ACTION: Record<string, { label: string; route: string 
 
 /** Role code → nav paths that are "relevant" for this workspace */
 export const ROLE_NAV_RELEVANCE: Record<string, string[]> = {
-  AM: ['/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
-  RQ: ['/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
+  AM: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
+  RQ: ['/cogni/challenges/create', '/cogni/submit-request', '/cogni/my-requests', '/cogni/dashboard'],
   CR: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CA: ['/cogni/challenges/create', '/cogni/challenges/new', '/cogni/my-challenges', '/cogni/dashboard'],
   CU: ['/cogni/curation', '/cogni/dashboard'],
