@@ -490,32 +490,21 @@ export default function AISpecReviewPage() {
     if (solverStateInitialized || !challenge || solverCategories.length === 0) return;
 
     const challengeRecord = challenge as unknown as Record<string, unknown>;
-    // Read from solver_eligibility_types (DB column) — array of { code, label }
-    const rawTypes = challengeRecord.solver_eligibility_types;
-    const aiCodes: string[] = Array.isArray(rawTypes)
-      ? (rawTypes as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
-      : [];
 
-    // Map AI-selected codes to IDs
-    const matchedIds = solverCategories
-      .filter((cat) => aiCodes.includes(cat.code))
-      .map((cat) => cat.id);
-    setSelectedTierIds(matchedIds);
+    // Helper to map { code, label } arrays to category IDs
+    const mapCodesToIds = (raw: unknown): string[] => {
+      const codes: string[] = Array.isArray(raw)
+        ? (raw as Array<{ code?: string }>).map((t) => t.code).filter(Boolean) as string[]
+        : [];
+      return solverCategories
+        .filter((cat) => codes.includes(cat.code))
+        .map((cat) => cat.id);
+    };
 
-    // Set visibility from challenge
-    const vis = (challengeRecord.challenge_visibility as string) || 'public';
-    setVisibility(vis);
+    setSelectedEligibleTierIds(mapCodesToIds(challengeRecord.solver_eligibility_types));
+    setSelectedVisibleTierIds(mapCodesToIds(challengeRecord.solver_visibility_types));
     setSolverStateInitialized(true);
   }, [challenge, solverCategories, solverStateInitialized]);
-
-  // ═══════ Effects — auto-derive visibility when primary tier changes ═══════
-  useEffect(() => {
-    if (!solverStateInitialized || selectedTierIds.length === 0) return;
-    const primaryTier = solverCategories.find((c) => c.id === selectedTierIds[0]);
-    if (primaryTier && primaryTier.default_visibility) {
-      setVisibility(primaryTier.default_visibility);
-    }
-  }, [selectedTierIds, solverCategories, solverStateInitialized]);
 
   // ═══════ Effects — redirect CONTROLLED to side-panel ═══════
   useEffect(() => {
