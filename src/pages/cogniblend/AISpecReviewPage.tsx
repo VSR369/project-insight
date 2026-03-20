@@ -343,8 +343,8 @@ function SectionContent({
       return <DeliverablesDisplay data={rawData} />;
     case 'evaluation_criteria':
       return <EvaluationCriteriaDisplay data={rawData} />;
-    case 'eligibility_visibility':
-      return <EligibilityVisibilityDisplay challenge={challenge} />;
+    case 'solver_eligibility':
+      return <SolverEligibilityDisplay challenge={challenge} />;
     default:
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
