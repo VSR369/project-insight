@@ -46,6 +46,9 @@ export default function CogniDashboardPage() {
 
   return (
     <>
+      {/* ── What's Next Card ─────────────────────────── */}
+      <WhatsNextCard />
+
       {/* ── Action Items Widget (all roles) ────────────── */}
       <ActionItemsWidget />
 
