@@ -513,11 +513,13 @@ function SectionContent({
   value,
   rawData,
   challenge,
+  solverEditor,
 }: {
   section: SpecSection;
   value: string;
   rawData: unknown;
   challenge: Record<string, unknown>;
+  solverEditor?: React.ReactNode;
 }) {
   switch (section.renderer) {
     case 'deliverables':
@@ -525,7 +527,7 @@ function SectionContent({
     case 'evaluation_criteria':
       return <EvaluationCriteriaDisplay data={rawData} />;
     case 'solver_eligibility':
-      return <SolverEligibilityDisplay challenge={challenge} />;
+      return solverEditor ?? <SolverEligibilityReadOnly challenge={challenge} />;
     default:
       return (
         <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
