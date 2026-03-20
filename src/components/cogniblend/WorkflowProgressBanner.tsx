@@ -36,7 +36,7 @@ const WORKFLOW_STEPS: Record<number, WorkflowStep> = {
     label: 'Legal Documents',
     nextLabel: 'Curation Review',
     nextRole: 'Curator (CU)',
-    description: 'Attach required Tier 1 & Tier 2 legal documents, then submit for curation.',
+    description: 'Legal Coordinator reviews challenge, generates and attaches legal documents, then submits for curation.',
   },
   4: {
     step: 4,
