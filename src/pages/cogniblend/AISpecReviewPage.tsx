@@ -466,7 +466,7 @@ export default function AISpecReviewPage() {
   const [selectedEligibleTierIds, setSelectedEligibleTierIds] = useState<string[]>([]);
   const [selectedVisibleTierIds, setSelectedVisibleTierIds] = useState<string[]>([]);
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
-
+  const [autoRepairDone, setAutoRepairDone] = useState(false);
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
