@@ -326,18 +326,8 @@ export default function ApprovalPublicationConfigTab({
                 <p className="text-xs text-muted-foreground">Eligibility</p>
                 <p className="text-sm font-medium text-foreground capitalize">{challenge.eligibility || "Not set"}</p>
               </div>
-              {isEnterprise && (
-                <>
-                  <div className="border border-border rounded-lg p-4 space-y-1">
-                    <p className="text-xs text-muted-foreground">Enrollment Model</p>
-                    <p className="text-sm font-medium text-foreground capitalize">{challenge.challenge_enrollment || "Not set"}</p>
-                  </div>
-                  <div className="border border-border rounded-lg p-4 space-y-1">
-                    <p className="text-xs text-muted-foreground">Submission Tier</p>
-                    <p className="text-sm font-medium text-foreground capitalize">{challenge.challenge_submission || "Not set"}</p>
-                  </div>
-                </>
-              )}
+
+
               <div className="border border-border rounded-lg p-4 space-y-1">
                 <p className="text-xs text-muted-foreground">Max Solutions</p>
                 <p className="text-sm font-medium text-foreground">{challenge.max_solutions ?? "Unlimited"}</p>
