@@ -88,7 +88,12 @@ type SectionStatus = 'pending' | 'accepted' | 'editing';
 /* ─── Deliverables Renderer ───────────────────────────── */
 
 function DeliverablesDisplay({ data }: { data: unknown }) {
-  const items: string[] = Array.isArray(data) ? data : [];
+  // Handle both raw array and wrapped { items: [...] } format
+  const items: string[] = Array.isArray(data)
+    ? data
+    : (data && typeof data === 'object' && 'items' in (data as Record<string, unknown>) && Array.isArray((data as Record<string, unknown>).items))
+      ? (data as Record<string, unknown>).items as string[]
+      : [];
   if (items.length === 0) return <p className="text-sm text-muted-foreground italic">No deliverables defined</p>;
 
   return (
