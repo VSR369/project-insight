@@ -469,8 +469,8 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — state ═══════
   const [sectionStatuses, setSectionStatuses] = useState<Record<string, SectionStatus>>({});
   const [sectionValues, setSectionValues] = useState<Record<string, string>>({});
-  const [selectedTierIds, setSelectedTierIds] = useState<string[]>([]);
-  const [visibility, setVisibility] = useState('public');
+  const [selectedEligibleTierIds, setSelectedEligibleTierIds] = useState<string[]>([]);
+  const [selectedVisibleTierIds, setSelectedVisibleTierIds] = useState<string[]>([]);
   const [solverStateInitialized, setSolverStateInitialized] = useState(false);
 
   // ═══════ Hooks — context ═══════
