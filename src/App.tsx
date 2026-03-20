@@ -342,6 +342,7 @@ const App = () => (
               <Route path="/cogni/challenges/:id/controlled-edit" element={<LazyRoute><ControlledEditorPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/edit" element={<LazyRoute><ChallengeWizardPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/legal" element={<LazyRoute><LegalDocumentAttachmentPage /></LazyRoute>} />
+              <Route path="/cogni/challenges/:id/lc-legal" element={<LazyRoute><LcLegalWorkspacePage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/publish" element={<LazyRoute><PublicationReadinessPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/view" element={<LazyRoute><PublicChallengeDetailPage /></LazyRoute>} />
               <Route path="/cogni/challenges/:id/manage" element={<LazyRoute><ChallengeManagePage /></LazyRoute>} />
