@@ -301,17 +301,7 @@ export default function ApprovalPublicationConfigTab({
   const handleVisibilityChange = useCallback((val: string) => {
     setVisibility(val);
     autoCorrectChildTier(val, visibilityOptions, eligibility, eligibilityOptions, setEligibility);
-    if (isEnterprise) {
-      autoCorrectChildTier(val, visibilityOptions, enrollment, enrollmentOptions, setEnrollment);
-    }
-  }, [eligibility, eligibilityOptions, visibilityOptions, enrollment, enrollmentOptions, isEnterprise]);
-
-  const handleEnrollmentChange = useCallback((val: string) => {
-    setEnrollment(val);
-    if (isEnterprise) {
-      autoCorrectChildTier(val, enrollmentOptions, submission, submissionOptions, setSubmission);
-    }
-  }, [enrollmentOptions, submission, submissionOptions, isEnterprise]);
+  }, [eligibility, eligibilityOptions, visibilityOptions]);
   // ══════════════════════════════════════
   // SECTION 6: Render — not approved yet
   // ══════════════════════════════════════
