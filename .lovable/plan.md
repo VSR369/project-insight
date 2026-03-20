@@ -1,29 +1,38 @@
 
 
-## Plan: Fix Spec Review Page — IP Model Empty, Button Disabled, Editor Question
+## Plan: Add Edit Capability for Deliverables, Evaluation Criteria, and Solver Type Sections
 
-### Issues Identified
+### Problem
+The `EditableSectionCard` hides the pencil (edit) button for any section with a structured renderer (`renderer !== 'text'`). This means:
+- **Deliverables**: No edit option — display only
+- **Evaluation Criteria**: No edit option — display only
+- **Solver Eligibility/Visibility**: Already editable inline (checkboxes), but the edit button is hidden
 
-1. **IP Model shows empty**: The `ip_model` field on the challenge record is likely `null` because the AI spec generation saves a normalized IP code (e.g., `IP-NEL`) but the spec review page renders it as raw text. When the challenge is newly created and `ip_model` is not yet populated by the AI (or the AI returned it but it wasn't saved to the DB), it shows "No content yet."
+### Changes — Single File: `src/pages/cogniblend/AISpecReviewPage.tsx`
 
-2. **"Approve & Continue" button always disabled**: The button requires `allAccepted` — meaning ALL 10 sections must be individually clicked with the check mark. This is extremely tedious UX. Users have to manually accept each of the 10 sections one by one before the button enables.
+**1. Deliverables — Add inline editor**
+- Create `DeliverablesEditor` component: editable list where each item is a text input, with add/remove buttons
+- When user clicks pencil on Deliverables section, switch to edit mode showing the editor
+- On save, convert back to array format and persist via `sectionValues`
 
-3. **Advanced Editor button**: The user questions whether this is needed on the spec review page.
+**2. Evaluation Criteria — Add inline editor**
+- Create `EvaluationCriteriaEditor` component: editable table rows with inputs for name, weight (number), and description
+- Add/remove row buttons; show live weight total with validation (must sum to 100%)
+- On save, convert back to criteria array format
 
-### Proposed Changes
+**3. Solver Eligibility & Visibility — Already editable**
+- These already render `SolverTypeEditor` with checkboxes in STRUCTURED mode
+- Just need to show the pencil/accept buttons for consistency (remove the `!isStructured` guard for these sections)
 
-**File: `src/pages/cogniblend/AISpecReviewPage.tsx`**
-
-- **Fix 1 — IP Model display**: Add a human-readable label map for IP model codes (e.g., `IP-EA` → "Exclusive Assignment", `IP-NEL` → "Non-Exclusive License"). If `ip_model` is empty/null, show a computed default from `computeSolverAssignment` signals or display "Not yet assigned."
-
-- **Fix 2 — Enable "Approve & Continue" without requiring all sections accepted**: Change the button logic so it is always enabled (no `allAccepted` gate). The section-by-section accept/edit is an optional refinement workflow, not a mandatory gate. The user can review visually and click "Approve & Continue" at any time. The accepted-sections counter remains as an informational indicator.
-
-- **Fix 3 — Remove "Advanced Editor" button**: Remove the "Advanced Editor" button from the STRUCTURED mode footer. Keep only the "Approve & Continue" button (and the Back button in the header). The Advanced Editor can still be accessed from the dashboard if needed.
+**4. Update `EditableSectionCard` logic**
+- Remove the blanket `!isStructured` guard that hides the edit button
+- Instead, allow edit mode for deliverables and evaluation_criteria renderers
+- For solver sections, keep current always-visible editor behavior but add accept button
 
 ### Technical Details
 
-- Lines ~787-789: Remove `disabled={!allAccepted}` from the "Approve & Continue" button
-- Lines ~782-786: Remove the "Advanced Editor" `Button` element  
-- Lines ~688-693 (QUICK mode): Also remove "Open Editor" button for consistency
-- IP Model section (line 78 in `SPEC_SECTIONS`): Add a display formatter that converts codes like `IP-EA` to readable labels, or auto-populate from the challenge's maturity/IP signals if empty
+- `DeliverablesEditor`: State is `string[]`, renders indexed `Input` fields + "Add Deliverable" button + per-item remove button
+- `EvaluationCriteriaEditor`: State is `Array<{name, weight, description}>`, renders editable table rows + "Add Criterion" + per-row remove
+- Save handler serializes structured data back to JSON string for `sectionValues`, and also stores raw data for display
+- Need to add a `rawSectionData` state alongside `sectionValues` to handle structured data separately from plain text
 
