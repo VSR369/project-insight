@@ -1,7 +1,7 @@
 /**
  * AICurationQualityPanel — Collapsible AI quality assessment panel for curators.
- * Calls the check-challenge-quality edge function and displays scores, gaps, and strengths.
- * Additive alongside the existing CurationChecklistPanel.
+ * Calls the check-challenge-quality edge function and displays scores, gaps,
+ * legal compliance, and strengths. Additive alongside CurationChecklistPanel.
  */
 
 import { useState } from 'react';
@@ -17,10 +17,10 @@ import {
   Info,
   Loader2,
   RefreshCw,
+  FileCheck,
 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -29,6 +29,13 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 
 interface QualityGap {
   field: string;
+  severity: 'critical' | 'warning' | 'suggestion';
+  message: string;
+}
+
+interface LegalGap {
+  document_type: string;
+  tier: string;
   severity: 'critical' | 'warning' | 'suggestion';
   message: string;
 }
@@ -43,8 +50,10 @@ interface QualityAssessment {
   completeness_score: number;
   clarity_score: number;
   solver_readiness_score: number;
+  legal_compliance_score: number;
   summary: string;
   gaps: QualityGap[];
+  legal_gaps: LegalGap[];
   flagged_checklist_items: FlaggedItem[];
   strengths: string[];
 }
@@ -88,6 +97,7 @@ interface AICurationQualityPanelProps {
 export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelProps) {
   // ═══════ Hooks — state ═══════
   const [isOpen, setIsOpen] = useState(false);
+  const [legalOpen, setLegalOpen] = useState(false);
   const [assessment, setAssessment] = useState<QualityAssessment | null>(null);
 
   // ═══════ Hooks — mutations ═══════
@@ -123,6 +133,9 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
     analysisMutation.mutate();
   };
 
+  const legalGaps = assessment?.legal_gaps ?? [];
+  const hasLegalGaps = legalGaps.length > 0;
+
   // ═══════ Render ═══════
   return (
     <Card className="border-border">
@@ -142,7 +155,7 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
             {analysisMutation.isPending ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
-                Analyzing...
+                Analyzing…
               </>
             ) : assessment ? (
               <>
@@ -161,12 +174,13 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
 
       {assessment && (
         <CardContent className="pt-0 space-y-4">
-          {/* Score Grid */}
-          <div className="grid grid-cols-4 gap-2 p-3 rounded-lg bg-muted/30 border border-border">
+          {/* Score Grid — 5 columns now */}
+          <div className="grid grid-cols-5 gap-2 p-3 rounded-lg bg-muted/30 border border-border">
             <ScoreBadge score={assessment.overall_score} label="Overall" />
             <ScoreBadge score={assessment.completeness_score} label="Complete" />
             <ScoreBadge score={assessment.clarity_score} label="Clarity" />
             <ScoreBadge score={assessment.solver_readiness_score} label="Ready" />
+            <ScoreBadge score={assessment.legal_compliance_score} label="Legal" />
           </div>
 
           {/* Summary */}
@@ -192,11 +206,11 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
             </Collapsible>
           )}
 
-          {/* Gaps */}
+          {/* Specification Gaps */}
           {assessment.gaps.length > 0 && (
             <div className="space-y-2">
               <p className="text-xs font-medium text-foreground">
-                Issues ({assessment.gaps.length})
+                Spec Issues ({assessment.gaps.length})
               </p>
               <div className="space-y-1.5">
                 {assessment.gaps.map((gap, i) => (
@@ -219,6 +233,48 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
             </div>
           )}
 
+          {/* Legal Document Compliance */}
+          <Collapsible open={legalOpen} onOpenChange={setLegalOpen}>
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-xs font-medium text-foreground w-full">
+              {legalOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              <FileCheck className="h-3.5 w-3.5" />
+              Legal Documents
+              {hasLegalGaps && (
+                <span className="ml-auto text-amber-500 text-[10px]">
+                  {legalGaps.length} issue{legalGaps.length > 1 ? 's' : ''}
+                </span>
+              )}
+              {!hasLegalGaps && assessment.legal_compliance_score >= 80 && (
+                <span className="ml-auto text-primary text-[10px]">Pass</span>
+              )}
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2 space-y-1.5">
+              {hasLegalGaps ? (
+                legalGaps.map((lg, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-start gap-2 text-xs p-2 rounded-md ${
+                      lg.severity === 'critical' ? 'bg-destructive/5' :
+                      lg.severity === 'warning' ? 'bg-amber-500/5' :
+                      'bg-muted/30'
+                    }`}
+                  >
+                    <SeverityIcon severity={lg.severity} />
+                    <div>
+                      <span className="font-medium text-foreground">{lg.document_type} (Tier {lg.tier}): </span>
+                      <span className="text-muted-foreground">{lg.message}</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                  All required legal documents are in place.
+                </div>
+              )}
+            </CollapsibleContent>
+          </Collapsible>
+
           {/* Flagged Checklist Items */}
           {assessment.flagged_checklist_items.length > 0 && (
             <div className="space-y-1.5">
@@ -239,7 +295,7 @@ export function AICurationQualityPanel({ challengeId }: AICurationQualityPanelPr
       {!assessment && !analysisMutation.isPending && (
         <CardContent className="pt-0">
           <p className="text-xs text-muted-foreground">
-            Run AI analysis to get automated quality scores, gap identification, and solver readiness assessment.
+            Run AI analysis to get automated quality scores, gap identification, legal compliance review, and solver readiness assessment.
           </p>
         </CardContent>
       )}

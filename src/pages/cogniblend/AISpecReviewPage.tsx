@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Sparkles,
@@ -59,6 +60,8 @@ import { computeSolverAssignment, needsSolverRepair } from '@/lib/cogniblend/sol
 import { WorkflowProgressBanner } from '@/components/cogniblend/WorkflowProgressBanner';
 import { useGenerateChallengeSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
 import type { GeneratedSpec } from '@/hooks/mutations/useGenerateChallengeSpec';
+import { useAuth } from '@/hooks/useAuth';
+import { useUserChallengeRoles } from '@/hooks/cogniblend/useUserChallengeRoles';
 
 
 /* ─── IP Model Labels ────────────────────────────────── */
@@ -700,6 +703,7 @@ export default function AISpecReviewPage() {
   // ═══════ Hooks — context ═══════
   const { id: challengeId } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   // ═══════ Hooks — refs ═══════
   const autoGenTriggered = useRef(false);
@@ -708,8 +712,12 @@ export default function AISpecReviewPage() {
   const { data: challenge, isLoading } = useChallengeDetail(challengeId);
   const { data: currentOrg } = useCurrentOrg();
   const { data: solverCategories = [], isLoading: loadingSolverCategories } = useSolverEligibility();
+  const { data: userRoles = [] } = useUserChallengeRoles(user?.id, challengeId);
   const saveStep = useSaveChallengeStep();
   const generateSpec = useGenerateChallengeSpec();
+
+  // ═══════ Derived — role checks ═══════
+  const isCR = userRoles.includes('CR');
   // ═══════ Hooks — derived (after all hooks, before conditional returns) ═══════
   const govMode: GovernanceMode = resolveGovernanceMode(currentOrg?.governanceProfile);
 
@@ -813,6 +821,7 @@ export default function AISpecReviewPage() {
     if (autoGenTriggered.current) return;
     if (isLoading || !challenge || !challengeId) return;
     if (hasAiData) return;
+    if (!isCR) return; // Only Challenge Creator role can trigger AI generation
 
     autoGenTriggered.current = true;
     setIsAutoGenerating(true);
@@ -859,7 +868,7 @@ export default function AISpecReviewPage() {
       setIsAutoGenerating(false);
       setAutoGenError(err.message || 'Failed to generate AI specification');
     });
-  }, [isLoading, challenge, challengeId, hasAiData]);
+  }, [isLoading, challenge, challengeId, hasAiData, isCR]);
 
   // ═══════ Conditional returns (after all hooks) ═══════
   if (isLoading) {
@@ -971,6 +980,28 @@ export default function AISpecReviewPage() {
             Retry Generation
           </Button>
         </div>
+      </div>
+    );
+  }
+
+  // Non-CR users viewing a challenge with no AI data
+  if (!hasAiData && !isCR) {
+    return (
+      <div className="max-w-4xl mx-auto p-6 text-center py-16">
+        <Sparkles className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+        <h2 className="text-lg font-semibold text-foreground">Waiting for Challenge Creator</h2>
+        <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+          The Challenge Creator has not yet generated the AI specification for this challenge.
+          Please check back later or contact the assigned creator.
+        </p>
+        <Button
+          variant="outline"
+          className="mt-5"
+          onClick={() => navigate('/cogni/challenges')}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1.5" />
+          Back to Challenges
+        </Button>
       </div>
     );
   }
