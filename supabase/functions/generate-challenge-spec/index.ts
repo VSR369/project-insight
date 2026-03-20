@@ -91,25 +91,25 @@ IMPORTANT: Select EXACTLY ONE code for each — do NOT select multiple.
 DETERMINISTIC SELECTION RULES (apply in order):
 
 Rule 1 — IP-sensitive challenges (ip_model is IP-EA or IP-EL) OR advanced maturity (pilot, prototype):
-  - Eligible: "CE" (Curated Expert) or "IO" (Invitation Only)
-  - Visible: "DR" (Direct Registration) or "OC" (Organization-Curated)
+  - Eligible: "certified_expert"
+  - Visible: "registered"
 
 Rule 2 — Domain-expert challenges (poc maturity, technical/specialized problems):
-  - Eligible: "DR" (Direct Registration with NDA)
-  - Visible: "OPEN"
+  - Eligible: "registered"
+  - Visible: "open_community"
 
 Rule 3 — Open innovation / ideation (blueprint maturity, ip_model is IP-NONE or IP-NEL):
-  - Eligible: "OPEN"
-  - Visible: "OPEN"
+  - Eligible: "open_community"
+  - Visible: "open_community"
 
 Rule 4 — DEFAULT (when no other rule matches):
-  - Eligible: "DR"
-  - Visible: "OPEN"
+  - Eligible: "registered"
+  - Visible: "open_community"
 
 CONSTRAINT: visible_solver_codes MUST be strictly BROADER than solver_eligibility_codes.
-Broadness hierarchy (narrowest to broadest): IO < CE < OC < DR < OPEN
-The ONLY exception is when both are "OPEN" (Rule 3).
-NEVER select the same code for both eligible and visible unless both are "OPEN".
+Broadness hierarchy (narrowest to broadest): certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid
+The ONLY exception is when both are "open_community" (Rule 3).
+NEVER select the same code for both eligible and visible unless both are "open_community".
 
 Available solver categories:
 
@@ -250,7 +250,7 @@ Generate a complete challenge specification.`;
                     items: { type: "string" },
                     minItems: 1,
                     maxItems: 1,
-                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy IO<CE<OC<DR<OPEN. From: ${validCodes.join(", ")}`,
+                    description: `Exactly 1 solver category code for who can DISCOVER/VIEW only. Must be BROADER than eligible per hierarchy: certified_expert < certified_competent < certified_basic < expert_invitee < registered < signed_in < open_community < hybrid. From: ${validCodes.join(", ")}`,
                   },
                   eligibility_notes: {
                     type: "string",
@@ -315,16 +315,16 @@ Generate a complete challenge specification.`;
       : [];
 
     // Broadness hierarchy for post-processing: narrowest → broadest
-    const BREADTH_ORDER = ["IO", "CE", "OC", "DR", "OPEN"];
+    const BREADTH_ORDER = ["certified_expert", "certified_competent", "certified_basic", "expert_invitee", "registered", "signed_in", "open_community", "hybrid"];
 
-    // Fallback: if no valid eligible codes, default to DR
+    // Fallback: if no valid eligible codes, default to registered
     if (selectedEligibleCodes.length === 0) {
-      selectedEligibleCodes.push("DR");
+      selectedEligibleCodes.push("registered");
     }
 
-    // Fallback: if no visible codes, default to OPEN
+    // Fallback: if no visible codes, default to open_community
     if (selectedVisibleCodes.length === 0) {
-      selectedVisibleCodes.push("OPEN");
+      selectedVisibleCodes.push("open_community");
     }
 
     // Keep only 1 code each (take the broadest selected)
@@ -338,10 +338,10 @@ Generate a complete challenge specification.`;
     const eligibleCode = getBroadest(selectedEligibleCodes);
     let visibleCode = getBroadest(selectedVisibleCodes);
 
-    // Post-processing: visible must be strictly broader than eligible (unless both OPEN)
+    // Post-processing: visible must be strictly broader than eligible (unless both open_community)
     const eligibleRank = BREADTH_ORDER.indexOf(eligibleCode);
     const visibleRank = BREADTH_ORDER.indexOf(visibleCode);
-    if (eligibleCode !== "OPEN" && visibleRank <= eligibleRank) {
+    if (eligibleCode !== "open_community" && visibleRank <= eligibleRank) {
       // Bump visible to the next broader tier
       const nextBroaderIndex = Math.min(eligibleRank + 1, BREADTH_ORDER.length - 1);
       visibleCode = BREADTH_ORDER[nextBroaderIndex];
