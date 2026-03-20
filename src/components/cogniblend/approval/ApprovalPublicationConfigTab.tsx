@@ -103,18 +103,19 @@ const VISIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
 
 
 
-/* ── Legacy Eligibility Options (backward compatibility) ── */
+/* ── Eligibility Options — Canonical 5-code model (CE, IO, DR, OC, OPEN) ── */
 
 const ELIGIBILITY_OPTIONS_ENTERPRISE: TierOption[] = [
-  { value: "invited_experts", label: "Invited Experts Only", description: "Only specifically invited experts can submit", rank: 1 },
-  { value: "curated_experts", label: "Curated Experts Only", description: "Verified experts on the platform can submit", rank: 2 },
-  { value: "registered_users", label: "Registered Users", description: "Any registered platform member can submit", rank: 3 },
-  { value: "anyone", label: "Anyone (Open)", description: "Open to all — no restrictions on who can submit", rank: 4 },
+  { value: "IO", label: "Invite Only (IO)", description: "Only explicitly invited solvers can participate", rank: 1 },
+  { value: "CE", label: "Curated Expert (CE)", description: "Verified experts at L2+ expertise", rank: 2 },
+  { value: "OC", label: "Open Challenge (OC)", description: "Any solver can enroll — no restrictions", rank: 3 },
+  { value: "DR", label: "Direct Registered (DR)", description: "Registered platform members with NDA", rank: 4 },
+  { value: "OPEN", label: "Open (OPEN)", description: "Open to all — broadest access", rank: 5 },
 ];
 
 const ELIGIBILITY_OPTIONS_LIGHTWEIGHT: TierOption[] = [
-  { value: "invited_experts", label: "Invited Only", description: "Only specifically invited experts can submit", rank: 1 },
-  { value: "anyone", label: "Anyone", description: "Open to all — no restrictions on who can submit", rank: 4 },
+  { value: "IO", label: "Invite Only (IO)", description: "Only explicitly invited solvers", rank: 1 },
+  { value: "OPEN", label: "Open (OPEN)", description: "Open to all — no restrictions", rank: 5 },
 ];
 
 const COMPLEXITY_PARAMS: ComplexityParam[] = [
