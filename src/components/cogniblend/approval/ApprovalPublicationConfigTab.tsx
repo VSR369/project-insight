@@ -85,18 +85,7 @@ const ELIGIBILITY_MODELS: EligibilityModelOption[] = [
   { code: 'HY', label: 'Hybrid (HY)', description: 'Combines multiple models — e.g., CE for evaluation, OC for submission. Contact admin to configure.' },
 ];
 
-interface TierOption {
-  value: string;
-  label: string;
-  description: string;
-  rank: number; // higher = broader
-}
 
-interface ComplexityParam {
-  key: string;
-  label: string;
-  weight: number;
-}
 
 /* ── Visibility Options ─────────────────────────────────── */
 
