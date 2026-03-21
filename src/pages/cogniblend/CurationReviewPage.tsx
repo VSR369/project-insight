@@ -1238,22 +1238,21 @@ export default function CurationReviewPage() {
                   // Special: payment_schedule renders PaymentScheduleSection
                   const isPaymentSchedule = section.key === "payment_schedule";
 
-                  // Computed complexity score for live preview
-                  const complexityWeightedScore = useMemo(() => {
-                    if (section.key !== "complexity" || complexityParams.length === 0) return 0;
+                  // Computed complexity score for live preview (no hooks - plain calculation)
+                  let complexityWeightedScore = 0;
+                  if (section.key === "complexity" && isEditing && complexityParams.length > 0) {
                     const totalWeight = complexityParams.reduce((s, p) => s + p.weight, 0);
-                    if (totalWeight === 0) return 0;
-                    return complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
-                  }, [section.key, complexityParams, complexityDraft]);
+                    if (totalWeight > 0) {
+                      complexityWeightedScore = complexityParams.reduce((s, p) => s + (complexityDraft[p.param_key] ?? 5) * p.weight, 0) / totalWeight;
+                    }
+                  }
 
-                  // Filtered domain tag suggestions
-                  const filteredTags = useMemo(() => {
-                    if (section.key !== "domain_tags") return [];
-                    return DEFAULT_DOMAIN_TAGS.filter(
-                      (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !domainTagDraft.includes(tag),
-                    );
-                  }, [section.key, domainTagInput, domainTagDraft]);
-                  const isPaymentSchedule = section.key === "payment_schedule";
+                  // Filtered domain tag suggestions (plain calculation)
+                  const filteredTags = section.key === "domain_tags" && isEditing
+                    ? DEFAULT_DOMAIN_TAGS.filter(
+                        (tag) => tag.toLowerCase().includes(domainTagInput.toLowerCase()) && !domainTagDraft.includes(tag),
+                      )
+                    : [];
 
                   return (
                     <AccordionItem key={section.key} value={section.key} className="border-b border-border/40">
@@ -1285,12 +1284,148 @@ export default function CurationReviewPage() {
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="pl-8 pr-2 pb-4">
-                        {/* Edit / View toggle */}
+                        {/* ── Payment Schedule ── */}
                         {isPaymentSchedule ? (
                           <PaymentScheduleSection
                             challengeId={challengeId!}
                             rewardStructure={challenge.reward_structure}
                           />
+
+                        /* ── Maturity Level Editor ── */
+                        ) : isEditing && section.key === "maturity_level" ? (
+                          <div className="space-y-3">
+                            <Select
+                              value={challenge.maturity_level ?? ""}
+                              onValueChange={(val) => handleSaveMaturityLevel(val)}
+                            >
+                              <SelectTrigger className="w-full max-w-xs">
+                                <SelectValue placeholder="Select maturity level" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {Object.entries(MATURITY_LABELS).map(([key, label]) => (
+                                  <SelectItem key={key} value={key}>
+                                    <div>
+                                      <span className="font-medium">{label}</span>
+                                      {MATURITY_DESCRIPTIONS[key] && (
+                                        <span className="text-xs text-muted-foreground ml-2">— {MATURITY_DESCRIPTIONS[key]}</span>
+                                      )}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                              <X className="h-3.5 w-3.5 mr-1" />Cancel
+                            </Button>
+                          </div>
+
+                        /* ── Complexity Assessment Editor ── */
+                        ) : isEditing && section.key === "complexity" ? (
+                          <div className="space-y-4">
+                            {complexityParams.length === 0 ? (
+                              <p className="text-sm text-muted-foreground">No complexity parameters configured. Contact an admin.</p>
+                            ) : (
+                              <>
+                                {complexityParams.map((param) => (
+                                  <div key={param.param_key} className="space-y-1.5">
+                                    <div className="flex items-center justify-between">
+                                      <label className="text-sm font-medium text-foreground">{param.name}</label>
+                                      <span className="text-sm font-semibold text-primary">{complexityDraft[param.param_key] ?? 5}</span>
+                                    </div>
+                                    {param.description && (
+                                      <p className="text-xs text-muted-foreground">{param.description}</p>
+                                    )}
+                                    <Slider
+                                      value={[complexityDraft[param.param_key] ?? 5]}
+                                      onValueChange={([val]) => setComplexityDraft((prev) => ({ ...prev, [param.param_key]: val }))}
+                                      min={1}
+                                      max={10}
+                                      step={1}
+                                      className="w-full"
+                                    />
+                                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                                      <span>Low (1)</span>
+                                      <span className="text-[10px]">Weight: {(param.weight * 100).toFixed(0)}%</span>
+                                      <span>High (10)</span>
+                                    </div>
+                                  </div>
+                                ))}
+                                <div className="border-t border-border pt-3 space-y-2">
+                                  <div className="flex items-center gap-3">
+                                    <span className="text-sm text-foreground">Weighted Score:</span>
+                                    <span className="text-lg font-bold text-primary">{complexityWeightedScore.toFixed(2)}</span>
+                                    <Badge variant="secondary" className="text-xs">
+                                      {deriveComplexityLevel(complexityWeightedScore)} — {deriveComplexityLabel(complexityWeightedScore)}
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                                <X className="h-3.5 w-3.5 mr-1" />Cancel
+                              </Button>
+                              <Button size="sm" onClick={handleSaveComplexity} disabled={savingSection || complexityParams.length === 0}>
+                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+
+                        /* ── Domain Tags Editor ── */
+                        ) : isEditing && section.key === "domain_tags" ? (
+                          <div className="space-y-3">
+                            <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+                              {domainTagDraft.map((tag) => (
+                                <Badge key={tag} variant="secondary" className="text-xs gap-1 pr-1">
+                                  <Tag className="h-3 w-3" />{tag}
+                                  <button onClick={() => handleRemoveDomainTag(tag)} className="ml-0.5 hover:text-destructive">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="relative">
+                              <Input
+                                value={domainTagInput}
+                                onChange={(e) => {
+                                  setDomainTagInput(e.target.value);
+                                  setShowTagDropdown(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" && domainTagInput.trim()) {
+                                    e.preventDefault();
+                                    handleAddDomainTag(domainTagInput);
+                                  }
+                                }}
+                                onFocus={() => setShowTagDropdown(true)}
+                                placeholder="Type to search or add a tag…"
+                                className="text-sm"
+                              />
+                              {showTagDropdown && filteredTags.length > 0 && (
+                                <div className="absolute z-20 mt-1 w-full max-h-40 overflow-y-auto rounded-md border border-border bg-popover shadow-md">
+                                  {filteredTags.map((tag) => (
+                                    <button
+                                      key={tag}
+                                      onClick={() => handleAddDomainTag(tag)}
+                                      className="w-full text-left px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                                    >
+                                      {tag}
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex gap-2 justify-end">
+                              <Button variant="outline" size="sm" onClick={() => setEditingSection(null)} disabled={savingSection}>
+                                <X className="h-3.5 w-3.5 mr-1" />Cancel
+                              </Button>
+                              <Button size="sm" onClick={handleSaveDomainTags} disabled={savingSection}>
+                                <Save className="h-3.5 w-3.5 mr-1" />{savingSection ? "Saving…" : "Save"}
+                              </Button>
+                            </div>
+                          </div>
+
+                        /* ── Deliverables Editor ── */
                         ) : isEditing && section.key === "deliverables" ? (
                           <DeliverablesEditor
                             items={getDeliverableItems(challenge)}
@@ -1320,7 +1455,15 @@ export default function CurationReviewPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="mt-3 text-xs"
-                                onClick={() => setEditingSection(section.key)}
+                                onClick={() => {
+                                  if (section.key === "complexity") {
+                                    handleStartComplexityEdit();
+                                  } else if (section.key === "domain_tags") {
+                                    handleStartDomainTagEdit();
+                                  } else {
+                                    setEditingSection(section.key);
+                                  }
+                                }}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />Edit
                               </Button>
