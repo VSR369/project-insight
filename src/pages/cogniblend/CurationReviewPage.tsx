@@ -205,7 +205,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "problem_statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
-    render: (ch) => <SafeHtmlRenderer html={ch.problem_statement} />,
+    render: (ch) => <AiContentRenderer content={ch.problem_statement} compact />,
   },
   {
     key: "scope",
