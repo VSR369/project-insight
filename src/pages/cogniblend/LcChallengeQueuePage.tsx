@@ -33,7 +33,7 @@ export default function LcChallengeQueuePage() {
   const lcChallenges = useMemo(() => {
     if (!challengeRows) return [];
     return challengeRows.filter((row) =>
-      row.role_codes?.includes('LC')
+      row.role_codes?.includes('LC') && row.current_phase >= 2
     );
   }, [challengeRows]);
 
