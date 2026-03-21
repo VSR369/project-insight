@@ -52,6 +52,7 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 
 import { useChallengeDetail, useSaveChallengeStep } from '@/hooks/queries/useChallengeForm';
 import { useCurrentOrg } from '@/hooks/queries/useCurrentOrg';
@@ -681,9 +682,7 @@ function SectionContent({
         ? getIpModelLabel(value || null)
         : value;
       return (
-        <p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">
-          {displayValue || <span className="italic">No content yet</span>}
-        </p>
+        <AiContentRenderer content={displayValue} fallback="No content yet" compact />
       );
     }
   }

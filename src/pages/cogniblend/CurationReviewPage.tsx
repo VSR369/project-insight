@@ -26,6 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { ComplexityAssessmentModule } from "@/components/cogniblend/curation/ComplexityAssessmentModule";
 import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import {
   Select,
   SelectContent,
@@ -204,7 +205,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "problem_statement",
     isFilled: (ch) => !!ch.problem_statement?.trim(),
-    render: (ch) => <SafeHtmlRenderer html={ch.problem_statement} />,
+    render: (ch) => <AiContentRenderer content={ch.problem_statement} compact />,
   },
   {
     key: "scope",
@@ -212,7 +213,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "scope",
     isFilled: (ch) => !!ch.scope?.trim(),
-    render: (ch) => <SafeHtmlRenderer html={ch.scope} />,
+    render: (ch) => <AiContentRenderer content={ch.scope} compact />,
   },
   {
     key: "deliverables",
@@ -243,7 +244,7 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "description",
     isFilled: (ch) => !!ch.description?.trim(),
-    render: (ch) => <p className="text-sm text-foreground whitespace-pre-wrap leading-relaxed">{ch.description || "—"}</p>,
+    render: (ch) => <AiContentRenderer content={ch.description} compact fallback="—" />,
   },
   {
     key: "maturity_level",

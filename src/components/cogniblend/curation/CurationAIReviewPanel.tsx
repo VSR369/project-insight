@@ -18,7 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Bot, ChevronDown, Sparkles, Check, X, Loader2, Pencil, RefreshCw } from "lucide-react";
-import { SafeHtmlRenderer } from "@/components/ui/SafeHtmlRenderer";
+import { AiContentRenderer } from "@/components/ui/AiContentRenderer";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -319,7 +319,7 @@ export function CurationAIReviewInline({
               <div className="space-y-2">
                 <p className="text-[10px] font-medium text-primary uppercase tracking-wide">Proposed Refinement</p>
                 <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-sm leading-relaxed max-h-60 overflow-y-auto">
-                  <SafeHtmlRenderer html={refinedContent} />
+                  <AiContentRenderer content={refinedContent} compact />
                 </div>
                 <div className="flex gap-2 justify-end">
                   <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleDiscard}>
