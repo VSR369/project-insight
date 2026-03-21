@@ -133,14 +133,13 @@ export default function CurationQueuePage() {
   const { data: hasPermission, isLoading: permLoading } = useQuery({
     queryKey: ["curation-permission", user?.id],
     queryFn: async () => {
-      // Check if user has CU role for at least one challenge
-      // We'll verify per-challenge when they click; here just check role exists
+      // Check if user holds an active CU role for at least one challenge
       const { data, error } = await supabase
-        .from("challenge_role_assignments" as any)
-        .select("id")
-        .eq("pool_member_id", user!.id)
+        .from("user_challenge_roles")
+        .select("challenge_id")
+        .eq("user_id", user!.id)
         .eq("role_code", "CU")
-        .eq("status", "ACTIVE")
+        .eq("is_active", true)
         .limit(1);
       if (error) return false;
       return (data ?? []).length > 0;
