@@ -264,7 +264,16 @@ const SECTIONS: SectionDef[] = [
     attribution: "by Creator",
     dbField: "maturity_level",
     isFilled: (ch) => !!ch.maturity_level,
-    render: (ch) => ch.maturity_level ? <Badge variant="secondary" className="capitalize">{ch.maturity_level}</Badge> : <p className="text-sm text-muted-foreground">Not set.</p>,
+    render: (ch) => ch.maturity_level
+      ? (
+        <div className="space-y-1">
+          <Badge variant="secondary" className="capitalize">{getMaturityLabel(ch.maturity_level)}</Badge>
+          {MATURITY_DESCRIPTIONS[ch.maturity_level] && (
+            <p className="text-xs text-muted-foreground">{MATURITY_DESCRIPTIONS[ch.maturity_level]}</p>
+          )}
+        </div>
+      )
+      : <p className="text-sm text-muted-foreground">Not set.</p>,
   },
   {
     key: "evaluation_criteria",
