@@ -1189,6 +1189,9 @@ export default function AISpecReviewPage() {
       toast.success('Specification approved. Proceeding to legal document attachment.');
       navigate(`/cogni/challenges/${challengeId}/legal`);
     }
+  };
+
+  // ═══════ QUICK mode: read-only with 1-click confirm ═══════
   if (govMode === 'QUICK') {
     return (
       <div className="max-w-4xl mx-auto p-6 space-y-6">
