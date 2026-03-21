@@ -881,18 +881,18 @@ export default function LcLegalWorkspacePage() {
       {/* ════════════════════════════════════════════════════════ */}
       {/* SECTION 4: Generate Legal Documents                    */}
       {/* ════════════════════════════════════════════════════════ */}
-      {!suggestions && !suggestionsLoading && (
+      {!hasSuggestions && !generating && !suggestionsQueryLoading && (
         <Card className="border-dashed border-2 border-primary/20">
           <CardContent className="py-8 text-center space-y-3">
             <Sparkles className="h-8 w-8 mx-auto text-primary" />
             <p className="text-sm font-semibold text-foreground">
-              Ready to Generate Legal Documents
+              {totalAccepted > 0 ? 'Generate Additional Legal Documents' : 'Ready to Generate Legal Documents'}
             </p>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
               AI will analyze the challenge specification above — maturity level, IP model, governance
               profile — and generate complete legal documents with full clauses ready for review.
             </p>
-            <Button onClick={handleGenerate} disabled={suggestionsLoading}>
+            <Button onClick={handleGenerate} disabled={generating}>
               <Sparkles className="h-4 w-4 mr-2" />
               Generate Legal Documents
             </Button>
@@ -901,7 +901,7 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* Loading */}
-      {suggestionsLoading && (
+      {generating && (
         <Card>
           <CardContent className="py-8 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-3" />
@@ -911,12 +911,12 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* Error */}
-      {suggestionsError && hasGenerated && (
+      {generateError && (
         <Card className="border-destructive/30">
           <CardContent className="py-6 text-center">
             <AlertCircle className="h-6 w-6 mx-auto text-destructive mb-2" />
-            <p className="text-sm text-destructive">Failed to load AI suggestions</p>
-            <p className="text-xs text-muted-foreground mt-1">{suggestionsError.message}</p>
+            <p className="text-sm text-destructive">Failed to generate AI suggestions</p>
+            <p className="text-xs text-muted-foreground mt-1">{generateError}</p>
             <Button variant="outline" size="sm" className="mt-3" onClick={handleGenerate}>
               Retry
             </Button>
@@ -925,9 +925,9 @@ export default function LcLegalWorkspacePage() {
       )}
 
       {/* ════════════════════════════════════════════════════════ */}
-      {/* SECTION 5: AI Summary + Document Cards                 */}
+      {/* SECTION 5: AI Suggestion Document Cards                 */}
       {/* ════════════════════════════════════════════════════════ */}
-      {suggestions && (
+      {hasSuggestions && (
         <div className="space-y-4">
           {/* AI Summary Banner */}
           <Card className="border-primary/20 bg-primary/5">
@@ -935,7 +935,9 @@ export default function LcLegalWorkspacePage() {
               <Sparkles className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div>
                 <p className="text-sm font-semibold text-foreground">AI Legal Analysis</p>
-                <p className="text-sm text-muted-foreground mt-1">{suggestions.summary}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {visibleSuggestions.length} document{visibleSuggestions.length !== 1 ? 's' : ''} recommended for this challenge.
+                </p>
               </div>
             </CardContent>
           </Card>
