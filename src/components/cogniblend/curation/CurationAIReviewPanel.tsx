@@ -142,18 +142,6 @@ export function CurationAIReviewInline({
   }, []);
 
   if (!review) {
-    // Show a trigger button to request review for this section
-    if (onReviewSection) {
-      return (
-        <button
-          onClick={() => onReviewSection(sectionKey)}
-          className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <Bot className="h-3.5 w-3.5" />
-          <span>Request AI Review</span>
-        </button>
-      );
-    }
     return null;
   }
 
