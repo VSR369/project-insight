@@ -363,6 +363,7 @@ export default function LcLegalWorkspacePage() {
 
       const { error } = await supabase.from('challenge_legal_docs').update({
         status: 'ATTACHED',
+        content_summary: edit.content || doc.content_summary || null,
         lc_status: 'approved',
         lc_reviewed_by: user.id,
         lc_reviewed_at: new Date().toISOString(),
