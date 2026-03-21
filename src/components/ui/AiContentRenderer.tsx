@@ -10,6 +10,7 @@ import { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { SafeHtmlRenderer } from '@/components/ui/SafeHtmlRenderer';
+import { StructuredRenderer } from '@/components/ui/AiStructuredCards';
 import { cn } from '@/lib/utils';
 
 interface AiContentRendererProps {
