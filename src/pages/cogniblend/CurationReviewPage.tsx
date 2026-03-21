@@ -976,31 +976,27 @@ export default function CurationReviewPage() {
       });
   }, [complexityParams, complexityDraft, challengeId, user?.id, queryClient]);
 
-  const handleStartDomainTagEdit = useCallback(() => {
-    if (!challenge) return;
-    const existing = parseJson<string[]>(challenge.domain_tags);
-    setDomainTagDraft(Array.isArray(existing) ? [...existing] : []);
-    setDomainTagInput("");
-    setEditingSection("domain_tags");
-  }, [challenge]);
-
+  /** Domain tags — auto-save on each add/remove (YouTube-style) */
   const handleAddDomainTag = useCallback((tag: string) => {
+    if (!challenge) return;
     const trimmed = tag.trim();
-    if (trimmed && !domainTagDraft.includes(trimmed)) {
-      setDomainTagDraft((prev) => [...prev, trimmed]);
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    const current = Array.isArray(existing) ? existing : [];
+    if (trimmed && !current.includes(trimmed)) {
+      const updated = [...current, trimmed];
+      saveSectionMutation.mutate({ field: "domain_tags", value: updated });
     }
     setDomainTagInput("");
     setShowTagDropdown(false);
-  }, [domainTagDraft]);
+  }, [challenge, saveSectionMutation]);
 
   const handleRemoveDomainTag = useCallback((tag: string) => {
-    setDomainTagDraft((prev) => prev.filter((t) => t !== tag));
-  }, []);
-
-  const handleSaveDomainTags = useCallback(() => {
-    setSavingSection(true);
-    saveSectionMutation.mutate({ field: "domain_tags", value: domainTagDraft });
-  }, [saveSectionMutation, domainTagDraft]);
+    if (!challenge) return;
+    const existing = parseJson<string[]>(challenge.domain_tags);
+    const current = Array.isArray(existing) ? existing : [];
+    const updated = current.filter((t) => t !== tag);
+    saveSectionMutation.mutate({ field: "domain_tags", value: updated });
+  }, [challenge, saveSectionMutation]);
 
   const handleAIReview = useCallback(async () => {
     if (!challengeId) return;
