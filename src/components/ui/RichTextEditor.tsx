@@ -281,6 +281,7 @@ export function RichTextEditor({
           ).run();
         }
 
+        setMediaFiles((prev) => [...prev, { id: Date.now(), name: file.name, type: category, size: file.size }]);
         toast.success(`${category.charAt(0).toUpperCase() + category.slice(1)} uploaded`);
       } catch {
         clearInterval(interval);
