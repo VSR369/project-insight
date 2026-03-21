@@ -172,7 +172,7 @@ function MessageBubble({ message }: { message: RegistrantMessage }) {
       </div>
       <p className="text-xs font-medium text-foreground">{message.subject}</p>
       <div
-        className="text-sm text-foreground/90"
+        className="editor-content text-sm text-foreground/90"
         dangerouslySetInnerHTML={{ __html: message.body_html }}
       />
       <div className="flex items-center gap-2 pt-1">

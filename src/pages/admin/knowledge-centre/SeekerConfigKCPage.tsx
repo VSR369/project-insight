@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeatureErrorBoundary } from '@/components/ErrorBoundary';
+import { AiContentRenderer } from '@/components/ui/AiContentRenderer';
 import { Button } from '@/components/ui/button';
 import { useAdminTier } from '@/hooks/useAdminTier';
 import {
@@ -345,13 +346,8 @@ function SeekerConfigKCContent() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="px-4">
-                    <div className="prose prose-sm max-w-none text-muted-foreground whitespace-pre-line pl-7">
-                      {item.content.split(/(\*\*.*?\*\*)/g).map((segment, i) => {
-                        if (segment.startsWith('**') && segment.endsWith('**')) {
-                          return <strong key={i} className="text-foreground font-semibold">{segment.slice(2, -2)}</strong>;
-                        }
-                        return <span key={i}>{segment}</span>;
-                      })}
+                    <div className="pl-7">
+                      <AiContentRenderer content={item.content} compact />
                     </div>
                   </AccordionContent>
                 </AccordionItem>

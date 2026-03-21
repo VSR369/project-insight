@@ -79,7 +79,7 @@ export function DocxPreviewCanvas({ fileData, blobUrl, fileName }: DocxPreviewCa
         </div>
       )}
       <div
-        className={`flex-1 min-h-0 overflow-auto p-6 prose prose-sm max-w-none dark:prose-invert ${status !== 'rendered' ? 'invisible' : ''}`}
+        className={`flex-1 min-h-0 overflow-auto p-6 editor-content max-w-none ${status !== 'rendered' ? 'invisible' : ''}`}
         dangerouslySetInnerHTML={{ __html: html }}
       />
     </div>

@@ -199,7 +199,7 @@ export default function PulseContentDetailPage() {
 
           {/* Text Content */}
           {displayText && (
-            <div className="prose prose-sm dark:prose-invert max-w-none mb-4">
+            <div className="editor-content max-w-none mb-4">
               <p className="whitespace-pre-wrap text-foreground/90">{displayText}</p>
             </div>
           )}
