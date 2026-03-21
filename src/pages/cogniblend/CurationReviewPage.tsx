@@ -1426,13 +1426,7 @@ export default function CurationReviewPage() {
                                 variant="ghost"
                                 size="sm"
                                 className="mt-3 text-xs"
-                                onClick={() => {
-                                  if (section.key === "complexity") {
-                                    handleStartComplexityEdit();
-                                  } else {
-                                    setEditingSection(section.key);
-                                  }
-                                }}
+                                onClick={() => setEditingSection(section.key)}
                               >
                                 <Pencil className="h-3 w-3 mr-1" />Edit
                               </Button>
