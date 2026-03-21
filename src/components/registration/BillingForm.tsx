@@ -708,7 +708,7 @@ export function BillingForm() {
                             </DialogTitle>
                           </DialogHeader>
                           <ScrollArea className="flex-1 min-h-0">
-                            <div className="prose prose-sm max-w-none p-4 text-foreground">
+                            <div className="editor-content max-w-none p-4">
                               {platformTerms?.content ? (
                                 <div dangerouslySetInnerHTML={{ __html: platformTerms.content }} />
                               ) : (

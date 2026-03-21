@@ -50,7 +50,7 @@ export function SafeHtmlRenderer({ html, className, fallback = '—' }: SafeHtml
 
   return (
     <div
-      className={cn('prose prose-sm max-w-none text-foreground', className)}
+      className={cn('editor-content max-w-none', className)}
       dangerouslySetInnerHTML={{ __html: sanitized }}
     />
   );

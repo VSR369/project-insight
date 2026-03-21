@@ -109,12 +109,12 @@ export function CompiledView({
         )}
 
         {/* Narrative Content */}
-        <p className={cn(
-          "text-lg leading-relaxed text-foreground",
-          isCompiling && "opacity-50"
-        )}>
-          {narrative || "No content available yet."}
-        </p>
+        <div className={cn(isCompiling && "opacity-50")}>
+          <AiContentRenderer
+            content={narrative}
+            fallback="No content available yet."
+          />
+        </div>
 
         {/* Footer */}
         <div className="mt-6 pt-4 border-t border-border">
